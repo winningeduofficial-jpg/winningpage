@@ -1,17 +1,17 @@
-import { supabase } from '../../lib/supabase';
+import { supabase } from "../../lib/supabase";
 
 // 시안(hsokTD6OilcNEXyCR24sn4, 1882:7837/8153) 원문 그대로 — 오탈자·구분자(U+2022) 임의 수정 금지.
 // Admin.jsx select options는 이 배열과 자 단위로 동일해야 함 (edu-column-renewal-spec §4-5).
-export const ALL_CATEGORY = '전체';
+export const ALL_CATEGORY = "전체";
 
 export const COLUMN_CATEGORIES = [
-  '학습관리 방법',
-  '수시 및 정시 전략',
-  '특목고 입학',
-  '해외 및 대학원',
-  '입시제도 변화',
-  '대학 입시 제로', // 시안 원문 그대로 — '입시 정보' 오타 의심이나 임의 수정 금지
-  '학생부•수행평가•세특' // 가운뎃점 U+2022 BULLET
+  "학습관리 방법",
+  "수시 및 정시 전략",
+  "특목고 입학",
+  "해외 및 대학원",
+  "입시제도 변화",
+  "대학 입시 제로", // 시안 원문 그대로 — '입시 정보' 오타 의심이나 임의 수정 금지
+  "학생부•수행평가•세특", // 가운뎃점 U+2022 BULLET
 ];
 
 /**
@@ -23,7 +23,7 @@ export function normalizeImageUrls(row) {
   if (Array.isArray(value)) return value;
   if (!value) return [];
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : value ? [value] : [];
@@ -36,7 +36,7 @@ export function normalizeImageUrls(row) {
 }
 
 export function getThumbnailUrl(row) {
-  return normalizeImageUrls(row)[0] || row?.image_url || '';
+  return normalizeImageUrls(row)[0] || row?.image_url || "";
 }
 
 // 커버 이미지도 동일 로직 — 의미 분리용 별칭.
@@ -49,7 +49,7 @@ export function getDisplayDate(row) {
 }
 
 export function formatDate(value) {
-  if (!value) return '';
+  if (!value) return "";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
   return date.toISOString().slice(0, 10);
@@ -77,13 +77,13 @@ export function getCategoryLabel(row) {
  */
 export async function fetchActiveColumns() {
   const { data, error } = await supabase
-    .from('galleries')
-    .select('*')
-    .eq('is_active', true)
-    .order('created_at', { ascending: false });
+    .from("galleries")
+    .select("*")
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
 
   if (error) {
-    console.error('교육칼럼 조회 실패:', error);
+    console.error("교육칼럼 조회 실패:", error);
     return [];
   }
 
@@ -92,14 +92,14 @@ export async function fetchActiveColumns() {
 
 export async function fetchColumnById(id) {
   const { data, error } = await supabase
-    .from('galleries')
-    .select('*')
-    .eq('id', id)
-    .eq('is_active', true)
+    .from("galleries")
+    .select("*")
+    .eq("id", id)
+    .eq("is_active", true)
     .maybeSingle();
 
   if (error) {
-    console.error('교육칼럼 상세 조회 실패:', error);
+    console.error("교육칼럼 상세 조회 실패:", error);
     return null;
   }
 
@@ -112,10 +112,13 @@ export async function fetchColumnById(id) {
  */
 export function pickFeaturedColumns(rows) {
   const sorted = [...rows].sort(
-    (a, b) => new Date(getDisplayDate(b) || 0) - new Date(getDisplayDate(a) || 0)
+    (a, b) =>
+      new Date(getDisplayDate(b) || 0) - new Date(getDisplayDate(a) || 0),
   );
 
-  const featured = sorted.filter((row) => row?.is_featured === true).slice(0, 4);
+  const featured = sorted
+    .filter((row) => row?.is_featured === true)
+    .slice(0, 4);
 
   if (featured.length >= 4) return featured;
 

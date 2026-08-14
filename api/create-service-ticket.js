@@ -1,175 +1,122 @@
-import crypto from 'crypto';
-import { createClient } from '@supabase/supabase-js';
+import crypto from "node:crypto";
+import { createClient } from "@supabase/supabase-js";
+import {
+  clean,
+  getBearerToken,
+  hasPaidServiceAccess,
+  SERVICE_CONFIGS,
+} from "./_lib/serviceAccess.js";
 
-const PAID_MESSAGE = '유료결제이후 이용해주세요!';
+const PAID_MESSAGE = "유료결제이후 이용해주세요!";
+// 기간 만료 전용 안내(api/_lib/serviceAccess.js의 checkProgramAccessTable 참고).
+// ToS(StudentService.jsx/ParentService.jsx §제3항)가 이미 쓰는 "재결제(재구매)"
+// 어휘를 그대로 따른다 — "결제해 주세요" 로만 쓰면 이미 낸 돈을 부정하는 말로 읽힌다.
+const EXPIRED_MESSAGE =
+  "이용 기간이 만료되었습니다. 계속 이용하시려면 재결제(재구매)해 주세요.";
 const TICKET_TTL_SECONDS = Number(process.env.SSO_TICKET_TTL_SECONDS || 180);
-
-const SERVICE_CONFIGS = {
-  suhaeng: {
-    service_key: 'suhaeng',
-    service_name: 'AI 수행평가 서비스',
-    target_url: process.env.SUHAENG_SERVICE_URL,
-    payment_keywords: ['수행', '수행평가', 'AI 수행평가', '세특팅'],
-    program_keys: ['suhaeng']
-  },
-  goal: {
-    service_key: 'goal',
-    service_name: '목표관리 서비스',
-    target_url: process.env.GOAL_SERVICE_URL || process.env.TARGET_SERVICE_URL,
-    payment_keywords: ['목표', '목표관리', '목표 관리', '학습관리', '학습 관리'],
-    program_keys: ['goal', 'target']
-  }
-};
-
-function clean(value) {
-  return String(value || '').trim();
-}
 
 function getEnv(...keys) {
   for (const key of keys) {
     const value = clean(process.env[key]);
     if (value) return value;
   }
-  return '';
-}
-
-function normalizeStatus(value) {
-  return clean(value).toLowerCase().replace(/\s/g, '');
-}
-
-function isPaidStatus(value) {
-  const status = normalizeStatus(value);
-  return [
-    'paid',
-    'active',
-    '완납',
-    '납부완료',
-    '결제완료',
-    '결제완료됨',
-    '결제완료/이용중',
-    '이용중'
-  ].some((item) => status.includes(item));
-}
-
-function isActiveStatus(value) {
-  const status = normalizeStatus(value);
-  if (!status) return true;
-  return ['active', '활성', '사용중', '이용중', '정상'].some((item) => status.includes(item));
+  return "";
 }
 
 function base64urlJson(value) {
-  return Buffer.from(JSON.stringify(value)).toString('base64url');
+  return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
 function sha256(value) {
-  return crypto.createHash('sha256').update(value).digest('hex');
+  return crypto.createHash("sha256").update(value).digest("hex");
 }
 
 function signTicket(payload, secret) {
-  const header = { alg: 'HS256', typ: 'JWT' };
+  const header = { alg: "HS256", typ: "JWT" };
   const body = `${base64urlJson(header)}.${base64urlJson(payload)}`;
-  const signature = crypto.createHmac('sha256', secret).update(body).digest('base64url');
+  const signature = crypto
+    .createHmac("sha256", secret)
+    .update(body)
+    .digest("base64url");
   return `${body}.${signature}`;
 }
 
-function getBearerToken(req) {
-  return clean(req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-}
-
 function createSupabaseAdmin() {
-  const url = getEnv('WINNING_SUPABASE_URL', 'SUPABASE_URL', 'VITE_SUPABASE_URL');
+  const url = getEnv(
+    "WINNING_SUPABASE_URL",
+    "SUPABASE_URL",
+    "VITE_SUPABASE_URL",
+  );
   const key = getEnv(
-    'WINNING_SUPABASE_SERVICE_ROLE_KEY',
-    'SUPABASE_SERVICE_ROLE_KEY',
-    'WINNING_SUPABASE_KEY',
-    'SUPABASE_KEY'
+    "WINNING_SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "WINNING_SUPABASE_KEY",
+    "SUPABASE_KEY",
   );
 
   if (!url || !key) {
-    throw new Error('WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.');
+    throw new Error(
+      "WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.",
+    );
   }
 
   return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false }
+    auth: { persistSession: false, autoRefreshToken: false },
   });
-}
-
-async function checkProgramAccessTable(supabaseAdmin, userId, config) {
-  const selectors = ['id', 'user_id', 'profile_id'];
-
-  for (const column of selectors) {
-    for (const programKey of config.program_keys) {
-      const { data, error } = await supabaseAdmin
-        .from('program_access')
-        .select('id, payment_status, access_status')
-        .eq(column, userId)
-        .eq('program_key', programKey)
-        .maybeSingle();
-
-      if (error) continue;
-
-      if (data && isPaidStatus(data.payment_status) && isActiveStatus(data.access_status)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
-async function checkEnrollmentPayment(supabaseAdmin, userId, config) {
-  const { data, error } = await supabaseAdmin
-    .from('admin_enrollments')
-    .select('id, profile_id, category_name, program_name, class_name, payment_status, application_status')
-    .eq('profile_id', userId)
-    .limit(100);
-
-  if (error) {
-    throw error;
-  }
-
-  return (data || []).some((row) => {
-    const nameText = [row.category_name, row.program_name, row.class_name]
-      .map((value) => clean(value))
-      .join(' ');
-
-    const serviceMatched = config.payment_keywords.some((keyword) => nameText.includes(keyword));
-    return serviceMatched && isPaidStatus(row.payment_status);
-  });
-}
-
-async function hasPaidServiceAccess(supabaseAdmin, userId, config) {
-  const byProgramAccess = await checkProgramAccessTable(supabaseAdmin, userId, config);
-  if (byProgramAccess) return true;
-
-  return checkEnrollmentPayment(supabaseAdmin, userId, config);
 }
 
 function getUserName(user) {
   const meta = user?.user_metadata || {};
-  return clean(meta.name || meta.full_name || meta.student_name || user?.email || '');
+  return clean(
+    meta.name || meta.full_name || meta.student_name || user?.email || "",
+  );
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ detail: 'Method not allowed' });
+  if (req.method !== "POST") {
+    return res.status(405).json({ detail: "Method not allowed" });
   }
 
   try {
     const { service_key } = req.body || {};
+
+    // 수행평가 인앱 전환(하드 전환, 2026-08-13 사용자 확정) — 외부 앱은 고객사
+    // 초안 프로토타입으로 이관 종결됐고, 이 브랜치의 dev 머지 시점이 곧 전환
+    // 시점이라 병행 플래그를 두지 않는다. 히어로 CTA는 더 이상 이 엔드포인트를
+    // 부르지 않지만(PerformanceAssessment.jsx는 이제 /app/performance로 직접
+    // 이동한다), 구 링크・북마크로 이 엔드포인트가 여전히 호출될 수 있어(명세
+    // §11-③) 분기를 제거하지 않고 인앱 경로 안내 응답으로 교체한다. SSO
+    // 티켓 발급(target_url/SSO_SECRET/서명)은 더 이상 필요 없다 — 실제 이용권
+    // 판정은 /app/performance 진입 가드(RequireEntitlement, App.jsx)가 서버
+    // 최종 권위로 다시 수행하므로 여기서 이중 판정하지 않는다.
+    // 응답 필드는 기존 SSO 티켓 응답과 동일한 `redirect_url`을 쓴다 — 프론트
+    // 소비 코드(src/lib/paidServiceAccess.js의 `window.location.href =
+    // result.redirect_url`)가 절대/상대 경로를 가리지 않아 그대로 호환된다.
+    if (clean(service_key) === "suhaeng") {
+      return res.status(200).json({
+        ok: true,
+        service_key: "suhaeng",
+        redirect_url: "/app/performance",
+      });
+    }
+
     const config = SERVICE_CONFIGS[clean(service_key)];
 
     if (!config) {
-      return res.status(400).json({ detail: '알 수 없는 서비스입니다.' });
+      return res.status(400).json({ detail: "알 수 없는 서비스입니다." });
     }
 
     if (!config.target_url) {
-      return res.status(500).json({ detail: `${config.service_name} target_url 환경변수가 필요합니다.` });
+      return res.status(500).json({
+        detail: `${config.service_name} target_url 환경변수가 필요합니다.`,
+      });
     }
 
-    const secret = getEnv('SSO_SECRET');
+    const secret = getEnv("SSO_SECRET");
     if (!secret || secret.length < 32) {
-      return res.status(500).json({ detail: 'SSO_SECRET 환경변수가 필요합니다. 32자 이상으로 설정해주세요.' });
+      return res.status(500).json({
+        detail: "SSO_SECRET 환경변수가 필요합니다. 32자 이상으로 설정해주세요.",
+      });
     }
 
     const token = getBearerToken(req);
@@ -178,7 +125,8 @@ export default async function handler(req, res) {
     }
 
     const supabaseAdmin = createSupabaseAdmin();
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    const { data: userData, error: userError } =
+      await supabaseAdmin.auth.getUser(token);
 
     if (userError || !userData?.user?.id) {
       return res.status(401).json({ detail: PAID_MESSAGE });
@@ -186,10 +134,12 @@ export default async function handler(req, res) {
 
     const user = userData.user;
     const userId = user.id;
-    const allowed = await hasPaidServiceAccess(supabaseAdmin, userId, config);
+    const access = await hasPaidServiceAccess(supabaseAdmin, userId, config);
 
-    if (!allowed) {
-      return res.status(403).json({ detail: PAID_MESSAGE });
+    if (!access.allowed) {
+      const detail =
+        access.reason === "period_expired" ? EXPIRED_MESSAGE : PAID_MESSAGE;
+      return res.status(403).json({ detail });
     }
 
     const now = Date.now();
@@ -207,14 +157,14 @@ export default async function handler(req, res) {
       user_name: userName,
       student_name: userName,
       issued_at: issuedAt,
-      expires_at: expiresAt
+      expires_at: expiresAt,
     };
 
     const ticket = signTicket(payload, secret);
     const ticketHash = sha256(ticket);
 
     const { error: insertError } = await supabaseAdmin
-      .from('sso_tickets')
+      .from("sso_tickets")
       .insert({
         ticket_id: ticketId,
         ticket_hash: ticketHash,
@@ -222,27 +172,30 @@ export default async function handler(req, res) {
         winning_user_id: userId,
         user_name: userName,
         issued_at: issuedAt,
-        expires_at: expiresAt
+        expires_at: expiresAt,
       });
 
     if (insertError) {
-      console.error('sso_tickets insert error:', insertError);
+      console.error("sso_tickets insert error:", insertError);
       return res.status(500).json({
-        detail: 'sso_tickets 테이블이 없거나 저장 권한이 없습니다. 추가 SQL 적용이 필요합니다.'
+        detail:
+          "sso_tickets 테이블이 없거나 저장 권한이 없습니다. 추가 SQL 적용이 필요합니다.",
       });
     }
 
     const redirectUrl = new URL(config.target_url);
-    redirectUrl.searchParams.set('sso_ticket', ticket);
+    redirectUrl.searchParams.set("sso_ticket", ticket);
 
     return res.status(200).json({
       ok: true,
       service_key: config.service_key,
       redirect_url: redirectUrl.toString(),
-      expires_at: expiresAt
+      expires_at: expiresAt,
     });
   } catch (error) {
-    console.error('create-service-ticket error:', error);
-    return res.status(500).json({ detail: '서비스 입장권 생성 중 오류가 발생했습니다.' });
+    console.error("create-service-ticket error:", error);
+    return res
+      .status(500)
+      .json({ detail: "서비스 입장권 생성 중 오류가 발생했습니다." });
   }
 }

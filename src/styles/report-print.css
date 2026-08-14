@@ -1,0 +1,325 @@
+/*
+ * report-print.css
+ * 무료진단 결과 리포트 전용 인쇄 스타일. FreeDiagnosisReport.jsx 에서만 import 한다.
+ *
+ * 핵심 트릭 — rem 균등 축소: 리포트 내부 길이가 전부 rem 이므로 print 에서
+ * html font-size 만 3mm 로 바꾸면 시트 70rem → 210mm(A4 폭 정확 일치),
+ * 99.0588rem → 297.18mm ≈ A4 높이. 시안 1120:1584.94 비율(0.70665)이
+ * A4 비율(0.7071)과 사실상 동일해 별도 transform/scale 이 필요 없다.
+ *
+ * 전제: 리포트 컴포넌트 내 CSS 길이값은 전부 rem (px 절대 금지) — 구현 에이전트가
+ * px 클래스를 1개라도 쓰면 인쇄에서만 어긋난다(화면은 정상이라 발견이 늦다).
+ * 예외: border 1px 헤어라인, SVG viewBox 내부 좌표(컨테이너 종속)만 허용.
+ *
+ * 이 파일은 Vite 전역 번들에 포함되므로 셀렉터를 전부 .fd-* 접두 클래스로 한정해
+ * 다른 페이지와 충돌하지 않도록 한다. (기존 코드베이스에 @media print 셀렉터 없음.)
+ */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html {
+    font-size: 3mm !important; /* 70rem 시트 → 210mm(A4 폭) */
+  }
+
+  header,
+  footer {
+    display: none !important; /* SiteLayout 의 Header(fixed)·SiteFooter */
+  }
+
+  .fd-no-print {
+    display: none !important; /* PDF 다운로드 버튼 */
+  }
+
+  /*
+   * fd-screen-only (F-04 · F-05, 2026-08-11) — 화면 전용 확장 영역·각주 일괄 제외.
+   *
+   * 인쇄 페이지 하단 여유는 실측 1p 71.0px · 2p 52.6px 뿐이라 AREA_COPY 108문구와 고지
+   * 7종을 시트 안에 넣을 자리가 물리적으로 없다. 화면은 세로 제약이 없으므로 그쪽으로
+   * 옮기고 여기서 통째로 뺀다 — 그래서 인쇄는 승인된 A4 정확히 2장을 유지한다.
+   *
+   * §7.5 예외 명시: `fd-screen-only` 하위의 `lg:` 값들은 인쇄에서 이 한 줄로 전부 사라지므로
+   * 개별 `fd-*` 인쇄 훅을 만들지 않는다. 다음 감사자가 훅 20개를 덧붙이지 않도록 여기 적어 둔다.
+   * (반대로 fd-screen-only **밖**에 새 `lg:` 를 만들면 §7.5 대로 훅을 함께 추가해야 한다.)
+   */
+  .fd-screen-only {
+    display: none !important;
+  }
+
+  .fd-print-area {
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    background: #fff !important;
+    min-height: auto !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .fd-sheet-stack {
+    gap: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .fd-report-sheet {
+    width: 70rem !important;
+    height: 297mm !important; /* 297.18mm 오버플로 방지 고정 */
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 3.75rem !important; /* ReportSheetA4 lg:p-[3.75rem] 와 동일 출처 */
+    border-radius: 0 !important; /* ReportSheetA4 lg:rounded-none 와 동일 */
+    box-shadow: none !important;
+    overflow: hidden !important;
+  }
+
+  /* 시트 사이에만 개행 — 형제 요소 추가에 안전 */
+  .fd-report-sheet + .fd-report-sheet {
+    break-before: page;
+    page-break-before: page;
+  }
+
+  /*
+   * F-18 (2026-08-11) — 예시(픽스처) 리포트 워터마크.
+   * 화면 배너만으로는 부족하다: 인쇄물은 표시 없이 그대로 남의 리포트로 유통된다.
+   * 흐름 안 배너를 인쇄에 넣으면 하단 여유(1p 71.0px)에 잘리므로 **문서 흐름 밖**
+   * (position:absolute ::after)으로 분리한다 — 시트 높이에 1px 도 기여하지 않는다.
+   * 조상 클래스(.fd-report-sample)는 FreeDiagnosisReport 가 data.isSample 로만 붙인다.
+   *
+   * G-3(NIT 5, 2026-08-12) — 워터마크 문구의 정의처는 이제 CSS 가 아니라
+   * `src/data/diagnosisScreenCopy.js` 의 `SAMPLE_REPORT_COPY.WATERMARK` 하나다. 종전엔 CSS
+   * 리터럴이라 JS 문구 검사·격리 스캔 밖에 있었다 — `content: attr(data-watermark)` 로 값을
+   * **주입**만 받는다(속성은 ReportSheetA4.jsx 가 내려보낸다). 문구가 바뀌면 그 상수만 고친다.
+   */
+  .fd-report-sample .fd-report-sheet {
+    position: relative !important;
+  }
+
+  .fd-report-sample .fd-report-sheet::after {
+    content: attr(data-watermark);
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(-45deg);
+    font-size: 18rem; /* html font-size 3mm 기준 = 54mm */
+    font-weight: 700;
+    letter-spacing: 1.5rem;
+    color: #525252;
+    opacity: 0.1; /* 본문 판독을 방해하지 않으면서 복사본에서 사라지지 않는 하한 */
+    pointer-events: none;
+    white-space: nowrap;
+  }
+
+  .fd-print-area * {
+    -webkit-print-color-adjust: exact !important; /* 뱃지 bg·바 fill·의미색 보존 */
+    print-color-adjust: exact !important;
+  }
+
+  /*
+   * R4(2026-08-11) — BLOCK 수정: 인쇄 뷰포트는 용지 210mm ≈ 794px 레이아웃 뷰포트로
+   * 렌더된다. Tailwind `lg:` 는 min-width:1024px 뷰포트 기준이라 인쇄에서 전부 꺼지고,
+   * R3 의 모바일 리플로우(행카드·반응형 게이지 등)가 그대로 인쇄에 적용돼 시트 높이를
+   * 넘긴다. 화면과 인쇄의 책임을 분리한다 — 모바일 리플로우는 screen 전용, 인쇄는 항상
+   * A4 데스크톱 레이아웃이다. 아래 값은 전부 각 컴포넌트의 기존 lg: 리터럴과 동일한
+   * 출처(같은 rem 값)를 복사한 것이며 새로 만든 매직 넘버가 아니다.
+   */
+
+  /* fd-page-label — ReportSheetA4 lg:text-base(1rem) lg:text-[#808080] */
+  .fd-page-label {
+    font-size: 1rem !important;
+    color: #808080 !important;
+  }
+
+  /* PriorityTable — hidden lg:block(데스크톱 표) / lg:hidden(모바일 카드) 강제 전환 */
+  .fd-wide-only {
+    display: block !important;
+  }
+
+  .fd-narrow-only {
+    display: none !important;
+  }
+
+  /* DimensionBarChart — lg:h-5(1.25rem) lg:gap-[3.75rem] */
+  .fd-dim-row {
+    height: 1.25rem !important;
+    gap: 3.75rem !important;
+  }
+
+  /* DimensionBarChart 라벨 — lg:w-[4.625rem] */
+  .fd-dim-label {
+    width: 4.625rem !important;
+  }
+
+  /* DimensionBarChart ScoreBar(responsive) — lg:w-[14.4375rem] lg:flex-none */
+  .fd-dim-bar {
+    width: 14.4375rem !important;
+    flex: none !important;
+  }
+
+  /* DimensionBarChart 상태 라벨 — lg:w-[3.75rem] lg:text-left lg:whitespace-nowrap */
+  .fd-dim-status {
+    width: 3.75rem !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+  }
+
+  /* ReportPageOne 헤드라인 — lg:mt-[2.875rem] lg:w-[35.875rem] lg:text-[2rem] lg:tracking-[-0.04rem] */
+  .fd-headline {
+    margin-top: 2.875rem !important;
+    width: 35.875rem !important;
+    font-size: 2rem !important;
+    letter-spacing: -0.04rem !important;
+  }
+
+  /* RadarChart6 겹침 배치 — lg:absolute lg:left-[35.875rem] lg:top-[2.5625rem] lg:mx-0 lg:mt-0 */
+  .fd-radar-overlay {
+    position: absolute !important;
+    left: 35.875rem !important;
+    top: 2.5625rem !important;
+    margin: 0 !important;
+  }
+
+  /* RadarChart6 크기 — lg:h-[24.9375rem] lg:w-[27.875rem] lg:max-w-none */
+  .fd-radar-svg {
+    height: 24.9375rem !important;
+    width: 27.875rem !important;
+    max-width: none !important;
+  }
+
+  /* ReportPageOne 섹션 간격 — 각 lg:mt-* 리터럴과 동일 값 */
+  .fd-mt-student {
+    margin-top: 4.1875rem !important;
+  }
+
+  .fd-mt-traits-heading {
+    margin-top: 3.5625rem !important;
+  }
+
+  .fd-mt-summary-cards {
+    margin-top: 1.8125rem !important;
+  }
+
+  .fd-mt-urgency {
+    margin-top: 0.5rem !important; /* lg:mt-2 */
+  }
+
+  .fd-mt-priority {
+    margin-top: 3.9375rem !important;
+  }
+
+  .fd-mt-traits {
+    margin-top: 5.875rem !important;
+  }
+
+  /* SummaryCards — lg:w-[62.5rem] lg:flex-row lg:justify-between lg:gap-0 */
+  .fd-summary-cards {
+    width: 62.5rem !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    gap: 0 !important;
+  }
+
+  /* SummaryCards 카드 — lg:h-[8.875rem] lg:w-[20.0625rem] lg:pl-[1.1875rem] lg:pt-[1.75rem] */
+  .fd-summary-card {
+    height: 8.875rem !important;
+    width: 20.0625rem !important;
+    padding-left: 1.1875rem !important;
+    padding-top: 1.75rem !important;
+  }
+
+  /* ReadinessOverview 요약 — lg:w-[30.5625rem] */
+  .fd-readiness-summary {
+    width: 30.5625rem !important;
+  }
+
+  /* InsightColumns — lg:mt-[4.5rem] lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4 lg:gap-y-0 */
+  .fd-insight-columns {
+    margin-top: 4.5rem !important;
+    grid-template-columns: 30.875rem 30.875rem !important;
+    column-gap: 1rem !important;
+    row-gap: 0 !important;
+  }
+
+  /* AdmissionSection — lg:mt-[4.0625rem] */
+  .fd-admission-section {
+    margin-top: 4.0625rem !important;
+  }
+
+  /* AdmissionSection 요약문 — lg:w-[30.625rem] */
+  .fd-admission-summary {
+    width: 30.625rem !important;
+  }
+
+  /* AdmissionSection 표 박스 — lg:w-[31.875rem] */
+  .fd-admission-box {
+    width: 31.875rem !important;
+  }
+
+  /* AdmissionSection 행 간격 — lg:gap-[0.9375rem] */
+  .fd-admission-rows {
+    gap: 0.9375rem !important;
+  }
+
+  /* AdmissionSection 헤더/행 그리드 — lg:grid-cols-[10rem_1fr_1fr] lg:items-center */
+  .fd-admission-grid {
+    grid-template-columns: 10rem 1fr 1fr !important;
+    align-items: center !important;
+  }
+
+  /* RecommendServices — lg:mt-[5.3125rem] */
+  .fd-recommend-section {
+    margin-top: 5.3125rem !important;
+  }
+
+  /* RecommendServices 그리드 — lg:mt-[0.9375rem] lg:grid-cols-2 lg:gap-5 */
+  .fd-recommend-grid {
+    margin-top: 0.9375rem !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 1.25rem !important;
+  }
+
+  /* RecommendServices 카드 — lg:h-[12.5625rem] lg:w-[30.625rem] lg:pl-[0.8125rem] lg:pr-0 lg:pt-4 lg:pb-0 */
+  .fd-recommend-card {
+    height: 12.5625rem !important;
+    width: 30.625rem !important;
+    padding-left: 0.8125rem !important;
+    padding-right: 0 !important;
+    padding-top: 1rem !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* RecommendServices 본문 — lg:w-[28.8125rem] */
+  .fd-recommend-desc {
+    width: 28.8125rem !important;
+  }
+
+  /* ReportPageTwo reportBasis 각주 — lg:mt-6 */
+  .fd-mt-report-basis {
+    margin-top: 1.5rem !important;
+  }
+
+  /* StudentInfoBlock — lg:w-[24.375rem] */
+  .fd-student-info {
+    width: 24.375rem !important;
+  }
+
+  /* StudentInfoBlock 행 간격 — lg:gap-[2.5rem] */
+  .fd-student-row {
+    gap: 2.5rem !important;
+  }
+
+  /* StudentInfoBlock 라벨 — lg:w-[5.6875rem] lg:text-[#d7d7d7] */
+  .fd-student-label {
+    width: 5.6875rem !important;
+    color: #d7d7d7 !important;
+  }
+
+  /* StudentInfoBlock 값 — lg:w-[12.5rem] lg:flex-none */
+  .fd-student-value {
+    width: 12.5rem !important;
+    flex: none !important;
+  }
+}

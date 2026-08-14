@@ -25,37 +25,37 @@
 //   NICE도 IP 화이트리스트를 쓴다. 배포 경로와 동일하게 두려고 outbound.js를
 //   경유한다(로컬은 프록시 없이 직접 나간다).
 
-import crypto from 'crypto';
-import { outboundFetch } from './outbound.js';
-import { getEnv } from './supabaseAdmin.js';
+import crypto from "node:crypto";
+import { outboundFetch } from "./outbound.ts";
+import { getEnv } from "./supabaseAdmin.ts";
 
 // ── 엔드포인트 ───────────────────────────────────────────────────────
-const API_BASE = getEnv('NICE_API_BASE') || 'https://auth.niceid.co.kr';
-const TOKEN_PATH = '/ido/intc/v1.0/auth/token';
-const AUTH_URL_PATH = '/ido/intc/v1.0/auth/url';
-const AUTH_RESULT_PATH = '/ido/intc/v1.0/auth/result';
+const API_BASE = getEnv("NICE_API_BASE") || "https://auth.niceid.co.kr";
+const TOKEN_PATH = "/ido/intc/v1.0/auth/token";
+const AUTH_URL_PATH = "/ido/intc/v1.0/auth/url";
+const AUTH_RESULT_PATH = "/ido/intc/v1.0/auth/result";
 
 // 가이드가 요구하는 필수 헤더. 값 자체는 통계용이라 형식만 맞으면 된다.
-const DEV_LANG = 'Linux/Node.js';
+const DEV_LANG = "Linux/Node.js";
 
 // 성공 코드. NICE는 HTTP는 200으로 주고 result_code로 성패를 가른다.
-const OK = '0000';
+const OK = "0000";
 // ────────────────────────────────────────────────────────────────────
 
 /** transaction_id 유효기간(가이드 명시 10분). 표준창을 열어두고 방치하면 만료된다. */
 export const REQUEST_TTL_SECONDS = 600;
 
 /** 인증수단 코드. 우리 계약은 휴대폰(M)이다. */
-export const SVC_TYPE_MOBILE = 'M';
+export const SVC_TYPE_MOBILE = "M";
 
 export function getConfig() {
-  const clientId = getEnv('NICE_CLIENT_ID');
-  const clientSecret = getEnv('NICE_CLIENT_SECRET');
-  const returnUrl = getEnv('NICE_RETURN_URL');
+  const clientId = getEnv("NICE_CLIENT_ID");
+  const clientSecret = getEnv("NICE_CLIENT_SECRET");
+  const returnUrl = getEnv("NICE_RETURN_URL");
 
   if (!clientId || !clientSecret || !returnUrl) {
     throw new Error(
-      'NICE_CLIENT_ID / NICE_CLIENT_SECRET / NICE_RETURN_URL 환경변수가 필요합니다.'
+      "NICE_CLIENT_ID / NICE_CLIENT_SECRET / NICE_RETURN_URL 환경변수가 필요합니다.",
     );
   }
 
@@ -68,14 +68,14 @@ export function getConfig() {
  * 24자로 만든다 — 하한 20자에 너무 붙여두면 접두어를 바꿀 때 규격을 넘길 위험이 있다.
  */
 export function generateRequestNo() {
-  return `WE${crypto.randomBytes(11).toString('hex').toUpperCase()}`;
+  return `WE${crypto.randomBytes(11).toString("hex").toUpperCase()}`;
 }
 
 // ── 나이 판정 ────────────────────────────────────────────────────────
 
 /** 'YYYYMMDD' → Date. NICE는 birthdate를 이 형식으로 준다. */
 export function parseNiceBirthDate(raw) {
-  const s = String(raw || '').trim();
+  const s = String(raw || "").trim();
   if (!/^\d{8}$/.test(s)) return null;
 
   const year = Number(s.slice(0, 4));
@@ -102,7 +102,9 @@ export function parseNiceBirthDate(raw) {
 export function computeKoreanAge(birthDate, at = new Date()) {
   if (!birthDate) return null;
 
-  const today = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
+  const today = new Date(
+    Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()),
+  );
   let age = today.getUTCFullYear() - birthDate.getUTCFullYear();
 
   const monthDiff = today.getUTCMonth() - birthDate.getUTCMonth();
@@ -140,23 +142,30 @@ export function isUnder14(birthDate, at = new Date()) {
 export function deriveKeys({ ticket, transactionId, iterators }) {
   const iterations = Number(iterators);
 
-  if (!ticket || !transactionId || !Number.isInteger(iterations) || iterations <= 0) {
-    throw new Error('deriveKeys에는 ticket / transactionId / iterators가 모두 필요합니다.');
+  if (
+    !ticket ||
+    !transactionId ||
+    !Number.isInteger(iterations) ||
+    iterations <= 0
+  ) {
+    throw new Error(
+      "deriveKeys에는 ticket / transactionId / iterators가 모두 필요합니다.",
+    );
   }
 
   const derived = crypto.pbkdf2Sync(
     String(ticket),
-    Buffer.from(String(transactionId), 'utf8'),
+    Buffer.from(String(transactionId), "utf8"),
     iterations,
     64, // 512bit
-    'sha256'
+    "sha256",
   );
 
-  const keyString = derived.toString('base64url');
+  const keyString = derived.toString("base64url");
 
   return {
     key: keyString.slice(0, 32),
-    hmacKey: keyString.slice(48, 80)
+    hmacKey: keyString.slice(48, 80),
   };
 }
 
@@ -167,7 +176,7 @@ export function deriveKeys({ ticket, transactionId, iterators }) {
  * 임의 길이 IV를 허용하므로 그대로 넘기면 된다.
  */
 export function decryptPayload(encData, key) {
-  const raw = Buffer.from(String(encData), 'base64url');
+  const raw = Buffer.from(String(encData), "base64url");
 
   const IV_LENGTH = 16;
   const TAG_LENGTH = 16;
@@ -180,12 +189,20 @@ export function decryptPayload(encData, key) {
   const tag = raw.subarray(raw.length - TAG_LENGTH);
   const ciphertext = raw.subarray(IV_LENGTH, raw.length - TAG_LENGTH);
 
-  const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(key, 'utf8'), iv, {
-    authTagLength: TAG_LENGTH
-  });
+  const decipher = crypto.createDecipheriv(
+    "aes-256-gcm",
+    Buffer.from(key, "utf8"),
+    iv,
+    {
+      authTagLength: TAG_LENGTH,
+    },
+  );
   decipher.setAuthTag(tag);
 
-  const plain = Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString('utf8');
+  const plain = Buffer.concat([
+    decipher.update(ciphertext),
+    decipher.final(),
+  ]).toString("utf8");
 
   return JSON.parse(plain);
 }
@@ -193,16 +210,16 @@ export function decryptPayload(encData, key) {
 /** 무결성 검증값. enc_data **문자열 그대로**를 HMAC-SHA256 한 뒤 base64url(패딩 없음). */
 export function makeIntegrityValue(encData, hmacKey) {
   return crypto
-    .createHmac('sha256', Buffer.from(hmacKey, 'utf8'))
-    .update(String(encData), 'utf8')
-    .digest('base64url');
+    .createHmac("sha256", Buffer.from(hmacKey, "utf8"))
+    .update(String(encData), "utf8")
+    .digest("base64url");
 }
 
 /** 위변조 확인. 길이가 달라도 예외 없이 false를 돌려준다. */
 export function verifyIntegrity(encData, hmacKey, received) {
   const expected = makeIntegrityValue(encData, hmacKey);
-  const a = Buffer.from(expected, 'utf8');
-  const b = Buffer.from(String(received || ''), 'utf8');
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(String(received || ""), "utf8");
 
   if (a.length !== b.length) return false;
   return crypto.timingSafeEqual(a, b);
@@ -212,14 +229,14 @@ export function verifyIntegrity(encData, hmacKey, received) {
 
 async function postJson(path, { authorization, body }) {
   const response = await outboundFetch(`${API_BASE}${path}`, {
-    method: 'POST',
+    method: "POST",
     headers: {
       Authorization: authorization,
-      'Content-Type': 'application/json',
-      'X-Intc-DevLang': DEV_LANG
+      "Content-Type": "application/json",
+      "X-Intc-DevLang": DEV_LANG,
     },
     body: JSON.stringify(body),
-    timeoutMs: 10_000
+    timeoutMs: 10_000,
   });
 
   const text = await response.text();
@@ -228,7 +245,9 @@ async function postJson(path, { authorization, body }) {
   try {
     payload = JSON.parse(text);
   } catch {
-    throw new Error(`NICE 응답을 해석할 수 없습니다 (${path}, HTTP ${response.status}): ${text.slice(0, 200)}`);
+    throw new Error(
+      `NICE 응답을 해석할 수 없습니다 (${path}, HTTP ${response.status}): ${text.slice(0, 200)}`,
+    );
   }
 
   if (payload?.result_code !== OK) {
@@ -236,9 +255,9 @@ async function postJson(path, { authorization, body }) {
     // 닿지 못한 것"을 구분해야 사용자에게 맞는 안내를 할 수 있다 —
     // 전자는 재시도해도 그대로고, 후자만 "잠시 후 다시"가 맞다.
     const error = new Error(
-      `NICE 요청 실패 (${path}): ${payload?.result_code} ${payload?.result_message || ''}`.trim()
+      `NICE 요청 실패 (${path}): ${payload?.result_code} ${payload?.result_message || ""}`.trim(),
     );
-    error.niceResultCode = String(payload?.result_code || '');
+    error.niceResultCode = String(payload?.result_code || "");
     throw error;
   }
 
@@ -270,18 +289,20 @@ export async function fetchAccessToken() {
   const { clientId, clientSecret } = getConfig();
 
   // ⚠️ 표준 base64가 아니라 **base64url(패딩 없음)**이다. 규격이 그렇다.
-  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString('base64url');
+  const basic = Buffer.from(`${clientId}:${clientSecret}`).toString(
+    "base64url",
+  );
 
   const payload = await postJson(TOKEN_PATH, {
     authorization: `Basic ${basic}`,
-    body: { grant_type: 'client_credentials', request_no: generateRequestNo() }
+    body: { grant_type: "client_credentials", request_no: generateRequestNo() },
   });
 
   cachedToken = {
     accessToken: payload.access_token,
     ticket: payload.ticket,
     iterators: Number(payload.iterators),
-    expiresAt: resolveExpiry(payload.expires_in)
+    expiresAt: resolveExpiry(payload.expires_in),
   };
 
   return cachedToken;
@@ -299,7 +320,7 @@ export async function issueAuthUrl({
   returnUrl,
   closeUrl,
   svcTypes = [SVC_TYPE_MOBILE],
-  methodType = 'GET'
+  methodType = "GET",
 } = {}) {
   const config = getConfig();
   const token = await fetchAccessToken();
@@ -311,8 +332,8 @@ export async function issueAuthUrl({
       return_url: returnUrl || config.returnUrl,
       ...(closeUrl ? { close_url: closeUrl } : {}),
       svc_types: svcTypes,
-      method_type: methodType
-    }
+      method_type: methodType,
+    },
   });
 
   return {
@@ -321,7 +342,7 @@ export async function issueAuthUrl({
     requestNo: payload.request_no || requestNo,
     // 복호화용. 트랜잭션과 함께 보관할 것.
     ticket: token.ticket,
-    iterators: token.iterators
+    iterators: token.iterators,
   };
 }
 
@@ -336,7 +357,7 @@ export async function fetchAuthResult({
   transactionId,
   requestNo,
   ticket,
-  iterators
+  iterators,
 }) {
   const token = await fetchAccessToken();
 
@@ -345,8 +366,8 @@ export async function fetchAuthResult({
     body: {
       web_transaction_id: webTransactionId,
       transaction_id: transactionId,
-      request_no: requestNo
-    }
+      request_no: requestNo,
+    },
   });
 
   const { enc_data: encData, integrity_value: integrityValue } = payload;
@@ -354,7 +375,7 @@ export async function fetchAuthResult({
 
   // 복호화보다 무결성 검증을 먼저 한다. 변조된 데이터를 복호화 로직에 넣지 않는다.
   if (!verifyIntegrity(encData, hmacKey, integrityValue)) {
-    const error = new Error('NICE 인증 결과의 무결성 검증에 실패했습니다.');
+    const error = new Error("NICE 인증 결과의 무결성 검증에 실패했습니다.");
     error.integrityFailed = true;
     throw error;
   }

@@ -1,17 +1,23 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, Download, Search } from 'lucide-react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { alertServiceNotReady } from '../lib/paidServiceAccess';
-
-import directorPortrait from '../assets/company/director-portrait.png';
-import missionBg from '../assets/company/mission-bg.jpg';
-import bizAiPlatform from '../assets/company/biz-ai-platform.png';
-import bizConsulting from '../assets/company/biz-consulting.png';
-import bizNetwork from '../assets/company/biz-network.png';
-import partnerChloeWinningArt from '../assets/company/partner-chloe-winning-art.png';
-import partnerJungsangLanguage from '../assets/company/partner-jungsang-language.png';
-import partnerJungsangMath from '../assets/company/partner-jungsang-math.png';
+import { ArrowLeft, ArrowUpRight, Download } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import bizAiPlatform from "../assets/company/biz-ai-platform.png";
+import bizConsulting from "../assets/company/biz-consulting.png";
+import bizNetwork from "../assets/company/biz-network.png";
+import directorPortrait from "../assets/company/director-portrait.png";
+import missionBg from "../assets/company/mission-bg.jpg";
+import partnerChloeWinningArt from "../assets/company/partner-chloe-winning-art.png";
+import partnerJungsangLanguage from "../assets/company/partner-jungsang-language.png";
+import partnerJungsangMath from "../assets/company/partner-jungsang-math.png";
+import SafeHtml from "../components/admission/SafeHtml";
+import { alertServiceNotReady } from "../lib/paidServiceAccess";
+import { withDedupedKeys } from "../lib/reactKeys";
+import { supabase } from "../lib/supabase";
+import {
+  BOARD_SOURCES,
+  formatBoardDate,
+  incrementBoardView,
+} from "./board/boardData";
 
 // 회사소개(/company-news) — Figma 시안(1882:19182 "회사소개", 1920×6363) 전면 재작성.
 // 라우트 · 헤더/푸터(SiteLayout 전역 렌더) · Supabase 조회/검색/상세/첨부 기능은 그대로 두고
@@ -28,7 +34,7 @@ import partnerJungsangMath from '../assets/company/partner-jungsang-math.png';
 //
 // 히어로 카드 타이틀 6개는 시안 서체 "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배,
 // SIL OFL 1.1)를 tailwind.config.js의 font-grace 토큰으로 셀프호스팅 적용한다(src/styles/fonts.css).
-// 카드 타이틀 weight 는 시안이 Bold/Regular 혼용(무료진단·수시카드·프리미엄만 Bold)인데 확대
+// 카드 타이틀 weight 는 시안이 Bold/Regular 혼용(학습진단·수시카드·프리미엄만 Bold)인데 확대
 // 렌더로도 구분이 안 되는 시안 실수로 판단해 전 카드 font-bold 로 통일했다.
 // "수시카드"는 코드 정본 라우트가 없어 다른 5장처럼 Link 로 보내지 않고, 서비스
 // 준비중 alert(alertServiceNotReady)로 안내한다 — 자기평가·심화탐구 CTA와 동일한 처리다.
@@ -42,59 +48,59 @@ import partnerJungsangMath from '../assets/company/partner-jungsang-math.png';
 // -------------------------------------------------------------------------
 const HERO_CARDS = [
   {
-    key: 'free',
-    bg: '#013262',
-    tint: '#bddfff',
-    title: '무료진단',
-    desc: ['나에게 필요한', '서비스 진단'],
+    key: "free",
+    bg: "#013262",
+    tint: "#bddfff",
+    title: "학습진단",
+    desc: ["나에게 필요한", "서비스 진단"],
     best: true,
-    route: '/free-diagnosis'
+    route: "/services/learning-diagnosis",
   },
   {
-    key: 'goal',
-    bg: '#47406b',
-    tint: '#ffffff',
-    title: '목표관리',
-    desc: ['수험생활의', '완벽한 목표 설계'],
+    key: "goal",
+    bg: "#47406b",
+    tint: "#ffffff",
+    title: "목표관리",
+    desc: ["수험생활의", "완벽한 목표 설계"],
     best: false,
-    route: '/services/goal'
+    route: "/services/goal",
   },
   {
-    key: 'susi',
-    bg: '#6b4055',
-    tint: '#e8c0d3',
-    title: '수시카드',
-    desc: ['체계적이고 논리적인', '수시전략'],
+    key: "susi",
+    bg: "#6b4055",
+    tint: "#e8c0d3",
+    title: "수시카드",
+    desc: ["체계적이고 논리적인", "수시전략"],
     best: false,
-    route: null // 코드 정본에 대응 라우트 없음 — 준비중 alert 처리
+    route: null, // 코드 정본에 대응 라우트 없음 — 준비중 alert 처리
   },
   {
-    key: 'mentor',
-    bg: '#66452b',
-    tint: '#f2bc92',
-    title: '콜멘토',
-    desc: ['나만의 1:1', '입시 멘토링'],
-    best: false,
-    route: '/services/callmentor'
-  },
-  {
-    key: 'perf',
-    bg: '#40606b',
-    tint: '#c0eefe',
-    title: '수행평가',
-    desc: ['주제 추천부터 연계까지', 'AI가 관리하는 수행평가'],
-    best: false,
-    route: '/services/performance'
-  },
-  {
-    key: 'premium',
-    bg: '#304d2d',
-    tint: '#a0c99c',
-    title: '프리미엄',
-    desc: ['전문가가 직접 관리하는', '밀착 컨설팅'],
+    key: "mentor",
+    bg: "#66452b",
+    tint: "#f2bc92",
+    title: "콜멘토",
+    desc: ["나만의 1:1", "입시 멘토링"],
     best: true,
-    route: '/page/premium-a'
-  }
+    route: "/services/callmentor",
+  },
+  {
+    key: "perf",
+    bg: "#40606b",
+    tint: "#c0eefe",
+    title: "수행평가",
+    desc: ["주제 추천부터 연계까지", "AI가 관리하는 수행평가"],
+    best: false,
+    route: "/services/performance",
+  },
+  {
+    key: "premium",
+    bg: "#304d2d",
+    tint: "#a0c99c",
+    title: "프리미엄",
+    desc: ["전문가가 직접 관리하는", "밀착 컨설팅"],
+    best: false,
+    route: "/page/premium-a",
+  },
 ];
 
 // -------------------------------------------------------------------------
@@ -102,23 +108,23 @@ const HERO_CARDS = [
 // -------------------------------------------------------------------------
 const BUSINESS_CARDS = [
   {
-    key: 'ai-platform',
+    key: "ai-platform",
     image: bizAiPlatform,
-    title: 'AI 학습 플랫폼',
-    desc: '목표관리・수시예측\n콜멘토・AI 수행평가・무료진단'
+    title: "학습 플랫폼",
+    desc: "목표관리・수시예측\n콜멘토・수행평가・학습진단",
   },
   {
-    key: 'consulting',
+    key: "consulting",
     image: bizConsulting,
-    title: '입시 컨설팅 서비스',
-    desc: '세특관리・약점관리\n프리미엄 컨설팅'
+    title: "입시 컨설팅 서비스",
+    desc: "세특관리・약점관리\n프리미엄 컨설팅",
   },
   {
-    key: 'network',
+    key: "network",
     image: bizNetwork,
-    title: '연계 협력 네트워크',
-    desc: '정상어학원・정상수학학원\n클로이위닝 미술학원'
-  }
+    title: "연계 협력 네트워크",
+    desc: "정상어학원・정상수학학원\n클로이위닝 미술학원",
+  },
 ];
 // ⚠ 가운뎃점은 시안 원문이 U+00B7(·)이나, 코드 정본(InDepthResearch.jsx) 및 페이지 전역 선례가
 // U+30FB(・)로 통일돼 있어 그 관용을 따랐다.
@@ -127,62 +133,90 @@ const BUSINESS_CARDS = [
 // Location — 캠퍼스 카드 8장 (1882:19312)
 // -------------------------------------------------------------------------
 const CAMPUS_CARDS = [
-  { key: 'sejong', name: '위닝에듀 세종캠퍼스', address: ['세종 마음안1로 61'] },
   {
-    key: 'hwamyeong',
-    name: '위닝에듀 화명캠퍼스',
-    address: ['부산 북구 화명대로 40', '현천휴먼 타워, 8층']
-  },
-  { key: 'centum', name: '위닝에듀 센텀캠퍼스', address: ['부산 해운대구 센텀1로 9 S동 24층'] },
-  {
-    key: 'cheonan',
-    name: '위닝에듀 천안캠퍼스',
-    address: ['충남 천안시 서북구 불당23로 73-27 파크힐']
+    key: "sejong",
+    name: "위닝에듀 세종캠퍼스",
+    address: ["세종 마음안1로 61"],
+    href: "https://naver.me/ximXcCHi",
   },
   {
-    key: 'jeju',
-    name: '위닝에듀 제주캠퍼스',
-    address: ['제주 제주시 애월읍 엄장로 55 106동 3층']
+    key: "hwamyeong",
+    name: "위닝에듀 화명캠퍼스",
+    address: ["부산 북구 화명대로 40", "현천휴먼 타워, 8층"],
+    href: "https://naver.me/FFqICy0L",
   },
-  { key: 'daejeon', name: '위닝에듀 대전캠퍼스', address: [], comingSoon: true },
-  { key: 'daechi', name: '위닝에듀 대치캠퍼스', address: [], comingSoon: true },
-  { key: 'bundang', name: '위닝에듀 분당캠퍼스', address: [], comingSoon: true }
+  {
+    key: "centum",
+    name: "위닝에듀 센텀캠퍼스",
+    address: ["부산 해운대구 센텀1로 9 S동 24층"],
+    href: "https://naver.me/5gFDq5b6",
+  },
+  {
+    key: "cheonan",
+    name: "위닝에듀 천안캠퍼스",
+    address: ["충남 천안시 서북구 불당23로 73-27 파크힐"],
+    href: "https://naver.me/xydFeL4Z",
+  },
+  {
+    key: "jeju",
+    name: "위닝에듀 제주캠퍼스",
+    address: ["제주 제주시 애월읍 엄장로 55 106동 3층"],
+    href: "https://naver.me/xCjzg3XD",
+  },
+  {
+    key: "daejeon",
+    name: "위닝에듀 대전캠퍼스",
+    address: [],
+    comingSoon: true,
+  },
+  { key: "daechi", name: "위닝에듀 대치캠퍼스", address: [], comingSoon: true },
+  {
+    key: "bundang",
+    name: "위닝에듀 분당캠퍼스",
+    address: [],
+    comingSoon: true,
+  },
 ];
 
 // 연계 협력기관 카드 3장 — 카드1만 시안이 설명문(제목)/브랜드명(부제) 위계가 다른 2·3과
 // 반대인데, 카피 변경 권한이 없어 시안 그대로 옮겼다.
 const PARTNER_CARDS = [
   {
-    key: 'chloe-winning-art',
-    title: '미대입시 실기/비실기\n전문 연계기관',
-    subtitle: '클로이위닝 미술학원',
+    key: "chloe-winning-art",
+    title: "미대입시 실기/비실기\n전문 연계기관",
+    subtitle: "클로이위닝 미술학원",
+    brand: "클로이위닝 미술학원", // title/subtitle 위계가 카드마다 달라 링크 aria-label용 브랜드명을 별도로 둔다
     links: [
-      { label: '해운센텀점', href: null },
-      { label: '정관점', href: null },
-      { label: '천안점', href: null }
+      { label: "해운센텀점", href: "https://naver.me/5r9K3YCL" },
+      { label: "정관점", href: "https://naver.me/5UEceSEF" },
+      { label: "천안점", href: "https://naver.me/xKthcxAW" },
     ],
     logo: partnerChloeWinningArt,
-    logoWidth: 'w-[16.7rem]'
+    logoWidth: "w-[16.7rem]",
   },
   {
-    key: 'jungsang-language',
-    title: '정상어학원',
-    subtitle: '어학 교육 전문 연계기관',
-    links: [{ label: '화명캠퍼스', href: null }],
+    key: "jungsang-language",
+    title: "정상어학원",
+    subtitle: "어학 교육 전문 연계기관",
+    brand: "정상어학원",
+    links: [{ label: "화명캠퍼스", href: "https://naver.me/FY3j5eyl" }],
     logo: partnerJungsangLanguage,
-    logoWidth: 'w-[13rem]'
+    logoWidth: "w-[13rem]",
   },
   {
-    key: 'jungsang-math',
-    title: '정상수학학원',
-    subtitle: '수학 교육 전문 연계기관',
-    links: [{ label: '부산캠퍼스', href: null }],
+    key: "jungsang-math",
+    title: "정상수학학원",
+    subtitle: "수학 교육 전문 연계기관",
+    brand: "정상수학학원",
+    links: [{ label: "부산캠퍼스", href: "https://naver.me/GkRHGKeZ" }],
     logo: partnerJungsangMath,
-    logoWidth: 'w-[13rem]'
-  }
+    logoWidth: "w-[13rem]",
+  },
 ];
-// ⚠ "바로가기" 5개 링크의 목적지 URL이 시안·프로토타입 어디에도 없다.
-// href 를 지어내지 않고 null로 두어, 클릭 시 alertServiceNotReady로 "준비중" 안내만 한다.
+// "바로가기" 5개 링크는 네이버 지도 단축링크(naver.me)를 실제 목적지로 받았다 — 전부 외부 새 탭
+// (target="_blank" rel="noopener noreferrer")으로 연다. href가 있는 링크는 <a>, 없는 경우
+// (지금은 없지만 데이터에 href: null이 다시 들어올 가능성을 막지 않기 위해)는 방어적으로
+// <button onClick={alertServiceNotReady}> 폴백을 PartnerCard 내부에 유지한다.
 
 const NEWS_PREVIEW_COUNT = 5;
 
@@ -193,7 +227,7 @@ function normalizeArray(value) {
   if (Array.isArray(value)) return value;
   if (!value) return [];
 
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value);
       return Array.isArray(parsed) ? parsed : [value];
@@ -206,31 +240,30 @@ function normalizeArray(value) {
 }
 
 function cleanText(value) {
-  return String(value || '').trim();
+  return String(value || "").trim();
 }
 
-function formatDate(value) {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
-  return date.toISOString().slice(0, 10);
-}
+// 날짜 표기는 boardData.js 의 formatBoardDate(KST 기준) 하나로 통일한다.
+// 기존 로컬 formatDate 는 UTC(toISOString) 기준이라 KST 00:00~08:59 작성 글이
+// /company-news/list(신규 목록, formatBoardDate)와 하루 어긋나 같은 글이 두 날짜로
+// 보였다. 공지사항(Events.jsx)도 formatBoardDate 를 쓴다.
+// 폴백 동작은 동일: falsy → '', 파싱 실패 → String(value).slice(0, 10).
 
 function getAttachmentName(file) {
-  if (!file || typeof file === 'string') return '첨부파일 다운로드';
-  return file.name || '첨부파일 다운로드';
+  if (!file || typeof file === "string") return "첨부파일 다운로드";
+  return file.name || "첨부파일 다운로드";
 }
 
 function getAttachmentUrl(file) {
-  if (!file) return '';
-  return typeof file === 'string' ? file : file.url;
+  if (!file) return "";
+  return typeof file === "string" ? file : file.url;
 }
 
 function renderContent(content) {
   if (!content) return null;
 
   if (/<\/?[a-z][\s\S]*>/i.test(content)) {
-    return <div className="notice-content" dangerouslySetInnerHTML={{ __html: content }} />;
+    return <SafeHtml html={content} className="notice-content" />;
   }
 
   return <div className="notice-content whitespace-pre-line">{content}</div>;
@@ -249,11 +282,11 @@ function HeroSection({ page }) {
   // 히어로의 아이브로우/헤드라인/컷아웃 사진 슬롯에 그대로 매핑하면 위계가 다른 옛 카피가
   // 노출되고 투명 컷아웃 사진의 하단 플러시 구성이 깨진다. 관리자 오버레이는 회귀 위험이 낮은
   // body(보조 카피, 선택 렌더)만 유지한다.
-  const eyebrow = '10년간 쌓아온 데이터로 빈틈없이 함께 가겠습니다.';
-  const headline = '강원석 원장님';
+  const eyebrow = "10년간 쌓아온 데이터로 빈틈없이 함께 가겠습니다.";
+  const headline = "강원석 원장님";
   const body = cleanText(page?.body);
   const heroImage = directorPortrait;
-  const heroImageAlt = '위닝에듀 강원석 원장';
+  const heroImageAlt = "위닝에듀 강원석 원장";
 
   return (
     <section className="relative overflow-hidden bg-[#202f3f] pt-[7.25rem] pb-16 sm:pb-0 lg:min-h-[41.875rem] lg:pt-0 lg:pb-0">
@@ -263,7 +296,9 @@ function HeroSection({ page }) {
             높이(pt+콘텐츠+pb)가 사진 높이에 못 미치는 만큼의 여백이 컬럼 상단에 남는 방식으로
             "아이브로우 top ≈ 섹션 top + 116px" "카드 하단 → 섹션 하단 103px"를 근사한다. */}
         <div className="flex flex-col lg:max-w-[35.625rem] lg:flex-1 lg:pt-[7.25rem] lg:pb-[6.4375rem]">
-          <p className="text-[0.9375rem] leading-[1.3] text-white/60">{eyebrow}</p>
+          <p className="text-[0.9375rem] leading-[1.3] text-white/60">
+            {eyebrow}
+          </p>
           <h1 className="mt-[0.6875rem] break-keep text-[1.75rem] font-semibold leading-[1.3] text-white sm:text-[2.125rem]">
             {headline}
           </h1>
@@ -302,10 +337,15 @@ function HeroSection({ page }) {
                 </>
               );
               const className =
-                'relative flex aspect-[248/229] flex-col items-center justify-center gap-1 px-2 transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-0.125rem] focus-visible:outline-white';
+                "relative flex aspect-[248/229] flex-col items-center justify-center gap-1 px-2 transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-0.125rem] focus-visible:outline-white";
 
               return card.route ? (
-                <Link key={card.key} to={card.route} style={{ backgroundColor: card.bg }} className={className}>
+                <Link
+                  key={card.key}
+                  to={card.route}
+                  style={{ backgroundColor: card.bg }}
+                  className={className}
+                >
                   {content}
                 </Link>
               ) : (
@@ -342,17 +382,23 @@ function HeroSection({ page }) {
 // -------------------------------------------------------------------------
 const MISSION_BLOCKS = [
   {
-    key: 'mission',
-    label: 'Mission',
-    lines: ['학생 한 명, 한명의 가능성을 믿고,', '데이터와 전문성으로 증명하는 위닝에듀입니다']
+    key: "mission",
+    label: "Mission",
+    lines: [
+      "학생 한 명, 한명의 가능성을 믿고,",
+      "데이터와 전문성으로 증명하는 위닝에듀입니다",
+    ],
   },
   {
-    key: 'vision',
-    label: 'Vision',
-    lines: ['데이터와 실적으로 증명하는', '대한민국 대표 입시 컨설팅 플랫폼입니다']
+    key: "vision",
+    label: "Vision",
+    lines: [
+      "데이터와 실적으로 증명하는",
+      "대한민국 대표 입시 컨설팅 플랫폼입니다",
+    ],
   },
   {
-    key: 'talents',
+    key: "talents",
     label: (
       <>
         Talents for
@@ -360,8 +406,11 @@ const MISSION_BLOCKS = [
         Winning Edu
       </>
     ),
-    lines: ['학생 한 명의 가능성을 믿고, 10년 이상의', '현장 노하우와 전문성으로 함께 성장하는 사람']
-  }
+    lines: [
+      "학생 한 명의 가능성을 믿고, 10년 이상의",
+      "현장 노하우와 전문성으로 함께 성장하는 사람",
+    ],
+  },
 ];
 
 function MissionSection() {
@@ -388,21 +437,28 @@ function MissionSection() {
           sm 미만(모바일): object-fit: cover의 스케일 결정축이 375/768에서는 높이라 가로는
           47%만 남는 크롭이 되고(좌우 방향성이 의미 없음), 게다가 우측 알파가 0.20까지
           떨어진다. 좌우 그라디언트 대신 평면 스크림(0.75)으로 대체한다. */}
-      <div aria-hidden="true" className="absolute inset-0 -z-10 sm:hidden" style={{ background: 'rgba(0,0,0,0.75)' }} />
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 -z-10 sm:hidden"
+        style={{ background: "rgba(0,0,0,0.75)" }}
+      />
       <div
         aria-hidden="true"
         className="absolute inset-0 -z-10 hidden sm:block"
         style={{
-          '--c': 'min(100%, 72.75rem)',
-          '--x0': 'calc(50% - var(--c) / 2)',
+          "--c": "min(100%, 72.75rem)",
+          "--x0": "calc(50% - var(--c) / 2)",
           background:
-            'linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)'
+            "linear-gradient(to right, rgba(0,0,0,0.80) 0, rgba(0,0,0,0.80) var(--x0), rgba(0,0,0,0.69) calc(var(--x0) + var(--c) * 0.25), rgba(0,0,0,0.54) calc(var(--x0) + var(--c) * 0.50), rgba(0,0,0,0.35) calc(var(--x0) + var(--c) * 0.75), rgba(0,0,0,0.12) calc(var(--x0) + var(--c)), rgba(0,0,0,0.12) 100%)",
         }}
       />
 
       <div className="mx-auto flex w-full max-w-content flex-col px-5 sm:px-8">
         {MISSION_BLOCKS.map((block, index) => (
-          <div key={block.key} className={index === 0 ? '' : 'mt-5 sm:mt-7 lg:mt-[2.5rem]'}>
+          <div
+            key={block.key}
+            className={index === 0 ? "" : "mt-5 sm:mt-7 lg:mt-[2.5rem]"}
+          >
             {/* 구분선 — 첫 블록 위에는 없다. */}
             {index > 0 && (
               <span
@@ -415,9 +471,9 @@ function MissionSection() {
             </p>
             <p
               className="mt-4 max-w-[36.4375rem] whitespace-pre-line break-keep text-[1.0625rem] font-semibold leading-[1.45] text-white sm:text-[1.125rem] lg:text-[1.25rem] lg:leading-[1.3]"
-              style={{ textShadow: '0 0.1875rem 0.9375rem rgba(0,0,0,0.4)' }}
+              style={{ textShadow: "0 0.1875rem 0.9375rem rgba(0,0,0,0.4)" }}
             >
-              {block.lines.join('\n')}
+              {block.lines.join("\n")}
             </p>
           </div>
         ))}
@@ -437,8 +493,7 @@ function BusinessSection() {
           사업영역
         </p>
         <h2 className="mx-auto mt-5 max-w-[36rem] break-keep text-center text-[1.5rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.75rem] lg:text-[2rem]">
-          위닝에듀는 기술을 기반으로{' '}
-          <br className="hidden lg:inline" />
+          위닝에듀는 기술을 기반으로 <br className="hidden lg:inline" />
           경계없는 입시지원을 제공합니다
         </h2>
 
@@ -477,36 +532,79 @@ function BusinessSection() {
 // -------------------------------------------------------------------------
 // [4] Location + 연계 협력기관
 // -------------------------------------------------------------------------
-// 목적지가 없어(캠퍼스 상세 라우트 미정) PartnerCard와 동일하게 alertServiceNotReady로
-// "준비중" 안내한다 — 호버 스타일·화살표로 클릭 가능해 보이는데 실제로는 아무 반응이 없던
-// 문제를 해소한다. button은 phrasing content만 허용해 내부를 전부 span(+block/flex)으로 짠다.
+// 캠퍼스 8곳 중 5곳(세종·화명·센텀·천안·제주)은 실제 네이버 지도 단축링크(CAMPUS_CARDS의
+// href)를 받아 외부 새 탭으로 연다. 나머지 3곳(대전·대치·분당)은 아직 지점이 열리지 않아
+// href가 없다(comingSoon) — 이 카드는 <button>으로 남기고 클릭 시 "오픈예정입니다." 전용
+// 안내만 띄운다(PartnerCard의 alertServiceNotReady "준비중" 문구와 의도가 달라 구분했다).
+// href 유무로 <a>/<button>을 분기하되(as-element), 카드 내부 구조(span 트리)·치수·간격은
+// 두 분기에서 동일하게 공유해 시각 형태 차이가 없게 한다.
+function alertComingSoon() {
+  alert("오픈예정입니다.");
+}
+
 function CampusCard({ campus }) {
-  return (
-    <button
-      type="button"
-      onClick={alertServiceNotReady}
-      className="group flex min-h-[10.25rem] w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition hover:border-[#013262] hover:bg-[rgba(233,247,255,0.4)] sm:px-6 sm:py-6 lg:px-[2.125rem] lg:py-[1.5rem]"
-    >
+  const hasLink = Boolean(campus.href);
+
+  const content = (
+    <>
       <span className="block">
-        <span className="block text-[0.75rem] leading-[1.3] text-[#013262]">분점</span>
+        <span className="block text-[0.75rem] leading-[1.3] text-[#013262]">
+          분점
+        </span>
         <span className="mt-[0.375rem] block break-keep text-[1.125rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.25rem] lg:text-[1.5rem]">
           {campus.name}
         </span>
       </span>
       {/* 원형 화살표 버튼 — 헤더 행이 아닌 주소와 같은 하단 행에 items-end로 배치(시안:
-          우측 하단 정렬). */}
+          우측 하단 정렬). 오픈예정 카드는 원을 옅은 회색 #EDEDED(섹션 배경 #F6F7FB와
+          카드 보더 #D9D9D9 사이 톤, 페이지 팔레트 안에서 선택) + 중간 회색 화살표
+          #767676로 바꿔, 활성 카드의 "검은 원(#323232) + 흰 화살표"와 채움 자체가
+          역전되도록 한다. 화살표 대 원 배경 대비는 약 4.2:1로 형태가 또렷이 읽히면서,
+          두 상태를 나란히 놓았을 때 "옅은 원 = 아직 누를 단계가 아님"이 한눈에
+          구분된다. */}
       <span className="mt-3 flex items-end justify-between gap-3">
         <span className="block min-h-[2.4rem] break-keep text-[0.8125rem] leading-[1.3] text-[#525252] sm:text-[0.875rem]">
-          {campus.comingSoon ? '오픈예정' : campus.address.join(', ')}
+          {campus.comingSoon ? "오픈예정" : campus.address.join(", ")}
         </span>
         <span
           aria-hidden="true"
-          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#323232] text-white transition group-hover:bg-[#013262] sm:h-[2.125rem] sm:w-[2.125rem]"
+          className={
+            hasLink
+              ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#323232] text-white transition group-hover:bg-[#013262] sm:h-[2.125rem] sm:w-[2.125rem]"
+              : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EDEDED] text-[#767676] transition sm:h-[2.125rem] sm:w-[2.125rem]"
+          }
         >
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
         </span>
       </span>
-    </button>
+    </>
+  );
+
+  if (!hasLink) {
+    // disabled 대신 실제로 동작하는 button — 클릭하면 "오픈예정입니다." 알럿이 뜨므로
+    // disabled 속성은 붙이지 않는다(aria-disabled도 붙이지 않음: 클릭이 막혀 있지 않다).
+    // hover 시 보더/배경이 네이비로 바뀌던 강조도 제거해 "누를 수 있어 보이는" 오인을 줄인다.
+    return (
+      <button
+        type="button"
+        onClick={alertComingSoon}
+        className="group flex min-h-[10.25rem] w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition sm:px-6 sm:py-6 lg:px-[2.125rem] lg:py-[1.5rem]"
+      >
+        {content}
+      </button>
+    );
+  }
+
+  return (
+    <a
+      href={campus.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex min-h-[10.25rem] w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition hover:border-[#013262] hover:bg-[rgba(233,247,255,0.4)] sm:px-6 sm:py-6 lg:px-[2.125rem] lg:py-[1.5rem]"
+    >
+      {content}
+      <span className="sr-only"> (새 창에서 열림)</span>
+    </a>
   );
 }
 
@@ -520,27 +618,61 @@ function PartnerCard({ partner }) {
         <p className="mt-2 text-[0.8125rem] leading-[1.3] text-[#525252] sm:text-[0.875rem]">
           {partner.subtitle}
         </p>
-        <span aria-hidden="true" className="mt-[1.0625rem] block h-[0.0625rem] w-full bg-[#D7D7D7]" />
+        <span
+          aria-hidden="true"
+          className="mt-[1.0625rem] block h-[0.0625rem] w-full bg-[#D7D7D7]"
+        />
         <div className="mt-[1.125rem] flex flex-col gap-3">
-          {partner.links.map((link) => (
-            <button
-              key={link.label}
-              type="button"
-              onClick={alertServiceNotReady}
-              className="flex items-center justify-between text-left text-[0.8125rem] font-medium leading-[1.3] text-[#525252] hover:text-[#013262] sm:text-[0.875rem]"
-            >
-              <span>{link.label}</span>
-              <span className="inline-flex items-center gap-1 border-b border-[#525252]">
-                바로가기
-                <ArrowUpRight className="h-[0.875rem] w-[0.875rem]" aria-hidden="true" />
-              </span>
-            </button>
-          ))}
+          {partner.links.map((link) => {
+            const linkClassName =
+              "flex items-center justify-between text-left text-[0.8125rem] font-medium leading-[1.3] text-[#525252] hover:text-[#013262] sm:text-[0.875rem]";
+            const linkContent = (
+              <>
+                <span>{link.label}</span>
+                <span className="inline-flex items-center gap-1 border-b border-[#525252]">
+                  바로가기
+                  <ArrowUpRight
+                    className="h-[0.875rem] w-[0.875rem]"
+                    aria-hidden="true"
+                  />
+                </span>
+              </>
+            );
+
+            // href 없는 데이터가 다시 들어올 경우를 위한 방어적 폴백 — 지금 5개는 전부
+            // href가 있어 이 분기를 타지 않는다.
+            if (!link.href) {
+              return (
+                <button
+                  key={link.label}
+                  type="button"
+                  onClick={alertServiceNotReady}
+                  className={linkClassName}
+                >
+                  {linkContent}
+                </button>
+              );
+            }
+
+            return (
+              <a
+                key={link.label}
+                href={link.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`${partner.brand} ${link.label} 바로가기 (새 창에서 열림)`}
+                className={linkClassName}
+              >
+                {linkContent}
+                <span className="sr-only"> (새 창에서 열림)</span>
+              </a>
+            );
+          })}
         </div>
       </div>
       <img
         src={partner.logo}
-        alt={partner.subtitle}
+        alt=""
         loading="lazy"
         decoding="async"
         className={`mt-6 self-end ${partner.logoWidth} max-w-full object-contain opacity-30`}
@@ -558,7 +690,7 @@ function LocationSection() {
           Location
         </p>
         <h2 className="mt-4 max-w-[40rem] break-keep text-[1.375rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.5rem]">
-          전국 어디서든, 필요한 입시 관리를 한곳에서{' '}
+          전국 어디서든, 필요한 입시 관리를 한곳에서{" "}
           <br className="hidden sm:inline" />
           여러 지점의 센터와 전문 연계기관을 통해 입시의 전 영역을 지원합니다.
         </h2>
@@ -585,12 +717,27 @@ function LocationSection() {
 }
 
 // -------------------------------------------------------------------------
-// [5] 회사소식 — 최신 5건 미리보기 + "더보기" 펼침(검색 포함) + 기존 ?id= 상세뷰
-// 상세뷰는 검색/펼침 상태와 무관하게 목록 위에 그대로 얹는다(§2 설계 결정).
+// [5] 회사소식 — 최신 5건 미리보기 + "더보기" 링크 + 기존 ?id= 상세뷰
+//
+// 전체 목록(검색·페이지네이션·조회수)은 Figma 시안 2235:3536 이 독립 1920×2109 전체
+// 페이지(헤더/제목/검색/표/페이지네이션/푸터)라 랜딩 하단 섹션에 넣을 수 있는 형태가 아니어서
+// 신규 라우트 /company-news/list (BoardListPage 소비자)로 이관했다. 이 파일에 있던
+// "더보기 → expanded 펼침 + 섹션 내 검색 입력 + 총 N건" 상태 기계는 그 이관과 함께 제거했고,
+// 더보기는 요소만 <button> → <Link to="/company-news/list"> 로 바뀌었다(시각 형태 동일).
+// 이관 전 주석이 기록해 둔 두 판단은 여기 계보로 남긴다:
+//   · "더보기" 색은 시안 #D7D7D7 이 흰 배경 대비 AA 크게 미달 → #A0A0A0 으로 상향한 값이다.
+//   · 노출 조건을 rows.length > 0 으로 둔다(5건 이하인 DB 상태에서도 전체 목록에 도달 가능).
+//
+// 상세뷰(?id=)는 그대로 유지한다 — 신규 목록의 제목 링크도 /company-news?id=<id> 로 여기에
+// 되돌아오므로, 이 파일이 계속 회사소식 상세의 유일한 렌더 지점이다(§2 설계 결정).
 // -------------------------------------------------------------------------
 function NewsDetail({ row, onBack }) {
   const images = normalizeArray(row.image_urls);
-  const finalImages = images.length ? images : row.image_url ? [row.image_url] : [];
+  const finalImages = images.length
+    ? images
+    : row.image_url
+      ? [row.image_url]
+      : [];
   const attachments = normalizeArray(row.attachments);
 
   return (
@@ -607,14 +754,12 @@ function NewsDetail({ row, onBack }) {
 
         <article className="border-y border-[#D9D9D9]">
           <header className="border-b border-[#EFEFEF] px-1 py-8">
-            <div className="mb-3 flex items-center gap-2">
-              {row.is_pinned && (
-                <span className="rounded bg-[#013262] px-2 py-1 text-xs font-bold text-white">
-                  주요소식
-                </span>
-              )}
-              <span className="text-sm font-medium text-[#767676]">{formatDate(row.created_at)}</span>
-            </div>
+            {/* 여기에는 '중요' 칩이 없다 — 칩 노출은 게시판(BoardTable, 시안 2235:3741) 전용으로
+                사용자가 확정했고, 회사소식 상세/목록에 있던 칩은 그에 따라 제거했다.
+                is_pinned 는 계속 살아 있지만 이제 정렬(상단 고정)에만 쓰인다(fetch 의 order 참조). */}
+            <p className="mb-3 text-sm font-medium text-[#767676]">
+              {formatBoardDate(row.created_at)}
+            </p>
             <h1 className="break-keep text-[1.5rem] font-bold leading-[1.35] text-[#525252] sm:text-[1.75rem]">
               {row.title}
             </h1>
@@ -623,14 +768,16 @@ function NewsDetail({ row, onBack }) {
           <div className="min-h-[20rem] px-1 py-12">
             {finalImages.length > 0 && (
               <div className="mx-auto mb-10 max-w-[57.5rem] space-y-4">
-                {finalImages.map((url, index) => (
-                  <img
-                    key={`${url}-${index}`}
-                    src={url}
-                    alt={`${row.title} 이미지 ${index + 1}`}
-                    className="w-full rounded-2xl object-contain"
-                  />
-                ))}
+                {withDedupedKeys(finalImages).map(
+                  ({ item: url, key }, index) => (
+                    <img
+                      key={key}
+                      src={url}
+                      alt={`${row.title} 이미지 ${index + 1}`}
+                      className="w-full rounded-2xl object-contain"
+                    />
+                  ),
+                )}
               </div>
             )}
 
@@ -638,25 +785,25 @@ function NewsDetail({ row, onBack }) {
 
             {(attachments.length > 0 || row.file_url) && (
               <div className="mt-12 rounded-xl border border-[#D9D9D9] bg-[#F9FAFB] p-5">
-                <p className="mb-3 text-sm font-bold text-[#525252]">첨부파일</p>
+                <p className="mb-3 text-sm font-bold text-[#525252]">
+                  첨부파일
+                </p>
                 <div className="space-y-2">
-                  {attachments.map((file, index) => {
-                    const url = getAttachmentUrl(file);
-                    if (!url) return null;
-
-                    return (
-                      <a
-                        key={`${url}-${index}`}
-                        href={url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
-                      >
-                        <Download className="h-4 w-4" aria-hidden="true" />
-                        {getAttachmentName(file)}
-                      </a>
-                    );
-                  })}
+                  {withDedupedKeys(
+                    attachments.filter((file) => getAttachmentUrl(file)),
+                    getAttachmentUrl,
+                  ).map(({ item: file, key }) => (
+                    <a
+                      key={key}
+                      href={getAttachmentUrl(file)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
+                    >
+                      <Download className="h-4 w-4" aria-hidden="true" />
+                      {getAttachmentName(file)}
+                    </a>
+                  ))}
 
                   {attachments.length === 0 && row.file_url && (
                     <a
@@ -666,7 +813,7 @@ function NewsDetail({ row, onBack }) {
                       className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
                     >
                       <Download className="h-4 w-4" aria-hidden="true" />
-                      {row.file_name || '첨부파일 다운로드'}
+                      {row.file_name || "첨부파일 다운로드"}
                     </a>
                   )}
                 </div>
@@ -681,43 +828,30 @@ function NewsDetail({ row, onBack }) {
 
 function NewsRow({ row, onSelect }) {
   return (
-    // items-stretch(모바일 flex-col 기준)로 두 번째 span(제목)의 교차축 폭을 컨테이너 전체로
+    // items-stretch(모바일 flex-col 기준)로 제목 span의 교차축 폭을 컨테이너 전체로
     // 고정해야 truncate(nowrap)가 min-content=max-content로 폭을 결정해버려 카드가 전역
     // 가로 스크롤을 유발하던 문제가 해소된다. 헤딩 태그(h3) 대신 span을 쓰는 이유는 button의
     // 콘텐츠 모델이 phrasing content만 허용해서다(h3는 flow content).
+    // 제목 span 은 원래 '중요' 칩과 나란히 놓느라 flex 래퍼 안에 한 겹 더 들어 있었다.
+    // 칩이 게시판 전용으로 확정돼 빠지면서 형제가 없어졌고, 래퍼는 min-w-0/flex-1/truncate 를
+    // 제목 span 에 그대로 옮기고 없앴다(렌더 결과 동일).
     <button
       type="button"
       onClick={onSelect}
       className="flex w-full flex-col items-stretch gap-1 py-3 text-left transition hover:text-[#013262] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-0"
     >
-      <span className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-        {row.is_pinned && (
-          <span className="shrink-0 rounded bg-[#013262] px-2 py-1 text-[0.6875rem] font-bold leading-[1.3] text-white">
-            주요소식
-          </span>
-        )}
-        <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.4] text-[#525252] sm:text-[1rem]">
-          {row.title}
-        </span>
+      <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.4] text-[#525252] sm:text-[1rem]">
+        {row.title}
       </span>
       <span className="shrink-0 text-[0.75rem] leading-[1.4] text-[#767676] sm:text-[1rem] sm:text-[#525252]">
-        {formatDate(row.created_at)}
+        {formatBoardDate(row.created_at)}
       </span>
     </button>
   );
 }
 
-function NewsSection({ rows, loading, onSelect, keyword, setKeyword, expanded, setExpanded }) {
-  const filteredRows = useMemo(() => {
-    const q = keyword.trim().toLowerCase();
-    if (!q) return rows;
-
-    return rows.filter((row) =>
-      [row.title, row.content, row.file_name].join(' ').toLowerCase().includes(q)
-    );
-  }, [keyword, rows]);
-
-  const visibleRows = expanded ? filteredRows : rows.slice(0, NEWS_PREVIEW_COUNT);
+function NewsSection({ rows, loading, onSelect }) {
+  const visibleRows = rows.slice(0, NEWS_PREVIEW_COUNT);
 
   return (
     <section className="bg-white pt-14 pb-16 sm:pt-20 lg:pt-[4.6875rem] lg:pb-[11.9375rem]">
@@ -726,54 +860,23 @@ function NewsSection({ rows, loading, onSelect, keyword, setKeyword, expanded, s
           <h2 className="text-[1.5rem] font-bold leading-[1.4] text-[#525252] sm:text-[1.75rem] lg:text-[2rem]">
             회사소식
           </h2>
-          {/* "더보기" — 시안 색 #D7D7D7는 흰 배경 대비 AA 크게 미달 → #A0A0A0으로 상향.
-              펼친 뒤에는 검색 UI가 대신 나오므로 버튼을 숨긴다. 노출 조건을
-              rows.length > 0으로 완화해 5건 이하인 DB 상태에서도 검색·총건수 표기에 도달할
-              수 있게 한다(전에는 5건 넘을 때만 진입 가능해 검색 UI 자체에 닿을 방법이 없었다). */}
-          {!expanded && rows.length > 0 && (
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
+          {/* "더보기" — 전체 목록 페이지로 보낸다(색·크기·밑줄은 이관 전 버튼 그대로. 근거는
+              섹션 상단 주석 참고). */}
+          {rows.length > 0 && (
+            <Link
+              to="/company-news/list"
               className="text-[0.8125rem] font-normal leading-[1.3] text-[#A0A0A0] underline hover:text-[#525252] sm:text-[0.9375rem]"
             >
               더보기
-            </button>
+            </Link>
           )}
         </div>
-        <span aria-hidden="true" className="mt-[1.125rem] block h-[0.0625rem] w-full bg-[#525252]" />
+        <span
+          aria-hidden="true"
+          className="mt-[1.125rem] block h-[0.0625rem] w-full bg-[#525252]"
+        />
 
-        {expanded && (
-          <div className="mt-6 flex h-12 items-center border-b border-[#111827] sm:h-14">
-            <input
-              value={keyword}
-              onChange={(event) => setKeyword(event.target.value)}
-              placeholder="검색어를 입력해주세요"
-              aria-label="회사소식 검색"
-              type="search"
-              className="h-full flex-1 bg-transparent px-1 text-[0.9375rem] font-medium outline-none placeholder:text-[#A0A0A0] sm:text-base"
-            />
-            <Search
-              strokeWidth={1.7}
-              aria-hidden="true"
-              className="mr-2 h-5 w-5 text-[#767676]"
-            />
-          </div>
-        )}
-
-        {expanded && (
-          <p className="mt-6 text-[0.8125rem] font-medium text-[#767676] sm:text-sm">
-            총 <span className="font-bold text-[#013262]">{filteredRows.length}</span>건의 소식이
-            있습니다.
-          </p>
-        )}
-
-        <div
-          className={
-            expanded
-              ? 'mt-4 divide-y divide-[#EFEFEF] sm:mt-3'
-              : 'mt-[2.25rem] flex flex-col gap-3 sm:gap-[1.125rem]'
-          }
-        >
+        <div className="mt-[2.25rem] flex flex-col gap-3 sm:gap-[1.125rem]">
           {loading ? (
             <div className="py-16 text-center text-sm font-medium text-[#767676]">
               회사소식을 불러오는 중입니다.
@@ -784,7 +887,11 @@ function NewsSection({ rows, loading, onSelect, keyword, setKeyword, expanded, s
             </div>
           ) : (
             visibleRows.map((row) => (
-              <NewsRow key={row.id} row={row} onSelect={() => onSelect(row.id)} />
+              <NewsRow
+                key={row.id}
+                row={row}
+                onSelect={() => onSelect(row.id)}
+              />
             ))
           )}
         </div>
@@ -795,19 +902,19 @@ function NewsSection({ rows, loading, onSelect, keyword, setKeyword, expanded, s
 
 export default function CompanyNews() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const selectedId = searchParams.get('id');
+  const selectedId = searchParams.get("id");
   const [introPage, setIntroPage] = useState(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
-  // 목록의 검색어/펼침 상태를 NewsSection 로컬이 아닌 여기서 들고 있어야, 상세뷰 진입 시
-  // NewsSection이 언마운트돼도(아래 selectedId && selectedRow 분기) 목록으로 돌아왔을 때
-  // 검색 결과·펼침 상태가 유지된다.
-  const [keyword, setKeyword] = useState('');
-  const [expanded, setExpanded] = useState(false);
+  // 상세뷰에서 조회수를 이미 올린 글 id. StrictMode의 effect 이중 실행과 리렌더 재호출을
+  // 모두 막는다(id가 바뀌면 다시 올린다). state가 아니라 ref인 이유는 이 값의 변화가
+  // 화면을 바꾸지 않아서다.
+  const viewedIdRef = useRef(null);
 
   // ?id= 변화(상세 진입·목록 복귀 모두)에서 스크롤을 최상단으로 되돌린다. 회사소식 섹션이
   // 페이지 하단(~5000px)에 있어 setSearchParams만으로는 pathname이 안 바뀌어
   // App.jsx의 ScrollToTop(pathname 전용)이 반응하지 않는다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) selectedId는 effect 안에서 읽지 않는 트리거 전용 값 — ?id= 가 바뀔 때마다 스크롤을 맨 위로 되돌리기 위한 재실행 신호다.
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [selectedId]);
@@ -820,30 +927,30 @@ export default function CompanyNews() {
 
       const [introResult, newsResult] = await Promise.all([
         supabase
-          .from('page_contents')
-          .select('*')
-          .eq('slug', 'company-intro')
-          .eq('is_active', true)
+          .from("page_contents")
+          .select("*")
+          .eq("slug", "company-intro")
+          .eq("is_active", true)
           .maybeSingle(),
         supabase
-          .from('company_news')
-          .select('*')
-          .eq('is_active', true)
-          .order('is_pinned', { ascending: false })
-          .order('sort_order', { ascending: true })
-          .order('created_at', { ascending: false })
+          .from("company_news")
+          .select("*")
+          .eq("is_active", true)
+          .order("is_pinned", { ascending: false })
+          .order("sort_order", { ascending: true })
+          .order("created_at", { ascending: false }),
       ]);
 
       if (!alive) return;
 
       if (introResult.error) {
-        console.error('회사소개 조회 오류:', introResult.error);
+        console.error("회사소개 조회 오류:", introResult.error);
       } else {
         setIntroPage(introResult.data || null);
       }
 
       if (newsResult.error) {
-        console.error('회사소식 조회 오류:', newsResult.error);
+        console.error("회사소식 조회 오류:", newsResult.error);
         setRows([]);
       } else {
         setRows(newsResult.data || []);
@@ -863,6 +970,19 @@ export default function CompanyNews() {
     if (!selectedId) return null;
     return rows.find((row) => String(row.id) === String(selectedId)) || null;
   }, [rows, selectedId]);
+
+  // 조회수 +1 — 상세뷰가 실제로 글을 표시하는 순간에만 1회. rows 로딩이 끝나기 전에는
+  // selectedRow가 null이라(= 아직 아무것도 안 보여준 상태) 호출하지 않는다.
+  // incrementBoardView는 RPC 미배포·네트워크 실패를 포함해 어떤 경우에도 throw하지 않으므로
+  // (boardData.js 계약) 상세 화면 렌더에 영향을 주지 않는다. await 하지 않는 것도 의도적이다.
+  useEffect(() => {
+    if (!selectedId || !selectedRow) return;
+    if (viewedIdRef.current === selectedId) return;
+
+    // 실제 호출 전에 먼저 찍어야 StrictMode 이중 실행의 두 번째 호출이 걸러진다.
+    viewedIdRef.current = selectedId;
+    incrementBoardView(BOARD_SOURCES.companyNews, selectedRow.id);
+  }, [selectedId, selectedRow]);
 
   // ?id= 딥링크 진입 시 rows 로딩이 끝나기 전까지는 selectedRow가 null이라 아래 분기를 타지
   // 못하고 전체 랜딩(히어로~회사소식, mission-bg 등 수 MB 에셋 포함)이 먼저 렌더됐다가 로딩
@@ -893,10 +1013,6 @@ export default function CompanyNews() {
         rows={rows}
         loading={loading}
         onSelect={(id) => setSearchParams({ id: String(id) })}
-        keyword={keyword}
-        setKeyword={setKeyword}
-        expanded={expanded}
-        setExpanded={setExpanded}
       />
     </main>
   );

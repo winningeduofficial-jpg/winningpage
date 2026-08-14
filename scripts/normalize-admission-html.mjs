@@ -43,42 +43,39 @@
 //   3) 기본값: scratchpad의 dev-keys.json (SEED_KEYS_FILE 로 재지정 가능)
 // =====================================================================
 
-import { createClient } from '@supabase/supabase-js';
-import { readFile, writeFile, mkdir, access } from 'node:fs/promises';
-import { parseArgs } from 'node:util';
-import process from 'node:process';
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import process from "node:process";
+import { pathToFileURL } from "node:url";
+import { parseArgs } from "node:util";
+import { createClient } from "@supabase/supabase-js";
 
-const DEV_PROJECT_REF = 'gjowqdiopinhixfivnkx';
+const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_KEYS_FILE =
-  '/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json';
+  "/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json";
 // BLOCK6: 이전엔 고정 파일명을 매 실행(dry-run 포함)마다 덮어써서, dry-run 한 번만 더
 // 돌려도 직전 실행의 "진짜 UPDATE 이전" 백업이 사라졌다. 세션 scratchpad(휘발성)가 아닌
 // 영속 디렉터리에 실행마다 새 타임스탬프 파일로 쓰고, 같은 이름이 이미 있으면(동일 밀리초
 // 재실행 등) 무조건 거부한다 — 롤백 수단이 조용히 사라지는 사고를 원천 차단한다.
-const DEFAULT_BACKUP_DIR = '/Users/hyunsoo/uwellnow/.admission-html-backups';
-const TABLE = 'admission_university_resources';
+const DEFAULT_BACKUP_DIR = "/Users/hyunsoo/uwellnow/.admission-html-backups";
+const TABLE = "admission_university_resources";
 
 // 카테고리 key -> DB html 컬럼 매핑. load-admission-content.mjs와 동일.
 const CATEGORY_HTML_KEY = {
-  previous_year_changes: 'previous_year_changes_html',
-  selection_method: 'selection_method_html',
-  minimum_requirements: 'minimum_requirements_html',
-  exam_schedule: 'exam_schedule_html',
-  school_record_method: 'school_record_method_html',
-  recruitment_quota: 'recruitment_result_html'
+  previous_year_changes: "previous_year_changes_html",
+  selection_method: "selection_method_html",
+  minimum_requirements: "minimum_requirements_html",
+  exam_schedule: "exam_schedule_html",
+  school_record_method: "school_record_method_html",
+  recruitment_quota: "recruitment_result_html",
 };
 const CATEGORY_KEYS = Object.keys(CATEGORY_HTML_KEY);
 const HTML_COLUMNS = Object.values(CATEGORY_HTML_KEY);
 
-const { values: args } = parseArgs({
-  options: {
-    apply: { type: 'boolean', default: false },
-    'keys-file': { type: 'string' },
-    category: { type: 'string' }, // 디버그용: 특정 카테고리(raw key)만 처리
-    'sample-count': { type: 'string', default: '5' },
-    'backup-file': { type: 'string' }
-  }
-});
+// CLI 인자는 main() 안에서만 파싱한다 — 이 모듈의 순수 정규화 함수들을
+// 재사용하려고 import만 하는 호출자가 여기 없는 플래그를 쓰면 import
+// 시점에 그대로 throw하던 결함(2026-08-06 build-admission-html-golden.mjs
+// 사고와 동일 유형)을 막는다.
+let args = {};
 
 // -----------------------------------------------------------------------
 // 자격증명
@@ -88,13 +85,15 @@ async function resolveCredentials() {
   const envKey = process.env.SEED_SERVICE_ROLE_KEY;
   if (envUrl && envKey) return { url: envUrl, serviceKey: envKey };
 
-  const keysFile = args['keys-file'] || process.env.SEED_KEYS_FILE || DEFAULT_KEYS_FILE;
-  const raw = JSON.parse(await readFile(keysFile, 'utf-8'));
-  const serviceEntry = raw.find((entry) => entry.name === 'service_role');
-  if (!serviceEntry) throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
+  const keysFile =
+    args["keys-file"] || process.env.SEED_KEYS_FILE || DEFAULT_KEYS_FILE;
+  const raw = JSON.parse(await readFile(keysFile, "utf-8"));
+  const serviceEntry = raw.find((entry) => entry.name === "service_role");
+  if (!serviceEntry)
+    throw new Error(`${keysFile}에서 service_role 키를 찾을 수 없습니다.`);
   return {
     url: `https://${DEV_PROJECT_REF}.supabase.co`,
-    serviceKey: serviceEntry.api_key
+    serviceKey: serviceEntry.api_key,
   };
 }
 
@@ -103,7 +102,7 @@ async function resolveCredentials() {
 // -----------------------------------------------------------------------
 async function buildTimestampedBackupPath() {
   await mkdir(DEFAULT_BACKUP_DIR, { recursive: true });
-  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   return `${DEFAULT_BACKUP_DIR}/admission-html-backup-${stamp}.json`;
 }
 
@@ -115,7 +114,7 @@ async function assertBackupFileDoesNotExist(path) {
   }
   throw new Error(
     `백업 파일이 이미 존재합니다: ${path}\n` +
-      '기존 백업(롤백 수단)을 덮어쓰지 않기 위해 중단합니다. --backup-file로 다른 경로를 지정하세요.'
+      "기존 백업(롤백 수단)을 덮어쓰지 않기 위해 중단합니다. --backup-file로 다른 경로를 지정하세요.",
   );
 }
 
@@ -123,18 +122,25 @@ async function assertBackupFileDoesNotExist(path) {
 // 순수 정규화 함수들 (DOM/네트워크 의존 없음, 테스트 가능)
 // -----------------------------------------------------------------------
 
-const MIDDLE_DOT = '·'; // ·
-const KOR_ALNUM = '[가-힣A-Za-z0-9]';
+const MIDDLE_DOT = "·"; // ·
+const KOR_ALNUM = "[가-힣A-Za-z0-9]";
 
 // (b-1) admission-minimum-badge 스코프에서만 · 변형 전체(공백 유무 무관)를 /로 통일.
 // 이 배지("최저" 컬럼 값)는 Figma 1882:4934 sampleValues가 "의/약", "의/약/간" 슬래시
 // 표기를 명시하는 유일한 위치라서, 여기서만 구분자 글자 자체를 바꾼다.
-const BADGE_SPAN_RE = /(<span class="admission-minimum-badge[^"]*">)([\s\S]*?)(<\/span>)/g;
+const BADGE_SPAN_RE =
+  /(<span class="admission-minimum-badge[^"]*">)([\s\S]*?)(<\/span>)/g;
 export function normalizeBadgeSeparators(html) {
-  return String(html || '').replace(BADGE_SPAN_RE, (match, open, inner, close) => {
-    const normalizedInner = inner.replace(new RegExp(`\\s*${MIDDLE_DOT}\\s*`, 'g'), '/');
-    return open + normalizedInner + close;
-  });
+  return String(html || "").replace(
+    BADGE_SPAN_RE,
+    (_match, open, inner, close) => {
+      const normalizedInner = inner.replace(
+        new RegExp(`\\s*${MIDDLE_DOT}\\s*`, "g"),
+        "/",
+      );
+      return open + normalizedInner + close;
+    },
+  );
 }
 
 // (b-2) 배지 밖 · 편측 공백 비대칭만 교정(양쪽 공백 "X · X" 스타일은 감사에서 별도
@@ -145,10 +151,16 @@ export function normalizeBadgeSeparators(html) {
 // 적용 후 "가·나· 다", 2회째에야 "가·나·다") — assertIdempotent가 이를 그대로 위반으로
 // 잡아낸다. 뒤쪽 글자를 폭 0 lookahead로 바꿔 소비하지 않게 하면 연속 패턴도 한 번의
 // replace pass에서 전부 처리되어 멱등성이 보장된다.
-const TRAIL_SPACE_RE = new RegExp(`(${KOR_ALNUM})${MIDDLE_DOT}\\s+(?=${KOR_ALNUM})`, 'g');
-const LEAD_SPACE_RE = new RegExp(`(${KOR_ALNUM})\\s+${MIDDLE_DOT}(?=${KOR_ALNUM})`, 'g');
+const TRAIL_SPACE_RE = new RegExp(
+  `(${KOR_ALNUM})${MIDDLE_DOT}\\s+(?=${KOR_ALNUM})`,
+  "g",
+);
+const LEAD_SPACE_RE = new RegExp(
+  `(${KOR_ALNUM})\\s+${MIDDLE_DOT}(?=${KOR_ALNUM})`,
+  "g",
+);
 export function normalizeGeneralDotSpacing(html) {
-  return String(html || '')
+  return String(html || "")
     .replace(TRAIL_SPACE_RE, `$1${MIDDLE_DOT}`)
     .replace(LEAD_SPACE_RE, `$1${MIDDLE_DOT}`);
 }
@@ -156,33 +168,34 @@ export function normalizeGeneralDotSpacing(html) {
 // (b-4-a) 이중 이스케이프 엔티티 정리. 안정될 때까지 반복(&amp;amp;amp; 같은 3중도 처리).
 export function normalizeDoubleEscapedEntities(html) {
   let prev;
-  let current = String(html || '');
+  let current = String(html || "");
   do {
     prev = current;
-    current = current.replace(/&amp;(amp|lt|gt|quot|#39);/g, '&$1;');
+    current = current.replace(/&amp;(amp|lt|gt|quot|#39);/g, "&$1;");
   } while (current !== prev);
   return current;
 }
 
 // (b-4-b) 제어문자(tab/lf/cr 제외) 제거.
 export function stripControlChars(html) {
-  // eslint-disable-next-line no-control-regex
-  return String(html || '').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '');
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: 제어문자 자체를 걸러내는 정규식이라 의도된 사용이다.
+  return String(html || "").replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "");
 }
 
 // (b-4-c) 연속 공백 3개 이상만 1개로 축소. 2개 공백은 Figma 실측 노트(1882:4934
 // "전형방법" 컬럼 "서류 100(4배수)  1단계성적 70 + 면접 30"처럼 의도된 구간 표시일
 // 수 있어 건드리지 않는다.
 export function collapseExcessiveSpaces(html) {
-  return String(html || '').replace(/ {3,}/g, ' ');
+  return String(html || "").replace(/ {3,}/g, " ");
 }
 
 // (b-3) school_record_method_html 전용: leak된 절 제목 div 제거. 이 컬럼은 원래
 // admission-hwp-section-title을 쓰지 않는 카테고리라(감사 확인, 207건 중 205건
 // 없음) 존재 자체가 파이프라인 일관성 누락이다 — 무조건 제거 대상.
-const SCHOOL_RECORD_LEAK_RE = /^\s*<div class="admission-hwp-section-title">[^<]*<\/div>\s*/;
+const SCHOOL_RECORD_LEAK_RE =
+  /^\s*<div class="admission-hwp-section-title">[^<]*<\/div>\s*/;
 export function stripSchoolRecordMethodLeak(html) {
-  return String(html || '').replace(SCHOOL_RECORD_LEAK_RE, '');
+  return String(html || "").replace(SCHOOL_RECORD_LEAK_RE, "");
 }
 
 // PUA 탐지 범위. 기존 감사는 BMP PUA(U+E000~U+F8FF)만 확인해 "0건"으로
@@ -198,19 +211,19 @@ export function stripSchoolRecordMethodLeak(html) {
 const PUA_RANGES = [
   [0xe000, 0xf8ff], // BMP Private Use Area
   [0xf0000, 0xffffd], // Supplementary Private Use Area-A
-  [0x100000, 0x10fffd] // Supplementary Private Use Area-B
+  [0x100000, 0x10fffd], // Supplementary Private Use Area-B
 ];
 function isPuaCodePoint(cp) {
   return PUA_RANGES.some(([lo, hi]) => cp >= lo && cp <= hi);
 }
 const KNOWN_PUA_MAP = {
-  '\u{F02CE}': '①',
-  '\u{F02CF}': '②'
+  "\u{F02CE}": "①",
+  "\u{F02CF}": "②",
 };
 
 // 판별 가능한(①②로 확인된) PUA 문자만 치환. 나머지는 손대지 않는다.
 export function replaceKnownPuaChars(html) {
-  let value = String(html || '');
+  let value = String(html || "");
   for (const [puaChar, replacement] of Object.entries(KNOWN_PUA_MAP)) {
     value = value.split(puaChar).join(replacement);
   }
@@ -219,7 +232,7 @@ export function replaceKnownPuaChars(html) {
 
 // 판별된(①②) PUA 문자가 몇 개 있었는지 카운트(치환 전 원본 기준).
 export function countKnownPuaChars(html) {
-  const text = String(html || '');
+  const text = String(html || "");
   let count = 0;
   for (const puaChar of Object.keys(KNOWN_PUA_MAP)) {
     count += text.split(puaChar).length - 1;
@@ -229,7 +242,7 @@ export function countKnownPuaChars(html) {
 
 // 남은(판별 불가) PUA 문자 탐지 — 보고 전용, 절대 치환하지 않는다.
 export function detectUnresolvedPuaChars(html) {
-  const text = String(html || '');
+  const text = String(html || "");
   let count = 0;
   for (const ch of text) {
     if (isPuaCodePoint(ch.codePointAt(0))) count += 1;
@@ -244,22 +257,23 @@ export function detectUnresolvedPuaChars(html) {
 // "정상적인 데이터 없음" 케이스가 아니라 파싱 결손을 의미할 가능성이 높아, 자동으로
 // html을 비워 "-" 표시로 만드는 것보다 수동 확인이 더 안전하다.
 export function detectEmptyShellTables(html) {
-  const text = String(html || '');
+  const text = String(html || "");
   const tableMatches = [...text.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
   const shells = [];
   tableMatches.forEach((m) => {
     const tableInner = m[1];
     const rows = [...tableInner.matchAll(/<tbody>([\s\S]*?)<\/tbody>/g)];
-    const tbody = rows[0]?.[1] || '';
+    const tbody = rows[0]?.[1] || "";
     const trCount = (tbody.match(/<tr>/g) || []).length;
     if (trCount === 0) {
-      shells.push('tbody 데이터 행 0개');
+      shells.push("tbody 데이터 행 0개");
       return;
     }
-    const cellTexts = [...tbody.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((cm) =>
-      cm[1].replace(/<[^>]+>/g, '').trim()
+    const cellTexts = [...tbody.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(
+      (cm) => cm[1].replace(/<[^>]+>/g, "").trim(),
     );
-    const allEmpty = cellTexts.length > 0 && cellTexts.every((t) => t === '' || t === '-');
+    const allEmpty =
+      cellTexts.length > 0 && cellTexts.every((t) => t === "" || t === "-");
     if (allEmpty) shells.push('전 셀 공백 또는 "-"');
   });
   return shells;
@@ -269,8 +283,11 @@ export function detectEmptyShellTables(html) {
 const LEGACY_RECRUIT_TABLE_RE = /\badmission-recruit-table\b/;
 const NORMALIZED_RECRUIT_TABLE_RE = /\badmission-normalized-recruit-table\b/;
 export function isLegacyRecruitTable(html) {
-  const text = String(html || '');
-  return LEGACY_RECRUIT_TABLE_RE.test(text) && !NORMALIZED_RECRUIT_TABLE_RE.test(text);
+  const text = String(html || "");
+  return (
+    LEGACY_RECRUIT_TABLE_RE.test(text) &&
+    !NORMALIZED_RECRUIT_TABLE_RE.test(text)
+  );
 }
 
 // -----------------------------------------------------------------------
@@ -278,7 +295,7 @@ export function isLegacyRecruitTable(html) {
 // 배지 안의 ·가 일반 간격 정규화 대상에서 자연히 제외된다).
 // -----------------------------------------------------------------------
 export function normalizeHtmlValue(html, htmlColumn) {
-  let value = String(html || '');
+  let value = String(html || "");
   if (!value) return value;
 
   value = replaceKnownPuaChars(value);
@@ -287,18 +304,18 @@ export function normalizeHtmlValue(html, htmlColumn) {
   value = normalizeDoubleEscapedEntities(value);
   value = stripControlChars(value);
   value = collapseExcessiveSpaces(value);
-  if (htmlColumn === 'school_record_method_html') {
+  if (htmlColumn === "school_record_method_html") {
     value = stripSchoolRecordMethodLeak(value);
   }
   return value;
 }
 
-function assertIdempotent(original, once, htmlColumn, context) {
+function assertIdempotent(_original, once, htmlColumn, context) {
   const twice = normalizeHtmlValue(once, htmlColumn);
   if (twice !== once) {
     throw new Error(
       `멱등성 위반: ${context} / ${htmlColumn} — 정규화를 두 번 적용한 결과가 한 번 적용한 결과와 다릅니다.\n` +
-        `1회차: ${once.slice(0, 200)}\n2회차: ${twice.slice(0, 200)}`
+        `1회차: ${once.slice(0, 200)}\n2회차: ${twice.slice(0, 200)}`,
     );
   }
 }
@@ -307,34 +324,59 @@ function assertIdempotent(original, once, htmlColumn, context) {
 // 메인
 // -----------------------------------------------------------------------
 async function main() {
+  args = parseArgs({
+    options: {
+      apply: { type: "boolean", default: false },
+      "keys-file": { type: "string" },
+      category: { type: "string" }, // 디버그용: 특정 카테고리(raw key)만 처리
+      "sample-count": { type: "string", default: "5" },
+      "backup-file": { type: "string" },
+    },
+  }).values;
+
   const { url, serviceKey } = await resolveCredentials();
   if (!url.includes(DEV_PROJECT_REF)) {
-    throw new Error('dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.');
+    throw new Error(
+      "dev 프로젝트(gjowqdiopinhixfivnkx)가 아닌 URL입니다. 중단합니다.",
+    );
   }
   const supabase = createClient(url, serviceKey);
   // BLOCK6: --backup-file로 명시 경로를 주면 그 경로를 쓰되(존재 시 거부는 동일 적용),
   // 기본값은 영속 디렉터리 아래 실행마다 고유한 타임스탬프 파일명이다.
-  const backupFile = args['backup-file'] || (await buildTimestampedBackupPath());
+  const backupFile =
+    args["backup-file"] || (await buildTimestampedBackupPath());
   await assertBackupFileDoesNotExist(backupFile);
-  const sampleCount = Number(args['sample-count']) || 5;
+  const sampleCount = Number(args["sample-count"]) || 5;
   const targetCategory = args.category;
   if (targetCategory && !CATEGORY_KEYS.includes(targetCategory)) {
-    throw new Error(`알 수 없는 --category: ${targetCategory} (허용: ${CATEGORY_KEYS.join(', ')})`);
+    throw new Error(
+      `알 수 없는 --category: ${targetCategory} (허용: ${CATEGORY_KEYS.join(", ")})`,
+    );
   }
-  const targetColumns = targetCategory ? [CATEGORY_HTML_KEY[targetCategory]] : HTML_COLUMNS;
+  const targetColumns = targetCategory
+    ? [CATEGORY_HTML_KEY[targetCategory]]
+    : HTML_COLUMNS;
 
-  console.log(`=== 1) 대상 조회 + 백업 (${args.apply ? 'apply' : 'dry-run'} 모드) ===`);
-  const selectColumns = ['id', 'university_name', 'campus', 'region', ...HTML_COLUMNS].join(', ');
+  console.log(
+    `=== 1) 대상 조회 + 백업 (${args.apply ? "apply" : "dry-run"} 모드) ===`,
+  );
+  const selectColumns = [
+    "id",
+    "university_name",
+    "campus",
+    "region",
+    ...HTML_COLUMNS,
+  ].join(", ");
   const { data: rows, error: fetchError } = await supabase
     .from(TABLE)
     .select(selectColumns)
-    .order('id');
+    .order("id");
   if (fetchError) throw new Error(`행 조회 실패: ${fetchError.message}`);
 
-  await writeFile(backupFile, JSON.stringify(rows, null, 2), 'utf-8');
+  await writeFile(backupFile, JSON.stringify(rows, null, 2), "utf-8");
   console.log(`백업 완료: ${rows.length}행 → ${backupFile}`);
 
-  console.log('\n=== 2) 정규화 계산 ===');
+  console.log("\n=== 2) 정규화 계산 ===");
   const changesByColumn = Object.fromEntries(HTML_COLUMNS.map((c) => [c, []]));
   let puaResolvedCount = 0;
   const puaUnresolvedFindings = [];
@@ -342,10 +384,10 @@ async function main() {
   const legacyRecruitFindings = [];
 
   rows.forEach((row) => {
-    const label = `${row.university_name}${row.campus ? `(${row.campus})` : ''}`;
+    const label = `${row.university_name}${row.campus ? `(${row.campus})` : ""}`;
 
     HTML_COLUMNS.forEach((col) => {
-      const original = row[col] || '';
+      const original = row[col] || "";
       if (!original) return;
 
       // 보고 전용 진단 (전 컬럼). PUA는 판별된(①②) 것과 미해결인 것을 분리해 집계한다.
@@ -353,13 +395,23 @@ async function main() {
       const afterKnownPua = replaceKnownPuaChars(original);
       const unresolvedPuaCount = detectUnresolvedPuaChars(afterKnownPua);
       if (unresolvedPuaCount > 0) {
-        puaUnresolvedFindings.push({ id: row.id, label, column: col, count: unresolvedPuaCount });
+        puaUnresolvedFindings.push({
+          id: row.id,
+          label,
+          column: col,
+          count: unresolvedPuaCount,
+        });
       }
       const shells = detectEmptyShellTables(original);
       if (shells.length) {
-        emptyShellFindings.push({ id: row.id, label, column: col, reasons: shells });
+        emptyShellFindings.push({
+          id: row.id,
+          label,
+          column: col,
+          reasons: shells,
+        });
       }
-      if (col === 'recruitment_result_html' && isLegacyRecruitTable(original)) {
+      if (col === "recruitment_result_html" && isLegacyRecruitTable(original)) {
         legacyRecruitFindings.push({ id: row.id, label, column: col });
       }
 
@@ -368,12 +420,17 @@ async function main() {
       const normalized = normalizeHtmlValue(original, col);
       if (normalized !== original) {
         assertIdempotent(original, normalized, col, label);
-        changesByColumn[col].push({ id: row.id, label, before: original, after: normalized });
+        changesByColumn[col].push({
+          id: row.id,
+          label,
+          before: original,
+          after: normalized,
+        });
       }
     });
   });
 
-  console.log('\n=== 3) 집계 ===');
+  console.log("\n=== 3) 집계 ===");
   let totalChanges = 0;
   HTML_COLUMNS.forEach((col) => {
     const list = changesByColumn[col];
@@ -382,11 +439,13 @@ async function main() {
   });
   console.log(`합계: ${totalChanges}건`);
 
-  console.log('\n=== 4) 샘플 diff ===');
+  console.log("\n=== 4) 샘플 diff ===");
   HTML_COLUMNS.forEach((col) => {
     const list = changesByColumn[col];
     if (!list.length) return;
-    console.log(`\n[${col}] 샘플 ${Math.min(sampleCount, list.length)}/${list.length}`);
+    console.log(
+      `\n[${col}] 샘플 ${Math.min(sampleCount, list.length)}/${list.length}`,
+    );
     list.slice(0, sampleCount).forEach((c) => {
       console.log(`  - ${c.label} (${c.id})`);
       const beforeSnippet = diffSnippet(c.before, c.after).before;
@@ -396,24 +455,32 @@ async function main() {
     });
   });
 
-  console.log('\n=== 5) 진단 전용 항목(수정 대상 아님) ===');
+  console.log("\n=== 5) 진단 전용 항목(수정 대상 아님) ===");
   console.log(
-    `PUA 문자: 판별되어 치환 대상(①/②)에 포함된 문자 ${puaResolvedCount}개, 판별 불가(미치환) ${puaUnresolvedFindings.length}건`
+    `PUA 문자: 판별되어 치환 대상(①/②)에 포함된 문자 ${puaResolvedCount}개, 판별 불가(미치환) ${puaUnresolvedFindings.length}건`,
   );
-  puaUnresolvedFindings.forEach((f) => console.log(`  - ${f.label} / ${f.column}: ${f.count}개`));
+  puaUnresolvedFindings.forEach((f) => {
+    console.log(`  - ${f.label} / ${f.column}: ${f.count}개`);
+  });
   console.log(`빈 껍데기 표 발견: ${emptyShellFindings.length}건`);
-  emptyShellFindings.forEach((f) =>
-    console.log(`  - ${f.label} / ${f.column}: ${f.reasons.join(', ')}`)
+  emptyShellFindings.forEach((f) => {
+    console.log(`  - ${f.label} / ${f.column}: ${f.reasons.join(", ")}`);
+  });
+  console.log(
+    `(c) 재파싱 필요 legacy recruit-table 구조: ${legacyRecruitFindings.length}건`,
   );
-  console.log(`(c) 재파싱 필요 legacy recruit-table 구조: ${legacyRecruitFindings.length}건`);
-  legacyRecruitFindings.forEach((f) => console.log(`  - ${f.label} / ${f.column}`));
+  legacyRecruitFindings.forEach((f) => {
+    console.log(`  - ${f.label} / ${f.column}`);
+  });
 
   if (!args.apply) {
-    console.log('\ndry-run 모드입니다. 실제 DB에는 아무것도 쓰지 않았습니다. --apply로 재실행하면 적용됩니다.');
+    console.log(
+      "\ndry-run 모드입니다. 실제 DB에는 아무것도 쓰지 않았습니다. --apply로 재실행하면 적용됩니다.",
+    );
     return;
   }
 
-  console.log('\n=== 6) 적용 ===');
+  console.log("\n=== 6) 적용 ===");
   // WARN22: 트랜잭션이 없으므로(PostgREST 단건 UPDATE 반복) 한 행 실패로 전체를 즉시
   // throw하면 "어디까지 적용됐는지" 파악이 어렵다. 대신 행별 최대 3회 재시도 후에도
   // 실패하면 목록에 쌓아두고 나머지는 계속 진행 — 마지막에 성공/실패를 한 번에 보고해
@@ -428,7 +495,7 @@ async function main() {
         const { error: updateError } = await supabase
           .from(TABLE)
           .update({ [col]: change.after })
-          .eq('id', change.id);
+          .eq("id", change.id);
         if (!updateError) {
           succeeded = true;
           updated += 1;
@@ -437,18 +504,29 @@ async function main() {
         }
       }
       if (!succeeded) {
-        failedUpdates.push({ id: change.id, label: change.label, column: col, message: lastError?.message });
-        console.error(`  업데이트 실패(3회 재시도 후 포기): ${change.label} / ${col} — ${lastError?.message}`);
+        failedUpdates.push({
+          id: change.id,
+          label: change.label,
+          column: col,
+          message: lastError?.message,
+        });
+        console.error(
+          `  업데이트 실패(3회 재시도 후 포기): ${change.label} / ${col} — ${lastError?.message}`,
+        );
       }
     }
   }
-  console.log(`적용 완료: ${updated}건 UPDATE, 실패 ${failedUpdates.length}건.`);
+  console.log(
+    `적용 완료: ${updated}건 UPDATE, 실패 ${failedUpdates.length}건.`,
+  );
   if (failedUpdates.length) {
-    console.error('실패 목록(동일 --category로 재실행해 재시도하세요):');
-    failedUpdates.forEach((f) => console.error(`  - ${f.label} / ${f.column} (id=${f.id}): ${f.message}`));
+    console.error("실패 목록(동일 --category로 재실행해 재시도하세요):");
+    failedUpdates.forEach((f) => {
+      console.error(`  - ${f.label} / ${f.column} (id=${f.id}): ${f.message}`);
+    });
   }
 
-  console.log('\n=== 7) 재감사(잔여 0 확인) ===');
+  console.log("\n=== 7) 재감사(잔여 0 확인) ===");
   // WARN22: --category로 한 컬럼만 처리했는데 전 컬럼을 재감사하면, 애초에 이 스크립트의
   // 범위 밖인 다른 컬럼의 미정규화 값(예: 아직 정규화 대상이 아닌 값) 때문에 residual이
   // 항상 0보다 커져 --category 실행이 매번 exit 1로 실패한다. 이번 실행에서 실제로 건드린
@@ -456,21 +534,25 @@ async function main() {
   const { data: verifyRows, error: verifyError } = await supabase
     .from(TABLE)
     .select(selectColumns)
-    .order('id');
+    .order("id");
   if (verifyError) throw new Error(`재감사 조회 실패: ${verifyError.message}`);
 
   let residual = 0;
   verifyRows.forEach((row) => {
     targetColumns.forEach((col) => {
-      const original = row[col] || '';
+      const original = row[col] || "";
       if (!original) return;
       const normalized = normalizeHtmlValue(original, col);
       if (normalized !== original) residual += 1;
     });
   });
-  console.log(`재감사 결과: 정규화 후에도 변경이 필요한 잔여 건수 = ${residual} (대상 컬럼: ${targetColumns.join(', ')})`);
+  console.log(
+    `재감사 결과: 정규화 후에도 변경이 필요한 잔여 건수 = ${residual} (대상 컬럼: ${targetColumns.join(", ")})`,
+  );
   if (residual !== 0 || failedUpdates.length) {
-    console.error('경고: 잔여 건수 또는 실패 건수가 0이 아닙니다. 원인을 확인하세요.');
+    console.error(
+      "경고: 잔여 건수 또는 실패 건수가 0이 아닙니다. 원인을 확인하세요.",
+    );
     process.exitCode = 1;
   }
 }
@@ -491,7 +573,8 @@ function diffSnippet(before, after, context = 30) {
   return { before: beforeSnippet, after: afterSnippet };
 }
 
-const isMainModule = process.argv[1] && process.argv[1].endsWith('normalize-admission-html.mjs');
+const isMainModule =
+  process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMainModule) {
   main().catch((err) => {
     console.error(err);

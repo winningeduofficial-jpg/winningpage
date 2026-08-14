@@ -1,0 +1,93 @@
+// 성적 관리(#35) + 대시보드 모의고사/내신 카드가 공유하는 순수 파생 함수.
+//
+// api/goal/grades.js 의 회차 레코드({term, value, subjects, ...})를 화면이 쓰는 두 모양으로
+// 바꾼다: GoalTable 행(과목별 값 + 평균), KPI/이력 카드용 "최신값·직전 대비 증감".
+//
+// ⚠ 여기 있는 산술은 전부 단순 뺄셈·평균이다. src/lib/goal/calc/ 의 확률 파이프라인과는
+// 무관하다 — 성적 기록 UoW 스코프(팀장 확정)가 "확률 재계산 없음"이라 calc 모듈을 아예
+// import 하지 않는다.
+
+export function round1(value) {
+  if (value == null || !Number.isFinite(value)) return null;
+  return Math.round(value * 10) / 10;
+}
+
+/** api/goal/grades.js 회차 레코드 배열 → GoalTable rows({term, korean, math, english, science, average}). */
+export function toTableRows(records) {
+  return (records || []).map((record) => ({
+    term: record.term,
+    korean: record.subjects?.korean,
+    math: record.subjects?.math,
+    english: record.subjects?.english,
+    science: record.subjects?.science,
+    average: record.value,
+  }));
+}
+
+/**
+ * KPI 게이지 카드용 "현재 값" — 기록된 회차가 있으면 가장 최근 회차, 없으면 온보딩
+ * 베이스라인(goal_students.current_score/current_mogo, fetchGoalStudent()가 이미 갖고
+ * 있다)으로 대체한다. 회차를 하나도 추가하지 않은 학생도 카드가 빈 값으로 뜨지 않게 하려는
+ * 것이다(온보딩 시점 값은 실데이터이지 목업이 아니다).
+ *
+ * delta(직전 대비 증감)는 "파생 가능한 것만 보여준다"(팀장 지시) 원칙에 따라 비교 대상이
+ * 실제로 있을 때만 계산한다 — 기록이 2건 이상이면 최근 두 회차, 1건뿐이면 그 회차와
+ * 베이스라인을 비교(같으면 0 이 아니라 아예 생략 — 같은 값 표시는 정보가 아니다),
+ * 0건이면 delta 자체를 만들지 않는다(null).
+ */
+export function latestKpi(
+  records,
+  { fallbackValue = null, fallbackRound = "" } = {},
+) {
+  const list = records || [];
+
+  if (list.length > 0) {
+    const latest = list[list.length - 1];
+    const prev = list.length > 1 ? list[list.length - 2] : null;
+    const compareTo = prev ? prev.value : fallbackValue;
+    const delta =
+      compareTo != null && compareTo !== latest.value
+        ? round1(latest.value - compareTo)
+        : null;
+
+    return { round: latest.term, value: latest.value, delta };
+  }
+
+  return {
+    round: fallbackRound || "기록 없음",
+    value: fallbackValue,
+    delta: null,
+  };
+}
+
+/**
+ * latestKpi()의 원시 delta(그냥 뺄셈 latest-compareTo)를 GoalGaugeCard가 기대하는
+ * "개선폭(항상 양수, ▲ 초록)" 관례로 바꾼다.
+ *
+ * GoalGaugeCard는 delta의 방향·색을 lowerIsBetter로 다시 계산하지 않고 항상 ▲ 초록으로
+ * 그린다(원래 mockGrades.kpi.delta가 이미 "개선폭"으로 사전 계산돼 있었기 때문 —
+ * GoalGaugeCard.jsx 헤더 주석 참고). 등급(lowerIsBetter=true)은 값이 내려가야 개선이라
+ * latestKpi의 원시 diff(latest-compareTo)가 음수로 나온다 — 그대로 넘기면 "▲-0.26"처럼
+ * 부호와 화살표가 어긋난다. 회귀(악화)했을 때 표시할 배지 스타일은 시안에 정의가 없어
+ * (DeltaBadge.jsx 주석 "하락 상태 미정의") null로 접어 숨긴다("파생 불가 항목은 숨김"
+ * 원칙과 일치).
+ */
+export function improvementDelta(rawDelta, lowerIsBetter) {
+  if (rawDelta == null) return null;
+  const isImprovement = lowerIsBetter ? rawDelta < 0 : rawDelta > 0;
+  return isImprovement ? round1(Math.abs(rawDelta)) : null;
+}
+
+/**
+ * 카드형 "기록한 성적" 이력(최신순 최대 count건) — 4022:5403 모의고사 카드 변형용.
+ * 각 원소에 직전 회차(시간순 바로 앞) 대비 증감을 함께 계산해 붙인다. 첫 회차(비교 대상
+ * 없음)는 delta: null — 호출부가 "-"로 렌더한다(시안 그대로).
+ */
+export function recentHistory(records, count = 3) {
+  const list = records || [];
+  const withDelta = list.map((record, index) => ({
+    ...record,
+    delta: index > 0 ? round1(record.value - list[index - 1].value) : null,
+  }));
+  return withDelta.slice(-count).reverse();
+}

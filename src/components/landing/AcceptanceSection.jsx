@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
-import useInfiniteMarquee from '../../hooks/useInfiniteMarquee';
+import { useEffect, useMemo, useState } from "react";
+import useInfiniteMarquee from "../../hooks/useInfiniteMarquee";
 
 const TRACK_TABS = [
-  { key: 'general', label: '일반계열' },
-  { key: 'medical_special', label: '의약학 · 특수계열' }
+  { key: "general", label: "일반계열" },
+  { key: "medical_special", label: "의약학 · 특수계열" },
 ];
 
 /**
@@ -22,30 +22,35 @@ const TRACK_TABS = [
 export default function AcceptanceSection({ universities = [] }) {
   const trackCounts = useMemo(
     () => ({
-      general: universities.filter((item) => item.track === 'general').length,
-      medical_special: universities.filter((item) => item.track === 'medical_special').length
+      general: universities.filter((item) => item.track === "general").length,
+      medical_special: universities.filter(
+        (item) => item.track === "medical_special",
+      ).length,
     }),
-    [universities]
+    [universities],
   );
 
-  const [selectedTrack, setSelectedTrack] = useState('general');
+  const [selectedTrack, setSelectedTrack] = useState("general");
 
   // 선택 탭 데이터가 0건이면 데이터가 있는 탭으로 폴백
   const activeTrack =
     trackCounts[selectedTrack] > 0
       ? selectedTrack
-      : (TRACK_TABS.find((tab) => trackCounts[tab.key] > 0)?.key ?? selectedTrack);
+      : (TRACK_TABS.find((tab) => trackCounts[tab.key] > 0)?.key ??
+        selectedTrack);
 
   const activeUniversities = useMemo(
     () => universities.filter((item) => item.track === activeTrack),
-    [universities, activeTrack]
+    [universities, activeTrack],
   );
 
-  const { scrollRef, repeatIndices, containerHandlers, recenter } = useInfiniteMarquee({
-    itemCount: activeUniversities.length
-  });
+  const { scrollRef, repeatIndices, containerHandlers, recenter } =
+    useInfiniteMarquee({
+      itemCount: activeUniversities.length,
+    });
 
   // 탭 전환 시 캐러셀 위치 리셋 (중앙 사이클로 재배치 — 훅의 동적 repeatCount 반영)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) activeTrack은 effect 안에서 읽지 않는 트리거 전용 값 — 탭이 바뀔 때마다 recenter를 다시 부르기 위한 재실행 신호다.
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => recenter());
     return () => window.cancelAnimationFrame(frame);
@@ -55,7 +60,9 @@ export default function AcceptanceSection({ universities = [] }) {
 
   // 2개 이상일 때만 N배 반복 마퀴(기본 3배, 훅이 폭에 맞춰 자동 증가), 이하면 원본만 정적 렌더
   const isMarquee = activeUniversities.length > 1;
-  const renderIndices = isMarquee ? repeatIndices : activeUniversities.map((_, index) => index);
+  const renderIndices = isMarquee
+    ? repeatIndices
+    : activeUniversities.map((_, index) => index);
 
   return (
     <section aria-label="합격생" className="overflow-hidden bg-white">
@@ -64,7 +71,9 @@ export default function AcceptanceSection({ universities = [] }) {
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <h2 className="break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.03rem] sm:text-[1.75rem] lg:text-[2rem] lg:tracking-[-0.04rem]">
             <span className="block text-[#013262]">인서울부터 과기원까지</span>
-            <span className="block text-[#525252]">합격생 선배님들의 압도적 선택</span>
+            <span className="block text-[#525252]">
+              합격생 선배님들의 압도적 선택
+            </span>
           </h2>
 
           <div
@@ -77,9 +86,15 @@ export default function AcceptanceSection({ universities = [] }) {
               const isEmpty = trackCounts[tab.key] === 0;
 
               return (
-                <div key={tab.key} className="flex items-center gap-6 sm:gap-10">
+                <div
+                  key={tab.key}
+                  className="flex items-center gap-6 sm:gap-10"
+                >
                   {tabIndex > 0 && (
-                    <span aria-hidden="true" className="h-[1.875rem] w-px bg-[#d7d7d7]" />
+                    <span
+                      aria-hidden="true"
+                      className="h-[1.875rem] w-px bg-[#d7d7d7]"
+                    />
                   )}
                   <button
                     type="button"
@@ -90,11 +105,13 @@ export default function AcceptanceSection({ universities = [] }) {
                     disabled={isEmpty}
                     onClick={() => setSelectedTrack(tab.key)}
                     className={`relative text-[1.5rem] leading-[1.3] tracking-[-0.03rem] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] max-lg:after:absolute max-lg:after:-top-2.5 max-lg:after:-bottom-2.5 max-lg:after:inset-x-0 max-lg:after:content-[''] ${
-                      isActive ? 'font-semibold text-[#525252]' : 'font-medium text-[#d7d7d7]'
+                      isActive
+                        ? "font-semibold text-[#525252]"
+                        : "font-medium text-[#d7d7d7]"
                     } ${
                       isEmpty
-                        ? 'cursor-not-allowed opacity-60'
-                        : 'hover:text-[#8a8a8a] focus-visible:text-[#8a8a8a]'
+                        ? "cursor-not-allowed opacity-60"
+                        : "hover:text-[#8a8a8a] focus-visible:text-[#8a8a8a]"
                     }`}
                   >
                     {tab.label}
@@ -120,28 +137,33 @@ export default function AcceptanceSection({ universities = [] }) {
             <ul
               key={activeTrack}
               className={`panel-fade flex w-max min-w-full items-center gap-5 px-5 sm:px-8 ${
-                isMarquee ? '' : 'justify-center'
+                isMarquee ? "" : "justify-center"
               }`}
             >
               {renderIndices.map((itemIndex, renderIndex) => {
                 const university = activeUniversities[itemIndex];
                 if (!university) return null;
 
-                const cycle = Math.floor(renderIndex / activeUniversities.length);
+                const cycle = Math.floor(
+                  renderIndex / activeUniversities.length,
+                );
                 const isClone = isMarquee && cycle !== 1;
 
                 return (
                   <li
+                    // biome-ignore lint/suspicious/noArrayIndexKey: 무한 마퀴 클론이라 같은 university.id가 여러 번 반복된다 — renderIndex로 각 클론 사본을 구분한다.
                     key={`${university.id}-${renderIndex}`}
                     aria-hidden={isClone || undefined}
                     className={`flex h-[18.75rem] w-[12.5rem] shrink-0 flex-col items-center gap-6 rounded-[2rem] pt-[3.25rem] ${
-                      activeTrack === 'medical_special' ? 'bg-[#e9f4ff]' : 'bg-[#f9fafb]'
+                      activeTrack === "medical_special"
+                        ? "bg-[#e9f4ff]"
+                        : "bg-[#f9fafb]"
                     }`}
                   >
                     {university.emblem_url ? (
                       <img
                         src={university.emblem_url}
-                        alt={isClone ? '' : `${university.name} 엠블럼`}
+                        alt={isClone ? "" : `${university.name} 엠블럼`}
                         width="120"
                         height="120"
                         loading="lazy"
@@ -158,7 +180,9 @@ export default function AcceptanceSection({ universities = [] }) {
                     </p>
                     <p className="text-center text-[1rem] font-normal leading-[1.3] text-[#525252]">
                       {university.subtitle ??
-                        (university.count != null ? `${university.count}명 합격` : '')}
+                        (university.count != null
+                          ? `${university.count}명 합격`
+                          : "")}
                     </p>
                   </li>
                 );

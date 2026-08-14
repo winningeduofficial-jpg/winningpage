@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { FAQ_CATEGORIES } from '../data/faqCategories';
-import FaqCategoryTabs from '../components/faq/FaqCategoryTabs';
-import FaqAccordionRow from '../components/faq/FaqAccordionRow';
-import { getFaqTabId, FAQ_TABPANEL_ID } from '../components/faq/faqTabId';
+import { Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import FaqAccordionRow from "../components/faq/FaqAccordionRow";
+import FaqCategoryTabs from "../components/faq/FaqCategoryTabs";
+import { FAQ_TABPANEL_ID, getFaqTabId } from "../components/faq/faqTabId";
+import { FAQ_CATEGORIES } from "../data/faqCategories";
+import { supabase } from "../lib/supabase";
 
 // '전체'는 DB category 값이 아니라 UI 전용 키다 — faqs.category 에는 절대
 // 저장하지 않는다(계약 §1).
-const ALL_TAB = '전체';
+const ALL_TAB = "전체";
 
-const EMPTY_STATE_CLASS = 'py-24 text-center text-sm font-bold text-gray-400';
+const EMPTY_STATE_CLASS = "py-24 text-center text-sm font-bold text-gray-400";
 
 export default function Faq() {
   const [faqs, setFaqs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState(ALL_TAB);
-  const [keyword, setKeyword] = useState('');
+  const [keyword, setKeyword] = useState("");
   const [openId, setOpenId] = useState(null);
 
   useEffect(() => {
@@ -28,16 +28,16 @@ export default function Faq() {
       // select('*') 유지 — 마이그레이션 미적용 환경에서도(category/content_json
       // 컬럼이 없더라도) 조회 자체는 죽지 않는다.
       const { data, error } = await supabase
-        .from('faqs')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order', { ascending: true })
-        .order('created_at', { ascending: false });
+        .from("faqs")
+        .select("*")
+        .eq("is_active", true)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: false });
 
       if (!alive) return;
 
       if (error) {
-        console.error('FAQ 조회 오류:', error);
+        console.error("FAQ 조회 오류:", error);
         setFaqs([]);
       } else {
         setFaqs(data || []);
@@ -58,8 +58,11 @@ export default function Faq() {
 
     // category 가 빈 문자열(마이그레이션 전 기존 행)이면 어떤 카테고리 탭에도
     // 안 잡히고 '전체'에만 노출된다.
-    const available = new Set(faqs.map((faq) => faq.category || ''));
-    return [ALL_TAB, ...FAQ_CATEGORIES.filter((category) => available.has(category))];
+    const available = new Set(faqs.map((faq) => faq.category || ""));
+    return [
+      ALL_TAB,
+      ...FAQ_CATEGORIES.filter((category) => available.has(category)),
+    ];
   }, [faqs, loading]);
 
   // 선택된 탭이 사라지면(예: 마지막 항목이 비활성화됨) '전체'로 폴백한다.
@@ -72,13 +75,15 @@ export default function Faq() {
 
   const categoryFiltered = useMemo(() => {
     if (activeTab === ALL_TAB) return faqs;
-    return faqs.filter((faq) => (faq.category || '') === activeTab);
+    return faqs.filter((faq) => (faq.category || "") === activeTab);
   }, [faqs, activeTab]);
 
   const searchFiltered = useMemo(() => {
     const q = keyword.trim().toLowerCase();
     if (!q) return [];
-    return faqs.filter((faq) => `${faq.question} ${faq.answer || ''}`.toLowerCase().includes(q));
+    return faqs.filter((faq) =>
+      `${faq.question} ${faq.answer || ""}`.toLowerCase().includes(q),
+    );
   }, [faqs, keyword]);
 
   const visibleFaqs = isSearching ? searchFiltered : categoryFiltered;
@@ -109,7 +114,12 @@ export default function Faq() {
     return (
       <div>
         {visibleFaqs.map((faq) => (
-          <FaqAccordionRow key={faq.id} faq={faq} isOpen={openId === faq.id} onToggle={() => toggleFaq(faq.id)} />
+          <FaqAccordionRow
+            key={faq.id}
+            faq={faq}
+            isOpen={openId === faq.id}
+            onToggle={() => toggleFaq(faq.id)}
+          />
         ))}
       </div>
     );
@@ -152,8 +162,12 @@ export default function Faq() {
             // aria-live는 "검색 결과 N건" 문구에만 건다 — section 전체에 걸면 검색은
             // 디바운스가 없어 키 입력마다 스크린리더가 결과 목록 전체를 재낭독한다.
             <section className="mt-8 lg:mt-[5.375rem]">
-              <p aria-live="polite" className="text-base font-semibold leading-5 tracking-[-0.02em] text-[#525252]">
-                검색 결과 <span className="text-[#013262]">{visibleFaqs.length}건</span>
+              <p
+                aria-live="polite"
+                className="text-base font-semibold leading-5 tracking-[-0.02em] text-[#525252]"
+              >
+                검색 결과{" "}
+                <span className="text-[#013262]">{visibleFaqs.length}건</span>
               </p>
               <div className="mt-3 border-t border-[#D7D7D7]">
                 {renderList(`'${keyword.trim()}'에 대한 검색 결과가 없습니다.`)}
@@ -162,11 +176,19 @@ export default function Faq() {
           ) : (
             <>
               <div className="mt-8 lg:mt-[5.375rem]">
-                <FaqCategoryTabs tabs={visibleTabs} active={activeTab} onChange={handleTabChange} />
+                <FaqCategoryTabs
+                  tabs={visibleTabs}
+                  active={activeTab}
+                  onChange={handleTabChange}
+                />
               </div>
 
-              <div id={FAQ_TABPANEL_ID} role="tabpanel" aria-labelledby={getFaqTabId(activeTab)}>
-                {renderList('등록된 질문이 없습니다.')}
+              <div
+                id={FAQ_TABPANEL_ID}
+                role="tabpanel"
+                aria-labelledby={getFaqTabId(activeTab)}
+              >
+                {renderList("등록된 질문이 없습니다.")}
               </div>
             </>
           )}

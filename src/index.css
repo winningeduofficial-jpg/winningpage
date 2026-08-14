@@ -47,13 +47,8 @@ body {
      'Pretendard'(정적 패밀리명) 를 여기 넣지 마라 — 웹폰트가 아니라 OS 로컬 설치본에만
      매칭돼 폰트가 설치된 작업자 기기에서 로드 실패를 가려버린다. */
   font-family:
-    'Pretendard Variable',
-    'Noto Sans KR',
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
+    "Pretendard Variable", "Noto Sans KR", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -119,29 +114,42 @@ select {
   position: relative;
   overflow: hidden;
   background:
-    radial-gradient(circle at 15% 20%, rgba(214, 176, 106, 0.1), transparent 28%),
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(214, 176, 106, 0.1),
+      transparent 28%
+    ),
     linear-gradient(180deg, #0d1b2a 0%, #081421 58%, #0d1b2a 100%);
 }
 
 .site-dark-bg::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.18) 1px, transparent 1px);
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.18) 1px,
+    transparent 1px
+  );
   background-size: 90px 90px;
   opacity: 0.12;
 }
 
 .site-dark-bg::after {
-  content: '';
+  content: "";
   position: absolute;
   left: -10%;
   bottom: 10%;
   width: 55%;
   height: 2px;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, rgba(214, 176, 106, 0.6), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(214, 176, 106, 0.6),
+    transparent
+  );
   transform: rotate(16deg);
   box-shadow: 0 0 28px rgba(214, 176, 106, 0.36);
 }
@@ -255,19 +263,23 @@ select {
     -webkit-mask-image: linear-gradient(
       to right,
       transparent,
-      transparent calc((100% - var(--marquee-content)) / 2 - var(--marquee-fade)),
+      transparent
+        calc((100% - var(--marquee-content)) / 2 - var(--marquee-fade)),
       black calc((100% - var(--marquee-content)) / 2),
       black calc(100% - (100% - var(--marquee-content)) / 2),
-      transparent calc(100% - (100% - var(--marquee-content)) / 2 + var(--marquee-fade)),
+      transparent
+        calc(100% - (100% - var(--marquee-content)) / 2 + var(--marquee-fade)),
       transparent
     );
     mask-image: linear-gradient(
       to right,
       transparent,
-      transparent calc((100% - var(--marquee-content)) / 2 - var(--marquee-fade)),
+      transparent
+        calc((100% - var(--marquee-content)) / 2 - var(--marquee-fade)),
       black calc((100% - var(--marquee-content)) / 2),
       black calc(100% - (100% - var(--marquee-content)) / 2),
-      transparent calc(100% - (100% - var(--marquee-content)) / 2 + var(--marquee-fade)),
+      transparent
+        calc(100% - (100% - var(--marquee-content)) / 2 + var(--marquee-fade)),
       transparent
     );
   }

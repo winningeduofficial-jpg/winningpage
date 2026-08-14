@@ -14,18 +14,18 @@
 //   (api/lookup-child.js 주석). 그래서 학부모 가입 직후 세션을 유지해야 한다 —
 //   가입 후 signOut 하면 이 화면에서 not_authenticated로 떨어진다.
 
-import { supabase } from './supabase';
+import { supabase } from "./supabase";
 
 // 서버가 발급하는 코드 알파벳. 헷갈리는 0·1·I·L·O를 뺀 31종이다
 // (sql/40_auth_signup.sql [4] generate_link_code_string).
-const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+const CODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 export const CODE_LENGTH = 6;
 
 /** 입력값을 코드 형태로 다듬는다. 대문자 영숫자만 남기고 6자로 자른다. */
 export function normalizeLinkCode(raw) {
-  return String(raw || '')
+  return String(raw || "")
     .toUpperCase()
-    .replace(/[^A-Z0-9]/g, '')
+    .replace(/[^A-Z0-9]/g, "")
     .slice(0, CODE_LENGTH);
 }
 
@@ -36,30 +36,39 @@ export function normalizeLinkCode(raw) {
  * 무엇을 고쳐야 할지 알 수 없다. 조회를 보내기 전에 짚어준다.
  */
 export function findImpossibleChars(code) {
-  return [...new Set([...normalizeLinkCode(code)].filter((ch) => !CODE_ALPHABET.includes(ch)))];
+  return [
+    ...new Set(
+      [...normalizeLinkCode(code)].filter((ch) => !CODE_ALPHABET.includes(ch)),
+    ),
+  ];
 }
 
 const MESSAGES = {
-  not_authenticated: '로그인이 필요합니다. 다시 로그인해 주세요.',
-  not_a_parent: '학부모 회원만 이용할 수 있습니다.',
-  invalid_code_format: '연결코드 6자리를 정확히 입력해 주세요.',
-  link_code_not_found: '일치하는 연결코드를 찾을 수 없습니다',
-  cannot_link_self: '본인의 연결코드는 사용할 수 없습니다.',
-  student_already_linked: '이미 다른 보호자와 연결된 학생이에요.',
-  link_already_requested: '이미 연결을 요청했어요. 자녀의 승인을 기다려 주세요.',
-  too_many_lookups: '조회 횟수가 많습니다. 잠시 후 다시 시도해 주세요.',
-  too_many_failed_lookups: '조회 실패가 많습니다. 잠시 후 다시 시도해 주세요.',
-  network: '연결 상태를 확인한 뒤 다시 시도해 주세요.',
-  unknown: '잠시 후 다시 시도해 주세요.'
+  not_authenticated: "로그인이 필요합니다. 다시 로그인해 주세요.",
+  not_a_parent: "학부모 회원만 이용할 수 있습니다.",
+  invalid_code_format: "연결코드 6자리를 정확히 입력해 주세요.",
+  link_code_not_found: "일치하는 연결코드를 찾을 수 없습니다",
+  cannot_link_self: "본인의 연결코드는 사용할 수 없습니다.",
+  student_already_linked: "이미 다른 보호자와 연결된 학생이에요.",
+  link_already_requested:
+    "이미 연결을 요청했어요. 자녀의 승인을 기다려 주세요.",
+  too_many_lookups: "조회 횟수가 많습니다. 잠시 후 다시 시도해 주세요.",
+  too_many_failed_lookups: "조회 실패가 많습니다. 잠시 후 다시 시도해 주세요.",
+  network: "연결 상태를 확인한 뒤 다시 시도해 주세요.",
+  unknown: "잠시 후 다시 시도해 주세요.",
 };
 
 function fail(reason, detail) {
-  return { ok: false, reason, message: detail || MESSAGES[reason] || MESSAGES.unknown };
+  return {
+    ok: false,
+    reason,
+    message: detail || MESSAGES[reason] || MESSAGES.unknown,
+  };
 }
 
 async function getAccessToken() {
   const { data } = await supabase.auth.getSession();
-  return data?.session?.access_token || '';
+  return data?.session?.access_token || "";
 }
 
 /**
@@ -72,39 +81,39 @@ export async function lookupChild(code) {
   const token = await getAccessToken();
 
   // 토큰이 없으면 서버가 401을 줄 게 뻔하다. 한도만 축내지 않도록 미리 끊는다.
-  if (!token) return fail('not_authenticated');
+  if (!token) return fail("not_authenticated");
 
   let response;
   let payload;
 
   try {
-    response = await fetch('/api/lookup-child', {
-      method: 'POST',
+    response = await fetch("/api/lookup-child", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ code: normalized })
+      body: JSON.stringify({ code: normalized }),
     });
     payload = await response.json();
   } catch {
-    return fail('network');
+    return fail("network");
   }
 
   if (!response.ok || !payload?.ok) {
-    return fail(payload?.reason || 'unknown', payload?.detail);
+    return fail(payload?.reason || "unknown", payload?.detail);
   }
 
   return {
     ok: true,
     child: {
-      name: payload.child?.name || '',
-      school: payload.child?.school || '',
-      schoolType: payload.child?.school_type || '',
+      name: payload.child?.name || "",
+      school: payload.child?.school || "",
+      schoolType: payload.child?.school_type || "",
       // 서버에 학년 컬럼이 아직 없어 항상 null이다(api/lookup-child.js 주석).
-      grade: payload.child?.grade ?? null
+      grade: payload.child?.grade ?? null,
     },
-    alreadyLinked: Boolean(payload.already_linked)
+    alreadyLinked: Boolean(payload.already_linked),
   };
 }
 
@@ -116,19 +125,60 @@ export async function lookupChild(code) {
 export async function requestParentLink(code) {
   const normalized = normalizeLinkCode(code);
 
-  const { data, error } = await supabase.rpc('request_parent_link', { p_code: normalized });
+  const { data, error } = await supabase.rpc("request_parent_link", {
+    p_code: normalized,
+  });
 
   if (error) {
     // RPC는 raise exception의 메시지를 그대로 올려보낸다. 우리가 정의한
     // 사유 코드면 그대로 쓰고, 아니면 원문을 감춘다(내부 오류가 새면 안 된다).
-    const raw = String(error.message || '').trim();
-    return fail(raw in MESSAGES ? raw : 'unknown');
+    const raw = String(error.message || "").trim();
+    return fail(raw in MESSAGES ? raw : "unknown");
   }
 
   return {
     ok: true,
     linkId: data?.link_id || null,
-    status: data?.status || 'pending',
-    studentName: data?.student_name || ''
+    status: data?.status || "pending",
+    studentName: data?.student_name || "",
   };
+}
+
+/**
+ * 학생이 결제 요청(수강신청)을 보낼 수 있는지 판정한다 — "승인된" 학부모
+ * 연결이 있어야 한다(status='pending'인 요청 중 상태는 자격이 아니다).
+ * StudentEnrollmentRequest.jsx(결제요청 실패 모달)의 판정 근거.
+ *
+ * 학생:학부모 = 1:1(제품 규칙 확정)이라 여러 건이 있어도 첫 건만 본다.
+ * parent_id 를 함께 반환하는 이유 — 결제 요청 제출(fn_request_enrollment)이
+ * p_parent_profile_id 인자를 요구하는데, 학생 화면은 그 값을 달리 알 방법이
+ * 없다(로그인 세션엔 자기 자신의 id 뿐이다).
+ *
+ * RLS(parent_child_links party read, sql/40)가 이미 "본인이 당사자인 행"만
+ * 열어 주므로 student_id 를 서버가 아니라 클라이언트가 넘겨도 위조 이득이
+ * 없다 — 남의 student_id 를 넣어도 RLS 가 0행을 돌려준다.
+ *
+ * 조회 실패 시 null(= "연결 없음"으로 안전 처리) — 위조된 연결로 요청을
+ * 통과시키는 것보다, 진짜 연결이 있는 사용자가 한 번 더 시도하게 만드는
+ * 쪽이 안전하다(lookupChild/requestParentLink의 fail() 패턴과 달리 여기는
+ * 화면이 즉시 재시도 가능한 실패 모달을 이미 갖고 있어 별도 사유 코드가
+ * 필요 없다).
+ */
+export async function getApprovedParentLink(studentId) {
+  if (!studentId) return null;
+
+  const { data, error } = await supabase
+    .from("parent_child_links")
+    .select("id, parent_id")
+    .eq("student_id", studentId)
+    .eq("status", "approved")
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.warn("학부모 연결 조회 실패:", error.message);
+    return null;
+  }
+
+  return data || null;
 }

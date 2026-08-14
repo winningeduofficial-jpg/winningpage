@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
-import ColumnCard from '../../components/column/ColumnCard';
-import CategoryChips from '../../components/column/CategoryChips';
-import { ALL_CATEGORY, fetchActiveColumns, getCategoryLabel, pickFeaturedColumns } from './columnData';
+import { ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import CategoryChips from "../../components/column/CategoryChips";
+import ColumnCard from "../../components/column/ColumnCard";
+import {
+  ALL_CATEGORY,
+  fetchActiveColumns,
+  getCategoryLabel,
+  pickFeaturedColumns,
+} from "./columnData";
 
 const SECTION_TITLE =
-  'break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]';
+  "break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]";
 
 export default function ColumnHome() {
   const [rows, setRows] = useState([]);
@@ -50,7 +55,9 @@ export default function ColumnHome() {
     <main className="bg-white pt-16">
       {!loading && rows.length === 0 ? (
         <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
-          <p className="text-sm font-bold text-gray-400">등록된 교육칼럼이 없습니다.</p>
+          <p className="text-sm font-bold text-gray-400">
+            등록된 교육칼럼이 없습니다.
+          </p>
         </div>
       ) : (
         <>
@@ -70,7 +77,11 @@ export default function ColumnHome() {
                     {heroSmalls.length > 0 && (
                       <div className="flex flex-col gap-6 wide:w-[29rem] wide:shrink-0">
                         {heroSmalls.map((row) => (
-                          <ColumnCard key={row.id} column={row} variant="heroSmall" />
+                          <ColumnCard
+                            key={row.id}
+                            column={row}
+                            variant="heroSmall"
+                          />
                         ))}
                       </div>
                     )}
@@ -95,7 +106,11 @@ export default function ColumnHome() {
                 </div>
 
                 <div className="mt-10">
-                  <CategoryChips active={category} onChange={setCategory} align="left" />
+                  <CategoryChips
+                    active={category}
+                    onChange={setCategory}
+                    align="left"
+                  />
                 </div>
 
                 {filteredGridRows.length === 0 ? (

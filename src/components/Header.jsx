@@ -1,22 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, Menu, Settings } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { MY_MENU } from './myMenuItems';
-import MobileNavDrawer from './MobileNavDrawer';
-import { cleanText, isSameObject, useNavGroups } from '../hooks/useNavGroups';
+import { ChevronDown, Menu, Settings } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
+import megaPromoDiagnosisImg from "../assets/mega/promo-diagnosis.png";
 import {
   MEGA_COL_GAP,
   MEGA_COL_W,
   MEGA_GUARD,
   NAV_CELL_GAP,
   NAV_CELL_W,
-  NAV_GUARD
-} from '../data/navigation';
-import megaPromoDiagnosisImg from '../assets/mega/promo-diagnosis.png';
+  NAV_GUARD,
+} from "../data/navigation";
+import { cleanText, isSameObject, useNavGroups } from "../hooks/useNavGroups";
+import { supabase } from "../lib/supabase";
+import MobileNavDrawer from "./MobileNavDrawer";
+import { buildMyMenu } from "./myMenuItems";
 
-const CSAT_DATE = '2026-11-19';
-const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
+const CSAT_DATE = "2026-11-19";
+const HEADER_PROFILE_CACHE_KEY = "winning-header-profile";
 
 // ---- 헤더 2중 좌표계 정렬 상수 (0729 시안 2207:12337, Playwright 실측 기준) ----
 // 좌표계 1 (로고 + 계정 그룹): max-w-[120rem](1920px) 밴드. 좌우 마진은 px-8(2rem)에서
@@ -36,34 +36,34 @@ const HEADER_PROFILE_CACHE_KEY = 'winning-header-profile';
 //   이후 이름 truncate 상한을 제거해(이름 전체 노출 정책) 계정 그룹 폭은 이름 길이에 따라
 //   가변이 되었다 — 위 실측치는 상한 존재 당시 기준값이며, 긴 이름에서의 유동 gap·90rem
 //   전환점 상호작용은 Playwright 실측으로 별도 검증한다.
-const LOGO_W = '4.04rem';
+const LOGO_W = "4.04rem";
 // 프로모 카드 폭: Figma 1483:926 실측 460×478 → 컴팩트 스케일 0.8 적용 = 368px = 23rem.
 // (get_design_context 1483:926 실값 기준으로 재확인 완료 — 패딩 p-[32px], 요소간 gap-[32px],
 // radius-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px, 버튼 68px 도 모두
 // 동일 0.8 스케일로 환산해 아래 카드 JSX에 반영했다.)
-const MEGA_PROMO_W = '23rem';
+const MEGA_PROMO_W = "23rem";
 // 프로모 카드 콘텐츠(로그인 상태별 분기, 시안 3153:5209 로그인된 메가헤더 / 카드 프레임
 // 3144:2883 — 크기·간격·그림자·타이포는 비로그인 카드(1483:926)와 완전히 동일해 상수는
 // 그대로 재사용하고, 콘텐츠(타이틀/서브/이미지/CTA)만 이 두 상수 객체로 분기한다.
 const MEGA_PROMO_GUEST = {
-  title: '월 2만원 대로 시작하는 입시 관리!',
+  title: "월 2만원 대로 시작하는 입시 관리!",
   subtitle: (
     <>
       학업·교내활동, 탐구, 학종, 교과, 면접까지
       <br />
-      AI로 무제한 점검하세요
+      무제한 점검하세요
     </>
   ),
-  image: '/images/mega-menu-promo.png',
-  ctaLabel: '로그인하기',
-  ctaTo: '/login'
+  image: "/images/mega-menu-promo.png",
+  ctaLabel: "로그인하기",
+  ctaTo: "/login",
 };
 const MEGA_PROMO_MEMBER = {
-  title: '나에게 딱 맞는 서비스를 추천받아요',
-  subtitle: '무료 설문조사로 나의 강점과 약점을 찾아보세요',
+  title: "나에게 딱 맞는 서비스를 추천받아요",
+  subtitle: "무료 설문조사로 나의 강점과 약점을 찾아보세요",
   image: megaPromoDiagnosisImg,
-  ctaLabel: '무료진단 하기',
-  ctaTo: '/free-diagnosis'
+  ctaLabel: "학습진단 하기",
+  ctaTo: "/services/learning-diagnosis",
 };
 // 메가 회색 존(#F9FAFB — Figma 1483:846 get_design_context 실값, 기존 #F7F7F7 추정치 폐기):
 // 프로모 카드(MEGA_PROMO_W)를 상하좌우 정확히 동일한 2.5rem(p-10 — 기존 카드 상단 여백
@@ -77,13 +77,19 @@ const MEGA_PROMO_MEMBER = {
 
 function getCsatDay() {
   const now = new Date();
-  const kstNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
-  const today = new Date(kstNow.getFullYear(), kstNow.getMonth(), kstNow.getDate());
+  const kstNow = new Date(
+    now.toLocaleString("en-US", { timeZone: "Asia/Seoul" }),
+  );
+  const today = new Date(
+    kstNow.getFullYear(),
+    kstNow.getMonth(),
+    kstNow.getDate(),
+  );
   const target = new Date(`${CSAT_DATE}T00:00:00+09:00`);
   const diff = Math.ceil((target.getTime() - today.getTime()) / 86400000);
 
   if (diff > 0) return `수능 D-${diff}`;
-  if (diff === 0) return '수능 D-DAY';
+  if (diff === 0) return "수능 D-DAY";
   return `수능 D+${Math.abs(diff)}`;
 }
 
@@ -91,13 +97,20 @@ function getMemberLabel(profile) {
   const raw = cleanText(profile?.member_type).toLowerCase();
   const role = cleanText(profile?.role).toLowerCase();
 
-  if (role === 'admin') return '관리자';
-  if (!raw) return '';
-  if (raw === 'student' || raw === '학생' || raw === '학생회원') return '학생회원';
-  if (raw === 'parent' || raw === 'parents' || raw === '학부모' || raw === '학부모회원')
-    return '학부모회원';
-  if (raw === 'mentor' || raw === 'teacher' || raw === '멘토' || raw === '교사') return '멘토회원';
-  return raw.endsWith('회원') ? raw : `${raw}회원`;
+  if (role === "admin") return "관리자";
+  if (!raw) return "";
+  if (raw === "student" || raw === "학생" || raw === "학생회원")
+    return "학생회원";
+  if (
+    raw === "parent" ||
+    raw === "parents" ||
+    raw === "학부모" ||
+    raw === "학부모회원"
+  )
+    return "학부모회원";
+  if (raw === "mentor" || raw === "teacher" || raw === "멘토" || raw === "교사")
+    return "멘토회원";
+  return raw.endsWith("회원") ? raw : `${raw}회원`;
 }
 
 function readCachedProfile() {
@@ -106,7 +119,7 @@ function readCachedProfile() {
     if (!raw) return null;
 
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed : null;
+    return parsed && typeof parsed === "object" ? parsed : null;
   } catch {
     return null;
   }
@@ -119,7 +132,10 @@ function writeCachedProfile(profile) {
       return;
     }
 
-    window.localStorage.setItem(HEADER_PROFILE_CACHE_KEY, JSON.stringify(profile));
+    window.localStorage.setItem(
+      HEADER_PROFILE_CACHE_KEY,
+      JSON.stringify(profile),
+    );
   } catch {
     // 캐시 저장 실패는 무시
   }
@@ -133,13 +149,18 @@ function isSameUserProfile(profile, user) {
   const profileEmail = cleanText(profile.email).toLowerCase();
   const userEmail = cleanText(user.email).toLowerCase();
 
-  return (!!profileId && profileId === userId) || (!!profileEmail && profileEmail === userEmail);
+  return (
+    (!!profileId && profileId === userId) ||
+    (!!profileEmail && profileEmail === userEmail)
+  );
 }
 
 function withTimeout(promise, ms, fallbackValue = null) {
   return Promise.race([
     promise,
-    new Promise((resolve) => window.setTimeout(() => resolve(fallbackValue), ms))
+    new Promise((resolve) =>
+      window.setTimeout(() => resolve(fallbackValue), ms),
+    ),
   ]);
 }
 
@@ -147,13 +168,13 @@ async function queryProfileById(userId) {
   if (!userId) return null;
 
   const { data, error } = await supabase
-    .from('profiles')
-    .select('id, name, email, username, member_type, role')
-    .eq('id', userId)
+    .from("profiles")
+    .select("id, name, email, username, member_type, role")
+    .eq("id", userId)
     .maybeSingle();
 
   if (error) {
-    console.error('profiles id 조회 실패:', error);
+    console.error("profiles id 조회 실패:", error);
     return null;
   }
 
@@ -166,13 +187,13 @@ async function queryProfileByEmail(email) {
   if (!normalizedEmail) return null;
 
   const { data, error } = await supabase
-    .from('profiles')
-    .select('id, name, email, username, member_type, role')
-    .eq('email', normalizedEmail)
+    .from("profiles")
+    .select("id, name, email, username, member_type, role")
+    .eq("email", normalizedEmail)
     .maybeSingle();
 
   if (error) {
-    console.error('profiles email 조회 실패:', error);
+    console.error("profiles email 조회 실패:", error);
     return null;
   }
 
@@ -180,18 +201,18 @@ async function queryProfileByEmail(email) {
 }
 
 async function queryProfileByUsername(email) {
-  const username = cleanText(email).split('@')[0];
+  const username = cleanText(email).split("@")[0];
 
   if (!username) return null;
 
   const { data, error } = await supabase
-    .from('profiles')
-    .select('id, name, email, username, member_type, role')
-    .eq('username', username)
+    .from("profiles")
+    .select("id, name, email, username, member_type, role")
+    .eq("username", username)
     .maybeSingle();
 
   if (error) {
-    console.error('profiles username 조회 실패:', error);
+    console.error("profiles username 조회 실패:", error);
     return null;
   }
 
@@ -226,7 +247,7 @@ export default function Header() {
   //            120ms opacity만 페이드아웃(이동 없음) 후 아래 타이머로 'closed'에 도달한다.
   // 패널이 always-mounted(조건부 렌더 아님)라 첫 hover 시에도 트랜지션이 항상 이미 걸려있는
   // 상태에서 클래스만 토글되므로 최초 오픈에서도 트랜지션이 확실히 발화한다.
-  const [megaPanelPhase, setMegaPanelPhase] = useState('closed');
+  const [megaPanelPhase, setMegaPanelPhase] = useState("closed");
   const megaPanelAnimTimerRef = useRef(null);
   const [myOpen, setMyOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -244,15 +265,20 @@ export default function Header() {
   // navGroups 순회 순서상 먼저 오는 그룹 하나만 활성으로 삼아 동시 활성을 방지한다.
   const activePathTitle = useMemo(() => {
     function firstSegment(path) {
-      const segment = String(path || '')
-        .split('/')
+      const segment = String(path || "")
+        .split("/")
         .filter(Boolean)[0];
       return segment || null;
     }
 
     function internalCandidates(group) {
-      const raw = [group?.to, ...((Array.isArray(group?.items) ? group.items : []).map((item) => item?.to))];
-      return raw.filter((to) => typeof to === 'string' && to.startsWith('/'));
+      const raw = [
+        group?.to,
+        ...(Array.isArray(group?.items) ? group.items : []).map(
+          (item) => item?.to,
+        ),
+      ];
+      return raw.filter((to) => typeof to === "string" && to.startsWith("/"));
     }
 
     for (const group of navGroups) {
@@ -265,7 +291,9 @@ export default function Header() {
     if (!pathSegment) return null;
 
     for (const group of navGroups) {
-      const segmentCandidates = internalCandidates(group).filter((to) => !to.startsWith('/page/'));
+      const segmentCandidates = internalCandidates(group).filter(
+        (to) => !to.startsWith("/page/"),
+      );
       if (segmentCandidates.some((to) => firstSegment(to) === pathSegment)) {
         return group.title;
       }
@@ -281,12 +309,12 @@ export default function Header() {
   // 중 어느 쪽도 재진입하지 않으면) 유예 후 닫힌다.
   const megaCloseTimerRef = useRef(null);
 
-  function clearMegaCloseTimer() {
+  const clearMegaCloseTimer = useCallback(() => {
     if (megaCloseTimerRef.current) {
       window.clearTimeout(megaCloseTimerRef.current);
       megaCloseTimerRef.current = null;
     }
-  }
+  }, []);
 
   function scheduleMegaClose() {
     clearMegaCloseTimer();
@@ -296,7 +324,7 @@ export default function Header() {
     }, 100);
   }
 
-  useEffect(() => () => clearMegaCloseTimer(), []);
+  useEffect(() => () => clearMegaCloseTimer(), [clearMegaCloseTimer]);
 
   // activeMega(어떤 그룹이 활성인지)와 megaPanelPhase(패널이 화면에서 어떻게 보이는지)를
   // 분리한다 — 그룹이 바뀌어도(호버 이동) activeMega만 바뀌고 phase는 'open'을 유지해
@@ -309,11 +337,11 @@ export default function Header() {
         megaPanelAnimTimerRef.current = null;
       }
 
-      setMegaPanelPhase('open');
+      setMegaPanelPhase("open");
       return undefined;
     }
 
-    setMegaPanelPhase((prev) => (prev === 'open' ? 'closing' : prev));
+    setMegaPanelPhase((prev) => (prev === "open" ? "closing" : prev));
     return undefined;
   }, [activeMega]);
 
@@ -321,10 +349,10 @@ export default function Header() {
   // (visibility invisible로 전환되며) translateY를 -0.5rem으로 되돌려도 시각적 이동이 보이지
   // 않는다(닫힘 애니메이션 자체는 opacity 페이드만, 이동 없음이라는 스펙을 그대로 지킨다).
   useEffect(() => {
-    if (megaPanelPhase !== 'closing') return undefined;
+    if (megaPanelPhase !== "closing") return undefined;
 
     megaPanelAnimTimerRef.current = window.setTimeout(() => {
-      setMegaPanelPhase('closed');
+      setMegaPanelPhase("closed");
       megaPanelAnimTimerRef.current = null;
     }, 120);
 
@@ -337,7 +365,10 @@ export default function Header() {
   }, [megaPanelPhase]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setCsatDDay(getCsatDay()), 60 * 60 * 1000);
+    const timer = window.setInterval(
+      () => setCsatDDay(getCsatDay()),
+      60 * 60 * 1000,
+    );
     return () => window.clearInterval(timer);
   }, []);
 
@@ -352,12 +383,16 @@ export default function Header() {
         const sessionResult =
           nextSession !== undefined
             ? nextSession
-            : await withTimeout(supabase.auth.getSession(), 1200, { data: { session: null } });
+            : await withTimeout(supabase.auth.getSession(), 1200, {
+                data: { session: null },
+              });
 
         if (!alive || currentSeq !== seq) return;
 
         const currentSession =
-          nextSession !== undefined ? sessionResult : sessionResult?.data?.session || null;
+          nextSession !== undefined
+            ? sessionResult
+            : sessionResult?.data?.session || null;
 
         if (!currentSession?.user) {
           setSession(null);
@@ -374,11 +409,18 @@ export default function Header() {
           nextProfile = cachedProfile;
         }
 
-        const fetchedProfile = await withTimeout(fetchProfile(currentSession.user), 1800, null);
+        const fetchedProfile = await withTimeout(
+          fetchProfile(currentSession.user),
+          1800,
+          null,
+        );
 
         if (!alive || currentSeq !== seq) return;
 
-        if (fetchedProfile && isSameUserProfile(fetchedProfile, currentSession.user)) {
+        if (
+          fetchedProfile &&
+          isSameUserProfile(fetchedProfile, currentSession.user)
+        ) {
           nextProfile = fetchedProfile;
           writeCachedProfile(fetchedProfile);
         }
@@ -401,7 +443,7 @@ export default function Header() {
 
         setIsAuthReady(true);
       } catch (error) {
-        console.error('헤더 세션 동기화 오류:', error);
+        console.error("헤더 세션 동기화 오류:", error);
 
         if (!alive || currentSeq !== seq) return;
 
@@ -417,15 +459,20 @@ export default function Header() {
       syncSession();
     };
 
-    window.addEventListener('winning-profile-updated', handleProfileUpdated);
+    window.addEventListener("winning-profile-updated", handleProfileUpdated);
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      syncSession(nextSession || null);
-    });
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, nextSession) => {
+        syncSession(nextSession || null);
+      },
+    );
 
     return () => {
       alive = false;
-      window.removeEventListener('winning-profile-updated', handleProfileUpdated);
+      window.removeEventListener(
+        "winning-profile-updated",
+        handleProfileUpdated,
+      );
       authListener?.subscription?.unsubscribe?.();
     };
   }, []);
@@ -441,9 +488,9 @@ export default function Header() {
 
       localKeys.forEach((key) => {
         if (
-          key.startsWith('sb-') ||
-          key.includes('supabase') ||
-          key.includes('auth-token') ||
+          key.startsWith("sb-") ||
+          key.includes("supabase") ||
+          key.includes("auth-token") ||
           key === HEADER_PROFILE_CACHE_KEY
         ) {
           window.localStorage.removeItem(key);
@@ -458,12 +505,16 @@ export default function Header() {
       }
 
       sessionKeys.forEach((key) => {
-        if (key.startsWith('sb-') || key.includes('supabase') || key.includes('auth-token')) {
+        if (
+          key.startsWith("sb-") ||
+          key.includes("supabase") ||
+          key.includes("auth-token")
+        ) {
           window.sessionStorage.removeItem(key);
         }
       });
     } catch (error) {
-      console.error('브라우저 세션 정리 오류:', error);
+      console.error("브라우저 세션 정리 오류:", error);
     }
   }
 
@@ -475,31 +526,36 @@ export default function Header() {
 
     try {
       await Promise.race([
-        supabase.auth.signOut({ scope: 'local' }),
-        new Promise((resolve) => window.setTimeout(resolve, 1800))
+        supabase.auth.signOut({ scope: "local" }),
+        new Promise((resolve) => window.setTimeout(resolve, 1800)),
       ]);
     } catch (error) {
-      console.error('로그아웃 오류:', error);
+      console.error("로그아웃 오류:", error);
     }
 
     clearSupabaseAuthStorage();
-    window.dispatchEvent(new Event('winning-profile-updated'));
-    window.location.replace('/');
+    window.dispatchEvent(new Event("winning-profile-updated"));
+    window.location.replace("/");
   }
 
   const isLoggedIn = isAuthReady && !!session?.user;
   const hasProfile = !!profile && !!cleanText(profile?.name);
   const shouldShowLoggedInHeader = isLoggedIn && hasProfile;
-  const displayName = cleanText(profile?.name) || '';
+  const displayName = cleanText(profile?.name) || "";
   const memberLabel = getMemberLabel(profile);
-  const isAdmin = cleanText(profile?.role).toLowerCase() === 'admin';
+  // 학부모는 '수강신청·결제'가 /pricing 이 아니라 마이페이지 결제 내역으로 간다
+  // (myMenuItems.js buildMyMenu 주석 참고).
+  const isParentMember =
+    cleanText(profile?.member_type).toLowerCase() === "parent";
+  const myMenu = buildMyMenu(isParentMember);
+  const isAdmin = cleanText(profile?.role).toLowerCase() === "admin";
 
   // 메가 패널 콘텐츠(모든 navGroups 컬럼 + 프로모 카드)는 activeMega와 무관하게 항상 동일하다
   // (어떤 그룹을 hover해도 5개 컬럼 전체가 함께 보이는 구조 — activeMega는 nav 버튼 하이라이트와
   // 패널 표시 여부만 결정한다). 그래서 패널 자체는 open 여부(megaPanelPhase)만으로 gate하면 되고,
   // 그룹별 콘텐츠 스위칭 로직은 불필요하다.
-  const isMegaPanelOpen = megaPanelPhase === 'open';
-  const isMegaPanelClosing = megaPanelPhase === 'closing';
+  const isMegaPanelOpen = megaPanelPhase === "open";
+  const isMegaPanelClosing = megaPanelPhase === "closing";
   // 프로모 카드 콘텐츠는 프로필 로딩 완료 여부(shouldShowLoggedInHeader)와 무관하게
   // "로그인했는가"만으로 2분기한다(사용자 확정).
   const megaPromo = isLoggedIn ? MEGA_PROMO_MEMBER : MEGA_PROMO_GUEST;
@@ -541,9 +597,10 @@ export default function Header() {
           ) : shouldShowLoggedInHeader ? (
             <>
               <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-[#013262] whitespace-nowrap">
-                {displayName}님{memberLabel ? ` ${memberLabel}` : ''}
+                {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
               </div>
 
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
               <div
                 className="relative flex items-center"
                 onMouseEnter={() => setMyOpen(true)}
@@ -555,13 +612,16 @@ export default function Header() {
                   className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
                 >
                   마이페이지
-                  <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    size={14}
+                    className={`transition ${myOpen ? "rotate-180" : ""}`}
+                  />
                 </button>
 
                 {myOpen && (
                   <div className="absolute right-0 top-full z-50 w-[16rem]">
                     <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                      {MY_MENU.map((item) => {
+                      {myMenu.map((item) => {
                         const Icon = item.icon;
 
                         return (
@@ -601,6 +661,7 @@ export default function Header() {
             </>
           ) : isLoggedIn ? (
             <>
+              {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
               <div
                 className="relative flex items-center"
                 onMouseEnter={() => setMyOpen(true)}
@@ -612,13 +673,16 @@ export default function Header() {
                   className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
                 >
                   마이페이지
-                  <ChevronDown size={14} className={`transition ${myOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown
+                    size={14}
+                    className={`transition ${myOpen ? "rotate-180" : ""}`}
+                  />
                 </button>
 
                 {myOpen && (
                   <div className="absolute right-0 top-full z-50 w-[16rem]">
                     <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                      {MY_MENU.map((item) => {
+                      {myMenu.map((item) => {
                         const Icon = item.icon;
 
                         return (
@@ -681,6 +745,7 @@ export default function Header() {
           동일 값이 아니다). */}
       <nav className="pointer-events-none absolute inset-x-0 top-0 hidden h-16 desktop:block">
         <div className="pointer-events-none mx-auto flex h-full w-full max-w-content items-center px-8">
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 메가메뉴 닫힘 타이머를 관리하는 데스크톱 편의 동작 — 실제 nav 링크는 클릭·키보드 모두로 접근 가능하다. */}
           <div
             className="pointer-events-auto flex items-center"
             style={{ gap: NAV_CELL_GAP, marginLeft: NAV_GUARD }}
@@ -688,10 +753,12 @@ export default function Header() {
             onMouseLeave={scheduleMegaClose}
           >
             {navGroups.map((group) => {
-              const hasDropdown = Array.isArray(group.items) && group.items.length > 0;
+              const hasDropdown =
+                Array.isArray(group.items) && group.items.length > 0;
               const isPathActive = activePathTitle === group.title;
 
               return (
+                // biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 메가메뉴를 여는 데스크톱 편의 동작 — 실제 nav 링크는 클릭·키보드 모두로 접근 가능하다.
                 <div
                   key={group.title}
                   className="pointer-events-none relative flex shrink-0 items-center justify-start"
@@ -708,7 +775,7 @@ export default function Header() {
                     type="button"
                     aria-haspopup="true"
                     aria-expanded={activeMega === group.title}
-                    aria-current={isPathActive ? 'page' : undefined}
+                    aria-current={isPathActive ? "page" : undefined}
                     onFocus={() => {
                       clearMegaCloseTimer();
                       hasDropdown && setActiveMega(group.title);
@@ -716,14 +783,16 @@ export default function Header() {
                     onClick={() => {
                       clearMegaCloseTimer();
                       hasDropdown &&
-                        setActiveMega((prev) => (prev === group.title ? null : group.title));
+                        setActiveMega((prev) =>
+                          prev === group.title ? null : group.title,
+                        );
                     }}
                     className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-base leading-[1.4] tracking-[-0.02em] transition ${
                       isPathActive
-                        ? 'font-semibold text-[#013262]'
+                        ? "font-semibold text-[#013262]"
                         : activeMega === group.title
-                          ? 'font-medium text-[#013262]'
-                          : 'font-medium text-[#4d4d4d] hover:text-[#013262]'
+                          ? "font-medium text-[#013262]"
+                          : "font-medium text-[#4d4d4d] hover:text-[#013262]"
                     }`}
                   >
                     {group.title}
@@ -740,42 +809,42 @@ export default function Header() {
           조건부 마운트는 클로즈 애니메이션이 불가능하고(언마운트 즉시 사라짐), 마운트 직후
           클래스를 바로 여는 첫 프레임에 트랜지션이 발화하지 않을 위험이 있어 폐기했다 —
           항상 DOM에 상주(opacity-0 + invisible + pointer-events-none)시켜 두 문제를 모두 해소한다. */}
-      <>
-        {/* 헤더+메가패널 아래 전체를 어둡게 dim 처리. 패널(z-50, 불투명)이 위에 그려져
+
+      {/* 헤더+메가패널 아래 전체를 어둡게 dim 처리. 패널(z-50, 불투명)이 위에 그려져
             패널이 차지하는 영역만 자연히 dim이 가려지므로 패널 높이를 따로 측정할 필요가 없다.
             오픈 200ms / 클로즈 120ms 모두 opacity만(이동 없음), ease-out-quart(프로젝트 표준
             이징 — MobileNavDrawer의 ease-[var(--ease-out-quart)] 관례를 그대로 따른다). */}
-        <div
-          className={`fixed inset-x-0 top-16 bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
-            isMegaPanelOpen
-              ? 'visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]'
-              : isMegaPanelClosing
-                ? 'visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]'
-                : 'invisible opacity-0 pointer-events-none'
-          }`}
-          onClick={() => setActiveMega(null)}
-          aria-hidden="true"
-        />
+      <div
+        className={`fixed inset-x-0 top-16 bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+          isMegaPanelOpen
+            ? "visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]"
+            : isMegaPanelClosing
+              ? "visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]"
+              : "invisible opacity-0 pointer-events-none"
+        }`}
+        onClick={() => setActiveMega(null)}
+        aria-hidden="true"
+      />
 
-        <div
-          className={`fixed left-0 top-16 z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
-            isMegaPanelOpen
-              ? 'visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]'
-              : isMegaPanelClosing
-                ? 'visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]'
-                : 'invisible opacity-0 -translate-y-2 pointer-events-none'
-          }`}
-          aria-hidden={!isMegaPanelOpen}
-          onMouseEnter={clearMegaCloseTimer}
-          onMouseLeave={scheduleMegaClose}
-        >
-          {/* 패널도 헤더와 동일한 2중 좌표계: 컬럼(좌표계 2, 1200 컨텐츠)과 프로모 카드(좌표계 1,
+      <div
+        className={`fixed left-0 top-16 z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
+          isMegaPanelOpen
+            ? "visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]"
+            : isMegaPanelClosing
+              ? "visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]"
+              : "invisible opacity-0 -translate-y-2 pointer-events-none"
+        }`}
+        aria-hidden={!isMegaPanelOpen}
+        onMouseEnter={clearMegaCloseTimer}
+        onMouseLeave={scheduleMegaClose}
+      >
+        {/* 패널도 헤더와 동일한 2중 좌표계: 컬럼(좌표계 2, 1200 컨텐츠)과 프로모 카드(좌표계 1,
                 1920 밴드 — 헤더 계정 그룹과 같은 축)를 같은 grid cell(col-start-1 row-start-1)에
                 겹쳐 그린다. absolute 오버레이 대신 grid 겹침을 쓴 이유: 두 레이어 중 더 큰 쪽이
                 패널의 자연 높이(hug)를 그대로 결정하게 하기 위함(absolute는 문서 흐름에서 빠져
                 높이에 기여하지 못한다). */}
-          <div className="grid">
-            {/* 좌표계 2(72.75rem 컨텐츠 영역): 메가 컬럼. nav와 동일한 mx-auto max-w-content px-8
+        <div className="grid">
+          {/* 좌표계 2(72.75rem 컨텐츠 영역): 메가 컬럼. nav와 동일한 mx-auto max-w-content px-8
                   컨테이너를 공유하고, marginLeft도 nav와 동일한 MEGA_GUARD(= NAV_GUARD)를 쓴다 —
                   nav 텍스트가 셀 안에서 좌측 정렬(justify-start)이라 정렬 기준은 "좌측선 공유":
                   컬럼 0의 시작 x가 nav 셀 0의 텍스트 시작 x와 그대로 일치한다(별도 오프셋
@@ -791,38 +860,41 @@ export default function Header() {
                   컬럼 상단 그룹 타이틀(서비스/프리미엄/...)은 바로 위 nav 아이템과 문구가
                   완전히 중복되어 제거했다 — 첫 아이템이 기존 타이틀 자리(패널 상단 py-6=1.5rem)
                   에서 바로 시작하며, 타이틀이 쓰던 간격은 패널 상단 패딩이 그대로 흡수한다. */}
-            <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
-              <div
-                className="grid"
-                style={{
-                  marginLeft: MEGA_GUARD,
-                  gridTemplateColumns: `repeat(5, ${MEGA_COL_W})`,
-                  columnGap: MEGA_COL_GAP
-                }}
-              >
-                {navGroups.map((group) => (
-                  <div key={`mega-col-${group.title}`} className="flex flex-col gap-3">
-                    {group.items.map((item) => (
-                      <Link
-                        key={`mega-${group.title}-${item.to}-${item.label}`}
-                        to={item.to}
-                        onClick={() => setActiveMega(null)}
-                        className="break-keep text-sm font-medium leading-5 text-[#525252] transition hover:text-[#013262]"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
-                ))}
-              </div>
+          <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
+            <div
+              className="grid"
+              style={{
+                marginLeft: MEGA_GUARD,
+                gridTemplateColumns: `repeat(5, ${MEGA_COL_W})`,
+                columnGap: MEGA_COL_GAP,
+              }}
+            >
+              {navGroups.map((group) => (
+                <div
+                  key={`mega-col-${group.title}`}
+                  className="flex flex-col gap-3"
+                >
+                  {group.items.map((item) => (
+                    <Link
+                      key={`mega-${group.title}-${item.to}-${item.label}`}
+                      to={item.to}
+                      onClick={() => setActiveMega(null)}
+                      className="break-keep text-sm font-medium leading-5 text-[#525252] transition hover:text-[#013262]"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              ))}
             </div>
+          </div>
 
-            {/* 좌표계 1(1920 밴드): 회색 존 + 프로모 카드. 헤더 Band 1(로고+계정 그룹)과 동일한
+          {/* 좌표계 1(1920 밴드): 회색 존 + 프로모 카드. 헤더 Band 1(로고+계정 그룹)과 동일한
                   mx-auto max-w-[120rem] 축을 공유한다. 컬럼 레이어와 같은 grid cell에 겹치므로
                   바깥 겹은 pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 카드 자체만
                   pointer-events-auto로 되살린다(헤더 nav 오버레이와 동일한 기법). */}
-            <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
-              {/* 회색 존: 카드를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기 박스
+          <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
+            {/* 회색 존: 카드를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기 박스
                     (파일 상단 상수 주석 참고). ml-auto로 밴드 래퍼 바깥쪽 우측 끝(패딩 이전)에
                     붙인다 — 뷰포트가 120rem(1920px)을 넘으면 밴드 자체가 중앙 정렬되며 캡 안쪽에
                     서므로 존 우측 끝은 항상 밴드 우측 끝과 일치한다. 박스 자연 높이(카드+5rem)가
@@ -833,11 +905,11 @@ export default function Header() {
                     4방향 동일 패딩(p-10)은 그대로 두고 박스 자체의 우측 기준점만 8px 우측으로
                     옮겨(밴드 우측 끝을 8px 넘어서도록) 카드 우측 끝을 계정 그룹 축에 정확히
                     맞춘다 — 레이아웃(grid/폭)에는 영향 없는 순수 시각 보정. */}
-              <div
-                className="pointer-events-none ml-auto w-fit bg-[#f9fafb] p-10"
-                style={{ transform: 'translateX(0.5rem)' }}
-              >
-                {/* 프로모 카드: 콘텐츠 하드코딩(로그인 상태별 분기, megaPromo). 추후 admin에서
+            <div
+              className="pointer-events-none ml-auto w-fit bg-[#f9fafb] p-10"
+              style={{ transform: "translateX(0.5rem)" }}
+            >
+              {/* 프로모 카드: 콘텐츠 하드코딩(로그인 상태별 분기, megaPromo). 추후 admin에서
                       편집 가능한 배너로 전환 후보.
                       Figma 1483:926 get_design_context 실측(460×478, p-[32px], gap-[32px],
                       rounded-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px,
@@ -849,40 +921,39 @@ export default function Header() {
                       비로그인 카드(1483:926)와 크기·간격·그림자·타이포가 완전히 동일해 위 스케일
                       값은 그대로 재사용하고, 콘텐츠(타이틀/서브/이미지/CTA)만 megaPromo
                       (MEGA_PROMO_GUEST/MEGA_PROMO_MEMBER)로 교체한다. */}
+              <div
+                className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-6 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
+                style={{ width: MEGA_PROMO_W }}
+              >
                 <div
-                  className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-6 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
-                  style={{ width: MEGA_PROMO_W }}
+                  className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(255,255,255,0.24),inset_0px_-0.9px_0px_0px_rgba(0,0,0,0.04)]"
+                  aria-hidden="true"
+                />
+                <p className="text-xl font-bold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
+                  {megaPromo.title}
+                </p>
+                <p className="mt-2 break-keep text-sm leading-[1.4] text-[#525252]">
+                  {megaPromo.subtitle}
+                </p>
+
+                <img
+                  src={megaPromo.image}
+                  alt=""
+                  className="mx-auto mt-6 h-[9.5rem] w-auto object-contain"
+                />
+
+                <Link
+                  to={megaPromo.ctaTo}
+                  onClick={() => setActiveMega(null)}
+                  className="mt-6 flex h-14 items-center justify-center rounded-xl bg-[#013262] text-base font-semibold text-white transition hover:bg-[#012347]"
                 >
-                  <div
-                    className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(255,255,255,0.24),inset_0px_-0.9px_0px_0px_rgba(0,0,0,0.04)]"
-                    aria-hidden="true"
-                  />
-                  <p className="text-xl font-bold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
-                    {megaPromo.title}
-                  </p>
-                  <p className="mt-2 break-keep text-sm leading-[1.4] text-[#525252]">
-                    {megaPromo.subtitle}
-                  </p>
-
-                  <img
-                    src={megaPromo.image}
-                    alt=""
-                    className="mx-auto mt-6 h-[9.5rem] w-auto object-contain"
-                  />
-
-                  <Link
-                    to={megaPromo.ctaTo}
-                    onClick={() => setActiveMega(null)}
-                    className="mt-6 flex h-14 items-center justify-center rounded-xl bg-[#013262] text-base font-semibold text-white transition hover:bg-[#012347]"
-                  >
-                    {megaPromo.ctaLabel}
-                  </Link>
-                </div>
+                  {megaPromo.ctaLabel}
+                </Link>
               </div>
             </div>
           </div>
         </div>
-      </>
+      </div>
 
       <MobileNavDrawer
         open={mobileNavOpen}
@@ -892,6 +963,7 @@ export default function Header() {
         isLoggedIn={isLoggedIn}
         displayName={displayName}
         memberLabel={memberLabel}
+        isParentMember={isParentMember}
         csatDDay={csatDDay}
         isAdmin={isAdmin}
         onLogout={handleLogout}

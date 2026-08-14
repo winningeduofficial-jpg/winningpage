@@ -9,12 +9,27 @@
     "dev:api": "vercel dev --listen 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "format": "prettier --write \"src/**/*.{js,jsx,css}\" \"*.{js,cjs}\" index.html"
+    "// test:calc": "디렉터리 인자(node --test src/lib/goal/calc/)는 Node 24 에서 테스트를 탐색하지 않는다. 디렉터리를 index.js 로 해석해 단일 테스트 파일로 실행해 버려서 0건 통과(가짜 green)가 된다. 반드시 glob 으로 지정할 것.",
+    "test:calc": "node --test \"src/lib/goal/calc/**/*.test.js\"",
+    "test:diagnosis": "node --test \"src/lib/diagnosisScoring.test.js\"",
+    "test:bonus-v2": "node --test scripts/test-bonus-v2.mjs",
+    "format": "biome check --write .",
+    "format:ci": "biome ci .",
+    "lint": "biome lint .",
+    "typecheck": "tsc --noEmit",
+    "// test:goal-cuts": "목표관리 대학 컷 엑셀 왕복 파서 회귀. verify 체인에도 들어 있지만 단독 실행 경로를 따로 둔다 — 체인은 && 직렬이라 앞쪽 스크립트가 하나라도 죽으면 뒤가 통째로 건너뛰어진다(현재 verify-admission-doc-html-drift / verify-admission-bulk-xlsx 가 로컬 키 파일 부재로 죽는다).",
+    "test:goal-cuts": "node scripts/test-goal-university-cuts-bulk-xlsx.mjs",
+    "// test:univ-normalize": "목표관리 대학 컷 백필의 단축형→전체형 대학명 정규화 회귀.",
+    "test:univ-normalize": "node --test scripts/test-university-name-normalize.mjs",
+    "// verify": "체인 순서 규칙 — 외부 자산(DB 키·골든 캐시)에 의존하지 않는 순수 스크립트를 앞에 둔다. 뒤로 갈수록 환경 의존이 커지므로, 뒤에 붙인 테스트는 앞이 죽는 환경에서 영원히 실행되지 않는다.",
+    "verify": "node scripts/verify-admission-doc-equivalence.mjs && node scripts/test-goal-university-cuts-bulk-xlsx.mjs && node scripts/verify-admission-doc-html-drift.mjs && node scripts/verify-admission-block-render.mjs && node scripts/verify-admission-table-editor.mjs && node scripts/verify-admission-bulk-xlsx.mjs && node scripts/verify-safe-html.mjs && node scripts/verify-admission-modal-shell.mjs && node scripts/test-admission-doc-renderer-total.mjs && node scripts/test-admission-doc-regression-guard.mjs && node scripts/verify-diagnosis-scoring.mjs && node scripts/verify-performance-sidebar-nav.mjs && node scripts/verify-performance-prompt-parity.mjs && node scripts/verify-performance-guide-structure.mjs && node scripts/verify-performance-submission-schema.mjs && node scripts/verify-performance-submission-api.mjs && node scripts/verify-performance-submission-form.mjs && node scripts/verify-performance-evaluation-report.mjs",
+    "verify:diagnosis": "node scripts/verify-diagnosis-scoring.mjs"
   },
   "dependencies": {
     "@blocknote/ariakit": "0.52.1",
     "@blocknote/core": "0.52.1",
     "@blocknote/react": "0.52.1",
+    "@google/genai": "^1.0.0",
     "@supabase/supabase-js": "^2.48.0",
     "@tosspayments/tosspayments-sdk": "^2.7.1",
     "@vitejs/plugin-react": "^4.3.4",
@@ -22,15 +37,24 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.28.0",
-    "undici": "^6.28.0",
     "recharts": "^3.10.1",
-    "vite": "^6.0.0"
+    "undici": "^6.28.0",
+    "vite": "^6.0.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.8",
+    "@types/node": "^26.2.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vercel/node": "^5.10.0",
     "autoprefixer": "^10.4.20",
+    "knip": "^6.32.2",
+    "pdfjs-dist": "^6.2.108",
+    "playwright": "^1.62.1",
     "postcss": "^8.4.49",
-    "prettier": "^3.9.6",
     "sharp": "^0.35.3",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "typescript": "^7.0.2"
   }
 }

@@ -1,40 +1,41 @@
-import { useInView } from '../../hooks/useInView';
-
-import { alertServiceNotReady } from '../../lib/paidServiceAccess';
-import ServiceSection from '../../components/services/ServiceSection';
-import ServiceProcessCards from '../../components/services/ServiceProcessCards';
-import ServiceTabsPanel from '../../components/services/ServiceTabsPanel';
-import ServiceAudienceCards from '../../components/services/ServiceAudienceCards';
-import ServiceStepCards from '../../components/services/ServiceStepCards';
-import ServiceOutcomesPanel from '../../components/services/ServiceOutcomesPanel';
-import ServiceTestimonials from '../../components/services/ServiceTestimonials';
-import ServiceFaq from '../../components/services/ServiceFaq';
-import ServiceHeroBrowserFrame from '../../components/services/ServiceHeroBrowserFrame';
-import heroAura from '../../assets/services/self-assessment/hero-aura.svg';
-import heroGrain from '../../assets/renewal/landing/hero-grain.png';
-import iconBinoculars from '../../assets/services/goal/icon-binoculars.png';
-import iconSisyphus from '../../assets/services/performance/icon-sisyphus.png';
-import iconLightbulb from '../../assets/services/performance/icon-lightbulb-sketch.png';
-import stageOrganizeLaptop from '../../assets/services/goal/stage-exec-laptop-work.png';
-import stageOrganizeWeight from '../../assets/services/goal/stage-diag-weightlifting.png';
-import stageOrganizeTablet from '../../assets/services/performance/coach-tablet.png';
-import stageStrengthRain from '../../assets/services/self-assessment/stage-strength-rain.png';
-import stageStrengthWinner from '../../assets/services/self-assessment/stage-strength-winner.png';
-import stageStrengthKnot from '../../assets/services/self-assessment/stage-strength-knot.png';
-import stageStructWriting from '../../assets/services/goal/stage-plan-writing.png';
-import stageStructWand from '../../assets/services/self-assessment/stage-struct-wand.png';
-import stageStructWarrior from '../../assets/services/goal/icon-warrior.png';
-import stageFeedbackMessage from '../../assets/services/self-assessment/stage-feedback-message.png';
-import stageFeedbackShield from '../../assets/services/self-assessment/stage-feedback-shield.png';
-import stageFeedbackStrength from '../../assets/services/goal/stage-exec-strength.png';
-import studentCardWriting from '../../assets/services/self-assessment/student-card-01-writing.jpg';
-import studentCardOrganizing from '../../assets/services/self-assessment/student-card-02-organizing.jpg';
-import studentCardStructuring from '../../assets/services/self-assessment/student-card-03-structuring.jpg';
-import studentCardPolishing from '../../assets/services/self-assessment/student-card-04-polishing.jpg';
-import outcomeSettings from '../../assets/services/goal/outcome-settings.png';
-import iconWallet from '../../assets/services/self-assessment/icon-wallet.png';
-import outcomeFolder from '../../assets/services/goal/outcome-folder.png';
-import outcomeCalendar from '../../assets/services/goal/outcome-calendar.png';
+import { useNavigate } from "react-router-dom";
+import heroGrain from "../../assets/renewal/landing/hero-grain.png";
+import iconBinoculars from "../../assets/services/goal/icon-binoculars.png";
+import stageStructWarrior from "../../assets/services/goal/icon-warrior.png";
+import outcomeCalendar from "../../assets/services/goal/outcome-calendar.png";
+import outcomeFolder from "../../assets/services/goal/outcome-folder.png";
+import outcomeSettings from "../../assets/services/goal/outcome-settings.png";
+import stageOrganizeWeight from "../../assets/services/goal/stage-diag-weightlifting.png";
+import stageOrganizeLaptop from "../../assets/services/goal/stage-exec-laptop-work.png";
+import stageFeedbackStrength from "../../assets/services/goal/stage-exec-strength.png";
+import stageStructWriting from "../../assets/services/goal/stage-plan-writing.png";
+import stageOrganizeTablet from "../../assets/services/performance/coach-tablet.png";
+import iconLightbulb from "../../assets/services/performance/icon-lightbulb-sketch.png";
+import iconSisyphus from "../../assets/services/performance/icon-sisyphus.png";
+import heroAura from "../../assets/services/self-assessment/hero-aura.svg";
+import iconWallet from "../../assets/services/self-assessment/icon-wallet.png";
+import stageFeedbackMessage from "../../assets/services/self-assessment/stage-feedback-message.png";
+import stageFeedbackShield from "../../assets/services/self-assessment/stage-feedback-shield.png";
+import stageStrengthKnot from "../../assets/services/self-assessment/stage-strength-knot.png";
+import stageStrengthRain from "../../assets/services/self-assessment/stage-strength-rain.png";
+import stageStrengthWinner from "../../assets/services/self-assessment/stage-strength-winner.png";
+import stageStructWand from "../../assets/services/self-assessment/stage-struct-wand.png";
+import studentCardWriting from "../../assets/services/self-assessment/student-card-01-writing.jpg";
+import studentCardOrganizing from "../../assets/services/self-assessment/student-card-02-organizing.jpg";
+import studentCardStructuring from "../../assets/services/self-assessment/student-card-03-structuring.jpg";
+import studentCardPolishing from "../../assets/services/self-assessment/student-card-04-polishing.jpg";
+import ServiceAudienceCards from "../../components/services/ServiceAudienceCards";
+import ServiceFaq from "../../components/services/ServiceFaq";
+import ServiceHeroBrowserFrame from "../../components/services/ServiceHeroBrowserFrame";
+import ServiceOutcomesPanel from "../../components/services/ServiceOutcomesPanel";
+import ServiceProcessCards from "../../components/services/ServiceProcessCards";
+import ServiceSection from "../../components/services/ServiceSection";
+import ServiceStepCards from "../../components/services/ServiceStepCards";
+import ServiceTabsPanel from "../../components/services/ServiceTabsPanel";
+import ServiceTestimonials from "../../components/services/ServiceTestimonials";
+import { useInView } from "../../hooks/useInView";
+import { getDemoAccessState } from "../../lib/demoAccess";
+import { alertServiceNotReady } from "../../lib/paidServiceAccess";
 
 // 자기평가서 서비스 랜딩 — /services/self-assessment (구 경로 /page/services-self-assessment)
 // Figma 시안(1907:20783, "자기평가서" 프레임, 1920×6560) + 상태 변형 노드 8개 + 히어로 애니메이션
@@ -45,8 +46,8 @@ import outcomeCalendar from '../../assets/services/goal/outcome-calendar.png';
 // 자기평가는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가 없어,
 // 히어로 CTA는 이동 대신 "서비스 준비중입니다" alert로 안내한다(alertServiceNotReady,
 // paidServiceAccess.js — 심화탐구・콜멘토와 동일 처리, 2026-08-05 사용자 확정). 이전에는
-// /free-diagnosis로 임시 우회했으나(기존 ServiceLandingPage 스켈레톤의 paidServiceName: null
-// 분기와 동일한 처리) 무료진단 안내는 히어로 문구와 모순돼 폐기했다. 상세 페이지가 생기면
+// /learning-diagnosis로 임시 우회했으나(기존 ServiceLandingPage 스켈레톤의 paidServiceName: null
+// 분기와 동일한 처리) 학습진단 안내는 히어로 문구와 모순돼 폐기했다. 상세 페이지가 생기면
 // PAID_SERVICE_CONFIGS에 등록하고 openPaidServiceOrAlert로 교체한다.
 
 // 컨테이너 폭 — 시안은 섹션마다 1436~1444px(1920 기준)로 드리프트하지만, StageSection 실측
@@ -67,24 +68,24 @@ import outcomeCalendar from '../../assets/services/goal/outcome-calendar.png';
 
 const PROCESS_STEPS = [
   {
-    title: '문항・활동 입력',
-    desc: '문항과 활동 자료를 학생이 직접 입력합니다.'
+    title: "문항・활동 입력",
+    desc: "문항과 활동 자료를 학생이 직접 입력합니다.",
   },
   {
-    title: '핵심 내용 정리',
-    desc: '입력한 내용에서 핵심을 체계적으로 정리합니다.'
+    title: "핵심 내용 정리",
+    desc: "입력한 내용에서 핵심을 체계적으로 정리합니다.",
   },
   {
-    title: '구조 설계',
-    desc: '논리적 구성과 흐름을 설계합니다.'
+    title: "구조 설계",
+    desc: "논리적 구성과 흐름을 설계합니다.",
   },
   {
-    title: '피드백・점검',
-    desc: '학생이 작성한 초안의 표현・완성도를 점검합니다.'
-  }
+    title: "피드백・점검",
+    desc: "학생이 작성한 초안의 표현・완성도를 점검합니다.",
+  },
 ];
 
-const STAGE_TABS = ['문항분석', '내용정리', '강점추출', '구조설계', '피드백'];
+const STAGE_TABS = ["문항분석", "내용정리", "강점추출", "구조설계", "피드백"];
 
 // 탭별 카드 3장×5탭 — 상태 변형 노드 5개(문항분석 1907:20878, 내용정리 2181:1279, 강점추출
 // 2181:1365, 구조설계 2181:1533, 피드백 2181:1574)가 전부 존재해(스펙 §3-0) 문항분석 탭만
@@ -92,90 +93,154 @@ const STAGE_TABS = ['문항분석', '내용정리', '강점추출', '구조설�
 // 그대로 유지, 나머지 4탭은 신규 자산・카피.
 const STAGE_CONTENT = {
   문항분석: [
-    { icon: iconBinoculars, title: '문항 의도 파악', desc: '문항이 묻는 핵심과 의도를 짚어줍니다.' },
-    { icon: iconSisyphus, title: '답변 방향 설정', desc: '무엇을 중심으로 써야 할지 방향을 잡아줍니다.' },
-    { icon: iconLightbulb, title: '핵심 키워드 도출', desc: '답변에 담아야 할 핵심 키워드를 정리합니다.' }
+    {
+      icon: iconBinoculars,
+      title: "문항 의도 파악",
+      desc: "문항이 묻는 핵심과 의도를 짚어줍니다.",
+    },
+    {
+      icon: iconSisyphus,
+      title: "답변 방향 설정",
+      desc: "무엇을 중심으로 써야 할지 방향을 잡아줍니다.",
+    },
+    {
+      icon: iconLightbulb,
+      title: "핵심 키워드 도출",
+      desc: "답변에 담아야 할 핵심 키워드를 정리합니다.",
+    },
   ],
   내용정리: [
-    { icon: stageOrganizeLaptop, title: '활동・경험 정리', desc: '학생이 입력한 활동과 경험을 체계적으로 정리합니다.' },
-    { icon: stageOrganizeWeight, title: '내용 우선순위', desc: '어떤 경험을 앞세울지 우선순위를 잡아줍니다.' },
-    { icon: stageOrganizeTablet, title: '불필요한 내용 정리', desc: '중복・군더더기를 덜어내는 방향을 안내합니다.' }
+    {
+      icon: stageOrganizeLaptop,
+      title: "활동・경험 정리",
+      desc: "학생이 입력한 활동과 경험을 체계적으로 정리합니다.",
+    },
+    {
+      icon: stageOrganizeWeight,
+      title: "내용 우선순위",
+      desc: "어떤 경험을 앞세울지 우선순위를 잡아줍니다.",
+    },
+    {
+      icon: stageOrganizeTablet,
+      title: "불필요한 내용 정리",
+      desc: "중복・군더더기를 덜어내는 방향을 안내합니다.",
+    },
   ],
   강점추출: [
-    { icon: stageStrengthRain, title: '강점 발굴', desc: '경험 속 나만의 강점을 함께 찾습니다.' },
-    { icon: stageStrengthWinner, title: '차별화 포인트', desc: '남과 다른 차별화 포인트를 짚어줍니다.' },
-    { icon: stageStrengthKnot, title: '강점–근거 연결', desc: '강점을 뒷받침할 근거와 연결합니다.' } // – = U+2013(스펙 §0-6)
+    {
+      icon: stageStrengthRain,
+      title: "강점 발굴",
+      desc: "경험 속 나만의 강점을 함께 찾습니다.",
+    },
+    {
+      icon: stageStrengthWinner,
+      title: "차별화 포인트",
+      desc: "남과 다른 차별화 포인트를 짚어줍니다.",
+    },
+    {
+      icon: stageStrengthKnot,
+      title: "강점–근거 연결",
+      desc: "강점을 뒷받침할 근거와 연결합니다.",
+    }, // – = U+2013(스펙 §0-6)
   ],
   구조설계: [
-    { icon: stageStructWriting, title: '논리 흐름 설계', desc: '도입–전개–마무리의 논리 흐름을 설계합니다.' }, // – ×2 = U+2013
-    { icon: stageStructWand, title: '문단 구성 제안', desc: '문단별 구성과 배치를 제안합니다.' },
-    { icon: stageStructWarrior, title: '일관성 점검', desc: '전체 흐름의 일관성을 점검합니다.' }
+    {
+      icon: stageStructWriting,
+      title: "논리 흐름 설계",
+      desc: "도입–전개–마무리의 논리 흐름을 설계합니다.",
+    }, // – ×2 = U+2013
+    {
+      icon: stageStructWand,
+      title: "문단 구성 제안",
+      desc: "문단별 구성과 배치를 제안합니다.",
+    },
+    {
+      icon: stageStructWarrior,
+      title: "일관성 점검",
+      desc: "전체 흐름의 일관성을 점검합니다.",
+    },
   ],
   피드백: [
-    { icon: stageFeedbackMessage, title: '표현 피드백', desc: '학생 초안의 문장・표현을 점검하고 피드백합니다.' },
-    { icon: stageFeedbackShield, title: '문항 적합성 점검', desc: '문항 의도에 맞게 답했는지 확인합니다.' },
-    { icon: stageFeedbackStrength, title: '완성도 점검', desc: '제출 전 완성도 체크리스트를 제공합니다.' }
-  ]
+    {
+      icon: stageFeedbackMessage,
+      title: "표현 피드백",
+      desc: "학생 초안의 문장・표현을 점검하고 피드백합니다.",
+    },
+    {
+      icon: stageFeedbackShield,
+      title: "문항 적합성 점검",
+      desc: "문항 의도에 맞게 답했는지 확인합니다.",
+    },
+    {
+      icon: stageFeedbackStrength,
+      title: "완성도 점검",
+      desc: "제출 전 완성도 체크리스트를 제공합니다.",
+    },
+  ],
 };
 
 const AUDIENCE_CARDS = [
   {
     image: studentCardWriting,
-    title: '작성이 막막한 학생',
-    desc: '어디서부터 시작할지 모르겠는 학생.'
+    title: "작성이 막막한 학생",
+    desc: "어디서부터 시작할지 모르겠는 학생.",
   },
   {
     image: studentCardOrganizing,
-    title: '정리가 어려운 학생',
-    desc: '경험은 있는데 어떻게 풀지 막막한 학생.'
+    title: "정리가 어려운 학생",
+    desc: "경험은 있는데 어떻게 풀지 막막한 학생.",
   },
   {
     image: studentCardStructuring,
-    title: '구성이 어려운 학생',
-    desc: '설득력 있는 흐름과 구성이 어려운 학생.'
+    title: "구성이 어려운 학생",
+    desc: "설득력 있는 흐름과 구성이 어려운 학생.",
   },
   {
     image: studentCardPolishing,
-    title: '완성도를 높이고 싶은 학생',
-    desc: '초안은 있으나 더 다듬고 싶은 학생.'
-  }
+    title: "완성도를 높이고 싶은 학생",
+    desc: "초안은 있으나 더 다듬고 싶은 학생.",
+  },
 ];
 
 // 시안(1907:20945)은 상위 4단계 프로세스(ProcessSection)의 "핵심 내용 정리" 단계가
 // "활동 정리 + 강점 추출"로 세분화된 5단계 상세 버전이다(스펙 §5, 숫자 불일치 아님).
 const FIVE_STEPS = [
-  { title: '문항 해석', desc: '문항의 의도와 핵심을 짚어 답변 방향을 잡습니다.' },
-  { title: '활동 정리', desc: '입력한 활동・경험을 체계적으로 정리합니다.' },
-  { title: '강점 추출', desc: '나만의 강점과 차별화 포인트를 함께 찾습니다.' },
-  { title: '구조 설계', desc: '논리적 구성과 흐름을 설계합니다.' },
-  { title: '피드백', desc: '학생 초안의 표현・완성도를 점검하고 보완합니다.' }
+  {
+    title: "문항 해석",
+    desc: "문항의 의도와 핵심을 짚어 답변 방향을 잡습니다.",
+  },
+  { title: "활동 정리", desc: "입력한 활동・경험을 체계적으로 정리합니다." },
+  { title: "강점 추출", desc: "나만의 강점과 차별화 포인트를 함께 찾습니다." },
+  { title: "구조 설계", desc: "논리적 구성과 흐름을 설계합니다." },
+  { title: "피드백", desc: "학생 초안의 표현・완성도를 점검하고 보완합니다." },
 ];
 
 const OUTCOME_ITEMS = [
-  { icon: outcomeSettings, label: '구조 설계안' },
-  { icon: iconWallet, label: '핵심 내용 요약본' },
-  { icon: outcomeFolder, label: '강점・차별화 포인트' },
-  { icon: outcomeCalendar, label: '피드백 리포트' } // 시안(1907:21009)은 Settings/Folder 중복 placeholder — 코드가 정상(스펙 §11-2 D3)
+  { icon: outcomeSettings, label: "구조 설계안" },
+  { icon: iconWallet, label: "핵심 내용 요약본" },
+  { icon: outcomeFolder, label: "강점・차별화 포인트" },
+  { icon: outcomeCalendar, label: "피드백 리포트" }, // 시안(1907:21009)은 Settings/Folder 중복 placeholder — 코드가 정상(스펙 §11-2 D3)
 ];
 
 // 후기 작성자명 — 시안 원본은 "고3 김□□/이△△/박○○"처럼 마스킹 기호가 그대로 노출된
 // placeholder였다(스펙 §11-2 D2). 목표관리・수행평가 선례의 "고N 김OO" 마스킹 표기로 교체했다.
 const TESTIMONIALS = [
   {
-    emoji: '😉',
-    quote: '문항 해석부터 구조까지 단계별로 도와주셔서 수월하게 작성할 수 있었어요.',
-    name: '고3 이OO'
+    emoji: "😉",
+    quote:
+      "문항 해석부터 구조까지 단계별로 도와주셔서 수월하게 작성할 수 있었어요.",
+    name: "고3 이OO",
   },
   {
-    emoji: '☺️',
-    quote: '제가 가진 강점을 잘 정리해줘서 자소서 설득력이 높아졌어요.',
-    name: '고3 박OO'
+    emoji: "☺️",
+    quote: "제가 가진 강점을 잘 정리해줘서 자소서 설득력이 높아졌어요.",
+    name: "고3 박OO",
   },
   {
-    emoji: '😊',
-    quote: '피드백이 정말 구체적이라 부족했던 부분을 스스로 고칠 수 있었어요.',
-    name: '고3 김OO'
-  }
+    emoji: "😊",
+    quote: "피드백이 정말 구체적이라 부족했던 부분을 스스로 고칠 수 있었어요.",
+    name: "고3 김OO",
+  },
 ];
 
 // FAQ 답변 — 시안 펼침 상태 변형(2181:8233)에 답변 5개 전문이 있어(스펙 §8-0) 그 정본으로
@@ -185,31 +250,60 @@ const TESTIMONIALS = [
 // 현행 문구를 유지한다(사용자 결정, 스펙 §12 Q1 (b)).
 const FAQ_ITEMS = [
   {
-    q: '어떤 자료를 입력해야 하나요?',
-    a: '문항과 본인의 활동・경험 자료를 입력하면 됩니다. 입력한 내용을 바탕으로 방향과 구성을 안내합니다.'
+    q: "어떤 자료를 입력해야 하나요?",
+    a: "문항과 본인의 활동・경험 자료를 입력하면 됩니다. 입력한 내용을 바탕으로 방향과 구성을 안내합니다.",
   },
   {
-    q: 'AI가 대신 작성해 주나요?',
-    a: '아니요. 위닝 자기평가서는 문항 해석・구조 설계・피드백을 돕는 코칭 서비스이며, 실제 작성은 학생 본인이 수행합니다. 제공되는 설계안・피드백을 그대로 옮겨 제출하는 것은 학문적 정직성에 어긋날 수 있어 권장하지 않습니다.'
+    q: "AI가 대신 작성해 주나요?",
+    a: "아니요. 위닝 자기평가서는 문항 해석・구조 설계・피드백을 돕는 코칭 서비스이며, 실제 작성은 학생 본인이 수행합니다. 제공되는 설계안・피드백을 그대로 옮겨 제출하는 것은 학문적 정직성에 어긋날 수 있어 권장하지 않습니다.",
   },
   {
-    q: '피드백은 어떤 기준으로 제공되나요?',
-    a: '문항 적합성, 논리 구성, 표현의 명료성 등을 기준으로 제공합니다.'
+    q: "피드백은 어떤 기준으로 제공되나요?",
+    a: "문항 적합성, 논리 구성, 표현의 명료성 등을 기준으로 제공합니다.",
   },
   {
-    q: '제공되는 결과물은 어떻게 활용하나요?',
-    a: '구조 설계안・요약・피드백은 학생 본인이 서류를 직접 작성・검토하는 데 참고하는 자료입니다. 제출용 서류는 학생이 스스로 완성해야 합니다.'
+    q: "제공되는 결과물은 어떻게 활용하나요?",
+    a: "구조 설계안・요약・피드백은 학생 본인이 서류를 직접 작성・검토하는 데 참고하는 자료입니다. 제출용 서류는 학생이 스스로 완성해야 합니다.",
   },
   {
-    q: '이용 요금은 어떻게 되나요?',
-    a: '정확한 이용 요금은 상담을 통해 안내드립니다.'
-  }
+    q: "이용 요금은 어떻게 되나요?",
+    a: "정확한 이용 요금은 상담을 통해 안내드립니다.",
+  },
 ];
 
 function HeroSection() {
-  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 + FreeDiagnosisLanding
+  // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 + LearningDiagnosisLanding
   // 공통 useInView 훅 구조(PerformanceAssessment.jsx HeroSection 선례).
   const [auraRef, auraInView] = useInView();
+  const navigate = useNavigate();
+
+  // 히어로 CTA — 로그인 게이트 3분기(demoAccess.js의 getDemoAccessState, ProtectedAdmin과
+  // 동일 기준을 재사용). 비로그인은 /login으로 보내 복귀지를 이 랜딩 자신으로 남기고(자동
+  // 재실행은 하지 않는다 — 로그인 후 다시 CTA를 눌러야 한다), 어드민은 데모 라우트로,
+  // 로그인했지만 비어드민이면 기존 준비중 alert 그대로 유지한다. 실제 접근 통제는 라우트의
+  // ProtectedAdmin이 최종 방어선이다.
+  async function handleHeroCta(event) {
+    const access = await getDemoAccessState();
+
+    if (access === "admin") {
+      event?.preventDefault?.();
+      navigate("/demo/self-assessment");
+      return;
+    }
+
+    if (access === "guest") {
+      event?.preventDefault?.();
+      navigate(
+        `/login?redirect=${encodeURIComponent("/services/self-assessment")}`,
+        {
+          replace: true,
+        },
+      );
+      return;
+    }
+
+    alertServiceNotReady(event);
+  }
 
   return (
     // 섹션 패딩(md:pb-0 md:pt-[2.25rem])은 목표관리・수행평가 히어로와 동일 규격으로
@@ -250,14 +344,20 @@ function HeroSection() {
         `}</style>
         <div
           className="sa-aura-spin absolute left-0 top-[-16.6667%] aspect-square w-full"
-          data-float={auraInView ? 'on' : 'off'}
+          data-float={auraInView ? "on" : "off"}
         >
-          <img src={heroAura} alt="" aria-hidden="true" draggable="false" className="block w-full" />
+          <img
+            src={heroAura}
+            alt=""
+            aria-hidden="true"
+            draggable="false"
+            className="block w-full"
+          />
         </div>
       </div>
       {/* 그레인 — 회전 래퍼의 형제(밖)에 둔다. transform이 걸린 요소는 새 stacking context를
           만들어 mix-blend-overlay가 섹션 배경(bg-white)을 backdrop으로 못 잡고 그레인이 전면
-          노출되는 회귀가 실제로 있었다(수행평가・무료진단 선례). */}
+          노출되는 회귀가 실제로 있었다(수행평가・학습진단 선례). */}
       <div
         aria-hidden="true"
         style={{ backgroundImage: `url(${heroGrain})` }}
@@ -276,12 +376,13 @@ function HeroSection() {
         </h1>
 
         <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
-          문항 핵심을 파악하고 나만의 강점을 구조화해, 학생이 스스로 완성하도록 돕습니다
+          문항 핵심을 파악하고 나만의 강점을 구조화해, 학생이 스스로 완성하도록
+          돕습니다
         </p>
 
         <button
           type="button"
-          onClick={alertServiceNotReady}
+          onClick={handleHeroCta}
           className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
         >
           지금 시작하기
@@ -330,7 +431,10 @@ export default function SelfAssessment() {
           강점추출/구조설계 234px, 내용정리・피드백 259px로 갈린다(각 1번 카드 설명이 2줄로
           감겨 25px 더 높음). 최소값으로 고정하면 2줄 설명이 잘리므로 최대값을 채택해 탭 전환
           시 아래 섹션이 밀렸다 당겨지는 레이아웃 점프를 막는다. */}
-      <ServiceSection className="lg:pt-[8.375rem]" heading="단계별로, 자기평가서를 완성합니다">
+      <ServiceSection
+        className="lg:pt-[8.375rem]"
+        heading="단계별로, 자기평가서를 완성합니다"
+      >
         <ServiceTabsPanel
           tabs={STAGE_TABS}
           content={STAGE_CONTENT}
@@ -347,20 +451,27 @@ export default function SelfAssessment() {
         className="lg:pt-[8.375rem]"
         heading={
           <>
-            이런 학생에게 <span className="text-[#013262]">자기 평가 서비스를 추천해요</span>
+            이런 학생에게{" "}
+            <span className="text-[#013262]">자기 평가 서비스를 추천해요</span>
           </>
         }
       >
         <ServiceAudienceCards items={AUDIENCE_CARDS} imageFit="cover" />
       </ServiceSection>
 
-      <ServiceSection className="lg:pt-[8.375rem]" heading="다섯 단계로 차근차근">
+      <ServiceSection
+        className="lg:pt-[8.375rem]"
+        heading="다섯 단계로 차근차근"
+      >
         <ServiceStepCards items={FIVE_STEPS} splitLastRow />
       </ServiceSection>
 
       {/* 성과 — 아이콘 매핑은 시안 절대배치 x좌표로 재계산해 확정했다(자식 배열 순서로 읽으면
           1↔2가 뒤바뀐다, 스펙 §11-4). */}
-      <ServiceSection className="lg:pt-[8.375rem]" heading="자기평가로 정리되는 것들">
+      <ServiceSection
+        className="lg:pt-[8.375rem]"
+        heading="자기평가로 정리되는 것들"
+      >
         <ServiceOutcomesPanel items={OUTCOME_ITEMS} />
       </ServiceSection>
 

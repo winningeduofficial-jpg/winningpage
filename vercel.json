@@ -9,8 +9,21 @@
     {
       "source": "/fonts/(.*)",
       "headers": [
-        { "key": "cache-control", "value": "public, max-age=31536000, immutable" }
+        {
+          "key": "cache-control",
+          "value": "public, max-age=31536000, immutable"
+        }
       ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/performance/cleanup-attachments",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/performance/embed-session-vectors",
+      "schedule": "30 18 * * *"
     }
   ]
 }

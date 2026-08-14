@@ -8,6 +8,14 @@
 -- 이 파일은 dev 환경에 운영과 동일한 베이스 스키마를 재현하기 위한 것으로,
 -- 이후 실행되는 sql/10_pricing_orders.sql, sql/20_landing_renewal.sql과
 -- 중복되는 객체가 있어도 무방하다 (두 파일 모두 idempotent 하게 작성됨).
+--
+-- [수동 갱신 이력]
+-- 이 파일은 원래 운영 DB pg_dump(추출) 스냅샷으로 동결 운용해 왔다.
+-- 2026-08-06 학습진단 개명(sql/43)에 맞춰 구(舊) free-diagnosis 계열의
+-- 테이블 3종 · 제약 · 인덱스 · 트리거 · RLS · 정책 이름을 learning_diagnosis_* 로
+-- 손으로 갱신했다 (컬럼명은 변경하지 않음).
+-- 따라서 이 시점부터 이 파일은 운영 DB 와 객체 이름이 다르다.
+-- 운영은 이번 범위 밖이며, 이후 dump 재생성 시점에 정합된다.
 -- ============================================================
 
 -- ------------------------------------------------------------
@@ -522,7 +530,7 @@ create table if not exists public."faqs" (
     constraint faqs_pkey PRIMARY KEY (id)
 );
 
-create table if not exists public."free_diagnosis_options" (
+create table if not exists public."learning_diagnosis_options" (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     question_key text,
     option_text text NOT NULL,
@@ -534,10 +542,10 @@ create table if not exists public."free_diagnosis_options" (
     question_id uuid,
     label text DEFAULT ''::text,
     program_ids text[] DEFAULT '{}'::text[],
-    constraint free_diagnosis_options_pkey PRIMARY KEY (id)
+    constraint learning_diagnosis_options_pkey PRIMARY KEY (id)
 );
 
-create table if not exists public."free_diagnosis_programs" (
+create table if not exists public."learning_diagnosis_programs" (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     program_key text,
     title text NOT NULL,
@@ -556,11 +564,11 @@ create table if not exists public."free_diagnosis_programs" (
     primary_button_link text DEFAULT ''::text,
     secondary_button_text text DEFAULT ''::text,
     secondary_button_link text DEFAULT ''::text,
-    constraint free_diagnosis_programs_pkey PRIMARY KEY (id),
-    constraint free_diagnosis_programs_program_key_key UNIQUE (program_key)
+    constraint learning_diagnosis_programs_pkey PRIMARY KEY (id),
+    constraint learning_diagnosis_programs_program_key_key UNIQUE (program_key)
 );
 
-create table if not exists public."free_diagnosis_questions" (
+create table if not exists public."learning_diagnosis_questions" (
     id uuid DEFAULT gen_random_uuid() NOT NULL,
     question_key text,
     title text NOT NULL,
@@ -571,9 +579,9 @@ create table if not exists public."free_diagnosis_questions" (
     is_active boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    constraint free_diagnosis_questions_pkey PRIMARY KEY (id),
-    constraint free_diagnosis_questions_question_key_key UNIQUE (question_key),
-    constraint free_diagnosis_questions_input_type_check CHECK ((input_type = ANY (ARRAY['single'::text, 'multiple'::text])))
+    constraint learning_diagnosis_questions_pkey PRIMARY KEY (id),
+    constraint learning_diagnosis_questions_question_key_key UNIQUE (question_key),
+    constraint learning_diagnosis_questions_input_type_check CHECK ((input_type = ANY (ARRAY['single'::text, 'multiple'::text])))
 );
 
 create table if not exists public."galleries" (
@@ -1014,10 +1022,10 @@ alter table public."admin_refunds" drop constraint if exists admin_refunds_payme
 alter table public."admin_refunds" add constraint admin_refunds_payment_id_fkey FOREIGN KEY (payment_id) REFERENCES admin_payments(id) ON DELETE SET NULL;
 alter table public."enrollments" drop constraint if exists enrollments_profile_id_fkey;
 alter table public."enrollments" add constraint enrollments_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE SET NULL;
-alter table public."free_diagnosis_options" drop constraint if exists free_diagnosis_options_question_id_fkey;
-alter table public."free_diagnosis_options" add constraint free_diagnosis_options_question_id_fkey FOREIGN KEY (question_id) REFERENCES free_diagnosis_questions(id) ON DELETE CASCADE;
-alter table public."free_diagnosis_options" drop constraint if exists free_diagnosis_options_question_key_fkey;
-alter table public."free_diagnosis_options" add constraint free_diagnosis_options_question_key_fkey FOREIGN KEY (question_key) REFERENCES free_diagnosis_questions(question_key) ON UPDATE CASCADE ON DELETE CASCADE;
+alter table public."learning_diagnosis_options" drop constraint if exists learning_diagnosis_options_question_id_fkey;
+alter table public."learning_diagnosis_options" add constraint learning_diagnosis_options_question_id_fkey FOREIGN KEY (question_id) REFERENCES learning_diagnosis_questions(id) ON DELETE CASCADE;
+alter table public."learning_diagnosis_options" drop constraint if exists learning_diagnosis_options_question_key_fkey;
+alter table public."learning_diagnosis_options" add constraint learning_diagnosis_options_question_key_fkey FOREIGN KEY (question_key) REFERENCES learning_diagnosis_questions(question_key) ON UPDATE CASCADE ON DELETE CASCADE;
 alter table public."order_items" drop constraint if exists order_items_order_id_fkey;
 alter table public."order_items" add constraint order_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE;
 alter table public."orders" drop constraint if exists orders_coupon_id_fkey;
@@ -1058,12 +1066,12 @@ CREATE INDEX IF NOT EXISTS admission_university_resources_region_idx ON public.a
 CREATE UNIQUE INDEX IF NOT EXISTS admission_university_resources_year_key_uidx ON public.admission_university_resources USING btree (admission_year, university_key);
 CREATE UNIQUE INDEX IF NOT EXISTS banners_seed_unique_idx ON public.banners USING btree (COALESCE(title, ''::text), COALESCE(highlight, ''::text), COALESCE(subtitle, ''::text), COALESCE(image_url, ''::text), COALESCE(button_text, ''::text), COALESCE(button_link, ''::text), COALESCE(sort_order, 0));
 CREATE INDEX IF NOT EXISTS company_news_display_idx ON public.company_news USING btree (is_active, is_pinned DESC, sort_order, created_at DESC);
-CREATE INDEX IF NOT EXISTS free_diagnosis_options_question_sort_idx ON public.free_diagnosis_options USING btree (question_id, is_active, sort_order, created_at);
-CREATE INDEX IF NOT EXISTS idx_free_diagnosis_options_question_order ON public.free_diagnosis_options USING btree (question_key, is_active, sort_order);
-CREATE INDEX IF NOT EXISTS free_diagnosis_programs_sort_idx ON public.free_diagnosis_programs USING btree (is_active, sort_order, created_at);
-CREATE INDEX IF NOT EXISTS idx_free_diagnosis_programs_active_order ON public.free_diagnosis_programs USING btree (is_active, sort_order);
-CREATE INDEX IF NOT EXISTS free_diagnosis_questions_sort_idx ON public.free_diagnosis_questions USING btree (is_active, sort_order, created_at);
-CREATE INDEX IF NOT EXISTS idx_free_diagnosis_questions_active_order ON public.free_diagnosis_questions USING btree (is_active, sort_order);
+CREATE INDEX IF NOT EXISTS learning_diagnosis_options_question_sort_idx ON public.learning_diagnosis_options USING btree (question_id, is_active, sort_order, created_at);
+CREATE INDEX IF NOT EXISTS idx_learning_diagnosis_options_question_order ON public.learning_diagnosis_options USING btree (question_key, is_active, sort_order);
+CREATE INDEX IF NOT EXISTS learning_diagnosis_programs_sort_idx ON public.learning_diagnosis_programs USING btree (is_active, sort_order, created_at);
+CREATE INDEX IF NOT EXISTS idx_learning_diagnosis_programs_active_order ON public.learning_diagnosis_programs USING btree (is_active, sort_order);
+CREATE INDEX IF NOT EXISTS learning_diagnosis_questions_sort_idx ON public.learning_diagnosis_questions USING btree (is_active, sort_order, created_at);
+CREATE INDEX IF NOT EXISTS idx_learning_diagnosis_questions_active_order ON public.learning_diagnosis_questions USING btree (is_active, sort_order);
 CREATE INDEX IF NOT EXISTS home_acceptance_cards_display_idx ON public.home_acceptance_cards USING btree (is_active, sort_order, created_at DESC);
 CREATE INDEX IF NOT EXISTS home_mentor_strategies_display_idx ON public.home_mentor_strategies USING btree (is_active, sort_order, created_at DESC);
 CREATE INDEX IF NOT EXISTS home_side_banners_display_idx ON public.home_side_banners USING btree (is_active, sort_order, created_at DESC);
@@ -1495,14 +1503,14 @@ CREATE TRIGGER trg_enrollments_updated_at BEFORE UPDATE ON public.enrollments FO
 drop trigger if exists trg_faqs_updated_at on public."faqs";
 CREATE TRIGGER trg_faqs_updated_at BEFORE UPDATE ON public.faqs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-drop trigger if exists set_free_diagnosis_options_updated_at on public."free_diagnosis_options";
-CREATE TRIGGER set_free_diagnosis_options_updated_at BEFORE UPDATE ON public.free_diagnosis_options FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+drop trigger if exists set_learning_diagnosis_options_updated_at on public."learning_diagnosis_options";
+CREATE TRIGGER set_learning_diagnosis_options_updated_at BEFORE UPDATE ON public.learning_diagnosis_options FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-drop trigger if exists set_free_diagnosis_programs_updated_at on public."free_diagnosis_programs";
-CREATE TRIGGER set_free_diagnosis_programs_updated_at BEFORE UPDATE ON public.free_diagnosis_programs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+drop trigger if exists set_learning_diagnosis_programs_updated_at on public."learning_diagnosis_programs";
+CREATE TRIGGER set_learning_diagnosis_programs_updated_at BEFORE UPDATE ON public.learning_diagnosis_programs FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
-drop trigger if exists set_free_diagnosis_questions_updated_at on public."free_diagnosis_questions";
-CREATE TRIGGER set_free_diagnosis_questions_updated_at BEFORE UPDATE ON public.free_diagnosis_questions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+drop trigger if exists set_learning_diagnosis_questions_updated_at on public."learning_diagnosis_questions";
+CREATE TRIGGER set_learning_diagnosis_questions_updated_at BEFORE UPDATE ON public.learning_diagnosis_questions FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 drop trigger if exists trg_galleries_updated_at on public."galleries";
 CREATE TRIGGER trg_galleries_updated_at BEFORE UPDATE ON public.galleries FOR EACH ROW EXECUTE FUNCTION set_updated_at();
@@ -1582,9 +1590,9 @@ alter table public."daily_entries" enable row level security;
 alter table public."daily_settlements" enable row level security;
 alter table public."enrollments" enable row level security;
 alter table public."faqs" enable row level security;
-alter table public."free_diagnosis_options" enable row level security;
-alter table public."free_diagnosis_programs" enable row level security;
-alter table public."free_diagnosis_questions" enable row level security;
+alter table public."learning_diagnosis_options" enable row level security;
+alter table public."learning_diagnosis_programs" enable row level security;
+alter table public."learning_diagnosis_questions" enable row level security;
 alter table public."galleries" enable row level security;
 alter table public."home_acceptance_cards" enable row level security;
 alter table public."home_mentor_strategies" enable row level security;
@@ -1808,8 +1816,8 @@ drop policy if exists "faqs_public_read" on public."faqs";
 create policy "faqs_public_read" on public."faqs" as PERMISSIVE for SELECT to anon,authenticated
   using (((is_active = true) OR is_admin()));
 
-drop policy if exists "free diagnosis options admin all" on public."free_diagnosis_options";
-create policy "free diagnosis options admin all" on public."free_diagnosis_options" as PERMISSIVE for ALL to public
+drop policy if exists "learning diagnosis options admin all" on public."learning_diagnosis_options";
+create policy "learning diagnosis options admin all" on public."learning_diagnosis_options" as PERMISSIVE for ALL to public
   using ((EXISTS ( SELECT 1
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::text)))))
@@ -1817,12 +1825,12 @@ create policy "free diagnosis options admin all" on public."free_diagnosis_optio
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::text)))));
 
-drop policy if exists "free diagnosis options public read" on public."free_diagnosis_options";
-create policy "free diagnosis options public read" on public."free_diagnosis_options" as PERMISSIVE for SELECT to public
+drop policy if exists "learning diagnosis options public read" on public."learning_diagnosis_options";
+create policy "learning diagnosis options public read" on public."learning_diagnosis_options" as PERMISSIVE for SELECT to public
   using ((is_active = true));
 
-drop policy if exists "free diagnosis programs admin all" on public."free_diagnosis_programs";
-create policy "free diagnosis programs admin all" on public."free_diagnosis_programs" as PERMISSIVE for ALL to public
+drop policy if exists "learning diagnosis programs admin all" on public."learning_diagnosis_programs";
+create policy "learning diagnosis programs admin all" on public."learning_diagnosis_programs" as PERMISSIVE for ALL to public
   using ((EXISTS ( SELECT 1
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::text)))))
@@ -1830,12 +1838,12 @@ create policy "free diagnosis programs admin all" on public."free_diagnosis_prog
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::text)))));
 
-drop policy if exists "free diagnosis programs public read" on public."free_diagnosis_programs";
-create policy "free diagnosis programs public read" on public."free_diagnosis_programs" as PERMISSIVE for SELECT to public
+drop policy if exists "learning diagnosis programs public read" on public."learning_diagnosis_programs";
+create policy "learning diagnosis programs public read" on public."learning_diagnosis_programs" as PERMISSIVE for SELECT to public
   using ((is_active = true));
 
-drop policy if exists "free diagnosis questions admin all" on public."free_diagnosis_questions";
-create policy "free diagnosis questions admin all" on public."free_diagnosis_questions" as PERMISSIVE for ALL to public
+drop policy if exists "learning diagnosis questions admin all" on public."learning_diagnosis_questions";
+create policy "learning diagnosis questions admin all" on public."learning_diagnosis_questions" as PERMISSIVE for ALL to public
   using ((EXISTS ( SELECT 1
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::text)))))
@@ -1843,8 +1851,8 @@ create policy "free diagnosis questions admin all" on public."free_diagnosis_que
    FROM profiles
   WHERE ((profiles.id = auth.uid()) AND (profiles.role = 'admin'::text)))));
 
-drop policy if exists "free diagnosis questions public read" on public."free_diagnosis_questions";
-create policy "free diagnosis questions public read" on public."free_diagnosis_questions" as PERMISSIVE for SELECT to public
+drop policy if exists "learning diagnosis questions public read" on public."learning_diagnosis_questions";
+create policy "learning diagnosis questions public read" on public."learning_diagnosis_questions" as PERMISSIVE for SELECT to public
   using ((is_active = true));
 
 drop policy if exists "Admins can delete galleries" on public."galleries";

@@ -9,7 +9,7 @@
 --   1) menu_label 변경 8건 — 시안 문구에 맞춰 정정
 --   2) 서비스 그룹 메뉴 노출 제외 2건 — 페이지 자체는 유지하되
 --      menu_group/menu_group_order를 null로 비워 헤더/푸터 메뉴에서만 숨김
---   3) 서비스 그룹 sort_order 재정렬 — 무료진단을 그룹 선두로,
+--   3) 서비스 그룹 sort_order 재정렬 — 학습진단을 그룹 선두로,
 --      신규 '자기평가' 항목 자리를 포함해 시안 순서대로 재배열
 --   4) 신규 row 삽입 — services-self-assessment('자기평가')
 --
@@ -77,11 +77,13 @@ where slug in ('services-susi-prediction', 'services-record-coach')
 
 -- ---------------------------------------------------------------------
 -- 3) 서비스 그룹 sort_order 재정렬 (시안 순서)
---    1 무료진단 / 2 목표관리 / 3 콜멘토 / 4 수행평가 / 5 자기평가(신규) / 6 심화탐구
+--    1 학습진단 / 2 목표관리 / 3 콜멘토 / 4 수행평가 / 5 자기평가(신규) / 6 심화탐구
 -- ---------------------------------------------------------------------
 update public.page_contents
 set sort_order = 1
-where slug = '/free-diagnosis'
+-- 34는 43(무료진단→학습진단 rename)보다 먼저 실행된다. slug가 아직 구 값
+-- ('/free-diagnosis')인 DB에서도 매칭되도록 구·신 slug를 모두 넣는다.
+where slug in ('/learning-diagnosis', '/free-diagnosis')
   and sort_order is distinct from 1;
 
 update public.page_contents
