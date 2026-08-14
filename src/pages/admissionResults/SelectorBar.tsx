@@ -1,4 +1,4 @@
-import ComboField from "./ComboField";
+import ComboField, { type ComboOption, type ComboValue } from "./ComboField";
 import {
   DEPARTMENT_LABEL,
   DEPARTMENT_LOCKED_MESSAGE,
@@ -23,10 +23,10 @@ import {
  * 컨테이너에 overflow-hidden을 걸지 않는다 — 팝오버가 바 밖으로 나와야 한다.
  */
 type SelectorBarProps = {
-  university?: unknown;
-  department?: unknown;
-  universityOptions: unknown[];
-  departmentOptions: unknown[];
+  university?: ComboValue;
+  department?: ComboValue;
+  universityOptions: ComboOption[];
+  departmentOptions: ComboOption[];
   universityLoading?: boolean;
   universityError?: boolean;
   departmentLoading?: boolean;
@@ -35,8 +35,8 @@ type SelectorBarProps = {
   onRetryDepartments?: () => void;
   openField?: string | null;
   onOpenFieldChange: (next: string | null) => void;
-  onSelectUniversity?: (option: unknown) => void;
-  onSelectDepartment?: (option: unknown) => void;
+  onSelectUniversity?: (option: ComboOption) => void;
+  onSelectDepartment?: (option: ComboOption) => void;
   onClearUniversity?: () => void;
   onClearDepartment?: () => void;
   onSubmit?: () => void;

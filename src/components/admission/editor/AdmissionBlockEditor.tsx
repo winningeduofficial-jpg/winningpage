@@ -1,3 +1,4 @@
+import type { TableBlock } from "../../../lib/admissionDoc";
 import EmptyBoxBlockEditor from "./blocks/EmptyBoxBlockEditor";
 import FootnoteBlockEditor from "./blocks/FootnoteBlockEditor";
 import GroupBlockEditor from "./blocks/GroupBlockEditor";
@@ -38,9 +39,12 @@ export default function AdmissionBlockEditor({
   switch (block.kind) {
     case "table":
       return (
+        // AdmissionBlock은 이 파일의 느슨한 로컬 타입, TableBlockEditor는 admissionDoc의
+        // 엄격한 TableBlock 유니온을 요구한다 — kind==="table" 분기라 실제로는 항상
+        // TableBlock 모양이다.
         <TableBlockEditor
-          section={section}
-          block={block}
+          section={section as string}
+          block={block as TableBlock}
           onChange={onChange}
           universityName={universityName}
           sectionLabel={sectionLabel}
