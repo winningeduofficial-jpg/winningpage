@@ -1,10 +1,46 @@
 import { ChevronRight } from "lucide-react";
+import type { KeyboardEvent } from "react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { formatKRW, SINGLE_SELECT_NOTICE } from "../../data/pricingCatalog";
 import { saveCart } from "../../lib/cart";
 import { useProducts } from "../../lib/products";
 import { supabase } from "../../lib/supabase";
+
+// lib/products.js(useProducts)의 반환 형태를 그대로 옮긴 로컬 타입 — products.js는
+// 아직 JS(API 전환 단계 미착수)라 이 페이지에서만 쓰는 최소 형태로 로컬 정의한다.
+// 전역/공유 타입 파일은 새로 만들지 않는다(다른 배치와 충돌 위험).
+type PricingProduct = {
+  id: string;
+  name: string;
+  listPrice: number;
+  price: number;
+  badge?: string | null;
+  recommended?: boolean;
+};
+
+type PricingService = {
+  key: string;
+  name: string;
+  desc: string;
+  order: number;
+  products: PricingProduct[];
+};
+
+// 서비스별 단일 선택 맵: { [serviceKey]: productId }
+type SelectedMap = Record<string, string>;
+
+type CartItem = {
+  id: string;
+  serviceKey: string;
+  serviceName: string;
+  serviceDesc: string;
+  name: string;
+  listPrice: number;
+  price: number;
+  badge?: string | null;
+  recommended?: boolean;
+};
 
 // products.service_key → 서비스 상세 페이지 라우트.
 // 링크 목적지는 products 테이블에 컬럼을 추가하지 않고 코드측 매핑으로 둔다 —
@@ -52,9 +88,9 @@ export default function PricingSelling() {
   const navigate = useNavigate();
   const { services, loading, error, refetch } = useProducts();
   // 서비스별 단일 선택: { [serviceKey]: productId }
-  const [selected, setSelected] = useState({});
+  const [selected, setSelected] = useState<SelectedMap>({});
 
-  function toggle(serviceKey, productId) {
+  function toggle(serviceKey: string, productId: string) {
     setSelected((prev) => {
       const next = { ...prev };
       if (next[serviceKey] === productId) delete next[serviceKey];
@@ -72,7 +108,12 @@ export default function PricingSelling() {
   // product.id 가 숫자 PK 인 경우 dataset 은 항상 문자열이라 `selected[key] === product.id`
   // 비교가 타입 불일치로 깨질 수 있다) — 포커스 이동만 DOM 조회를 쓴다(타입 무관, 초점
   // 이동에는 실제 엘리먼트가 필요하므로).
-  function handleRadioKeyDown(e, serviceKey, products, currentIndex) {
+  function handleRadioKeyDown(
+    e: KeyboardEvent<HTMLButtonElement>,
+    serviceKey: string,
+    products: PricingProduct[],
+    currentIndex: number,
+  ) {
     // Escape = 그룹 선택 해제. 마우스는 재클릭으로 토글 해제가 되지만(아래 role="radio"
     // 주석 참고) 화살표 키는 "이동=선택"이라 키보드만 쓰는 사용자는 그룹 안에서 선택을
     // 완전히 뺄 방법이 없었다 — 그 격차를 메운다. preventDefault 도 실제로 해제를 수행했을
@@ -107,14 +148,15 @@ export default function PricingSelling() {
     setSelected((prev) => ({ ...prev, [serviceKey]: nextProduct.id }));
 
     const group = e.currentTarget.closest('[role="radiogroup"]');
-    const nextEl = group?.querySelectorAll('[role="radio"]')[nextIndex];
+    const nextEl =
+      group?.querySelectorAll<HTMLElement>('[role="radio"]')[nextIndex];
     nextEl?.focus();
   }
 
   // 선택된 상품 목록(장바구니 형태로 enrich)
   const selectedItems = useMemo(() => {
-    const items = [];
-    services.forEach((service) => {
+    const items: CartItem[] = [];
+    (services as PricingService[]).forEach((service) => {
       const pid = selected[service.key];
       if (!pid) return;
       const product = service.products.find((p) => p.id === pid);
@@ -230,7 +272,7 @@ export default function PricingSelling() {
 
           {!loading &&
             !error &&
-            services.map((service) => (
+            (services as PricingService[]).map((service) => (
               <section key={service.key} className="mb-16">
                 {/* 아래 여백이 390 에서만 mb-3(12px)인 이유: 시안 타이포로 내리면 이 행의 높이가
                   h2 lh20 로 정해져 '자세히보기' 앵커(17px) 아래 슬랙이 1.5px 뿐이다.

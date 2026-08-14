@@ -76,9 +76,25 @@ import { supabase } from "../../lib/supabase";
 // 내장하고 있어 이 상수는 §1 Hero・§7 하단 CTA(둘 다 ServiceSection 미사용) 2곳에서만 쓴다.
 const CONTAINER = "mx-auto w-full max-w-content px-5 sm:px-8";
 
-// home_mentor_strategies row → MentorSection/MentorCard props 정규화 (Home.jsx normalizeMentorRow와 동일 로직)
-function normalizeMentorRow(row) {
-  let titleLines = row.title_lines;
+// home_mentor_strategies row → MentorSection/MentorCard props 정규화용 로컬 타입
+// (Home.jsx normalizeMentorRow와 동일 로직). photo_layout 은 top/left/width/height 를
+// 가진 좌표 객체이거나 null이다.
+type MentorPhotoLayout = {
+  top?: number;
+  left?: number;
+  width?: number;
+  height?: number;
+};
+
+type MentorRow = {
+  id: string | number;
+  title_lines?: unknown;
+  photo_layout?: MentorPhotoLayout | null;
+  [key: string]: unknown;
+};
+
+function normalizeMentorRow(row: MentorRow) {
+  let titleLines: unknown = row.title_lines;
   if (typeof titleLines === "string") {
     try {
       titleLines = JSON.parse(titleLines);
@@ -89,7 +105,7 @@ function normalizeMentorRow(row) {
   const layout = row.photo_layout;
   const hasValidLayout =
     layout &&
-    ["top", "left", "width", "height"].every((key) =>
+    (["top", "left", "width", "height"] as const).every((key) =>
       Number.isFinite(layout[key]),
     );
 
@@ -188,7 +204,9 @@ const REVIEW_CARDS = [
 ];
 
 export default function Callmentor() {
-  const [mentors, setMentors] = useState([]);
+  const [mentors, setMentors] = useState<
+    ReturnType<typeof normalizeMentorRow>[]
+  >([]);
 
   useEffect(() => {
     let mounted = true;
@@ -278,7 +296,7 @@ export default function Callmentor() {
           <img
             src={heroCallMockup}
             alt="콜멘토 전화 상담 통화 화면을 보여주는 손에 든 아이폰"
-            fetchpriority="high"
+            fetchPriority="high"
             className="w-full max-w-[29.625rem] shrink-0 aspect-[1509/1838] rounded-[2rem] object-cover"
           />
         </div>

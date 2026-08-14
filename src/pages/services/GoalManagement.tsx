@@ -1,3 +1,4 @@
+import type { CSSProperties, MutableRefObject } from "react";
 import { useNavigate } from "react-router-dom";
 import audienceDirection from "../../assets/services/goal/audience-direction.png";
 import audienceExecution from "../../assets/services/goal/audience-execution.png";
@@ -363,7 +364,10 @@ const FAQ_ITEMS = [
 function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 큰 PNG(1600x1200) 리페인트 비용 절감
   // (PhoneReportSection과 동일 훅 구조. 서비스 랜딩 4종 + LearningDiagnosisLanding 공통 useInView).
-  const [auraRef, auraInView] = useInView();
+  const [auraRef, auraInView] = useInView() as [
+    MutableRefObject<HTMLDivElement | null>,
+    boolean,
+  ];
   const navigate = useNavigate();
 
   return (
@@ -540,7 +544,10 @@ function OutcomesSection() {
 function PhoneReportSection() {
   // 이 섹션도 스크롤 상당히 아래(lg:pt-[16.125rem])라 뷰포트에 들어와 있는 동안만
   // 애니메이션을 돌린다(LearningDiagnosisLanding MacbookMockup과 동일 훅 구조).
-  const [chipLayerRef, chipsInView] = useInView();
+  const [chipLayerRef, chipsInView] = useInView() as [
+    MutableRefObject<HTMLDivElement | null>,
+    boolean,
+  ];
 
   return (
     <section className="overflow-x-clip bg-white pt-16 sm:pt-20 lg:pt-[16.125rem]">
@@ -632,12 +639,14 @@ function PhoneReportSection() {
                   <div
                     key={badge.title}
                     className="absolute"
-                    style={{
-                      ...badge.style,
-                      "--gc-x": badge.x.amplitude,
-                      "--gc-y": badge.y.amplitude,
-                      "--gc-rot": badge.rot.amplitude,
-                    }}
+                    style={
+                      {
+                        ...badge.style,
+                        "--gc-x": badge.x.amplitude,
+                        "--gc-y": badge.y.amplitude,
+                        "--gc-rot": badge.rot.amplitude,
+                      } as CSSProperties
+                    }
                   >
                     <div
                       className="goal-chip-x block w-full"

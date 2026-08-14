@@ -1,3 +1,4 @@
+import type { MouseEvent, MutableRefObject } from "react";
 import { useNavigate } from "react-router-dom";
 import heroGrain from "../../assets/renewal/landing/hero-grain.png";
 import heroAura from "../../assets/services/in-depth-research/hero-aura.svg";
@@ -191,7 +192,10 @@ const FAQ_ITEMS = [
 function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 서비스 랜딩 4종 + LearningDiagnosisLanding
   // 공통 useInView 훅 구조.
-  const [auraRef, auraInView] = useInView();
+  const [auraRef, auraInView] = useInView() as [
+    MutableRefObject<HTMLDivElement | null>,
+    boolean,
+  ];
   const navigate = useNavigate();
 
   // 히어로 CTA — 로그인 게이트 3분기(demoAccess.js의 getDemoAccessState, ProtectedAdmin과
@@ -199,7 +203,7 @@ function HeroSection() {
   // 재실행은 하지 않는다 — 로그인 후 다시 CTA를 눌러야 한다), 어드민은 데모 라우트로,
   // 로그인했지만 비어드민이면 기존 준비중 alert 그대로 유지한다. 실제 접근 통제는 라우트의
   // ProtectedAdmin이 최종 방어선이다.
-  async function handleHeroCta(event) {
+  async function handleHeroCta(event?: MouseEvent<HTMLButtonElement>) {
     const access = await getDemoAccessState();
 
     if (access === "admin") {

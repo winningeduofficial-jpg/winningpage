@@ -1,3 +1,4 @@
+import type { MutableRefObject } from "react";
 import { useCallback, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import heroGrain from "../../assets/renewal/landing/hero-grain.png";
@@ -295,7 +296,10 @@ function HeroSection() {
 
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
   // (서비스 랜딩 4종 + LearningDiagnosisLanding.jsx HeroSection 공통 useInView 훅 구조).
-  const [auraRef, auraInView] = useInView();
+  const [auraRef, auraInView] = useInView() as [
+    MutableRefObject<HTMLDivElement | null>,
+    boolean,
+  ];
 
   return (
     <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
