@@ -1,13 +1,21 @@
 // 버튼 행 — docs/figma-goal/00-INDEX.md §5-3 `WizardActions`. 400×60(25rem×3.75rem), 간격
 // 1.25rem. 1단계는 onPrev를 넘기지 않아 "다음" 단독 중앙 정렬, 2단계부터는 "이전 + 다음" 2열
 // (작업 지시 셸 규격 절 "1단계는 다음 단독(중앙), 2단계부터 이전 + 다음 2열").
+type WizardActionsProps = {
+  onPrev?: () => void;
+  onNext?: () => void;
+  nextDisabled?: boolean;
+  nextLabel?: string;
+  prevLabel?: string;
+};
+
 export default function WizardActions({
   onPrev,
   onNext,
   nextDisabled = false,
   nextLabel = "다음",
   prevLabel = "이전",
-}) {
+}: WizardActionsProps) {
   return (
     <div className="flex items-center justify-center gap-[1.25rem]">
       {onPrev && (

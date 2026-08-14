@@ -3,6 +3,15 @@
 // 키)을 기본 제공하고, 시안의 텍스트 노드뿐인 "-"/"+"는 최소 24×24 버튼으로 감싼다(접근성,
 // 작업 지시 "접근성" 절).
 // max=12h는 part-03(#9) 구현 노트의 "최대값 12h 가정(추정)"을 그대로 따른 것 — 확정 필요.
+type SliderRowProps = {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
 export default function SliderRow({
   label,
   value,
@@ -10,7 +19,7 @@ export default function SliderRow({
   min = 0,
   max = 12,
   step = 1,
-}) {
+}: SliderRowProps) {
   const pct =
     max > min
       ? Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100))

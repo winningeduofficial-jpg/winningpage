@@ -2,6 +2,16 @@
 // `label / - / value / +` 구성. 단위가 "시"(기상・취침, 시각)와 "시간"(학교체류・학원과외,
 // 지속시간) 2종으로 섞여 있다(part-04 구현 노트) — unit prop으로 그대로 표기한다.
 // "-"/"+"는 시안엔 12×20 텍스트 노드뿐이라 최소 24×24 버튼으로 감싼다(접근성).
+type StepperRowProps = {
+  label: string;
+  value: number;
+  unit?: string;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+};
+
 export default function StepperRow({
   label,
   value,
@@ -10,7 +20,7 @@ export default function StepperRow({
   min = 0,
   max = 24,
   step = 1,
-}) {
+}: StepperRowProps) {
   function decrease() {
     onChange(Math.max(min, value - step));
   }

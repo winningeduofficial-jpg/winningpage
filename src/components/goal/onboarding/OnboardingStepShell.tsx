@@ -1,16 +1,32 @@
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { supabase } from "../../../lib/supabase";
 import OnboardingProgress from "./OnboardingProgress";
 
+type OnboardingUser = {
+  user_metadata?: {
+    name?: string;
+    full_name?: string;
+    student_name?: string;
+  };
+  email?: string;
+};
+
 // 로그인 사용자 이름 추출 — api/create-service-ticket.js의 getUserName()과 동일한 우선순위
 // (user_metadata.name → full_name → student_name → email)를 프런트에서 재사용할 별도 헬퍼가
 // 없어 그대로 이식했다.
-function getUserDisplayName(user) {
+function getUserDisplayName(user?: OnboardingUser | null) {
   const meta = user?.user_metadata || {};
   return String(
     meta.name || meta.full_name || meta.student_name || user?.email || "",
   ).trim();
 }
+
+type OnboardingStepShellProps = {
+  current: number;
+  total: number;
+  children?: ReactNode;
+};
 
 // 온보딩 7스텝 공통 셸 — docs/figma-goal/00-INDEX.md §3 G1 / §5-3 `OnboardingStepShell`.
 // 구조: 아이브로우("목표 관리 프로그램") → 인사 헤딩(2줄) → 진행 바 → 카드 스택 → 버튼 행.
@@ -18,7 +34,11 @@ function getUserDisplayName(user) {
 // 헤더/푸터는 SiteLayout이 렌더하므로 이 컴포넌트는 그 사이 콘텐츠만 담당한다. Header가
 // position:fixed(4rem)라 페이지 루트(Onboarding.jsx)에서 pt-16으로 겹침을 보정하고, 여기서는
 // 그 안쪽 컨테이너 상단 여백(7.5rem)만 추가한다(00-INDEX.md §6-3 "컨테이너 상단 여백").
-export default function OnboardingStepShell({ current, total, children }) {
+export default function OnboardingStepShell({
+  current,
+  total,
+  children,
+}: OnboardingStepShellProps) {
   // 이 라우트는 RequireGoalAccess가 로그인 세션을 이미 검증한 뒤에만 마운트되므로 세션 부재
   // 자체는 여기서 다시 방어하지 않는다 — 그래도 이름을 못 읽는 경우(메타데이터 미기재 등)를
   // 대비해 userName은 빈 문자열로 시작하고, 비어 있으면 기존 "학생님" 문구로 폴백한다.
