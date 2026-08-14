@@ -71,11 +71,11 @@ export function validateHighschoolSection(values: HighschoolValues = {}) {
   return errors;
 }
 
-const SECTION = FORM_SECTIONS[2];
+const SECTION = FORM_SECTIONS[2]!; // FORM_SECTIONS는 5개 섹션 고정 배열, 2번 인덱스 항상 존재
 
 type FormSectionHighschoolProps = {
   values?: HighschoolValues;
-  errors?: Record<string, string>;
+  errors?: Record<string, string | undefined>; // MentorApplyForm의 errors 상태와 동일한 형태(값 지웠을 때 undefined)
   onChange?: (name: string, value: string) => void;
 };
 

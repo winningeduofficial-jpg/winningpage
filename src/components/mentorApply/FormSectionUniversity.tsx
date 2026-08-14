@@ -96,11 +96,11 @@ const EXAM_RESULTS_PLACEHOLDER = `형식) 대학 / 모집단위 / 전형 / 결�
  2. 연세대학교 / 경영학과 / 수시 논술 / 불합
  3. 중앙대학교 / 경영학부 / 정시 가군 / 추가합격 (3순위)`;
 
-const SECTION = FORM_SECTIONS[1];
+const SECTION = FORM_SECTIONS[1]!; // FORM_SECTIONS는 5개 섹션 고정 배열, 1번 인덱스 항상 존재
 
 type FormSectionUniversityProps = {
   values?: UniversityValues;
-  errors?: Record<string, string>;
+  errors?: Record<string, string | undefined>; // MentorApplyForm의 errors 상태와 동일한 형태(값 지웠을 때 undefined)
   onChange?: (name: string, value: string) => void;
 };
 

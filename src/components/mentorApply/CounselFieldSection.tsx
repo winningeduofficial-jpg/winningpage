@@ -105,7 +105,7 @@ export default function CounselFieldSection({
         >
           <ul className="flex w-max min-w-full items-stretch gap-[1.4375rem] px-5 py-2 sm:px-8">
             {repeatIndices.map((fieldIndex, position) => {
-              const item = COUNSEL_FIELDS[fieldIndex];
+              const item = COUNSEL_FIELDS[fieldIndex]!; // fieldIndex는 useInfiniteMarquee가 COUNSEL_FIELDS 길이 기준으로 생성해 항상 범위 내
 
               // N배 반복 중 초기 노출 사이클(1)만 스크린리더에 노출 — 랜딩 선례와 동일 계산식
               // (AcceptanceSection.jsx:130-131 / MentorSection.jsx:74-75).

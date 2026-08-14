@@ -79,7 +79,8 @@ export function validateApplicantSection(values: ApplicantValues = {}) {
     errors.phone = ERROR_MESSAGES.phone_format;
 
   if (!trimmed("email")) errors.email = ERROR_MESSAGES.email_required;
-  else if (!isValidEmail(values.email))
+  // trimmed("email")이 truthy이므로 email은 정의됨
+  else if (!isValidEmail(values.email!))
     errors.email = ERROR_MESSAGES.email_format;
 
   if (!trimmed("residence_region"))
@@ -88,11 +89,11 @@ export function validateApplicantSection(values: ApplicantValues = {}) {
   return errors;
 }
 
-const SECTION = FORM_SECTIONS[0];
+const SECTION = FORM_SECTIONS[0]!; // FORM_SECTIONS는 5개 섹션 고정 배열, 0번 인덱스 항상 존재
 
 type FormSectionApplicantProps = {
   values?: ApplicantValues;
-  errors?: Record<string, string>;
+  errors?: Record<string, string | undefined>; // MentorApplyForm의 errors 상태와 동일한 형태(값 지웠을 때 undefined)
   onChange?: (name: string, value: string) => void;
 };
 
