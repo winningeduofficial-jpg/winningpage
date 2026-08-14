@@ -98,7 +98,9 @@ function isSafeUrl(rawValue: unknown): boolean {
   const normalized = value.replace(/[\x00-\x1f\x7f]/g, "");
   const schemeMatch = /^([a-zA-Z][a-zA-Z0-9+.-]*):/.exec(normalized);
   if (!schemeMatch) return true;
-  return SAFE_URL_SCHEMES.has(`${schemeMatch[1].toLowerCase()}:`);
+  const scheme = schemeMatch[1];
+  // 캡처 그룹 1은 정규식 상 매치되면 항상 1자 이상 채워진다.
+  return scheme ? SAFE_URL_SCHEMES.has(`${scheme.toLowerCase()}:`) : false;
 }
 
 // 태그 자체뿐 아니라 자식 서브트리까지 통째로 버려야 하는 태그.
@@ -172,6 +174,7 @@ function convertAttributes(
   if (attributes) {
     for (let i = 0; i < attributes.length; i += 1) {
       const attr = attributes[i];
+      if (!attr) continue; // i < attributes.length 루프라 실질적으론 항상 존재.
       const name = String(attr.name || "").toLowerCase();
       // href/src는 값 자체를 스킴 검사한다 — 통과하면 값을 그대로 쓰고,
       // 안 통과하면 속성 자체를 아예 넣지 않는다(중화가 아니라 제거).

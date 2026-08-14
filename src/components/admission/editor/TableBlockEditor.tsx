@@ -90,8 +90,8 @@ export default function TableBlockEditor({
   section: string;
   block: TableBlock;
   onChange: (nextBlock: TableBlock) => void;
-  universityName?: string;
-  sectionLabel?: string;
+  universityName?: string | undefined;
+  sectionLabel?: string | undefined;
 }) {
   const validation = useMemo(
     () => validateTableBlock(section, block),
@@ -172,9 +172,11 @@ export default function TableBlockEditor({
   }
 
   function handleExportXlsx() {
+    // exportTableBlockToXlsx(수정 범위 밖)의 옵션 타입은 exactOptionalPropertyTypes라
+    // undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다.
     const result = exportTableBlockToXlsx(block, {
-      universityName,
-      sectionLabel,
+      ...(universityName !== undefined ? { universityName } : {}),
+      ...(sectionLabel !== undefined ? { sectionLabel } : {}),
     });
     setXlsxOversized(result.ok ? [] : result.oversized);
   }

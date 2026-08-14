@@ -74,8 +74,14 @@ export default function AdmissionModalShell({
   title?: ReactNode;
   idPrefix?: string;
   sheetClassName?: string;
-  bodyRef?: RefObject<HTMLDivElement | null>;
-  bodyProps?: ComponentPropsWithoutRef<"div">;
+  // RefObject<T>.current는 이미 T | null이라 T에 다시 null을 더하면(RefObject<T | null>)
+  // React의 ref prop 타입(LegacyRef<T>)과 공변 불일치가 난다.
+  bodyRef?: RefObject<HTMLDivElement>;
+  // ComponentPropsWithoutRef<"div">는 data-* 인덱스 시그니처가 없어(호출부가
+  // 넘기는 { "data-section": ... } 실사용과 어긋난다) 명시적으로 얹는다.
+  bodyProps?: ComponentPropsWithoutRef<"div"> & {
+    [dataAttr: `data-${string}`]: string | undefined;
+  };
   bodyClassName?: string;
   belowBody?: ReactNode;
   footerClassName?: string;
@@ -151,7 +157,9 @@ export default function AdmissionModalShell({
       if (!focusable.length) return;
 
       const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      const last = focusable.at(-1);
+      // length 가드(위 focusable.length 체크)로 항상 참 — 타입 좁히기용.
+      if (!first || !last) return;
 
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();

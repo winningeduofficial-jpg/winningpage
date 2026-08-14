@@ -78,12 +78,13 @@ export default function useModalProxyXScroll({
 
     const pickTarget = (): HTMLElement | null => {
       const targets = getHorizontalTargets();
-      if (!targets.length) return null;
+      const [firstTarget] = targets;
+      if (!firstTarget) return null;
       return targets.reduce((best, current) => {
         const bestOverflow = best.scrollWidth - best.clientWidth;
         const currentOverflow = current.scrollWidth - current.clientWidth;
         return currentOverflow > bestOverflow ? current : best;
-      }, targets[0]);
+      }, firstTarget);
     };
 
     const syncTargetsFromBar = () => {
