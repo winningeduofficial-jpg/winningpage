@@ -25,8 +25,21 @@ import { templateCopy } from "../../../lib/diagnosisCopyBinding";
 
 const { copy, rules } = SCREEN_EXTRAS;
 
+type AreaDetailRow = {
+  code: string;
+  name: string;
+  score?: number | string;
+  status?: string;
+  detail?: string;
+};
+
+type AreaDetailGroupProps = {
+  title?: string;
+  rows?: AreaDetailRow[];
+};
+
 /** 영역별 상세 진단 소섹션(6행). detail 이 없는 행은 렌더하지 않는다 — 문구를 창작하지 않는다. */
-function AreaDetailGroup({ title, rows }) {
+function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
   const visible = (rows ?? []).filter((row) => row.detail);
   if (visible.length === 0) return null;
 
@@ -75,8 +88,14 @@ function AreaDetailGroup({ title, rows }) {
   );
 }
 
+type StrategyGroupItem = {
+  code: string;
+  name: string;
+  items: string[];
+};
+
 /** 맞춤 전략 한 묶음(영역 1개 × 4항목). ol 인 이유는 문구집 키가 '맞춤 전략 1~4'로 순번을 갖기 때문이다. */
-function StrategyGroup({ group }) {
+function StrategyGroup({ group }: { group: StrategyGroupItem }) {
   return (
     <div>
       <h4 className="break-keep text-base font-semibold leading-[1.5] text-[#525252]">
@@ -93,7 +112,38 @@ function StrategyGroup({ group }) {
   );
 }
 
-export default function ReportScreenExtras({ data }) {
+type ReportScreenExtrasData = {
+  areaDetails?: { page1?: AreaDetailRow[]; page2?: AreaDetailRow[] } | null;
+  strategyGroups?: StrategyGroupItem[];
+  urgency?: {
+    level?: string;
+    levelLabel?: string | null;
+    score?: number;
+    lowAreaCount?: number;
+    areaThreshold?: number | string;
+    message?: string | null;
+  };
+  notices?: {
+    traitIntro?: string | null;
+    hexCaption?: string | null;
+    goalCompare?: string | null;
+    reportBasis?: string | null;
+    reportLimit?: string | null;
+    probNote?: string | null;
+    admissionNote?: string | null;
+    serviceLimit?: string | null;
+    skipNote?: string | null;
+    sincerityBanner?: string | null;
+    sincerityAct?: string | null;
+  };
+  typeTodos?: string[];
+};
+
+type ReportScreenExtrasProps = {
+  data?: ReportScreenExtrasData | null;
+};
+
+export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
   const { areaDetails, strategyGroups, urgency, notices, typeTodos } =
     data ?? {};
 

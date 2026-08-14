@@ -36,7 +36,38 @@ import {
 const GRID_BREAKPOINTS = ["base", "sm", "md", "lg", "wide"];
 const BREAKPOINT_COLS = [3, 4, 6, 7, 8];
 
-function neededFillerCount(fieldCount, cols) {
+export type GradeInputRule = {
+  code: string;
+  min: number;
+  max: number;
+  decimals: number;
+  pattern: RegExp;
+};
+
+type GradeField = {
+  key: string;
+  label: string;
+  scale?: string;
+  placeholder?: string;
+  placeholderBySystem?: Record<string, string>;
+  required?: boolean;
+};
+
+export type GradeGroup = {
+  key: string;
+  label?: string;
+  hiddenWhenGradeSystem?: string[];
+  fields: GradeField[];
+};
+
+type GradeInputGridProps = {
+  groups?: GradeGroup[];
+  constraint?: GradeInputRule;
+  value?: Record<string, string>;
+  onChange?: (value: Record<string, string>) => void;
+};
+
+function neededFillerCount(fieldCount: number, cols: number) {
   // 한 줄 안에 다 들어가는 그룹은 애초에 '고아 행'이 없다. 채우면 격자가 완성되는 게 아니라
   // 입력칸 하나 뒤에 회색 박스가 줄줄이 붙어 비활성 입력칸처럼 보인다 — q6 재구성으로
   // 1칸짜리 그룹(내신 전체 평균 / 최근 시험 평균)이 생기면서 실제로 드러난 경로다.
@@ -52,12 +83,15 @@ function neededFillerCount(fieldCount, cols) {
  * 정의역이 통째로 바뀐다 — 중학생 평균은 100점 만점이라 기존 단일 마스크로는 `100` 을 타이핑조차 못 했다.
  * constraint 가 없는 호출부(등급 체계에 종속되지 않는 문항)는 9등급제 규격으로 떨어진다.
  */
-function ruleForField(field, constraint) {
+function ruleForField(
+  field: GradeField,
+  constraint?: GradeInputRule,
+): GradeInputRule {
   if (field.scale === "MOCK") return MOCK_GRADE_INPUT_RULE;
   return constraint ?? GRADE_SYSTEM_INPUT_RULES.NINE;
 }
 
-function isOutOfRange(raw, rule) {
+function isOutOfRange(raw: string, rule: GradeInputRule) {
   if (raw === "" || raw == null) return false;
   const num = Number(raw);
   if (Number.isNaN(num)) return true;
@@ -69,10 +103,10 @@ export default function GradeInputGrid({
   constraint,
   value,
   onChange,
-}) {
+}: GradeInputGridProps) {
   const values = value || {};
 
-  function handleFieldChange(field, raw) {
+  function handleFieldChange(field: GradeField, raw: string) {
     if (raw !== "" && !ruleForField(field, constraint).pattern.test(raw))
       return;
     onChange?.({ ...values, [field.key]: raw });
@@ -155,7 +189,7 @@ export default function GradeInputGrid({
               })}
 
               {fillers.map((i) => {
-                const visibility = {};
+                const visibility: Record<string, string> = {};
                 GRID_BREAKPOINTS.forEach((bp, bpIndex) => {
                   visibility[`data-v-${bp}`] =
                     i < neededByBp[bpIndex] ? "1" : "0";

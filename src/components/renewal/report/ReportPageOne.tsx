@@ -5,10 +5,65 @@ import StudentInfoBlock from "./StudentInfoBlock";
 import SummaryCards from "./SummaryCards";
 import TraitNarratives from "./TraitNarratives";
 
+type LearningAxis = {
+  name: string;
+  score: number;
+  tone?: string;
+  area?: string;
+  badge?: string;
+  status?: string;
+  need?: string;
+};
+
+type ReportPageOneData = {
+  student: {
+    nameLine?: string;
+    name?: string;
+    grade?: string;
+    schoolType?: string;
+    desiredMajor?: string;
+    gpa?: string;
+    gradeTrend?: string;
+    diagnosedAt?: string;
+    [key: string]: unknown;
+  };
+  headlineLines: string[];
+  learningAxes: LearningAxis[];
+  summaryCards: Array<{ label: string; value?: string; sub?: string }>;
+  traits: Array<{ title: string; body: string }>;
+  traitsHeading?: string;
+  urgency?: {
+    level?: string;
+    levelLabel?: string | null;
+    score?: number;
+    lowAreaCount?: number;
+    areaThreshold?: number | string;
+    message?: string | null;
+  };
+  notices?: {
+    traitIntro?: string | null;
+    hexCaption?: string | null;
+    goalCompare?: string | null;
+    reportBasis?: string | null;
+    reportLimit?: string | null;
+    probNote?: string | null;
+    admissionNote?: string | null;
+    serviceLimit?: string | null;
+    skipNote?: string | null;
+    sincerityBanner?: string | null;
+    sincerityAct?: string | null;
+  };
+  typeDetail?: string | null;
+};
+
+type ReportPageOneProps = {
+  data: ReportPageOneData;
+};
+
 // 결과 리포트 1페이지(A4-3) — 헤드라인+레이더 / 학생 기본정보 / 주요 학습 특성 섹션
 // (§타이틀 → 요약 카드 3장 → 우선순위 표 6행 → 서술 3블록).
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
-export default function ReportPageOne({ data }) {
+export default function ReportPageOne({ data }: ReportPageOneProps) {
   const {
     student,
     headlineLines,

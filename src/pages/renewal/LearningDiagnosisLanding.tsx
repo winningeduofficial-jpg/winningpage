@@ -68,8 +68,8 @@ const BENEFITS = [
 // top(201 / -69 / 344)은 시안 그대로.
 const MACBOOK_W = 1008;
 const MACBOOK_H = 591;
-const pctX = (px) => `${(px / MACBOOK_W) * 100}%`;
-const pctY = (px) => `${(px / MACBOOK_H) * 100}%`;
+const pctX = (px: number) => `${(px / MACBOOK_W) * 100}%`;
+const pctY = (px: number) => `${(px / MACBOOK_H) * 100}%`;
 
 // X/Y/회전을 별개 keyframes·별개 주기로 분리(축 분해)했다 — 셋의 합성 경로는
 // 최소공배주기가 사실상 존재하지 않아(리사주 도형) 눈이 패턴을 학습하지 못한다.

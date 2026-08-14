@@ -4,8 +4,41 @@ import {
 } from "../../../data/renewalSurveyQuestions";
 import { surveyEmbeddedByParent } from "../../../lib/renewalSurvey";
 import AnswerField from "./AnswerField";
+import type { CascadeLevel } from "./CascadingSelect";
 import EmbeddedField from "./EmbeddedField";
+import type { GradeGroup, GradeInputRule } from "./GradeInputGrid";
 import QuestionCard from "./QuestionCard";
+
+type SurveyQuestion = {
+  id: string;
+  number?: number;
+  category?: string;
+  title?: string;
+  helper?: string;
+  type?: string;
+  maxSelect?: number;
+  extra?: {
+    validationDependsOn?: string;
+    statements?: Array<
+      string | { key?: string; id?: string; text?: string; label?: string }
+    >;
+    scale?: string[];
+    groups?: GradeGroup[];
+    levels?: CascadeLevel[];
+    placeholder?: string;
+  };
+  [key: string]: unknown;
+};
+
+type Answers = Record<string, unknown>;
+
+type QuestionCardListProps = {
+  questions: SurveyQuestion[];
+  answers: Answers;
+  onAnswer: (questionId: string, value: unknown) => void;
+  highlightedId?: string | number | null;
+  cascadeLevels?: CascadeLevel[];
+};
 
 /**
  * 카드 스택 gap 40. 스텝 페이지는 getStepQuestions(step) 결과를,
@@ -23,7 +56,10 @@ import QuestionCard from "./QuestionCard";
  * `constraint` prop 하나만 내린다 — answers 전체를 하위로 뿌리면 무관한 응답 변경마다 입력칸이 리렌더된다.
  * q4 미응답·미지 라벨은 UNKNOWN(= 9등급제와 동일 규격, 채점은 값 무시)으로 떨어진다.
  */
-function resolveConstraint(question, answers) {
+function resolveConstraint(
+  question: SurveyQuestion,
+  answers: Answers,
+): GradeInputRule | undefined {
   const dependsOn = question.extra?.validationDependsOn;
   if (!dependsOn) return undefined;
   const code = getOptionCode(dependsOn, answers?.[dependsOn]);
@@ -39,7 +75,7 @@ export default function QuestionCardList({
   onAnswer,
   highlightedId,
   cascadeLevels,
-}) {
+}: QuestionCardListProps) {
   return (
     <div className="flex w-full flex-col items-start gap-10">
       {questions.map((question) => {

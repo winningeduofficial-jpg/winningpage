@@ -15,7 +15,23 @@ import { useEffect, useRef, useState } from "react";
 // 그대로 그린다 — 이 컴포넌트는 실데이터가 몇 종인지 전혀 알 필요가 없다(6종→11종으로 늘어도
 // 무변경). `key`·`label`·`placeholder`·`options`·`loading`·`error` 를 가진 level 객체 배열을
 // 그대로 받는 순수 표시·상호작용 컴포넌트다.
-function resolveMeta(levels) {
+export type CascadeLevel = {
+  key: string;
+  label?: string;
+  placeholder?: string;
+  options?: string[];
+  loading?: boolean;
+  error?: unknown;
+  onRetry?: (() => void) | null;
+};
+
+type CascadingSelectProps = {
+  levels?: CascadeLevel[];
+  value?: Record<string, string> | null;
+  onChange?: (value: Record<string, string>) => void;
+};
+
+function resolveMeta(levels?: CascadeLevel[]) {
   return (levels ?? []).map((level) => ({
     key: level.key,
     label: level.label,
@@ -27,25 +43,29 @@ function resolveMeta(levels) {
   }));
 }
 
-export default function CascadingSelect({ levels, value, onChange }) {
+export default function CascadingSelect({
+  levels,
+  value,
+  onChange,
+}: CascadingSelectProps) {
   const currentValue = value || {};
   const meta = resolveMeta(levels);
-  const [openIndex, setOpenIndex] = useState(null);
-  const containerRef = useRef(null);
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (openIndex === null) return undefined;
 
-    function handlePointerDown(event) {
+    function handlePointerDown(event: MouseEvent) {
       if (
         containerRef.current &&
-        !containerRef.current.contains(event.target)
+        !containerRef.current.contains(event.target as Node)
       ) {
         setOpenIndex(null);
       }
     }
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") setOpenIndex(null);
     }
 
@@ -57,8 +77,11 @@ export default function CascadingSelect({ levels, value, onChange }) {
     };
   }, [openIndex]);
 
-  function handleSelect(index, option) {
-    const next = { ...currentValue, [meta[index].key]: option };
+  function handleSelect(index: number, option: string) {
+    const next: Record<string, string> = {
+      ...currentValue,
+      [meta[index].key]: option,
+    };
     for (let i = index + 1; i < meta.length; i += 1) {
       next[meta[i].key] = "";
     }

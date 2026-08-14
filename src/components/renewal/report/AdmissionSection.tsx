@@ -7,7 +7,34 @@
 // min-h + items-start 로 바꿔 실제 줄 수만큼 늘어나게 한다(가로 스크롤 없이 세로로 흡수).
 import { SCREEN_EXTRAS } from "../../../data/diagnosisScreenCopy";
 
-const AdmissionSection = ({ admission }) => {
+export type AdmissionRow = {
+  label: string;
+  grade?: string;
+  gap?: string;
+  emphasis?: boolean;
+};
+
+export type AdmissionData = {
+  probabilityLabel: string;
+  probabilityValue: string;
+  summary: string;
+  caption: string;
+  rows: AdmissionRow[];
+  probabilityBadge?: string | null;
+  probabilityRangeLabel?: string | null;
+  probabilityRange?: string | null;
+  probNote?: string | null;
+  tableNote?: string | null;
+  finalAvgNote?: string | null;
+  emptyNotice?: string | null;
+  hasRows?: boolean;
+};
+
+type AdmissionSectionProps = {
+  admission: AdmissionData;
+};
+
+const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
   const {
     probabilityLabel,
     probabilityValue,

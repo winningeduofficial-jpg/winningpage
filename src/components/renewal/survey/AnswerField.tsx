@@ -1,8 +1,39 @@
-import CascadingSelect from "./CascadingSelect";
+import CascadingSelect, { type CascadeLevel } from "./CascadingSelect";
 import ConditionalTextInput from "./ConditionalTextInput";
-import GradeInputGrid from "./GradeInputGrid";
+import GradeInputGrid, {
+  type GradeGroup,
+  type GradeInputRule,
+} from "./GradeInputGrid";
 import LikertMatrix from "./LikertMatrix";
 import OptionGroup from "./OptionGroup";
+
+type SurveyQuestion = {
+  id: string;
+  type?: string;
+  options?: Array<string | { value?: string; label: string }>;
+  maxSelect?: number;
+  exclusiveValues?: string[];
+  multiline?: boolean;
+  extra?: {
+    statements?: Array<
+      string | { key?: string; id?: string; text?: string; label?: string }
+    >;
+    scale?: string[];
+    groups?: GradeGroup[];
+    levels?: CascadeLevel[];
+    placeholder?: string;
+  };
+  [key: string]: unknown;
+};
+
+type AnswerFieldProps = {
+  question: SurveyQuestion;
+  value?: unknown;
+  constraint?: GradeInputRule;
+  highlighted?: boolean;
+  cascadeLevels?: CascadeLevel[];
+  onChange?: (value: unknown) => void;
+};
 
 /**
  * 시안상 hug 폭 칩 wrap 으로 배치되는 문항.
@@ -28,7 +59,7 @@ export default function AnswerField({
   highlighted = false,
   cascadeLevels,
   onChange,
-}) {
+}: AnswerFieldProps) {
   const chipLayout = CHIP_LAYOUT_QUESTION_IDS.has(question.id);
 
   switch (question.type) {
@@ -40,7 +71,7 @@ export default function AnswerField({
             question.type === "radio-chip" || chipLayout ? "chip" : "row"
           }
           options={question.options}
-          value={value ?? null}
+          value={(value as string | null) ?? null}
           onChange={onChange}
         />
       );
@@ -52,7 +83,7 @@ export default function AnswerField({
           maxSelect={question.maxSelect}
           exclusiveValues={question.exclusiveValues}
           options={question.options}
-          value={value ?? []}
+          value={(value as string[]) ?? []}
           onChange={onChange}
         />
       );
@@ -61,7 +92,7 @@ export default function AnswerField({
         <LikertMatrix
           statements={question.extra?.statements}
           scale={question.extra?.scale}
-          value={value ?? {}}
+          value={(value as Record<string, number>) ?? {}}
           highlighted={highlighted}
           onChange={onChange}
         />
@@ -71,7 +102,7 @@ export default function AnswerField({
         <GradeInputGrid
           groups={question.extra?.groups}
           constraint={constraint}
-          value={value ?? {}}
+          value={(value as Record<string, string>) ?? {}}
           onChange={onChange}
         />
       );
@@ -79,7 +110,7 @@ export default function AnswerField({
       return (
         <CascadingSelect
           levels={cascadeLevels ?? question.extra?.levels}
-          value={value ?? {}}
+          value={(value as Record<string, string>) ?? {}}
           onChange={onChange}
         />
       );
@@ -88,7 +119,7 @@ export default function AnswerField({
         <ConditionalTextInput
           placeholder={question.extra?.placeholder}
           multiline={Boolean(question.multiline)}
-          value={value ?? ""}
+          value={(value as string) ?? ""}
           onChange={onChange}
         />
       );

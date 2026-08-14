@@ -5,6 +5,7 @@ import {
   useOutletContext,
   useParams,
 } from "react-router-dom";
+import type { CascadeLevel } from "../../components/renewal/survey/CascadingSelect";
 import QuestionCardList from "../../components/renewal/survey/QuestionCardList";
 import SurveyProgress from "../../components/renewal/survey/SurveyProgress";
 import { useUnansweredNavigation } from "../../hooks/useUnansweredNavigation";
@@ -35,6 +36,14 @@ import {
  * - 완료: "N개 문항이 남았어요"(N = getRemainingAfterStep, 이 스텝 이후 남는 전체 문항 수) —
  *   마지막 스텝은 "진단 결과 보기". 클릭하면 다음 스텝(또는 리포트)으로 이동한다.
  */
+type SurveyOutletContext = {
+  answers: Record<string, unknown>;
+  setAnswer: (questionId: string, value: unknown) => void;
+  submitDiagnosis: () => Promise<unknown>;
+  cascadeLevels?: CascadeLevel[];
+  surveyCopyOverrides?: unknown;
+};
+
 export default function SurveyStepPage() {
   const { step: rawStep } = useParams(); // 훅은 early return 앞에 전부 호출
   const {
@@ -43,7 +52,7 @@ export default function SurveyStepPage() {
     submitDiagnosis,
     cascadeLevels,
     surveyCopyOverrides,
-  } = useOutletContext();
+  } = useOutletContext<SurveyOutletContext>();
   const navigate = useNavigate();
 
   const step = parseStepParam(rawStep);

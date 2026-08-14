@@ -42,7 +42,7 @@ interface Resource<T> {
   error: unknown;
 }
 
-interface CascadeValue {
+export interface CascadeValue {
   university?: string;
   department?: string;
   admissionType?: string;

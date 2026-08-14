@@ -1,5 +1,22 @@
 import { useEffect, useRef } from "react";
 
+type RawStatement =
+  | string
+  | { key?: string; id?: string; text?: string; label?: string };
+
+type LikertMatrixProps = {
+  statements?: RawStatement[];
+  scale?: string[];
+  value?: Record<string, number>;
+  highlighted?: boolean;
+  onChange?: (value: Record<string, number>) => void;
+};
+
+type RowRefEntry = {
+  desktop?: HTMLDivElement | null;
+  mobile?: HTMLDivElement | null;
+};
+
 /**
  * LikertMatrix
  * Figma: hsokTD6OilcNEXyCR24sn4 / 1889:9533 (Q9), 1889:9866 프레임 (Q11) — 12문장 × 5척도
@@ -47,7 +64,7 @@ const DEFAULT_SCALE = [
 // 문장 133fr : 척도 23fr × 5 — 992 기준 532 / 92×5. 척도 컬럼 하한 44(2.75rem) = 최소 터치 타깃.
 const GRID_TEMPLATE = "minmax(0, 133fr) repeat(5, minmax(2.75rem, 23fr))";
 
-function normalizeStatement(statement, index) {
+function normalizeStatement(statement: RawStatement, index: number) {
   if (typeof statement === "string") {
     return { key: String(index), text: statement };
   }
@@ -57,7 +74,7 @@ function normalizeStatement(statement, index) {
   };
 }
 
-function RadioDot({ checked }) {
+function RadioDot({ checked }: { checked: boolean }) {
   return (
     <span
       aria-hidden="true"
@@ -76,14 +93,14 @@ export default function LikertMatrix({
   value = {},
   highlighted = false,
   onChange,
-}) {
+}: LikertMatrixProps) {
   const rows = statements.map(normalizeStatement);
   const missingKeys = new Set(
     rows.filter((row) => value[row.key] == null).map((row) => row.key),
   );
   const firstMissingKey =
     rows.find((row) => missingKeys.has(row.key))?.key ?? null;
-  const rowRefs = useRef({});
+  const rowRefs = useRef<Record<string, RowRefEntry>>({});
 
   // 카드가 스크롤 대상이 되는 순간, 12문장 중 실제로 빈 문장으로 한 번 더 좁혀 스크롤한다 —
   // 카드는 보여도 문장이 길어 스크롤 없이는 어느 행이 비었는지 눈에 안 들어온다.
@@ -103,12 +120,12 @@ export default function LikertMatrix({
     });
   }, [highlighted, firstMissingKey]);
 
-  function handleSelect(rowKey, columnIndex) {
+  function handleSelect(rowKey: string, columnIndex: number) {
     if (!onChange) return;
     onChange({ ...value, [rowKey]: columnIndex });
   }
 
-  function rowHighlightClass(rowKey) {
+  function rowHighlightClass(rowKey: string) {
     return highlighted && missingKeys.has(rowKey) ? "bg-[#FFF7E6]" : "";
   }
 

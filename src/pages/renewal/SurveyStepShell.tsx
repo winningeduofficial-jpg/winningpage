@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet } from "react-router-dom";
 // B-1(2026-08-11 확정) — q15 캐스케이드 fetch 상태(옵션 5벌 + loading + error)를 이 셸이 소유한다.
-import { useAdmissionCascade } from "../../hooks/useAdmissionCascade";
+import {
+  type CascadeValue,
+  useAdmissionCascade,
+} from "../../hooks/useAdmissionCascade";
 // 리포트 '페이지'가 아니라 storage 모듈만 import 한다 — 페이지를 가져오면 인쇄 CSS 가 설문 번들로 끌려온다.
 // 저장 키·직렬화·스키마 검증의 정의처도 그 모듈 하나다(여기에 리터럴을 두면 읽기 쪽과 갈라진다).
 import { submitDiagnosisAnswers } from "../../lib/diagnosisInputStorage";
@@ -20,10 +23,10 @@ import { fetchSurveyCopyOverrides } from "../../lib/diagnosisSurveyCopyOverrides
  * 자식이 반환하는 형제(카드 스택 + 하단 배너)가 이 갭을 그대로 받는다.
  */
 export default function SurveyStepShell() {
-  const [answers, setAnswers] = useState({});
-  const [surveyCopyOverrides, setSurveyCopyOverrides] = useState(
-    () => new Map(),
-  );
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const [surveyCopyOverrides, setSurveyCopyOverrides] = useState<
+    Map<string, unknown>
+  >(() => new Map());
 
   useEffect(() => {
     let alive = true;
@@ -35,13 +38,15 @@ export default function SurveyStepShell() {
     };
   }, []);
 
-  const setAnswer = useCallback((questionId, nextValue) => {
+  const setAnswer = useCallback((questionId: string, nextValue: unknown) => {
     setAnswers((prev) => ({ ...prev, [questionId]: nextValue }));
   }, []);
 
   // B-1 — q15(목표 대학 입결 조회) 캐스케이드 옵션·컷 fetch 상태. answers.q15 가 바뀔 때마다
   // 훅 내부에서 대학→학과→전형유형/세부전형명/반영교과 순으로 필요한 조회만 다시 tap 한다.
-  const admissionCascade = useAdmissionCascade(answers.q15);
+  const admissionCascade = useAdmissionCascade(
+    answers.q15 as CascadeValue | undefined,
+  );
   const { awaitCuts } = admissionCascade;
 
   /**

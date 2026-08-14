@@ -32,7 +32,22 @@ import radioUnchecked from "../../../assets/renewal/radio-unchecked.svg";
  * - exclusiveValues : 선택 시 같은 문항의 나머지 선택을 전부 해제하는 배타 선택지.
  *                     역방향도 성립 — 배타값이 선택된 상태에서 일반 항목을 고르면 배타값이 해제된다.
  */
-function normalizeOption(option) {
+type RawOption = string | { value?: string; label: string };
+
+type OptionGroupProps = {
+  options?: RawOption[];
+  multiple?: boolean;
+  maxSelect?: number;
+  exclusiveValues?: string[];
+  value?: string | string[] | null;
+  onChange?: (value: string | string[]) => void;
+  variant?: "row" | "chip";
+  disabled?: boolean;
+  error?: boolean;
+  errorMessage?: string;
+};
+
+function normalizeOption(option: RawOption) {
   if (typeof option === "string") return { value: option, label: option };
   return { value: option.value ?? option.label, label: option.label };
 }
@@ -48,7 +63,7 @@ export default function OptionGroup({
   disabled = false,
   error = false,
   errorMessage,
-}) {
+}: OptionGroupProps) {
   const selectedList = multiple ? (Array.isArray(value) ? value : []) : [];
   const limit = maxSelect ?? Infinity;
   const limitReached = multiple && selectedList.length >= limit;
