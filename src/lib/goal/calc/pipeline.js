@@ -70,7 +70,7 @@ import {
   getRemainingMogo,
   getRemainingNaesin,
   getSchoolCutType,
-} from "./primitives.js";
+} from "./primitives.ts";
 
 import {
   calculateWeekSchedule,

@@ -39,7 +39,7 @@ import {
   grantProgramAccessForOrder,
   revokeProgramAccessForOrder,
 } from "./_lib/programAccess.js";
-import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.ts";
 
 const TOSS_PAYMENT_BY_ORDER_URL =
   "https://api.tosspayments.com/v1/payments/orders";

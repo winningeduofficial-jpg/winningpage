@@ -28,7 +28,7 @@ import {
   maskPhone,
   normalizePhone,
 } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
 export const config = { runtime: "nodejs" };

@@ -8,7 +8,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { normalizeUniversityName } from "../src/lib/goal/universityNameNormalize.js";
+import { normalizeUniversityName } from "../src/lib/goal/universityNameNormalize.ts";
 
 test("…대 규칙: 대 → 대학교", () => {
   assert.equal(normalizeUniversityName("서울대"), "서울대학교");

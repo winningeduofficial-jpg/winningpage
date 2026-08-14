@@ -50,7 +50,7 @@ import {
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
 
 // 이용권 조회 키. 신규 자산은 performance 네이밍이지만 이 값은 운영 DB의
 // `program_access.program_key`와 `SERVICE_CONFIGS`에 이미 박혀 있어 개명

@@ -14,7 +14,7 @@ import {
   normalizePhone,
   safeCompareHash,
 } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
 export const config = { runtime: "nodejs" };
 

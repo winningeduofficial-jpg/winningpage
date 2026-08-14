@@ -49,7 +49,7 @@ import {
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
 
 const SERVICE_KEY = "suhaeng";
 

@@ -28,7 +28,7 @@ import {
   maskPhone,
   normalizePhone,
 } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 import {
   ALLOWED_FILE_TYPES,
   BUCKET,

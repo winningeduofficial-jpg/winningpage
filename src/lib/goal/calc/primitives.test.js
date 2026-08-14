@@ -20,7 +20,7 @@ import {
   round1,
   round4,
   toNum,
-} from "./primitives.js";
+} from "./primitives.ts";
 
 // 부동소수 비교. NaN·±Infinity·-0 처럼 오차 비교가 무의미한 값은 엄격 비교로 넘긴다.
 function assertNum(actual, expected, label) {

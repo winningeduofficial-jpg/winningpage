@@ -49,7 +49,7 @@ import {
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "./_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {

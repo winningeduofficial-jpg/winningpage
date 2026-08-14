@@ -9,7 +9,7 @@ import {
   getDayIndexFromYMDServer,
   kstYMD,
   VIRTUAL_DAY_NAMES,
-} from "../../lib/goal/calc/index.js";
+} from "../../lib/goal/calc/index.ts";
 import {
   fetchGoalStudent,
   fetchGoalTimer,

@@ -33,7 +33,7 @@ import {
   getEmbeddingDimension,
   getEmbeddingModel,
 } from "../_lib/performance/embeddings.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
 
 const KNOWLEDGE_TABLE = "winning_assessment_knowledge_items";
 
