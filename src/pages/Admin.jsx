@@ -17,7 +17,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 // 쿠폰관리는 제네릭 CRUD 로 표현되지 않는다(파생 사용 건수 · NULL=무제한 3상태
 // 입력 · slug 사전중복검사 · 사용이력 드릴다운 + void RPC). config.custom +
-// CustomComponent 로 붙인다 — premiumBookPages 선례와 같은 방식이다.
+// customComponentKey(CUSTOM_COMPONENT_REGISTRY 조회)로 붙인다 — premiumBookPages 선례와 같은 방식이다.
 // Admin.jsx 가 5,700줄이라 컴포넌트 본체는 별도 파일에 둔다(이 파일이 그 파일을
 // import 하므로 역방향 import 는 만들지 않는다 — 순환 참조 방지).
 import CouponAdmin from "../components/admin/CouponAdmin";
@@ -1126,7 +1126,8 @@ const CONFIGS = {
   //   ② 개별 페이지 1장만 고칠 때는 아래 fields/columns 기반 제네릭 편집(PremiumBookAdmin 내부에서
   //      AdminTable/AdminForm을 그대로 재사용)
   // custom: true 는 저장소에 1건뿐이던 하드코딩 삼항(learningDiagnosis → LearningDiagnosisAdmin)을
-  // config.CustomComponent로 일반화한 것이다 — 아래 Admin() 렌더 분기, PremiumBookAdmin 참고.
+  // config.customComponentKey로 일반화한 것이다 — 아래 Admin() 렌더 분기,
+  // CUSTOM_COMPONENT_REGISTRY, PremiumBookAdmin 참고.
   premiumBookPages: {
     title: "프리미엄 책자 관리",
     table: "premium_book_pages",
@@ -1136,7 +1137,7 @@ const CONFIGS = {
     order: "sort_order",
     homepage: true,
     custom: true,
-    CustomComponent: PremiumBookAdmin,
+    customComponentKey: "premiumBookPages",
     guideText: `PDF 1개를 올리면 자동으로 각 페이지가 이미지로 변환되어 미리보기 후 [적용]으로 일괄 반영됩니다. 개별 페이지 1장만 교체할 때는 아래 목록에서 해당 행을 수정하세요. 행 단위 교체라 전량 교체 시 신판/구판 혼재 구간이 생길 수 있습니다 — 트래픽이 적은 시간대 작업을 권장합니다. 이미 페이지를 열어둔 사용자는 새로고침 전까지 구 이미지를 봅니다. 페이지 번호(sort_order)는 UNIQUE가 아니라 자유롭게 재배치할 수 있으나, 중복 시 목록 상단에 경고가 표시됩니다.`,
     columns: [
       { key: "sort_order", label: "페이지 번호" },
@@ -2400,7 +2401,7 @@ const CONFIGS = {
   // 멘토(콜멘토) 지원서 조회 — 30여 개 필드 + 동의 5종 + 비공개 버킷 증빙 파일이라
   // columns/fields 기반 제네릭 AdminTable/AdminForm에 그대로 얹기 어렵다(특히 파일 열람은
   // createSignedUrl이 필요해 제네릭 image/file 필드의 getPublicUrl 관용구를 쓸 수 없다).
-  // custom: true + CustomComponent로 premiumBookPages와 동일한 패턴을 따르되, 목록만은
+  // custom: true + customComponentKey로 premiumBookPages와 동일한 패턴을 따르되, 목록만은
   // AdminTable을 재사용한다(파일 하단 MentorApplicationsAdmin 참고). columns는 그 목록에서만
   // 쓰인다 — 상세/상태변경은 컴포넌트 내부 bespoke 렌더링.
   mentorApplications: {
@@ -2410,7 +2411,7 @@ const CONFIGS = {
     order: "created_at",
     readOnly: true,
     custom: true,
-    CustomComponent: MentorApplicationsAdmin,
+    customComponentKey: "mentorApplications",
     columns: [
       { key: "created_at", label: "제출일", type: "date" },
       { key: "name", label: "이름" },
@@ -2559,7 +2560,7 @@ const CONFIGS = {
   learningDiagnosis: {
     title: "학습진단 관리",
     custom: true,
-    CustomComponent: LearningDiagnosisAdmin,
+    customComponentKey: "learningDiagnosis",
     searchPlaceholder: "",
   },
 
@@ -3101,12 +3102,12 @@ const CONFIGS = {
   },
 
   // custom: true 는 Admin() 최상단 렌더 분기가 제네릭 list/create/edit 경로를
-  // 통째로 건너뛰게 한다(loadRows 도 early return). CustomComponent 지정은
+  // 통째로 건너뛰게 한다(loadRows 도 early return). customComponentKey 지정은
   // premiumBookPages 와 같은 일반화 지점이다.
   coupons: {
     title: "쿠폰관리",
     custom: true,
-    CustomComponent: CouponAdmin,
+    customComponentKey: "coupons",
     searchPlaceholder: "",
   },
 
@@ -3350,12 +3351,12 @@ const CONFIGS = {
     // 전부 그린다. table을 선언하지 않는 이유도 같다 — loadRows가 custom이면
     // 즉시 rows=[]로 빠져나가 이 값을 읽지 않는다(learningDiagnosis 선례).
     //
-    // ⚠ CustomComponent는 반드시 function 선언문이어야 한다. CONFIGS 리터럴이
-    //   모듈 초기화 시점에 이 참조를 평가하는데 GoalStudentsAdmin은 파일 끝에
-    //   있으므로, const 화살표 함수로 쓰면 TDZ ReferenceError로 어드민 전체가
-    //   죽는다.
+    // CustomComponent 직접 참조 대신 customComponentKey 문자열만 갖는다 —
+    // 실제 컴포넌트 바인딩은 CUSTOM_COMPONENT_REGISTRY(렌더 시점 조회)가 진다.
+    // CONFIGS는 이제 GoalStudentsAdmin 값을 전혀 평가하지 않으므로, CONFIGS가
+    // 나중에 별도 파일로 분리돼도(4단계) 도메인 컴포넌트를 import할 필요가 없다.
     custom: true,
-    CustomComponent: GoalStudentsAdmin,
+    customComponentKey: "goalStudents",
     searchPlaceholder: "이름 또는 연락처로 검색하세요",
     // 학생 데이터는 어드민이 한 글자도 고칠 수 없다(명세 §3-D6 / §3-D7).
     // custom: true라 공용 CRUD 경로 자체가 닿지 않으므로 이 두 플래그는 실행에
@@ -3365,6 +3366,21 @@ const CONFIGS = {
     readOnly: true,
     noCreate: true,
   },
+};
+
+// config.custom인 5개 config가 렌더할 실제 컴포넌트를 config.customComponentKey
+// 문자열 → 컴포넌트 함수로 조회하는 간접 레이어. CONFIGS 리터럴 안에 컴포넌트
+// 값을 직접 실어두면(구 CustomComponent 필드) CONFIGS를 나중에 별도 파일로
+// 옮길 때(4단계) 그 파일이 도메인 컴포넌트 파일들을 import해야 하고, 그
+// 컴포넌트들도 자기 config를 읽으려 다시 CONFIGS를 import하면서 순환 참조가
+// 생긴다. 여기서는 CONFIGS가 문자열만 갖고, 이 레지스트리만 컴포넌트를
+// import한다 — CONFIGS 쪽에서 도메인 컴포넌트로의 의존이 아예 없어진다.
+const CUSTOM_COMPONENT_REGISTRY = {
+  coupons: CouponAdmin,
+  learningDiagnosis: LearningDiagnosisAdmin,
+  premiumBookPages: PremiumBookAdmin,
+  mentorApplications: MentorApplicationsAdmin,
+  goalStudents: GoalStudentsAdmin,
 };
 
 const _OPTION_EMPTY = {
@@ -6962,28 +6978,34 @@ export default function Admin() {
       <main className="ml-[224px] pt-[56px]">
         <div className="min-h-[calc(100vh-56px)] px-7 py-8">
           {config.custom ? (
-            // custom: true 인 config 는 전부 CustomComponent를 지정한다(coupons /
+            // custom: true 인 config 는 전부 customComponentKey를 지정한다(coupons /
             // premiumBookPages / mentorApplications / learningDiagnosis / goalStudents) —
-            // 과거 learningDiagnosis만 CustomComponent 미지정 하드코딩 삼항이었으나
-            // 나머지 4개와 같은 패턴으로 정규화됐다(렌더 결과 동일, 동작 변경 없음).
+            // 실제 컴포넌트는 CUSTOM_COMPONENT_REGISTRY[key]로 조회한다(렌더 결과·동작은
+            // 과거 config.CustomComponent 직접 참조와 동일, 조회 방식만 간접화됐다).
             //
             // 🔴 공용 변경 (e) — 명세 §4-1-3 의 (a)~(d) 에 없던 5번째 항목이다.
             //   왜 필요한가: 토대 단계가 pendingCreateDefaults state 를 만들었지만
             //   **공급자가 생길 통로가 없었다.** 그 유일한 공급자는 학생 상세의
-            //   "이 조합의 컷 만들기"(명세 §4-3-C-4)인데, 그 화면은 CustomComponent 로
+            //   "이 조합의 컷 만들기"(명세 §4-3-C-4)인데, 그 화면은 customComponentKey 로
             //   렌더되고 이 줄이 props 를 하나도 넘기지 않았다. 그래서 버튼을 눌러도
             //   탭을 옮기거나 폼을 열 수단이 없다.
             //   기존 소비처 무영향 근거: onNavigate/onPrefillCreate를 실제로 쓰는
-            //   CustomComponent는 goalStudents뿐이고 나머지(coupons / premiumBookPages /
+            //   컴포넌트는 goalStudents뿐이고 나머지(coupons / premiumBookPages /
             //   mentorApplications / learningDiagnosis)는 인자를 받지 않는 함수 선언이라
             //   여분의 props를 그냥 무시한다.
-            <config.CustomComponent
-              onNavigate={changeTab}
-              onPrefillCreate={(values) => {
-                setPendingCreateDefaults(values);
-                setMode("create");
-              }}
-            />
+            (() => {
+              const CustomComponent =
+                CUSTOM_COMPONENT_REGISTRY[config.customComponentKey];
+              return (
+                <CustomComponent
+                  onNavigate={changeTab}
+                  onPrefillCreate={(values) => {
+                    setPendingCreateDefaults(values);
+                    setMode("create");
+                  }}
+                />
+              );
+            })()
           ) : mode === "list" ? (
             config.comingSoon ? (
               <div className="bg-white p-10 shadow">
@@ -8080,7 +8102,7 @@ function MentorApplicationsAdmin() {
 // ===========================================================================
 // 목표관리 학생 현황 (docs/figma-goal/goal-admin-spec.md §4-3)
 //
-// custom: true + CustomComponent 라 공용 목록·폼·검색·페이지네이션이 전부
+// custom: true + customComponentKey 라 공용 목록·폼·검색·페이지네이션이 전부
 // 비활성화된다(loadRows 조기 반환 + custom 삼항). 검색·필터·페이지네이션·상세를
 // 이 블록 안에서 전부 그린다.
 //
@@ -9111,7 +9133,7 @@ function GoalStudentDetail({ profileId, onBack, onNavigate, onPrefillCreate }) {
   }, [profileId, recordLimit]);
 
   // 원클릭 컷 만들기(§4-3-C-4). 공급자는 이 컴포넌트, 소비자는 Admin() 최상단의
-  // config.CustomComponent 렌더 분기(onNavigate/onPrefillCreate 계약, 그 지점 참고) —
+  // customComponentKey 렌더 분기(onNavigate/onPrefillCreate 계약, 그 지점 참고) —
   // 반드시 onNavigate로 탭을 먼저 옮긴 뒤 onPrefillCreate로 프리필을 실어야 한다.
   // changeTab이 mode를 'list'로 되돌리므로, 순서가 뒤바뀌면(프리필 먼저) 직후의
   // changeTab이 mode를 다시 'list'로 덮어써 등록 폼이 열리지 않는다.
