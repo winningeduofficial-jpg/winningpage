@@ -107,7 +107,8 @@ export function resolvePromotedSlugLink(to: string) {
   if (PROMOTED_PATH_ROUTES[value]) return PROMOTED_PATH_ROUTES[value];
 
   const match = value.match(/^\/page\/([^/]+)$/);
-  const promoted = match ? PROMOTED_SLUG_ROUTES[match[1]] : null;
+  // capture group `([^/]+)`는 `+`로 최소 1글자 매칭이 보장되므로 match[1]은 항상 존재.
+  const promoted = match ? PROMOTED_SLUG_ROUTES[match[1]!] : null;
   return promoted || to;
 }
 
@@ -307,7 +308,8 @@ function buildNavGroups(rows: PageContentRow[] | null): NavGroup[] {
       });
     }
 
-    const group = grouped.get(groupName);
+    // 직전 라인에서 없으면 set()했으므로 이 시점엔 항상 존재.
+    const group = grouped.get(groupName)!;
 
     if (groupOrder < group.groupOrder) {
       group.groupOrder = groupOrder;

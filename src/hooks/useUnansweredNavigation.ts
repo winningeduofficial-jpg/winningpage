@@ -20,7 +20,9 @@ export function useUnansweredNavigation(
   requiredQuestions: SurveyQuestion[],
   answers: Record<string | number, unknown> | null | undefined,
 ) {
-  const [highlightedId, setHighlightedId] = useState(null);
+  const [highlightedId, setHighlightedId] = useState<string | number | null>(
+    null,
+  );
   const [announcement, setAnnouncement] = useState("");
 
   // 하이라이트 중인 문항이 응답되면 즉시 해제한다(사용자가 답을 입력한 순간이 가장 자연스러운 해제 시점).

@@ -352,12 +352,14 @@ function measureCycleWidth(
 
   let track: Element = container;
   while (track && track.children.length === 1) {
-    track = track.children[0];
+    // while 조건이 length === 1을 보장하므로 children[0]은 항상 존재.
+    track = track.children[0]!;
   }
 
   const items = track?.children as HTMLCollectionOf<HTMLElement> | undefined;
   if (itemCount > 0 && items && items.length > itemCount) {
-    const cycleWidth = items[itemCount].offsetLeft - items[0].offsetLeft;
+    // 위 조건(items.length > itemCount)이 두 인덱스 모두의 존재를 보장.
+    const cycleWidth = items[itemCount]!.offsetLeft - items[0]!.offsetLeft;
     if (cycleWidth > 0) return cycleWidth;
   }
 

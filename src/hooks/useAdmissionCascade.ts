@@ -242,8 +242,9 @@ export function useAdmissionCascade(cascadeValue?: CascadeValue | null) {
     const settle = fetchAdmissionCuts({
       universityKey,
       departmentKey,
-      mainTrack: value.admissionType,
-      admissionTrack: value.detailType,
+      // cascadeComplete가 truthy를 보장하므로 admissionType/detailType은 항상 존재.
+      mainTrack: value.admissionType!,
+      admissionTrack: value.detailType!,
       subjectReflection: resolvedSubjectReflection,
     })
       .then((result) => {

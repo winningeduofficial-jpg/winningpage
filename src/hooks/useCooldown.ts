@@ -38,7 +38,7 @@ export function useCooldown(seconds: number) {
     timerRef.current = setInterval(tick, 500);
 
     return () => {
-      clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = null;
     };
   }, [deadline]);
