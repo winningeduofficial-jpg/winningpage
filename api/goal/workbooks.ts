@@ -19,6 +19,7 @@ import {
   fetchWorkbookOwned,
   fetchWorkbooks,
   insertWorkbook,
+  narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
   updateWorkbookOwned,
@@ -171,12 +172,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(session.error.status).json(session.error.body);
     }
 
-    const { supabaseAdmin, profileId, allowed } = session;
+    const { allowed } = session;
 
     if (req.method === "GET") {
       // 조회형 규약 — 미결제는 에러가 아니다(student.js와 동일).
       if (!allowed) return res.status(200).json({ allowed: false });
 
+      const { supabaseAdmin, profileId } = narrowGoalSession(session);
       const rows = await fetchWorkbooks(supabaseAdmin, profileId);
       return res
         .status(200)
@@ -186,6 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 이하 전부 쓰기형이므로 미결제는 403이다(intake.js와 동일).
     if (!allowed) return res.status(403).json({ detail: PAID_MESSAGE });
 
+    const { supabaseAdmin, profileId } = narrowGoalSession(session);
     const body = readBody(req);
 
     if (req.method === "POST") {

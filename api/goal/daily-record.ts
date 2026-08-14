@@ -38,6 +38,7 @@ import {
   fetchStudentRow,
   fetchStudentStateRow,
   fetchTodayRecord,
+  narrowGoalSession,
   num,
   openGoalSession,
   PAID_MESSAGE,
@@ -154,8 +155,10 @@ function mapWhitelist(
  * 은 있는데 status 가 'active' 가 아니면(paused) 'awaiting_cuts' 사유로 막는다.
  */
 async function requireActiveStudent(
-  supabaseAdmin: GoalSession["supabaseAdmin"],
-  profileId: GoalSession["profileId"],
+  // handleGet/handlePost가 session.error 체크를 통과한 뒤 narrowGoalSession()으로
+  // 좁힌 값만 넘기므로 항상 존재한다(비-optional로 받는다).
+  supabaseAdmin: NonNullable<GoalSession["supabaseAdmin"]>,
+  profileId: NonNullable<GoalSession["profileId"]>,
 ) {
   const row = await fetchStudentRow(supabaseAdmin, profileId);
 
@@ -208,12 +211,14 @@ async function handleGet(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   // 조회형 규약 — student.js:50-53 과 동일하게 미결제는 에러가 아니다.
   if (!allowed) {
     return res.status(200).json({ allowed: false });
   }
+
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
 
   const gate = await requireActiveStudent(supabaseAdmin, profileId);
   if (gate.error) {
@@ -244,12 +249,14 @@ async function handlePost(
   res: VercelResponse,
   session: GoalSession,
 ) {
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   // 쓰기형이므로 미결제는 403 이다(intake.js:545-548 과 동일 규약).
   if (!allowed) {
     return res.status(403).json({ detail: PAID_MESSAGE });
   }
+
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
 
   const gate = await requireActiveStudent(supabaseAdmin, profileId);
   if (gate.error) {
@@ -343,7 +350,8 @@ async function handlePost(
 
   // ── 오늘 적용 목표 시간 스냅샷 — study_schedule[요일] ──────────────────
   const dayIndex = getDayIndexFromYMDServer(recordDate, now);
-  const dayName = VIRTUAL_DAY_NAMES[dayIndex];
+  // biome-ignore lint/style/noNonNullAssertion: getDayIndexFromYMDServer는 항상 0-6을 돌려줌(7개 배열)
+  const dayName = VIRTUAL_DAY_NAMES[dayIndex]!;
   const daySchedule = student.study_schedule?.[dayName] || {
     ideal: 0,
     min: 0,
