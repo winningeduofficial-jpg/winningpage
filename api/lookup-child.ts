@@ -17,6 +17,7 @@
 //   학생 가입(StudentForm)은 가입 직후 signOut 하는 AS-IS 정책을 따르지만,
 //   학부모는 가입 → 자녀 연결로 흐름이 이어지므로 세션을 유지해야 한다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getClientIp } from "./_lib/phoneCode.js";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
@@ -29,11 +30,15 @@ const CODE_PATTERN = /^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6}$/;
 const MAX_LOOKUPS_PER_HOUR = 30;
 const MAX_FAILED_PER_HOUR = 10;
 
-function isoAgo(seconds) {
+function isoAgo(seconds: number) {
   return new Date(Date.now() - seconds * 1000).toISOString();
 }
 
-async function countLookups(supabase, actorId, { onlyFailed = false } = {}) {
+async function countLookups(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  actorId: string,
+  { onlyFailed = false }: { onlyFailed?: boolean } = {},
+) {
   let query = supabase
     .from("link_code_lookups")
     .select("id", { count: "exact", head: true })
@@ -48,13 +53,13 @@ async function countLookups(supabase, actorId, { onlyFailed = false } = {}) {
   return count || 0;
 }
 
-function getBearerToken(req) {
+function getBearerToken(req: VercelRequest) {
   return String(req.headers.authorization || "")
     .replace(/^Bearer\s+/i, "")
     .trim();
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, detail: "Method not allowed" });
   }

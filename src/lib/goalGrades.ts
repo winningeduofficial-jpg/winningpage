@@ -7,13 +7,30 @@
 // 무관하다 — 성적 기록 UoW 스코프(팀장 확정)가 "확률 재계산 없음"이라 calc 모듈을 아예
 // import 하지 않는다.
 
-export function round1(value) {
+// api/goal/grades.js 회차 레코드 — 호출부(NaesinCard/MockExamCard)가 각자 로컬 타입을
+// 이미 선언해 쓰고 있어(예: MockGradeRecord) 여기서는 이 모듈이 실제로 읽는 필드만
+// 최소 구조로 잡는다(넓은 index signature 로 호출부의 로컬 타입과 구조적으로 호환된다).
+interface GoalGradeRecordLike {
+  term: string;
+  value: number;
+  subjects?: {
+    korean?: number | string;
+    math?: number | string;
+    english?: number | string;
+    science?: number | string;
+  };
+  [key: string]: unknown;
+}
+
+export function round1(value: number | null | undefined): number | null {
   if (value == null || !Number.isFinite(value)) return null;
   return Math.round(value * 10) / 10;
 }
 
 /** api/goal/grades.js 회차 레코드 배열 → GoalTable rows({term, korean, math, english, science, average}). */
-export function toTableRows(records) {
+export function toTableRows(
+  records: GoalGradeRecordLike[] | null | undefined,
+) {
   return (records || []).map((record) => ({
     term: record.term,
     korean: record.subjects?.korean,
@@ -36,8 +53,11 @@ export function toTableRows(records) {
  * 0건이면 delta 자체를 만들지 않는다(null).
  */
 export function latestKpi(
-  records,
-  { fallbackValue = null, fallbackRound = "" } = {},
+  records: GoalGradeRecordLike[] | null | undefined,
+  {
+    fallbackValue = null,
+    fallbackRound = "",
+  }: { fallbackValue?: number | null; fallbackRound?: string } = {},
 ) {
   const list = records || [];
 
@@ -72,7 +92,10 @@ export function latestKpi(
  * (DeltaBadge.jsx 주석 "하락 상태 미정의") null로 접어 숨긴다("파생 불가 항목은 숨김"
  * 원칙과 일치).
  */
-export function improvementDelta(rawDelta, lowerIsBetter) {
+export function improvementDelta(
+  rawDelta: number | null | undefined,
+  lowerIsBetter: boolean,
+): number | null {
   if (rawDelta == null) return null;
   const isImprovement = lowerIsBetter ? rawDelta < 0 : rawDelta > 0;
   return isImprovement ? round1(Math.abs(rawDelta)) : null;
@@ -83,7 +106,10 @@ export function improvementDelta(rawDelta, lowerIsBetter) {
  * 각 원소에 직전 회차(시간순 바로 앞) 대비 증감을 함께 계산해 붙인다. 첫 회차(비교 대상
  * 없음)는 delta: null — 호출부가 "-"로 렌더한다(시안 그대로).
  */
-export function recentHistory(records, count = 3) {
+export function recentHistory(
+  records: GoalGradeRecordLike[] | null | undefined,
+  count = 3,
+) {
   const list = records || [];
   const withDelta = list.map((record, index) => ({
     ...record,

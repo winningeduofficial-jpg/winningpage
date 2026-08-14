@@ -22,6 +22,7 @@
 //    않는다. consumed_at을 찍는 주체가 없으므로, 지금은 "인증을 했다"는 사실만
 //    남고 가입 절차를 강제하지는 못한다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   computeKoreanAge,
   fetchAuthResult,
@@ -31,6 +32,20 @@ import {
 import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.ts";
 
 export const config = { runtime: "nodejs" };
+
+// NICE /auth/result 응답(fetchAuthResult 복호화 결과) 중 이 라우트가 실제로
+// 읽는 필드만 담는다. 문서의 다른 필드는 싣지 않는다.
+type NiceAuthResult = {
+  birthdate?: string;
+  ci?: string;
+  di?: string;
+  name?: string;
+  gender?: string;
+  national_info?: string;
+  mobile_no?: string;
+  mobile_co?: string;
+  auth_method?: string;
+};
 
 /** 결과를 알릴 프론트 오리진. 콜백 URL과 같은 사이트다. */
 function getSiteOrigin() {
@@ -42,7 +57,7 @@ function getSiteOrigin() {
   return new URL(getEnv("NICE_RETURN_URL")).origin;
 }
 
-function escapeJson(value) {
+function escapeJson(value: unknown) {
   // </script> 로 스크립트 블록이 끊기는 것을 막는다.
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }
@@ -51,7 +66,20 @@ function escapeJson(value) {
  * 팝업을 닫으면서 결과를 부모 창에 알린다.
  * opener가 없으면 프론트로 이동시킨다(팝업이 아닌 경로 대비).
  */
-function renderResult(res, { status, origin, payload, fallbackPath }) {
+function renderResult(
+  res: VercelResponse,
+  {
+    status,
+    origin,
+    payload,
+    fallbackPath,
+  }: {
+    status: number;
+    origin: string;
+    payload: Record<string, unknown>;
+    fallbackPath: string;
+  },
+) {
   const fallback = new URL(fallbackPath, origin);
 
   for (const [key, value] of Object.entries(payload)) {
@@ -86,7 +114,7 @@ function renderResult(res, { status, origin, payload, fallbackPath }) {
   return res.status(status).send(html);
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET" && req.method !== "POST") {
     return res.status(405).json({ ok: false, detail: "Method not allowed" });
   }
@@ -97,7 +125,7 @@ export default async function handler(req, res) {
     req.query?.web_transaction_id || req.body?.web_transaction_id || "",
   ).trim();
 
-  let origin;
+  let origin: string;
   try {
     origin = getSiteOrigin();
   } catch {
@@ -108,7 +136,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, reason: "server_misconfigured" });
   }
 
-  const fail = (reason, status = 200) =>
+  const fail = (reason: string, status = 200) =>
     renderResult(res, {
       status,
       origin,
@@ -147,7 +175,7 @@ export default async function handler(req, res) {
       return fail("timeout");
     }
 
-    let result;
+    let result: NiceAuthResult;
 
     try {
       result = await fetchAuthResult({

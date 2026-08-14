@@ -16,6 +16,7 @@
 // 최종 판정은 아니다 — 동시 가입 경합은 profiles의 unique 인덱스와 가입 RPC의
 // duplicate_phone이 잡는다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getChannel, isDryRun, sendVerificationCode } from "./_lib/aligo.js";
 import {
   CODE_TTL_SECONDS,
@@ -54,7 +55,7 @@ const SIGNUP_PURPOSES = ["signup", "parent_signup"];
  * 행이 있다. 조회는 숫자만으로 하고 싶지만 PostgREST에서 정규화 함수를 쓸 수 없어
  * 두 표기를 모두 대조한다.
  */
-function toHyphenated(digits) {
+function toHyphenated(digits: string) {
   if (digits.length === 11)
     return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
   if (digits.length === 10)
@@ -69,7 +70,10 @@ function toHyphenated(digits) {
  * profiles 행을 미리 만들어두지만 아직 번호가 없고, 있더라도 가입이 끝난 게
  * 아니다(sql/40_auth_signup.sql [9]와 같은 판정 기준).
  */
-async function isPhoneTaken(supabase, phone) {
+async function isPhoneTaken(
+  supabase: ReturnType<typeof createSupabaseAdmin>,
+  phone: string,
+) {
   const { data, error } = await supabase
     .from("profiles")
     .select("id")
@@ -97,13 +101,13 @@ const LIMIT_MESSAGES = {
     "일시적으로 인증번호 발송이 어렵습니다. 고객센터로 문의해 주세요.",
 };
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, detail: "Method not allowed" });
   }
 
   const phone = normalizePhone(req.body?.phone);
-  const purpose = ALLOWED_PURPOSES.includes(req.body?.purpose)
+  const purpose: string = ALLOWED_PURPOSES.includes(req.body?.purpose)
     ? req.body.purpose
     : "signup";
 

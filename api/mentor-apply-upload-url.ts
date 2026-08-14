@@ -22,6 +22,7 @@
 // (메모리) → 경로 생성 → createSignedUploadUrl(외부 API 호출).
 
 import crypto from "node:crypto";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   getClientIp,
   isValidMobile,
@@ -42,7 +43,13 @@ import {
 // api/mentor-apply.js 와 같은 이유로 nodejs 런타임을 쓴다(형제 파일과 일관성).
 export const config = { runtime: "nodejs" };
 
-function fail(res, status, reason, detail, extra = {}) {
+function fail(
+  res: VercelResponse,
+  status: number,
+  reason: string,
+  detail: string,
+  extra: Record<string, unknown> = {},
+) {
   return res.status(status).json({ ok: false, reason, detail, ...extra });
 }
 
@@ -60,27 +67,30 @@ function fail(res, status, reason, detail, extra = {}) {
 // 4중, phoneCode.js checkSendLimits)을 통과해야만 존재하므로, 인증되지 않은
 // 요청은 이 카운터 이전에 이미 걸러진다. 이 카운터는 "인증은 됐지만 그 번호로
 // 업로드 URL을 비정상적으로 반복 요청하는" 좁은 창을 완화한다.
-const attemptLog = new Map(); // key -> timestamp(ms)[]
+const attemptLog = new Map<string, number[]>(); // key -> timestamp(ms)[]
 
 const UPLOAD_URL_COOLDOWN_SECONDS = 3;
 const MAX_UPLOAD_URLS_PER_PHONE_HOUR = 20;
 const MAX_UPLOAD_URLS_PER_IP_HOUR = 40;
 
-function recentAttempts(key, windowSeconds) {
+function recentAttempts(key: string, windowSeconds: number) {
   const cutoff = Date.now() - windowSeconds * 1000;
   const timestamps = (attemptLog.get(key) || []).filter((t) => t > cutoff);
   attemptLog.set(key, timestamps);
   return timestamps;
 }
 
-function recordAttempt(key) {
+function recordAttempt(key: string) {
   const timestamps = attemptLog.get(key) || [];
   timestamps.push(Date.now());
   attemptLog.set(key, timestamps);
 }
 
-/** @returns {{allowed: boolean, reason?: string, retryAfter?: number}} */
-function checkLocalRateLimit({ phone, ip }) {
+function checkLocalRateLimit({ phone, ip }: { phone: string; ip: string }): {
+  allowed: boolean;
+  reason?: string;
+  retryAfter?: number;
+} {
   const phoneKey = `phone:${phone}`;
   const phoneHour = recentAttempts(phoneKey, 3600);
 
@@ -115,7 +125,7 @@ function checkLocalRateLimit({ phone, ip }) {
 // 핸들러
 // ---------------------------------------------------------------------------
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return fail(res, 405, "method_not_allowed", "Method not allowed");
   }

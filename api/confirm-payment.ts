@@ -25,8 +25,20 @@
 //     드러낸다 — 승인은 났는데 기록이 안 된 상태를 사용자가 "성공"으로 오인하지
 //     않게 한다.
 
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { grantProgramAccessForOrder } from "./_lib/programAccess.js";
+
+// 토스 결제 승인(POST /v1/payments/confirm)·조회(GET .../orders/{orderId}) 두
+// 응답 모두 이 라우트가 실제로 읽는 필드만 담는다. 실패 응답의 code/message도
+// 같은 JSON 변수(`data`)로 받으므로 여기 포함한다.
+type TossPaymentResponse = {
+  status?: string;
+  method?: string | null;
+  code?: string;
+  message?: string;
+  [key: string]: unknown;
+};
 
 const TOSS_CONFIRM_URL = "https://api.tosspayments.com/v1/payments/confirm";
 const TOSS_ORDER_QUERY_URL = "https://api.tosspayments.com/v1/payments/orders";
@@ -58,7 +70,7 @@ const APPROVAL_APPROVED = "approved";
 // 토스 "이미 처리된 결제" 계열 오류 코드. 정확한 코드명이 SDK 버전에 따라
 // 갈릴 수 있어 접두어로도 잡는다 — 이 경우는 우리 쪽 실패가 아니라 이전 시도가
 // 이미 토스 승인을 받았다는 뜻이므로 실패 확정 대신 조회로 되돌아가야 한다.
-function isAlreadyProcessedTossError(code) {
+function isAlreadyProcessedTossError(code: unknown) {
   const value = clean(code);
   return (
     value === "ALREADY_PROCESSED_PAYMENT" ||
@@ -66,11 +78,11 @@ function isAlreadyProcessedTossError(code) {
   );
 }
 
-function clean(value) {
+function clean(value: unknown) {
   return String(value || "").trim();
 }
 
-function getEnv(...keys) {
+function getEnv(...keys: string[]) {
   for (const key of keys) {
     const value = clean(process.env[key]);
     if (value) return value;
@@ -78,12 +90,12 @@ function getEnv(...keys) {
   return "";
 }
 
-function getBearerToken(req) {
+function getBearerToken(req: VercelRequest) {
   return clean(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
 }
 
 // 선택: 서비스 롤 키가 있으면 admin 클라이언트 생성. 없으면 null (결제 저장은 생략).
-function createSupabaseAdmin() {
+function createSupabaseAdmin(): SupabaseClient | null {
   const url = getEnv(
     "WINNING_SUPABASE_URL",
     "SUPABASE_URL",
@@ -103,7 +115,7 @@ function createSupabaseAdmin() {
 // 부여를 시도조차 하지 않은 경우의 응답 형태. grantProgramAccessForOrder 의
 // 반환 형태와 같게 유지해서 프런트(src/pages/PaymentSuccess.jsx)가 한 가지
 // 모양만 보게 한다.
-function accessNotAttempted(reason) {
+function accessNotAttempted(reason: string) {
   return {
     ok: false,
     granted: [],
@@ -119,8 +131,18 @@ function accessNotAttempted(reason) {
 // 그래야 사용자가 '프로그램 시작하기' 대신 문의 안내를 보고, 운영자가 로그로
 // 복구할 수 있다. 성공 페이지를 새로고침하면 멱등 upsert 로 자동 재시도된다.
 async function grantAndLog(
-  supabaseAdmin,
-  { orderId, userId, paidAt, restoreRevoked },
+  supabaseAdmin: SupabaseClient,
+  {
+    orderId,
+    userId,
+    paidAt,
+    restoreRevoked,
+  }: {
+    orderId: string;
+    userId: string;
+    paidAt: string | null;
+    restoreRevoked?: boolean;
+  },
 ) {
   const access = await grantProgramAccessForOrder(supabaseAdmin, {
     orderId,
@@ -154,7 +176,11 @@ async function grantAndLog(
 //   권한 상태를 되돌릴 수 있다는 뜻이다. 그래서 "새 승인"에는 인증을 걸지 않고
 //   (근거가 토스에 있다) "재부여"에만 소유자 확인을 건다.
 //   프런트는 이미 세션 토큰을 실어 보낸다(src/pages/PaymentSuccess.jsx:236-240).
-async function isOrderOwner(supabaseAdmin, req, order) {
+async function isOrderOwner(
+  supabaseAdmin: SupabaseClient,
+  req: VercelRequest,
+  order: { user_id: string | null },
+) {
   const token = getBearerToken(req);
   if (!token) return false;
 
@@ -164,7 +190,7 @@ async function isOrderOwner(supabaseAdmin, req, order) {
   return clean(data.user.id) === clean(order.user_id);
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -248,7 +274,10 @@ export default async function handler(req, res) {
           // 단 이 재시도는 (a) 주문 소유자 본인만, (b) 회수·제재된 권한은 되살리지
           // 않는 모드로만 돈다(restoreRevoked 를 넘기지 않는다 = false). 새 돈이
           // 들어온 근거가 없는 호출이므로 "복구"까지만 허용하고 "복원"은 막는다.
-          let access;
+          // any: accessNotAttempted()의 자리표시 모양과 grantAndLog가 돌려주는
+          // grantProgramAccessForOrder 원본 payload 모양이 다르다(위 489행과 같은
+          // 이유).
+          let access: any;
           if (order.status !== STATUS_PAID) {
             access = accessNotAttempted("waiting_deposit");
           } else if (!clean(order.user_id)) {
@@ -372,7 +401,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({ paymentKey, orderId, amount: confirmAmount }),
     });
 
-    let data = await tossRes.json();
+    let data: TossPaymentResponse = await tossRes.json();
 
     if (!tossRes.ok) {
       if (isAlreadyProcessedTossError(data?.code)) {
@@ -386,7 +415,7 @@ export default async function handler(req, res) {
             headers: { Authorization: `Basic ${auth}` },
           },
         );
-        const queried = await queryRes.json();
+        const queried: TossPaymentResponse = await queryRes.json();
 
         // 재조회 status 게이트: ALREADY_PROCESSED 가 곧 "성공"을 뜻하지 않는다 —
         // 이전 시도가 승인까지는 갔지만 이후 취소/만료됐을 수 있다(1차 승인 성공 →
@@ -455,7 +484,12 @@ export default async function handler(req, res) {
     // paid_at 하나만 원천으로 쓴다 — 시작일/기간 컬럼을 새로 만들지 않는다).
     const paidAt = waitingForDeposit ? null : new Date().toISOString();
 
-    let access = accessNotAttempted(
+    // any: accessNotAttempted()의 자리표시 모양(camelCase serviceKeys)과 RPC가
+    // 실제로 돌려주는 fn_grant_program_access_for_order payload(snake_case
+    // service_keys/ledger_inserted 포함)가 서로 다른 모양이다(기존 동작, 주석
+    // 그대로 유지 — 아래 access 대입부 주석 참고). 두 모양을 하나로 정확히
+    // 타이핑하려면 RPC 반환 형태를 새로 정의해야 해서 이 파일 범위를 넘는다.
+    let access: any = accessNotAttempted(
       supabaseAdmin ? "order_not_found" : "supabase_admin_unavailable",
     );
 

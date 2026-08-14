@@ -35,6 +35,7 @@
 //     미승인 주문이 웹훅 경로로 결제완료 처리되는 것을 막는다(sql/68
 //     orders_approval_before_payment_check 의 API 층 선반영).
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   grantProgramAccessForOrder,
   revokeProgramAccessForOrder,
@@ -44,13 +45,26 @@ import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.ts";
 const TOSS_PAYMENT_BY_ORDER_URL =
   "https://api.tosspayments.com/v1/payments/orders";
 
-function clean(value) {
+// 토스 결제 조회 API(GET /v1/payments/orders/{orderId}) 응답 중 이 라우트가
+// 실제로 읽는 필드만 담는다. 문서의 다른 필드는 싣지 않는다.
+// message/code는 조회 실패(!tossRes.ok) 시 토스가 돌려주는 에러 바디 필드다.
+type TossPayment = {
+  status: string;
+  method?: string | null;
+  approvedAt?: string | null;
+  cancels?: unknown[] | null;
+  balanceAmount?: number | null;
+  message?: string;
+  code?: string;
+};
+
+function clean(value: unknown) {
   return String(value || "").trim();
 }
 
 // 토스 결제 status → orders.status
 // 허용값은 pending | paid | waiting_deposit | failed | canceled (sql/10_pricing_orders.sql)
-function mapStatus(tossStatus) {
+function mapStatus(tossStatus: unknown) {
   switch (clean(tossStatus)) {
     case "DONE":
       return "paid";
@@ -83,7 +97,7 @@ const APPROVAL_APPROVED = "approved";
 // SQLSTATE 23xxx(제약 위반) 또는 이 저장소가 쓰는 WCxxx(도메인 예외, sql/68·69·71)
 // 는 재시도해도 결과가 같은 영구 오류다 — 200 으로 닫아 토스의 재시도 폭주를
 // 막는다. 그 외(네트워크·일시적 DB 장애)는 500 으로 재시도를 유도한다.
-function isPermanentDbError(error) {
+function isPermanentDbError(error: { code?: string } | null | undefined) {
   const code = String(error?.code || "").trim();
   return /^23\d{3}$/.test(code) || /^WC\d{3}$/.test(code);
 }
@@ -96,7 +110,18 @@ function isPermanentDbError(error) {
 // raw 는 토스 응답 보관용이고 이 레포에서 raw 를 읽는 코드는 confirm-payment 의
 // 멱등 재응답(raw.status/raw.secret)뿐이라 키 추가가 기존 리더를 깨지 않는다.
 // 성공 시에는 이전 실패 흔적을 지운다(같은 주문이 복구됐다는 사실도 정보다).
-async function recordGrantOutcome(supabaseAdmin, { orderId, raw, access }) {
+async function recordGrantOutcome(
+  supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  {
+    orderId,
+    raw,
+    access,
+  }: {
+    orderId: string;
+    raw: Record<string, unknown> | null | undefined;
+    access: { ok: boolean; error?: unknown };
+  },
+) {
   const had = Object.hasOwn(raw || {}, "access_grant_error");
   if (access.ok && !had) return;
 
@@ -119,7 +144,7 @@ async function recordGrantOutcome(supabaseAdmin, { orderId, raw, access }) {
     console.error("orders.raw grant marker update failed:", orderId, error);
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -199,7 +224,7 @@ export default async function handler(req, res) {
         headers: { Authorization: `Basic ${auth}` },
       },
     );
-    const payment = await tossRes.json();
+    const payment: TossPayment = await tossRes.json();
 
     if (!tossRes.ok) {
       return res.status(502).json({

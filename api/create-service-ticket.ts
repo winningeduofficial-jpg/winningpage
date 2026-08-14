@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   clean,
   getBearerToken,
@@ -15,7 +16,7 @@ const EXPIRED_MESSAGE =
   "이용 기간이 만료되었습니다. 계속 이용하시려면 재결제(재구매)해 주세요.";
 const TICKET_TTL_SECONDS = Number(process.env.SSO_TICKET_TTL_SECONDS || 180);
 
-function getEnv(...keys) {
+function getEnv(...keys: string[]) {
   for (const key of keys) {
     const value = clean(process.env[key]);
     if (value) return value;
@@ -23,15 +24,15 @@ function getEnv(...keys) {
   return "";
 }
 
-function base64urlJson(value) {
+function base64urlJson(value: unknown) {
   return Buffer.from(JSON.stringify(value)).toString("base64url");
 }
 
-function sha256(value) {
+function sha256(value: string) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
 
-function signTicket(payload, secret) {
+function signTicket(payload: Record<string, unknown>, secret: string) {
   const header = { alg: "HS256", typ: "JWT" };
   const body = `${base64urlJson(header)}.${base64urlJson(payload)}`;
   const signature = crypto
@@ -65,14 +66,19 @@ function createSupabaseAdmin() {
   });
 }
 
-function getUserName(user) {
+function getUserName(
+  user:
+    | { user_metadata?: Record<string, unknown>; email?: string | null }
+    | null
+    | undefined,
+) {
   const meta = user?.user_metadata || {};
   return clean(
     meta.name || meta.full_name || meta.student_name || user?.email || "",
   );
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ detail: "Method not allowed" });
   }
@@ -119,7 +125,12 @@ export default async function handler(req, res) {
       });
     }
 
-    const token = getBearerToken(req);
+    // serviceAccess.ts는 req.headers를 Record<string, string>으로 선언한다 —
+    // VercelRequest.headers(IncomingHttpHeaders)와는 형태만 다를 뿐 실사용(단일
+    // 문자열 헤더 읽기)은 호환된다(reset-student.ts와 같은 패턴).
+    const token = getBearerToken(
+      req as unknown as { headers: Record<string, string> },
+    );
     if (!token) {
       return res.status(401).json({ detail: PAID_MESSAGE });
     }

@@ -11,6 +11,7 @@
 // 여기가 최종 방어선이다 — 클라이언트(PremiumApply.jsx) 검증은 UX용일
 // 뿐 신뢰하지 않는다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
 // PremiumApply.jsx SERVICE_OPTIONS 와 글자 단위로 동일해야 한다.
@@ -32,23 +33,23 @@ const MESSAGE_MAX_LENGTH = 1000;
 // 오면 중복 제출·도배로 본다.
 const DUPLICATE_WINDOW_SECONDS = 60;
 
-function clean(value) {
+function clean(value: unknown) {
   return String(value ?? "").trim();
 }
 
 // 하이픈 제거 후 숫자만 남긴 값이 9~13자리인지. 서비스 전화/국제번호까지
 // 폭넓게 받되 명백히 짧거나 긴 값은 거른다.
-function isValidPhoneDigits(digits) {
+function isValidPhoneDigits(digits: string) {
   return /^[0-9]{9,13}$/.test(digits);
 }
 
 // 형식 검증기를 새로 들이지 않고 '@' 앞뒤 존재·공백 없음만 보는
 // 최소 검사다. 실제 유효성은 상담 연락 시 확인된다.
-function isValidEmail(value) {
+function isValidEmail(value: string) {
   return /^\S+@\S+$/.test(value);
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

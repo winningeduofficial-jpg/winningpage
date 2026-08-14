@@ -20,6 +20,7 @@
 //   같은 구멍이며, 가입 RPC에서 identity_verifications를 consume 하도록
 //   함께 막아야 한다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   generateRequestNo,
   issueAuthUrl,
@@ -37,7 +38,7 @@ const ALLOWED_PURPOSES = ["signup", "under14_guardian", "phone_change"];
 // 본인확인은 건당 과금이다. 정상 사용이라면 몇 번이면 끝나므로 좁게 잡는다.
 const MAX_STARTS_PER_HOUR_PER_IP = 10;
 
-function getBearerToken(req) {
+function getBearerToken(req: VercelRequest) {
   return String(req.headers.authorization || "")
     .replace(/^Bearer\s+/i, "")
     .trim();
@@ -47,7 +48,7 @@ function getBearerToken(req) {
  * 콜백이 우리 pending 행을 찾을 수 있도록 return_url에 rid를 붙인다.
  * NICE 콜백은 web_transaction_id만 돌려주기 때문에 이것 말고는 열쇠가 없다.
  */
-function buildReturnUrl(requestNo) {
+function buildReturnUrl(requestNo: string) {
   const base = getEnv("NICE_RETURN_URL");
   if (!base) throw new Error("NICE_RETURN_URL 환경변수가 필요합니다.");
 
@@ -63,12 +64,12 @@ function buildReturnUrl(requestNo) {
   return built;
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, detail: "Method not allowed" });
   }
 
-  const purpose = ALLOWED_PURPOSES.includes(req.body?.purpose)
+  const purpose: string = ALLOWED_PURPOSES.includes(req.body?.purpose)
     ? req.body.purpose
     : "signup";
   const ip = getClientIp(req);

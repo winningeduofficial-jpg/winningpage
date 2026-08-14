@@ -18,18 +18,19 @@
 //   엔드포인트를 부른다(자리를 비운 사이 남이 번호를 바꾸는 것을 막는 목적,
 //   ChangePasswordModal.jsx 와 동일 근거).
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { isValidMobile, normalizePhone } from "./_lib/phoneCode.js";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
 export const config = { runtime: "nodejs" };
 
-function getBearerToken(req) {
+function getBearerToken(req: VercelRequest) {
   return String(req.headers.authorization || "")
     .trim()
     .replace(/^Bearer\s+/i, "");
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ ok: false, detail: "Method not allowed" });
   }

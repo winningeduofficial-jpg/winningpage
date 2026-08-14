@@ -1,0 +1,283 @@
+// GET/POST /api/goal/grades
+// Authorization: Bearer <access_token>
+//
+// 성적 관리(#35) 페이지 + 대시보드 모의고사/내신 카드의 "+ 성적 추가"가 쓰는 엔드포인트.
+// goal_students.naesin_scores / mock_exam_scores(jsonb, 온보딩이 이미 쓰고 있다 —
+// api/goal/intake.js 참고)에 회차를 하나씩 append 한다.
+//
+// ── 스코프(팀장 확정, 변경 금지) ─────────────────────────────────────────────
+// 성적 추가/수정은 기록·표시만 한다. 확률을 다시 계산하지 않는다 — base 확률 재계산은
+// 재온보딩 정책(미결 Q3)과 직결이라 그 결정 전까지 제외한다. goal_probability_logs에도
+// 쓰지 않는다. src/lib/goal/calc/ 의 어떤 함수도 호출하지 않는다(round1 같은 사소한
+// 유틸도 그 모듈 소속이라 가져오지 않고, 이 파일 안에 별도로 둔다).
+//
+// ── naesin_scores / mock_exam_scores 실측 구조(intake.js 기준) ──────────────
+// naesin_scores = {
+//   s1mid: {value, none}, s1final: {...}, s2mid: {...}, s2final: {...},
+//   priorNaesinGrade?: string   // "전 회차 없음" 특례일 때만
+// }
+//   - value 는 이미 평균된 "등급 하나"다. 온보딩은 과목별 입력을 받지 않는다.
+// mock_exam_scores = {
+//   mar: {kor, math, eng, tam1, tam2, none}, jun: {...}, sep: {...}, oct: {...}
+// }
+//   - 과목 5개(국/수/영/탐구1/탐구2), 등급 1~9. eng 만 등급 문자열 그대로, 나머지는
+//     gradeToPercentile 변환 전 원본 등급이다.
+//
+// 그런데 성적 관리 화면(2910:3638 등)의 실제 시안은 온보딩과 완전히 다른 스케일이다:
+//   - 내신 표: 과목 4개(국/수/영/탐구 — 탐구 단일), 등급 1~9, 평균은 화면이 계산해 보여준다.
+//   - 모의고사 표: 과목 4개(국/수/영/탐구 — 탐구 단일), **백분위 0~100**(등급 아니다).
+// 온보딩의 4개 고정 회차 키(s1mid 등)나 모의고사의 5과목·등급 스케일과 그대로 겹칠 수
+// 없다 — 재사용하면 시안이 요구하는 과목별 값(국/수/영/탐구 4개)을 담을 자리가 없다.
+//
+// ── 판단: 같은 컬럼에, 같은 "회차 키→값" 관례를 확장해서 쓴다 ────────────────
+// 새 컬럼이나 새 테이블을 만들지 않는다(팀장 지시 "구조는 intake.js가 쓰는 형태를
+// 실측해 따라라"). 대신 각 jsonb 최상위에 `records`(배열)를 추가해 온보딩이 쓰는 4개
+// 고정 키(s1mid.../mar...)와 절대 충돌하지 않게 하고, 그 배열의 원소 하나하나는
+// intake의 회차 엔트리와 같은 어휘를 쓴다 — `value`(회차 대표값) · `none`(항상 false,
+// 사용자가 실제로 입력한 회차라서) 필드명을 그대로 재사용하고, 시안이 요구하는 과목별
+// 값은 `subjects`로 얹는다. free-form jsonb 라 마이그레이션이 필요 없다(naesin_scores/
+// mock_exam_scores 컬럼 코멘트가 이미 "회차·과목 구성이 흔들려 정규화하지 않는다"고
+// 명시한다 — sql/55_goal_management.sql).
+//
+// 같은 회차(term 문자열 동일)를 다시 저장하면 새로 추가하지 않고 기존 원소를 교체한다
+// (팀장 지시 "재량, 판단 기록" — 회차 표기가 자유 입력이라 사용자가 오타를 고치거나
+// 같은 시험을 다시 입력하는 경우 배열이 무한정 늘어나지 않게 하는 편이 안전하다고
+// 판단했다).
+//
+// ── 게이트 규약(house style) ─────────────────────────────────────────────
+// 405 → 401 → (조회 200 {allowed:false} / 쓰기 403 PAID_MESSAGE) → 검증 → 처리 → 500.
+
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import {
+  fetchStudentRow,
+  openGoalSession,
+  PAID_MESSAGE,
+  updateStudentGrades,
+} from "../_lib/goalRepo.js";
+
+export const config = { runtime: "nodejs" };
+
+// goalRepo.js(.js, Stage3 대상)의 openGoalSession 반환 shape은 JSDoc으로만 선언돼
+// 있다 — handleGet/handlePost가 공유하는 세션 매개변수 타입을 그 함수에서 그대로
+// 추론해 재사용한다(중복 선언 없이 goalRepo.js JSDoc이 바뀌면 여기도 함께 따라간다).
+type GoalSession = Awaited<ReturnType<typeof openGoalSession>>;
+
+const SUBJECT_KEYS = ["korean", "math", "english", "science"];
+
+const GRADE_DOMAIN = { min: 1, max: 9 };
+const PERCENTILE_DOMAIN = { min: 0, max: 100 };
+
+const TERM_MAX_LENGTH = 100;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// 온보딩이 쓰는 고정 회차 키 — 새 회차의 term 이 이 값과 같으면 records 배열이 아니라
+// 온보딩 원본 자리를 사람이 착각한 것이므로 거부한다(방어적 검증, 실제로는 select
+// option/자유입력 문자열이 이 값과 우연히 같을 일이 거의 없다).
+const RESERVED_KEYS = {
+  naesin: [
+    "s1mid",
+    "s1final",
+    "s2mid",
+    "s2final",
+    "priorNaesinGrade",
+    "records",
+  ],
+  mock: ["mar", "jun", "sep", "oct", "records"],
+};
+
+function round1(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isNumericInput(raw: unknown) {
+  return typeof raw === "number" || typeof raw === "string";
+}
+
+function isInDomain(raw: unknown, domain: { min: number; max: number }) {
+  if (!isNumericInput(raw)) return false;
+  const num = Number(raw);
+  return Number.isFinite(num) && num >= domain.min && num <= domain.max;
+}
+
+function fail(status: number, detail: string) {
+  return { error: { status, body: { detail } } };
+}
+
+/**
+ * 공통 바디 검증 — term(회차 라벨) · 날짜 · 과목 4종(국/수/영/탐구).
+ * naesin 은 1~9 등급, mock 은 0~100 백분위 도메인만 다르다(시안 실측, 위 헤더 주석 참고).
+ */
+function validateEntry(entry: unknown, type: "naesin" | "mock") {
+  if (!isPlainObject(entry)) return fail(400, "성적 입력이 올바르지 않습니다.");
+
+  const term = String(entry.term ?? "").trim();
+  if (!term) return fail(400, "회차를 입력해 주세요.");
+  if (term.length > TERM_MAX_LENGTH)
+    return fail(400, "회차 이름이 너무 깁니다.");
+  if (RESERVED_KEYS[type].includes(term)) {
+    return fail(400, "사용할 수 없는 회차 이름입니다.");
+  }
+
+  const dateField = type === "naesin" ? entry.enteredAt : entry.examDate;
+  const dateLabel = type === "naesin" ? "입력일" : "응시일";
+  const dateValue = String(dateField ?? "").trim();
+  if (!DATE_RE.test(dateValue))
+    return fail(400, `${dateLabel}을 올바르게 입력해 주세요.`);
+
+  if (!isPlainObject(entry.subjects))
+    return fail(400, "과목별 점수가 올바르지 않습니다.");
+
+  const domain = type === "naesin" ? GRADE_DOMAIN : PERCENTILE_DOMAIN;
+  const domainLabel = type === "naesin" ? "1~9 등급" : "0~100 백분위";
+
+  const subjects: Record<string, number> = {};
+  for (const key of SUBJECT_KEYS) {
+    const raw = entry.subjects[key];
+    if (!isInDomain(raw, domain)) {
+      return fail(400, `과목별 점수는 ${domainLabel} 사이여야 합니다.`);
+    }
+    subjects[key] = Number(raw);
+  }
+
+  const value = round1(
+    SUBJECT_KEYS.reduce((sum, key) => sum + subjects[key], 0) /
+      SUBJECT_KEYS.length,
+  );
+
+  return {
+    record: {
+      term,
+      [type === "naesin" ? "enteredAt" : "examDate"]: dateValue,
+      subjects,
+      value,
+      none: false,
+      recordedAt: new Date().toISOString(),
+    },
+  };
+}
+
+/** records 배열에 회차를 추가하거나(term 동일 시) 교체한다. */
+function upsertRecord(records: unknown, record: { term: string }) {
+  const list = Array.isArray(records) ? records : [];
+  const index = list.findIndex(
+    (item) => item && typeof item === "object" && item.term === record.term,
+  );
+  if (index === -1) return [...list, record];
+
+  const next = [...list];
+  next[index] = record;
+  return next;
+}
+
+function readBody(req: VercelRequest) {
+  const body = req.body;
+  if (typeof body !== "string") return body;
+  try {
+    return JSON.parse(body);
+  } catch {
+    return null;
+  }
+}
+
+async function handleGet(
+  _req: VercelRequest,
+  res: VercelResponse,
+  session: GoalSession,
+) {
+  const { supabaseAdmin, profileId, allowed } = session;
+
+  if (!allowed) {
+    return res.status(200).json({ allowed: false });
+  }
+
+  const row = await fetchStudentRow(supabaseAdmin, profileId);
+  if (!row) {
+    return res.status(200).json({ onboarded: false });
+  }
+
+  const naesinScores = row.naesin_scores || {};
+  const mockScores = row.mock_exam_scores || {};
+
+  return res.status(200).json({
+    onboarded: true,
+    naesinRecords: Array.isArray(naesinScores.records)
+      ? naesinScores.records
+      : [],
+    mockRecords: Array.isArray(mockScores.records) ? mockScores.records : [],
+  });
+}
+
+async function handlePost(
+  req: VercelRequest,
+  res: VercelResponse,
+  session: GoalSession,
+) {
+  const { supabaseAdmin, profileId, allowed } = session;
+
+  if (!allowed) {
+    return res.status(403).json({ detail: PAID_MESSAGE });
+  }
+
+  const body = readBody(req);
+  if (!isPlainObject(body))
+    return res.status(400).json({ detail: "요청 본문이 올바르지 않습니다." });
+
+  const type = body.type;
+  if (type !== "naesin" && type !== "mock") {
+    return res.status(400).json({ detail: "성적 유형이 올바르지 않습니다." });
+  }
+
+  const validated = validateEntry(body.entry, type);
+  if (validated.error) {
+    return res.status(validated.error.status).json(validated.error.body);
+  }
+
+  const row = await fetchStudentRow(supabaseAdmin, profileId);
+  if (!row) {
+    return res.status(404).json({
+      detail: "온보딩을 먼저 완료해 주세요.",
+      reason: "not_onboarded",
+    });
+  }
+
+  const record = validated.record;
+
+  const patch: { naesin_scores?: unknown; mock_exam_scores?: unknown } = {};
+  let records;
+  if (type === "naesin") {
+    const naesinScores = row.naesin_scores || {};
+    records = upsertRecord(naesinScores.records, record);
+    patch.naesin_scores = { ...naesinScores, records };
+  } else {
+    const mockScores = row.mock_exam_scores || {};
+    records = upsertRecord(mockScores.records, record);
+    patch.mock_exam_scores = { ...mockScores, records };
+  }
+
+  await updateStudentGrades(supabaseAdmin, profileId, patch);
+
+  return res.status(200).json({ ok: true, record, records });
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "GET" && req.method !== "POST") {
+    return res.status(405).json({ detail: "Method not allowed" });
+  }
+
+  try {
+    const session = await openGoalSession(req);
+    if (session.error) {
+      return res.status(session.error.status).json(session.error.body);
+    }
+
+    if (req.method === "GET") return await handleGet(req, res, session);
+    return await handlePost(req, res, session);
+  } catch (error) {
+    console.error("goal/grades error:", error);
+    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
+  }
+}

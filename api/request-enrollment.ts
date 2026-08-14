@@ -14,23 +14,35 @@
 //   WINNING_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY
 
 import crypto from "node:crypto";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
-function clean(value) {
+// products 테이블에서 조회한 행 중 이 라우트가 실제로 읽는 필드만 담는다.
+type ProductRow = {
+  id: string;
+  slug: string;
+  service_key: string;
+  name: string;
+  list_price: number | null;
+  price: number | null;
+  is_active: boolean;
+};
+
+function clean(value: unknown) {
   return String(value || "").trim();
 }
 
-function getBearerToken(req) {
+function getBearerToken(req: VercelRequest) {
   return clean(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
 }
 
-function buildOrderName(products) {
+function buildOrderName(products: ProductRow[]) {
   if (products.length === 0) return "위닝에듀 서비스";
   const first = products[0].name || "위닝에듀 서비스";
   return products.length === 1 ? first : `${first} 외 ${products.length - 1}건`;
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }

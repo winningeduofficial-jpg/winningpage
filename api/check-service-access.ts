@@ -41,6 +41,7 @@
 // `allowed` 하나만 읽는다. 위 4필드는 **추가**일 뿐이며 allowed의 의미·타입은
 // 바뀌지 않았다. 회차 개념이 없는 서비스(goal)는 4필드가 전부 null로 나간다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   clean,
   findProgramAccessRow,
@@ -51,7 +52,7 @@ import {
 } from "./_lib/serviceAccess.js";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return res.status(405).json({ detail: "Method not allowed" });
   }
@@ -64,7 +65,12 @@ export default async function handler(req, res) {
       return res.status(400).json({ detail: "알 수 없는 서비스입니다." });
     }
 
-    const token = getBearerToken(req);
+    // serviceAccess.ts는 req.headers를 Record<string, string>으로 선언한다 —
+    // VercelRequest.headers(IncomingHttpHeaders)와는 형태만 다를 뿐 실사용(단일
+    // 문자열 헤더 읽기)은 호환된다(reset-student.ts와 같은 패턴).
+    const token = getBearerToken(
+      req as unknown as { headers: Record<string, string> },
+    );
     if (!token) {
       return res.status(401).json({ detail: "로그인이 필요합니다." });
     }
