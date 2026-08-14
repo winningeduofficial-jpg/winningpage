@@ -271,6 +271,9 @@ export const NO_PREVIOUS_TOPIC_TEXT = "없음";
 export function buildTopicRecommendationSystem({
   topicKnowledgeText = "",
   studentHistoryText = "",
+}: {
+  topicKnowledgeText?: string;
+  studentHistoryText?: string;
 } = {}) {
   return `
 ${CORE_PRINCIPLES}
@@ -348,6 +351,15 @@ export function buildTopicRecommendationUser({
   career = "",
   previousTopic = "",
   assessmentText = "",
+}: {
+  gradeLabel?: string;
+  semester?: string;
+  schoolType?: string;
+  subjectGroup?: string;
+  subject?: string;
+  career?: string;
+  previousTopic?: string;
+  assessmentText?: string;
 } = {}) {
   const gradeText =
     [gradeLabel, semester]
@@ -398,7 +410,7 @@ ${String(assessmentText || "").trim() || "수행평가 안내문 정보 없음"}
  * @param {string[]} titles 이전 라운드에서 제시한 주제명(중복 제거·순서 유지는 호출부 몫)
  * @returns {string} 붙일 블록. 배제할 주제가 없으면 빈 문자열.
  */
-export function buildTopicExclusionBlock(titles = []) {
+export function buildTopicExclusionBlock(titles: string[] = []) {
   const list = (Array.isArray(titles) ? titles : [])
     .map((value) => String(value || "").trim())
     .filter(Boolean);
@@ -691,7 +703,9 @@ export const DESIGN_PROMPT_VERSION_ENV = "PERFORMANCE_DESIGN_PROMPT_VERSION";
  * @param {Record<string, string|undefined>} [env]
  * @returns {'design-v1'|'design-v2'}
  */
-export function resolveDesignPromptVersion(env = process.env) {
+export function resolveDesignPromptVersion(
+  env: Record<string, string | undefined> = process.env,
+): "design-v1" | "design-v2" {
   const raw = String(env?.[DESIGN_PROMPT_VERSION_ENV] || "").trim();
 
   return raw === DESIGN_PROMPT_VERSIONS.WITHOUT_CORE
@@ -913,7 +927,7 @@ export const DESIGN_WRITING_BRANCH_BY_STRUCTURE_TYPE = Object.freeze({
 });
 
 /** @param {string} [structureType] `inferAssessmentStructure().type` */
-export function resolveDesignWritingBranch(structureType = "") {
+export function resolveDesignWritingBranch(structureType: string = "") {
   return (
     DESIGN_WRITING_BRANCH_BY_STRUCTURE_TYPE[
       String(structureType || "").trim()
@@ -935,7 +949,9 @@ export function resolveDesignWritingBranch(structureType = "") {
  *
  * @param {Array<{id: string, title: string}>} [resources]
  */
-export function buildAllowedResourceList(resources = []) {
+export function buildAllowedResourceList(
+  resources: Array<{ id?: string; title?: string }> = [],
+) {
   const lines = (Array.isArray(resources) ? resources : [])
     .map((resource) => ({
       id: String(resource?.id || "").trim(),
@@ -971,6 +987,15 @@ export function buildDesignReportSystem({
   resourceKnowledgeText = "",
   allowedResources = [],
   studentHistoryText = "",
+}: {
+  promptVersion?: string;
+  structureType?: string;
+  structureReason?: string;
+  writingFrame?: string;
+  writingBranch?: string;
+  resourceKnowledgeText?: string;
+  allowedResources?: Array<{ id?: string; title?: string }>;
+  studentHistoryText?: string;
 } = {}) {
   const branchKey = writingBranch || resolveDesignWritingBranch(structureType);
   const branchText =
@@ -1102,6 +1127,17 @@ export function buildDesignReportUser({
   career = "",
   previousTopic = "",
   assessmentText = "",
+}: {
+  selectedTopic?: string;
+  selectedTopicDetail?: string;
+  gradeLabel?: string;
+  semester?: string;
+  schoolType?: string;
+  subjectGroup?: string;
+  subject?: string;
+  career?: string;
+  previousTopic?: string;
+  assessmentText?: string;
 } = {}) {
   const gradeText =
     [gradeLabel, semester]
@@ -1573,6 +1609,10 @@ export function buildEvaluationFormatBridge({
   structureType = "",
   structureReason = "",
   writingFrame = "",
+}: {
+  structureType?: string;
+  structureReason?: string;
+  writingFrame?: string;
 } = {}) {
   return `
 [제출 형식 컨텍스트]
@@ -1603,6 +1643,10 @@ export function buildEvaluationSystem({
   structureType = "",
   structureReason = "",
   writingFrame = "",
+}: {
+  structureType?: string;
+  structureReason?: string;
+  writingFrame?: string;
 } = {}) {
   // ⓐ+ⓑ 원문 앞덩어리 — 역할 3줄(`:65-67`) + 출력 규칙(`:69`,`:70`,`:73-80`).
   //    삭제한 것은 `:71`·`:72`(포맷 강제)뿐이고 나머지는 번호만 1~9로 당겨졌다.
@@ -1722,6 +1766,17 @@ export function buildEvaluationUser({
   subject = "",
   previousTopic = "",
   submissionText = "",
+}: {
+  assessmentText?: string;
+  selectedTopic?: string;
+  career?: string;
+  gradeLabel?: string;
+  semester?: string;
+  schoolType?: string;
+  subjectGroup?: string;
+  subject?: string;
+  previousTopic?: string;
+  submissionText?: string;
 } = {}) {
   const gradeText =
     [gradeLabel, semester]
@@ -1900,7 +1955,7 @@ export const EVALUATION_REPORT_SCHEMA = {
  * @param {unknown} raw 모델의 `score` 값
  * @returns {number|null} 0~100 정수, 아니면 `null`
  */
-export function parseEvaluationScore(raw) {
+export function parseEvaluationScore(raw: unknown): number | null {
   if (typeof raw !== "string") return null;
 
   const text = raw.trim();
