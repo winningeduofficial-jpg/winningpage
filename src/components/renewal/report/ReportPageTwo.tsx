@@ -5,10 +5,38 @@ import ReadinessOverview from "./ReadinessOverview";
 import RecommendServices from "./RecommendServices";
 import ReportSheetA4 from "./ReportSheetA4";
 
+type ReportPageTwoProps = {
+  data: {
+    readiness: {
+      scoreLabel: string;
+      summaryLines: string[];
+      areas: Array<{
+        name: string;
+        score: number;
+        tone?: string;
+        status?: string;
+      }>;
+    };
+    strengths: string[];
+    improvements: string[];
+    admission: unknown;
+    recommendations: Array<{
+      rank?: string;
+      name?: string;
+      desc?: string;
+      chips: string[];
+    }>;
+    notices?: {
+      serviceLimit?: string | null;
+      reportBasis?: string | null;
+    };
+  };
+};
+
 // 결과 리포트 2페이지(A4-4) — 학교 생활 및 입시 준비도 / 6영역 바 그래프 /
 // 잘하고 있는 부분·보완할 부분 / 목표 대학 입결 비교 / 추천 지원 서비스.
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
-const ReportPageTwo = ({ data }) => {
+const ReportPageTwo = ({ data }: ReportPageTwoProps) => {
   const {
     readiness,
     strengths,

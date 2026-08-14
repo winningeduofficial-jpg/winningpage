@@ -7,7 +7,11 @@ const R_LABEL = R_MAX + 18;
 
 // 축 인덱스(k)별 라벨 배치 — 결정된 6축 순서(12시부터 시계방향) 전제.
 // k0 위(가운데 정렬, 라벨 위쪽) · k3 아래(가운데 정렬, 라벨 아래쪽) · k1·k2 우측(start) · k4·k5 좌측(end).
-const LABEL_LAYOUT = [
+const LABEL_LAYOUT: Array<{
+  anchor: "start" | "middle" | "end";
+  nameDy: number;
+  scoreDy: number;
+}> = [
   { anchor: "middle", nameDy: -22, scoreDy: 0 },
   { anchor: "start", nameDy: -4, scoreDy: 18 },
   { anchor: "start", nameDy: -4, scoreDy: 18 },
@@ -16,7 +20,7 @@ const LABEL_LAYOUT = [
   { anchor: "end", nameDy: -4, scoreDy: 18 },
 ];
 
-function polarPoint(angleDeg, radius) {
+function polarPoint(angleDeg: number, radius: number) {
   const rad = (angleDeg * Math.PI) / 180;
   return {
     x: CX + radius * Math.cos(rad),
@@ -24,16 +28,25 @@ function polarPoint(angleDeg, radius) {
   };
 }
 
-function toPointsAttr(points) {
+function toPointsAttr(points: Array<{ x: number; y: number }>) {
   return points.map((p) => `${p.x},${p.y}`).join(" ");
 }
+
+type RadarAxis = { name: string; score: number };
+
+type RadarChart6Props = {
+  axes: RadarAxis[];
+  max?: number;
+  rings?: number;
+  className?: string;
+};
 
 export default function RadarChart6({
   axes,
   max = 100,
   rings = 4,
   className = "",
-}) {
+}: RadarChart6Props) {
   const count = axes.length;
   // θ_k = -90° + (360/count)·k — k=0 이 12시, 시계방향.
   const angles = axes.map((_, k) => -90 + (360 / count) * k);

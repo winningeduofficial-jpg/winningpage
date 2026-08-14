@@ -1,12 +1,23 @@
 import ScoreBar from "./ScoreBar";
 
+type DimensionArea = {
+  name: string;
+  score: number;
+  tone?: string;
+  status?: string;
+};
+
+type DimensionBarChartProps = {
+  areas: DimensionArea[];
+};
+
 // 6영역 수평 바 그래프 — StatusBadge 미사용(상태는 일반 텍스트), ScoreBar 소비.
 // fill 폭은 ScoreBar 내부에서 점수→폭 선형 환산(결정6)으로 렌더된다.
 // props: { areas } = [{ name, score, tone, status }] x6 — data.readiness.areas.
 // R3(2026-08-11) — 데스크톱 고정 gap(3.75rem×2 + 4.625rem + 14.4375rem + 3.75rem ≈ 30rem/480px)은
 // 390px 모바일에 들어가지 않는다. ScoreBar 를 responsive(flex-1)로 바꿔 남는 폭을 흡수시키고
 // 좌우 라벨만 축소 고정폭으로 남긴다 — 데스크톱은 lg: 로 원래 값 그대로 되돌린다.
-const DimensionBarChart = ({ areas }) => {
+const DimensionBarChart = ({ areas }: DimensionBarChartProps) => {
   return (
     <div className="mt-6 flex flex-col gap-2">
       {/*

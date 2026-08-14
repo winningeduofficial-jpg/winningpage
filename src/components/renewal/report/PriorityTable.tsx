@@ -15,7 +15,21 @@ const GRID_COLS = "grid-cols-[7.25rem_11.75rem_14.8125rem_7.5rem_1fr]";
  * 라벨("현재 상태" · "필요한 것")은 새 문구가 아니라 데스크톱 헤더에 이미 있는 라벨을
  * 그대로 재사용한다.
  */
-export default function PriorityTable({ rows }) {
+type PriorityRow = {
+  area?: string;
+  name?: string;
+  tone?: string;
+  badge?: string;
+  score: number;
+  status?: string;
+  need?: string;
+};
+
+type PriorityTableProps = {
+  rows: PriorityRow[];
+};
+
+export default function PriorityTable({ rows }: PriorityTableProps) {
   return (
     <div className="w-full lg:w-[62.5rem]">
       {/* 데스크톱 전용 — 5열 그리드 표.

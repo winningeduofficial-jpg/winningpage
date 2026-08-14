@@ -9,7 +9,22 @@
 // 갈라지지 않게 같은 슬롯을 계속 재사용하기 위해서다. 조건 판정은 엔진이 소유한다(buildNotices).
 import { withDedupedKeys } from "../../../lib/reactKeys";
 
-const RecommendServices = ({ cards, leadNote = null }) => {
+type RecommendCard = {
+  rank?: string;
+  name?: string;
+  desc?: string;
+  chips: string[];
+};
+
+type RecommendServicesProps = {
+  cards: RecommendCard[];
+  leadNote?: string | null;
+};
+
+const RecommendServices = ({
+  cards,
+  leadNote = null,
+}: RecommendServicesProps) => {
   return (
     // fd-recommend-* — 인쇄 훅(BLOCK 수정). report-print.css 가 기존 lg: 리터럴과 동일한
     // 값으로 강제한다.

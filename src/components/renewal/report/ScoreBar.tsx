@@ -1,5 +1,5 @@
 // 점수 게이지 바 공용 원자. fill 폭 = 점수→트랙 폭 선형 환산(결정6, 시안 px 더미 폐기).
-const FILL_COLORS = {
+const FILL_COLORS: Record<string, string> = {
   red: "#991e1e",
   amber: "#736123",
   blue: "#1b5da0",
@@ -16,6 +16,16 @@ const FILL_COLORS = {
 //                aria-hidden 으로 뺀다. false(기본)면 바 자체가 값의 유일한 표현이므로
 //                role="img" + aria-label 로 값을 읽어 준다 — 종전에는 어느 쪽도 아니어서
 //                DimensionBarChart 의 점수가 스크린리더에 통째로 누락됐다(레이아웃 변경 0으로 함께 해소).
+type ScoreBarProps = {
+  score: number;
+  max?: number;
+  tone?: string;
+  responsive?: boolean;
+  trackClass?: string | null;
+  decorative?: boolean;
+  className?: string;
+};
+
 export default function ScoreBar({
   score,
   max = 100,
@@ -24,11 +34,11 @@ export default function ScoreBar({
   trackClass = null,
   decorative = false,
   className = "",
-}) {
+}: ScoreBarProps) {
   const percent = Math.max(0, Math.min(100, (score / max) * 100));
   const widthClass =
     trackClass ?? (responsive ? "w-full lg:w-[14.4375rem]" : "w-[14.4375rem]");
-  const a11yProps = decorative
+  const a11yProps: Record<string, string> = decorative
     ? { "aria-hidden": "true" }
     : { role: "img", "aria-label": `${score}점` };
 

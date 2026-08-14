@@ -9,7 +9,25 @@ const INFO_FIELDS = [
   { label: "진단 완료일", key: "diagnosedAt" },
 ];
 
-export default function StudentInfoBlock({ student }) {
+import type { ReactNode } from "react";
+
+type Student = {
+  nameLine?: string;
+  name?: string;
+  grade?: string;
+  schoolType?: string;
+  desiredMajor?: string;
+  gpa?: string;
+  gradeTrend?: string;
+  diagnosedAt?: string;
+  [key: string]: unknown;
+};
+
+type StudentInfoBlockProps = {
+  student: Student;
+};
+
+export default function StudentInfoBlock({ student }: StudentInfoBlockProps) {
   return (
     // R3(2026-08-11) — 데스크톱 폭(24.375rem)은 값 칸을 12.5rem 고정으로 둬도 되는 여유였다.
     // 모바일은 w-full + 값 칸 flex-1(가변)로 바꿔 좁은 화면에서도 값이 넘치지 않고 자연스럽게
@@ -40,7 +58,7 @@ export default function StudentInfoBlock({ student }) {
               {label}
             </span>
             <span className="fd-student-value min-w-0 flex-1 text-base font-medium leading-[1.25rem] text-[#525252] lg:w-[12.5rem] lg:flex-none">
-              {student[key]}
+              {student[key] as ReactNode}
             </span>
           </div>
         ))}
