@@ -92,7 +92,12 @@ import {
 } from "../lib/goalUniversityCutsBulkXlsx";
 import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
-import { AdminForm, AdminTable, PAGE_SIZE } from "./admin/shared/AdminEngine";
+import {
+  AdminForm,
+  AdminTable,
+  PAGE_SIZE,
+  uploadImage,
+} from "./admin/shared/AdminEngine";
 import { AdminTopbar } from "./admin/shared/AdminTopbar";
 import { reportAdminError } from "./admin/shared/adminErrors";
 import {
@@ -119,7 +124,6 @@ const ADMISSION_EXISTING_WRAP_RE =
 // CSV 청크 내보내기 1회 요청 크기. PostgREST 기본 응답 상한이 1,000행이라 이보다
 // 크게 잡아도 잘려 나온다 — 43k행이면 44회 왕복이다.
 const EXPORT_CHUNK = 1000;
-const IMAGE_BUCKET = "banners";
 
 const MENU_GROUPS = [
   {
@@ -3591,122 +3595,6 @@ function AdminSidebar({ activeKey, setActiveKey }) {
   );
 }
 
-const COMPRESS_THRESHOLD_BYTES = 500 * 1024;
-
-function formatFileSize(bytes) {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-  return `${Math.round(bytes / 1024)}KB`;
-}
-
-// maxMB 초과 시 alert 후 false 반환. 압축 대상 필드는 압축 이후(uploadImage)에 별도 호출.
-function validateMaxMB(file, maxMB) {
-  if (!maxMB) return true;
-  if (file.size > maxMB * 1024 * 1024) {
-    alert(
-      `파일 용량이 너무 큽니다. 최대 ${maxMB}MB까지 업로드할 수 있습니다. (현재 ${formatFileSize(file.size)})`,
-    );
-    return false;
-  }
-  return true;
-}
-
-// 압축 적용 대상 필드인지 판정: field.compress === true이고 file/multiFile 타입이 아님
-function isCompressibleField(field = {}) {
-  return (
-    field.compress === true &&
-    field.type !== "file" &&
-    field.type !== "multiFile"
-  );
-}
-
-// 이미지 규격 검증: imageSpec = { width, height, tolerance(기본 0.02), maxMB, aspectOnly }
-// 반환값 false = 업로드 중단, true = 계속 진행
-// options.skipMaxMB: true면 maxMB 검증은 건너뜀 (압축 대상 필드는 압축 이후 별도 검증)
-async function validateImageSpec(file, imageSpec, options = {}) {
-  if (!imageSpec) return true;
-
-  const { width, height, tolerance = 0.02, maxMB, aspectOnly } = imageSpec;
-
-  if (!options.skipMaxMB && !validateMaxMB(file, maxMB)) return false;
-
-  if (!width || !height) return true;
-
-  let bitmap;
-  try {
-    bitmap = await createImageBitmap(file);
-  } catch {
-    // 치수 측정 불가 형식(svg 등)은 규격 검증 없이 통과
-    return true;
-  }
-
-  const actualWidth = bitmap.width;
-  const actualHeight = bitmap.height;
-  bitmap.close?.();
-
-  let matches;
-  let expectedText;
-
-  if (aspectOnly) {
-    const expectedRatio = width / height;
-    const actualRatio = actualWidth / actualHeight;
-    matches =
-      Math.abs(actualRatio - expectedRatio) / expectedRatio <= tolerance;
-    expectedText = `${width}:${height} 비율`;
-  } else {
-    matches =
-      Math.abs(actualWidth - width) / width <= tolerance &&
-      Math.abs(actualHeight - height) / height <= tolerance;
-    expectedText = `${width}×${height}`;
-  }
-
-  if (matches) return true;
-
-  return window.confirm(
-    `이미지 규격이 다릅니다.\n${expectedText} 필요, 현재 ${actualWidth}×${actualHeight} — 계속 업로드할까요?`,
-  );
-}
-
-// 500KB 초과 이미지 canvas 재인코딩 (치수 유지, png→png / jpeg 품질 0.85)
-// 재인코딩 결과가 원본보다 작을 때만 교체. field.compress === true인 필드만 대상 (옵트인).
-async function maybeCompressImage(file, field = {}) {
-  if (!isCompressibleField(field)) return file;
-  if (file.type !== "image/png" && file.type !== "image/jpeg") return file;
-  if (file.size <= COMPRESS_THRESHOLD_BYTES) return file;
-
-  let bitmap;
-  try {
-    bitmap = await createImageBitmap(file);
-  } catch {
-    return file;
-  }
-
-  try {
-    const canvas = document.createElement("canvas");
-    canvas.width = bitmap.width;
-    canvas.height = bitmap.height;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return file;
-    ctx.drawImage(bitmap, 0, 0);
-
-    const isPng = file.type === "image/png";
-    const blob = await new Promise((resolve) =>
-      canvas.toBlob(resolve, file.type, isPng ? undefined : 0.85),
-    );
-
-    if (!blob || blob.size >= file.size) return file;
-
-    alert(
-      `${formatFileSize(file.size)} → ${formatFileSize(blob.size)}로 압축됨`,
-    );
-    return new File([blob], file.name, { type: file.type });
-  } catch {
-    return file;
-  } finally {
-    bitmap.close?.();
-  }
-}
-
 // ── 멘토 성공전략 카드: photo_layout jsonb ↔ 평탄화 폼 필드 변환 + 라이브 프리뷰 ──
 
 const MENTOR_PHOTO_FORM_KEYS = [
@@ -6421,80 +6309,6 @@ function MoneySummary({ activeKey, rows }) {
       </div>
     </div>
   );
-}
-
-// Admin()이 AdminForm에 onUpload로 넘기던 함수. 컴포넌트 상태를 전혀 참조하지 않는 순수 함수라
-// PremiumBookAdmin(제네릭 개별 페이지 편집)도 그대로 재사용할 수 있도록 모듈 스코프로 뺐다.
-async function uploadImage(files, field = {}) {
-  const fileList = Array.isArray(files) ? files : [files].filter(Boolean);
-  if (fileList.length === 0) return [];
-
-  const uploaded = [];
-
-  for (const rawFile of fileList) {
-    const willCompress = isCompressibleField(field);
-
-    if (field.imageSpec) {
-      const proceed = await validateImageSpec(rawFile, field.imageSpec, {
-        skipMaxMB: willCompress,
-      });
-      if (!proceed) continue;
-    }
-
-    const file = await maybeCompressImage(rawFile, field);
-
-    if (
-      willCompress &&
-      field.imageSpec?.maxMB &&
-      !validateMaxMB(file, field.imageSpec.maxMB)
-    ) {
-      continue;
-    }
-
-    const ext = file.name.split(".").pop()?.toLowerCase() || "file";
-
-    const safeName =
-      file.name
-        .replace(/\.[^/.]+$/, "")
-        .normalize("NFKD")
-        .replace(/[^a-zA-Z0-9_-]/g, "_")
-        .replace(/_+/g, "_")
-        .replace(/^_+|_+$/g, "")
-        .slice(0, 50) || "upload";
-
-    const folder =
-      field.folder ||
-      (field.type === "file" || field.type === "multiFile"
-        ? "notice-files"
-        : "admin");
-
-    const path = `${folder}/${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}-${safeName}.${ext}`;
-
-    const { error } = await supabase.storage
-      .from(IMAGE_BUCKET)
-      .upload(path, file, {
-        cacheControl: field.cacheControl || "3600",
-        upsert: false,
-      });
-
-    if (error) {
-      reportAdminError("업로드 실패", error);
-      continue;
-    }
-
-    const { data } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path);
-
-    uploaded.push({
-      name: file.name,
-      url: data.publicUrl,
-      size: file.size,
-      type: file.type,
-    });
-  }
-
-  return uploaded;
 }
 
 export default function Admin() {
