@@ -2,7 +2,21 @@
 // 러프 구현: 카드는 aspect-[344/242.38]로 폭에 비례해 스케일된다.
 // 내부 지오메트리(세로)는 시안 원본 242.38px 기준 %로 환산했다. 폰트 크기만 rem 고정.
 // 카드가 링크가 아니므로 <article>로 감싼다(수시정시 AdmissionCaseCard와 prop 공유 0개, 재사용하지 않음).
-export default function SpecialHighschoolCaseCard({ row }) {
+type HighschoolCaseRow = {
+  year?: number | string;
+  result_label?: string;
+  student_name?: string;
+  middle_school?: string;
+  school_name?: string;
+};
+
+type SpecialHighschoolCaseCardProps = {
+  row?: HighschoolCaseRow;
+};
+
+export default function SpecialHighschoolCaseCard({
+  row,
+}: SpecialHighschoolCaseCardProps) {
   const resultLabel = row?.result_label || "합격자";
   const metaLine1 = `${row?.year ?? ""}년 고입 ${resultLabel}`;
   const metaLine2 =
