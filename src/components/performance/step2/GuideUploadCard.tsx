@@ -236,7 +236,7 @@ export default function GuideUploadCard({
             key={photo.id}
             src={photo.url}
             alt={`첨부한 안내문 사진 ${index + 1}`}
-            onRemove={locked ? undefined : () => handleRemove(photo.id)}
+            {...(locked ? {} : { onRemove: () => handleRemove(photo.id) })}
           />
         ))}
 
@@ -294,7 +294,7 @@ export default function GuideUploadCard({
           tone="muted"
           weight="medium"
           disabled={locked}
-          onClick={onSkip}
+          {...(onSkip ? { onClick: onSkip } : {})}
           className="border-performance-line text-ink-sub"
         >
           안내문 없이 시작하기

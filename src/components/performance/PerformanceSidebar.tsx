@@ -41,7 +41,7 @@ export const PERFORMANCE_STEPS = [
 // §3.3 3상태. 시안 자체는 활성 pill 유무 2상태뿐이라 완료/미도래가 구분되지 않는데,
 // §3.3이 그 한계를 3상태로 확장하는 것을 정본으로 규정했다(배지 색·라벨 굵기·pill 표).
 const STEP_STATE_STYLES: Record<
-  string,
+  "done" | "current" | "todo",
   { badge: string; label: string; pill: boolean }
 > = {
   // 완료: 배지 #d1e8ff(surface-badge) + 체크, 라벨 #525252 w500, pill 없음.
@@ -207,9 +207,9 @@ export default function PerformanceSidebar({
         </p>
         <ol className="mt-[0.5625rem] flex flex-col gap-[0.0625rem]">
           {PERFORMANCE_STEPS.map(({ step, label }, index) => {
-            const state = STEP_STATE_STYLES[stepStates?.[index]]
-              ? stepStates[index]
-              : "todo";
+            const stepState = stepStates[index];
+            const state =
+              stepState && STEP_STATE_STYLES[stepState] ? stepState : "todo";
             const style = STEP_STATE_STYLES[state];
 
             return (
