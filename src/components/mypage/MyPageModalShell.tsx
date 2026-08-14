@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useEffect, useRef } from "react";
 
 // 마이페이지 모달 공용 셸 — 스크림 + 패널 + a11y(ESC 닫기 / Tab focus trap /
@@ -11,15 +12,23 @@ import { useEffect, useRef } from "react";
 const FOCUSABLE_SELECTOR =
   'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+type MyPageModalShellProps = {
+  open: boolean;
+  onClose?: () => void;
+  labelledBy?: string;
+  className?: string;
+  children?: ReactNode;
+};
+
 export default function MyPageModalShell({
   open,
   onClose,
   labelledBy,
   className = "",
   children,
-}) {
-  const panelRef = useRef(null);
-  const triggerElRef = useRef(null);
+}: MyPageModalShellProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const triggerElRef = useRef<Element | null>(null);
 
   // 배경 스크롤 잠금 + 닫힐 때 트리거로 포커스 복귀.
   useEffect(() => {
@@ -42,7 +51,7 @@ export default function MyPageModalShell({
   useEffect(() => {
     if (!open) return undefined;
     const raf = requestAnimationFrame(() => {
-      panelRef.current?.querySelector(FOCUSABLE_SELECTOR)?.focus();
+      panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
     });
     return () => cancelAnimationFrame(raf);
   }, [open]);
@@ -51,7 +60,7 @@ export default function MyPageModalShell({
   useEffect(() => {
     if (!open) return undefined;
 
-    function handleKeyDown(event) {
+    function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
         onClose?.();
@@ -61,7 +70,9 @@ export default function MyPageModalShell({
 
       const panel = panelRef.current;
       if (!panel) return;
-      const focusables = Array.from(panel.querySelectorAll(FOCUSABLE_SELECTOR));
+      const focusables = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
+      );
       if (focusables.length === 0) return;
 
       const first = focusables[0];

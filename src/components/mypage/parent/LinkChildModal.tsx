@@ -1,3 +1,4 @@
+import type { ClipboardEvent, KeyboardEvent } from "react";
 import {
   useCallback,
   useEffect,
@@ -35,21 +36,31 @@ const LINK_ERROR_TEXT = {
 const LINK_UNKNOWN_ERROR_TEXT =
   "연결 요청에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 
-function resolveLinkError(error) {
+function resolveLinkError(error: { message?: string } | null | undefined) {
   const raw = String(error?.message || "");
   const hit = Object.keys(LINK_ERROR_TEXT).find((key) => raw.includes(key));
   return hit ? LINK_ERROR_TEXT[hit] : LINK_UNKNOWN_ERROR_TEXT;
 }
 
-export default function LinkChildModal({ open, onClose, onLinked }) {
+type LinkChildModalProps = {
+  open: boolean;
+  onClose: () => void;
+  onLinked?: () => void;
+};
+
+export default function LinkChildModal({
+  open,
+  onClose,
+  onLinked,
+}: LinkChildModalProps) {
   const titleId = useId();
-  const inputsRef = useRef([]);
+  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
   const [chars, setChars] = useState(() => Array(CODE_LENGTH).fill(""));
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   // null = 입력 단계, 문자열 = 완료 단계(요청이 전달된 학생 이름).
-  const [sentTo, setSentTo] = useState(null);
+  const [sentTo, setSentTo] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -62,7 +73,7 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
   const code = useMemo(() => chars.join(""), [chars]);
   const filled = code.length === CODE_LENGTH && chars.every(Boolean);
 
-  function writeChar(index, raw) {
+  function writeChar(index: number, raw: string) {
     const ch = String(raw || "")
       .toUpperCase()
       .slice(-1);
@@ -77,7 +88,10 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
     if (ch && index < CODE_LENGTH - 1) inputsRef.current[index + 1]?.focus();
   }
 
-  function handleKeyDown(index, event) {
+  function handleKeyDown(
+    index: number,
+    event: KeyboardEvent<HTMLInputElement>,
+  ) {
     if (event.key === "Backspace" && !chars[index] && index > 0) {
       event.preventDefault();
       inputsRef.current[index - 1]?.focus();
@@ -90,7 +104,7 @@ export default function LinkChildModal({ open, onClose, onLinked }) {
   }
 
   // 코드를 통째로 붙여넣는 경우(문자메시지에서 복사 등)를 흘리지 않는다.
-  function handlePaste(event) {
+  function handlePaste(event: ClipboardEvent<HTMLDivElement>) {
     const text = String(event.clipboardData?.getData("text") || "")
       .toUpperCase()
       .replace(/[^23456789ABCDEFGHJKMNPQRSTUVWXYZ]/g, "")

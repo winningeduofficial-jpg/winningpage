@@ -25,13 +25,29 @@ const RESPOND_ERROR_TEXT = {
 const RESPOND_UNKNOWN_ERROR_TEXT =
   "처리에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 
+type EnrollmentOrder = {
+  id: string;
+  order_name?: string;
+  amount: number;
+  approval_status?: string;
+  student_profile_id?: string;
+};
+
+type EnrollmentRequestModalProps = {
+  open: boolean;
+  order: EnrollmentOrder | null;
+  childName?: string;
+  onClose: () => void;
+  onRejected?: () => void;
+};
+
 export default function EnrollmentRequestModal({
   open,
   order,
   childName,
   onClose,
   onRejected,
-}) {
+}: EnrollmentRequestModalProps) {
   const titleId = useId();
   const navigate = useNavigate();
 

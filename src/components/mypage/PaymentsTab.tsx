@@ -35,9 +35,35 @@ const STUDENT_HEADERS = {
   status: "상태",
 };
 
+type Order = {
+  id: string;
+  order_name?: string;
+  amount: number;
+  created_at?: string;
+  paid_at?: string;
+  status?: string;
+  is_fake_entitlement?: boolean;
+};
+
+type Refund = {
+  id: string;
+  order_id?: string;
+  order_name?: string;
+  amount?: number;
+  gross_amount?: number | null;
+  status?: string;
+  approval_status?: string;
+  student_profile_id?: string;
+  created_at?: string;
+};
+
 // 학생 관점의 상태 판정. 환불이 걸린 건은 학부모와 같은 어휘를 쓴다 —
 // 환불 진행 상황은 학생도 그대로 알아야 하고, 달리 부를 이름도 없다.
-function resolveStudentStatus(order, refunds, finishedByOrder = {}) {
+function resolveStudentStatus(
+  order: Order,
+  refunds: Refund[],
+  finishedByOrder: Record<string, boolean> = {},
+) {
   if (order.status === "pending") return "student_waiting_parent";
   if (order.status === "canceled" || order.status === "failed")
     return "student_canceled";
@@ -49,17 +75,25 @@ function resolveStudentStatus(order, refunds, finishedByOrder = {}) {
   return finishedByOrder[order.id] === true ? "student_done" : "student_active";
 }
 
+type PaymentsTabProps = {
+  orders?: Order[];
+  refunds?: Refund[];
+  onRefundSubmitted?: () => void;
+};
+
 export default function PaymentsTab({
   orders = [],
   refunds = [],
   onRefundSubmitted,
-}) {
-  const [detailOrder, setDetailOrder] = useState(null);
-  const [refundOrder, setRefundOrder] = useState(null);
+}: PaymentsTabProps) {
+  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [refundOrder, setRefundOrder] = useState<Order | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [names, setNames] = useState({ student: "", parent: "" });
   // orderId → true(이용 완료). 부여 원장이 없는 주문은 키가 없다(판정 보류).
-  const [finishedByOrder, setFinishedByOrder] = useState({});
+  const [finishedByOrder, setFinishedByOrder] = useState<
+    Record<string, boolean>
+  >({});
 
   // 신청 상세 모달이 "신청자 / 결제담당"을 보여주려면 두 이름이 필요하다.
   // 본인 이름은 profiles 에서 바로 읽지만, 학부모 이름은 못 읽는다 —
@@ -126,14 +160,14 @@ export default function PaymentsTab({
         return;
       }
 
-      const usedByGrant = {};
+      const usedByGrant: Record<string, number> = {};
       for (const row of ledger.data || []) {
         usedByGrant[row.grant_id] =
           (usedByGrant[row.grant_id] || 0) + -Number(row.delta || 0);
       }
 
       const now = Date.now();
-      const byOrder = {};
+      const byOrder: Record<string, boolean> = {};
       for (const g of grants.data || []) {
         if (!g.order_id) continue;
         if (g.revoked_at) continue;
@@ -183,10 +217,14 @@ export default function PaymentsTab({
           note: o.is_fake_entitlement ? "(개발용)" : null,
           raw: o,
         }))}
-        onSelect={(row) => setDetailOrder(row.raw)}
+        onSelect={(row) => setDetailOrder(row.raw as Order)}
         renderStatus={(row) => (
           <PaymentStatusBadge
-            status={resolveStudentStatus(row.raw, refunds, finishedByOrder)}
+            status={resolveStudentStatus(
+              row.raw as Order,
+              refunds,
+              finishedByOrder,
+            )}
           />
         )}
       />

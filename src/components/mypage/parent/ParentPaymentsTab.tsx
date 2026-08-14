@@ -44,20 +44,55 @@ const TABLE_HEADERS = {
 
 const EMPTY_TEXT = "요청 사항이 없습니다.";
 
+type Order = {
+  id: string;
+  order_name?: string;
+  amount: number;
+  status?: string;
+  approval_status?: string;
+  student_profile_id?: string;
+  created_at?: string;
+  paid_at?: string;
+  method?: string;
+  vat?: number | string | null;
+  is_fake_entitlement?: boolean;
+};
+
+type Refund = {
+  id: string;
+  order_id?: string;
+  order_name?: string;
+  amount: number;
+  gross_amount?: number | null;
+  reason?: string;
+  status?: string;
+  approval_status?: string;
+  student_profile_id?: string;
+  created_at?: string;
+};
+
+type ParentPaymentsTabProps = {
+  orders?: Order[];
+  refunds?: Refund[];
+  onRefundSubmitted?: () => void;
+};
+
 export default function ParentPaymentsTab({
   orders = [],
   refunds = [],
   onRefundSubmitted,
-}) {
-  const [pendingOrders, setPendingOrders] = useState([]);
-  const [nameById, setNameById] = useState({});
+}: ParentPaymentsTabProps) {
+  const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
+  const [nameById, setNameById] = useState<Record<string, string>>({});
 
-  const [detailOrder, setDetailOrder] = useState(null);
-  const [receiptOrder, setReceiptOrder] = useState(null);
-  const [refundOrder, setRefundOrder] = useState(null);
+  const [detailOrder, setDetailOrder] = useState<Order | null>(null);
+  const [receiptOrder, setReceiptOrder] = useState<Order | null>(null);
+  const [refundOrder, setRefundOrder] = useState<Order | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
-  const [approvalRequest, setApprovalRequest] = useState(null);
-  const [enrollmentRequest, setEnrollmentRequest] = useState(null);
+  const [approvalRequest, setApprovalRequest] = useState<Refund | null>(null);
+  const [enrollmentRequest, setEnrollmentRequest] = useState<Order | null>(
+    null,
+  );
 
   // 결제 대기 주문은 상위(MyPage)가 내려주는 orders 에 없다 — 그쪽은
   // paid/waiting_deposit 만 읽는다. 이 탭에서만 필요하므로 여기서 직접 읽는다.
@@ -81,7 +116,7 @@ export default function ParentPaymentsTab({
 
     if (!pend.error) setPendingOrders(pend.data || []);
     if (!children.error && Array.isArray(children.data)) {
-      const map = {};
+      const map: Record<string, string> = {};
       for (const child of children.data)
         map[child.student_profile_id] = child.student_name;
       setNameById(map);
@@ -132,11 +167,11 @@ export default function ParentPaymentsTab({
             amountText: formatKRW(r.gross_amount || r.amount),
             raw: r,
           }))}
-          onSelect={(row) => setApprovalRequest(row.raw)}
+          onSelect={(row) => setApprovalRequest(row.raw as Refund)}
           renderStatus={(row) => (
             <button
               type="button"
-              onClick={() => setApprovalRequest(row.raw)}
+              onClick={() => setApprovalRequest(row.raw as Refund)}
               className="transition hover:brightness-95"
             >
               <PaymentStatusBadge status="refund_approval_pending" />
@@ -166,10 +201,10 @@ export default function ParentPaymentsTab({
           }))}
           // 상태 칩은 시안대로 결제 진입 링크다. 거절 경로는 시안에 없어
           // 주문번호 클릭 → 확인 모달로 열어 뒀다(EnrollmentRequestModal).
-          onSelect={(row) => setEnrollmentRequest(row.raw)}
+          onSelect={(row) => setEnrollmentRequest(row.raw as Order)}
           renderStatus={(row) => (
             <Link
-              to={`/checkout?order=${encodeURIComponent(row.raw.id)}`}
+              to={`/checkout?order=${encodeURIComponent((row.raw as Order).id)}`}
               className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg bg-[#f5ebcb] px-3 text-sm font-medium text-gold transition hover:brightness-95"
             >
               결제 진행하기
@@ -196,9 +231,11 @@ export default function ParentPaymentsTab({
             note: o.is_fake_entitlement ? "(개발용)" : null,
             raw: o,
           }))}
-          onSelect={(row) => setDetailOrder(row.raw)}
+          onSelect={(row) => setDetailOrder(row.raw as Order)}
           renderStatus={(row) => (
-            <PaymentStatusBadge status={resolveOrderStatus(row.raw, refunds)} />
+            <PaymentStatusBadge
+              status={resolveOrderStatus(row.raw as Order, refunds)}
+            />
           )}
         />
       </section>

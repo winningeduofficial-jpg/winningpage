@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import ServiceCard from "./ServiceCard";
 
@@ -34,11 +35,58 @@ const DURATION_BRACKET_RE = /^\[(.+?)\]\s*(.+)$/;
 const MONTHS_RE = /(\d+)\s*개월/;
 const COUNT_RE = /(\d+)\s*회/;
 
+type Order = {
+  id: string;
+  order_name?: string | null;
+  paid_at?: string | null;
+  status?: string | null;
+  is_fake_entitlement?: boolean;
+};
+
+type ServiceCategory = "session" | "diagnosis" | "duration";
+
+type ParsedOrder = {
+  id: string;
+  serviceName: string;
+  category: ServiceCategory;
+  months: number | null;
+  totalCount: number | null;
+  paidAt: Date | null;
+  endDate: Date | null;
+  remainingDays: number | null;
+  validityDays: number | null;
+  isOngoing: boolean;
+  progressPercent: number;
+};
+
+type ServiceCardAction = {
+  kind: "link" | "outline" | "solid";
+  label: string;
+  href: string;
+};
+
+type ServiceCardViewModel = {
+  id: string;
+  serviceName: string;
+  statusLabel: string;
+  isOngoing: boolean;
+  progressPercent: number;
+  metaLeft: string;
+  metaRight: string;
+  actions: ServiceCardAction[];
+};
+
 // 서비스명 키워드 → 소개 페이지 라우트(src/App.jsx 등록 기준).
-const SERVICE_INTRO_ROUTES = [
+const SERVICE_INTRO_ROUTES: {
+  test: (name: string) => boolean;
+  href: string;
+}[] = [
   { test: (name) => name.includes("목표관리"), href: "/services/goal" },
   { test: (name) => name.includes("콜멘토"), href: "/services/callmentor" },
-  { test: (name) => name.includes("수행평가"), href: "/services/performance" },
+  {
+    test: (name) => name.includes("수행평가"),
+    href: "/services/performance",
+  },
   {
     test: (name) => name.includes("자기평가"),
     href: "/services/self-assessment",
@@ -50,14 +98,14 @@ const SERVICE_INTRO_ROUTES = [
   },
 ];
 
-function addMonths(date, months) {
+function addMonths(date: Date, months: number) {
   const result = new Date(date.getTime());
   result.setMonth(result.getMonth() + months);
   return result;
 }
 
 // "YYYY.MM.DD" — 기간형 서비스의 이용기간 범위 표기.
-function formatDate(date) {
+function formatDate(date: Date | null) {
   if (!date) return "-";
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -66,7 +114,7 @@ function formatDate(date) {
 }
 
 // "YYYY. MM. DD" — 완료일 단독 표기(시안의 무료진단/콜멘토 완료 카드 날짜 형식).
-function formatDateSpaced(date) {
+function formatDateSpaced(date: Date | null) {
   if (!date) return "-";
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -75,7 +123,7 @@ function formatDateSpaced(date) {
 }
 
 // 'session'(콜멘토·멘토 상담) | 'diagnosis'(무료진단, 1회성 리포트) | 'duration'(그 외, 기간제).
-function classifyService(serviceName) {
+function classifyService(serviceName: string): ServiceCategory {
   if (serviceName.includes("콜멘토") || serviceName.includes("멘토"))
     return "session";
   if (serviceName.includes("진단")) return "diagnosis";
@@ -84,13 +132,13 @@ function classifyService(serviceName) {
 
 // 목표관리만 실제 앱(/app/goal) 진입이 가능하고, 나머지는 아직 개인화된 대시보드 라우트가
 // 없어 서비스 소개 페이지로 보낸다. 무료진단 "다시 검사하기"는 설문 진입 라우트로 별도 처리.
-function programLink(serviceName) {
+function programLink(serviceName: string) {
   if (serviceName.includes("목표관리")) return "/app/goal";
   const matched = SERVICE_INTRO_ROUTES.find((route) => route.test(serviceName));
   return matched ? matched.href : "/services";
 }
 
-function parseOrder(order) {
+function parseOrder(order: Order): ParsedOrder {
   const rawName = String(order?.order_name || "").trim();
   const bracketMatch = rawName.match(DURATION_BRACKET_RE);
   const durationSpec = bracketMatch ? bracketMatch[1] : "";
@@ -148,7 +196,7 @@ function parseOrder(order) {
   };
 }
 
-function toViewModel(parsed) {
+function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
   const {
     category,
     serviceName,
@@ -195,7 +243,7 @@ function toViewModel(parsed) {
 
   const href = programLink(serviceName);
 
-  let actions;
+  let actions: ServiceCardAction[];
   if (isOngoing) {
     const label = category === "session" ? "상담 기록 보기" : "프로그램 가기";
     actions = [{ kind: "link", label, href }];
@@ -251,7 +299,15 @@ function EmptyState() {
 }
 
 // 섹션 제목~카드 그리드 간격 40px, 섹션 간 간격 100px — get_design_context 실측.
-function Section({ title, count, children }) {
+function Section({
+  title,
+  count,
+  children,
+}: {
+  title: string;
+  count: number;
+  children: ReactNode;
+}) {
   return (
     <section className="flex flex-col gap-[2.5rem]">
       <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
@@ -264,7 +320,7 @@ function Section({ title, count, children }) {
   );
 }
 
-export default function MyServicesTab({ orders = [] }) {
+export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
   // 상위(MyPage)는 표시·환불 판정을 위해 waiting_deposit(가상계좌 미입금) 주문도 함께
   // 내려준다. 하지만 이용 권한은 결제 확정(paid) 시점에만 부여된다(api/confirm-payment.js
   // — 가상계좌는 계좌만 발급됐고 돈은 아직 안 들어왔으므로 권한을 주지 않는다). 여기서

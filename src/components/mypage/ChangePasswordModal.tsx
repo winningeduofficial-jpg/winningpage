@@ -27,14 +27,21 @@ const PASSWORD_HINT = "영문·숫자·특수문자 포함 6자 이상";
 const FIELD_CLASS =
   "h-[3.25rem] w-full rounded-xl border border-line px-4 text-[0.9375rem] text-ink outline-none focus:border-accent";
 
+type ChangePasswordModalProps = {
+  open: boolean;
+  email?: string;
+  onClose: () => void;
+  onChanged?: () => void;
+};
+
 export default function ChangePasswordModal({
   open,
   email,
   onClose,
   onChanged,
-}) {
+}: ChangePasswordModalProps) {
   const titleId = useId();
-  const [step, setStep] = useState("form"); // form | confirm | done
+  const [step, setStep] = useState<"form" | "confirm" | "done">("form");
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [saving, setSaving] = useState(false);

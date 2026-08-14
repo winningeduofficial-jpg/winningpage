@@ -37,14 +37,23 @@ const RESEND_COOLDOWN_SECONDS = 60;
 const FIELD_CLASS =
   "h-[3.25rem] w-full rounded-xl border border-line px-4 text-[0.9375rem] text-ink outline-none focus:border-accent";
 
+type ChangePhoneModalProps = {
+  open: boolean;
+  currentPhone?: string;
+  onClose: () => void;
+  onChanged?: (phone: string) => void;
+};
+
 export default function ChangePhoneModal({
   open,
   currentPhone,
   onClose,
   onChanged,
-}) {
+}: ChangePhoneModalProps) {
   const titleId = useId();
-  const [step, setStep] = useState("form"); // form | verify | confirm | done
+  const [step, setStep] = useState<"form" | "verify" | "confirm" | "done">(
+    "form",
+  );
   const [nextPhone, setNextPhone] = useState("");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");

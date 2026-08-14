@@ -29,15 +29,25 @@ import MyPageModalShell from "./MyPageModalShell";
 const FIELD_CLASS =
   "h-[3.25rem] w-full rounded-xl border border-line px-4 text-[0.9375rem] text-ink outline-none focus:border-accent";
 
+type ChangeEmailModalProps = {
+  open: boolean;
+  currentEmail?: string;
+  profileId?: string;
+  onClose: () => void;
+  onChanged?: (email: string) => void;
+};
+
 export default function ChangeEmailModal({
   open,
   currentEmail,
   profileId,
   onClose,
   onChanged,
-}) {
+}: ChangeEmailModalProps) {
   const titleId = useId();
-  const [step, setStep] = useState("form"); // form | verify | confirm | done
+  const [step, setStep] = useState<"form" | "verify" | "confirm" | "done">(
+    "form",
+  );
   const [nextEmail, setNextEmail] = useState("");
   const [code, setCode] = useState("");
   // 현재 비밀번호 — Secure email change 를 끈 대가를 메운다(아래 주석).

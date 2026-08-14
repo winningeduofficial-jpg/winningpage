@@ -42,14 +42,44 @@ function cleanText(value) {
   return String(value || "").trim();
 }
 
-function formatLinkDate(iso) {
+function formatLinkDate(iso: string | null | undefined) {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
 }
 
-export default function ProfileTab({ user, profile, memberType }) {
+type ProfileUser = {
+  id: string;
+  email?: string;
+};
+
+type Profile = {
+  id?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  school_type?: string;
+  school_name?: string;
+};
+
+type ParentLink = {
+  id: string;
+  status: string;
+  date?: string | null;
+};
+
+type ProfileTabProps = {
+  user: ProfileUser | null;
+  profile: Profile | null;
+  memberType?: string;
+};
+
+export default function ProfileTab({
+  user,
+  profile,
+  memberType,
+}: ProfileTabProps) {
   // 학부모 변형(Figma 3379:12569 외) — 이름/휴대폰/이메일/비밀번호/이용안내만 있고
   // 학교·학년, 학부모 연결, 내 연결코드가 없다. 그 셋은 전부 학생 계정의 개념이다
   // (학부모에겐 연결할 "학부모"도, 발급받을 연결코드도 없다 — 코드는 학생이 발급하고
@@ -89,7 +119,9 @@ export default function ProfileTab({ user, profile, memberType }) {
   const [savingSchool, setSavingSchool] = useState(false);
 
   // 학부모 연동 상태 — undefined 로딩중, null 연결 없음, {id,status,date} 연결/요청 있음.
-  const [parentLink, setParentLink] = useState(undefined);
+  const [parentLink, setParentLink] = useState<ParentLink | null | undefined>(
+    undefined,
+  );
   const [revoking, setRevoking] = useState(false);
 
   // 내 연결코드.
@@ -190,12 +222,15 @@ export default function ProfileTab({ user, profile, memberType }) {
     };
   }, [profileId, isParent]);
 
-  function updateForm(key, value) {
+  function updateForm(key: keyof typeof form, value: string) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   // 공용 저장 헬퍼 — src/pages/MyPage.jsx handleSubmit의 upsert 흐름을 재사용한다.
-  async function persistProfile(fields, { syncAuthName = false } = {}) {
+  async function persistProfile(
+    fields: Record<string, unknown>,
+    { syncAuthName = false }: { syncAuthName?: boolean } = {},
+  ) {
     const payload = {
       id: profileId,
       updated_at: new Date().toISOString(),
@@ -262,7 +297,7 @@ export default function ProfileTab({ user, profile, memberType }) {
 
   // 수신 동의 토글 — profiles.marketing_agreed/ads_agreed는 이미 존재하는 컬럼이라
   // (sql/00_base_schema.sql) 스키마 변경 없이 바로 저장한다. 낙관적 업데이트 후 실패 시 롤백.
-  async function persistToggle(key, value) {
+  async function persistToggle(key: keyof typeof toggles, value: boolean) {
     setToggles((prev) => ({ ...prev, [key]: value }));
     const ok = await persistProfile({ [key]: value });
     if (!ok) setToggles((prev) => ({ ...prev, [key]: !value }));

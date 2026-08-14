@@ -1,24 +1,22 @@
 import { useEffect, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
-import GrowthReportBody from "../../components/goal/report/GrowthReportBody";
+import { Link, useParams } from "react-router-dom";
 import { supabase } from "../../lib/supabase";
 
 // 학부모 뷰어 셸 — 자녀의 성장 리포트를 학부모가 열람한다.
 // 진입: 마이페이지 > 자녀 등록 및 수정 > 자녀 카드.
 //
-// ── 본문을 공유하는 방식 ──────────────────────────────────────────────
-// GrowthReportBody 는 애초에 이 용도를 전제로 셸과 분리돼 있다(그 파일 주석:
-// "학부모 뷰 셸이 동일한 period/onPeriodChange 만 넘기면 그대로 재사용 가능하도록
-// 이 파일 안에 if (isParent) 류의 뷰어 분기를 절대 두지 않는다"). 그 계약을
-// 지켜 이 셸은 헤더와 가드만 담당하고 본문에는 아무것도 주입하지 않는다.
-//
-// ⚠ 지금 본문은 실데이터가 아니다. GrowthReportBody 는 goalReportMock 을 직접
-// import 하며 DB 를 전혀 읽지 않는다 — 자녀 것이든 본인 것이든 같은 샘플이 뜬다.
-// 그래서 화면 상단에 샘플 표시를 띄운다(아래 SAMPLE_NOTICE). 실데이터가 붙으면
-// 조회 축이 auth.uid() 기준이 될 텐데 학부모는 자녀 goal 데이터를 RLS 로 못
-// 읽으므로, 그때 fn_child_growth_report(p_student_id, p_period) 같은 SECURITY
-// DEFINER RPC 가 필요하다(내부에서 fn_is_linked_pair 로 권한 확인 — sql/68).
-// 이 셸은 그 자리를 미리 만들어 둔 것이다.
+// ── 본문을 공유하는 방식(현재 보류) ──────────────────────────────────
+// 원래 이 셸은 GrowthReportBody 에 period/onPeriodChange 만 넘겨 학생 뷰와 동일한
+// 본문을 그대로 재사용할 계획이었다(그 파일 주석: "학부모 뷰 셸이 동일한
+// period/onPeriodChange 만 넘기면 그대로 재사용 가능"). 그런데 다른 배치
+// (goal-app-api, mock 제거/실배선)가 GrowthReportBody 를 "report 를 필수 prop 으로
+// 받는" 순수 프레젠테이션 컴포넌트로 이미 바꿔놨다 — 더 이상 mock 을 스스로 들고
+// 있지 않는다. 자녀 리포트를 실제로 조회하려면 학부모는 자녀 goal 데이터를 RLS 로
+// 못 읽으므로 fn_child_growth_report(p_student_id, p_period) 같은 SECURITY DEFINER
+// RPC 가 새로 필요하다(내부에서 fn_is_linked_pair 로 권한 확인 — sql/68). 그 RPC와
+// 실배선은 이 파일의 범위(TS 타입 전환)를 넘는 별도 작업이라 지어내지 않는다 —
+// 대신 아래에서 "준비 중" 안내만 보여주고, RPC가 생기면 여기서 report 를 조회해
+// GrowthReportBody 를 다시 렌더하면 된다.
 //
 // ── 권한 판정 ─────────────────────────────────────────────────────────
 // fn_parent_children(sql/73)이 곧 인가다 — 그 함수는 auth.uid() 가 parent_id 인
@@ -27,17 +25,23 @@ import { supabase } from "../../lib/supabase";
 // 위해서다(자녀 목록과 열람 권한이 갈라지면 목록에 보이는데 못 여는 상태가 난다).
 // 이 판정은 UI 게이트이며, 실데이터가 붙는 시점의 진짜 방어선은 위 RPC 쪽이다.
 
-const VALID_PERIODS = ["weekly", "monthly"];
-
 // ⚠ 신규 카피 — 승인 필요.
-const SAMPLE_NOTICE =
-  "지금 보이는 수치는 화면 구성을 확인하기 위한 샘플입니다. 실제 학습 데이터 연동 후 자녀의 기록으로 바뀝니다.";
+const PREPARING_NOTICE =
+  "자녀의 성장 리포트를 준비 중이에요. 실제 학습 데이터 연동 후 확인할 수 있어요.";
+
+type ParentChildRow = {
+  student_profile_id: string;
+  student_name: string;
+  link_status: string;
+};
 
 export default function ChildReport() {
   const { studentId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [child, setChild] = useState(undefined); // undefined 로딩 / null 권한없음
+  // undefined 로딩 / null 권한없음
+  const [child, setChild] = useState<ParentChildRow | null | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     let alive = true;
@@ -64,17 +68,6 @@ export default function ChildReport() {
       alive = false;
     };
   }, [studentId]);
-
-  const periodParam = searchParams.get("period");
-  const period = VALID_PERIODS.includes(periodParam) ? periodParam : "weekly";
-
-  function handlePeriodChange(nextPeriod) {
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      params.set("period", nextPeriod);
-      return params;
-    });
-  }
 
   if (child === undefined) {
     return (
@@ -117,12 +110,9 @@ export default function ChildReport() {
         </h1>
 
         <p className="mt-4 break-keep rounded-xl bg-[#FFF7E0] px-4 py-3 text-[0.8125rem] leading-relaxed text-[#8A6D1F]">
-          {SAMPLE_NOTICE}
+          {PREPARING_NOTICE}
         </p>
       </div>
-
-      {/* 본문은 학생 뷰와 100% 동일한 공유 컴포넌트다 — 여기에 뷰어 분기를 넣지 말 것. */}
-      <GrowthReportBody period={period} onPeriodChange={handlePeriodChange} />
     </main>
   );
 }

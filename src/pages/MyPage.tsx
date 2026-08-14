@@ -13,20 +13,65 @@ import {
 } from "../lib/entitlement";
 import { supabase } from "../lib/supabase";
 
-function cleanText(value) {
+type SessionUser = {
+  id: string;
+  email?: string;
+};
+
+type Profile = {
+  id?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  region?: string;
+  school_type?: string;
+  school_name?: string;
+  member_type?: string;
+  role?: string;
+};
+
+type Order = {
+  id: string;
+  order_name?: string;
+  amount: number;
+  paid_at?: string;
+  status?: string;
+  method?: string;
+  vat?: number | string | null;
+  is_fake_entitlement?: boolean;
+};
+
+type Refund = {
+  id: string;
+  order_id?: string;
+  order_name?: string;
+  amount: number;
+  gross_amount?: number | null;
+  reason?: string;
+  status?: string;
+  approval_status?: string;
+  student_profile_id?: string;
+  created_at?: string;
+};
+
+function cleanText(value: unknown) {
   return String(value || "").trim();
 }
 
-function withTimeout(promise, ms, fallbackValue = null) {
+function withTimeout<T, F = null>(
+  promise: PromiseLike<T>,
+  ms: number,
+  fallbackValue: F = null as F,
+): Promise<T | F> {
   return Promise.race([
     promise,
-    new Promise((resolve) => {
+    new Promise<F>((resolve) => {
       window.setTimeout(() => resolve(fallbackValue), ms);
     }),
   ]);
 }
 
-async function queryProfile(user) {
+async function queryProfile(user: SessionUser): Promise<Partial<Profile>> {
   const byId = await withTimeout(
     supabase
       .from("profiles")
@@ -88,11 +133,11 @@ export default function MyPage() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState([]);
-  const [refunds, setRefunds] = useState([]);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [refunds, setRefunds] = useState<Refund[]>([]);
   // 학부모 탭 배지용 대기 건수(확정 디자인 3967:3944 "결제 요청 1"·"환불 요청 1").
   const [pendingOrderCount, setPendingOrderCount] = useState(0);
 

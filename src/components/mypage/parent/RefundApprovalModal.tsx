@@ -27,13 +27,30 @@ const RESPOND_ERROR_TEXT = {
 const RESPOND_UNKNOWN_ERROR_TEXT =
   "처리에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 
+type RefundRequestRow = {
+  id: string;
+  order_name?: string;
+  amount: number;
+  gross_amount?: number | null;
+  reason?: string;
+  student_profile_id?: string;
+};
+
+type RefundApprovalModalProps = {
+  open: boolean;
+  request: RefundRequestRow | null;
+  childName?: string;
+  onClose: () => void;
+  onResponded?: () => void;
+};
+
 export default function RefundApprovalModal({
   open,
   request,
   childName,
   onClose,
   onResponded,
-}) {
+}: RefundApprovalModalProps) {
   const titleId = useId();
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -41,7 +58,7 @@ export default function RefundApprovalModal({
   const [errorMsg, setErrorMsg] = useState("");
 
   const respond = useCallback(
-    async (approve) => {
+    async (approve: boolean) => {
       if (!request?.id || saving) return;
       const reason = approve ? null : rejectReason.trim();
       if (!approve && !reason) {

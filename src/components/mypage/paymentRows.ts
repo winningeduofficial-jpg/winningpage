@@ -2,8 +2,21 @@
 // 학부모 결제 내역(parent/ParentPaymentsTab)이 같은 규칙을 써야 한다.
 // 두 화면이 각자 구현하면 같은 주문이 서로 다른 배지·다른 주문번호로 보인다.
 
+type OrderStatusInput = {
+  id?: string;
+  status?: string | null;
+};
+
+type RefundStatusInput = {
+  order_id?: string;
+  status?: string | null;
+  approval_status?: string | null;
+};
+
 // 승인/신청 일시 YYYY/MM/DD.
-export function formatApprovedAt(value) {
+export function formatApprovedAt(
+  value: string | number | Date | null | undefined,
+) {
   if (!value) return "-";
   const raw = String(value).slice(0, 10);
   const [y, m, d] = raw.split("-");
@@ -15,7 +28,7 @@ export function formatApprovedAt(value) {
 // 토스 orderId(order_1785898468780_adf9e6aa, sql/10_pricing_orders.sql)처럼 긴 값만
 // order_ 접두어를 떼고 뒤쪽 10자만 남겨 220px 컬럼을 넘지 않게 한다. 원본은 표의
 // title 속성에 남아 hover 로 확인할 수 있다.
-export function formatOrderId(id) {
+export function formatOrderId(id: string | number | null | undefined) {
   const raw = String(id || "");
   const stripped = raw.startsWith("order_") ? raw.slice("order_".length) : raw;
   if (stripped.length <= 12) return stripped;
@@ -28,7 +41,10 @@ export function formatOrderId(id) {
 // refund_requests 는 축이 둘이다(sql/68) — status(어드민 처리축)와
 // approval_status(학부모 승인축). 둘을 함께 보지 않으면 "학부모 확인 대기"와
 // "어드민 처리 중"이 같은 배지로 뭉개진다.
-export function resolveOrderStatus(order, refunds) {
+export function resolveOrderStatus(
+  order: OrderStatusInput,
+  refunds: RefundStatusInput[],
+) {
   // 가상계좌 미입금(waiting_deposit)은 환불 대상이 아니므로 refunds 매칭보다 먼저
   // 본다 — 돈이 안 들어온 주문이라 refund_requests 행이 있을 수 없다.
   if (order.status === "waiting_deposit") return "pending";

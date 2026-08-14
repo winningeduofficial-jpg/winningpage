@@ -64,6 +64,29 @@ const REFUND_UNKNOWN_ERROR_TEXT =
 const QUOTE_LOAD_ERROR_TEXT =
   "환불 금액을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.";
 
+type RefundOrder = {
+  id: string;
+  order_name?: string;
+  amount: number;
+};
+
+type RefundQuote = {
+  refund_amount: number;
+  fee_amount: number;
+  gross_amount?: number;
+  policy_code?: string;
+};
+
+type RefundRequestModalProps = {
+  open: boolean;
+  order: RefundOrder | null;
+  asStudent?: boolean;
+  parentName?: string;
+  onClose: () => void;
+  onSubmitted?: () => void;
+  onStaleData?: () => void;
+};
+
 export default function RefundRequestModal({
   open,
   order,
@@ -72,10 +95,10 @@ export default function RefundRequestModal({
   onClose,
   onSubmitted,
   onStaleData,
-}) {
+}: RefundRequestModalProps) {
   const titleId = useId();
 
-  const [quote, setQuote] = useState(null);
+  const [quote, setQuote] = useState<RefundQuote | null>(null);
   const [quoteError, setQuoteError] = useState("");
   const [loading, setLoading] = useState(false);
 
