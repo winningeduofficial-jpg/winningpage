@@ -384,19 +384,23 @@ export function parseHtmlTableRows(html) {
   const rowMatches: string[] = source.match(/<tr[\s\S]*?<\/tr>/gi) || [];
 
   const rowSpanCarry: { value: string; remaining: number }[] = [];
-  const grid = [];
+  const grid: string[][] = [];
 
   rowMatches.forEach((rowHtml) => {
     const cellMatches: string[] =
       rowHtml.match(/<t[hd][\s\S]*?<\/t[hd]>/gi) || [];
-    const row = [];
+    const row: string[] = [];
     let col = 0;
 
     const placeCarried = () => {
-      while (rowSpanCarry[col] && rowSpanCarry[col].remaining > 0) {
-        row[col] = rowSpanCarry[col].value;
-        rowSpanCarry[col].remaining -= 1;
+      // rowSpanCarry[col] 재인덱싱마다 값이 바뀌지 않으므로 로컬 변수로
+      // 한 번만 읽어 narrowing을 유지한다(noUncheckedIndexedAccess).
+      let carry = rowSpanCarry[col];
+      while (carry && carry.remaining > 0) {
+        row[col] = carry.value;
+        carry.remaining -= 1;
         col += 1;
+        carry = rowSpanCarry[col];
       }
     };
 
@@ -540,7 +544,8 @@ export function findDescriptorColumns(headerRows) {
     });
   }
 
-  const result = [];
+  const result: { key: string; label: string; col: number; carry: boolean }[] =
+    [];
   if (found.series !== undefined)
     result.push({
       key: "series",
@@ -606,7 +611,7 @@ export function inferMetricFromHeaders(
 }
 
 export function buildGroupNameForColumn(headerRows, yearRowIdx, colIdx) {
-  const parts = [];
+  const parts: string[] = [];
   for (let r = 0; r < yearRowIdx; r += 1) {
     const value = getColumnFilledValue(
       headerRows,
@@ -674,8 +679,8 @@ export function normalizeRecruitmentExactHtml(html, _fallbackText) {
   const fixedSet = new Set(fixedCols.map((item) => item.col));
   const yearRow = headerRows[yearRowIdx] || [];
 
-  const leadingOrphanCols = [];
-  const mainDataCols = [];
+  const leadingOrphanCols: number[] = [];
+  const mainDataCols: number[] = [];
   yearRow.forEach((value, colIdx) => {
     if (!isYearHeaderToken(value) || fixedSet.has(colIdx)) return;
     if (colIdx < firstFixedCol) leadingOrphanCols.push(colIdx);
@@ -734,7 +739,7 @@ export function normalizeRecruitmentExactHtml(html, _fallbackText) {
   }));
 
   const metas = [...baseMetas, ...orphanMetas];
-  const orderedGroups = [];
+  const orderedGroups: { name: string; count: number }[] = [];
   metas.forEach((meta) => {
     const last = orderedGroups[orderedGroups.length - 1];
     if (!last || last.name !== meta.group)
@@ -742,8 +747,8 @@ export function normalizeRecruitmentExactHtml(html, _fallbackText) {
     else last.count += 1;
   });
 
-  const carryValues = {};
-  const renderedRows = [];
+  const carryValues: Record<string, string> = {};
+  const renderedRows: { fixedValues: string[]; dataValues: string[] }[] = [];
 
   bodyRows.forEach((rawRow) => {
     const row = rawRow || [];
@@ -754,7 +759,8 @@ export function normalizeRecruitmentExactHtml(html, _fallbackText) {
       // 계열/대학/모집단위 칸에는 숫자만 있는 값을 절대 노출하지 않고, 계열/대학은 직전 유효값을 이어받는다.
       if (!isValidDescriptorCell(item.key, value)) value = "";
       if (!value && item.carry && carryValues[item.key])
-        value = carryValues[item.key];
+        // 바로 위 조건에서 truthy를 확인했다(재인덱싱은 값이 바뀌지 않는다).
+        value = carryValues[item.key]!;
       if (value && item.carry) carryValues[item.key] = value;
       return value;
     });
@@ -827,14 +833,16 @@ export function splitSubnumberedChangeItem(text) {
   const markers = [...raw.matchAll(/(?:^|\s)(\d+)\)\s*/g)];
   if (markers.length < 2) return [raw];
 
-  const firstIndex = markers[0].index ?? 0;
+  // markers.length >= 2가 위에서 이미 확인됐으므로 markers[0]은 항상 존재한다.
+  const firstIndex = markers[0]!.index ?? 0;
   const prefix = clean(raw.slice(0, firstIndex));
   return markers
     .map((marker, idx) => {
       const start = (marker.index ?? 0) + marker[0].length;
       const end =
         idx + 1 < markers.length
-          ? (markers[idx + 1].index ?? raw.length)
+          ? // idx + 1 < markers.length로 이미 범위를 확인했다.
+            (markers[idx + 1]!.index ?? raw.length)
           : raw.length;
       const part = clean(raw.slice(start, end));
       return clean(prefix && prefix.length <= 28 ? `${prefix} ${part}` : part);
@@ -959,8 +967,8 @@ export function parseChangeItems(lines) {
     return [{ no: "1", title: "변경 사항", content: "전년도와 동일" }];
   }
 
-  const items = [];
-  let current = null;
+  const items: { no: string; text: string }[] = [];
+  let current: { no: string; parts: string[] } | null = null;
 
   const pushCurrent = () => {
     if (!current) return;
@@ -973,7 +981,8 @@ export function parseChangeItems(lines) {
     const numbered = line.match(/^(\d+)\.\s*(.+)$/);
     if (numbered) {
       pushCurrent();
-      current = { no: numbered[1], parts: [numbered[2]] };
+      // 정규식이 두 캡처 그룹을 필수로 요구하므로 매치 시 항상 존재한다.
+      current = { no: numbered[1]!, parts: [numbered[2]!] };
       return;
     }
     if (!current) current = { no: `${items.length + 1}`, parts: [line] };
@@ -981,10 +990,10 @@ export function parseChangeItems(lines) {
   });
   pushCurrent();
 
-  const baseItems = items.length
+  const baseItems: { no: string; text: string }[] = items.length
     ? items
     : cleaned.map((text, idx) => ({ no: `${idx + 1}`, text }));
-  const expandedItems = [];
+  const expandedItems: { no: string; text: string }[] = [];
 
   baseItems.forEach((item) => {
     const parts = splitSubnumberedChangeItem(item.text);
@@ -1019,8 +1028,8 @@ export function buildPreviousYearChangesHtml(lines, _sectionKey) {
 }
 
 export function buildPlainListHtml(lines, sectionKey) {
-  const body = [];
-  let bullets = [];
+  const body: string[] = [];
+  let bullets: string[] = [];
 
   const flushBullets = () => {
     if (!bullets.length) return;
@@ -1251,7 +1260,13 @@ export function parseSelectionMethodRows(lines) {
     .filter(Boolean)
     .filter((line) => !ignored.has(clean(line)));
 
-  const rows = [];
+  const rows: {
+    type: string;
+    name: string;
+    seats: string;
+    method: string;
+    minimum: string;
+  }[] = [];
   let i = 0;
   let currentType = "";
 
@@ -1273,7 +1288,7 @@ export function parseSelectionMethodRows(lines) {
         const seats = normalizeSelectionSeat(data[i + 1]);
         i += 2;
         let minimum = "-";
-        const methodParts = [];
+        const methodParts: string[] = [];
 
         while (i < data.length) {
           const next = clean(data[i]);
@@ -1332,7 +1347,7 @@ export function parseSelectionMethodRows(lines) {
     }
 
     let minimum = "-";
-    const methodParts = [];
+    const methodParts: string[] = [];
 
     while (i < data.length) {
       const next = clean(data[i]);
@@ -1406,8 +1421,8 @@ export function parseExamScheduleRows(lines) {
           clean(line),
         ),
     );
-  const rows = [];
-  let pending = [];
+  const rows: string[][] = [];
+  let pending: string[] = [];
   let lastType = "";
 
   data.forEach((line) => {
@@ -1421,7 +1436,8 @@ export function parseExamScheduleRows(lines) {
         let target = pending.slice(1).join(" / ");
         if (pending.length === 1 && lastType) {
           type = lastType;
-          target = pending[0];
+          // pending.length === 1로 이미 확인했다.
+          target = pending[0]!;
         }
         rows.push([
           sanitizeAdmissionDisplayText(type || "-"),
@@ -1546,7 +1562,9 @@ export function subjectLabelForMark(mark, idx, marks, subjectHeaders = []) {
     label = compactLabels[idx] || `영역 ${idx + 1}`;
   } else {
     label =
-      fullMap[subjectHeaders[idx]] || subjectHeaders[idx] || `영역 ${idx + 1}`;
+      fullMap[subjectHeaders[idx] ?? ""] ||
+      subjectHeaders[idx] ||
+      `영역 ${idx + 1}`;
   }
 
   const v = clean(mark);
@@ -1627,11 +1645,11 @@ export function parseMinimumRequirementRows(lines) {
         ].includes(clean(line)),
     );
 
-  const rows = [];
-  let label = [];
-  let marks = [];
+  const rows: string[][] = [];
+  let label: string[] = [];
+  let marks: string[] = [];
   let minimum = "";
-  let notes = [];
+  let notes: string[] = [];
   let state = "label";
   let lastType = "";
 
@@ -1780,7 +1798,7 @@ export function studentRecordDisplayLabel(content) {
 }
 
 export function sanitizeStudentRecordRows(rows) {
-  const out = [];
+  const out: string[][] = [];
   const seen = new Set();
 
   rows.forEach(([rawLabel, rawContent]) => {
@@ -1802,8 +1820,8 @@ export function sanitizeStudentRecordRows(rows) {
 }
 
 export function normalizeStudentRecordInfoRows(rows) {
-  const normalized = [];
-  const applyValues = [];
+  const normalized: string[][] = [];
+  const applyValues: string[] = [];
 
   const flushApplyValues = () => {
     if (!applyValues.length) return;
@@ -1856,7 +1874,7 @@ export function normalizeStudentRecordInfoRows(rows) {
 }
 
 export function buildRecordInfoRows(lines) {
-  const rows = [];
+  const rows: string[][] = [];
   let i = 0;
   while (i < lines.length) {
     const line = clean(lines[i]);
@@ -1866,7 +1884,7 @@ export function buildRecordInfoRows(lines) {
     }
 
     if (isRecordInfoLabel(line)) {
-      const values = [];
+      const values: string[] = [];
       i += 1;
       while (
         i < lines.length &&
@@ -1896,7 +1914,7 @@ export function buildRecordInfoRows(lines) {
 // 래퍼로 남는다. 템플릿 리터럴의 공백·개행은 골든 바이트 비교 대상이라
 // 원본 그대로 유지한다.
 export function buildGradeScoreBlocks(lines) {
-  const blocks = [];
+  const blocks: { metric: string; headers: string[]; rows: string[][] }[] = [];
   let i = 0;
 
   while (i < lines.length) {
@@ -1910,18 +1928,18 @@ export function buildGradeScoreBlocks(lines) {
       continue;
     }
 
-    const headers = [];
+    const headers: string[] = [];
     i += 1;
     while (i < lines.length && isGradeHeaderToken(lines[i])) {
       headers.push(clean(lines[i]));
       i += 1;
     }
 
-    const rows = [];
+    const rows: string[][] = [];
     let guard = 0;
     while (i < lines.length && guard < 80) {
       guard += 1;
-      const labelParts = [];
+      const labelParts: string[] = [];
       while (
         i < lines.length &&
         !isGradeHeaderToken(lines[i]) &&
@@ -1944,7 +1962,7 @@ export function buildGradeScoreBlocks(lines) {
       )
         break;
 
-      const values = [];
+      const values: string[] = [];
       while (
         i < lines.length &&
         (isGradeHeaderToken(lines[i]) ||
@@ -1959,7 +1977,7 @@ export function buildGradeScoreBlocks(lines) {
 
       if (labelParts.length || values.length) {
         const label = labelParts.join(" / ") || "환산값";
-        const row = [label];
+        const row: string[] = [label];
         for (let h = 0; h < headers.length; h += 1) row.push(values[h] || "");
         if (!headers.length) row.push(values.join(" / "));
         rows.push(row);
@@ -2088,7 +2106,7 @@ export function deriveRecruitGroupLabels(headerLines, groupCount) {
       (_, idx) => categories[idx] || `전형 ${idx + 1}`,
     );
 
-  const result = [];
+  const result: string[] = [];
   let currentCatIdx = 0;
   for (let i = 0; i < groupCount; i += 1) {
     const label = labels[i] || `전형 ${i + 1}`;
@@ -2134,7 +2152,7 @@ export function isIntegerLike(value) {
 export function splitRecruitValues(values, groupCount) {
   if (!groupCount) return [values];
   const n = values.length;
-  const memo = new Map();
+  const memo = new Map<string, { score: number; chunks: string[][] }>();
 
   const scoreChunk = (chunk, groupIdx) => {
     if (!chunk.length) return -100;
@@ -2150,16 +2168,19 @@ export function splitRecruitValues(values, groupCount) {
     return score;
   };
 
-  const solve = (idx, g) => {
+  const solve = (idx, g): { score: number; chunks: string[][] } => {
     const key = `${idx}:${g}`;
-    if (memo.has(key)) return memo.get(key);
+    if (memo.has(key)) return memo.get(key)!;
     if (g === groupCount) {
       return idx === n
         ? { score: 0, chunks: [] }
         : { score: -9999, chunks: [] };
     }
     const groupsLeft = groupCount - g;
-    let best = { score: -9999, chunks: [] };
+    let best: { score: number; chunks: string[][] } = {
+      score: -9999,
+      chunks: [],
+    };
     for (let len = 5; len >= 1; len -= 1) {
       if (idx + len > n) continue;
       const remaining = n - (idx + len);
@@ -2176,7 +2197,7 @@ export function splitRecruitValues(values, groupCount) {
 
   const result = solve(0, 0);
   if (result.score <= -999) {
-    const fallback = [];
+    const fallback: string[][] = [];
     for (let i = 0; i < n; i += 5) fallback.push(values.slice(i, i + 5));
     while (fallback.length < groupCount) fallback.push([]);
     return fallback.slice(0, groupCount);
@@ -2256,8 +2277,13 @@ export function parseRecruitmentRows(lines) {
     (label) => sanitizeAdmissionDisplayText(label) || "전형",
   );
   const data = dataStart >= 0 ? lines.slice(dataStart) : lines;
-  const rows = [];
-  const footnotes = [];
+  const rows: {
+    group: string;
+    unit: string;
+    rawValues: string[];
+    chunks: string[][];
+  }[] = [];
+  const footnotes: string[] = [];
   let lastGroup = "";
   let i = 0;
 
@@ -2269,12 +2295,13 @@ export function parseRecruitmentRows(lines) {
     }
 
     if (isNumericTableValue(line)) {
-      if (rows.length) rows[rows.length - 1].rawValues.push(line);
+      // rows.length로 이미 확인했다.
+      if (rows.length) rows[rows.length - 1]!.rawValues.push(line);
       i += 1;
       continue;
     }
 
-    const nameParts = [];
+    const nameParts: string[] = [];
     let j = i;
     while (
       j < data.length &&
@@ -2285,7 +2312,7 @@ export function parseRecruitmentRows(lines) {
       j += 1;
     }
 
-    const values = [];
+    const values: string[] = [];
     while (j < data.length && isNumericTableValue(data[j])) {
       values.push(sanitizeAdmissionDisplayText(data[j]));
       j += 1;
@@ -2309,7 +2336,8 @@ export function parseRecruitmentRows(lines) {
         chunks: splitRecruitValues(cleanedValues, groupCount),
       });
     } else if (nameParts.length && rows.length) {
-      rows[rows.length - 1].unit += ` / ${nameParts.join(" / ")}`;
+      // rows.length로 이미 확인했다.
+      rows[rows.length - 1]!.unit += ` / ${nameParts.join(" / ")}`;
     } else if (nameParts.length) {
       lastGroup = nameParts.join(" ");
     }
@@ -2420,7 +2448,7 @@ export function buildSpecialCategoryHtml(rawValue, row, universityName) {
 export function buildSmartRawHtml(
   value,
   sectionKey,
-  row = null,
+  row: any = null,
   universityName = "",
 ) {
   if (row?.detail_status === "category" && sectionKey === "selection_method") {
@@ -3094,7 +3122,7 @@ export function buildSpecialCategoryDoc(rawValue, row, universityName) {
 export function buildSmartRawDoc(
   value,
   sectionKey,
-  row = null,
+  row: any = null,
   universityName = "",
 ) {
   if (row?.detail_status === "category" && sectionKey === "selection_method") {
@@ -3189,8 +3217,8 @@ export function buildHwpCategoryDoc(
 // =====================================================================
 
 function renderPlainListBlockHtml(block) {
-  const body = [];
-  let bulletGroup = [];
+  const body: string[] = [];
+  let bulletGroup: string[] = [];
   // `ordered` 확장(§8.5, 수행평가 설계 리포트의 `분석 포인트`)을 **React 렌더러와 같은 태그·
   // 같은 클래스 순서로** 낸다. 이 미러는 Gate B(React 출력 ↔ renderDocToHtml 출력 바이트 대조)
   // 의 한쪽 입력이라 두 렌더러가 같은 DOM을 내야 한다 — PlainListView.jsx의 `listClassName`과
@@ -3350,7 +3378,7 @@ function renderRecordBlocksHtml(blocks) {
       )
     : "";
 
-  const scoreTables = [];
+  const scoreTables: string[] = [];
   blocks.forEach((block, idx) => {
     if (block.kind !== "heading") return;
     const tableBlock = blocks[idx + 1];
@@ -3591,8 +3619,8 @@ function renderFallbackBlockBodyHtml(block) {
         ? `<pre class="admission-raw-pre admission-safe-text-block">${escapeHtml(block.text)}</pre>`
         : "";
     case "plainList": {
-      const body = [];
-      let bulletGroup = [];
+      const body: string[] = [];
+      let bulletGroup: string[] = [];
       const flush = () => {
         if (!bulletGroup.length) return;
         body.push(
@@ -3832,7 +3860,7 @@ function deriveHeaderGroups(headerRows) {
   if (headerRows.length !== 2)
     return { groups: undefined, fixedColumnCount: undefined };
   const firstRow = headerRows[0];
-  const groups = [];
+  const groups: { name: string; count: number }[] = [];
   let fixedColumnCount = 0;
   firstRow.forEach((cell) => {
     if (cell.rowSpan >= 2) {
@@ -3897,7 +3925,7 @@ export function importChangeDocFromHtml(html) {
   const grid = parseHtmlTableGrid(html);
   if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
 
-  const rows = [];
+  const rows: string[][] = [];
   for (const row of grid.bodyRows) {
     if (row.length !== 3) return null;
     const [noCell, titleCell, contentCell] = row;
@@ -3934,7 +3962,7 @@ export function importSelectionDocFromHtml(html) {
   const grid = parseHtmlTableGrid(html);
   if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
 
-  const rows = [];
+  const rows: (string | { text: string; badge: string })[][] = [];
   for (const row of grid.bodyRows) {
     if (row.length !== 5) return null;
     const [typeCell, nameCell, seatsCell, minimumCell, methodCell] = row;
@@ -3992,7 +4020,7 @@ function cellValueOrMuted(cell) {
 export function importExamDocFromHtml(html) {
   const grid = parseHtmlTableGrid(html);
   if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
-  const rows = [];
+  const rows: string[][] = [];
   for (const row of grid.bodyRows) {
     if (row.length !== 3) return null;
     rows.push(row.map((cell) => cellValueOrMuted(cell)));
@@ -4022,7 +4050,7 @@ export function importExamDocFromHtml(html) {
 export function importMinimumDocFromHtml(html) {
   const grid = parseHtmlTableGrid(html);
   if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
-  const rows = [];
+  const rows: string[][] = [];
   for (const row of grid.bodyRows) {
     if (row.length !== 5) return null;
     rows.push(row.map((cell) => cellValueOrMuted(cell)));
@@ -4077,9 +4105,10 @@ export function importPlainListDocFromHtml(sectionKey, html) {
     /<div class="admission-readable-body">([\s\S]*?)<\/div>\s*<\/div>\s*$/i,
   );
   if (!bodyMatch) return null;
-  const bodyHtml = bodyMatch[1];
+  // 정규식의 캡처 그룹은 하나뿐이라 매치되면 항상 존재한다.
+  const bodyHtml = bodyMatch[1]!;
 
-  const items = [];
+  const items: { type: string; text: string }[] = [];
   const nodeRe =
     /<ul class="admission-bullet-list">([\s\S]*?)<\/ul>|<div class="admission-subtitle-line">([\s\S]*?)<\/div>|<div class="admission-text-line">([\s\S]*?)<\/div>/gi;
   for (const m of bodyHtml.matchAll(nodeRe)) {
@@ -4113,12 +4142,16 @@ export function importPlainListDocFromHtml(sectionKey, html) {
 // 문서 등장 순서대로 추출한다(recordInfo 0~1개 + (heading,score) 쌍 0개
 // 이상이 형제로 나열된 구조 — 실측 확인, GroupBlock으로 묶여있지 않다).
 function extractOrderedTableFragments(html) {
-  const fragments = [];
+  const fragments: (
+    | { type: "table"; index: number; className: string; raw: string }
+    | { type: "heading"; index: number; text: string }
+  )[] = [];
   const tableRe = /<table([^>]*)>([\s\S]*?)<\/table>/gi;
   for (const m of html.matchAll(tableRe)) {
     fragments.push({
       type: "table",
-      index: m.index,
+      // matchAll 결과의 index는 항상 매치 위치를 가리킨다.
+      index: m.index ?? 0,
       className: extractClassAttr(m[1]),
       raw: m[0],
     });
@@ -4127,7 +4160,7 @@ function extractOrderedTableFragments(html) {
   for (const m of html.matchAll(headingRe)) {
     fragments.push({
       type: "heading",
-      index: m.index,
+      index: m.index ?? 0,
       text: clean(stripHtmlToText(m[1])),
     });
   }
@@ -4142,8 +4175,8 @@ export function importRecordDocFromHtml(html) {
   const fragments = extractOrderedTableFragments(html);
   if (!fragments.length) return null;
 
-  const blocks = [];
-  let pendingHeading = null;
+  const blocks: Block[] = [];
+  let pendingHeading: string | null = null;
 
   for (const frag of fragments) {
     if (frag.type === "heading") {
@@ -4154,7 +4187,7 @@ export function importRecordDocFromHtml(html) {
     if (grid.hasBodyMerge || !grid.bodyRows.length) return null;
 
     if (frag.className.includes("admission-record-info-table")) {
-      const rows = [];
+      const rows: string[][] = [];
       for (const row of grid.bodyRows) {
         if (row.length !== 2) return null;
         rows.push(row.map((cell) => cellValueOrMuted(cell)));
@@ -4173,7 +4206,7 @@ export function importRecordDocFromHtml(html) {
       if (!pendingHeading) return null; // 헤딩 없는 score 표 — 예상 못한 모양, 강행하지 않는다
       const headerCells = grid.headerRows[0] || [];
       if (!headerCells.length) return null;
-      const rows = [];
+      const rows: string[][] = [];
       for (const row of grid.bodyRows) {
         if (row.length !== headerCells.length) return null;
         rows.push(row.map((cell) => cellValueOrMuted(cell)));
@@ -4285,13 +4318,15 @@ export function importRecruitLegacyDocFromHtml(html) {
   const groupLabels = headerCells.slice(2).map((c) => c.text);
 
   const chipRe = /<span><b>([^<]*)<\/b>([^<]*)<\/span>/g;
-  const rows = [];
+  const rows: (string | { chips: { label: string; value: string }[] })[][] = [];
   for (const row of grid.bodyRows) {
     if (row.length !== headerCells.length) return null;
     const [groupCell, unitCell, ...valueCells] = row;
-    const seriesCells = valueCells.map((cell) => {
+    const seriesCells: ({
+      chips: { label: string; value: string }[];
+    } | null)[] = valueCells.map((cell) => {
       if (/class="muted"/.test(cell.innerHtml)) return { chips: [] };
-      const chips = [];
+      const chips: { label: string; value: string }[] = [];
       for (const m of cell.innerHtml.matchAll(chipRe)) {
         chips.push({
           label: clean(decodeBasicHtmlEntities(m[1])),
@@ -4302,7 +4337,12 @@ export function importRecruitLegacyDocFromHtml(html) {
       return { chips };
     });
     if (seriesCells.some((c) => c === null)) return null;
-    rows.push([groupCell.text || "-", unitCell.text || "-", ...seriesCells]);
+    // 바로 위에서 null을 걸러냈다.
+    rows.push([
+      groupCell.text || "-",
+      unitCell.text || "-",
+      ...(seriesCells as { chips: { label: string; value: string }[] }[]),
+    ]);
   }
 
   const blocks: Block[] = [
