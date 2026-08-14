@@ -8,7 +8,7 @@
 // 주입받는다(호출부가 anon 키든 service role 이든 자유롭게 고르도록).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { normalizeUniversityName } from "./universityNameNormalize.ts";
+import { normalizeUniversityName } from "./universityNameNormalize.js";
 
 export const GOAL_BACKFILL_SOURCE_TABLE = "admission_results";
 

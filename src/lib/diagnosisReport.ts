@@ -23,7 +23,7 @@ import {
   COPY_FALLBACK,
   TYPE_COPY,
   URGENCY_COPY,
-} from "../data/diagnosisCopy.ts";
+} from "../data/diagnosisCopy.js";
 import {
   AREA_CODES,
   AREA_LABEL,
@@ -37,8 +37,8 @@ import {
   TARGET_SCORE,
   URGENCY_AREA_THRESHOLD,
   URGENCY_LEVEL_LABEL,
-} from "../data/diagnosisScoringTable.ts";
-import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.ts";
+} from "../data/diagnosisScoringTable.js";
+import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.js";
 import {
   areaCopy,
   commonCopy,
@@ -47,7 +47,7 @@ import {
   narrativeCopy,
   serviceCopy,
   templateCopy,
-} from "./diagnosisCopyBinding.ts";
+} from "./diagnosisCopyBinding.js";
 // 확장자 .js 명시 — verify 스크립트가 plain node ESM 으로 직접 import 한다(확장자 생략 해석 불가).
 import {
   admissionBand,

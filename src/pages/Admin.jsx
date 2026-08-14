@@ -87,7 +87,7 @@ import {
   getSchoolCutType,
   kstYMD,
   VIRTUAL_DAY_NAMES,
-} from "../lib/goal/calc/index.ts";
+} from "../lib/goal/calc/index.js";
 import {
   computeGoalCutBackfill,
   fetchBackfillSourceRows,
