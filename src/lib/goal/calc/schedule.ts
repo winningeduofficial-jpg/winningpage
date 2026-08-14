@@ -40,16 +40,17 @@ const WEEKDAY_KEYS_MON_TO_SAT = [
 // ---------------------------------------------------------------------------
 
 // student.mjs:130-133
-function toNum(v, fallback = 0) {
+function toNum(v: unknown, fallback = 0) {
   const n = Number(v);
   return Number.isFinite(n) ? n : fallback;
 }
 
 // student.mjs:144-150
-function toYMD(v) {
+function toYMD(v: unknown) {
   if (!v) return "";
   if (typeof v === "string") return v.slice(0, 10);
-  const d = new Date(v);
+  // v 는 여기선 truthy 한 임의값이다(원본 그대로 Date 생성자에 그냥 넘긴다 — 방어 없음).
+  const d = new Date(v as string | number | Date);
   if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
   return d.toISOString().slice(0, 10);
 }
@@ -65,12 +66,12 @@ function kstYMD(date = new Date()) {
 }
 
 // student.mjs:240-242
-function round1(v) {
+function round1(v: unknown) {
   return Math.round(Number(v || 0) * 10) / 10;
 }
 
 // student.mjs:743-748 — 0=월 … 6=일. ymd 가 비면 오늘(KST)로 대체한다.
-function getDayIndexFromYMDServer(ymd, now = new Date()) {
+function getDayIndexFromYMDServer(ymd: unknown, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
   const [y, m, d] = s.split("-").map(Number);
   const jsDay = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
@@ -78,7 +79,7 @@ function getDayIndexFromYMDServer(ymd, now = new Date()) {
 }
 
 // student.mjs:750-754
-function addDaysYMD(ymd, days, now = new Date()) {
+function addDaysYMD(ymd: unknown, days: unknown, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
   const [y, m, d] = s.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + Number(days || 0)));
@@ -89,12 +90,18 @@ function addDaysYMD(ymd, days, now = new Date()) {
 // 1) 주간 목표 합계 — student.mjs:444-458
 // ---------------------------------------------------------------------------
 
+// 요일별 목표(ideal/min) 1행.
+export interface DaySchedule {
+  ideal?: number | string;
+  min?: number | string;
+}
+
 /**
  * 요일별 목표(ideal/min)를 주간 합계로 접는다. **일요일은 제외**하고 월~토만 더한다.
- * @param {Record<string, {ideal?: number|string, min?: number|string}>|null|undefined} weeklySchedule
- * @returns {{weekIdeal: number, weekMin: number}}
  */
-export function sumWeeklySchedule(weeklySchedule) {
+export function sumWeeklySchedule(
+  weeklySchedule: Record<string, DaySchedule | undefined> | null | undefined,
+) {
   let weekIdeal = 0;
   let weekMin = 0;
 
@@ -118,16 +125,17 @@ export function sumWeeklySchedule(weeklySchedule) {
  * startDate~endDate 구간을 하루씩 훑으며 월~토에 해당하는 날의 목표만 누적한다.
  * 미니 온보딩 주(수~일 시작)처럼 주 중간에 시작하는 구간의 실목표를 구할 때 쓴다.
  *
- * @param {{study_schedule?: Record<string, {ideal?: number|string, min?: number|string}>}|null|undefined} student
- * @param {string|Date} startDate 'YYYY-MM-DD' (ISO 타임스탬프도 앞 10자리만 쓴다)
- * @param {string|Date} endDate   'YYYY-MM-DD' — startDate 보다 앞서면 빈 구간(0)
- * @param {Date} [now] 날짜가 비었을 때 쓰는 기준 시각. 테스트에서 주입한다.
- * @returns {{ideal: number, min: number}}
+ * @param startDate 'YYYY-MM-DD' (ISO 타임스탬프도 앞 10자리만 쓴다)
+ * @param endDate   'YYYY-MM-DD' — startDate 보다 앞서면 빈 구간(0)
+ * @param now 날짜가 비었을 때 쓰는 기준 시각. 테스트에서 주입한다.
  */
 export function getEffectiveScheduleTarget(
-  student,
-  startDate,
-  endDate,
+  student:
+    | { study_schedule?: Record<string, DaySchedule | undefined> }
+    | null
+    | undefined,
+  startDate: unknown,
+  endDate: unknown,
   now = new Date(),
 ) {
   const schedule = student?.study_schedule || {};
@@ -187,10 +195,10 @@ export function getEffectiveScheduleTarget(
  * @param {string} department 학과명
  * @returns {number} 배율
  */
-export function getStudyMultiplier(university, department) {
+export function getStudyMultiplier(university: string, department: string) {
   const u = university.trim();
   const d = department.trim();
-  const has = (arr) => arr.some((x) => d.includes(x));
+  const has = (arr: string[]) => arr.some((x) => d.includes(x));
   const isMedical = has(["의예과", "의학부", "의과대학"]);
   const isDental = has(["치의학과", "치의예과"]);
   const isOriental = has([
@@ -302,21 +310,34 @@ export function getStudyMultiplier(university, department) {
  * NOTE(target-parity): `day` 가 null 이거나 `day.academies` 가 없으면 TypeError 가 난다.
  *   방어 코드가 없다. 원본 그대로 둔다.
  *
- * @param {{wake: string|number, sleep: string|number, schoolStart?: string|number,
- *          schoolEnd?: string|number, academies: Array<{start: string|number, end: string|number}>}} day
- * @param {boolean} hasSchool 등교일 여부(원본 DAYS_CONFIG 상 월~금 true, 토·일 false)
- * @returns {number} 0 이상, 소수 1자리
+ * @param hasSchool 등교일 여부(원본 DAYS_CONFIG 상 월~금 true, 토·일 false)
+ * @returns 0 이상, 소수 1자리
  */
-export function calcAvailableHours(day, hasSchool) {
-  const wake = parseFloat(day.wake);
-  const sleep = parseFloat(day.sleep);
+export interface AcademySlot {
+  start: string | number;
+  end: string | number;
+}
+
+export interface DayPattern {
+  wake: string | number;
+  sleep: string | number;
+  schoolStart?: string | number;
+  schoolEnd?: string | number;
+  academies: AcademySlot[];
+}
+
+export function calcAvailableHours(day: DayPattern, hasSchool: boolean) {
+  // parseFloat 는 string 만 받는다 — 원본은 string|number 를 그냥 넘겼고 parseFloat 내부에서
+  // ToString 변환이 일어나므로(예: parseFloat(7) === parseFloat("7")) String() 래핑은 동작을 바꾸지 않는다.
+  const wake = parseFloat(String(day.wake));
+  const sleep = parseFloat(String(day.sleep));
   if (Number.isNaN(wake) || Number.isNaN(sleep) || sleep <= wake) return 0;
 
   let available = sleep - wake - 1.5;
 
   if (hasSchool) {
-    const sStart = parseFloat(day.schoolStart);
-    const sEnd = parseFloat(day.schoolEnd);
+    const sStart = parseFloat(String(day.schoolStart));
+    const sEnd = parseFloat(String(day.schoolEnd));
     if (!Number.isNaN(sStart) && !Number.isNaN(sEnd) && sEnd > sStart) {
       available -= sEnd - sStart;
       available += sStart - wake;
@@ -324,8 +345,8 @@ export function calcAvailableHours(day, hasSchool) {
   }
 
   for (const ac of day.academies) {
-    const acStart = parseFloat(ac.start);
-    const acEnd = parseFloat(ac.end);
+    const acStart = parseFloat(String(ac.start));
+    const acEnd = parseFloat(String(ac.end));
     if (!Number.isNaN(acStart) && !Number.isNaN(acEnd) && acEnd > acStart)
       available -= acEnd - acStart + 1;
   }
@@ -365,15 +386,22 @@ const DAYS_CONFIG = [
  * NOTE(target-parity): 원본은 React `useCallback` 이 `form` 을 클로저로 잡는다. 여기서는
  *   순수 함수로 만들기 위해 `form` 을 인자로 받는다(본문 로직은 동일).
  *
- * @param {{idealUniv: string, idealDept: string, minUniv: string, minDept: string,
- *          weekSchedule: Record<string, object>, selfStudyHours: Record<string, string|number>}} form
- * @returns {Record<string, {ideal: number, min: number}>} 요일 7행
+ * @returns 요일 7행
  */
-export function calculateWeekSchedule(form) {
+export interface WeekScheduleForm {
+  idealUniv: string;
+  idealDept: string;
+  minUniv: string;
+  minDept: string;
+  weekSchedule: Record<string, DayPattern>;
+  selfStudyHours: Record<string, string | number>;
+}
+
+export function calculateWeekSchedule(form: WeekScheduleForm) {
   const idealMult = getStudyMultiplier(form.idealUniv, form.idealDept);
   const minMult = getStudyMultiplier(form.minUniv, form.minDept);
 
-  const result = {};
+  const result: Record<string, { ideal: number; min: number }> = {};
 
   DAYS_CONFIG.forEach(({ key, hasSchool }) => {
     const avail = calcAvailableHours(form.weekSchedule[key], hasSchool);
@@ -381,7 +409,7 @@ export function calculateWeekSchedule(form) {
     const calcMin = Math.round(avail * minMult * 10) / 10;
 
     // 학생 자습시간 오버라이드 로직
-    const studentTime = parseFloat(form.selfStudyHours[key]) || 0;
+    const studentTime = parseFloat(String(form.selfStudyHours[key])) || 0;
     let finalIdeal = calcIdeal;
     let finalMin = calcMin;
 
@@ -434,25 +462,33 @@ export function calculateWeekSchedule(form) {
  * 원본과 맞춘 부분: 결과를 소수 1자리로 반올림하고 0 미만은 0으로 clamp 한다.
  * 입력이 비정상(NaN, 취침 ≤ 기상)이면 0을 돌려주는 것도 원본과 동일하다.
  *
- * @param {{wakeUpHour: string|number, sleepHour: string|number,
- *          schoolStayHours: string|number, academyHours: string|number}} steppers
- *   우리 온보딩 `dailySchedule` (DAILY_SCHEDULE_FIELDS 의 4개 키)
- * @param {boolean} [hasSchool=true] 등교일 여부. 토·일은 false 로 부른다.
- * @returns {number} 0 이상, 소수 1자리
+ * 우리 온보딩 `dailySchedule` (DAILY_SCHEDULE_FIELDS 의 4개 키)
+ * @param hasSchool 등교일 여부. 토·일은 false 로 부른다.
+ * @returns 0 이상, 소수 1자리
  */
-export function calcAvailableHoursApprox(steppers, hasSchool = true) {
-  const wake = parseFloat(steppers?.wakeUpHour);
-  const sleep = parseFloat(steppers?.sleepHour);
+export interface DailyScheduleSteppers {
+  wakeUpHour?: string | number;
+  sleepHour?: string | number;
+  schoolStayHours?: string | number;
+  academyHours?: string | number;
+}
+
+export function calcAvailableHoursApprox(
+  steppers: DailyScheduleSteppers | null | undefined,
+  hasSchool = true,
+) {
+  const wake = parseFloat(String(steppers?.wakeUpHour));
+  const sleep = parseFloat(String(steppers?.sleepHour));
   if (Number.isNaN(wake) || Number.isNaN(sleep) || sleep <= wake) return 0;
 
   let available = sleep - wake;
 
   if (hasSchool) {
-    const stay = parseFloat(steppers?.schoolStayHours);
+    const stay = parseFloat(String(steppers?.schoolStayHours));
     if (!Number.isNaN(stay)) available -= stay;
   }
 
-  const academy = parseFloat(steppers?.academyHours);
+  const academy = parseFloat(String(steppers?.academyHours));
   if (!Number.isNaN(academy)) available -= academy;
 
   return Math.max(0, Math.round(available * 10) / 10);

@@ -19,7 +19,7 @@ import {
   getEffectiveScheduleTarget,
   getStudyMultiplier,
   sumWeeklySchedule,
-} from "./schedule.js";
+} from "./schedule.ts";
 
 const EPS = 1e-9;
 const near = (a, b, label) =>

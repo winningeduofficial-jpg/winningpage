@@ -24,11 +24,11 @@
 // 원본과 동일한 동작을 보장하기 위해 이 모듈 안에 사본으로 둔다(export 하지 않음).
 
 // NOTE(target-parity): Number(v || 0) 이므로 NaN·null·undefined·''·false 가 전부 0이 된다.
-function round1(v) {
+function round1(v: unknown) {
   return Math.round(Number(v || 0) * 10) / 10;
 }
 
-function clampProb(v) {
+function clampProb(v: unknown) {
   return Math.min(100, Math.max(0, round1(v)));
 }
 
@@ -55,9 +55,12 @@ export function getPercentileBands() {
 // 현재 백분위 → 목표 백분위 사이를 지나며 누적하는 "가중 노력량".
 // 각 밴드와의 겹침 폭을 밴드 width 로 나눈 뒤 weight 를 곱해 더한다.
 // 소수 셋째 자리까지 반올림한다.
-export function getWeightedEffortAmount(currentScore, targetScore) {
-  currentScore = Number(currentScore || 0);
-  targetScore = Number(targetScore || 0);
+export function getWeightedEffortAmount(
+  currentScoreInput: unknown,
+  targetScoreInput: unknown,
+) {
+  const currentScore = Number(currentScoreInput || 0);
+  const targetScore = Number(targetScoreInput || 0);
 
   if (currentScore === targetScore) return 0;
 
@@ -89,9 +92,12 @@ export function getWeightedEffortAmount(currentScore, targetScore) {
 //   현재 < 목표 : 70 * exp(-a * effort)              → 70 이하로 감쇠
 //   현재 > 목표 : 70 + 20 * (1 - exp(-a * effort))   → 70~90 으로 상승
 //   현재 = 목표 : 70
-export function calcJeongsiBaseProb(currentScore, targetScore) {
-  currentScore = Number(currentScore || 0);
-  targetScore = Number(targetScore || 0);
+export function calcJeongsiBaseProb(
+  currentScoreInput: unknown,
+  targetScoreInput: unknown,
+) {
+  const currentScore = Number(currentScoreInput || 0);
+  const targetScore = Number(targetScoreInput || 0);
 
   // NOTE(target-parity): falsy 검사이므로 백분위 0(9등급 컷)이 "미입력"과 구분되지 않는다.
   // 현재 백분위 0 또는 목표 백분위 0 이면 언제나 0% 가 나온다.
@@ -110,10 +116,13 @@ export function calcJeongsiBaseProb(currentScore, targetScore) {
 //   현재 < 목표 : 남은 회차가 많을수록 유리 (0.50 → 1.00)
 //   현재 > 목표 : 남은 회차가 적을수록 유리(이미 도달했으므로 지킬 시간이 짧을수록) (0.65 → 1.00)
 //   현재 = 목표 : 남은 회차가 많을수록 유리 (0.58 → 1.00)
+// currentScore/targetCut 는 이 함수 안에서 Number() 변환을 거치지 않고 바로 비교된다
+// (calcJeongsiBaseProb/getWeightedEffortAmount 와 달리 문자열 입력을 지원하지 않는다 —
+// 실제 호출부·골든 픽스처 모두 숫자만 넘긴다).
 export function getTimeFactorPercentile(
-  currentScore,
-  targetCut,
-  remainExams,
+  currentScore: number,
+  targetCut: number,
+  remainExams: number | null | undefined,
   totalExams = 14,
 ) {
   // NOTE(target-parity): remainExams == null (null·undefined) 이거나 totalExams <= 0 이면
@@ -133,9 +142,9 @@ export function getTimeFactorPercentile(
 
 // 정시 최종 합격 확률 = 기본 확률 × 시간계수 (0~100 클램프).
 export function calcJeongsiProb(
-  currentScore,
-  targetCut,
-  remainExams,
+  currentScore: number,
+  targetCut: number,
+  remainExams: number | null | undefined,
   totalExams = 14,
 ) {
   const pBase = calcJeongsiBaseProb(currentScore, targetCut);
@@ -151,7 +160,7 @@ export function calcJeongsiProb(
 
 // ── 등급 ↔ 백분위 구간 (IntakeForm.tsx:464-467) ──────────────────────────
 // 9등급제 각 등급에 대응하는 백분위 구간. 등급 입력 시 백분위 후보 칩을 만드는 데 쓴다.
-export const GRADE_PERCENTILE = {
+export const GRADE_PERCENTILE: Record<number, { min: number; max: number }> = {
   1: { min: 96, max: 100 },
   2: { min: 89, max: 95 },
   3: { min: 77, max: 88 },
@@ -165,14 +174,14 @@ export const GRADE_PERCENTILE = {
 
 // 등급 문자열 → 선택 가능한 백분위 칩 목록 [{ value, label }].
 // 구간 폭이 6 이하면 전부 나열하고, 그보다 넓으면 5분위(컷/25%/중앙/75%/최고)만 낸다.
-export function getPercentileChips(gradeStr) {
+export function getPercentileChips(gradeStr: string) {
   const g = parseInt(gradeStr, 10);
   if (!g || g < 1 || g > 9) return [];
   const { min, max } = GRADE_PERCENTILE[g];
   // NOTE(target-parity): 여기서 width 는 max - min 이다(밴드의 max - min + 1 과 다름).
   // 그래서 8등급(4~10)은 width 6 이라 7개 전부 나열되지만, 3등급(77~88)은 width 11 이라 5분위로 압축된다.
   const width = max - min;
-  const makeLabel = (v) => {
+  const makeLabel = (v: number) => {
     if (v === min) return `${v}(컷)`;
     if (v === max) return g === 1 ? `${v}(만점)` : `${v}(최고)`;
     if (v === Math.round((min + max) / 2)) return `${v}(안정)`;
@@ -201,13 +210,13 @@ export function getPercentileChips(gradeStr) {
 
 // 영어는 절대평가라 백분위가 없다. 등급별 감점표(1등급 0점 ~ 9등급 -16점)를 쓰고,
 // 소수 등급(평균 등급 등)은 인접 정수 등급 사이를 선형보간한다.
-export function getEnglishPenaltyFE(grade) {
+export function getEnglishPenaltyFE(grade: number) {
   // NOTE(target-parity): 등급 0 이하(=미입력 0 포함)는 1등급과 동일하게 감점 0 이다.
   if (grade <= 1) return 0;
   if (grade >= 9) return -16;
   const floor = Math.floor(grade),
     ceil = Math.ceil(grade);
-  const t = {
+  const t: Record<number, number> = {
     1: 0,
     2: -2,
     3: -4,
@@ -226,15 +235,33 @@ export function getEnglishPenaltyFE(grade) {
 // 탐구는 탐구1·탐구2 각각의 평균을 다시 평균한다(5과목 균등가중이 아니라 3분할).
 // 소수 둘째 자리까지 반올림한다.
 //
+// calcJeongsiCompositeFE 입력 회차 1건의 과목 점수.
+export interface JeongsiSubjectScore {
+  grade?: unknown;
+  percentile?: number | null;
+}
+
 // mogoScores 형태: Record<회차키, {
 //   kor: { grade, percentile }, math: { grade, percentile }, eng: string,
 //   exp1: { grade, percentile }, exp2: { grade, percentile }, exp1Track, exp2Track
 // }>
-export function calcJeongsiCompositeFE(mogoScores) {
-  const korPs = [],
-    mathPs = [],
-    exp1Ps = [],
-    exp2Ps = [];
+export interface JeongsiMogoRound {
+  kor: JeongsiSubjectScore;
+  math: JeongsiSubjectScore;
+  eng: string;
+  exp1: JeongsiSubjectScore;
+  exp2: JeongsiSubjectScore;
+  exp1Track?: unknown;
+  exp2Track?: unknown;
+}
+
+export function calcJeongsiCompositeFE(
+  mogoScores: Record<string, JeongsiMogoRound>,
+) {
+  const korPs: number[] = [],
+    mathPs: number[] = [],
+    exp1Ps: number[] = [],
+    exp2Ps: number[] = [];
   let engGrade = 0;
   Object.values(mogoScores).forEach((s) => {
     if (s.kor.percentile != null) korPs.push(s.kor.percentile);
@@ -247,7 +274,7 @@ export function calcJeongsiCompositeFE(mogoScores) {
   });
   // NOTE(target-parity): 값이 없는 과목의 평균은 0 으로 처리된다. 그래서 탐구를 입력하지
   // 않으면 탐구평균 0 이 그대로 3분할에 들어가 종합 백분위가 크게 낮아진다.
-  const avg = (arr) =>
+  const avg = (arr: number[]) =>
     arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
   const inquiryAvg = (avg(exp1Ps) + avg(exp2Ps)) / 2;
   return (

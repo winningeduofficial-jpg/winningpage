@@ -24,10 +24,11 @@
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** YMD 문자열 정규화. 원본 student.mjs:144-150 */
-export function toYMD(v) {
+export function toYMD(v: unknown) {
   if (!v) return "";
   if (typeof v === "string") return v.slice(0, 10);
-  const d = new Date(v);
+  // v 는 여기선 truthy 한 임의값이다(원본 그대로 Date 생성자에 그냥 넘긴다 — 방어 없음).
+  const d = new Date(v as string | number | Date);
   if (Number.isNaN(d.getTime())) return String(v).slice(0, 10);
   return d.toISOString().slice(0, 10);
 }
@@ -61,8 +62,8 @@ export function kstYMD(date = new Date()) {
  * 쓰이지 않는다. 기존 테스트(virtualDate.test.js) 동결 유지를 위해 본문은 그대로 둔다.
  */
 export function getRecordDateFromActualStart(
-  actualStartDate,
-  recordIndex,
+  actualStartDate: unknown,
+  recordIndex: unknown,
   now = new Date(),
 ) {
   if (!actualStartDate) return kstYMD(now);
@@ -82,7 +83,7 @@ export function getRecordDateFromActualStart(
  * NOTE(target-parity): 파싱 불가한 문자열('garbage!!' 등)은 NaN 을 반환한다.
  * (Invalid Date → getUTCDay() = NaN → NaN - 1 = NaN)
  */
-export function getDayIndexFromYMDServer(ymd, now = new Date()) {
+export function getDayIndexFromYMDServer(ymd: unknown, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
   const [y, m, d] = s.split("-").map(Number);
   const jsDay = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
@@ -97,7 +98,7 @@ export function getDayIndexFromYMDServer(ymd, now = new Date()) {
  * NOTE(target-parity): ymd 나 days 가 숫자로 파싱되지 않으면 Invalid Date 가 되어
  * toISOString() 이 RangeError 를 던진다. 원본에 예외 처리가 없다.
  */
-export function addDaysYMD(ymd, days, now = new Date()) {
+export function addDaysYMD(ymd: unknown, days: unknown, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
   const [y, m, d] = s.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d + Number(days || 0)));
@@ -105,12 +106,12 @@ export function addDaysYMD(ymd, days, now = new Date()) {
 }
 
 /** 해당 날짜가 속한 주의 월요일. 원본 student.mjs:757-759 */
-export function getMondayYMD(ymd, now = new Date()) {
+export function getMondayYMD(ymd: unknown, now = new Date()) {
   return addDaysYMD(ymd, -getDayIndexFromYMDServer(ymd, now), now);
 }
 
 /** 시작일 이후(당일 포함) 첫 일요일. 원본 student.mjs:761-764 */
-export function getFirstSundayYMD(startDate, now = new Date()) {
+export function getFirstSundayYMD(startDate: unknown, now = new Date()) {
   const idx = getDayIndexFromYMDServer(startDate, now);
   return addDaysYMD(startDate, 6 - idx, now);
 }
@@ -119,7 +120,7 @@ export function getFirstSundayYMD(startDate, now = new Date()) {
  * 미니 온보딩 시작일 여부 — 목(3)·금(4)·토(5) 에 시작하면 true.
  * 원본 student.mjs:766-769
  */
-export function isMiniStartDay(startDate, now = new Date()) {
+export function isMiniStartDay(startDate: unknown, now = new Date()) {
   const idx = getDayIndexFromYMDServer(startDate, now);
   return idx >= 3 && idx <= 5;
 }
@@ -142,7 +143,11 @@ export function isMiniStartDay(startDate, now = new Date()) {
  * NOTE(target-parity): 미니 온보딩일 때 weekIndex 를 음수로 주면 첫 분기(idx === 0)에
  * 걸리지 않아 mini-onboarding 이 아니라 regular 로 떨어진다.
  */
-export function getWeeklyReportRange(student, weekIndex, now = new Date()) {
+export function getWeeklyReportRange(
+  student: { actual_start_date?: unknown },
+  weekIndex: unknown,
+  now = new Date(),
+) {
   const startDate = toYMD(student.actual_start_date) || kstYMD(now);
   const startMonday = getMondayYMD(startDate, now);
   const mini = isMiniStartDay(startDate, now);
@@ -193,8 +198,8 @@ export function getWeeklyReportRange(student, weekIndex, now = new Date()) {
  * 더 이상 주차 산정에 쓰이지 않는다. 기존 테스트 동결 유지를 위해 본문은 그대로 둔다.
  */
 export function getRegularWeekIndexFromSundayCount(
-  student,
-  sundayCount,
+  student: { actual_start_date?: unknown },
+  sundayCount: number,
   now = new Date(),
 ) {
   const startDate = toYMD(student.actual_start_date) || kstYMD(now);
@@ -218,7 +223,11 @@ export function getRegularWeekIndexFromSundayCount(
  * @param {Date} [now] fromYMD/toYMDValue 가 비어 있을 때의 폴백 기준 시각.
  * @returns {number} toYMDValue - fromYMD (일수). 양수면 toYMDValue 가 미래.
  */
-export function diffDaysYMD(fromYMD, toYMDValue, now = new Date()) {
+export function diffDaysYMD(
+  fromYMD: unknown,
+  toYMDValue: unknown,
+  now = new Date(),
+) {
   const fromStr = toYMD(fromYMD) || kstYMD(now);
   const toStr = toYMD(toYMDValue) || kstYMD(now);
 

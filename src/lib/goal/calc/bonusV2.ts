@@ -36,7 +36,7 @@ import {
   TASK_BONUS_MULTIPLIER,
   TASK_MOCK_EXAM,
   TASK_NAESIN,
-} from "./bonus.js";
+} from "./bonus.ts";
 
 // 컨디션 배수 — 신시안 "오늘의 컨디션" 4지선다(part-09 §180,
 // src/data/goalStudyMock.js mockConditionOptions)와 값 도메인이 정확히 같다.
@@ -50,8 +50,29 @@ export const CONDITION_MULTIPLIER = {
 
 // bonus.js round4Client(65-67행)와 동일 구현. bonus.js 는 이 헬퍼를 export 하지
 // 않으므로(index.js 배럴 주석 — round4 계열은 통합하지 않는다) 여기서 별도로 둔다.
-function round4(v) {
+function round4(v: number) {
   return Math.round(v * 10000) / 10000;
+}
+
+// calculateDailyBonusV2 입력.
+interface DailyBonusV2Input {
+  idealSusiRate: number;
+  idealJungsiRate: number;
+  minSusiRate: number;
+  minJungsiRate: number;
+  condition: string;
+  tasks: string[];
+  studyHours: number;
+  idealHours: number;
+  minHours: number;
+}
+
+// calculateDailyBonusV2 반환값.
+interface DailyBonusV2Result {
+  idealSusiBonus: number;
+  idealJungsiBonus: number;
+  minSusiBonus: number;
+  minJungsiBonus: number;
 }
 
 /**
@@ -83,7 +104,7 @@ export function calculateDailyBonusV2({
   studyHours,
   idealHours,
   minHours,
-}) {
+}: DailyBonusV2Input): DailyBonusV2Result {
   const normalizedIdealHours = Number(idealHours || 0);
   const normalizedMinHours = Number(minHours || 0);
 

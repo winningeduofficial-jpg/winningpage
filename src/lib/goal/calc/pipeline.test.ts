@@ -7,6 +7,7 @@ process.env.TZ = "Asia/Seoul";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import type { StudentState } from "./pipeline.ts";
 import {
   applyDailyRecord,
   buildInitialStudentState,
@@ -14,9 +15,9 @@ import {
   isElementaryStudent,
   isMiddleStudent,
   isPreHighStudent,
-} from "./pipeline.js";
+} from "./pipeline.ts";
 import { applyPreHighGradePenalty, calcNaesinProb } from "./primitives.ts";
-import { VIRTUAL_DAY_NAMES } from "./schedule.js";
+import { VIRTUAL_DAY_NAMES } from "./schedule.ts";
 
 // bonus.js:96-125 를 그대로 복제해 D-day 일수를 독립적으로 구한다(검증용 — 손계산이 아니라
 // 원본과 동일한 코드를 실행해서 기대값을 만든다). 고2 이하 학년의 오프셋만 옮겼다(이 파일에서
@@ -49,8 +50,12 @@ function calcExpectedDDays(grade, nowInput) {
 
 // achievement/focus/달성률/과목태그 네 배수를 전부 정확히 1.0 으로 맞춰 매일 기록하고,
 // 각 확률이 100에 도달하는 제출 회차(1부터 시작)를 돌려준다.
-function runCalibratedLoop(state, dayHours, maxDays) {
-  const reach = {};
+function runCalibratedLoop(
+  state: StudentState,
+  dayHours: number,
+  maxDays: number,
+) {
+  const reach: Record<string, number> = {};
   for (let day = 0; day < maxDays; day += 1) {
     state = applyDailyRecord(state, {
       achievement: "full", // ACHIEVEMENT_MULTIPLIER.full = 1.0 (bonus.js:27)
@@ -68,8 +73,12 @@ function runCalibratedLoop(state, dayHours, maxDays) {
 
 // runCalibratedLoop 과 동일하지만 매일 제출하는 studyHours 를 별도로 받는다 — 요일별 목표
 // (state.weeklySchedule)와 제출 시간이 서로 다른(=달성률이 100%가 아닌) 시나리오2-c 용.
-function runCalibratedLoopFixedHours(state, studyHours, maxDays) {
-  const reach = {};
+function runCalibratedLoopFixedHours(
+  state: StudentState,
+  studyHours: number,
+  maxDays: number,
+) {
+  const reach: Record<string, number> = {};
   for (let day = 0; day < maxDays; day += 1) {
     state = applyDailyRecord(state, {
       achievement: "full",
@@ -638,12 +647,15 @@ test("시나리오2-b — 여러 기준확률/학년 조합에서도 배수 1.0 
       totalJungsiDays + 20,
     );
 
-    for (const [key, expectedBase] of [
+    // 리터럴 배열이라 TS 가 [string, number][] 대신 (string|number)[][] 로 합쳐 추론한다
+    // — 명시 타입을 달아 expectedBase 를 number 로 좁힌다(런타임엔 항상 number).
+    const dDayPairs: [string, number][] = [
       ["idealSusi", totalSusiDays],
       ["minSusi", totalSusiDays],
       ["idealJungsi", totalJungsiDays],
       ["minJungsi", totalJungsiDays],
-    ]) {
+    ];
+    for (const [key, expectedBase] of dDayPairs) {
       const delta = reach[key] - expectedBase;
       assert.ok(
         delta === 0 || delta === 1,

@@ -61,9 +61,11 @@
 //      그대로 등급으로 쓴다. student.mjs:646-651 참고. 이 경로는 주입 없이도 동작한다.)
 // 이 두 데이터가 확보되기 전까지 파이프라인은 (고3이 아닌 학년에 한해) 주입 없이 동작하지 않는다.
 
-import { calcStudentBonusRates, calculateDailyBonus } from "./bonus.js";
+import type { DailyBonusResult, StudentBonusRates } from "./bonus.ts";
+import { calcStudentBonusRates, calculateDailyBonus } from "./bonus.ts";
 
-import { calcJeongsiCompositeFE, calcJeongsiProb } from "./jeongsi.js";
+import type { JeongsiMogoRound } from "./jeongsi.ts";
+import { calcJeongsiCompositeFE, calcJeongsiProb } from "./jeongsi.ts";
 import {
   applyPreHighGradePenalty,
   calcNaesinProb,
@@ -72,11 +74,12 @@ import {
   getSchoolCutType,
 } from "./primitives.ts";
 
+import type { WeekScheduleForm } from "./schedule.ts";
 import {
   calculateWeekSchedule,
   sumWeeklySchedule,
   VIRTUAL_DAY_NAMES,
-} from "./schedule.js";
+} from "./schedule.ts";
 
 // ── 이식 누락 보충: student.mjs 의 네 판정 헬퍼 ─────────────────────────────
 // 5개 calc 모듈에는 없었다(원본에서도 순수 함수이지만 지금까지 아무도 이식하지 않았다).
@@ -89,7 +92,10 @@ import {
 // 옮기고 배럴(index.js) export 를 그쪽으로 옮기는 걸 고려할 것.
 
 // student.mjs:646-651 — 학년/학교급별 변환등급표 종류. 빈 문자열이면 변환 자체가 없다(고3 등).
-export function getConversionTypeForStudent(schoolType, grade) {
+export function getConversionTypeForStudent(
+  schoolType: unknown,
+  grade: unknown,
+) {
   if (schoolType === "초등학교") return "elementary";
   if (schoolType === "중학교" || grade === "중3") return "middleschool";
   if (grade === "고1" || grade === "고2") return "5grade";
@@ -97,7 +103,7 @@ export function getConversionTypeForStudent(schoolType, grade) {
 }
 
 // student.mjs:679-686
-export function isMiddleStudent(schoolType, grade) {
+export function isMiddleStudent(schoolType: unknown, grade: unknown) {
   return (
     schoolType === "중학교" ||
     grade === "중1" ||
@@ -107,7 +113,7 @@ export function isMiddleStudent(schoolType, grade) {
 }
 
 // student.mjs:688-698
-export function isElementaryStudent(schoolType, grade) {
+export function isElementaryStudent(schoolType: unknown, grade: unknown) {
   return (
     schoolType === "초등학교" ||
     grade === "초1" ||
@@ -120,40 +126,114 @@ export function isElementaryStudent(schoolType, grade) {
 }
 
 // student.mjs:700-702
-export function isPreHighStudent(schoolType, grade) {
+export function isPreHighStudent(schoolType: unknown, grade: unknown) {
   return (
     isMiddleStudent(schoolType, grade) || isElementaryStudent(schoolType, grade)
   );
+}
+
+// 목표 대학 컷 4종. universities 테이블이 없으므로 호출자가 반드시 주입해야 한다
+// (아래서 런타임에 !cuts 로 가드한다 — 그래서 여기선 optional 로 둔다).
+export interface CutsInput {
+  idealNaesin: number;
+  idealJungsi: number;
+  minNaesin: number;
+  minJungsi: number;
+}
+
+// 요일별 이상/최소 목표 시간 1행 + 그 맵.
+export interface DayTarget {
+  ideal: number;
+  min: number;
+}
+export type WeeklyScheduleMap = Record<string, DayTarget>;
+
+// buildInitialStudentState 입력.
+export interface BuildInitialStudentStateInput {
+  schoolType: unknown;
+  grade: string;
+  currentScore: unknown;
+  mogoScores?: Record<string, JeongsiMogoRound> | null;
+  currentMogo?: number | null;
+  lastNaesin?: string;
+  lastMogo?: string;
+  remainingNaesin?: number | null;
+  remainingMogo?: number | null;
+  cuts?: CutsInput;
+  convertedGrade?: number | null;
+  weeklySchedule?: WeeklyScheduleMap | null;
+  scheduleForm?: WeekScheduleForm | null;
+  now?: Date;
+}
+
+// buildInitialStudentState 반환 · applyDailyRecord 의 state 입출력 공통 형태.
+export interface StudentState {
+  schoolType: unknown;
+  grade: string;
+  schoolCutType: string;
+
+  currentScore: number;
+  currentMogo: number;
+  convertedGradeRaw: number;
+  convertedGrade: number;
+
+  cuts: CutsInput;
+  remainNaesin: number;
+  remainMogo: number;
+
+  weeklySchedule: WeeklyScheduleMap;
+  weekIdeal: number;
+  weekMin: number;
+
+  idealSusi: number;
+  idealJungsi: number;
+  minSusi: number;
+  minJungsi: number;
+
+  rates: StudentBonusRates;
+  baseProbs: {
+    idealSusi: number;
+    idealJungsi: number;
+    minSusi: number;
+    minJungsi: number;
+  };
+  cumulativeBonus: {
+    idealSusi: number;
+    idealJungsi: number;
+    minSusi: number;
+    minJungsi: number;
+  };
+  lastBonuses?: DailyBonusResult;
 }
 
 /**
  * 온보딩 입력 1건 → 확률 4종 · rate 4종 · 목표 학습시간 · 중간 산출물을 만든다.
  * 원본 호출 순서: 파일 상단 주석 참고. student.mjs:2405-2533 을 그대로 배선했다.
  *
- * @param {object} input
- * @param {string} input.schoolType 학교 유형(예: '일반고', '특목고')
- * @param {string} input.grade 학년(예: '고3')
- * @param {number} input.currentScore 내신 원점수/평균등급. 이미 해소된 값이어야 한다
+ * schoolType 학교 유형(예: '일반고', '특목고')
+ * grade 학년(예: '고3')
+ * currentScore 내신 원점수/평균등급. 이미 해소된 값이어야 한다
  *   (IntakeForm.tsx:1176-1179 의 "고1+내신없음→중3 점수로 대체" 특례는 이 함수의 책임이 아니다 —
  *   호출자가 미리 해소해서 넘겨라).
- * @param {object|null} [input.mogoScores] calcJeongsiCompositeFE 에 넘길 모의고사 원본 회차별 점수.
+ * mogoScores calcJeongsiCompositeFE 에 넘길 모의고사 원본 회차별 점수.
  *   currentMogo 를 직접 주면 이 값은 무시된다.
- * @param {number|null} [input.currentMogo] 정시 종합 백분위를 이미 계산해 뒀다면 직접 주입.
- * @param {string} [input.lastNaesin] 마지막으로 본 내신 시험 라벨(예: '1학기 중간').
- * @param {string} [input.lastMogo] 마지막으로 본 모의고사 라벨(예: '6모').
- * @param {number|null} [input.remainingNaesin] getRemainingNaesin fallback 오버라이드.
- * @param {number|null} [input.remainingMogo] getRemainingMogo fallback 오버라이드.
- * @param {{idealNaesin:number, idealJungsi:number, minNaesin:number, minJungsi:number}} input.cuts
- *   목표 대학 컷 4종. universities 테이블이 없으므로 반드시 주입해야 한다.
- * @param {number|null} [input.convertedGrade] grade_conversions 변환등급 결과를 이미 알고 있다면 주입.
+ * currentMogo 정시 종합 백분위를 이미 계산해 뒀다면 직접 주입.
+ * lastNaesin 마지막으로 본 내신 시험 라벨(예: '1학기 중간').
+ * lastMogo 마지막으로 본 모의고사 라벨(예: '6모').
+ * remainingNaesin getRemainingNaesin fallback 오버라이드.
+ * remainingMogo getRemainingMogo fallback 오버라이드.
+ * cuts 목표 대학 컷 4종. universities 테이블이 없으므로 반드시 주입해야 한다.
+ * convertedGrade grade_conversions 변환등급 결과를 이미 알고 있다면 주입.
  *   고3처럼 conversionType 이 없는 학년에는 불필요하다(원점수를 그대로 쓴다).
- * @param {object|null} [input.weeklySchedule] 요일별 {ideal,min} 을 이미 계산해 뒀다면 직접 주입.
- * @param {object|null} [input.scheduleForm] calculateWeekSchedule 에 넘길 원본 계약 형태의 폼
+ * weeklySchedule 요일별 {ideal,min} 을 이미 계산해 뒀다면 직접 주입.
+ * scheduleForm calculateWeekSchedule 에 넘길 원본 계약 형태의 폼
  *   ({idealUniv,idealDept,minUniv,minDept,weekSchedule,selfStudyHours}). weeklySchedule 이 없을 때 사용.
- * @param {Date} [input.now] calcStudentBonusRates 의 D-day 계산 기준 시각(테스트 주입용).
- * @returns {object} 파생 상태 전체
+ * now calcStudentBonusRates 의 D-day 계산 기준 시각(테스트 주입용).
+ * @returns 파생 상태 전체
  */
-export function buildInitialStudentState(input) {
+export function buildInitialStudentState(
+  input: BuildInitialStudentStateInput,
+): StudentState {
   const {
     schoolType,
     grade,
@@ -205,7 +285,7 @@ export function buildInitialStudentState(input) {
   // student.mjs:655 — DB 조회 전에 항상 이 반올림을 거친다.
   const roundedScore = Math.round((Number(currentScore) || 0) * 10) / 10;
 
-  let convertedGradeRaw;
+  let convertedGradeRaw: number;
   if (!conversionType) {
     // 원본: conversionType 이 없으면(고3 등) DB 조회 자체를 안 하고 원점수를 그대로 쓴다.
     convertedGradeRaw = roundedScore;
@@ -313,18 +393,17 @@ export function buildInitialStudentState(input) {
  * 하루치 학습 기록 1건을 게이지에 반영한다. 상태를 변이시키지 않고 새 상태를 반환한다.
  * 원본 호출 순서: App.tsx:1620-1631(calculateDailyBonus) → student.mjs:1034-1037(클램프).
  *
- * @param {object} state buildInitialStudentState 또는 이전 applyDailyRecord 의 반환값.
- * @param {object} record
- * @param {string} record.achievement 성취도 키(full/high/mid/low/none)
- * @param {string} record.focus 집중도 키(excellent/good/normal/low/veryLow)
- * @param {string[]} [record.tasks] 오늘 한 학습 유형 태그(예: '내신 과목', '기출/모의고사')
- * @param {number} record.studyHours 실제 학습 시간
- * @param {number|null} [record.virtualDayIndex] 0(월)~6(일). idealHours/minHours 를
+ * state buildInitialStudentState 또는 이전 applyDailyRecord 의 반환값.
+ * record.achievement 성취도 키(full/high/mid/low/none)
+ * record.focus 집중도 키(excellent/good/normal/low/veryLow)
+ * record.tasks 오늘 한 학습 유형 태그(예: '내신 과목', '기출/모의고사')
+ * record.studyHours 실제 학습 시간
+ * record.virtualDayIndex 0(월)~6(일). idealHours/minHours 를
  *   직접 주지 않으면 state.weeklySchedule 에서 이 인덱스로 오늘 목표를 찾는다.
- * @param {number|null} [record.idealHours] 오늘 이상 목표 시간을 직접 주입(일요일 보충 로직처럼
+ * record.idealHours 오늘 이상 목표 시간을 직접 주입(일요일 보충 로직처럼
  *   weeklySchedule 만으로 못 구하는 경우용 — 원본의 getSundayRemainingScheduleFromRecords 는
  *   이 5개 calc 모듈 범위 밖이라 이식하지 않았다. 호출자가 미리 구해서 넘겨야 한다).
- * @param {number|null} [record.minHours] 오늘 최소 목표 시간 직접 주입.
+ * record.minHours 오늘 최소 목표 시간 직접 주입.
  *
  * ⚠️ 일요일 구멍: 원본은 그 주에 못 채운 자습시간을 일요일에 몰아주는 별도 계산
  * (`getSundayRemainingScheduleFromRecords`, App.tsx)이 있는데 이 파이프라인은 이식하지
@@ -336,9 +415,22 @@ export function buildInitialStudentState(input) {
  * 즉 일요일 목표를 안 채워주면 "목표 없음"이 "이미 다 채움"과 동일하게 취급된다 —
  * 일요일 보충을 정확히 재현하려면 반드시 `record.idealHours`/`record.minHours` 를 호출자가
  * 구해서 넘겨야 한다.
- * @returns {object} 새 상태(원본 state 는 변형하지 않는다)
+ * @returns 새 상태(원본 state 는 변형하지 않는다)
  */
-export function applyDailyRecord(state, record) {
+export interface DailyRecordInput {
+  achievement: string;
+  focus: string;
+  tasks?: string[];
+  studyHours: number;
+  virtualDayIndex?: number | null;
+  idealHours?: number | null;
+  minHours?: number | null;
+}
+
+export function applyDailyRecord(
+  state: StudentState,
+  record: DailyRecordInput,
+): StudentState {
   const {
     achievement,
     focus,

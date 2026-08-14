@@ -498,10 +498,17 @@ test("calcNaesinProb — 지수감쇠 두 갈래 + 시간계수", () => {
     expected,
   ] of NAESIN_PROB_CASES) {
     const label = `calcNaesinProb(${String(currentGrade)}, ${String(targetCut)}, ${String(remainExams)}, ${String(totalExams)})`;
+    // NAESIN_PROB_CASES 는 방어 동작 검증용으로 문자열("abc")도 섞여 있다 —
+    // calcNaesinProb 시그니처(remainExams/totalExams: number)와 다르므로 캐스팅만 한다.
     const actual =
       totalExams === undefined
-        ? calcNaesinProb(currentGrade, targetCut, remainExams)
-        : calcNaesinProb(currentGrade, targetCut, remainExams, totalExams);
+        ? calcNaesinProb(currentGrade, targetCut, remainExams as number)
+        : calcNaesinProb(
+            currentGrade,
+            targetCut,
+            remainExams as number,
+            totalExams as number,
+          );
     assertNum(actual, expected, label);
   }
 });

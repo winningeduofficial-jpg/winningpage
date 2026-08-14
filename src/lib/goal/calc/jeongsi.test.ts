@@ -27,7 +27,7 @@ import {
   getPercentileChips,
   getTimeFactorPercentile,
   getWeightedEffortAmount,
-} from "./jeongsi.js";
+} from "./jeongsi.ts";
 
 // 부동소수 비교 헬퍼. NaN 은 NaN 끼리만 같다고 본다(원본이 NaN 을 뱉는 케이스가 있다).
 function assertClose(actual, expected, label) {
@@ -539,7 +539,9 @@ test("GRADE_PERCENTILE: 9등급 구간 리터럴이 원본과 일치한다", () 
 test("getPercentileChips: 골든 픽스처", () => {
   for (const [gradeStr, expected] of FIXTURES.chips) {
     assert.deepEqual(
-      getPercentileChips(gradeStr),
+      // FIXTURES.chips 는 [string, chip[]][] 튜플인데 리터럴 배열이라 TS 가
+      // gradeStr 을 `string | chip[]` 로 합쳐 추론한다 — 런타임엔 항상 string.
+      getPercentileChips(gradeStr as string),
       expected,
       `chips(${JSON.stringify(gradeStr)})`,
     );

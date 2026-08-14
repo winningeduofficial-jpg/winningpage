@@ -56,14 +56,33 @@ const JUNGSI_BASE_DATE = 19;
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 // 서버(api/student.mjs:243-245)의 round4. Number(v || 0) 을 거치므로 NaN·null·undefined·'abc' 는 0이 된다.
-function round4Server(v) {
+function round4Server(v: unknown) {
   return Math.round(Number(v || 0) * 10000) / 10000;
 }
 
 // 클라이언트(App.tsx:40)의 round4. 서버판과 달리 Number(v || 0) 정규화가 없어 NaN 이 NaN 그대로 나온다.
 // NOTE(target-parity): 같은 이름의 round4 가 원본에 두 벌 있고 NaN 처리가 서로 다르다. 통일하지 않는다.
-function round4Client(v) {
+function round4Client(v: number) {
   return Math.round(v * 10000) / 10000;
+}
+
+// calcStudentBonusRates 반환 4종.
+export interface StudentBonusRates {
+  idealSusiBonus: number;
+  idealJungsiBonus: number;
+  minSusiBonus: number;
+  minJungsiBonus: number;
+}
+
+// calculateDailyBonus 반환값. 4종 + 하위호환 별칭 3종.
+export interface DailyBonusResult {
+  calculatedBonus: number;
+  idealSusiBonus: number;
+  idealJungsiBonus: number;
+  minSusiBonus: number;
+  minJungsiBonus: number;
+  susiBonus: number;
+  jungsiBonus: number;
 }
 
 /**
@@ -79,13 +98,13 @@ function round4Client(v) {
  * @param {Date} [nowInput] 현재 시각(테스트 주입용). 원본은 내부에서 new Date() 를 읽었다.
  */
 export function calcStudentBonusRates(
-  grade,
-  idealSusi,
-  idealJungsi,
-  minSusi,
-  minJungsi,
+  grade: string,
+  idealSusi: number,
+  idealJungsi: number,
+  minSusi: number,
+  minJungsi: number,
   nowInput = new Date(),
-) {
+): StudentBonusRates {
   // 원본은 new Date() 결과를 그대로 setHours 로 자정 정규화했다. 주입받은 Date 를 그 자리에서
   // 변형하면 호출자 객체가 오염되므로 복제본에만 setHours 를 건다(반환값은 원본과 동일).
   const now = new Date(nowInput.getTime());
@@ -153,7 +172,7 @@ export function calcStudentBonusRates(
  * @param {number} rate 달성률(%) — 100 이 목표 정확 달성
  * @returns {number} 0 ~ 1.2 배수
  */
-export function getAchievementRateMultiplier(rate) {
+export function getAchievementRateMultiplier(rate: number) {
   if (rate > 170) return 1.2;
   if (rate > 130) return 1.1;
   if (rate >= 100) return 1.0;
@@ -180,17 +199,17 @@ export function getAchievementRateMultiplier(rate) {
  * @param {number} minHours 오늘 최소 목표 시간
  */
 export function calculateDailyBonus(
-  achievement,
-  focus,
-  idealSusiRate,
-  idealJungsiRate,
-  minSusiRate,
-  minJungsiRate,
-  tasks,
-  studyHours,
-  idealHours,
-  minHours,
-) {
+  achievement: string,
+  focus: string,
+  idealSusiRate: number,
+  idealJungsiRate: number,
+  minSusiRate: number,
+  minJungsiRate: number,
+  tasks: string[],
+  studyHours: number,
+  idealHours: number,
+  minHours: number,
+): DailyBonusResult {
   const normalizedIdealHours = Number(idealHours || 0);
   const normalizedMinHours = Number(minHours || 0);
 
