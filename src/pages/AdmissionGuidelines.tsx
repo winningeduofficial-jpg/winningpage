@@ -217,7 +217,7 @@ function sectionHasContent(row, section) {
 // 미이스케이프 텍스트로 그대로 주입되던 버그였다. 이제는 html이 실제로
 // 만들어졌을 때만 isHtml=true이고, 그 외(20자 미만 raw 등)는 text 분기로
 // 평문 렌더한다.
-function resolveInfoContent(row, section, universityName) {
+function resolveInfoContent(row, section, universityName): ResolvedInfoContent {
   const rawTextContent = resolveSectionText(row, section);
   const htmlContent =
     section.htmlKey &&
@@ -473,7 +473,8 @@ function UniversityResourceTable({ universities, resourceIndex, onOpenInfo }) {
               </th>
             ))}
             <th>
-              <ButtonLabel item={LINK_SECTIONS[0]} />
+              {/* LINK_SECTIONS는 위에서 원소 1개로 고정 선언된 상수라 항상 존재. */}
+              <ButtonLabel item={LINK_SECTIONS[0]!} />
             </th>
           </tr>
         </thead>
@@ -651,9 +652,21 @@ function addGlobalSectionQa(add, row, section, _rawText, html) {
   });
 }
 
+type AdmissionVisualAuditIssue = {
+  university: string;
+  section: string;
+  severity: "error" | "warn";
+  message: string;
+};
+
 function buildAdmissionVisualAudit(rows) {
-  const issues = [];
-  const add = (row, section, severity, message) => {
+  const issues: AdmissionVisualAuditIssue[] = [];
+  const add = (
+    row,
+    section: string,
+    severity: "error" | "warn",
+    message: string,
+  ) => {
     issues.push({
       university: clean(
         row?.university_name || row?.name || row?.university_key || "-",
@@ -1098,9 +1111,30 @@ function AdmissionQaPanel({ rows }) {
   );
 }
 
+// 모달 on-demand fetch 결과(resolveInfoContent 반환) — mode/doc/html/text/isHtml
+// 4형태를 그대로 옮긴 것.
+type ResolvedInfoContent = {
+  mode: "doc" | "html" | "text";
+  doc: unknown;
+  html: string;
+  text: string;
+  isHtml: boolean;
+};
+
+// 모달에 실제로 표시 중인 셀 1개. section/row는 admission_university_resources
+// 관련 코드 전반이 그렇듯 무타입 dot-access 객체다(위 universities/resourceRows와 동일 사유).
+type SelectedInfo = Partial<ResolvedInfoContent> & {
+  universityName: string;
+  title: string;
+  cacheKey: string;
+  section: Record<string, unknown>;
+  row: Record<string, unknown>;
+  status: "ready" | "loading" | "error";
+};
+
 export default function AdmissionGuidelines() {
-  const mapRef = useRef(null);
-  const listSectionRef = useRef(null);
+  const mapRef = useRef<HTMLDivElement>(null);
+  const listSectionRef = useRef<HTMLElement>(null);
   const [selectedRegion, setSelectedRegion] = useState("");
   const [selectedSpecialGroupKey, setSelectedSpecialGroupKey] = useState("");
   const [keyword, setKeyword] = useState("");
@@ -1112,10 +1146,17 @@ export default function AdmissionGuidelines() {
   const [activeAdmissionYear, setActiveAdmissionYear] = useState(
     DEFAULT_ADMISSION_ACTIVE_YEAR,
   );
-  const [universities, setUniversities] = useState([]);
+  // admission_universities/admission_university_resources는 supabase select("*")
+  // 결과라 생성된 스키마 타입이 없다(레거시 .jsx 시절부터 무타입 dot-access) —
+  // 필드 전체를 새로 타이핑하지 않고 인덱스 시그니처로만 연다.
+  const [universities, setUniversities] = useState<Record<string, unknown>[]>(
+    [],
+  );
   const [universitiesLoading, setUniversitiesLoading] = useState(true);
   const [universitiesError, setUniversitiesError] = useState(false);
-  const [resourceRows, setResourceRows] = useState([]);
+  const [resourceRows, setResourceRows] = useState<Record<string, unknown>[]>(
+    [],
+  );
   const [resourcesLoading, setResourcesLoading] = useState(true);
   const [resourcesError, setResourcesError] = useState(false);
   const [tooltip, setTooltip] = useState({
@@ -1124,24 +1165,24 @@ export default function AdmissionGuidelines() {
     x: 0,
     y: 0,
   });
-  const [selectedInfo, setSelectedInfo] = useState(null);
+  const [selectedInfo, setSelectedInfo] = useState<SelectedInfo | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   // 모달 본문/프록시 트랙 ref는 여기 남는다 — 프록시 스크롤바 계산의 입력이라
   // 껍데기(AdmissionModalShell)가 아니라 이 페이지가 소유한다. 시트/닫기 버튼
   // ref와 포커스 트랩·ESC·배경 스크롤 잠금은 껍데기로 옮겼다.
-  const modalBodyRef = useRef(null);
-  const modalXScrollRef = useRef(null);
+  const modalBodyRef = useRef<HTMLDivElement>(null);
+  const modalXScrollRef = useRef<HTMLDivElement>(null);
   // 모달을 연 트리거(목록의 "보기" 버튼). 닫힐 때 포커스를 여기로 되돌린다.
   // 껍데기가 아니라 페이지가 소유한다 — 트리거를 아는 것은 "여는 쪽"이고,
   // 클릭 시점에 잡아야 그 뒤 포커스가 어디로 가든 원래 자리가 보존된다.
-  const modalTriggerRef = useRef(null);
+  const modalTriggerRef = useRef<HTMLElement | null>(null);
   const [modalXScroll, setModalXScroll] = useState({
     visible: false,
     width: 0,
   });
   // 모달 on-demand fetch 캐시: `${row.id}:${section.key}` → { mode, doc, html, text, isHtml }.
   // 같은 셀 재클릭 시 재요청하지 않는다.
-  const infoCacheRef = useRef(new Map());
+  const infoCacheRef = useRef(new Map<string, ResolvedInfoContent>());
 
   // 정보 버튼 클릭 시 그 카테고리에 필요한 컬럼만 admission_university_resources에서
   // id로 조회해 본문을 계산한다. selectedInfo.cacheKey와 비교해 응답 시점에 이미
@@ -1990,9 +2031,16 @@ export default function AdmissionGuidelines() {
             </div>
           ) : selectedInfo.mode === "doc" ? (
             <div className="admission-table-wrap">
+              {/* selectedInfo.doc/section은 이 페이지 로컬 SelectedInfo(무타입
+                  dot-access) 형태다 — mode==='doc' 분기는 resolveInfoContent가
+                  실제로 AdmissionDoc/section 객체를 채운 경우로만 진입한다. */}
               <AdmissionSectionView
-                doc={selectedInfo.doc}
-                sectionKey={selectedInfo.section?.key}
+                doc={
+                  selectedInfo.doc as ComponentPropsWithoutRef<
+                    typeof AdmissionSectionView
+                  >["doc"]
+                }
+                sectionKey={selectedInfo.section?.key as string}
                 surface="public"
               />
             </div>
@@ -2004,7 +2052,8 @@ export default function AdmissionGuidelines() {
             // 스크롤 컨테이너가 중첩된다 — className 없이 SafeHtml에 그대로
             // 넘긴다(SafeHtml은 className 없으면 감싸는 div도 만들지 않는다).
             <div className="admission-table-wrap">
-              <SafeHtml html={selectedInfo.html} />
+              {/* mode==='html' 분기는 resolveInfoContent가 html을 채운 경우로만 진입한다. */}
+              <SafeHtml html={selectedInfo.html ?? ""} />
             </div>
           ) : selectedInfo.text ? (
             <div className="whitespace-pre-wrap">{selectedInfo.text}</div>
