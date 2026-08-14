@@ -55,6 +55,7 @@
 //    회차를 태우는 프롬프트를 클라이언트가 조작할 수 있었다. 여기서 바디로 받는 것은
 //    `sessionId`와 `round`뿐이고 나머지는 전부 세션 행에서 읽는다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
@@ -155,7 +156,48 @@ const SESSION_COLUMNS = [
   "topic_attempt_count",
 ].join(",");
 
-function fail(res, status, code, message, extra) {
+/** 세션 SELECT 컬럼(§ SESSION_COLUMNS)과 정확히 대응하는 최소 필드 형태. */
+type SessionRow = {
+  id: string;
+  profile_id: string;
+  status: string;
+  current_step: number | null;
+  completed_steps: unknown;
+  grade_label: string | null;
+  semester: string | null;
+  school_type: string | null;
+  subject_group: string | null;
+  subject: string | null;
+  career_goal: string | null;
+  previous_topic: string | null;
+  guide_input_mode: string | null;
+  guide_freetext: string | null;
+  guide_json: unknown;
+  topic_attempt_count: number | null;
+};
+
+/** performance_topics 저장/조회 행. */
+type TopicRow = {
+  id: string;
+  round: number;
+  idx: number;
+  title: string;
+  subtitle: string;
+  tags: unknown;
+  detail: unknown;
+  selected: boolean;
+};
+
+/** 모델이 낸 주제 1건(구조 검증 전). 키 존재만 스키마가 보장하므로 값은 unknown으로 받는다. */
+type ModelTopic = Record<string, unknown>;
+
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+  extra?: Record<string, unknown>,
+) {
   return res.status(status).json({ error: { code, message }, ...extra });
 }
 
@@ -167,10 +209,10 @@ function fail(res, status, code, message, extra) {
  * `guide_json`은 P7 시점에 **평문을 담는 봉투**다(`analyze-guide.js`의 `{mode,text,…}`).
  * §8.4의 안내문 스키마로 승격되면 이 함수가 그 구조를 평문으로 펴는 자리가 된다.
  */
-function readAssessmentText(sessionRow) {
+function readAssessmentText(sessionRow: SessionRow): string {
   const guideJson =
     sessionRow.guide_json && typeof sessionRow.guide_json === "object"
-      ? sessionRow.guide_json
+      ? (sessionRow.guide_json as Record<string, unknown>)
       : null;
 
   const fromUpload = String(guideJson?.text || "").trim();
@@ -188,7 +230,7 @@ function readAssessmentText(sessionRow) {
  * `session.js` PATCH / `design-report`(P10)가 기록한다.
  * 여기서 하는 일은 진행을 3보다 앞으로 되돌리지 않는 것뿐이다.
  */
-function stepPatch(sessionRow) {
+function stepPatch(sessionRow: SessionRow) {
   return {
     status: sessionRow.status === "draft" ? "in_progress" : sessionRow.status,
     current_step: Math.max(Number(sessionRow.current_step) || 1, 3),
@@ -196,7 +238,7 @@ function stepPatch(sessionRow) {
 }
 
 /** 카드 태그 4종. 전부 세션 파생값이며 모델 산출물이 아니다(§8.3 `tags`, §13). */
-function buildTags(sessionRow) {
+function buildTags(sessionRow: SessionRow): string[] {
   const subjectText = [sessionRow.subject_group, sessionRow.subject]
     .map((value) => String(value || "").trim())
     .filter(Boolean)
@@ -217,7 +259,7 @@ function buildTags(sessionRow) {
  * 공백 정리뿐이다. 순서·라벨의 정본은 `TOPIC_DETAIL_SECTIONS`(시안 `3754:4872` 실측)이며
  * 모델이 필드를 어떤 순서로 내든 렌더 순서는 여기서 정해진다.
  */
-function buildDetail(topic) {
+function buildDetail(topic: ModelTopic) {
   return TOPIC_DETAIL_SECTIONS.map((section) => ({
     id: section.id,
     label: section.label,
@@ -235,12 +277,14 @@ function buildDetail(topic) {
  *
  * @returns {{ok: true, topics: object[]} | {ok: false, reason: string}}
  */
-function validateTopicsPayload(payload) {
+function validateTopicsPayload(
+  payload: unknown,
+): { ok: true; topics: ModelTopic[] } | { ok: false; reason: string } {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
     return { ok: false, reason: "not-an-object" };
   }
 
-  const topics = payload.topics;
+  const topics = (payload as Record<string, unknown>).topics;
   if (!Array.isArray(topics) || topics.length !== 3) {
     return {
       ok: false,
@@ -251,7 +295,7 @@ function validateTopicsPayload(payload) {
   const keys = ["title", ...TOPIC_DETAIL_SECTIONS.map((section) => section.id)];
 
   for (let i = 0; i < topics.length; i++) {
-    const topic = topics[i];
+    const topic = topics[i] as ModelTopic;
     if (!topic || typeof topic !== "object") {
       return { ok: false, reason: `topic-${i + 1}:not-an-object` };
     }
@@ -263,11 +307,11 @@ function validateTopicsPayload(payload) {
     }
   }
 
-  return { ok: true, topics };
+  return { ok: true, topics: topics as ModelTopic[] };
 }
 
 /** 응답에 실을 주제 카드 1장. DB 행과 같은 모양이라 저장 전/후 형태가 갈리지 않는다. */
-function toClientTopic(row) {
+function toClientTopic(row: TopicRow) {
   return {
     id: row.id,
     round: row.round,
@@ -280,14 +324,14 @@ function toClientTopic(row) {
   };
 }
 
-export default async function handler(req, res) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
     return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
   }
 
   res.setHeader("Cache-Control", "no-store");
 
-  let supabaseAdmin;
+  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
   try {
     supabaseAdmin = createSupabaseAdmin();
   } catch (error) {
@@ -341,7 +385,7 @@ export default async function handler(req, res) {
 
     // ── 세션 소유권. 없는 세션과 남의 세션을 같은 응답으로 묶어 id 존재 여부가 새지
     //    않게 한다(RPC 단계 1과 같은 취지).
-    const { data: sessionRow, error: sessionError } = await supabaseAdmin
+    const { data: sessionRowRaw, error: sessionError } = await supabaseAdmin
       .from("performance_sessions")
       .select(SESSION_COLUMNS)
       .eq("id", sessionId)
@@ -350,9 +394,14 @@ export default async function handler(req, res) {
 
     if (sessionError)
       throw new Error(`세션 조회 실패: ${sessionError.message}`);
-    if (!sessionRow) {
+    if (!sessionRowRaw) {
       return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.");
     }
+
+    // `SESSION_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반 열
+    // 추론을 못 하고 `GenericStringError`로 떨어진다(bootstrap.ts와 같은 사유) —
+    // select 목록과 SessionRow 필드는 정확히 대응하므로 안전한 캐스트다.
+    const sessionRow = sessionRowRaw as unknown as SessionRow;
 
     // ── STEP1/STEP2 선행 조건. 여기서 막지 않으면 `미입력`투성이 프롬프트가 회차를
     //    태우고 쓸모없는 주제 3건을 돌려준다. 둘 다 **무차감**이다.
@@ -415,7 +464,7 @@ export default async function handler(req, res) {
     const nextRound = lastRound + 1;
 
     const requestedRoundRaw = body.round;
-    let requestedRound = null;
+    let requestedRound: number | null = null;
     if (
       requestedRoundRaw !== undefined &&
       requestedRoundRaw !== null &&
@@ -647,7 +696,9 @@ export default async function handler(req, res) {
       includeOtherSubjects: true,
     });
 
-    let studentSessions = [];
+    let studentSessions: Awaited<
+      ReturnType<typeof loadRelevantStudentSessions>
+    > = [];
     try {
       studentSessions = await loadRelevantStudentSessions({
         supabase: supabaseAdmin,
@@ -715,14 +766,14 @@ export default async function handler(req, res) {
       MODEL_TIMEOUT_MS,
     );
 
-    let validated = null;
+    let validated: ModelTopic[] | null = null;
     let lastFailure = "unknown";
 
     try {
       for (let attempt = 0; attempt <= STRUCTURE_RETRY; attempt++) {
         const isRetry = attempt > 0;
 
-        let response;
+        let response: Awaited<ReturnType<typeof generateWithRetry>>;
         try {
           response = await generateWithRetry({
             model: PERFORMANCE_MODEL,
@@ -789,7 +840,7 @@ export default async function handler(req, res) {
           continue;
         }
 
-        let parsed;
+        let parsed: unknown;
         try {
           // 유일한 파싱이다. `responseMimeType:'application/json'`이 형식을 보장하므로
           // 코드펜스 제거·헤더 보정 같은 전처리를 두지 않는다(§8.4).
@@ -807,9 +858,13 @@ export default async function handler(req, res) {
 
         const check = validateTopicsPayload(parsed);
         if (!check.ok) {
-          lastFailure = `contract:${check.reason}`;
+          // tsconfig가 strictNullChecks를 끄고 있어(strict:false) 이 boolean 판별
+          // 유니온이 `!check.ok`만으로는 좁혀지지 않는다(strict:true에서만 좁혀짐을
+          // 격리 재현으로 확인) — 그래서 여기서만 명시적으로 좁힌다.
+          const { reason } = check as { ok: false; reason: string };
+          lastFailure = `contract:${reason}`;
           console.warn(
-            `performance/recommend-topics 계약 위반 ${check.reason} (attempt ${attempt + 1})`,
+            `performance/recommend-topics 계약 위반 ${reason} (attempt ${attempt + 1})`,
           );
           continue;
         }
