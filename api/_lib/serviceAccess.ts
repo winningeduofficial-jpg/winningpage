@@ -22,7 +22,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type ServiceConfig = {
   service_key: string;
   service_name: string;
-  target_url?: string;
+  target_url?: string | undefined;
   payment_keywords: string[];
   program_keys: string[];
 };
@@ -419,7 +419,7 @@ export async function ensureDevProgramAccessGrant(
   config: ServiceConfig,
 ): Promise<void> {
   try {
-    let programKey = null;
+    let programKey: string | null = null;
 
     for (const candidate of config.program_keys) {
       const { data: programRow, error: programError } = await supabaseAdmin
@@ -788,7 +788,7 @@ export async function readQuotaSnapshot(
       quotaTotal = 0; // 살아있는 부여가 없다 — "정보 없음"이 아니라 "소진/미보유"다.
     } else {
       quotaTotal = readIntOrNull(summary.quota_total, 0);
-      if (quotaTotal < 0) quotaTotal = 0;
+      if (quotaTotal! < 0) quotaTotal = 0;
     }
 
     let quotaUsed = readIntOrNull(summary.quota_used, 0);
