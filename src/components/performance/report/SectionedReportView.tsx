@@ -1,4 +1,5 @@
 import { useId } from "react";
+import type { Block } from "../../../lib/admissionDoc";
 import { renderBlock } from "../../admission/blocks/renderBlock";
 
 // 리포트류 화면(§5.11 주제 상세 모달 / §5.13 설계 리포트 / §5.16 평가 리포트)이 공유하는
@@ -43,8 +44,19 @@ import { renderBlock } from "../../admission/blocks/renderBlock";
 // aria-labelledby>`로 묶는다 — 라벨을 `<p>`로만 두면 스크린리더가 라벨과 본문을 구분하지
 // 못한다. 호출부(다이얼로그)의 제목이 `<h2>`이므로 `<h3>`는 그 아래 위계와 자연스럽게
 // 이어진다. `id`는 `useId()` 기반이라 같은 페이지에 여러 인스턴스가 떠도 충돌하지 않는다.
+export type ReportSection = {
+  id?: string;
+  label: string;
+  text?: string;
+  // `renderBlock`(admission 도메인, 이 배치 밖)의 실제 파라미터 타입은 `Block`(판별 유니언)
+  // 이지만, 이 컴포넌트를 호출하는 여러 리포트 모달(§5.13/§5.16, 일부는 이 배치 밖)이
+  // 서버 봉투를 느슨한 객체 배열로만 타입해 넘긴다 — 여기서 `Block[]`로 좁히면 그 호출부들과
+  // 구조적으로 어긋난다. 느슨한 타입을 유지하고 `renderBlock` 호출부에서만 캐스팅한다.
+  blocks?: Record<string, unknown>[];
+};
+
 /** 본문이 실재하는가 — `blocks`(우선) 또는 `text`. */
-function hasBody(section) {
+function hasBody(section?: Partial<ReportSection> | null) {
   if (Array.isArray(section?.blocks)) return section.blocks.length > 0;
   return typeof section?.text === "string" && section.text.trim() !== "";
 }
@@ -54,10 +66,10 @@ function hasBody(section) {
  * 호출부가 렌더 전에 "빈 상태인가"를 미리 알아야 할 때 이 컴포넌트와 같은 판정을 쓰기
  * 위해 export한다(`TopicDetailModal`의 확정 버튼 비활성, `DesignReportModal`의 인쇄 버튼
  * 비활성).
- * @param {Array<{id?: string, label: string, text?: string, blocks?: object[]}>} [sections]
- * @returns {Array<{id?: string, label: string, text?: string, blocks?: object[]}>}
  */
-export function getVisibleSections(sections) {
+export function getVisibleSections(
+  sections?: ReportSection[] | null,
+): ReportSection[] {
   return (Array.isArray(sections) ? sections : []).filter(
     (section) =>
       typeof section?.label === "string" &&
@@ -66,11 +78,16 @@ export function getVisibleSections(sections) {
   );
 }
 
-/**
- * @param {Array<{id?: string, label: string, text?: string, blocks?: object[]}>} [sections]
- * @param {string} [className] 섹션 목록 루트에 추가할 클래스.
- */
-export default function SectionedReportView({ sections = [], className = "" }) {
+type SectionedReportViewProps = {
+  sections?: ReportSection[];
+  /** 섹션 목록 루트에 추가할 클래스. */
+  className?: string;
+};
+
+export default function SectionedReportView({
+  sections = [],
+  className = "",
+}: SectionedReportViewProps) {
   const baseId = useId();
   const visibleSections = getVisibleSections(sections);
 
@@ -106,7 +123,7 @@ export default function SectionedReportView({ sections = [], className = "" }) {
               // keyValue + group + keyValue) 이음매가 0px이 되어 세 덩어리가 한 문단처럼 붙는다.
               <div className="flex flex-col gap-2">
                 {section.blocks.map((block, blockIndex) =>
-                  renderBlock(block, blockIndex),
+                  renderBlock(block as Block, blockIndex),
                 )}
               </div>
             ) : (

@@ -7,13 +7,16 @@ import ReportModalShell, {
 } from "../../components/performance/report/ReportModalShell";
 import SectionedReportView, {
   getVisibleSections,
+  type ReportSection,
 } from "../../components/performance/report/SectionedReportView";
 import ArtifactChip from "../../components/performance/reports/ArtifactChip";
 import SavedReportCard, {
   formatSavedAt,
 } from "../../components/performance/reports/SavedReportCard";
 import DesignReportModal from "../../components/performance/step4/DesignReportModal";
-import EvaluationReportModal from "../../components/performance/step5/EvaluationReportModal";
+import EvaluationReportModal, {
+  type EvaluationReport,
+} from "../../components/performance/step5/EvaluationReportModal";
 import { useSession } from "../../context/SessionContext";
 import {
   fetchSavedReportDetail,
@@ -57,30 +60,110 @@ import {
 
 const SUBJECT_GROUP_ALL = "";
 
-function buildMeta({ gradeLabel, subjectGroup, subject, careerGoal }) {
+/** 목록/상세 조회 응답 1건의 세션 요약 — 서버(`api/performance/reports.js`)가 정규화해
+ * 내려준다. 저장소에 별도 공유 타입이 없어 이 화면 안에서만 로컬로 선언한다. */
+type SavedReportListItem = {
+  sessionId: string;
+  topicTitle?: string;
+  gradeLabel?: string;
+  subjectGroup?: string;
+  subject?: string;
+  careerGoal?: string;
+  updatedAt?: string;
+  hasDesign?: boolean;
+  hasEvaluation?: boolean;
+  hasFinal?: boolean;
+  designReportId?: string | null;
+  evaluationReportId?: string | null;
+  finalReportId?: string | null;
+};
+
+/** `design`/`final` 필드 공통 모양 — `SectionedReportView`가 그대로 받는 `sections` 배열에
+ * 상세 조회 전용 `reportId`(재조회 없이 뷰어를 열 때 넘기는 식별자)가 곁들여진다. */
+type SectionsReport = { sections: ReportSection[]; reportId?: string };
+
+/** 상세 조회의 `evaluation` 필드 — `EvaluationReport`에 같은 `reportId`가 곁들여진다. */
+type EvaluationDetailReport = EvaluationReport & { reportId?: string };
+
+type SavedReportDetail = {
+  session: SavedReportListItem;
+  design?: SectionsReport | null;
+  evaluation?: EvaluationDetailReport | null;
+  final?: SectionsReport | null;
+  submissions?: unknown[];
+};
+
+/** `fetchSavedReportsList`/`fetchSavedReportDetail`(`src/lib/performance/reports.js`)는
+ * JSDoc `@returns`가 `object` 수준으로만 표기돼 있어(그 파일은 이 배치 밖) 응답을 이
+ * 화면의 실제 필드 타입으로 캐스팅해서 쓴다 — 서버 계약은 그대로이고 타입만 좁힌다. */
+type SavedReportListResponse = {
+  items: SavedReportListItem[];
+  nextCursor: string | null;
+};
+
+type ArtifactType = "design" | "evaluation" | "final";
+
+/** 리포트 뷰어(모달) 상태 — `report`의 실제 모양은 `type`에 따라 갈리지만(디스크리미네이트
+ * 되지 않는 이유는 아래), 조회 시점엔 서버 응답을 그대로 담아 두고 각 모달에 넘길 때
+ * `type`으로 분기해 캐스팅한다. */
+type ViewerState = {
+  type: ArtifactType;
+  sessionId: string;
+  topicTitle?: string;
+  report: SectionsReport | EvaluationReport | null;
+  loading: boolean;
+  error: string | null;
+} | null;
+
+function buildMeta({
+  gradeLabel,
+  subjectGroup,
+  subject,
+  careerGoal,
+}: Pick<
+  SavedReportListItem,
+  "gradeLabel" | "subjectGroup" | "subject" | "careerGoal"
+>) {
   const subjectLine = [subjectGroup, subject].filter(Boolean).join(" / ");
   return [gradeLabel, subjectLine, careerGoal].filter(Boolean).join(" · ");
 }
 
-function toArtifacts(item) {
+function toArtifacts(item: SavedReportListItem) {
   return {
     design: {
       available: Boolean(item.hasDesign),
-      reportId: item.designReportId,
+      reportId: item.designReportId ?? null,
     },
     evaluation: {
       available: Boolean(item.hasEvaluation),
-      reportId: item.evaluationReportId,
+      reportId: item.evaluationReportId ?? null,
     },
-    final: { available: Boolean(item.hasFinal), reportId: item.finalReportId },
+    final: {
+      available: Boolean(item.hasFinal),
+      reportId: item.finalReportId ?? null,
+    },
   };
 }
+
+type FinalReportModalProps = {
+  open: boolean;
+  /** §5.16/§5.13과 대칭인 최종 제출본 뷰어. 상세 API의 `final` 필드
+   * (`{sections, submissionId, ...}`) 그대로다 — 재사용 판단은 파일 상단 주석 참고. */
+  report?: SectionsReport | null;
+  topicTitle?: string;
+  onClose: () => void;
+};
 
 /**
  * §5.16/§5.13과 대칭인 최종 제출본 뷰어. `report`는 상세 API의 `final` 필드
  * (`{sections, submissionId, ...}`) 그대로다 — 재사용 판단은 파일 상단 주석 참고.
  */
-function FinalReportModal({ open, report, topicTitle, onClose }) {
+function FinalReportModal({
+  open,
+  report,
+  topicTitle,
+  onClose,
+}: FinalReportModalProps) {
   const isOpen = open && Boolean(report);
   const visibleSections = report ? getVisibleSections(report.sections) : [];
   const hasContent = visibleSections.length > 0;
@@ -125,8 +208,18 @@ function FinalReportModal({ open, report, topicTitle, onClose }) {
   );
 }
 
+type ViewerStatusOverlayProps = {
+  loading: boolean;
+  error: string | null;
+  onDismiss: () => void;
+};
+
 /** 뷰어 로딩/에러 중 임시로 뜨는 얇은 오버레이 — 세 모달 공통, 딤은 `ReportModalShell`과 같은 톤. */
-function ViewerStatusOverlay({ loading, error, onDismiss }) {
+function ViewerStatusOverlay({
+  loading,
+  error,
+  onDismiss,
+}: ViewerStatusOverlayProps) {
   if (!loading && !error) return null;
 
   return (
@@ -170,26 +263,26 @@ export default function PerformanceReportsPage() {
   // 않도록 여기서 캐시한다. `useState`가 아니라 `useRef`인 이유: 캐시 자체는 렌더를
   // 트리거할 필요가 없고(뷰어 열람은 `viewer` 상태가 이미 리렌더를 낸다), Map을 상태로
   // 두면 매 set마다 새 Map을 만들어야 하는 번거로움만 늘어난다.
-  const detailCacheRef = useRef(new Map());
+  const detailCacheRef = useRef(new Map<string, SavedReportDetail>());
 
   // ── 목록 상태
-  const [items, setItems] = useState([]);
-  const [nextCursor, setNextCursor] = useState(null);
+  const [items, setItems] = useState<SavedReportListItem[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [listLoading, setListLoading] = useState(!isDetailMode);
   const [listLoadingMore, setListLoadingMore] = useState(false);
-  const [listError, setListError] = useState(null);
+  const [listError, setListError] = useState<string | null>(null);
   const [subjectGroupFilter, setSubjectGroupFilter] =
     useState(SUBJECT_GROUP_ALL);
 
   // ── 상세 라우트 상태(`/app/performance/reports/:sessionId`)
-  const [detail, setDetail] = useState(null);
+  const [detail, setDetail] = useState<SavedReportDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(isDetailMode);
-  const [detailError, setDetailError] = useState(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
 
   // ── 리포트 뷰어(모달) — 목록 칩 클릭 또는 상세 화면 칩 클릭 어느 쪽에서도 이 상태 하나로
   //   수렴시킨다. `report`가 채워지기 전엔 로딩 오버레이만 뜬다(§5.13/§5.16 모달 자체는
   //   `report`가 있어야만 연다는 계약을 그대로 따른다 — `ReportModalShell` 호출부 계약).
-  const [viewer, setViewer] = useState(null); // { type, sessionId, topicTitle, report, loading, error }
+  const [viewer, setViewer] = useState<ViewerState>(null);
 
   useEffect(() => {
     if (isDetailMode || !accessToken) return undefined;
@@ -200,7 +293,9 @@ export default function PerformanceReportsPage() {
 
     (async () => {
       try {
-        const data = await fetchSavedReportsList({ accessToken });
+        const data = (await fetchSavedReportsList({
+          accessToken,
+        })) as SavedReportListResponse;
         if (!alive) return;
         setItems(Array.isArray(data?.items) ? data.items : []);
         setNextCursor(data?.nextCursor || null);
@@ -235,12 +330,12 @@ export default function PerformanceReportsPage() {
     (async () => {
       try {
         const cached = detailCacheRef.current.get(routeSessionId);
-        const data =
+        const data: SavedReportDetail =
           cached ||
-          (await fetchSavedReportDetail({
+          ((await fetchSavedReportDetail({
             accessToken,
             sessionId: routeSessionId,
-          }));
+          })) as SavedReportDetail);
         if (!alive) return;
         detailCacheRef.current.set(routeSessionId, data);
         setDetail(data);
@@ -270,10 +365,10 @@ export default function PerformanceReportsPage() {
 
     setListLoadingMore(true);
     try {
-      const data = await fetchSavedReportsList({
+      const data = (await fetchSavedReportsList({
         accessToken,
         cursor: nextCursor,
-      });
+      })) as SavedReportListResponse;
       setItems((prev) => [
         ...prev,
         ...(Array.isArray(data?.items) ? data.items : []),
@@ -298,7 +393,17 @@ export default function PerformanceReportsPage() {
    * 칩 클릭 → 뷰어 모달. 이미 상세를 캐시로 갖고 있으면(같은 세션을 상세 화면에서 이미
    * 봤거나, 목록에서 다른 칩을 눌러 이미 받아 온 경우) 재조회하지 않는다.
    */
-  async function openArtifact({ sessionId, type, reportId, topicTitle }) {
+  async function openArtifact({
+    sessionId,
+    type,
+    reportId,
+    topicTitle,
+  }: {
+    sessionId: string;
+    type: ArtifactType;
+    reportId?: string | null;
+    topicTitle?: string;
+  }) {
     if (!accessToken || !sessionId || !reportId) return;
 
     setViewer({
@@ -313,7 +418,10 @@ export default function PerformanceReportsPage() {
     try {
       let data = detailCacheRef.current.get(sessionId);
       if (!data) {
-        data = await fetchSavedReportDetail({ accessToken, sessionId });
+        data = (await fetchSavedReportDetail({
+          accessToken,
+          sessionId,
+        })) as SavedReportDetail;
         detailCacheRef.current.set(sessionId, data);
       }
       setViewer({
@@ -388,7 +496,7 @@ export default function PerformanceReportsPage() {
                 available={Boolean(detail.design)}
                 onClick={() =>
                   openArtifact({
-                    sessionId: routeSessionId,
+                    sessionId: routeSessionId as string,
                     type: "design",
                     reportId: detail.design?.reportId,
                     topicTitle: detail.session.topicTitle,
@@ -400,7 +508,7 @@ export default function PerformanceReportsPage() {
                 available={Boolean(detail.evaluation)}
                 onClick={() =>
                   openArtifact({
-                    sessionId: routeSessionId,
+                    sessionId: routeSessionId as string,
                     type: "evaluation",
                     reportId: detail.evaluation?.reportId,
                     topicTitle: detail.session.topicTitle,
@@ -412,7 +520,7 @@ export default function PerformanceReportsPage() {
                 available={Boolean(detail.final)}
                 onClick={() =>
                   openArtifact({
-                    sessionId: routeSessionId,
+                    sessionId: routeSessionId as string,
                     type: "final",
                     reportId: detail.final?.reportId,
                     topicTitle: detail.session.topicTitle,
@@ -425,25 +533,37 @@ export default function PerformanceReportsPage() {
 
         <DesignReportModal
           open={viewer?.type === "design"}
-          report={viewer?.type === "design" ? viewer.report : null}
+          report={
+            viewer?.type === "design"
+              ? (viewer.report as SectionsReport | null)
+              : null
+          }
           topicTitle={viewer?.topicTitle}
           onClose={closeViewer}
         />
         <EvaluationReportModal
           open={viewer?.type === "evaluation"}
-          report={viewer?.type === "evaluation" ? viewer.report : null}
+          report={
+            viewer?.type === "evaluation"
+              ? (viewer.report as EvaluationReport | null)
+              : null
+          }
           topicTitle={viewer?.topicTitle}
           onClose={closeViewer}
         />
         <FinalReportModal
           open={viewer?.type === "final"}
-          report={viewer?.type === "final" ? viewer.report : null}
+          report={
+            viewer?.type === "final"
+              ? (viewer.report as SectionsReport | null)
+              : null
+          }
           topicTitle={viewer?.topicTitle}
           onClose={closeViewer}
         />
         <ViewerStatusOverlay
           loading={Boolean(viewer?.loading)}
-          error={viewer?.error}
+          error={viewer?.error ?? null}
           onDismiss={closeViewer}
         />
       </div>
@@ -453,7 +573,7 @@ export default function PerformanceReportsPage() {
   // ── 목록 화면(§5.18/§5.19) ──────────────────────────────────────────────
   const subjectGroups = Array.from(
     new Set(items.map((item) => item.subjectGroup).filter(Boolean)),
-  );
+  ) as string[];
   const filteredItems =
     subjectGroupFilter === SUBJECT_GROUP_ALL
       ? items
@@ -565,25 +685,37 @@ export default function PerformanceReportsPage() {
 
       <DesignReportModal
         open={viewer?.type === "design"}
-        report={viewer?.type === "design" ? viewer.report : null}
+        report={
+          viewer?.type === "design"
+            ? (viewer.report as SectionsReport | null)
+            : null
+        }
         topicTitle={viewer?.topicTitle}
         onClose={closeViewer}
       />
       <EvaluationReportModal
         open={viewer?.type === "evaluation"}
-        report={viewer?.type === "evaluation" ? viewer.report : null}
+        report={
+          viewer?.type === "evaluation"
+            ? (viewer.report as EvaluationReport | null)
+            : null
+        }
         topicTitle={viewer?.topicTitle}
         onClose={closeViewer}
       />
       <FinalReportModal
         open={viewer?.type === "final"}
-        report={viewer?.type === "final" ? viewer.report : null}
+        report={
+          viewer?.type === "final"
+            ? (viewer.report as SectionsReport | null)
+            : null
+        }
         topicTitle={viewer?.topicTitle}
         onClose={closeViewer}
       />
       <ViewerStatusOverlay
         loading={Boolean(viewer?.loading)}
-        error={viewer?.error}
+        error={viewer?.error ?? null}
         onDismiss={closeViewer}
       />
     </div>

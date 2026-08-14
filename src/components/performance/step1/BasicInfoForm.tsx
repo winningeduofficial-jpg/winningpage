@@ -1,3 +1,4 @@
+import type { FormEvent, ReactNode } from "react";
 import { useMemo, useState } from "react";
 import {
   getSubjectOptions,
@@ -48,7 +49,7 @@ const OPTIONAL_LABEL_CLASS = "text-ink-sub";
 // 필수/선택 구분을 색 하나에만 맡기지 않는다(WCAG 1.4.1) — 필수 라벨엔 시각적 `*`(aria-hidden,
 // 색만으로 구분 못 하는 사용자를 위한 비색상 단서) + 스크린리더용 "(필수)" sr-only 텍스트를
 // 덧붙이고, 선택 라벨엔 눈에 보이는 "(선택)" 접미사를 텍스트로 붙인다.
-function RequiredLabel({ children }) {
+function RequiredLabel({ children }: { children: ReactNode }) {
   return (
     <>
       {children}
@@ -58,11 +59,29 @@ function RequiredLabel({ children }) {
   );
 }
 
-function optionalLabel(text) {
+function optionalLabel(text: string) {
   return `${text} (선택)`;
 }
 
-const EMPTY_VALUES = {
+// `SelectField`/`TextField`의 `label` prop은 `string`으로 타입돼 있다(auth 도메인 컴포넌트,
+// 이 배치 밖). 실제로는 두 컴포넌트 모두 그 값을 그대로 JSX 자식으로 렌더할 뿐이라
+// `RequiredLabel`(ReactNode)을 넘겨도 런타임 동작은 정확하다 — 로직을 바꾸지 않고 이
+// 로컬 캐스트로만 타입을 맞춘다.
+function asLabel(node: ReactNode): string {
+  return node as unknown as string;
+}
+
+type BasicInfoFormValues = {
+  gradeLabel: string;
+  semester: string;
+  subjectGroup: string;
+  subject: string;
+  customSubject: string;
+  previousTopic: string;
+  careerGoal: string;
+};
+
+const EMPTY_VALUES: BasicInfoFormValues = {
   gradeLabel: "",
   semester: "",
   subjectGroup: "",
@@ -72,7 +91,7 @@ const EMPTY_VALUES = {
   careerGoal: "",
 };
 
-const REQUIRED_KEYS = [
+const REQUIRED_KEYS: Array<keyof BasicInfoFormValues> = [
   "gradeLabel",
   "semester",
   "subjectGroup",
@@ -95,21 +114,37 @@ const INFO_ITEMS = [
   },
 ];
 
-/**
- * @param {object} [initialValues] 부분 초기값(P13 재방문 복원이 채운다). 생략하면 빈 폼.
- * @param {(values: {gradeLabel:string, semester:string, subjectGroup:string, subject:string,
- *   previousTopic:string, careerGoal:string}) => void} onSubmit 검증 통과 후 호출. `subject`는
- *   '직접 입력' 선택 시 이미 커스텀 텍스트로 치환된 최종값이다.
- * @param {boolean} [submitting] true면 버튼이 로딩 상태로 잠긴다.
- * @param {string|null} [submitError] 제출 실패 메시지(서버 응답 등). 폼 자체 검증 에러가 아니다.
- */
+export type BasicInfoFormSubmitValues = {
+  gradeLabel: string;
+  semester: string;
+  subjectGroup: string;
+  subject: string;
+  previousTopic: string;
+  careerGoal: string;
+};
+
+type BasicInfoFormProps = {
+  /** 부분 초기값(P13 재방문 복원이 채운다). 생략하면 빈 폼. */
+  initialValues?: Partial<BasicInfoFormValues>;
+  /** 검증 통과 후 호출. `subject`는 '직접 입력' 선택 시 이미 커스텀 텍스트로 치환된
+   * 최종값이다. */
+  onSubmit?: (values: BasicInfoFormSubmitValues) => void;
+  /** true면 버튼이 로딩 상태로 잠긴다. */
+  submitting?: boolean;
+  /** 제출 실패 메시지(서버 응답 등). 폼 자체 검증 에러가 아니다. */
+  submitError?: string | null;
+};
+
 export default function BasicInfoForm({
   initialValues,
   onSubmit,
   submitting = false,
   submitError = null,
-}) {
-  const [values, setValues] = useState({ ...EMPTY_VALUES, ...initialValues });
+}: BasicInfoFormProps) {
+  const [values, setValues] = useState<BasicInfoFormValues>({
+    ...EMPTY_VALUES,
+    ...initialValues,
+  });
   // 과목 옵션 갱신·값 초기화를 스크린리더에 알리는 sr-only aria-live 문구(WARN #3).
   const [subjectAnnouncement, setSubjectAnnouncement] = useState("");
 
@@ -120,7 +155,7 @@ export default function BasicInfoForm({
 
   const isSubjectCustom = values.subject === CUSTOM_SUBJECT_SENTINEL;
 
-  function setField(key, value) {
+  function setField(key: keyof BasicInfoFormValues, value: string) {
     setValues((prev) => {
       const next = { ...prev, [key]: value };
 
@@ -144,7 +179,7 @@ export default function BasicInfoForm({
   // 교과군 변경 전용 핸들러 — setField의 리셋 로직은 그대로 재사용하되, 옵션 개수·초기화
   // 여부를 aria-live sr-only 문구로 함께 announce한다(WARN #3). `values`는 이 함수가
   // 정의되는 렌더 시점의 최신 상태를 클로저로 캡처하므로 stale 걱정 없다.
-  function handleSubjectGroupChange(value) {
+  function handleSubjectGroupChange(value: string) {
     const nextOptions = value ? getSubjectOptions(value) : [];
     const willReset =
       values.subject !== "" && !nextOptions.includes(values.subject);
@@ -168,7 +203,7 @@ export default function BasicInfoForm({
     REQUIRED_KEYS.every((key) => values[key].trim() !== "") &&
     (!isSubjectCustom || values.customSubject.trim() !== "");
 
-  function handleSubmit(event) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!isValid || submitting) return;
 
@@ -186,7 +221,7 @@ export default function BasicInfoForm({
     <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-4">
         <SelectField
-          label={<RequiredLabel>학년</RequiredLabel>}
+          label={asLabel(<RequiredLabel>학년</RequiredLabel>)}
           name="gradeLabel"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
@@ -197,7 +232,7 @@ export default function BasicInfoForm({
           placeholder="학년 선택"
         />
         <SelectField
-          label={<RequiredLabel>학기</RequiredLabel>}
+          label={asLabel(<RequiredLabel>학기</RequiredLabel>)}
           name="semester"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
@@ -211,7 +246,7 @@ export default function BasicInfoForm({
 
       <div className="grid grid-cols-2 gap-4">
         <SelectField
-          label={<RequiredLabel>교과군</RequiredLabel>}
+          label={asLabel(<RequiredLabel>교과군</RequiredLabel>)}
           name="subjectGroup"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
@@ -222,7 +257,7 @@ export default function BasicInfoForm({
           placeholder="교과군 선택"
         />
         <SelectField
-          label={<RequiredLabel>과목</RequiredLabel>}
+          label={asLabel(<RequiredLabel>과목</RequiredLabel>)}
           name="subject"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
@@ -245,7 +280,7 @@ export default function BasicInfoForm({
 
       {isSubjectCustom && (
         <TextField
-          label={<RequiredLabel>과목명 직접 입력</RequiredLabel>}
+          label={asLabel(<RequiredLabel>과목명 직접 입력</RequiredLabel>)}
           name="customSubject"
           required
           labelClassName={REQUIRED_LABEL_CLASS}
@@ -267,7 +302,7 @@ export default function BasicInfoForm({
       />
 
       <TextField
-        label={<RequiredLabel>희망 진로</RequiredLabel>}
+        label={asLabel(<RequiredLabel>희망 진로</RequiredLabel>)}
         name="careerGoal"
         required
         labelClassName={REQUIRED_LABEL_CLASS}

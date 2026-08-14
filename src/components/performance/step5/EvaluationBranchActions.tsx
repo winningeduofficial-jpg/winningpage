@@ -57,17 +57,25 @@ const SECONDARY = `${BUTTON_BASE} border border-performance-line bg-white text-[
 // 면 색은 그대로 두고 글자색만 `ink`(#525252, 5.54:1)로 내린다(`SubmissionForm`과 동일 판단).
 const PRIMARY = `${BUTTON_BASE} bg-primary text-[1rem] font-semibold leading-[1.25rem] text-white hover:bg-primary/90 aria-disabled:bg-performance-line aria-disabled:text-ink aria-disabled:hover:bg-performance-line`;
 
-/**
- * @param {() => void} onReevaluate `추가 평가 받기` — 확정 없이 폼 복원.
- * @param {() => void} onConfirm `이대로 확정짓기`.
- * @param {() => void} onNewAssessment `추가 수행평가 진행하기`.
- * @param {'confirm'|'new_assessment'|null} [busyAction] 확정 요청 진행 중인 액션.
- *   진행 중에는 세 버튼을 모두 잠근다 — 두 확정 액션이 겹치면 서버는 멱등/409로 정상
- *   분기하지만(`api/performance/finalize.js` 멱등 ②③), 그 사이에 폼 복원까지 끼어들면
- *   화면 상태가 서버와 어긋난다.
- * @param {boolean} [reevaluateDisabled] 재평가 상한에 도달한 경우.
- * @param {string} [reevaluateNote] 상한 안내 등 재평가 버튼 아래 한 줄(없으면 렌더 안 함).
- */
+export type EvaluationBusyAction = "confirm" | "new_assessment" | null;
+
+type EvaluationBranchActionsProps = {
+  /** `추가 평가 받기` — 확정 없이 폼 복원. */
+  onReevaluate?: () => void;
+  /** `이대로 확정짓기`. */
+  onConfirm?: () => void;
+  /** `추가 수행평가 진행하기`. */
+  onNewAssessment?: () => void;
+  /** 확정 요청 진행 중인 액션. 진행 중에는 세 버튼을 모두 잠근다 — 두 확정 액션이 겹치면
+   * 서버는 멱등/409로 정상 분기하지만(`api/performance/finalize.js` 멱등 ②③), 그 사이에
+   * 폼 복원까지 끼어들면 화면 상태가 서버와 어긋난다. */
+  busyAction?: EvaluationBusyAction;
+  /** 재평가 상한에 도달한 경우. */
+  reevaluateDisabled?: boolean;
+  /** 상한 안내 등 재평가 버튼 아래 한 줄(없으면 렌더 안 함). */
+  reevaluateNote?: string;
+};
+
 export default function EvaluationBranchActions({
   onReevaluate,
   onConfirm,
@@ -75,7 +83,7 @@ export default function EvaluationBranchActions({
   busyAction = null,
   reevaluateDisabled = false,
   reevaluateNote = "",
-}) {
+}: EvaluationBranchActionsProps) {
   const baseId = useId();
   const noticeId = `${baseId}-finalize-notice`;
   const reevaluateNoteId = reevaluateNote ? `${baseId}-reevaluate-note` : null;

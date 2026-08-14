@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useModalBehavior } from "../../../hooks/useModalBehavior";
@@ -42,15 +43,23 @@ import { useModalBehavior } from "../../../hooks/useModalBehavior";
 //   · 모달을 **자동으로** 여는 호출부(리포트 완성 즉시 오픈)는 닫을 때 포커스 목적지를
 //     직접 지정해야 한다 — `useModalBehavior`가 기억한 트리거(로딩 버블)는 그 시점에 이미
 //     언마운트돼 있어 자동 복귀가 `<body>`로 떨어진다.
-/**
- * @param {boolean} open 이미 파생된 열림 여부.
- * @param {string} title 헤더 제목(`<h2>`, 다이얼로그 접근 이름).
- * @param {string} [subtitle] 헤더 부제. 없으면 줄을 통째로 뺀다(빈 자리를 지어내지 않는다).
- * @param {string} scrollLabel 스크롤 영역의 `aria-label`.
- * @param {import('react').ReactNode} children 본문(폭 70.5rem 래퍼 안에 들어간다).
- * @param {import('react').ReactNode} [footer] 푸터 우측 정렬 버튼 그룹.
- * @param {() => void} onClose ESC·딤 클릭 공통 핸들러(푸터 닫기 버튼도 호출부가 여기로 묶는다).
- */
+type ReportModalShellProps = {
+  /** 이미 파생된 열림 여부. */
+  open: boolean;
+  /** 헤더 제목(`<h2>`, 다이얼로그 접근 이름). */
+  title: string;
+  /** 헤더 부제. 없으면 줄을 통째로 뺀다(빈 자리를 지어내지 않는다). */
+  subtitle?: string;
+  /** 스크롤 영역의 `aria-label`. */
+  scrollLabel: string;
+  /** 본문(폭 70.5rem 래퍼 안에 들어간다). */
+  children: ReactNode;
+  /** 푸터 우측 정렬 버튼 그룹. */
+  footer?: ReactNode;
+  /** ESC·딤 클릭 공통 핸들러(푸터 닫기 버튼도 호출부가 여기로 묶는다). */
+  onClose: () => void;
+};
+
 export default function ReportModalShell({
   open,
   title,
@@ -59,8 +68,8 @@ export default function ReportModalShell({
   children,
   footer,
   onClose,
-}) {
-  const panelRef = useRef(null);
+}: ReportModalShellProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
   useModalBehavior({ open, onClose, panelRef });

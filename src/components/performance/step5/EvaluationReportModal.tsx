@@ -5,6 +5,7 @@ import ReportModalShell, {
 } from "../report/ReportModalShell";
 import SectionedReportView, {
   getVisibleSections,
+  type ReportSection,
 } from "../report/SectionedReportView";
 
 // STEP5 평가 리포트 모달 — docs/수행평가-상세-명세.md §5.16(`3754:4512` 실측) / §8.5 렌더 계약.
@@ -70,20 +71,28 @@ const SUMMARY_ROW_LABEL = "총평";
 /** 만점. 프롬프트 원문 `- 예상 점수: X점 / 100점`(`evaluate-text.js:120`)의 100이다. */
 const MAX_SCORE = 100;
 
-/**
- * @param {boolean} open
- * @param {{score: number|null, summary: string, sections: Array<{id?: string, label: string,
- *   blocks?: object[], text?: string}>}} [report] `POST /api/performance/evaluate` 응답의
- *   `report` 그대로.
- * @param {string} [topicTitle] 확정 주제. 헤더 부제.
- * @param {() => void} onClose ESC·딤 클릭·`다음 단계 선택하기` 공통 핸들러.
- */
+export type EvaluationReport = {
+  score: number | null;
+  summary: string;
+  sections: ReportSection[];
+};
+
+type EvaluationReportModalProps = {
+  open: boolean;
+  /** `POST /api/performance/evaluate` 응답의 `report` 그대로. */
+  report?: EvaluationReport | null;
+  /** 확정 주제. 헤더 부제. */
+  topicTitle?: string;
+  /** ESC·딤 클릭·`다음 단계 선택하기` 공통 핸들러. */
+  onClose: () => void;
+};
+
 export default function EvaluationReportModal({
   open,
   report,
   topicTitle,
   onClose,
-}) {
+}: EvaluationReportModalProps) {
   // 훅 입력과 렌더 조건을 한 표현식에서 파생시킨다(`ReportModalShell` 호출부 계약).
   const isOpen = open && Boolean(report);
   const visibleSections = report ? getVisibleSections(report.sections) : [];
@@ -154,7 +163,13 @@ export default function EvaluationReportModal({
  * 근거로 1.5rem을 채택했다(1rem/1.3125rem이면 박스가 21px이어야 한다). 화면상으로도 종합
  * 점수는 이 모달에서 가장 먼저 읽혀야 하는 값이다.
  */
-function ScoreCard({ score, summary }) {
+function ScoreCard({
+  score,
+  summary,
+}: {
+  score: number | null;
+  summary: string;
+}) {
   const headingId = useId();
 
   return (
@@ -198,7 +213,7 @@ function ScoreCard({ score, summary }) {
  * 범위를 벗어나거나 숫자가 아니면 카드에서 점수 줄만 뺀다 — 억지로 0으로 보정하면 화면이
  * "0점"이라는 사실이 아닌 단정을 한다.
  */
-function normalizeScore(value) {
+function normalizeScore(value: number | null | undefined): number | null {
   if (typeof value !== "number" || !Number.isFinite(value)) return null;
   const rounded = Math.round(value);
   if (rounded < 0 || rounded > MAX_SCORE) return null;

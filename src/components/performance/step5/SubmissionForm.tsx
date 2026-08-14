@@ -1,4 +1,5 @@
 import { Loader2 } from "lucide-react";
+import type { ChangeEvent, FormEvent } from "react";
 import { memo, useCallback, useId, useMemo, useRef } from "react";
 import {
   checkFieldsMinLength,
@@ -115,6 +116,22 @@ const TOPIC_LABEL = "주제";
 const SAVE_LABEL = "중간 저장";
 const SUBMIT_LABEL = "제출하고 평가 리포트 받기";
 
+export type SubmissionField = {
+  key: string;
+  label: string;
+  helper?: string;
+  required?: boolean;
+};
+
+export type SubmissionSchema = {
+  type?: string;
+  label?: string;
+  notice?: string;
+  fields?: SubmissionField[];
+};
+
+export type SubmissionFieldValues = Record<string, string>;
+
 /**
  * 필드 1개. `memo`로 감싼 이유는 문항형 20필드다(파일 상단 ⓑ) — `field`는 스키마 객체라
  * 참조가 안정적이고, `value`는 문자열, `onChange`는 호출부에서 단 한 번 만들어진 함수라
@@ -126,6 +143,12 @@ const SubmissionField = memo(function SubmissionField({
   onChange,
   idPrefix,
   readOnly,
+}: {
+  field: SubmissionField;
+  value: string;
+  onChange: (key: string, value: string) => void;
+  idPrefix: string;
+  readOnly?: boolean;
 }) {
   const id = `${idPrefix}-${field.key}`;
   const helperId = field.helper ? `${id}-helper` : null;
@@ -163,7 +186,9 @@ const SubmissionField = memo(function SubmissionField({
         id={id}
         name={field.key}
         value={value}
-        onChange={(event) => onChange(field.key, event.target.value)}
+        onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+          onChange(field.key, event.target.value)
+        }
         placeholder={field.helper || undefined}
         readOnly={readOnly}
         aria-describedby={[helperId, counterId].filter(Boolean).join(" ")}
@@ -182,25 +207,34 @@ const SubmissionField = memo(function SubmissionField({
   );
 });
 
-/**
- * @param {{type:string, label:string, notice:string,
- *   fields:{key:string,label:string,helper:string,required:boolean}[]}} schema
- *   **서버가 내려준 값 그대로**(`GET /api/performance/submission`의 `schema`). 화면이
- *   판정하거나 보정하지 않는다.
- * @param {Record<string,string>} value 필드 키 → 작성 값. 호출부가 소유한다(제출 실패·
- *   재평가 복원에서 같은 값을 다시 쓰기 때문).
- * @param {(next: Record<string,string>) => void} onChange 값 전체를 새 객체로 돌려준다.
- * @param {(fields: Record<string,string>) => void} onSaveDraft `중간 저장`.
- * @param {(fields: Record<string,string>) => void} onSubmit `제출하고 평가 리포트 받기`.
- *   **클라이언트 게이트를 통과한 경우에만 호출된다**(서버 검증은 그대로 살아 있다).
- * @param {string|null} [topicTitle] 확정 주제. §5.14 `주제*` 칸의 prefill 표시값이고
- *   **제출 필드가 아니다** — 확정 주제는 `performance_sessions.selected_topic_id`가 들고
- *   있어 서버가 직접 읽는다(§8.3). 그래서 읽기 전용이고 `fields`에 실리지 않는다.
- * @param {boolean} [saving] 중간 저장 진행 중(§6.1 상태 `saving`).
- * @param {boolean} [submitting] 제출 진행 중(§6.1 상태 `submitting`).
- * @param {string|null} [error] 저장/제출 실패 문구(서버가 준 한국어 문구 그대로).
- * @param {string|null} [savedAt] 마지막 중간 저장 시각(ISO). 저장 성공 피드백에만 쓴다.
- */
+type SubmissionFormProps = {
+  /** **서버가 내려준 값 그대로**(`GET /api/performance/submission`의 `schema`). 화면이
+   * 판정하거나 보정하지 않는다. */
+  schema?: SubmissionSchema | null;
+  /** 필드 키 → 작성 값. 호출부가 소유한다(제출 실패·재평가 복원에서 같은 값을 다시 쓰기
+   * 때문이다). */
+  value?: SubmissionFieldValues;
+  /** 값 전체를 새 객체로 돌려준다. */
+  onChange?: (next: SubmissionFieldValues) => void;
+  /** `중간 저장`. */
+  onSaveDraft?: (fields: SubmissionFieldValues) => void;
+  /** `제출하고 평가 리포트 받기`. **클라이언트 게이트를 통과한 경우에만 호출된다**
+   * (서버 검증은 그대로 살아 있다). */
+  onSubmit?: (fields: SubmissionFieldValues) => void;
+  /** 확정 주제. §5.14 `주제*` 칸의 prefill 표시값이고 **제출 필드가 아니다** — 확정 주제는
+   * `performance_sessions.selected_topic_id`가 들고 있어 서버가 직접 읽는다(§8.3). 그래서
+   * 읽기 전용이고 `fields`에 실리지 않는다. */
+  topicTitle?: string | null;
+  /** 중간 저장 진행 중(§6.1 상태 `saving`). */
+  saving?: boolean;
+  /** 제출 진행 중(§6.1 상태 `submitting`). */
+  submitting?: boolean;
+  /** 저장/제출 실패 문구(서버가 준 한국어 문구 그대로). */
+  error?: string | null;
+  /** 마지막 중간 저장 시각(ISO). 저장 성공 피드백에만 쓴다. */
+  savedAt?: string | null;
+};
+
 export default function SubmissionForm({
   schema,
   value,
@@ -212,7 +246,7 @@ export default function SubmissionForm({
   submitting = false,
   error = null,
   savedAt = null,
-}) {
+}: SubmissionFormProps) {
   const reactId = useId();
   const idPrefix = `performance-submission${reactId}`;
   const gateId = `${idPrefix}-gate`;
@@ -227,7 +261,7 @@ export default function SubmissionForm({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
-  const handleFieldChange = useCallback((key, next) => {
+  const handleFieldChange = useCallback((key: string, next: string) => {
     onChangeRef.current?.({ ...valueRef.current, [key]: next });
   }, []);
 
@@ -251,7 +285,7 @@ export default function SubmissionForm({
   // §5.14에 없는 표면이라 최소한만 만든다(§11.3 Q39 — 시안에 토스트가 없다).
   // **필드 카운터에 기준선을 얹지 않는 대신** 폼 전체 게이트를 여기 한 줄로 말하고, 두
   // 버튼이 이 문장을 `aria-describedby`로 가리킨다(비활성 사유의 프로그램적 전달).
-  let gateMessage;
+  let gateMessage: string;
   if (isEmpty) {
     gateMessage =
       "아직 작성한 내용이 없어요. 내용을 입력하면 저장하거나 제출할 수 있어요.";
@@ -270,13 +304,13 @@ export default function SubmissionForm({
 
   function handleSaveDraft() {
     if (saveLocked) return;
-    onSaveDraft?.(value);
+    onSaveDraft?.(value ?? {});
   }
 
-  function handleSubmit(event) {
+  function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (submitLocked) return;
-    onSubmit?.(value);
+    onSubmit?.(value ?? {});
   }
 
   return (
@@ -450,7 +484,7 @@ export default function SubmissionForm({
 }
 
 /** `2026. 08. 12. 14:03` 같은 절대 시각 대신 시:분만 — 같은 세션 안의 피드백이다. */
-function formatSavedAt(iso) {
+function formatSavedAt(iso: string) {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "방금";
   return date.toLocaleTimeString("ko-KR", {

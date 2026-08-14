@@ -1,3 +1,4 @@
+import type { ChangeEvent } from "react";
 import { useEffect, useRef, useState } from "react";
 import {
   HEIC_REJECT_MESSAGE,
@@ -68,7 +69,7 @@ const PREPARE_FAILED_MESSAGE =
 // 이 문구가 같은 사실을 소리로 전달한다.
 const PROCESSING_STATUS = "사진을 준비하는 중입니다.";
 const SUBMITTING_STATUS = "안내문을 분석하는 중입니다.";
-const attachedStatus = (count) => `사진 ${count}장이 첨부되었습니다.`;
+const attachedStatus = (count: number) => `사진 ${count}장이 첨부되었습니다.`;
 
 // §8.8 「고지 문구」 확정 문구 — **한 글자도 바꾸지 말 것.**
 //
@@ -83,23 +84,35 @@ const attachedStatus = (count) => `사진 ${count}장이 첨부되었습니다.`
 const RETENTION_NOTICE =
   "업로드한 안내문은 분석 목적으로만 사용되며 90일 후 자동 삭제됩니다.";
 
-/**
- * @param {(files: File[]) => void} onSubmit `분석 시작하기` — 전처리까지 끝난 파일 배열
- * @param {() => void} onSkip `안내문 없이 시작하기`(§5.8 직접 입력 분기로 전환)
- * @param {boolean} [submitting] 업로드/분석 진행 중이면 두 버튼과 파일 선택을 잠근다
- * @param {string|null} [submitError] 호출부(업로드·분석) 실패 메시지
- */
+type GuidePhoto = {
+  id: string;
+  file: File;
+  /** 미리보기용 objectURL. 반드시 해제해야 한다. */
+  url: string;
+};
+
+type GuideUploadCardProps = {
+  /** `분석 시작하기` — 전처리까지 끝난 파일 배열 */
+  onSubmit?: (files: File[]) => void;
+  /** `안내문 없이 시작하기`(§5.8 직접 입력 분기로 전환) */
+  onSkip?: () => void;
+  /** 업로드/분석 진행 중이면 두 버튼과 파일 선택을 잠근다 */
+  submitting?: boolean;
+  /** 호출부(업로드·분석) 실패 메시지 */
+  submitError?: string | null;
+};
+
 export default function GuideUploadCard({
   onSubmit,
   onSkip,
   submitting = false,
   submitError = null,
-}) {
+}: GuideUploadCardProps) {
   // { id, file, url } — `url`은 미리보기용 objectURL이라 반드시 해제해야 한다.
-  const [photos, setPhotos] = useState([]);
-  const [error, setError] = useState(null);
+  const [photos, setPhotos] = useState<GuidePhoto[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // 언마운트 시 남은 objectURL 해제. `photos`를 의존성에 넣으면 매 변경마다 해제돼
   // 미리보기가 깨지므로 ref로 최신 목록을 따로 들고 본다.
@@ -116,7 +129,7 @@ export default function GuideUploadCard({
 
   const locked = submitting || processing;
 
-  async function handleFilesSelected(event) {
+  async function handleFilesSelected(event: ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(event.target.files || []);
     // 같은 파일을 연속으로 고를 수 있게 즉시 비운다(외부 앱 `addImages`와 같은 이유).
     event.target.value = "";
@@ -126,8 +139,8 @@ export default function GuideUploadCard({
     setProcessing(true);
 
     try {
-      const accepted = [];
-      let message = null;
+      const accepted: GuidePhoto[] = [];
+      let message: string | null = null;
       let remaining = MAX_PHOTOS - photos.length;
       let usedBytes = photos.reduce((sum, photo) => sum + photo.file.size, 0);
 
@@ -149,7 +162,7 @@ export default function GuideUploadCard({
           continue;
         }
 
-        let prepared;
+        let prepared: File;
         try {
           // 장변 2000px 리사이즈 + EXIF 회전 보정(§8.8). 상한 판정은 **전처리 후** 크기로
           // 한다 — 실제로 업로드되는 바이트가 그쪽이기 때문이다.
@@ -186,7 +199,7 @@ export default function GuideUploadCard({
     }
   }
 
-  function handleRemove(id) {
+  function handleRemove(id: string) {
     setPhotos((prev) => {
       const target = prev.find((photo) => photo.id === id);
       if (target) URL.revokeObjectURL(target.url);

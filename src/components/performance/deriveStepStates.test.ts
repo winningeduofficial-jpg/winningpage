@@ -4,7 +4,7 @@
 //
 // Node 내장 러너만 쓴다. 반드시 glob으로 파일을 지정해 실행할 것
 // (디렉터리 인자를 주면 Node 24가 index.js로 오인해 0건 통과하는 가짜 green이 난다):
-//   node --test "src/components/performance/*.test.js"
+//   node --test "src/components/performance/*.test.ts"
 
 import assert from "node:assert/strict";
 import { test } from "node:test";

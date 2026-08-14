@@ -1,3 +1,4 @@
+import type { MutableRefObject, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import AiLoadingBubble from "./AiLoadingBubble";
 import AiMessage from "./AiMessage";
@@ -51,40 +52,62 @@ import UserMessage from "./UserMessage";
 // **접근성**: 로딩 카드가 이 컨테이너 안에서 나타났다 사라지므로 `aria-live="polite"`를
 // 리스트 루트에 배선한다 — 이전 단계(`AiLoadingBubble`)는 이 배선을 강제하지 않았고, 여기서
 // 시점을 확정한다.
+type PerformanceChatMessagePayload = {
+  title?: string;
+  subtitle?: string;
+  label?: string;
+  bubbleMaxWidthClassName?: string;
+};
+
 /**
- * @typedef {Object} PerformanceChatMessage
- * @property {string|number} id 리스트 key 겸 스크롤 대상 식별자.
- * @property {'ai'|'user'|'system'} [role] 기본 `'ai'`. `kind='text'`일 때만 분기에 쓰인다.
- * @property {'text'|'loading'|'card'} [kind] 기본 `'text'`.
- * @property {string} [body] `kind='text'`일 때 말풍선 본문.
- * @property {{title?: string, subtitle?: string, label?: string, bubbleMaxWidthClassName?: string}} [payload]
- *   `kind='loading'`일 때 `title`/`subtitle`, `kind='text'`(AI)일 때 `label`/`bubbleMaxWidthClassName` 오버라이드.
- * @property {import('react').ReactNode} [children] `kind='text'`(AI)면 말풍선 뒤에 붙는 인라인
- *   카드, `kind='card'`면 `InlineCard`가 감쌀 내용.
- * @property {import('react').RefObject<HTMLElement>} [focusRef] 호출부가 이 항목이 나타나는
- *   시점에 프로그램적으로 포커스를 옮기고 싶을 때 넘긴다. 배선 위치는 `kind`에 따라 다르다:
- *   `kind='loading'`이면 `AiLoadingBubble`의 루트에 그대로 전달되고, 그 밖(`kind='text'` 등)
- *   이면 말풍선 컴포넌트가 ref를 받지 않으므로 **이 항목의 래퍼 div**가 목적지가 된다.
- *   어느 쪽이든 `tabIndex={-1}`을 함께 준다(프로그램 포커스만 받고 Tab 순서에는 끼지 않는다).
+ * `focusRef` 쓰는 이유는 전부 같다 — **직전에 포커스를 갖고 있던 노드가 같은 커밋에서
+ * 언마운트되는 전이**라 브라우저 기본 동작(`<body>`로 떨어짐)에 맡기면 키보드 사용자가
+ * 위치를 잃는다. `PerformanceChatPage`의 세 자리가 그렇다: STEP4 로딩 진입(확정 경로에서
+ * 카드 목록이 통째로 빠진다, 검토 A-2), STEP4 실패 진입(로딩 버블이 빠진다), `주제 다시
+ * 고르기`로 STEP3 복귀(방금 누른 버튼째 빠진다).
  *
- *   쓰는 이유는 전부 같다 — **직전에 포커스를 갖고 있던 노드가 같은 커밋에서 언마운트되는
- *   전이**라 브라우저 기본 동작(`<body>`로 떨어짐)에 맡기면 키보드 사용자가 위치를 잃는다.
- *   `PerformanceChatPage`의 세 자리가 그렇다: STEP4 로딩 진입(확정 경로에서 카드 목록이
- *   통째로 빠진다, 검토 A-2), STEP4 실패 진입(로딩 버블이 빠진다), `주제 다시 고르기`로
- *   STEP3 복귀(방금 누른 버튼째 빠진다).
- *
- *   `focusRef`가 있으면 이 항목의 래퍼에 `aria-live="off"`도 함께 준다 — 포커스 이동 시
- *   스크린리더가 포커스된 엘리먼트를 읽고, 같은 순간 상위 `aria-live="polite"`가 같은 내용을
- *   다시 읽으면 중복 낭독이 되기 때문이다(ARIA 중첩 live region 규칙상 자식의
- *   `aria-live="off"`가 조상의 `polite`를 그 서브트리에 한해 무효화한다).
+ * `focusRef`가 있으면 이 항목의 래퍼에 `aria-live="off"`도 함께 준다 — 포커스 이동 시
+ * 스크린리더가 포커스된 엘리먼트를 읽고, 같은 순간 상위 `aria-live="polite"`가 같은 내용을
+ * 다시 읽으면 중복 낭독이 되기 때문이다(ARIA 중첩 live region 규칙상 자식의
+ * `aria-live="off"`가 조상의 `polite`를 그 서브트리에 한해 무효화한다).
  */
-/**
- * @param {PerformanceChatMessage[]} [messages]
- * @param {import('react').ReactNode} [children] `messages` 생략 시 그대로 렌더.
- * @param {string} [className] 루트에 추가할 클래스.
- */
-export default function ChatTimeline({ messages, children, className = "" }) {
-  const lastItemRef = useRef(null);
+type PerformanceChatMessage = {
+  /** 리스트 key 겸 스크롤 대상 식별자. */
+  id: string | number;
+  /** 기본 `'ai'`. `kind='text'`일 때만 분기에 쓰인다. */
+  role?: "ai" | "user" | "system";
+  /** 기본 `'text'`. */
+  kind?: "text" | "loading" | "card";
+  /** `kind='text'`일 때 말풍선 본문. */
+  body?: string;
+  /** `kind='loading'`일 때 `title`/`subtitle`, `kind='text'`(AI)일 때 `label`/
+   * `bubbleMaxWidthClassName` 오버라이드. */
+  payload?: PerformanceChatMessagePayload;
+  /** `kind='text'`(AI)면 말풍선 뒤에 붙는 인라인 카드, `kind='card'`면 `InlineCard`가
+   * 감쌀 내용. */
+  children?: ReactNode;
+  /** 호출부가 이 항목이 나타나는 시점에 프로그램적으로 포커스를 옮기고 싶을 때 넘긴다.
+   * 배선 위치는 `kind`에 따라 다르다: `kind='loading'`이면 `AiLoadingBubble`의 루트에
+   * 그대로 전달되고, 그 밖(`kind='text'` 등)이면 말풍선 컴포넌트가 ref를 받지 않으므로
+   * **이 항목의 래퍼 div**가 목적지가 된다. 어느 쪽이든 `tabIndex={-1}`을 함께 준다
+   * (프로그램 포커스만 받고 Tab 순서에는 끼지 않는다). */
+  focusRef?: MutableRefObject<HTMLDivElement | null>;
+};
+
+type ChatTimelineProps = {
+  messages?: PerformanceChatMessage[];
+  /** `messages` 생략 시 그대로 렌더. */
+  children?: ReactNode;
+  /** 루트에 추가할 클래스. */
+  className?: string;
+};
+
+export default function ChatTimeline({
+  messages,
+  children,
+  className = "",
+}: ChatTimelineProps) {
+  const lastItemRef = useRef<HTMLDivElement | null>(null);
   const lastId = messages?.length
     ? messages[messages.length - 1].id
     : undefined;
@@ -118,7 +141,7 @@ export default function ChatTimeline({ messages, children, className = "" }) {
                 : null;
             // 한 노드에 두 ref(마지막 항목 스크롤 대상 + 포커스 목적지)를 실을 수 있어야 해서
             // 콜백 ref로 합친다.
-            const setNode = (node) => {
+            const setNode = (node: HTMLDivElement | null) => {
               if (isLast) lastItemRef.current = node;
               if (wrapperFocusRef) wrapperFocusRef.current = node;
             };
@@ -138,7 +161,7 @@ export default function ChatTimeline({ messages, children, className = "" }) {
   );
 }
 
-function renderMessage(message) {
+function renderMessage(message: PerformanceChatMessage) {
   const {
     role = "ai",
     kind = "text",
