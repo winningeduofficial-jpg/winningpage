@@ -6308,9 +6308,7 @@ export default function Admin() {
       .from(config.table)
       .select("*", count ? { count } : undefined);
 
-    if (config.fixedCategory) {
-      query = query.eq("category", config.fixedCategory);
-    } else if (config.fixedCategories) {
+    if (config.fixedCategories) {
       query = query.in("category", config.fixedCategories);
     }
 
@@ -6342,7 +6340,7 @@ export default function Admin() {
       for (const [column, ascending] of config.orderBy) {
         query = query.order(column, { ascending });
       }
-    } else if (config.fixedCategory || config.fixedCategories) {
+    } else if (config.fixedCategories) {
       query = query
         .order("is_pinned", { ascending: false })
         .order("sort_order", { ascending: true })
@@ -6491,10 +6489,6 @@ export default function Admin() {
     const payload = config.formToPayload
       ? config.formToPayload(form)
       : { ...form };
-
-    if (config.fixedCategory) {
-      payload.category = config.fixedCategory;
-    }
 
     if (
       config.fixedCategories &&
