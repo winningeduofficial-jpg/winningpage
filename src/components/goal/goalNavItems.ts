@@ -6,6 +6,12 @@
 // 뱃지(중요일정 3 / 오늘의 공부 기록 미기록 / 열공 타이머 진행중)는 항목마다 소스가 다르므로
 // 정적 값이 아니라 `getBadge(navBadgeData)` 함수로 선언한다. 호출 측(GoalSidebar)이 목업/실데이터를
 // 조합한 `navBadgeData` 객체를 넘기고, 반환값이 falsy면 뱃지를 렌더하지 않는다.
+type NavBadgeData = {
+  timerRunning?: boolean;
+  dailyRecordDone?: boolean;
+  scheduleCount?: number;
+};
+
 export const GOAL_NAV_GROUPS = [
   {
     group: "홈",
@@ -15,7 +21,7 @@ export const GOAL_NAV_GROUPS = [
       {
         label: "열공 타이머",
         to: "/app/goal/timer",
-        getBadge: (d) => (d?.timerRunning ? "진행중" : null),
+        getBadge: (d?: NavBadgeData) => (d?.timerRunning ? "진행중" : null),
       },
     ],
   },
@@ -25,7 +31,7 @@ export const GOAL_NAV_GROUPS = [
       {
         label: "오늘의 공부 기록",
         to: "/app/goal/daily-record",
-        getBadge: (d) => (d?.dailyRecordDone ? null : "미기록"),
+        getBadge: (d?: NavBadgeData) => (d?.dailyRecordDone ? null : "미기록"),
       },
       { label: "주간 학습 계획표", to: "/app/goal/weekly-plan" },
       { label: "나의 노력", to: "/app/goal/efforts" },
@@ -45,7 +51,8 @@ export const GOAL_NAV_GROUPS = [
       {
         label: "중요일정",
         to: "/app/goal/schedules",
-        getBadge: (d) => (d?.scheduleCount ? String(d.scheduleCount) : null),
+        getBadge: (d?: NavBadgeData) =>
+          d?.scheduleCount ? String(d.scheduleCount) : null,
       },
     ],
   },

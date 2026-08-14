@@ -10,7 +10,16 @@ import { isQuestionAnswered } from "../lib/renewalSurvey";
  * requiredQuestions: 이 뷰의 완료 판정에 들어가는 문항 배열(optional 문항은 호출부에서 제외).
  * answers: 스텝/preview 공용 answers 맵.
  */
-export function useUnansweredNavigation(requiredQuestions, answers) {
+type SurveyQuestion = {
+  id: string | number;
+  title: string;
+  [key: string]: unknown;
+};
+
+export function useUnansweredNavigation(
+  requiredQuestions: SurveyQuestion[],
+  answers: Record<string | number, unknown> | null | undefined,
+) {
   const [highlightedId, setHighlightedId] = useState(null);
   const [announcement, setAnnouncement] = useState("");
 

@@ -14,17 +14,19 @@
 //    호출부는 매 사례를 표와 대조해 activeStep을 산출해야 한다 — 이 함수는 그 결과를
 //    받아 그대로 매핑만 한다.
 
-/**
- * @param {object} [params]
- * @param {number[]} [params.completedSteps] 완료된 스텝 번호들 (1~5). 범위 밖 값은 무시된다.
- * @param {number|null} [params.activeStep] 현재 진행 중 스텝 (1~5) 또는 null(활성 없음 — 저장
- *   리포트 화면처럼 §3.3이 「활성 스텝 0개」로 규정한 정상 입력이다, 예외가 아니다).
- * @returns {Array<'done'|'current'|'todo'>} 길이 5.
- */
+type DeriveStepStatesParams = {
+  /** 완료된 스텝 번호들 (1~5). 범위 밖 값은 무시된다. */
+  completedSteps?: number[];
+  /** 현재 진행 중 스텝 (1~5) 또는 null(활성 없음 — 저장
+   * 리포트 화면처럼 §3.3이 「활성 스텝 0개」로 규정한 정상 입력이다, 예외가 아니다). */
+  activeStep?: number | null;
+};
+
+/** @returns 길이 5의 'done'|'current'|'todo' 배열. */
 export function deriveStepStates({
   completedSteps = [],
   activeStep = null,
-} = {}) {
+}: DeriveStepStatesParams = {}): Array<"done" | "current" | "todo"> {
   const completedSet = new Set(
     (completedSteps || []).filter(
       (step) => Number.isInteger(step) && step >= 1 && step <= 5,

@@ -8,7 +8,7 @@
 // 항상 유효한 id를 만든다.
 //
 // 카테고리명에 공백·괄호·가운뎃점(·)이 섞여 있어 encodeURIComponent로 이스케이프한다.
-export function getFaqTabId(tab) {
+export function getFaqTabId(tab: string) {
   return `faq-tab-${encodeURIComponent(tab)}`;
 }
 

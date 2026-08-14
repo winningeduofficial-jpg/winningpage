@@ -10,10 +10,10 @@ import { useEffect, useRef, useState } from "react";
  * 한 픽셀이라도 걸치면 true다. 옵션이 필요 없을 만큼 6곳 전부 동일해 인자를
  * 두지 않는다(YAGNI).
  *
- * @returns {[import('react').RefObject<HTMLElement>, boolean]} [관찰 대상에 붙일 ref, 교차 여부]
+ * @returns [관찰 대상에 붙일 ref, 교차 여부]
  */
 export function useInView() {
-  const ref = useRef(null);
+  const ref = useRef<HTMLElement | null>(null);
   const [inView, setInView] = useState(false);
 
   useEffect(() => {

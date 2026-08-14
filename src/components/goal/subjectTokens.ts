@@ -6,7 +6,7 @@
 //
 // 과목 id(korean/math/english/science/etc)와 한글명(국어/수학/영어/탐구) 두 키 형태를 모두 받는다.
 
-const SUBJECT_ID_BY_NAME = {
+const SUBJECT_ID_BY_NAME: Record<string, string> = {
   국어: "korean",
   수학: "math",
   영어: "english",
@@ -16,7 +16,7 @@ const SUBJECT_ID_BY_NAME = {
 const KNOWN_SUBJECT_IDS = ["korean", "math", "english", "science", "etc"];
 
 // 키(id 또는 한글명)를 과목 id로 정규화한다. 미지정/미매칭은 'etc'로 폴백.
-export function resolveSubjectId(key) {
+export function resolveSubjectId(key?: string | null) {
   if (!key) return "etc";
   if (KNOWN_SUBJECT_IDS.includes(key)) return key;
   return SUBJECT_ID_BY_NAME[key] ?? "etc";
@@ -33,17 +33,17 @@ export const SUBJECT_LABELS = {
   etc: "기타",
 };
 
-export function getSubjectLabel(key) {
+export function getSubjectLabel(key?: string | null) {
   return SUBJECT_LABELS[resolveSubjectId(key)] ?? SUBJECT_LABELS.etc;
 }
 
 // 배경(칩) 전용 파스텔 톤 클래스 — tailwind.config.js `goal.subject.*`.
-export function getSubjectBgClass(key) {
+export function getSubjectBgClass(key?: string | null) {
   return `bg-goal-subject-${resolveSubjectId(key)}`;
 }
 
 // 도트·진행바 채움 전용 진한 톤 클래스 — tailwind.config.js `goal.subjectStrong.*`.
-export function getSubjectStrongClass(key) {
+export function getSubjectStrongClass(key?: string | null) {
   return `bg-goal-subjectStrong-${resolveSubjectId(key)}`;
 }
 

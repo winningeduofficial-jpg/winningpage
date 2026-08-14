@@ -12,12 +12,12 @@ import { useEffect, useRef, useState } from "react";
  * 실제 강제력은 서버에 있다. 클라이언트 쿨타임은 우회 가능하므로 보안 장치로
  * 여기지 말 것.
  *
- * @param {number} seconds 쿨타임 길이(초)
+ * @param seconds 쿨타임 길이(초)
  */
-export function useCooldown(seconds) {
+export function useCooldown(seconds: number) {
   const [deadline, setDeadline] = useState(0);
   const [remaining, setRemaining] = useState(0);
-  const timerRef = useRef(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (!deadline) {
