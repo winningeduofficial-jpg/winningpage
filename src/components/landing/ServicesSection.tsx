@@ -174,15 +174,17 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
 
 function ServiceCard({
   service,
-  layout = ILLUSTRATION_LAYOUTS[0],
+  // ILLUSTRATION_LAYOUTS는 비어있지 않은 상수 배열이라 [0]은 항상 존재.
+  layout = ILLUSTRATION_LAYOUTS[0]!,
 }: {
   service: Service;
   layout?: IllustrationLayout;
 }) {
   const link = resolveServiceLink(service);
   const isExternal = /^https?:\/\//i.test(link);
+  // serviceIconMap.default 키는 항상 정의돼 있는 최종 폴백.
   const FallbackIcon =
-    serviceIconMap[service.icon ?? "default"] || serviceIconMap.default;
+    serviceIconMap[service.icon ?? "default"] || serviceIconMap.default!;
 
   const content = (
     <>
@@ -336,7 +338,8 @@ export default function ServicesSection({
             <li key={service.id} className="w-full max-w-[28.0938rem]">
               <ServiceCard
                 service={service}
-                layout={ILLUSTRATION_LAYOUTS[index] ?? ILLUSTRATION_LAYOUTS[0]}
+                // ILLUSTRATION_LAYOUTS는 비어있지 않은 상수 배열이라 [0] 폴백은 항상 존재.
+                layout={ILLUSTRATION_LAYOUTS[index] ?? ILLUSTRATION_LAYOUTS[0]!}
               />
             </li>
           ))}

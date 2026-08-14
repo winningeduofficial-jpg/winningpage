@@ -58,11 +58,14 @@ export default function ServicePricingSection({
 }: ServicePricingSectionProps) {
   const { services, loading, error, refetch } = useProducts(serviceKey);
   const products = services[0]?.products || [];
+  // exactOptionalPropertyTypes: ServiceSectionProps.id는 명시적 undefined를 허용하지 않으므로,
+  // 값이 있을 때만 프롭 자체를 넣는다(동작은 동일). 세 분기(loading/error/정상)가 공유한다.
+  const idProp = id !== undefined ? { id } : {};
 
   if (loading) {
     return (
       <ServiceSection
-        id={id}
+        {...idProp}
         className={className}
         containerClassName="text-center"
         heading={heading}
@@ -77,7 +80,7 @@ export default function ServicePricingSection({
   if (error || products.length === 0) {
     return (
       <ServiceSection
-        id={id}
+        {...idProp}
         className={className}
         containerClassName="text-center"
         heading={heading}
@@ -102,7 +105,7 @@ export default function ServicePricingSection({
 
   return (
     <ServiceSection
-      id={id}
+      {...idProp}
       className={className}
       containerClassName="text-center"
       heading={heading}
@@ -110,7 +113,11 @@ export default function ServicePricingSection({
       {/* 헤딩→리스트 gap 117 × 0.766 ≈ 90px(lg:mt-[5.625rem]). */}
       <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 lg:mt-[5.625rem] lg:gap-[0.5625rem]">
         {products.map((product) => {
-          const hasDiscount = product.listPrice > product.price;
+          // null/undefined일 때 이전에도 비교식이 항상 false였던 것과 동일한 결과.
+          const hasDiscount =
+            product.listPrice != null &&
+            product.price != null &&
+            product.listPrice > product.price;
           return (
             /* 행 폭 1209 × 0.766 ≈ 926px, 컨테이너(최대 1100px) 안에서 lg:mx-auto 중앙 정렬.
                행 높이 119 × 0.766 ≈ 91px, 패딩 상하 21px / 좌우 25px, radius 12 = rounded-xl. */
