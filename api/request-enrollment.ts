@@ -38,7 +38,7 @@ function getBearerToken(req: VercelRequest) {
 
 function buildOrderName(products: ProductRow[]) {
   if (products.length === 0) return "위닝에듀 서비스";
-  const first = products[0].name || "위닝에듀 서비스";
+  const first = products[0]!.name || "위닝에듀 서비스";
   return products.length === 1 ? first : `${first} 외 ${products.length - 1}건`;
 }
 
