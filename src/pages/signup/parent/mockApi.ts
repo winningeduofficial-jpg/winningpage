@@ -20,7 +20,13 @@ function delay(ms = MOCK_DELAY) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function sendChildInvite({ name: _name, phone: _phone }) {
+export async function sendChildInvite({
+  name: _name,
+  phone: _phone,
+}: {
+  name?: string;
+  phone?: string;
+}) {
   await delay();
   const inviteUrl =
     typeof window !== "undefined"

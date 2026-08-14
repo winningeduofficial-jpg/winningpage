@@ -34,7 +34,10 @@ export async function fetchSpecialHighschoolCases() {
 }
 
 // 탭 필터는 서버 왕복 없이 클라이언트에서 한다(전체 38건, 탭 전환 시 깜빡임 없음).
-export function filterByType(rows, tabKey) {
+export function filterByType(
+  rows: Array<{ school_type?: string }> | null | undefined,
+  tabKey: string,
+) {
   return tabKey === "all"
     ? rows
     : (rows || []).filter((row) => row.school_type === tabKey);

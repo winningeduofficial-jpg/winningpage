@@ -71,7 +71,7 @@ export const TRENDING_HEADING = "지금 뜨고 있는 학과";
 // `/^학생부/` strip은 사실상 no-op이지만, 구 DDL 주석이 전제하던 `학생부교과` 표기가
 // 섞여 들어와도 시안 표기("교과·종합·논술")로 수렴하도록 방어용으로 남긴다.
 // 예상 밖의 값이 오면 원문을 그대로 노출한다(지어내지 않는다).
-export function formatTrackTags(tracks) {
+export function formatTrackTags(tracks: unknown) {
   const list = Array.isArray(tracks) ? tracks : [];
   const seen = [];
   for (const raw of list) {
@@ -84,7 +84,7 @@ export function formatTrackTags(tracks) {
 }
 
 // 대학 행 우측 보조 텍스트.
-export function formatDeptCount(count) {
+export function formatDeptCount(count: unknown) {
   const num = Number(count);
   if (!Number.isFinite(num) || num <= 0) return "";
   return `${num}개 모집단위`;
