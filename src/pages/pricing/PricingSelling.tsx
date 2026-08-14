@@ -38,8 +38,8 @@ type CartItem = {
   name: string;
   listPrice: number;
   price: number;
-  badge?: string | null;
-  recommended?: boolean;
+  badge?: string | null | undefined;
+  recommended?: boolean | undefined;
 };
 
 // products.service_key → 서비스 상세 페이지 라우트.
@@ -144,7 +144,8 @@ export default function PricingSelling() {
 
     const nextIndex =
       (currentIndex + delta + products.length) % products.length;
-    const nextProduct = products[nextIndex];
+    // nextIndex는 products.length에 대한 모듈러 연산 결과라 항상 유효 범위 인덱스다.
+    const nextProduct = products[nextIndex]!;
     setSelected((prev) => ({ ...prev, [serviceKey]: nextProduct.id }));
 
     const group = e.currentTarget.closest('[role="radiogroup"]');

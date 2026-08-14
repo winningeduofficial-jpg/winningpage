@@ -265,7 +265,11 @@ export default function Home() {
   const [heroReady, setHeroReady] = useState(false);
   const [popups, setPopups] = useState<Popup[]>([]);
   const [sideBanners, setSideBanners] = useState<SideBanner[]>(
-    LANDING_PREVIEW ? (landingPreview.sideBanners as SideBanner[]) : [],
+    // landingPreview 픽스처의 subtitle/link_url 등은 null 리터럴이라 SideBanner(undefined 허용)와
+    // 구조적으로 충분히 겹치지 않는다 — 프리뷰 전용 데이터 캐스팅이라 unknown 경유로 좁힌다.
+    LANDING_PREVIEW
+      ? (landingPreview.sideBanners as unknown as SideBanner[])
+      : [],
   );
   const [universities, setUniversities] = useState<University[]>(
     LANDING_PREVIEW ? (landingPreview.universities as University[]) : [],
