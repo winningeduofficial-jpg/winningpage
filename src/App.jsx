@@ -13,9 +13,6 @@ import {
 // SiteLayout 밖에 라우트 그룹으로 둔다. `/app/goal` 접두어는 `/services/goal`(마케팅 상세)과
 // 명사 충돌을 막기 위함 — 마케팅 상세와는 별개 라우트.
 import GoalAppLayout from "./components/goal/GoalAppLayout";
-import RequireGoalAccess from "./components/goal/RequireGoalAccess";
-import ProtectedAdmin from "./components/ProtectedAdmin";
-import ProtectedRoute from "./components/ProtectedRoute";
 // 수행평가 학생 앱(performance) — 목표관리와 같은 규칙으로 SiteLayout 밖에 둔다.
 // 시안 24노드 어디에도 사이트 헤더/푸터가 없고 셸이 자체 사이드바를 갖는다
 // (docs/수행평가-상세-명세.md §2.1 「/app/performance/*는 SiteLayout 밖」).
@@ -23,9 +20,22 @@ import ProtectedRoute from "./components/ProtectedRoute";
 // ⚠️ 신규 자산 네이밍은 performance지만 **이용권 조회 키는 'suhaeng'** 이다 —
 //    운영 DB의 program_access.program_key에 이미 박힌 값이라 개명 대상이 아니다(§1.4).
 import RequireEntitlement from "./components/RequireEntitlement";
+import {
+  AdminAccessBoundary,
+  AdminCheckingFallback,
+  AuthCheckingFallback,
+  GoalAccessBoundary,
+  GoalAccessCheckingFallback,
+} from "./components/routeGuards/RouteGuardUi";
 import SiteLayout from "./components/SiteLayout";
 import { SessionProvider } from "./context/SessionContext";
 import { SignupProvider } from "./context/SignupContext";
+import {
+  requireAdminMiddleware,
+  requireAuthMiddleware,
+  requireGoalAccessMiddleware,
+  requireGoalOnboardingDoneMiddleware,
+} from "./lib/routeMiddleware";
 import AdmissionBoard from "./pages/AdmissionBoard";
 import AdmissionGuidelines from "./pages/AdmissionGuidelines";
 import AdmissionResults from "./pages/AdmissionResults";
@@ -197,11 +207,9 @@ const routes = createRoutesFromElements(
               여기 후(後) 가드가 필요하다. */}
       <Route
         path="/checkout"
-        element={
-          <ProtectedRoute>
-            <Checkout />
-          </ProtectedRoute>
-        }
+        element={<Checkout />}
+        middleware={[requireAuthMiddleware]}
+        HydrateFallback={AuthCheckingFallback}
       />
 
       {/* 법적 문서 (카드사·PG 심사 필수) */}
@@ -280,7 +288,11 @@ const routes = createRoutesFromElements(
               SiteLayout 안에 둔다(GoalAppLayout 사이드바 셸에는 넣지 않는다). RequireGoalAccess가
               로그인・이용권 판정을 적용하되, 온보딩 경로 자체는 3단계(온보딩 완료 판정)를
               건너뛴다 — 자세한 이유는 RequireGoalAccess.jsx 상단 주석 참고. */}
-      <Route element={<RequireGoalAccess />}>
+      <Route
+        middleware={[requireGoalAccessMiddleware]}
+        HydrateFallback={GoalAccessCheckingFallback}
+        ErrorBoundary={GoalAccessBoundary}
+      >
         <Route
           path="/app/goal/onboarding"
           element={<Navigate to="/app/goal/onboarding/step-1" replace />}
@@ -435,10 +447,22 @@ const routes = createRoutesFromElements(
     </Route>
 
     {/* 목표관리 학생 앱 — 사이드바 셸(GoalAppLayout) 그룹. 진입 가드(로그인 → 이용권 →
-            온보딩 완료 → 대시보드)는 RequireGoalAccess가 소유한다(2026-08-10 확정,
-            GoalAppLayout.jsx 상단 TODO는 해소됨). */}
-    <Route element={<RequireGoalAccess />}>
-      <Route element={<GoalAppLayout />}>
+            온보딩 완료 → 대시보드)는 middleware 체인이 소유한다(2026-08-10 확정,
+            2026-08-15 middleware로 이관 — src/lib/routeMiddleware.ts). 온보딩 완료
+            판정(requireGoalOnboardingDoneMiddleware)은 이 그룹에만 걸고 온보딩 라우트
+            그룹(위)에는 걸지 않는다 — 무한 리다이렉트 방지가 런타임 pathname 체크가
+            아니라 라우트 트리 구조 자체로 보장된다(routeMiddleware.ts 주석 참고). */}
+    <Route
+      middleware={[requireGoalAccessMiddleware]}
+      HydrateFallback={GoalAccessCheckingFallback}
+      ErrorBoundary={GoalAccessBoundary}
+    >
+      <Route
+        middleware={[requireGoalOnboardingDoneMiddleware]}
+        HydrateFallback={GoalAccessCheckingFallback}
+        ErrorBoundary={GoalAccessBoundary}
+        element={<GoalAppLayout />}
+      >
         <Route path="/app/goal" element={<GoalDashboard />} />
         <Route
           path="/app/goal/target-university"
@@ -537,20 +561,21 @@ const routes = createRoutesFromElements(
     <Route
       path="/admin"
       element={
-        <ProtectedAdmin>
-          <Suspense
-            fallback={
-              <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
-                <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
-                  관리자 페이지 불러오는 중...
-                </div>
-              </main>
-            }
-          >
-            <AdminLayout />
-          </Suspense>
-        </ProtectedAdmin>
+        <Suspense
+          fallback={
+            <main className="flex min-h-screen items-center justify-center bg-[#F7F4EF] pt-16 text-[#0D1B2A]">
+              <div className="rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-4 text-sm font-extrabold shadow-[0_18px_45px_rgba(13,27,42,0.10)]">
+                관리자 페이지 불러오는 중...
+              </div>
+            </main>
+          }
+        >
+          <AdminLayout />
+        </Suspense>
       }
+      middleware={[requireAdminMiddleware]}
+      HydrateFallback={AdminCheckingFallback}
+      ErrorBoundary={AdminAccessBoundary}
     >
       <Route
         index
@@ -580,22 +605,24 @@ const routes = createRoutesFromElements(
     <Route
       path="/demo"
       element={
-        <ProtectedAdmin>
-          <Suspense fallback={<DemoFallback />}>
-            <DemoIndex />
-          </Suspense>
-        </ProtectedAdmin>
+        <Suspense fallback={<DemoFallback />}>
+          <DemoIndex />
+        </Suspense>
       }
+      middleware={[requireAdminMiddleware]}
+      HydrateFallback={AdminCheckingFallback}
+      ErrorBoundary={AdminAccessBoundary}
     />
     <Route
       path="/demo/:demoKey"
       element={
-        <ProtectedAdmin>
-          <Suspense fallback={<DemoFallback />}>
-            <DemoFrame />
-          </Suspense>
-        </ProtectedAdmin>
+        <Suspense fallback={<DemoFallback />}>
+          <DemoFrame />
+        </Suspense>
       }
+      middleware={[requireAdminMiddleware]}
+      HydrateFallback={AdminCheckingFallback}
+      ErrorBoundary={AdminAccessBoundary}
     />
 
     {/* /services/growth — 서비스 랜딩 중 하나로 비로그인 포함 전원 공개. 렌더하는 실체는
@@ -614,7 +641,11 @@ const routes = createRoutesFromElements(
   </Route>,
 );
 
-const router = createBrowserRouter(routes);
+// v8_middleware — 가드 3종(로그인/관리자/목표관리 이용권+온보딩)이 컴포넌트
+// 상태머신 대신 라우트 middleware(src/lib/routeMiddleware.ts)로 판정한다(2026-08-15).
+const router = createBrowserRouter(routes, {
+  future: { v8_middleware: true },
+});
 
 export default function App() {
   return <RouterProvider router={router} />;
