@@ -55,7 +55,23 @@ const GENERIC_MESSAGE = "주제를 추천하지 못했어요. 잠시 후 다시 
  * 상태 슬롯으로 흘러 들어가므로 읽는 쪽이 출처를 따지지 않아도 되게 한다.
  */
 export class TopicRequestError extends Error {
-  constructor(code, message, extra = {}) {
+  code: string;
+  userMessage: string;
+  quotaRemaining: number | null;
+  planEndsAt: string | null;
+  round: number | null;
+  maxRounds: number | null;
+
+  constructor(
+    code: string,
+    message: string,
+    extra: {
+      quotaRemaining?: number | null;
+      planEndsAt?: string | null;
+      round?: number | null;
+      maxRounds?: number | null;
+    } = {},
+  ) {
     super(message);
     this.name = "TopicRequestError";
     this.code = code;
@@ -75,8 +91,16 @@ export class TopicRequestError extends Error {
  * @returns {Promise<{round: number, topics: object[], quotaRemaining: number|null, charged: boolean, maxRounds: number}>}
  * @throws {TopicRequestError}
  */
-export async function recommendTopics({ accessToken, sessionId, round }) {
-  let response;
+export async function recommendTopics({
+  accessToken,
+  sessionId,
+  round,
+}: {
+  accessToken: string;
+  sessionId: string;
+  round?: number;
+}) {
+  let response: Response;
 
   try {
     response = await fetchWithTimeout(

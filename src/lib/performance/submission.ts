@@ -63,6 +63,17 @@ const FALLBACK_MESSAGE = {
 const GENERIC_MESSAGE =
   "제출물을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
+/** 저장 응답에서 초안 잔여 상태만 뽑아낸 모양(`pickSaved`가 만든다). */
+type SavedState = {
+  submissionId: string;
+  revision: unknown;
+  charCounts: Record<string, unknown>;
+  savedAt: unknown;
+  isDraft: boolean;
+  isFinal: boolean;
+  submittedAt: unknown;
+};
+
 /**
  * 화면이 분기에 쓸 수 있는 형태로 실패를 감싼다.
  * `userMessage`는 서버가 준 한국어 문구를 그대로 쓴다 — 서버는 §8.6 공통 규약대로 원
@@ -70,7 +81,25 @@ const GENERIC_MESSAGE =
  * 이름은 `topics.js`/`designReport.js`와 맞춘다(같은 화면 상태 슬롯으로 흘러간다).
  */
 export class SubmissionError extends Error {
-  constructor(code, message, extra = {}) {
+  code: string;
+  userMessage: string;
+  saved: SavedState | null;
+  missingRequired: string[] | null;
+  field: unknown;
+  total: unknown;
+  threshold: unknown;
+
+  constructor(
+    code: string,
+    message: string,
+    extra: {
+      saved?: SavedState | null;
+      missingRequired?: string[] | null;
+      field?: unknown;
+      total?: unknown;
+      threshold?: unknown;
+    } = {},
+  ) {
     super(message);
     this.name = "SubmissionError";
     this.code = code;
@@ -84,8 +113,9 @@ export class SubmissionError extends Error {
   }
 }
 
+// data: response.json() 파싱 결과 — 성공/실패 응답이 같은 키를 부분적으로만 공유해 any로 둔다.
 /** 저장 응답에서 초안 잔여 상태만 뽑는다(게이트 실패 응답도 같은 키를 갖는다). */
-function pickSaved(data) {
+function pickSaved(data: any): SavedState | null {
   if (!data?.submissionId) return null;
   return {
     submissionId: data.submissionId,
@@ -101,7 +131,8 @@ function pickSaved(data) {
   };
 }
 
-function toError(data, response) {
+// data: response.json() 파싱 결과 — 에러 코드별로 부가 필드가 달라 any로 둔다.
+function toError(data: any, response: Response | undefined) {
   const code =
     data?.error?.code ||
     (response?.status === 401 ? "UNAUTHENTICATED" : "UNKNOWN");
@@ -126,8 +157,14 @@ function toError(data, response) {
  * @returns {Promise<{schema: object, submission: object|null, minChars: number, maxRevisions: number}>}
  * @throws {SubmissionError}
  */
-export async function fetchSubmissionForm({ accessToken, sessionId }) {
-  let response;
+export async function fetchSubmissionForm({
+  accessToken,
+  sessionId,
+}: {
+  accessToken: string;
+  sessionId: string;
+}) {
+  let response: Response;
 
   try {
     response = await fetch(
@@ -156,8 +193,18 @@ export async function fetchSubmissionForm({ accessToken, sessionId }) {
  * @returns {Promise<object>} 저장 응답 전체.
  * @throws {SubmissionError}
  */
-export async function saveSubmission({ accessToken, sessionId, fields, mode }) {
-  let response;
+export async function saveSubmission({
+  accessToken,
+  sessionId,
+  fields,
+  mode,
+}: {
+  accessToken: string;
+  sessionId: string;
+  fields: Record<string, string>;
+  mode: "draft" | "submit";
+}) {
+  let response: Response;
 
   try {
     response = await fetch("/api/performance/submission", {

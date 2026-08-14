@@ -50,22 +50,28 @@ export const HEIC_REJECT_MESSAGE =
  * HEIC/HEIF 여부. MIME이 비어 오는 경우(파일 선택기 필터를 우회했거나 OS가 타입을
  * 못 붙인 경우)를 위해 확장자도 함께 본다.
  */
-export function isHeicFile(file) {
+export function isHeicFile(file: File | null | undefined) {
   const type = String(file?.type || "").toLowerCase();
   if (type.startsWith("image/heic") || type.startsWith("image/heif"))
     return true;
   return /\.(heic|heif)$/i.test(String(file?.name || ""));
 }
 
-export function isAllowedImageFile(file) {
+export function isAllowedImageFile(file: File | null | undefined) {
   return ALLOWED_IMAGE_MIME_TYPES.includes(
     String(file?.type || "").toLowerCase(),
   );
 }
 
+type JpegMeta = {
+  orientation: number;
+  width: number | null;
+  height: number | null;
+};
+
 /** JPEG 마커를 훑어 EXIF orientation과 원본(SOF) 치수를 읽는다. 실패하면 전부 null/1이다. */
-async function readJpegMeta(file) {
-  const fallback = { orientation: 1, width: null, height: null };
+async function readJpegMeta(file: File): Promise<JpegMeta> {
+  const fallback: JpegMeta = { orientation: 1, width: null, height: null };
 
   try {
     // EXIF는 파일 앞쪽 APP1에, SOF는 그보다 뒤지만 보통 수십 KB 안이다.
@@ -132,7 +138,9 @@ async function readJpegMeta(file) {
   }
 }
 
-function loadImageElement(file) {
+function loadImageElement(
+  file: File,
+): Promise<{ image: HTMLImageElement; url: string }> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(file);
     const image = new Image();
@@ -145,8 +153,15 @@ function loadImageElement(file) {
   });
 }
 
+type DecodedImage = {
+  source: ImageBitmap | HTMLImageElement;
+  width: number;
+  height: number;
+  release: () => void;
+};
+
 /** EXIF 방향이 반영된 상태로 디코딩한다(파일 상단 주석의 1차 경로). */
-async function decodeOriented(file) {
+async function decodeOriented(file: File): Promise<DecodedImage> {
   if (typeof createImageBitmap === "function") {
     try {
       const bitmap = await createImageBitmap(file, {
@@ -176,7 +191,12 @@ async function decodeOriented(file) {
  * canvas 좌표계에 EXIF 방향 변환을 얹는다. `dw`/`dh`는 **회전 전** 그려질 치수다
  * (5~8은 캔버스 쪽 가로·세로가 서로 바뀐다).
  */
-function applyOrientationTransform(ctx, orientation, dw, dh) {
+function applyOrientationTransform(
+  ctx: CanvasRenderingContext2D,
+  orientation: number,
+  dw: number,
+  dh: number,
+) {
   switch (orientation) {
     case 2: // 좌우 반전
       ctx.transform(-1, 0, 0, 1, dw, 0);
@@ -204,7 +224,11 @@ function applyOrientationTransform(ctx, orientation, dw, dh) {
   }
 }
 
-function canvasToFile(canvas, file, mimeType) {
+function canvasToFile(
+  canvas: HTMLCanvasElement,
+  file: File,
+  mimeType: string,
+): Promise<File> {
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
@@ -233,7 +257,7 @@ function canvasToFile(canvas, file, mimeType) {
  * @param {File} file 사용자가 고른 원본
  * @returns {Promise<File>} 업로드할 파일(원본이거나 리사이즈·회전 보정본)
  */
-export async function prepareGuideImage(file) {
+export async function prepareGuideImage(file: File): Promise<File> {
   const mimeType = String(file?.type || "").toLowerCase();
   if (!ALLOWED_IMAGE_MIME_TYPES.includes(mimeType)) {
     throw new Error("지원하지 않는 이미지 형식입니다.");

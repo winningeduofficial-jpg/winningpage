@@ -34,15 +34,20 @@ const NETWORK_ERROR =
   "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";
 
 /** 화면에 그대로 띄울 수 있는 문구(`userMessage`)를 달고 던진다. */
-function userError(message, cause) {
-  const error = new Error(message);
+function userError(message: string, cause?: unknown) {
+  const error = new Error(message) as Error & { userMessage?: string };
   error.userMessage = message;
   if (cause) error.cause = cause;
   return error;
 }
 
-async function postJson(path, accessToken, body, timeoutMs) {
-  let response;
+async function postJson(
+  path: string,
+  accessToken: string,
+  body: Record<string, unknown>,
+  timeoutMs?: number,
+) {
+  let response: Response;
 
   try {
     response = await fetchWithTimeout(
@@ -75,8 +80,16 @@ async function postJson(path, accessToken, body, timeoutMs) {
  * @param {{accessToken: string, sessionId: string, files: File[]}} params
  * @returns {Promise<string[]>} 업로드 순서대로의 attachmentId
  */
-export async function uploadGuidePhotos({ accessToken, sessionId, files }) {
-  const uploaded = [];
+export async function uploadGuidePhotos({
+  accessToken,
+  sessionId,
+  files,
+}: {
+  accessToken: string;
+  sessionId: string;
+  files: File[];
+}) {
+  const uploaded: string[] = [];
 
   try {
     for (const file of files) {
@@ -130,6 +143,10 @@ export async function analyzeGuideUpload({
   accessToken,
   sessionId,
   attachmentIds,
+}: {
+  accessToken: string;
+  sessionId: string;
+  attachmentIds: string[];
 }) {
   const { response, data } = await postJson(
     "/api/performance/analyze-guide",
@@ -150,7 +167,15 @@ export async function analyzeGuideUpload({
  * `analyze-guide`의 `{ sessionId, freetext }` 분기다(§8.6 엔드포인트 표).
  * 서버가 모델을 부르지 않고 `guide_input_mode='manual'` + `guide_freetext`를 채운다.
  */
-export async function submitManualGuide({ accessToken, sessionId, freetext }) {
+export async function submitManualGuide({
+  accessToken,
+  sessionId,
+  freetext,
+}: {
+  accessToken: string;
+  sessionId: string;
+  freetext: string;
+}) {
   const { response, data } = await postJson(
     "/api/performance/analyze-guide",
     accessToken,
@@ -172,7 +197,15 @@ export async function submitManualGuide({ accessToken, sessionId, freetext }) {
  * 여기서 또 에러를 띄우면 사용자에게 원인이 아닌 메시지가 겹쳐 보인다.
  * 회수에 실패한 자리는 24시간 고아 스윕(`cleanup-attachments.js`)이 결국 치운다.
  */
-async function discardAttachments({ accessToken, sessionId, attachmentIds }) {
+async function discardAttachments({
+  accessToken,
+  sessionId,
+  attachmentIds,
+}: {
+  accessToken: string;
+  sessionId: string;
+  attachmentIds: string[];
+}) {
   for (const attachmentId of attachmentIds) {
     try {
       await postJson("/api/performance/discard-attachment", accessToken, {

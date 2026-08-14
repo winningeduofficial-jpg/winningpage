@@ -82,7 +82,25 @@ const FINALIZE_GENERIC =
 
 /** 화면이 분기에 쓸 수 있는 형태로 실패를 감싼다. */
 export class EvaluationRequestError extends Error {
-  constructor(code, message, extra = {}) {
+  code: string;
+  userMessage: string;
+  field: string | null;
+  limit: number | null;
+  evaluationCount: number | null;
+  maxEvaluations: number | null;
+  finalSubmissionId: string | null;
+
+  constructor(
+    code: string,
+    message: string,
+    extra: {
+      field?: string | null;
+      limit?: number | null;
+      evaluationCount?: number | null;
+      maxEvaluations?: number | null;
+      finalSubmissionId?: string | null;
+    } = {},
+  ) {
     super(message);
     this.name = "EvaluationRequestError";
     this.code = code;
@@ -100,14 +118,14 @@ export class EvaluationRequestError extends Error {
 
 /** 두 호출이 공유하는 fetch + 실패 변환. 성공 응답 본문을 그대로 돌려준다. */
 async function postJson(
-  path,
-  body,
-  accessToken,
-  fallbackMap,
-  genericMessage,
-  timeoutMs,
+  path: string,
+  body: Record<string, unknown>,
+  accessToken: string,
+  fallbackMap: Record<string, string>,
+  genericMessage: string,
+  timeoutMs?: number,
 ) {
-  let response;
+  let response: Response;
 
   try {
     response = await fetchWithTimeout(
@@ -161,6 +179,10 @@ export async function requestEvaluation({
   accessToken,
   sessionId,
   submissionId,
+}: {
+  accessToken: string;
+  sessionId: string;
+  submissionId: string;
 }) {
   return postJson(
     "/api/performance/evaluate",
@@ -188,6 +210,11 @@ export async function finalizeSubmission({
   sessionId,
   submissionId,
   action,
+}: {
+  accessToken: string;
+  sessionId: string;
+  submissionId: string;
+  action: "confirm" | "new_assessment";
 }) {
   return postJson(
     "/api/performance/finalize",

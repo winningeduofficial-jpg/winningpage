@@ -29,7 +29,10 @@ const GENERIC_MESSAGE =
   "저장 리포트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 export class ReportsError extends Error {
-  constructor(code, message) {
+  code: string;
+  userMessage: string;
+
+  constructor(code: string, message: string) {
     super(message);
     this.name = "ReportsError";
     this.code = code;
@@ -37,7 +40,8 @@ export class ReportsError extends Error {
   }
 }
 
-function toError(data, response) {
+// data: response.json() 파싱 결과 — 에러 코드별로 부가 필드가 달라 any로 둔다.
+function toError(data: any, response: Response | undefined) {
   const code =
     data?.error?.code ||
     (response?.status === 401 ? "UNAUTHENTICATED" : "UNKNOWN");
@@ -47,8 +51,8 @@ function toError(data, response) {
   );
 }
 
-async function callReportsApi(accessToken, params) {
-  let response;
+async function callReportsApi(accessToken: string, params: URLSearchParams) {
+  let response: Response;
 
   try {
     response = await fetch(`/api/performance/reports?${params.toString()}`, {
@@ -75,7 +79,11 @@ export async function fetchSavedReportsList({
   accessToken,
   cursor = null,
   limit,
-} = {}) {
+}: {
+  accessToken: string;
+  cursor?: string | null;
+  limit?: number;
+}) {
   const params = new URLSearchParams();
   if (cursor) params.set("cursor", cursor);
   if (limit) params.set("limit", String(limit));
@@ -88,7 +96,13 @@ export async function fetchSavedReportsList({
  * @returns {Promise<{session: object, design: object|null, evaluation: object|null, final: object|null, submissions: object[]}>}
  * @throws {ReportsError}
  */
-export async function fetchSavedReportDetail({ accessToken, sessionId }) {
+export async function fetchSavedReportDetail({
+  accessToken,
+  sessionId,
+}: {
+  accessToken: string;
+  sessionId: string;
+}) {
   const params = new URLSearchParams({ sessionId });
   return callReportsApi(accessToken, params);
 }

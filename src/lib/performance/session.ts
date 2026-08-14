@@ -23,7 +23,10 @@ const GENERIC_MESSAGE =
   "이전 진행 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 export class SessionDetailError extends Error {
-  constructor(code, message) {
+  code: string;
+  userMessage: string;
+
+  constructor(code: string, message: string) {
     super(message);
     this.name = "SessionDetailError";
     this.code = code;
@@ -37,8 +40,19 @@ export class SessionDetailError extends Error {
  * @returns {Promise<{session: object, topics: object[], round: number, maxRounds: number}>}
  * @throws {SessionDetailError}
  */
-export async function fetchSessionDetail({ accessToken, sessionId }) {
-  let response;
+export async function fetchSessionDetail({
+  accessToken,
+  sessionId,
+}: {
+  accessToken: string;
+  sessionId: string;
+}): Promise<{
+  session: unknown;
+  topics: unknown[];
+  round: number;
+  maxRounds: number;
+}> {
+  let response: Response;
 
   try {
     response = await fetch(

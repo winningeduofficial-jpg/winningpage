@@ -60,7 +60,21 @@ const GENERIC_MESSAGE =
  * 모델 원문을 응답에 싣지 않으므로(`design-report.js`의 `fail()`) 화면에 그대로 띄워도 된다.
  */
 export class DesignReportError extends Error {
-  constructor(code, message, extra = {}) {
+  code: string;
+  userMessage: string;
+  confirmedTopicId: string | null;
+  generationCount: number | null;
+  maxGenerations: number | null;
+
+  constructor(
+    code: string,
+    message: string,
+    extra: {
+      confirmedTopicId?: string | null;
+      generationCount?: number | null;
+      maxGenerations?: number | null;
+    } = {},
+  ) {
     super(message);
     this.name = "DesignReportError";
     this.code = code;
@@ -85,8 +99,13 @@ export async function requestDesignReport({
   sessionId,
   topicId,
   regenerate = false,
+}: {
+  accessToken: string;
+  sessionId: string;
+  topicId: string;
+  regenerate?: boolean;
 }) {
-  let response;
+  let response: Response;
 
   try {
     response = await fetchWithTimeout(
