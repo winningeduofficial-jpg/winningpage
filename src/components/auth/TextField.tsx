@@ -14,7 +14,10 @@
 // prefers-reduced-motion: reduce 시 애니메이션이 꺼진다.
 import { useEffect, useRef, useState } from "react";
 
-const SIZE_CLASSES = {
+type TextFieldSize = "default" | "lg" | "perf";
+type TextFieldStatus = "default" | "error" | "success";
+
+const SIZE_CLASSES: Record<TextFieldSize, string> = {
   default: "h-[3.25rem] rounded-xl border-line px-5 text-base", // 52px, radius 12px, 텍스트 16px
   lg: "h-[3.75rem] rounded-xl border-line px-5 text-base", // 60px, radius 12px, 텍스트 16px
   // 인앱(수행평가) 폼 전용 — docs/수행평가-상세-명세.md §5.5/§7.3 실측(3754:3206).
@@ -24,11 +27,36 @@ const SIZE_CLASSES = {
   perf: "h-[2.5rem] rounded-lg border-performance-line bg-performance-bubble px-4 text-sm",
 };
 
-const STATUS_TEXT_CLASSES = {
+const STATUS_TEXT_CLASSES: Record<TextFieldStatus, string> = {
   default: "text-ink-sub", // 회색 헬퍼
   error: "text-error", // 빨강
   success: "text-accent", // 파랑(유효)
 };
+
+interface TextFieldProps {
+  label?: string;
+  id?: string;
+  name?: string;
+  type?: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  placeholder?: string;
+  size?: TextFieldSize;
+  labelClassName?: string;
+  active?: boolean;
+  actionLabel?: string;
+  onAction?: () => void;
+  actionDisabled?: boolean;
+  helperText?: string;
+  status?: TextFieldStatus;
+  disabled?: boolean;
+  readOnly?: boolean;
+  autoComplete?: string;
+  autoCapitalize?: string;
+  spellCheck?: boolean;
+  required?: boolean;
+  className?: string;
+}
 
 export default function TextField({
   label,
@@ -58,7 +86,7 @@ export default function TextField({
   spellCheck,
   required = false,
   className = "",
-}) {
+}: TextFieldProps) {
   const fieldId = id || name;
   const [shake, setShake] = useState(false);
   const prevStatusRef = useRef(status);

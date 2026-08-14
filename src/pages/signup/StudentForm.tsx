@@ -123,21 +123,27 @@ const REQUIRED_AGREEMENT_KEYS = [
   "identityRequired",
 ];
 
-function isValidEmail(value) {
+type FieldStatus = "default" | "error" | "success";
+interface FieldMessage {
+  text: string;
+  status: FieldStatus;
+}
+
+function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function isValidPassword(value) {
+function isValidPassword(value: string) {
   return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(value);
 }
 
 // 하이픈 유무와 무관하게 판정한다. 서버(api/_lib/phoneCode.js)와 같은 규칙을 쓰려고
 // lib에 위임한다 — 프론트만 느슨하면 발송 단계에서 invalid_phone으로 되돌아온다.
-function isValidPhone(value) {
+function isValidPhone(value: string) {
   return isValidMobile(value);
 }
 
-function getFriendlyError(errorMessage) {
+function getFriendlyError(errorMessage?: string) {
   if (!errorMessage) return "회원가입 중 문제가 발생했습니다.";
 
   if (errorMessage.includes("User already registered")) {
@@ -173,7 +179,7 @@ export default function StudentForm() {
 
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
-  const [phoneMessage, setPhoneMessage] = useState({
+  const [phoneMessage, setPhoneMessage] = useState<FieldMessage>({
     text: "",
     status: "default",
   });
@@ -181,7 +187,7 @@ export default function StudentForm() {
   const phoneCooldown = useCooldown(60);
   // 서버가 시도를 세므로 같은 코드를 두 번 보내지 않는다.
   const lastPhoneAttempt = useRef("");
-  const [emailMessage, setEmailMessage] = useState({
+  const [emailMessage, setEmailMessage] = useState<FieldMessage>({
     text: "",
     status: "default",
   });
@@ -218,8 +224,8 @@ export default function StudentForm() {
   // 상태가 더 이상 유효하지 않으므로 해당 인증 플래그를 초기값으로 되돌린다. updateVerification은
   // SignupContext state를 갱신하고 그 즉시 sessionStorage('signup-flow')에도 반영되므로(§5.3)
   // 새로고침 후에도 리셋된 상태 그대로 복구된다.
-  function handleField(key) {
-    return (value) => {
+  function handleField(key: string) {
+    return (value: string) => {
       updateFormData({ [key]: value });
 
       if (key === "email") {
@@ -244,7 +250,7 @@ export default function StudentForm() {
     setAllAgreements(!allAgreed, STUDENT_AGREEMENT_KEYS);
   }
 
-  function handleToggleAgreement(key) {
+  function handleToggleAgreement(key: string) {
     updateAgreements({ [key]: !agreements[key] });
   }
 

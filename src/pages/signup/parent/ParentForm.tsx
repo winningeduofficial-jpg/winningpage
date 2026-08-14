@@ -45,6 +45,12 @@ import { supabase } from "../../../lib/supabase";
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
+type FieldStatus = "default" | "error" | "success";
+interface FieldMessage {
+  text: string;
+  status: FieldStatus;
+}
+
 // 실계정을 만드는 화면이라 배포 노출은 플래그로 통제한다.
 // (VITE_PARENT_SIGNUP_ENABLED='true')
 const PARENT_SIGNUP_ENABLED =
@@ -130,11 +136,11 @@ export default function ParentForm() {
 
   const [phoneSending, setPhoneSending] = useState(false);
   const [emailSending, setEmailSending] = useState(false);
-  const [phoneMessage, setPhoneMessage] = useState({
+  const [phoneMessage, setPhoneMessage] = useState<FieldMessage>({
     text: "",
     status: "default",
   });
-  const [emailMessage, setEmailMessage] = useState({
+  const [emailMessage, setEmailMessage] = useState<FieldMessage>({
     text: "",
     status: "default",
   });
@@ -336,7 +342,7 @@ export default function ParentForm() {
     }
   }
 
-  function handlePasswordChange(value) {
+  function handlePasswordChange(value: string) {
     updateFormData({ password: value });
     if (!value) {
       setPasswordError("");

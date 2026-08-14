@@ -31,6 +31,13 @@ import {
 
 const LOOKUP_DEBOUNCE_MS = 400;
 
+interface ChildPreview {
+  name: string;
+  school: string;
+  schoolType: string;
+  grade?: string;
+}
+
 export default function LinkCode() {
   const navigate = useNavigate();
   const { memberType, parentSignupCompleted } = useSignup();
@@ -44,7 +51,7 @@ export default function LinkCode() {
   }, [memberType, parentSignupCompleted, navigate]);
 
   const [code, setCode] = useState("");
-  const [child, setChild] = useState(null);
+  const [child, setChild] = useState<ChildPreview | null>(null);
   const [alreadyLinked, setAlreadyLinked] = useState(false);
   const [selected, setSelected] = useState(false);
   const [looking, setLooking] = useState(false);
@@ -120,7 +127,7 @@ export default function LinkCode() {
     };
   }, [code, navigate, resetResult]);
 
-  function handleChange(value) {
+  function handleChange(value: string) {
     setCode(normalizeLinkCode(value));
   }
 

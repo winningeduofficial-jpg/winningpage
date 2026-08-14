@@ -37,7 +37,7 @@ export default function StudentBirth() {
     }
   }, [memberType, navigate]);
 
-  function handleChange(next) {
+  function handleChange(next: string) {
     setValue(next.replace(/\D/g, "").slice(0, 8));
     if (error) setError("");
     if (showUnder14ComingSoon) setShowUnder14ComingSoon(false);

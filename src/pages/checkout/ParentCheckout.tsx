@@ -1,11 +1,59 @@
 import { Check, ChevronDown } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import ConfirmModal from "../../components/checkout/ConfirmModal";
 import { CHECKOUT_AGREEMENTS } from "../../data/legalDocs";
 import { formatKRW } from "../../data/pricingCatalog";
 import { supabase } from "../../lib/supabase";
 import { ANONYMOUS, getTossPayments } from "../../lib/toss";
+
+interface Order {
+  id: string;
+  status: string;
+  approval_status: string;
+  order_name: string;
+  list_amount: number;
+  discount_amount: number;
+  amount: number;
+  student_profile_id: string | null;
+}
+
+interface OrderItem {
+  id: string;
+  name: string;
+  list_price: number;
+  price: number;
+  quantity: number;
+}
+
+interface CouponRow {
+  id: string;
+  title: string;
+  discount: number;
+  minAmount: number;
+  validUntil: string | null;
+  isActive: boolean;
+  eligible: boolean;
+  reason: string | null;
+  ownerIsStudent: boolean | null;
+  stackable: boolean;
+}
+
+type CodeFeedback =
+  | { type: "not_found" }
+  | { type: "ineligible"; reason: string | null };
+
+interface ApprovedOrder {
+  order_id: string;
+  amount: number;
+  skipped_coupon_ids?: string[];
+}
 
 // 학부모 — 결제 요청 수락 + 결제 화면. 두 진입 모드를 하나의 라우트에서 갈라 받는다
 // (?order=<id> 유무). 학생이 fn_request_enrollment 로 만든 요청(StudentEnrollmentRequest.jsx
@@ -17,7 +65,11 @@ import { ANONYMOUS, getTossPayments } from "../../lib/toss";
 //   요청하고 학부모가 수락+결제한다, StudentEnrollmentRequest.jsx:13-21 주석과 짝).
 //   ?order= 없이 들어오면 그 사실 자체를 안내하는 모달만 보여주고 마이페이지로 보낸다.
 
-const PAY_METHODS = [
+const PAY_METHODS: {
+  key: string;
+  label: string;
+  tossMethod: "CARD" | "VIRTUAL_ACCOUNT";
+}[] = [
   { key: "tosspay", label: "토스페이", tossMethod: "CARD" },
   { key: "card", label: "신용/체크카드", tossMethod: "CARD" },
   { key: "virtual", label: "가상계좌", tossMethod: "VIRTUAL_ACCOUNT" },
@@ -29,7 +81,7 @@ const SECTION_HEADING =
 // Checkout.jsx(src/pages/Checkout.jsx) 의 쿠폰 사유 문구·코드 미발견 문구를 그대로
 // 재사용한다 — 같은 fn_usable_coupons/fn_coupon_by_code 반환 형태를 쓰는 화면이라
 // 사유 코드 7종·안내 문구가 동일하다(코퍼스 재사용, 신규 문구 아님).
-const COUPON_REASON_TEXT = {
+const COUPON_REASON_TEXT: Record<string, string> = {
   below_min_amount: "최소 결제 금액에 미치지 않습니다.",
   expired: "사용 기한이 지났습니다.",
   already_used: "이미 사용한 쿠폰입니다.",
@@ -54,7 +106,17 @@ const GENERIC_FAIL_TEXT = "결제요청에 실패했습니다.";
 
 // fn_usable_coupons/fn_coupon_by_code 공통 반환 형태(owner_profile_id/owner_is_student
 // 포함 — dev pg_proc 실측). code 는 P1-1 하드닝 이후 반환되지 않는다(Checkout.jsx:149 주석과 동일).
-function mapCouponRow(c) {
+function mapCouponRow(c: {
+  id: string;
+  title: string;
+  discount_amount: number;
+  min_amount?: number | null;
+  valid_until: string | null;
+  is_active: boolean;
+  eligible: boolean;
+  reason: string | null;
+  owner_is_student: boolean | null;
+}): CouponRow {
   return {
     id: c.id,
     title: c.title,
@@ -83,7 +145,10 @@ function mapCouponRow(c) {
 //
 // stackable 은 coupons 테이블에서 직접 읽는다 — `coupons public read`
 // (is_active = true, sql/10)로 열려 있어 마이그레이션이 필요 없다.
-function mergeStackable(rows, stackableById) {
+function mergeStackable(
+  rows: CouponRow[],
+  stackableById: Record<string, boolean>,
+): CouponRow[] {
   return rows.map((row) => ({
     ...row,
     stackable: stackableById[row.id] === true,
@@ -92,7 +157,7 @@ function mergeStackable(rows, stackableById) {
 
 // fn_respond_enrollment 가 raise 하는 문구 키워드로 매핑한다 — SQLSTATE(WCxxx)는
 // 보조로만 쓰고 원문(err.message)을 화면에 그대로 노출하지 않는다.
-function mapRespondError(err) {
+function mapRespondError(err: { message?: string } | null | undefined) {
   const msg = err?.message || "";
   if (msg.includes("not_order_parent")) return NOT_PARENT_TEXT;
   if (
@@ -117,6 +182,13 @@ function AgreementCheckRow({
   expanded,
   onToggleCheck,
   onToggleExpand,
+}: {
+  label: ReactNode;
+  body: ReactNode;
+  checked: boolean;
+  expanded: boolean;
+  onToggleCheck: () => void;
+  onToggleExpand: () => void;
 }) {
   return (
     <div className="rounded-xl border border-line">
@@ -185,7 +257,7 @@ function ApprovalOnlyGate() {
 
 // 요청을 불러오지 못했거나(RLS/네트워크/삭제) 더 이상 진행할 수 없는 상태(이미
 // 승인·반려됐거나 주문이 pending 이 아님)일 때 공통으로 쓰는 안내 화면.
-function OrderNotActionable({ text }) {
+function OrderNotActionable({ text }: { text: ReactNode }) {
   const navigate = useNavigate();
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-white pt-16 text-center">
@@ -204,20 +276,26 @@ function OrderNotActionable({ text }) {
 }
 
 // ?order=<id> 진입 — 수락 + 결제 본문.
-function EnrollmentCheckout({ orderId }) {
-  const [order, setOrder] = useState(null);
-  const [orderItems, setOrderItems] = useState([]);
+function EnrollmentCheckout({ orderId }: { orderId: string }) {
+  const [order, setOrder] = useState<Order | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   // 'not_found' | 'not_actionable' — 어느 쪽이든 화면은 OrderNotActionable 로 수렴한다.
-  const [orderError, setOrderError] = useState(null);
+  const [orderError, setOrderError] = useState<
+    "not_found" | "not_actionable" | null
+  >(null);
   const [orderLoading, setOrderLoading] = useState(true);
 
-  const [coupons, setCoupons] = useState([]);
+  const [coupons, setCoupons] = useState<CouponRow[]>([]);
   const [couponError, setCouponError] = useState(false);
   const [couponsLoaded, setCouponsLoaded] = useState(false);
-  const [selectedCouponIds, setSelectedCouponIds] = useState(() => new Set());
+  const [selectedCouponIds, setSelectedCouponIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   const [couponCode, setCouponCode] = useState("");
-  const [stackableById, setStackableById] = useState({});
-  const [codeFeedback, setCodeFeedback] = useState(null);
+  const [stackableById, setStackableById] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [codeFeedback, setCodeFeedback] = useState<CodeFeedback | null>(null);
   const [amountMismatch, setAmountMismatch] = useState(false);
 
   // 결제 약관 동의(sql/78) — user_term_agreements 원장. null=조회 중.
@@ -232,11 +310,13 @@ function EnrollmentCheckout({ orderId }) {
 
   const [payMethod, setPayMethod] = useState("card");
   const [loading, setLoading] = useState(false);
-  const [payError, setPayError] = useState(null);
+  const [payError, setPayError] = useState<string | null>(null);
   // fn_respond_enrollment 성공 응답을 캐시한다 — 승인은 즉시 서버에서 확정되므로
   // (approval_status='approved', 쿠폰 귀속 insert 까지 끝남) 이후 토스 결제창만
   // 실패/재시도해도 RPC 를 다시 부르지 않는다(재호출 시 enrollment_not_pending 로 죽는다).
-  const [approvedOrder, setApprovedOrder] = useState(null);
+  const [approvedOrder, setApprovedOrder] = useState<ApprovedOrder | null>(
+    null,
+  );
 
   useEffect(() => {
     let alive = true;
@@ -341,7 +421,7 @@ function EnrollmentCheckout({ orderId }) {
   // 주석 "v_subtotal := v_order.amount"). p_student_profile_id 를 반드시 넘겨야
   // granted 쿠폰(학생/학부모 발급분)이 잡힌다(Baseline pg_proc 실측 인자).
   const fetchCoupons = useCallback(
-    async ({ signalAlive } = {}) => {
+    async ({ signalAlive }: { signalAlive?: () => boolean } = {}) => {
       if (!order) return;
       const { data, error } = await supabase.rpc("fn_usable_coupons", {
         p_subtotal: order.amount,
@@ -364,7 +444,7 @@ function EnrollmentCheckout({ orderId }) {
       if (flagError)
         console.warn("쿠폰 중복 사용 여부 조회 실패:", flagError.message);
 
-      const map = {};
+      const map: Record<string, boolean> = {};
       for (const row of flags || []) map[row.id] = row.stackable;
       setStackableById(map);
 
@@ -408,7 +488,7 @@ function EnrollmentCheckout({ orderId }) {
   const previewAmount = order ? Math.max(0, order.amount - couponDiscount) : 0;
   const displayAmount = approvedOrder ? approvedOrder.amount : previewAmount;
 
-  function toggleCoupon(id) {
+  function toggleCoupon(id: string) {
     setAmountMismatch(false);
     setSelectedCouponIds((prev) => {
       const next = new Set(prev);
@@ -551,33 +631,36 @@ function EnrollmentCheckout({ orderId }) {
         customerKey: user?.id ?? ANONYMOUS,
       });
 
-      await payment.requestPayment({
-        method,
-        amount: { currency: "KRW", value: Number(result.amount) },
+      const commonPaymentParams = {
+        amount: { currency: "KRW" as const, value: Number(result.amount) },
         orderId: result.order_id || orderId,
         orderName: order.order_name || "위닝에듀 서비스",
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
         customerEmail: user?.email ?? undefined,
-        ...(method === "CARD"
-          ? {
-              card: {
-                useEscrow: false,
-                flowMode: "DEFAULT",
-                useCardPoint: false,
-                useAppCardOnly: false,
-              },
-            }
-          : {}),
-        ...(method === "VIRTUAL_ACCOUNT"
-          ? {
-              virtualAccount: {
-                cashReceipt: { type: "소득공제" },
-                validHours: 24,
-              },
-            }
-          : {}),
-      });
+      };
+
+      if (method === "VIRTUAL_ACCOUNT") {
+        await payment.requestPayment({
+          method,
+          ...commonPaymentParams,
+          virtualAccount: {
+            cashReceipt: { type: "소득공제" },
+            validHours: 24,
+          },
+        });
+      } else {
+        await payment.requestPayment({
+          method,
+          ...commonPaymentParams,
+          card: {
+            useEscrow: false,
+            flowMode: "DEFAULT",
+            useCardPoint: false,
+            useAppCardOnly: false,
+          },
+        });
+      }
     } catch (err) {
       if (err?.code !== "USER_CANCEL") {
         console.error("결제 요청 실패:", err);

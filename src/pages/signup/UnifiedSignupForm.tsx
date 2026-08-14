@@ -1,15 +1,31 @@
-// [D-2] 14세 미만 회원가입 폼(학생 정보+학부모 정보+약관 동의) —
-// docs/login-signup-renewal-spec.md §3.3 D-2, 노드 2393-8759=2393-9007(중복 프레임).
+// [신규] 통합 회원가입 폼 — 노드 2516-1974('회원가입'), docs/impl-status-recheck.md §4
+// (재추출 원문 기반 명세) 참고. docs/login-signup-renewal-spec.md 최초 작성 이후 새로
+// 등장한 노드로, 기존 §3.3 상태 매트릭스에는 없다.
 //
-// C-1(14세 이상 폼)과의 차이(§3.3 D-2 "C-1과의 차이"):
-//  - 전화번호 필드에 인증 링크 없음. 대신 체크박스 "학생 명의의 핸드폰이 없어요".
-//  - 전화번호 인증번호 필드 없음.
-//  - "학부모 정보 (필수)" 섹션 추가(전화번호 + 수집 안내 + 법정대리인 동의 체크).
-// 약관 동의 항목은 D-2 전용 차이가 스펙에 기록돼 있지 않아 C-1(학생 6항목 중 필수3/선택2 —
-// 7825 정본 채택분)과 동일 구성으로 채택한다.
+// ⚠️ 시안 미확정 주의: 재추출 캔버스 좌측 여백에 손그림 벡터 낙서(노드 2516:2234)가
+// 남아 있어 디자이너가 아직 검토 중일 가능성이 있다(§4.1 각주). 이 화면은 그 시점의
+// 명세를 그대로 반영한 "현재 스냅샷" 구현이며, 시안이 확정되면 ① D-2(14세 미만 가입 폼,
+// `Under14Form.jsx`)를 대체하는 개정판인지 ② 별도 독립 스텝인지 디자이너 확인 후 결정
+// 대기 상태다(§4.2/§4.3, §5 액션 3번). 그 전까지는 App.jsx에 `VITE_UNIFIED_SIGNUP_ENABLED`
+// 플래그로만 노출되는 임시 라우트로 둔다.
+//
+// Under14Form(D-2)과의 관계: 학생 정보 + 법정대리인(학부모) 전화번호 1필드 + "학생 명의의
+// 핸드폰이 없어요" 체크 + 이메일 인증코드 기반 인증 구성이 D-2와 사실상 동일해 이 화면의
+// 이메일 OTP 시퀀스(발송/자동 검증)는 Under14Form.jsx/StudentForm.jsx가
+// 이미 검증한 Supabase 패턴을 공유한다. 인라인 복제로 두던 것을 가입 중단 계정
+// 이어가기 분기가 생기면서 src/lib/signupEmailAuth.js로 추출했다 — 세 화면이 같은
+// 분기를 각자 들고 있으면 어긋날 수밖에 없기 때문이다.
+//
+// D-2와의 차이(§4.1 재추출 명세 기준):
+//  - 입력 필드 높이 52px(TextField/SelectField 'default' variant) — D-2/C-1은 60px('lg').
+//  - 약관 5번째 행("마케팅 목적의 개인정보 수진 및 이용")은 이 노드에서 재추출된 원문
+//    오타('수진')를 그대로 재현한다(기존 9843/9941 이용약관 전문 페이지의 동일 오타와
+//    같은 계열 — §4.1 각주, "시안 원문 문구는 그대로" 원칙).
+//  - "약관 동의" 섹션 제목은 재추출 원문에 후행 공백이 있다("약관 동의 ") — 브라우저가
+//    표시상 접어버리지만 원문 재현 원칙에 따라 문자열 그대로 남긴다.
 
 import { Check } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AgreementList,
@@ -30,29 +46,31 @@ import {
   verifySignupEmailCode,
 } from "../../lib/signupEmailAuth";
 import { supabase } from "../../lib/supabase";
-// AS-IS Signup.jsx(§2.2)의 17개 시도 + '기타' select 관례를 StudentForm(C-1)과 공유한다
-// (§3.3 C-1 예시 데이터 "울산"과 표기 형식 일치 — "울산광역시"가 아닌 "울산").
+// StudentForm(C-1)/Under14Form(D-2)과 동일한 17개 시도 + '기타' 지역 목록을 공유한다.
 import { REGION_OPTIONS } from "./StudentForm";
 
-// AS-IS 재학구분 enum(§2.2: "초·중·고·N수생·기타") 그대로 채택.
 const SCHOOL_TYPE_OPTIONS = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
 
-// 14세 미만 가입 플로우는 아직 백엔드 연동이 없는 데드엔드라 기본 off — StudentBirth.jsx/
-// Under14Verify.jsx와 동일 플래그. off인 배포에서는 URL 직접 진입도 막는다.
-const UNDER14_SIGNUP_ENABLED =
-  import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === "true";
+// 시안 미확정 임시 라우트 — App.jsx가 이 플래그로만 /signup/unified 라우트를 등록한다(§6).
+const UNIFIED_SIGNUP_ENABLED =
+  import.meta.env.VITE_UNIFIED_SIGNUP_ENABLED === "true";
 
-function isValidEmail(value) {
+type FieldStatus = "default" | "error" | "success";
+interface FieldMessage {
+  text: string;
+  status: FieldStatus;
+}
+
+function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }
 
-function isValidPassword(value) {
+function isValidPassword(value: string) {
   return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(value);
 }
 
-// StudentForm.jsx의 동명 헬퍼와 동일 — 공유 훅/유틸 추출은 StudentForm 소유권 밖이라
-// 최소한의 인라인 복제로 둔다.
-function getFriendlyEmailError(errorMessage) {
+// StudentForm.jsx/Under14Form.jsx의 동명 헬퍼와 동일 — 소유 파일 경계상 최소 인라인 복제.
+function getFriendlyEmailError(errorMessage?: string) {
   if (!errorMessage) return "회원가입 중 문제가 발생했습니다.";
 
   if (errorMessage.includes("User already registered")) {
@@ -70,9 +88,9 @@ function getFriendlyEmailError(errorMessage) {
   return errorMessage;
 }
 
-// §3.3 C-1 약관 6행 중 7825 정본 기준(본인 인증을 위한 정보 수집) — §5.2 약관 라우트 표
-// (/terms/student/{service|privacy|identity|marketing|promotion}) 그대로 매핑.
-const STUDENT_AGREEMENT_ITEMS = [
+// §4.1 재추출 명세 6행 — "마케팅 목적의 개인정보 수진 및 이용"의 '수진'은 원문 오타를
+// 그대로 재현한 것이다(오타 아님, 수정 금지 — "시안 원문 문구는 그대로" 원칙).
+const UNIFIED_AGREEMENT_ITEMS = [
   {
     key: "service",
     label: "위닝에듀 이용약관",
@@ -93,7 +111,7 @@ const STUDENT_AGREEMENT_ITEMS = [
   },
   {
     key: "marketing",
-    label: "마케팅 목적의 개인정보 수집 및 이용",
+    label: "마케팅 목적의 개인정보 수진 및 이용",
     required: false,
     to: "/terms/student/marketing",
   },
@@ -105,10 +123,17 @@ const STUDENT_AGREEMENT_ITEMS = [
   },
 ];
 
-// "학생 명의의 핸드폰이 없어요"(16px 아이콘/12px 텍스트) / "법정대리인 정보를 학부모 정보로
-// 수집합니다"(#7a7a7a) 두 곳에서만 쓰는 단독 체크 문구라 공용 컴포넌트로 승격하지 않고
-// 이 파일 안에 비공개로 둔다(AS-IS Signup.jsx의 파일 내부 CheckBox 관례와 동일).
-function InlineCheckbox({ checked, onToggle, children }) {
+// "학생 명의의 핸드폰이 없어요" / "법정대리인 정보를 학부모 정보로 수집합니다" 전용 체크
+// 문구 — Under14Form.jsx의 동명 비공개 컴포넌트와 동일 관례(공용 컴포넌트로 승격하지 않음).
+function InlineCheckbox({
+  checked,
+  onToggle,
+  children,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
   return (
     <button
       type="button"
@@ -124,16 +149,15 @@ function InlineCheckbox({ checked, onToggle, children }) {
       >
         <Check size={11} strokeWidth={3} />
       </span>
-      {/* #7a7a7a는 신규 토큰에 없어 가장 근접한 ink-sub(#808080)로 대체 — 임의 hex 금지 규칙 준수. */}
+      {/* #7a7a7a는 신규 토큰에 없어 가장 근접한 ink-sub(#808080)로 대체(Under14Form.jsx와 동일 판단). */}
       <span className="text-xs text-ink-sub">{children}</span>
     </button>
   );
 }
 
-export default function Under14Form() {
+export default function UnifiedSignupForm() {
   const navigate = useNavigate();
   const {
-    memberType,
     verification,
     formData,
     agreements,
@@ -142,46 +166,43 @@ export default function Under14Form() {
     updateVerification,
     setAllAgreements,
   } = useSignup();
-  const [emailMessage, setEmailMessage] = useState({
+
+  const [emailMessage, setEmailMessage] = useState<FieldMessage>({
     text: "",
     status: "default",
   });
   const emailCooldown = useCooldown(EMAIL_RESEND_COOLDOWN_SECONDS);
-  // 이메일 OTP는 1회용이라 같은 코드로 두 번 검증하면 403이 난다. 자동 검증이
-  // 같은 값으로 재시도하지 않도록 마지막 시도값을 기억한다(StudentForm과 동일).
-  const lastEmailAttempt = useRef("");
   const passwordValid = formData.password
     ? isValidPassword(formData.password)
     : null;
+  // 이메일 OTP는 1회용이라 같은 코드로 두 번 검증하면 403이 난다. 자동 검증이
+  // 같은 값으로 재시도하지 않도록 마지막 시도값을 기억한다.
+  const lastEmailAttempt = useRef("");
 
-  // §3.2 흐름: S1(생년월일) -> U0(PASS 안내) -> U1(이 화면). 학생 유형이 아니거나, 플래그가
-  // off이거나, 법정대리인 PASS 인증을 아직 마치지 않은 상태로 직접 URL 진입 시 순서대로 되돌린다.
+  // 플래그가 꺼져 있으면(App.jsx가 라우트 자체를 등록하지 않음) 직접 URL 진입도 막는다 —
+  // Under14Form.jsx의 이중 방어 관례와 동일. 이 화면은 플로우상 선행 스텝이 확정되지 않아
+  // (§4.2) memberType/PASS 인증 등 다른 화면과 같은 단계 강제는 걸지 않는다.
   useEffect(() => {
-    if (memberType !== "student") {
+    if (!UNIFIED_SIGNUP_ENABLED) {
       navigate("/signup", { replace: true });
-      return;
     }
-    if (!UNDER14_SIGNUP_ENABLED) {
-      navigate("/signup", { replace: true });
-      return;
-    }
-    if (!verification.pass.verified) {
-      navigate("/signup/student/under14/verify", { replace: true });
-    }
-  }, [memberType, verification.pass.verified, navigate]);
+  }, [navigate]);
 
   const requiredKeys = useMemo(
-    () => STUDENT_AGREEMENT_ITEMS.map((item) => item.key),
+    () =>
+      UNIFIED_AGREEMENT_ITEMS.filter((item) => item.required).map(
+        (item) => item.key,
+      ),
     [],
   );
   const allChecked = useMemo(
-    () => STUDENT_AGREEMENT_ITEMS.every((item) => agreements[item.key]),
+    () => UNIFIED_AGREEMENT_ITEMS.every((item) => agreements[item.key]),
     [agreements],
   );
 
-  // --- 이메일 인증: src/lib/signupEmailAuth.js의 공용 시퀀스를 쓴다.
-  // (상태 확인 → OTP 발송 → OTP 검증. 가입 중단 계정이면 이어서 가입한다)
-  // 이전에는 "인증번호 보내기" 클릭이 아무 동작도 하지 않는 no-op 스텁이었다.
+  // --- 이메일 인증: src/lib/signupEmailAuth.js 공용 시퀀스 ---
+  // (상태 확인 → OTP 발송 → OTP 검증). 이 노드는 전화(카카오) 인증
+  // 대신 이메일 인증코드만 쓰는 구성이라(§4.1) 별도 전화 인증 핸들러는 두지 않는다.
   async function requestEmailCode() {
     // Supabase Auth가 서버에서 같은 간격으로 막고 있다. 여기서 먼저 잡아주지
     // 않으면 연타가 전부 실패 응답으로 돌아오면서 시간당 발송 할당량만 태운다.
@@ -263,7 +284,7 @@ export default function Under14Form() {
   }
 
   // 6자리가 채워지면 곧바로 검증한다 — 별도 "확인" 버튼을 두지 않는다.
-  // (휴대폰 알림톡 인증과 같은 방식. ParentForm(E-1)/StudentForm(C-1)과 동일 패턴)
+  // (휴대폰 알림톡 인증과 같은 방식. StudentForm/ParentForm/Under14Form과 동일 패턴)
   // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
   useEffect(() => {
     const token = formData.emailCode;
@@ -320,10 +341,10 @@ export default function Under14Form() {
     });
   }, [formData.emailCode]);
 
-  // TODO: 버튼 활성화 조건이 시안에 명시돼 있지 않음(§3.3 D-2: "빈 폼 기본만 존재... 확인
-  // 필요"). 필수 필드 전부 입력 + 필수 약관 전부 동의를 임시 기준으로 채택 — 실제 검증 규칙은
-  // 디자이너/기획 확인 후 교체할 것. noOwnPhone 체크 시 전화번호 필수 여부도 시안에 없어
-  // 보수적으로 "체크 시 면제"로만 처리했다.
+  // TODO(§4.3 GAP): "다음" 버튼이 가리키는 후속 스텝이 시안에 없다("다음" 버튼 → 후속 스텝
+  // 존재 추정, §4.1). 필수 필드 전부 입력 + 필수 약관 전부 동의를 임시 활성 기준으로 채택 —
+  // 실제 검증 규칙/다음 라우트는 디자이너·기획 확인 후 교체할 것(Under14Form.jsx의 동일
+  // TODO와 같은 판단).
   const isNextEnabled =
     formData.name.trim() !== "" &&
     (formData.noOwnPhone || formData.phone.trim() !== "") &&
@@ -332,27 +353,22 @@ export default function Under14Form() {
     formData.password.trim() !== "" &&
     formData.region !== "" &&
     formData.schoolType !== "" &&
-    formData.schoolName.trim() !== "" &&
+    (formData.schoolType === "N수생" || formData.schoolName.trim() !== "") &&
     formData.guardianPhone.trim() !== "" &&
     formData.guardianConsent &&
-    STUDENT_AGREEMENT_ITEMS.filter((item) => item.required).every(
-      (item) => agreements[item.key],
-    );
+    requiredKeys.every((key) => agreements[key]);
 
   const [showNextComingSoon, setShowNextComingSoon] = useState(false);
 
-  // TODO(다음 단계 미확정): §3.3 D-2 "U1 -> U2 다음 단계(화면 데이터 없음 — 확인 필요)".
-  // 실제 다음 라우트/제출 시퀀스가 정해지기 전까지 스텁으로 남겨두되, ParentForm의 "준비
-  // 중" 안내 패턴과 동일하게 클릭 시 사용자에게 안내 문구를 노출한다.
+  // TODO(다음 단계 미확정, §4.3): 실제 다음 라우트/제출 시퀀스가 정해지기 전까지 스텁으로
+  // 남겨두되, Under14Form.jsx/ParentForm.jsx의 "준비 중" 안내 패턴과 동일하게 클릭 시
+  // 사용자에게 안내 문구를 노출한다.
   function handleNext() {
     setShowNextComingSoon(true);
   }
 
   return (
     <AuthLayout>
-      {/* TODO: C-1/D-2 두 화면 모두 스펙에 타이틀 원문이 명시돼 있지 않음(§3.3 C-1/D-2에
-          타이틀 문구 인용 없음) — 동일 역할의 E-1(학부모 폼) 타이틀 "회원가입 정보를
-          입력해 주세요"를 임시로 재사용. 디자이너 확인 후 교체할 것. */}
       <AuthTitle
         line1={
           <span className="sm:whitespace-nowrap">
@@ -368,9 +384,9 @@ export default function Under14Form() {
 
         <TextField
           label="이름"
-          id="under14-name"
+          id="unified-name"
           name="name"
-          size="lg"
+          size="default"
           value={formData.name}
           onChange={(v) => updateFormData({ name: v })}
           placeholder="이름을 입력 해주세요"
@@ -379,17 +395,15 @@ export default function Under14Form() {
         <div className="flex flex-col gap-2">
           <TextField
             label="전화번호"
-            id="under14-phone"
+            id="unified-phone"
             name="phone"
-            size="lg"
+            size="default"
             value={formData.phone}
             onChange={(v) => updateFormData({ phone: v })}
             placeholder="전화번호를 입력 해주세요"
             disabled={formData.noOwnPhone}
           />
 
-          {/* C-1과 달리 인증번호 발송 링크 대신 체크박스 — 체크/해제 시 UI 변화는 시안에
-              정의돼 있지 않아(§3.3 D-2 "확인 필요") 필드 비활성화만 임시로 연결했다. */}
           <InlineCheckbox
             checked={formData.noOwnPhone}
             onToggle={() =>
@@ -402,10 +416,10 @@ export default function Under14Form() {
 
         <TextField
           label="아이디(이메일)"
-          id="under14-email"
+          id="unified-email"
           name="email"
           type="email"
-          size="lg"
+          size="default"
           value={formData.email}
           onChange={(v) => updateFormData({ email: v })}
           placeholder="이메일을 입력 해주세요"
@@ -431,9 +445,9 @@ export default function Under14Form() {
         {/* 6자리가 채워지면 자동 검증된다 — "확인" 버튼 없음. */}
         <TextField
           label="이메일 인증코드"
-          id="under14-email-code"
+          id="unified-email-code"
           name="emailCode"
-          size="lg"
+          size="default"
           value={formData.emailCode}
           onChange={(v) =>
             updateFormData({ emailCode: v.replace(/\D/g, "").slice(0, 6) })
@@ -448,16 +462,14 @@ export default function Under14Form() {
 
         <TextField
           label="비밀번호"
-          id="under14-password"
+          id="unified-password"
           name="password"
           type="password"
-          size="lg"
+          size="default"
           value={formData.password}
           onChange={(v) => updateFormData({ password: v })}
           placeholder="비밀번호를 입력 해주세요"
           helperText="영문/숫자/특수문자 포함 6자 이상"
-          // 이메일 인증 액션을 막던 선행 조건이 사라졌으므로(2026-08-07) 비밀번호
-          // 규칙 충족 여부는 이 필드가 직접 알려준다(StudentForm과 동일).
           status={
             passwordValid === null
               ? "default"
@@ -470,9 +482,9 @@ export default function Under14Form() {
 
         <SelectField
           label="지역"
-          id="under14-region"
+          id="unified-region"
           name="region"
-          size="lg"
+          size="default"
           value={formData.region}
           onChange={(v) => updateFormData({ region: v })}
           options={REGION_OPTIONS}
@@ -481,9 +493,9 @@ export default function Under14Form() {
 
         <SelectField
           label="재학 구분 선택"
-          id="under14-school-type"
+          id="unified-school-type"
           name="schoolType"
-          size="lg"
+          size="default"
           value={formData.schoolType}
           onChange={(v) => updateFormData({ schoolType: v })}
           options={SCHOOL_TYPE_OPTIONS}
@@ -492,12 +504,13 @@ export default function Under14Form() {
 
         <TextField
           label="재학 중인 학교"
-          id="under14-school-name"
+          id="unified-school-name"
           name="schoolName"
-          size="lg"
+          size="default"
           value={formData.schoolName}
           onChange={(v) => updateFormData({ schoolName: v })}
           placeholder="학교명 입력"
+          disabled={formData.schoolType === "N수생"}
         />
       </section>
 
@@ -506,11 +519,14 @@ export default function Under14Form() {
           학부모 정보 <span className="text-primary">(필수)</span>
         </h2>
 
+        {/* TODO(§4.1): 재추출 스크린샷은 예시값("01088601234")이 채워진 상태였다 — 실제
+            기본값인지 목업용 예시 데이터인지 시안만으로는 구분 불가해 보수적으로 빈 입력 +
+            다른 전화번호 필드와 동일한 placeholder를 유지한다. */}
         <TextField
           label="전화번호"
-          id="under14-guardian-phone"
+          id="unified-guardian-phone"
           name="guardianPhone"
-          size="lg"
+          size="default"
           value={formData.guardianPhone}
           onChange={(v) => updateFormData({ guardianPhone: v })}
           placeholder="전화번호를 입력 해주세요"
@@ -535,15 +551,22 @@ export default function Under14Form() {
       </section>
 
       <section className="flex w-full flex-col gap-3">
-        <h2 className="text-xl font-medium text-ink">약관 동의</h2>
+        {/* 원문 후행 공백 재현("약관 동의 ") — §4.1 재추출 명세, 렌더 결과는 접혀 보이지만
+            문자열은 원문 그대로 유지한다. */}
+        <h2 className="text-xl font-medium text-ink">약관 동의 </h2>
 
         <AgreementList
-          items={STUDENT_AGREEMENT_ITEMS.map((item) => ({
+          items={UNIFIED_AGREEMENT_ITEMS.map((item) => ({
             ...item,
             checked: agreements[item.key],
           }))}
           allChecked={allChecked}
-          onToggleAll={() => setAllAgreements(!allChecked, requiredKeys)}
+          onToggleAll={() =>
+            setAllAgreements(
+              !allChecked,
+              UNIFIED_AGREEMENT_ITEMS.map((item) => item.key),
+            )
+          }
           onToggleItem={(key) => updateAgreements({ [key]: !agreements[key] })}
         />
       </section>
@@ -554,8 +577,8 @@ export default function Under14Form() {
         </InfoCard>
       )}
 
-      {/* §3.3 D-2: "다음" 버튼 400×52px(C-1/D-1과 달리 이 버튼은 사이즈 매트릭스 불일치가
-          기록돼 있지 않아 스펙에 명시된 52px/default 그대로 사용 — D-1 PASS 버튼과는 별개 판단). */}
+      {/* §4.1: "다음" 버튼 400×52px, radius 12px, 16px SemiBold — PrimaryButton
+          size='default'/radius='default' 조합이 그대로 이 스펙과 일치한다. */}
       <PrimaryButton
         size="default"
         radius="default"

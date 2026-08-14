@@ -1,5 +1,5 @@
 import { Check, CheckCircle2, Clock, Copy } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { COMPANY } from "../data/company";
 import { useMemberType } from "../hooks/useMemberType";
@@ -42,7 +42,14 @@ import { supabase } from "../lib/supabase";
 // (아래 엔트리의 serviceKey 필드는 매칭용 slug 를 보조하는 표시값일 뿐, 실제
 // create-service-ticket 요청의 service_key 는 paidServiceAccess.js 의
 // PAID_SERVICE_CONFIGS 매칭 결과에서 나온다 — 'goal' 그대로 유지.)
-const SERVICE_ENTRY = {
+interface ServiceEntry {
+  serviceKey: string;
+  slug: string;
+  link: string;
+  label: string;
+}
+
+const SERVICE_ENTRY: Record<string, ServiceEntry> = {
   target: {
     serviceKey: "goal",
     slug: "goal",
@@ -89,7 +96,7 @@ const NOT_OWNER_ERROR = "not_order_owner";
 // 카드사명까지 붙여 적는데, 토스 승인 응답에는 card.issuerCode(2자리 코드)만 오고
 // 한글 카드사명이 없어서 매핑 표가 필요하다. 미등록 코드는 카드사명을 생략하고
 // '신용카드' 로만 표기한다(잘못된 카드사명을 영수증에 찍는 것보다 안전).
-const CARD_ISSUERS = {
+const CARD_ISSUERS: Record<string, string> = {
   "3K": "기업BC",
   46: "광주",
   71: "롯데",
@@ -118,7 +125,7 @@ const CARD_ISSUERS = {
 
 // 토스 은행 코드 → 표시명. 가상계좌 응답이 bank(한글명)를 주는 경우도 있어
 // 그쪽을 먼저 쓰고, 없을 때만 이 표로 코드를 푼다.
-const BANKS = {
+const BANKS: Record<string, string> = {
   "02": "KDB산업은행",
   "03": "IBK기업은행",
   "04": "KB국민은행",
@@ -148,7 +155,53 @@ const BANKS = {
   92: "토스뱅크",
 };
 
-function pad(n) {
+interface CardInfo {
+  cardType?: string;
+  issuerCode?: string;
+  number?: string;
+  installmentPlanMonths?: number;
+  approveNo?: string;
+}
+
+interface VirtualAccountInfo {
+  customerName?: string;
+  dueDate?: string;
+  bank?: string;
+  bankCode?: string;
+  accountNumber?: string;
+}
+
+interface EasyPayInfo {
+  provider?: string;
+}
+
+interface AccessResult {
+  ok?: boolean;
+  granted?: string[];
+  skipped?: string[];
+  error?: string;
+}
+
+interface PaymentInfo {
+  orderId?: string;
+  card?: CardInfo;
+  virtualAccount?: VirtualAccountInfo;
+  easyPay?: EasyPayInfo;
+  method?: string;
+  approvedAt?: string;
+  requestedAt?: string;
+  totalAmount?: number;
+  vat?: number;
+  status?: string;
+  access?: AccessResult;
+}
+
+interface RowItem {
+  label: string;
+  value: string;
+}
+
+function pad(n: number) {
   return String(n).padStart(2, "0");
 }
 
@@ -158,7 +211,7 @@ function pad(n) {
 // '2026.08.11-2026.08.12'류 날짜 범위 표기와 헷갈린다. 이 화면에서 시각까지 찍는
 // 곳은 '최종 승인 시간'과 입금기한(depositDeadlineInfo) 두 곳뿐이라, 이 함수를
 // 공유해 쓰는 것만으로 둘의 포맷이 항상 같게 유지된다(하나만 따로 고치지 않는다).
-function formatDateTime(iso) {
+function formatDateTime(iso?: string | null) {
   if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "-";
@@ -169,7 +222,7 @@ function formatDateTime(iso) {
 
 // ISO 문자열 → "YYYY.MM.DD" ('이용 시작일'처럼 날짜만 필요한 곳에서 쓴다.
 // 입금기한은 시각까지 필요해서 날짜만 찍으면 안 된다 — depositDeadlineInfo 참고.)
-function formatDate(iso) {
+function formatDate(iso?: string | null) {
   if (!iso) return "-";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "-";
@@ -181,7 +234,7 @@ function formatDate(iso) {
 // 보여주면 마감일 23시 이체가 늦는 사고로 이어진다(적극적 오인 유발, P0).
 // formatDateTime 으로 시각까지 보여주고 남은 시간을 병기한다. remaining 은
 // 마감이 이미 지난 경우도 문구가 깨지지 않도록 별도 문구를 돌려준다.
-function depositDeadlineInfo(iso) {
+function depositDeadlineInfo(iso?: string | null) {
   if (!iso) return { text: "-", remaining: null };
   const due = new Date(iso);
   if (Number.isNaN(due.getTime())) return { text: "-", remaining: null };
@@ -203,7 +256,7 @@ function depositDeadlineInfo(iso) {
 // http dev 서버·구형 webview 등에서는 document.execCommand('copy') 폴백으로
 // 넘어간다. 둘 다 실패해도 예외를 던지지 않고 false 만 돌려준다 — 버튼이
 // 사라지거나 화면이 깨지는 대신, 호출부가 복사 성공 피드백만 건너뛴다.
-async function copyToClipboard(text) {
+async function copyToClipboard(text: string) {
   if (navigator.clipboard && window.isSecureContext) {
     try {
       await navigator.clipboard.writeText(text);
@@ -228,13 +281,13 @@ async function copyToClipboard(text) {
   }
 }
 
-function formatKRW(value) {
+function formatKRW(value: number | string | null | undefined) {
   if (value === null || value === undefined || value === "") return "-";
   return `${Number(value).toLocaleString("ko-KR")}원`;
 }
 
 // 토스 결제수단 표시명 (간편결제는 provider, 카드는 '신용카드(신한)' 형태)
-function methodLabel(payment) {
+function methodLabel(payment?: PaymentInfo | null) {
   if (payment?.easyPay?.provider) return payment.easyPay.provider;
 
   if (payment?.card) {
@@ -252,7 +305,7 @@ function methodLabel(payment) {
 // 시안(1882-14270)은 '4895-4589-****-****' 로 앞 8자리만 노출한다. 토스도 이미
 // 일부를 가려서 주지만(예: 43301234****123*) 가리는 자리가 달라, 뒤 8자리를
 // 다시 '*' 로 덮은 뒤 4자리씩 하이픈으로 끊는다.
-function formatCardNumber(raw) {
+function formatCardNumber(raw?: string | null) {
   const value = String(raw || "").replace(/[^0-9*]/g, "");
   if (!value) return "-";
   const length = Math.max(value.length, 12); // 12 = 최소 카드번호 자릿수
@@ -261,13 +314,13 @@ function formatCardNumber(raw) {
 }
 
 // 0개월 = 일시불 (시안 1882-14270)
-function installmentLabel(months) {
+function installmentLabel(months?: number) {
   const value = Number(months || 0);
   return value > 0 ? `${value}개월` : "일시불";
 }
 
 // 시안(1882-14746)은 '신한은행 110-260-365412' 로 은행명 + 계좌번호를 한 줄에 쓴다.
-function accountLabel(virtualAccount) {
+function accountLabel(virtualAccount?: VirtualAccountInfo | null) {
   const bank =
     String(virtualAccount?.bank || "").trim() ||
     BANKS[String(virtualAccount?.bankCode || "").trim()];
@@ -290,8 +343,20 @@ function accountLabel(virtualAccount) {
 // 보류 1건:
 //   · 시간 행 라벨 — 시안이 노드별로 3종('최종 승인 시간' 1882-13833 / '결제 요청 시간 및
 //     최종 승인 시간' 1882-14270 / '결제 요청 시간' 1882-14145)이라 코드 기존 문구를 유지.
-function buildRows({ payment, orderId, totalAmount, vat }) {
-  const rows = [{ label: "주문번호", value: payment?.orderId || orderId }];
+function buildRows({
+  payment,
+  orderId,
+  totalAmount,
+  vat,
+}: {
+  payment: PaymentInfo | null;
+  orderId: string | null;
+  totalAmount: number;
+  vat: number | null;
+}): RowItem[] {
+  const rows: RowItem[] = [
+    { label: "주문번호", value: payment?.orderId || orderId || "-" },
+  ];
   const card = payment?.card;
   const virtualAccount = payment?.virtualAccount;
   // 간편결제(토스페이 등)도 응답에 card 가 실려 올 수 있지만, 토스페이 시안
@@ -352,12 +417,14 @@ export default function PaymentSuccess() {
   // missing_params 는 error 와 분리한다 — 파라미터 없는 재방문(예: 가상계좌
   // 구매자가 계좌번호를 다시 보려고 히스토리로 돌아오는 경우)은 실패가 아니라
   // 정상적인 재방문이라 빨간 에러 취급을 하면 안 된다.
-  const [status, setStatus] = useState("confirming"); // confirming | done | error | missing_params
+  const [status, setStatus] = useState<
+    "confirming" | "done" | "error" | "missing_params"
+  >("confirming");
   const [errorMsg, setErrorMsg] = useState("");
-  const [payment, setPayment] = useState(null); // 승인 응답(토스 raw)
+  const [payment, setPayment] = useState<PaymentInfo | null>(null); // 승인 응답(토스 raw)
   // 계좌번호 복사 피드백. 2초 후 자동으로 꺼진다.
   const [copied, setCopied] = useState(false);
-  const copyTimeoutRef = useRef(null);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     return () => {
@@ -386,7 +453,7 @@ export default function PaymentSuccess() {
           body: JSON.stringify({ paymentKey, orderId, amount }),
         });
 
-        let result = {};
+        let result: PaymentInfo & { error?: string } = {};
         try {
           result = await res.json();
         } catch {
@@ -472,7 +539,10 @@ export default function PaymentSuccess() {
   const noEntryProduct =
     !isWaitingDeposit && access?.ok === true && entries.length === 0;
 
-  async function handleStart(event, entry) {
+  async function handleStart(
+    event: MouseEvent<HTMLButtonElement>,
+    entry: ServiceEntry,
+  ) {
     // 입장권(SSO 티켓)을 받아 자식 앱으로 이동한다. 실패 시 함수 내부에서
     // alert 를 띄우고 커서를 복구한다.
     await openPaidServiceOrAlert(event, entry);

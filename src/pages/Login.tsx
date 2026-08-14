@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   AuthLayout,
@@ -10,7 +10,7 @@ import {
 import { supabase } from "../lib/supabase";
 
 // 오픈 리다이렉트 방지: 같은 사이트 내부 경로만 허용
-function safeRedirect(value) {
+function safeRedirect(value: string | null) {
   if (!value) return "/";
   try {
     // origin 비교로 판단해야 백슬래시('/\evil.com')처럼 startsWith('//') 검사를
@@ -31,10 +31,14 @@ function safeRedirect(value) {
 
 // getSession()이 응답 없이 무한 대기하는 경우를 대비한 타임아웃 폴백.
 // MyPage.jsx / Header.jsx의 withTimeout 선례와 동일한 패턴이다.
-function withTimeout(promise, ms, fallbackValue = null) {
+function withTimeout<T, F = null>(
+  promise: Promise<T>,
+  ms: number,
+  fallbackValue: F = null as F,
+): Promise<T | F> {
   return Promise.race([
     promise,
-    new Promise((resolve) => {
+    new Promise<F>((resolve) => {
       window.setTimeout(() => resolve(fallbackValue), ms);
     }),
   ]);
@@ -87,7 +91,7 @@ export default function Login() {
     };
   }, [navigate, redirectTo]);
 
-  function getFriendlyError(errorMessage) {
+  function getFriendlyError(errorMessage?: string) {
     if (!errorMessage) return "로그인 중 문제가 발생했습니다.";
 
     if (errorMessage.includes("Invalid login credentials")) {
@@ -101,7 +105,7 @@ export default function Login() {
     return errorMessage;
   }
 
-  async function handleLogin(e) {
+  async function handleLogin(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (loading) return;
@@ -117,7 +121,7 @@ export default function Login() {
         password,
       });
 
-      const timeoutPromise = new Promise((_, reject) => {
+      const timeoutPromise = new Promise<never>((_, reject) => {
         window.setTimeout(() => reject(new Error("login_timeout")), 12000);
       });
 

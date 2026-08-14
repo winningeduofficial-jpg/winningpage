@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import type { User } from "@supabase/supabase-js";
+import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import checkboxUnselected from "../../assets/checkout/checkbox-24.svg";
 import checkboxSelected from "../../assets/checkout/checkbox-24-selected.svg";
@@ -64,20 +65,49 @@ const DUPLICATE_REQUEST_FAIL = {
   body: "학부모님의 확인을 기다리고 있어요. 마이페이지에서 요청 현황을 확인해 주세요.",
 };
 
+interface ProductOption {
+  id: string;
+  name: string;
+  listPrice: number;
+  price: number;
+  recommended?: boolean;
+}
+
+interface SelectedItem {
+  id: string;
+  serviceKey: string;
+  serviceName: string;
+  name: string;
+  listPrice: number;
+  price: number;
+}
+
+interface SubmitError {
+  title: string;
+  body: string;
+}
+
+interface CompletedOrder {
+  id: string;
+  amount: number;
+}
+
 export default function StudentEnrollmentRequest() {
   const navigate = useNavigate();
   const { services, loading, error, refetch } = useProducts();
 
   // 서비스별 단일 선택: { [serviceKey]: productId } — Pricing.jsx 와 동일 규칙
   // (그룹당 1개, 서로 다른 그룹은 동시 선택 가능).
-  const [selected, setSelected] = useState({});
-  const [user, setUser] = useState(null);
+  const [selected, setSelected] = useState<Record<string, string>>({});
+  const [user, setUser] = useState<User | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [showFailModal, setShowFailModal] = useState(false);
   // { title, body } | null — 학부모 미연결 이외의 서버 제출 실패(일반 오류/중복 요청).
-  const [submitError, setSubmitError] = useState(null);
+  const [submitError, setSubmitError] = useState<SubmitError | null>(null);
   // null = 선택 화면, {id, amount} = 완료 화면(시안 3921-7792).
-  const [completedOrder, setCompletedOrder] = useState(null);
+  const [completedOrder, setCompletedOrder] = useState<CompletedOrder | null>(
+    null,
+  );
 
   useEffect(() => {
     let alive = true;
@@ -96,7 +126,7 @@ export default function StudentEnrollmentRequest() {
     [services],
   );
 
-  function toggle(serviceKey, productId) {
+  function toggle(serviceKey: string, productId: string) {
     setSelected((prev) => {
       const next = { ...prev };
       if (next[serviceKey] === productId) delete next[serviceKey];
@@ -108,7 +138,12 @@ export default function StudentEnrollmentRequest() {
   // Escape = 그룹 선택 해제, 화살표 = 이동+선택. Pricing.jsx radiogroup 과 동일
   // 규약이다(전체 근거는 그쪽 handleRadioKeyDown 주석 참고 — 두 화면이 같은
   // 상호작용을 쓰므로 여기서 반복 설명하지 않는다).
-  function handleRadioKeyDown(e, serviceKey, products, currentIndex) {
+  function handleRadioKeyDown(
+    e: KeyboardEvent<HTMLButtonElement>,
+    serviceKey: string,
+    products: ProductOption[],
+    currentIndex: number,
+  ) {
     if (e.key === "Escape") {
       if (!(serviceKey in selected)) return;
       e.preventDefault();
@@ -132,12 +167,13 @@ export default function StudentEnrollmentRequest() {
     setSelected((prev) => ({ ...prev, [serviceKey]: nextProduct.id }));
 
     const group = e.currentTarget.closest('[role="radiogroup"]');
-    const nextEl = group?.querySelectorAll('[role="radio"]')[nextIndex];
+    const nextEl =
+      group?.querySelectorAll<HTMLElement>('[role="radio"]')[nextIndex];
     nextEl?.focus();
   }
 
   const selectedItems = useMemo(() => {
-    const items = [];
+    const items: SelectedItem[] = [];
     filteredServices.forEach((service) => {
       const pid = selected[service.key];
       if (!pid) return;
@@ -185,8 +221,10 @@ export default function StudentEnrollmentRequest() {
         return;
       }
 
-      let response;
-      let payload;
+      let response: Response | undefined;
+      let payload:
+        | { error?: string; orderId?: string; amount?: number }
+        | undefined;
       try {
         response = await fetch("/api/request-enrollment", {
           method: "POST",

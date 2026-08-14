@@ -4,7 +4,16 @@
 // 컬럼이므로(§3.0 "본문 1100px 좌측 정렬 컬럼(py 100, gap 40)") 별도 컴포넌트로 분리했다.
 // 반응형(adapt.md): 인라인 style은 브레이크포인트를 못 태우므로 클래스로 이전 — 1100px은
 // w-full 위 상한(max-w)일 뿐이라 유동폭 자체는 원래도 성립했고, 여백만 모바일 우선으로 램프.
+import type { ReactNode } from "react";
 import { withDedupedKeys } from "../../lib/reactKeys";
+
+interface TermsPageLayoutProps {
+  title?: ReactNode;
+  pageTitle?: ReactNode;
+  effectiveDate?: string;
+  children?: ReactNode;
+  className?: string;
+}
 
 export default function TermsPageLayout({
   title,
@@ -15,7 +24,7 @@ export default function TermsPageLayout({
   effectiveDate, // 부칙 시행일(있는 문서만). 없으면 미노출 — 없다고 임의로 만들지 않는다.
   children,
   className = "",
-}) {
+}: TermsPageLayoutProps) {
   return (
     <main className="min-h-screen w-full bg-white pt-16">
       <div
@@ -43,8 +52,18 @@ export default function TermsPageLayout({
   );
 }
 
+interface TermsSectionProps {
+  title?: ReactNode;
+  children?: ReactNode;
+  className?: string;
+}
+
 // 섹션(조문 그룹) 제목 — 20px SemiBold(§3.0: "서브타이틀·섹션 20px Medium(약관 페이지는 SemiBold)").
-export function TermsSection({ title, children, className = "" }) {
+export function TermsSection({
+  title,
+  children,
+  className = "",
+}: TermsSectionProps) {
   return (
     <section className={`flex flex-col gap-3 ${className}`}>
       {title && (
@@ -63,7 +82,7 @@ export function TermsSection({ title, children, className = "" }) {
 const DOMAIN_PATTERN =
   /((?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:go\.kr|or\.kr|kr|com))/gi;
 
-function linkify(text) {
+function linkify(text: string) {
   const parts = text.split(DOMAIN_PATTERN);
   return withDedupedKeys(parts).map(({ item: part, key }, i) => {
     if (i % 2 === 1) {
@@ -86,7 +105,7 @@ function linkify(text) {
 
 // 제N조/부칙/번호 목차를 제목으로, '·'·'-' 불릿을 들여쓰기로 표시 — AS-IS Legal.jsx의 조/항
 // 판별 관례를 계승(기준 12px, 약관 원문 전문을 그대로 줄 단위 렌더링).
-function isHeading(line) {
+function isHeading(line: string) {
   const t = line.trim();
   if (/^제\d+조/.test(t)) return true;
   if (/^제\d+장/.test(t)) return true;
@@ -95,7 +114,15 @@ function isHeading(line) {
   return false;
 }
 
-export function TermsArticleBody({ text, className = "" }) {
+interface TermsArticleBodyProps {
+  text?: string | null;
+  className?: string;
+}
+
+export function TermsArticleBody({
+  text,
+  className = "",
+}: TermsArticleBodyProps) {
   const lines = text ? text.split("\n") : [];
 
   return (
