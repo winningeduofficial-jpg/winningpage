@@ -70,7 +70,12 @@ export default function SearchView({
         <section
           className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-[6.25rem]`}
         >
-          <TrendingChips items={trending} onSelect={onSelectTrending} />
+          {/* TrendingChips(수정 범위 밖)의 onSelect는 exactOptionalPropertyTypes라
+              undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다. */}
+          <TrendingChips
+            items={trending}
+            {...(onSelectTrending ? { onSelect: onSelectTrending } : {})}
+          />
         </section>
       ) : (
         // 칩 섹션을 렌더하지 않는 경우에도 페이지 하단 여백은 유지한다.
