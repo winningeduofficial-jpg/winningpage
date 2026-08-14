@@ -1,4 +1,13 @@
+import type { ReactNode } from "react";
 import StepBadge from "./StepBadge";
+
+type QuestionCardProps = {
+  step: ReactNode;
+  label: ReactNode;
+  title: ReactNode;
+  description?: ReactNode;
+  children?: ReactNode;
+};
 
 // 질문 카드 — docs/figma-goal/00-INDEX.md §5-3 `QuestionCard`.
 // 폭 1100(68.75rem, 부모 OnboardingStepShell이 결정), 패딩 좌우 3.75rem/상하 2.5rem →
@@ -9,7 +18,7 @@ export default function QuestionCard({
   title,
   description,
   children,
-}) {
+}: QuestionCardProps) {
   return (
     <div className="w-full rounded-[1.5rem] bg-white px-[3.75rem] py-[2.5rem]">
       <div className="flex items-center gap-[0.75rem]">
