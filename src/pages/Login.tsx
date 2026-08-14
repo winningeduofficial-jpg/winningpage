@@ -221,7 +221,9 @@ export default function Login() {
           placeholder="비밀번호를 입력해 주세요."
           autoComplete="current-password"
           required
-          helperText={message || undefined}
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={message}
           status={message ? "error" : "default"}
         />
 

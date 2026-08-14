@@ -78,7 +78,7 @@ const AGREEMENT_LABELS = [
   },
 ];
 
-const RPC_ERRORS = [
+const RPC_ERRORS: [string, string][] = [
   [
     "duplicate_email",
     "이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.",
@@ -258,7 +258,12 @@ export default function ParentForm() {
     verifySignupEmailCode({
       email: normalizedEmail,
       token,
-      mode: verification.email.mode,
+      // verifySignupEmailCode는 담당 파일이 아니라 수정할 수 없다 —
+      // exactOptionalPropertyTypes 때문에 값이 null이면 키 자체를 생략해 전달한다
+      // (내부에서 `mode || OTP_MODE.SIGNUP`로 처리하므로 동작은 동일하다).
+      ...(verification.email.mode !== null && {
+        mode: verification.email.mode,
+      }),
     }).then(({ error }) => {
       if (error) {
         updateVerification("email", { verified: false });
@@ -522,11 +527,9 @@ export default function ParentForm() {
           actionDisabled={
             phoneSending || phoneCooldown.active || verification.phone.verified
           }
-          helperText={
-            verification.phone.verified
-              ? undefined
-              : phoneMessage.text || undefined
-          }
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={verification.phone.verified ? "" : phoneMessage.text}
           status={verification.phone.verified ? "default" : phoneMessage.status}
           required
         />
@@ -548,7 +551,7 @@ export default function ParentForm() {
             phoneCooldown.active ||
             verification.phone.verified
           }
-          helperText={phoneMessage.text || undefined}
+          helperText={phoneMessage.text}
           status={verification.phone.verified ? "success" : phoneMessage.status}
           disabled={
             !verification.phone.requested || verification.phone.verified
@@ -572,11 +575,9 @@ export default function ParentForm() {
           actionDisabled={
             emailSending || emailCooldown.active || verification.email.verified
           }
-          helperText={
-            verification.email.verified
-              ? undefined
-              : emailMessage.text || undefined
-          }
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={verification.email.verified ? "" : emailMessage.text}
           status={verification.email.verified ? "default" : emailMessage.status}
           required
         />
@@ -590,7 +591,7 @@ export default function ParentForm() {
             updateFormData({ emailCode: value.replace(/\D/g, "").slice(0, 6) })
           }
           placeholder="이메일 인증코드 6자리를 입력해주세요"
-          helperText={emailMessage.text || undefined}
+          helperText={emailMessage.text}
           status={verification.email.verified ? "success" : emailMessage.status}
           disabled={
             !verification.email.requested || verification.email.verified

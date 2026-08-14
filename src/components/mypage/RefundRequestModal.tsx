@@ -206,7 +206,7 @@ export default function RefundRequestModal({
   const canSubmit =
     !loading && !quoteError && !blockedByPolicy && reasonFilled && !saving;
 
-  const policyText = quote ? POLICY_TEXT[quote.policy_code] : "";
+  const policyText = quote ? POLICY_TEXT[quote.policy_code || ""] : "";
 
   return (
     <MyPageModalShell
@@ -269,7 +269,9 @@ export default function RefundRequestModal({
               <div className="flex items-center justify-between text-[0.875rem]">
                 <span className="text-ink-sub">취소 수수료</span>
                 <span className="text-error">
-                  {feeAmount > 0 ? `-${formatKRW(feeAmount)}` : formatKRW(0)}
+                  {/* 이 분기(loading=false, quoteError="")는 fetch 성공 후
+                      setQuote(row)까지 끝난 상태라 feeAmount는 항상 non-null이다. */}
+                  {feeAmount! > 0 ? `-${formatKRW(feeAmount!)}` : formatKRW(0)}
                 </span>
               </div>
               <div className="flex items-center justify-between border-t border-line pt-2 text-[0.9375rem] font-semibold">
