@@ -194,6 +194,6 @@ export const SUBJECT_OPTIONS_BY_GROUP = {
 // (`map[group] || ['직접 입력']`)을 유지한다: 빈 값·미정의 교과군은 ['직접 입력']로
 // 떨어진다. 단, '한국사'는 더 이상 이 폴백을 타지 않는다 — 위 SUBJECT_OPTIONS_BY_GROUP에
 // 키가 추가됐다(상단 "알려진 원본 결함" 주석 참조).
-export function getSubjectOptions(group) {
+export function getSubjectOptions(group: string) {
   return SUBJECT_OPTIONS_BY_GROUP[group] || ["직접 입력"];
 }

@@ -17,6 +17,6 @@
 export const SINGLE_SELECT_NOTICE =
   "한 서비스 내에서는 하나의 플랜만 선택할 수 있어요";
 
-export function formatKRW(value) {
+export function formatKRW(value: unknown) {
   return `${Number(value || 0).toLocaleString("ko-KR")}원`;
 }
