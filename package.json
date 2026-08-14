@@ -16,6 +16,7 @@
     "format": "biome check --write .",
     "format:ci": "biome ci .",
     "lint": "biome lint .",
+    "typecheck": "tsc --noEmit",
     "// test:goal-cuts": "목표관리 대학 컷 엑셀 왕복 파서 회귀. verify 체인에도 들어 있지만 단독 실행 경로를 따로 둔다 — 체인은 && 직렬이라 앞쪽 스크립트가 하나라도 죽으면 뒤가 통째로 건너뛰어진다(현재 verify-admission-doc-html-drift / verify-admission-bulk-xlsx 가 로컬 키 파일 부재로 죽는다).",
     "test:goal-cuts": "node scripts/test-goal-university-cuts-bulk-xlsx.mjs",
     "// test:univ-normalize": "목표관리 대학 컷 백필의 단축형→전체형 대학명 정규화 회귀.",
@@ -43,12 +44,16 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
+    "@types/node": "^26.2.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "autoprefixer": "^10.4.20",
     "knip": "^6.32.2",
     "pdfjs-dist": "^6.2.108",
     "playwright": "^1.62.1",
     "postcss": "^8.4.49",
     "sharp": "^0.35.3",
-    "tailwindcss": "^3.4.17"
+    "tailwindcss": "^3.4.17",
+    "typescript": "^7.0.2"
   }
 }
