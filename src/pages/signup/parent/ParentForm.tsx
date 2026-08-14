@@ -14,7 +14,7 @@
 //   /api/verify-phone-code가 판정하고, 서버가 시도를 5회로 끊는다. 그래서 같은
 //   코드를 반복 전송하지 않도록 마지막 시도값을 기억한다 — 지웠다 다시 입력하는
 //   것만으로 시도가 깎이면 안 된다.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AgreementList,
@@ -159,10 +159,9 @@ export default function ParentForm() {
   const normalizedPhone = normalizePhone(formData.phone);
 
   // ── 휴대폰 ────────────────────────────────────────────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.phone.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. phoneCode 6자리 완성 시에만 실행되어야 한다.
-  useEffect(() => {
-    const code = formData.phoneCode;
-
+  // OTP 자동검증 — updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프로
+  // 이어지지 않도록 useEffectEvent로 감싼다. phoneCode 6자리 완성 시에만 실행되어야 한다.
+  const onPhoneCodeChange = useEffectEvent((code: string) => {
     if (
       code.length !== 6 ||
       !verification.phone.requested ||
@@ -191,6 +190,10 @@ export default function ParentForm() {
         lastPhoneAttempt.current = "";
       }
     });
+  });
+
+  useEffect(() => {
+    onPhoneCodeChange(formData.phoneCode);
   }, [formData.phoneCode]);
 
   async function handleSendPhoneCode() {
@@ -240,10 +243,9 @@ export default function ParentForm() {
   }
 
   // ── 이메일 ────────────────────────────────────────────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
-  useEffect(() => {
-    const token = formData.emailCode;
-
+  // OTP 자동검증 — updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프로
+  // 이어지지 않도록 useEffectEvent로 감싼다. emailCode 6자리 완성 시에만 실행되어야 한다.
+  const onEmailCodeChange = useEffectEvent((token: string) => {
     if (
       token.length !== 6 ||
       !verification.email.requested ||
@@ -274,6 +276,10 @@ export default function ParentForm() {
       updateVerification("email", { verified: true });
       setEmailMessage({ text: "인증되었습니다", status: "success" });
     });
+  });
+
+  useEffect(() => {
+    onEmailCodeChange(formData.emailCode);
   }, [formData.emailCode]);
 
   async function handleSendEmailCode() {

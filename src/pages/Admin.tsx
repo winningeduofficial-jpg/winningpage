@@ -1,5 +1,5 @@
 import { ChevronDown, Download, Plus, RefreshCw, Search } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 // 쿠폰관리는 제네릭 CRUD 로 표현되지 않는다(파생 사용 건수 · NULL=무제한 3상태
 // 입력 · slug 사전중복검사 · 사용이력 드릴다운 + void RPC). config.custom +
@@ -2822,9 +2822,21 @@ export default function Admin() {
   const serverPage = config.serverPaginate ? page : 0;
   const serverTerm = config.serverPaginate ? searchTerm : "";
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) loadRows는 매 렌더 새로 생성되는 미메모 함수라 deps에 그대로 넣으면 렌더마다 재조회된다. 실제 조회 트리거는 activeKey/serverPage/serverTerm 세 값이고, loadRows는 그 시점의 클로저를 그대로 쓴다.
+  // 실제 조회 트리거는 activeKey/serverPage/serverTerm 세 값이고, loadRows는 그 시점의
+  // 클로저를 그대로 쓴다(useEffectEvent로 감싸 매 렌더 새로 생성되는 loadRows를 deps에서 뺀다).
+  // 트리거 값을 인자로 넘겨 exhaustive-deps가 이 effect의 실사용 의존성으로 인식하게 한다.
+  const onRowsTriggerChange = useEffectEvent(
+    (
+      _activeKey: typeof activeKey,
+      _serverPage: number,
+      _serverTerm: string,
+    ) => {
+      loadRows();
+    },
+  );
+
   useEffect(() => {
-    loadRows();
+    onRowsTriggerChange(activeKey, serverPage, serverTerm);
   }, [activeKey, serverPage, serverTerm]);
 
   // 삭제 등으로 총 건수가 줄어 현재 페이지가 범위를 벗어나면 마지막 페이지로 당긴다.

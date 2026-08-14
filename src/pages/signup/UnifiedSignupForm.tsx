@@ -25,7 +25,14 @@
 //    표시상 접어버리지만 원문 재현 원칙에 따라 문자열 그대로 남긴다.
 
 import { Check } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AgreementList,
@@ -285,10 +292,9 @@ export default function UnifiedSignupForm() {
 
   // 6자리가 채워지면 곧바로 검증한다 — 별도 "확인" 버튼을 두지 않는다.
   // (휴대폰 알림톡 인증과 같은 방식. StudentForm/ParentForm/Under14Form과 동일 패턴)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
-  useEffect(() => {
-    const token = formData.emailCode;
-
+  // OTP 자동검증 — updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프로
+  // 이어지지 않도록 useEffectEvent로 감싼다. emailCode 6자리 완성 시에만 실행되어야 한다.
+  const onEmailCodeChange = useEffectEvent((token: string) => {
     if (
       token.length !== 6 ||
       !verification.email.requested ||
@@ -344,6 +350,10 @@ export default function UnifiedSignupForm() {
         status: "success",
       });
     });
+  });
+
+  useEffect(() => {
+    onEmailCodeChange(formData.emailCode);
   }, [formData.emailCode]);
 
   // TODO(§4.3 GAP): "다음" 버튼이 가리키는 후속 스텝이 시안에 없다("다음" 버튼 → 후속 스텝

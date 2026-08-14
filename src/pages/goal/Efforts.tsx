@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import GoalPageHeader from "../../components/goal/GoalPageHeader";
 import AddWorkbookModal from "../../components/goal/modals/AddWorkbookModal";
 import EffortSubjectCard from "../../components/goal/plan/EffortSubjectCard";
@@ -62,9 +62,12 @@ export default function Efforts() {
     setLoadError(true);
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) 마운트 1회만 — loadWorkbooks는 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회된다.
-  useEffect(() => {
+  const onMountLoadWorkbooks = useEffectEvent(() => {
     loadWorkbooks();
+  });
+
+  useEffect(() => {
+    onMountLoadWorkbooks();
   }, []);
 
   function openModal(subjectLabel: string | null) {

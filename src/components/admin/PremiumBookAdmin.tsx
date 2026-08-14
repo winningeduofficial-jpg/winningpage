@@ -1,6 +1,6 @@
 import { Plus, RefreshCw, UploadCloud } from "lucide-react";
 import type { ChangeEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import {
   AdminForm,
@@ -110,11 +110,17 @@ export default function PremiumBookAdmin({
     setRows(data || []);
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) 마운트 1회만 — loadRows/revokePreviewUrls는 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회·재정리된다.
-  useEffect(() => {
+  const onMountLoadRows = useEffectEvent(() => {
     loadRows();
+  });
+  const onUnmountRevokePreviewUrls = useEffectEvent(() => {
+    revokePreviewUrls();
+  });
+
+  useEffect(() => {
+    onMountLoadRows();
     // 언마운트·재변환 시 blob URL 누수 방지(명세 §D2).
-    return () => revokePreviewUrls();
+    return () => onUnmountRevokePreviewUrls();
   }, []);
 
   const duplicateSortOrders = useMemo(() => {
