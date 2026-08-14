@@ -20,6 +20,13 @@ interface TableVariantLayout {
   tableClassName: string;
 }
 
+// generic 레이아웃은 폴백으로도 재사용하므로 별도 상수로 뽑아 둔다
+// (Record 인덱스 접근이라 `TABLE_VARIANT_LAYOUT.generic`은 undefined 가능 타입이 된다).
+const GENERIC_TABLE_VARIANT_LAYOUT: TableVariantLayout = {
+  scrollWrapClassName: "admission-scroll-table",
+  tableClassName: "admission-data-table",
+};
+
 export const TABLE_VARIANT_LAYOUT: Record<string, TableVariantLayout> = {
   selection: {
     scrollWrapClassName: "admission-scroll-table",
@@ -59,15 +66,12 @@ export const TABLE_VARIANT_LAYOUT: Record<string, TableVariantLayout> = {
     tableClassName: "admission-data-table admission-special-table",
   },
   // 스키마 상 존재하나 현재 파서 어느 빌더도 만들지 않는 탈출구. 실측 근거 없음.
-  generic: {
-    scrollWrapClassName: "admission-scroll-table",
-    tableClassName: "admission-data-table",
-  },
+  generic: GENERIC_TABLE_VARIANT_LAYOUT,
 };
 
 export function getTableVariantLayout(variant?: string): TableVariantLayout {
   return (
-    (variant && TABLE_VARIANT_LAYOUT[variant]) || TABLE_VARIANT_LAYOUT.generic
+    (variant && TABLE_VARIANT_LAYOUT[variant]) || GENERIC_TABLE_VARIANT_LAYOUT
   );
 }
 
@@ -198,5 +202,5 @@ export function getKnownRolesForVariant(variant?: string): string[] {
 // "직접 입력" 경고 상태로 보여준다.
 export function defaultNewColumnRole(variant?: string): string {
   const roles = getKnownRolesForVariant(variant);
-  return roles.length ? roles[roles.length - 1] : "";
+  return roles.at(-1) ?? "";
 }

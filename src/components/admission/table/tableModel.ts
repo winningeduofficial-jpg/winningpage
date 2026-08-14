@@ -364,7 +364,9 @@ export function describeCell(
   const columns = Array.isArray(block?.columns) ? block.columns : [];
   const rows = Array.isArray(block?.rows) ? block.rows : [];
   const row = Array.isArray(rows[rowIdx]) ? rows[rowIdx] : [];
-  const raw = row[colIdx];
+  // row가 colIdx보다 짧아도(ragged) 아래 헬퍼들은 falsy cell을 이미
+  // 빈 텍스트/no-chips로 취급해 왔다(cellTextOf/cellChipsOf 참고) — ""도 falsy라 동일하게 처리된다.
+  const raw = row[colIdx] ?? "";
   const role = columns[colIdx]?.role;
   const text = cellTextOf(raw);
   // 셀 종류 판정 단일 정본. 표시(className/leaf)와 편집(kind) 양쪽이 이 한
