@@ -58,14 +58,14 @@
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
-} from "../_lib/performance/gemini.ts";
+} from "../_lib/performance/gemini.js";
 import {
   formatRelevantStudentSessionsForPrompt,
   loadDynamicAssessmentKnowledge,
   loadRelevantStudentSessions,
   STUDENT_HISTORY_PROMPT_LIMIT,
   TOPIC_MAX_CHARS,
-} from "../_lib/performance/knowledge.ts";
+} from "../_lib/performance/knowledge.js";
 import {
   buildTopicExclusionBlock,
   buildTopicRecommendationSystem,
@@ -84,7 +84,7 @@ import {
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

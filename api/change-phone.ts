@@ -20,7 +20,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { isValidMobile, normalizePhone } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 

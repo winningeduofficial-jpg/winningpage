@@ -75,13 +75,13 @@ import {
   countSubmissionChars,
   resolveSessionSubmissionSchema,
   SUBMISSION_MIN_CHARS,
-} from "../_lib/performance/submission-schema.ts";
+} from "../_lib/performance/submission-schema.js";
 import {
   getBearerToken,
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

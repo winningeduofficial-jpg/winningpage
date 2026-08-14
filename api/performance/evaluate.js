@@ -87,11 +87,11 @@
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
-} from "../_lib/performance/gemini.ts";
+} from "../_lib/performance/gemini.js";
 import {
   guideTextFromSession,
   inferGuideStructure,
-} from "../_lib/performance/guide-structure.ts";
+} from "../_lib/performance/guide-structure.js";
 import {
   buildEvaluationSystem,
   buildEvaluationUser,
@@ -110,12 +110,12 @@ import {
 import {
   flattenReportSectionsToText,
   upsertSessionVectorMetadata,
-} from "../_lib/performance/session-vectors.ts";
+} from "../_lib/performance/session-vectors.js";
 import {
   buildSubmissionText,
   checkSubmissionMinLength,
   resolveSessionSubmissionSchema,
-} from "../_lib/performance/submission-schema.ts";
+} from "../_lib/performance/submission-schema.js";
 import {
   findProgramAccessRow,
   getBearerToken,
@@ -123,7 +123,7 @@ import {
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.ts";
+import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 

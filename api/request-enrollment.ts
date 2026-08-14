@@ -15,7 +15,7 @@
 
 import crypto from "node:crypto";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.ts";
+import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 // products 테이블에서 조회한 행 중 이 라우트가 실제로 읽는 필드만 담는다.
 type ProductRow = {
