@@ -1,6 +1,11 @@
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+
+type ProtectedRouteProps = {
+  children: ReactNode;
+};
 
 // 로그인 여부만 확인하는 라우트 가드. 관리자 권한까지 보는 ProtectedAdmin.jsx
 // 의 형제 컴포넌트 — profiles.role 조회 없이 세션 유무만 본다.
@@ -9,7 +14,7 @@ import { supabase } from "../lib/supabase";
 // api/create-order.js 의 서버 거부다(클라이언트 가드는 devtools로 우회
 // 가능) — 여기는 UX 층: 비로그인 사용자가 애초에 결제 화면에 들어오지 않게
 // 막아서 입력을 다 채운 뒤에야 막히는 걸 방지한다.
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
 
   const [status, setStatus] = useState("loading");

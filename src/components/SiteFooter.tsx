@@ -12,7 +12,7 @@ import { useNavGroups } from "../hooks/useNavGroups";
 // 래핑 근거 유지), 입시정보/이용신청/고객안내 7.5rem(120px), 미매핑 시 기본값 7.5rem.
 // 검산: 89+50+132+50+120+50+120+50+120 = 781px.
 
-const FOOTER_COLUMN_WIDTH_CLASS = {
+const FOOTER_COLUMN_WIDTH_CLASS: Record<string, string> = {
   서비스: "w-[5.5625rem]",
   프리미엄: "w-[8.25rem]",
   입시정보: "w-[7.5rem]",

@@ -1,8 +1,13 @@
+import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 
-export default function ProtectedAdmin({ children }) {
+type ProtectedAdminProps = {
+  children: ReactNode;
+};
+
+export default function ProtectedAdmin({ children }: ProtectedAdminProps) {
   const location = useLocation();
 
   const [status, setStatus] = useState("loading");

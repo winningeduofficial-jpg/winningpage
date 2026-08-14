@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 /**
  * 칩(배지) 공통 컴포넌트 — 랜딩 소식 카테고리 배지 / 게시판 '중요' 칩의 단일 정의처.
  * 원래 회사소식(CompanyNews.jsx) 상세·목록에도 같은 칩이 있어 세 곳을 여기로 모았으나,
@@ -52,13 +54,14 @@
  * · red 는 Figma 토큰명 Indicator/Red-Light(배경) + Indicator/Red(텍스트)로, AA 통과다.
  * · gray 는 신규 색이 아니라 NewsSection 의 기존 폴백 리터럴(#F1F5F9/#525252)을 그대로 옮긴 것이다.
  */
-const TONE_STYLES = Object.freeze({
-  blue: Object.freeze({ backgroundColor: "#E9F4FF", color: "#013262" }),
-  green: Object.freeze({ backgroundColor: "#EEFFE9", color: "#016215" }),
-  coral: Object.freeze({ backgroundColor: "#FFC4C4", color: "#FF7373" }),
-  red: Object.freeze({ backgroundColor: "#FFD9D9", color: "#991E1E" }),
-  gray: Object.freeze({ backgroundColor: "#F1F5F9", color: "#525252" }),
-});
+const TONE_STYLES: Record<string, { backgroundColor: string; color: string }> =
+  Object.freeze({
+    blue: Object.freeze({ backgroundColor: "#E9F4FF", color: "#013262" }),
+    green: Object.freeze({ backgroundColor: "#EEFFE9", color: "#016215" }),
+    coral: Object.freeze({ backgroundColor: "#FFC4C4", color: "#FF7373" }),
+    red: Object.freeze({ backgroundColor: "#FFD9D9", color: "#991E1E" }),
+    gray: Object.freeze({ backgroundColor: "#F1F5F9", color: "#525252" }),
+  });
 
 /**
  * size → 치수·타이포. **정적 리터럴만** 담는다(JIT 스캐너가 읽어야 한다).
@@ -75,7 +78,7 @@ const TONE_STYLES = Object.freeze({
  * · 한때 회사소식 상세(12px) / 목록(11px)용 sm · xs 가 더 있었다. 회사소식 칩 제거로
  *   소비처가 0이 되어 함께 지웠다 — 다시 필요해지면 그때 실측해서 새로 넣을 것.
  */
-const SIZE_CLASSES = Object.freeze({
+const SIZE_CLASSES: Record<string, string> = Object.freeze({
   md: "rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem]",
   "md-fixed":
     "h-[1.75rem] w-[3rem] rounded-[0.625rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.02em]",
@@ -84,22 +87,26 @@ const SIZE_CLASSES = Object.freeze({
 /** 모든 size 가 공유하는 골격. 추출 당시 세 소비처의 기존 마크업이 전부 이 조합이었다. */
 const BASE_CLASS = "inline-flex items-center justify-center whitespace-nowrap";
 
-/**
- * @param {object} props
- * @param {'blue'|'green'|'coral'|'red'|'gray'} [props.tone] 색. 기본 'gray'.
- * @param {'md'|'md-fixed'} [props.size] 치수·타이포. 기본 'md'.
- * @param {string} [props.className]
- *   **레이아웃 전용** 유틸리티(relative / shrink-0 / min-w-*)나 소비처 CSS 훅만 넘긴다.
- *   색·글자 크기를 여기서 덮어쓰면 tone/size 토큰이 무의미해진다.
- * @param {React.ReactNode} props.children 칩 문구.
- */
+type ChipProps = {
+  /** 색. 기본 'gray'. */
+  tone?: "blue" | "green" | "coral" | "red" | "gray";
+  /** 치수·타이포. 기본 'md'. */
+  size?: "md" | "md-fixed";
+  /** **레이아웃 전용** 유틸리티(relative / shrink-0 / min-w-*)나 소비처 CSS 훅만 넘긴다.
+   * 색·글자 크기를 여기서 덮어쓰면 tone/size 토큰이 무의미해진다. */
+  className?: string;
+  /** 칩 문구. */
+  children?: ReactNode;
+  [key: string]: unknown;
+};
+
 export default function Chip({
   tone = "gray",
   size = "md",
   className = "",
   children,
   ...rest
-}) {
+}: ChipProps) {
   const sizeClass = SIZE_CLASSES[size] ?? SIZE_CLASSES.md;
   const toneStyle = TONE_STYLES[tone] ?? TONE_STYLES.gray;
 
