@@ -52,7 +52,7 @@ export const EMAIL_RESEND_COOLDOWN_SECONDS = 60;
 
 export const MESSAGES = {
   taken: "이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.",
-  cooldown: (left) => `인증번호는 ${left}초 후에 다시 보낼 수 있어요.`,
+  cooldown: (left: number) => `인증번호는 ${left}초 후에 다시 보낼 수 있어요.`,
   resumed: "이전에 진행하던 가입이 있어 인증코드를 다시 보냈습니다.",
   sent: "입력한 이메일로 인증코드를 발송했습니다.",
   checkFailed:
@@ -175,7 +175,9 @@ export async function sendSignupEmailCode({
  * 값과 일치시키는 것"이고, 이미 같다면 그 목적은 달성된 상태다. 실패로
  * 취급하면 같은 비밀번호를 쓴 사용자가 가입을 끝낼 수 없게 된다.
  */
-function isSamePasswordError(error: { code?: string; message?: string } | null | undefined) {
+function isSamePasswordError(
+  error: { code?: string; message?: string } | null | undefined,
+) {
   const code = String(error?.code || "").toLowerCase();
   const message = String(error?.message || "").toLowerCase();
 
@@ -194,13 +196,17 @@ function isSamePasswordError(error: { code?: string; message?: string } | null |
  * 비밀번호 설정만 실패" 같은 어중간한 상태가 생기고, OTP는 이미 소모된 뒤라
  * 사용자가 손쓸 방법이 없다.
  *
- * @param {object} params
- * @param {string} params.email
- * @param {string} params.token
- * @param {string} params.mode  sendSignupEmailCode가 돌려준 mode
- * @returns {Promise<{ok?: boolean, error?: Error}>}
+ * mode: sendSignupEmailCode가 돌려준 mode
  */
-export async function verifySignupEmailCode({ email, token, mode }) {
+export async function verifySignupEmailCode({
+  email,
+  token,
+  mode,
+}: {
+  email: string;
+  token: string;
+  mode?: string;
+}): Promise<{ ok?: boolean; error?: Error }> {
   const { error } = await supabase.auth.verifyOtp({
     email,
     token,
@@ -219,10 +225,10 @@ export async function verifySignupEmailCode({ email, token, mode }) {
  * 남아 있을 수도 있다. 어느 쪽이든 여기서 사용자가 실제로 입력한 값으로 맞춘다.
  * 이 호출을 빠뜨리면 사용자가 방금 정한 비밀번호로 로그인할 수 없다.
  *
- * @param {string} password
- * @returns {Promise<{ok?: boolean, error?: Error}>}
  */
-export async function applySignupPassword(password) {
+export async function applySignupPassword(
+  password: string | null | undefined,
+): Promise<{ ok?: boolean; error?: Error }> {
   if (!password) return { ok: true };
 
   const { error } = await supabase.auth.updateUser({ password });

@@ -59,7 +59,12 @@ type AuthUrlResult =
   | IdentityFailResult;
 
 export type IdentityVerificationResult =
-  | { ok: true; requestId: string; isUnder14: boolean | null; age: number | null }
+  | {
+      ok: true;
+      requestId: string;
+      isUnder14: boolean | null;
+      age: number | null;
+    }
   | IdentityFailResult;
 
 function fail(reason: string): IdentityFailResult {
@@ -71,7 +76,12 @@ async function requestAuthUrl(purpose: string): Promise<AuthUrlResult> {
   const token = data?.session?.access_token;
 
   let response: Response;
-  let payload: { ok?: boolean; reason?: string; auth_url?: string; request_id?: string };
+  let payload: {
+    ok?: boolean;
+    reason?: string;
+    auth_url?: string;
+    request_id?: string;
+  };
 
   try {
     response = await fetch("/api/nice-identity-start", {
@@ -170,7 +180,10 @@ function waitForResult(
 export async function runIdentityVerification({
   purpose = "under14_guardian",
   timeoutMs = DEFAULT_TIMEOUT_MS,
-}: { purpose?: string; timeoutMs?: number } = {}): Promise<IdentityVerificationResult> {
+}: {
+  purpose?: string;
+  timeoutMs?: number;
+} = {}): Promise<IdentityVerificationResult> {
   // 1) 빈 창을 먼저 연다(팝업 차단 회피).
   const popup = window.open("", POPUP_NAME, POPUP_FEATURES);
 
@@ -179,7 +192,11 @@ export async function runIdentityVerification({
   // 2) 표준창 URL을 받아온다.
   const started = await requestAuthUrl(purpose);
 
-  if (!started.ok) {
+  // ⚠ `=== false` — 이 저장소가 고정한 TypeScript 7 컴파일러는 `!started.ok` 형태의
+  // discriminant negation narrowing 을 인식하지 못한다(phoneVerification.js 를 쓰던
+  // PhoneVerifyField.tsx 와 동일한 회피). `started.ok === false` 로 좁혀야 아래 분기가
+  // IdentityFailResult 로 정확히 좁혀진다.
+  if (started.ok === false) {
     popup.close();
     return started;
   }

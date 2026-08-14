@@ -67,7 +67,9 @@ export type LookupChildResult =
         name: string;
         school: string;
         schoolType: string;
-        grade: number | null;
+        // 서버에 학년 컬럼이 아직 없어 항상 null이다(api/lookup-child.js 주석) — 컬럼이 생겼을 때
+        // 실제 값 형태(string 라벨? number?)가 아직 정해지지 않아 any로 둔다.
+        grade: any;
       };
       alreadyLinked: boolean;
     }
@@ -109,7 +111,7 @@ export async function lookupChild(code: string): Promise<LookupChildResult> {
       name?: string;
       school?: string;
       school_type?: string;
-      grade?: number | null;
+      grade?: any;
     };
     already_linked?: boolean;
   };

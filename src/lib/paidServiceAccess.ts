@@ -11,7 +11,36 @@ const PAID_GATE_DISABLED =
 
 const PAID_MESSAGE = "유료결제이후 이용해주세요!";
 
-const PAID_SERVICE_CONFIGS = [
+// 호출부마다 필드 구성이 조금씩 다른 "서비스 카드/CTA 컨텍스트"를 느슨하게 받는다
+// (PaymentSuccess.tsx의 ServiceEntry, DynamicPage.tsx의 paidServiceContext 등).
+type PaidServiceLike = {
+  name?: string | null;
+  title?: string | null;
+  label?: string | null;
+  description?: string | null;
+  desc?: string | null;
+  link?: string | null;
+  to?: string | null;
+  slug?: string | null;
+};
+
+// 클릭 핸들러에서 넘어오는 이벤트를 duck-typing으로 받는다 — 이 파일은 React 컴포넌트가
+// 아니라 여러 프레임워크/호출부(순수 DOM 핸들러 포함)에서 쓰일 수 있어 React.MouseEvent로
+// 좁히지 않는다.
+type PaidServiceMouseEvent = {
+  preventDefault?: () => void;
+  stopPropagation?: () => void;
+  currentTarget?: EventTarget | null;
+  target?: EventTarget | null;
+};
+
+type PaidServiceConfig = {
+  serviceKey: string;
+  serviceName: string;
+  match: (service?: PaidServiceLike) => boolean;
+};
+
+const PAID_SERVICE_CONFIGS: PaidServiceConfig[] = [
   {
     serviceKey: "suhaeng",
     serviceName: "수행평가 서비스",
@@ -69,7 +98,7 @@ const PAID_SERVICE_CONFIGS = [
   },
 ];
 
-export function getPaidServiceConfig(service) {
+export function getPaidServiceConfig(service?: PaidServiceLike) {
   return PAID_SERVICE_CONFIGS.find((config) => config.match(service)) || null;
 }
 
@@ -78,19 +107,25 @@ const SERVICE_NOT_READY_MESSAGE = "서비스 준비중입니다.";
 // 상세 페이지(= PAID_SERVICE_CONFIGS 등록 서비스)가 아직 없는 서비스의 히어로 CTA용 핸들러.
 // 자기평가・심화탐구・콜멘토 3종이 여기 해당한다(2026-08-05, 사용자 확정). 서비스가 실제 앱을
 // 갖추면 PAID_SERVICE_CONFIGS에 등록하고 이 핸들러를 openPaidServiceOrAlert로 교체한다.
-export function alertServiceNotReady(event) {
+export function alertServiceNotReady(event?: PaidServiceMouseEvent) {
   event?.preventDefault?.();
   event?.stopPropagation?.();
   window.alert(SERVICE_NOT_READY_MESSAGE);
 }
 
-function setGlobalLoadingCursor(isLoading) {
+function setGlobalLoadingCursor(isLoading: boolean) {
   if (typeof document === "undefined") return;
   document.documentElement.style.cursor = isLoading ? "progress" : "";
   document.body.style.cursor = isLoading ? "progress" : "";
 }
 
-function setButtonLoading(target, isLoading, label = "이동 중...") {
+// target은 이벤트의 currentTarget/target(EventTarget) 또는 이미 element일 수도 있는
+// 런타임 duck-typed 값이라 any로 둔다(호출부가 다양한 이벤트 소스를 넘긴다).
+function setButtonLoading(
+  target: any,
+  isLoading: boolean,
+  label = "이동 중...",
+) {
   const el = target?.closest ? target.closest("button, a") : target;
   if (!el || !("style" in el)) return;
 
@@ -111,7 +146,7 @@ function setButtonLoading(target, isLoading, label = "이동 중...") {
   }
 }
 
-function openNormalLink(link) {
+function openNormalLink(link: string | null | undefined) {
   if (!link) return;
 
   if (/^https?:\/\//i.test(link)) {
@@ -122,7 +157,10 @@ function openNormalLink(link) {
   window.location.href = link;
 }
 
-export async function openPaidServiceOrAlert(event, service) {
+export async function openPaidServiceOrAlert(
+  event: PaidServiceMouseEvent | undefined,
+  service: PaidServiceLike | undefined,
+): Promise<boolean> {
   const config = getPaidServiceConfig(service);
   const targetEl = event?.currentTarget || event?.target;
 
@@ -163,7 +201,7 @@ export async function openPaidServiceOrAlert(event, service) {
       body: JSON.stringify({ service_key: config.serviceKey }),
     });
 
-    let result = {};
+    let result: { redirect_url?: string; detail?: string } = {};
     try {
       result = await response.json();
     } catch {

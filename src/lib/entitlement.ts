@@ -16,7 +16,15 @@ export const FAKE_ENTITLEMENT_ENABLED =
 // (submitRefund가 이 id로 refund_requests.order_id를 채우는 경로에 실수로 흘러들면
 // DB에 존재하지 않는 order_id가 저장되므로, 호출부는 반드시 이 항목들을 환불 대상에서
 // 제외해야 한다 — is_fake_entitlement 플래그로 구분한다).
-export function getMockPaidOrders() {
+export type MockPaidOrder = {
+  id: string;
+  order_name: string;
+  amount: number;
+  paid_at: string;
+  is_fake_entitlement: true;
+};
+
+export function getMockPaidOrders(): MockPaidOrder[] {
   const now = new Date().toISOString();
 
   return [
@@ -66,10 +74,20 @@ import { supabase } from "./supabase";
 //     "미보유"로 취급해 곧장 리다이렉트하지 말고, 재시도 UI를 보여주거나 최소한 그
 //     자리에 머무르게 해야 한다(RequireGoalAccess.jsx 참고).
 //   - 그 외에는 서버가 준 실제 판정(true/false)을 그대로 반환한다.
-export async function hasEntitlement(serviceKey) {
+export async function hasEntitlement(
+  serviceKey: string,
+): Promise<boolean | null> {
   const { allowed } = await fetchEntitlement(serviceKey);
   return allowed;
 }
+
+export type EntitlementResult = {
+  allowed: boolean | null;
+  quotaRemaining: number | null;
+  quotaTotal: number | null;
+  planEndsAt: string | null;
+  planLabel: string | null;
+};
 
 // fetchEntitlement — hasEntitlement의 상위 집합. 판정(allowed)에 더해 회차·플랜
 // 정보를 함께 돌려준다. 수행평가 셸(SessionContext)이 사이드바 "남은 횟수"와
@@ -90,7 +108,9 @@ export async function hasEntitlement(serviceKey) {
 //    회차를 1로 알고 있어도 다른 탭이 먼저 쓰면 api/performance/*가
 //    409 QUOTA_EXHAUSTED를 돌려준다. 클라이언트는 그 409를 정상 분기로
 //    처리해야 하고, 이 값으로 선제 차단을 구현하면 안 된다(명세서 §2.2, §9.3).
-export async function fetchEntitlement(serviceKey) {
+export async function fetchEntitlement(
+  serviceKey: string,
+): Promise<EntitlementResult> {
   const empty = {
     quotaRemaining: null,
     quotaTotal: null,
@@ -117,7 +137,14 @@ export async function fetchEntitlement(serviceKey) {
       body: JSON.stringify({ service_key: serviceKey }),
     });
 
-    let result = {};
+    let result: {
+      allowed?: boolean;
+      quotaRemaining?: number;
+      quotaTotal?: number;
+      planEndsAt?: string | null;
+      planLabel?: string | null;
+      detail?: string;
+    } = {};
     try {
       result = await response.json();
     } catch {
@@ -148,6 +175,6 @@ export async function fetchEntitlement(serviceKey) {
   }
 }
 
-function normalizeQuota(value) {
-  return Number.isInteger(value) ? value : null;
+function normalizeQuota(value: unknown): number | null {
+  return Number.isInteger(value) ? (value as number) : null;
 }

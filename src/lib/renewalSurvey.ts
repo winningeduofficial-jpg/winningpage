@@ -14,6 +14,8 @@ import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.js";
 type SurveyExtra = {
   embeddedIn?: string;
   statements?: { key: string; text: string }[];
+  placeholder?: string;
+  dependsOn?: { questionId?: string };
   [key: string]: unknown;
 };
 
@@ -22,6 +24,7 @@ type SurveyQuestion = {
   number: number | null;
   page: number;
   type: string;
+  title: string;
   optional?: boolean;
   requiredFields?: string[];
   extra?: SurveyExtra;
@@ -105,10 +108,11 @@ export function parseStepParam(raw: string | null | undefined) {
  * 진행 판정에는 반드시 이 함수를 쓴다. isAnswered 는 문항 메타를 못 보는 하위 술어라
  * 직접 부르면 requiredFields 선언이 조용히 무시된다.
  */
-export function isQuestionAnswered(
-  question: SurveyQuestion | null | undefined,
-  value: unknown,
-) {
+// 이 함수는 QuestionCardList.tsx/useUnansweredNavigation.ts 등 여러 화면이 각자 선언한
+// "SurveyQuestion 비슷한" 지역 타입 객체를 그대로 넘겨 받는다(공유 타입 파일을 새로 만들지
+// 않기로 한 작업 지시 때문에 그 타입들을 통일할 수 없다). 그래서 매개변수를 any로 받고
+// 함수 본문은 원래부터 옵셔널 체이닝으로만 필드에 접근한다(런타임 동작 무변경).
+export function isQuestionAnswered(question: any, value: unknown) {
   if (!isAnswered(question?.type, value)) return false;
   // Q-10 확정(2026-08-11) — 리커트는 12문장 전부 응답해야 통과한다(진행 게이트, 분모 산식은 무변경).
   // extra.statements 가 문장 키의 정본이라 개수를 여기서 재선언하지 않고 그대로 참조한다.
@@ -140,7 +144,10 @@ export function isAnswered(type: string | undefined, value: unknown) {
     );
   }
   if (type === "cascade") {
-    return typeof value === "object" && Boolean((value as { university?: unknown }).university);
+    return (
+      typeof value === "object" &&
+      Boolean((value as { university?: unknown }).university)
+    );
   }
   return typeof value === "string" && value.trim().length > 0;
 }
