@@ -18,6 +18,7 @@ import {
 } from "../../lib/goal/calc/index.js";
 import { supabase } from "../../lib/supabase";
 import { PAGE_SIZE } from "../../pages/admin/shared/AdminEngine";
+import { getFreshSupabaseAccessToken } from "../../pages/admin/shared/adminSession";
 import { formatValue } from "../../pages/admin/shared/csvExport";
 import {
   ActionButton,
