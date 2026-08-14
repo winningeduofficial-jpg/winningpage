@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { forwardRef, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import AiLoadingBubble from "../../components/performance/chat/AiLoadingBubble";
@@ -1298,7 +1299,9 @@ export default function PerformanceChatPage() {
     let keptPointer = false;
 
     try {
-      let data;
+      // finalizeSubmission은 §8.6 성공 응답 전체를 그대로 돌려주는 postJson 위임이라 정본
+      // 타입이 없다 — 이 화면이 실제로 읽는 필드(nextSessionId)만 좁혀서 갖는다.
+      let data: { nextSessionId?: string } | undefined;
       try {
         data = await finalizeSubmission({
           accessToken,
@@ -1373,7 +1376,15 @@ export default function PerformanceChatPage() {
    *   이전 수행평가의 원고가 그대로 프리필된다 — `추가 평가 받기`가 작성값을 **남기는**
    *   것과 정반대의 요구다(그쪽은 같은 세션의 폼 복원, 여기는 다른 세션의 시작이다).
    */
-  function resetForNextAssessment({ keptPointer, hasNextSession, notice }) {
+  function resetForNextAssessment({
+    keptPointer,
+    hasNextSession,
+    notice,
+  }: {
+    keptPointer: boolean;
+    hasNextSession: boolean;
+    notice?: string | null;
+  }) {
     setSessionStartMode(hasNextSession ? "resume" : "create");
     setCreatedSession(null);
     setSubmitError(null);
@@ -2255,10 +2266,10 @@ function useRafFocus(active, ref, retriggers = []) {
  * `ref`를 받는 이유는 포커스 관리다 — 설계 리포트 모달을 닫을 때 복귀할 자리가 이 버튼이다
  * (`handleCloseDesignModal`). 나머지 호출부는 ref를 넘기지 않는다.
  */
-const RetryButton = forwardRef(function RetryButton(
-  { children, onClick },
-  ref,
-) {
+const RetryButton = forwardRef<
+  HTMLButtonElement,
+  { children: ReactNode; onClick: () => void }
+>(function RetryButton({ children, onClick }, ref) {
   return (
     <button
       ref={ref}
