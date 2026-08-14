@@ -149,11 +149,11 @@ const STUDY_HOURS_MAX = 24;
 // 입력 검증 — 클라이언트 값을 하나도 믿지 않는다
 // ---------------------------------------------------------------------------
 
-function clean(value) {
+function clean(value: unknown) {
   return String(value ?? "").trim();
 }
 
-function isPlainObject(value) {
+function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
@@ -172,13 +172,13 @@ function isPlainObject(value) {
  *   객체·배열·boolean·null 을 원천 차단하고, 통과한 값은 normalizeGrade 로
  *   숫자에서 되짚어 만든 문자열만 쓴다(clean 을 쓰지 않는다).
  */
-function isNumericInput(raw) {
+function isNumericInput(raw: unknown) {
   return typeof raw === "number" || typeof raw === "string";
 }
 
 // Step4Naesin.jsx:8-11 / Step5MockExam.jsx:8-11 의 isValidGrade 와 동일한 규칙.
 // (빈 문자열·공백은 Number('') = 0 이라 아래 범위 검사에서 걸린다.)
-function isValidGrade(raw) {
+function isValidGrade(raw: unknown) {
   if (!isNumericInput(raw)) return false;
   const num = Number(raw);
   return Number.isFinite(num) && num >= 1 && num <= 9;
@@ -191,45 +191,46 @@ function isValidGrade(raw) {
  * deriveNaesin 의 Number(), gradeToPercentile 의 Number(),
  * calcJeongsiCompositeFE 의 parseFloat(s.eng)(jeongsi.js:205).
  */
-function normalizeGrade(raw) {
+function normalizeGrade(raw: unknown) {
   return String(Number(raw));
 }
 
-function isValidHours(raw, max) {
+function isValidHours(raw: unknown, max: number) {
   if (!isNumericInput(raw)) return false;
   const num = Number(raw);
   return Number.isFinite(num) && num >= 0 && num <= max;
 }
 
-function fail(detail) {
-  return { error: { status: 400, body: { detail } } };
+// unwrapped {status, body}를 돌려준다 — 호출부가 항상 `return { error: fail(...) }`
+// 형태의 object literal로 감싸야 TS가 형제 프로퍼티를 undefined로 자동 추론해
+// validated.error / validated.input 접근이 좁혀진다(순수 타입 추론 편의, 런타임
+// JSON 응답 바이트는 이전과 동일 — { error: { status, body: { detail } } }).
+function fail(detail: string) {
+  return { status: 400, body: { detail } };
 }
 
-function validateTarget(value, label) {
+function validateTarget(value: unknown, label: string) {
   if (!isPlainObject(value))
-    return { error: fail(`${label} 정보가 올바르지 않습니다.`).error };
+    return { error: fail(`${label} 정보가 올바르지 않습니다.`) };
 
   const university = clean(value.university);
   const department = clean(value.department);
 
-  if (!university)
-    return { error: fail(`${label} 대학을 선택해 주세요.`).error };
+  if (!university) return { error: fail(`${label} 대학을 선택해 주세요.`) };
   if (
     university.length > NAME_MAX_LENGTH ||
     department.length > NAME_MAX_LENGTH
   ) {
-    return { error: fail(`${label} 대학·학과 이름이 너무 깁니다.`).error };
+    return { error: fail(`${label} 대학·학과 이름이 너무 깁니다.`) };
   }
 
   return { value: { university, department } };
 }
 
-/**
- * 요청 바디 전체를 화이트리스트로 검증하고 정규화한다.
- * @returns {{error?:{status:number, body:object}, input?:object}}
- */
-function validateIntakeBody(body) {
-  if (!isPlainObject(body)) return fail("요청 본문이 올바르지 않습니다.");
+/** 요청 바디 전체를 화이트리스트로 검증하고 정규화한다. */
+function validateIntakeBody(body: unknown) {
+  if (!isPlainObject(body))
+    return { error: fail("요청 본문이 올바르지 않습니다.") };
 
   // ── 학교 유형 · 학년 ──────────────────────────────────────────────────
   const schoolType = clean(body.schoolType);
@@ -246,10 +247,11 @@ function validateIntakeBody(body) {
     };
   }
 
-  if (!SCHOOL_TYPE_MAP[schoolType]) return fail("학교 유형을 선택해 주세요.");
+  if (!SCHOOL_TYPE_MAP[schoolType])
+    return { error: fail("학교 유형을 선택해 주세요.") };
 
   const grade = clean(body.grade);
-  if (!GRADE_MAP[grade]) return fail("학년을 선택해 주세요.");
+  if (!GRADE_MAP[grade]) return { error: fail("학년을 선택해 주세요.") };
 
   // ── 목표 대학 ────────────────────────────────────────────────────────
   const idealTarget = validateTarget(body.upperUniversity, "이상 목표");
@@ -260,13 +262,13 @@ function validateIntakeBody(body) {
 
   // ── 내신 ─────────────────────────────────────────────────────────────
   if (!isPlainObject(body.naesin))
-    return fail("내신 성적이 올바르지 않습니다.");
+    return { error: fail("내신 성적이 올바르지 않습니다.") };
 
-  const naesin = {};
+  const naesin: Record<string, { value: string; none: boolean }> = {};
   for (const { key, label } of NAESIN_ROUNDS) {
     const entry = body.naesin[key];
     if (!isPlainObject(entry))
-      return fail(`내신 ${label} 입력이 누락되었습니다.`);
+      return { error: fail(`내신 ${label} 입력이 누락되었습니다.`) };
 
     if (entry.none === true) {
       naesin[key] = { value: "", none: true };
@@ -274,7 +276,7 @@ function validateIntakeBody(body) {
     }
 
     if (!isValidGrade(entry.value)) {
-      return fail(`내신 ${label} 등급은 1~9 사이여야 합니다.`);
+      return { error: fail(`내신 ${label} 등급은 1~9 사이여야 합니다.`) };
     }
     naesin[key] = { value: normalizeGrade(entry.value), none: false };
   }
@@ -308,9 +310,11 @@ function validateIntakeBody(body) {
 
   if (naesinAllNone) {
     if (!isValidGrade(body.priorNaesinGrade)) {
-      return fail(
-        "내신 성적이 없다면 이전까지의 내신 평균 등급을 1~9 사이로 입력해 주세요.",
-      );
+      return {
+        error: fail(
+          "내신 성적이 없다면 이전까지의 내신 평균 등급을 1~9 사이로 입력해 주세요.",
+        ),
+      };
     }
     priorNaesinGrade = normalizeGrade(body.priorNaesinGrade);
   }
@@ -319,13 +323,13 @@ function validateIntakeBody(body) {
 
   // ── 모의고사 ─────────────────────────────────────────────────────────
   if (!isPlainObject(body.mockExam))
-    return fail("모의고사 성적이 올바르지 않습니다.");
+    return { error: fail("모의고사 성적이 올바르지 않습니다.") };
 
-  const mockExam = {};
+  const mockExam: Record<string, Record<string, unknown>> = {};
   for (const { key, label } of MOCK_ROUNDS) {
     const entry = body.mockExam[key];
     if (!isPlainObject(entry))
-      return fail(`모의고사 ${label} 입력이 누락되었습니다.`);
+      return { error: fail(`모의고사 ${label} 입력이 누락되었습니다.`) };
 
     if (entry.none === true) {
       mockExam[key] = { none: true };
@@ -333,10 +337,14 @@ function validateIntakeBody(body) {
     }
 
     // Step5MockExam.jsx:21-24 와 동일하게 5과목 전부를 요구한다.
-    const round = { none: false };
+    const round: Record<string, unknown> = { none: false };
     for (const subject of MOCK_SUBJECTS) {
       if (!isValidGrade(entry[subject])) {
-        return fail(`모의고사 ${label} 등급은 5과목 모두 1~9 사이여야 합니다.`);
+        return {
+          error: fail(
+            `모의고사 ${label} 등급은 5과목 모두 1~9 사이여야 합니다.`,
+          ),
+        };
       }
       round[subject] = normalizeGrade(entry[subject]);
     }
@@ -350,20 +358,20 @@ function validateIntakeBody(body) {
 
   // ── 자습 시간 · 하루 일과 ────────────────────────────────────────────
   if (!isPlainObject(body.studyHours))
-    return fail("요일별 자습 시간이 올바르지 않습니다.");
+    return { error: fail("요일별 자습 시간이 올바르지 않습니다.") };
 
-  const studyHours = {};
+  const studyHours: Record<string, number> = {};
   for (const { short } of WEEKDAYS) {
     if (!isValidHours(body.studyHours[short], STUDY_HOURS_MAX)) {
-      return fail("요일별 자습 시간은 0~24 사이여야 합니다.");
+      return { error: fail("요일별 자습 시간은 0~24 사이여야 합니다.") };
     }
     studyHours[short] = Number(body.studyHours[short]);
   }
 
   if (!isPlainObject(body.dailySchedule))
-    return fail("하루 일과가 올바르지 않습니다.");
+    return { error: fail("하루 일과가 올바르지 않습니다.") };
 
-  const dailySchedule = {};
+  const dailySchedule: Record<string, number> = {};
   for (const [field, limit] of Object.entries(DAILY_SCHEDULE_LIMITS)) {
     const raw = body.dailySchedule[field];
     const value = Number(raw);
@@ -375,9 +383,11 @@ function validateIntakeBody(body) {
       value < limit.min ||
       value > limit.max
     ) {
-      return fail(
-        `하루 일과 값이 허용 범위(${limit.min}~${limit.max})를 벗어났습니다.`,
-      );
+      return {
+        error: fail(
+          `하루 일과 값이 허용 범위(${limit.min}~${limit.max})를 벗어났습니다.`,
+        ),
+      };
     }
     dailySchedule[field] = value;
   }
@@ -689,7 +699,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         : null;
 
     const now = new Date();
-    const state = buildInitialStudentState({
+    // calc/pipeline.ts(다른 배치 소유, 이 작업 범위 밖) buildInitialStudentState의
+    // 반환 타입이 실제 리터럴 shape(baseProbs/rates/weeklySchedule 등) 대신 넓은
+    // `object`로 추론된다(pipeline.test.ts에도 동일하게 나타나는 기존 결함,
+    // 이 작업에서 만들지 않았고 pipeline.ts는 수정하지 않는다) — 이 지점만 any로
+    // 받는다.
+    // biome-ignore lint/suspicious/noExplicitAny: 위 사유 — calc/pipeline.ts 반환 타입 추론 결함(범위 밖).
+    const state: any = buildInitialStudentState({
       schoolType,
       grade,
       currentScore,

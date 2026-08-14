@@ -54,8 +54,13 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+// unwrapped {status, body}를 돌려준다 — 호출부가 항상 `return { error: fail(...) }`
+// 형태의 object literal로 감싸야 TS가 "형제 프로퍼티는 undefined" 유니온을
+// 자동 추론해(validated.error / validated.value 접근이 좁혀진다) 매 반환 지점마다
+// 넓은 유니온 타입 주석을 손으로 적지 않아도 된다(순수 타입 추론 편의, 런타임
+// JSON 응답 바이트는 이전과 동일하다 — { error: { status, body } }).
 function fail(status: number, body: Record<string, unknown>) {
-  return { error: { status, body } };
+  return { status, body };
 }
 
 function readBody(req: VercelRequest) {
@@ -70,18 +75,21 @@ function readBody(req: VercelRequest) {
 
 function validateTitle(raw: unknown) {
   if (typeof raw !== "string")
-    return fail(400, { detail: "일정 이름이 올바르지 않습니다." });
+    return { error: fail(400, { detail: "일정 이름이 올바르지 않습니다." }) };
   const title = raw.trim();
-  if (!title) return fail(400, { detail: "일정 이름을 입력해 주세요." });
+  if (!title)
+    return { error: fail(400, { detail: "일정 이름을 입력해 주세요." }) };
   if (title.length > TITLE_MAX_LENGTH) {
-    return fail(400, { detail: "일정 이름은 100자 이내여야 합니다." });
+    return {
+      error: fail(400, { detail: "일정 이름은 100자 이내여야 합니다." }),
+    };
   }
   return { value: title };
 }
 
 function validateCategory(raw: unknown) {
   if (typeof raw !== "string" || !CATEGORY_VALUES.has(raw)) {
-    return fail(400, { detail: "일정 종류를 선택해 주세요." });
+    return { error: fail(400, { detail: "일정 종류를 선택해 주세요." }) };
   }
   return { value: raw };
 }
@@ -89,10 +97,10 @@ function validateCategory(raw: unknown) {
 // 과거 날짜도 허용한다(지난 일정을 기록·수정할 수 있어야 한다 — 팀장 지시).
 function validateDueDate(raw: unknown) {
   if (typeof raw !== "string" || !DUE_DATE_RE.test(raw)) {
-    return fail(400, { detail: "마감일 형식이 올바르지 않습니다." });
+    return { error: fail(400, { detail: "마감일 형식이 올바르지 않습니다." }) };
   }
   if (Number.isNaN(new Date(`${raw}T00:00:00Z`).getTime())) {
-    return fail(400, { detail: "마감일이 올바르지 않습니다." });
+    return { error: fail(400, { detail: "마감일이 올바르지 않습니다." }) };
   }
   return { value: raw };
 }
@@ -100,14 +108,14 @@ function validateDueDate(raw: unknown) {
 function validateMemo(raw: unknown) {
   if (raw === undefined || raw === null) return { value: "" };
   if (typeof raw !== "string")
-    return fail(400, { detail: "메모 형식이 올바르지 않습니다." });
+    return { error: fail(400, { detail: "메모 형식이 올바르지 않습니다." }) };
   return { value: raw.trim().slice(0, MEMO_MAX_LENGTH) };
 }
 
 function validateId(raw: unknown) {
   const id = Number(raw);
   if (!Number.isInteger(id) || id <= 0) {
-    return fail(400, { detail: "일정 id가 올바르지 않습니다." });
+    return { error: fail(400, { detail: "일정 id가 올바르지 않습니다." }) };
   }
   return { value: id };
 }
@@ -115,19 +123,19 @@ function validateId(raw: unknown) {
 /** POST/PUT 공용 — {title, category, dueDate, memo} → DB insert/update 컬럼 shape. */
 function validateScheduleFields(body: unknown) {
   if (!isPlainObject(body))
-    return fail(400, { detail: "요청 본문이 올바르지 않습니다." });
+    return { error: fail(400, { detail: "요청 본문이 올바르지 않습니다." }) };
 
   const titleResult = validateTitle(body.title);
-  if (titleResult.error) return titleResult;
+  if (titleResult.error) return { error: titleResult.error };
 
   const categoryResult = validateCategory(body.category);
-  if (categoryResult.error) return categoryResult;
+  if (categoryResult.error) return { error: categoryResult.error };
 
   const dueDateResult = validateDueDate(body.dueDate);
-  if (dueDateResult.error) return dueDateResult;
+  if (dueDateResult.error) return { error: dueDateResult.error };
 
   const memoResult = validateMemo(body.memo);
-  if (memoResult.error) return memoResult;
+  if (memoResult.error) return { error: memoResult.error };
 
   return {
     value: {
@@ -149,7 +157,7 @@ async function requireOnboardedStudent(
 ) {
   const row = await fetchStudentRow(supabaseAdmin, profileId);
   if (!row?.onboarded_at) {
-    return { error: fail(409, { reason: "not_onboarded" }).error };
+    return { error: fail(409, { reason: "not_onboarded" }) };
   }
   return { row };
 }

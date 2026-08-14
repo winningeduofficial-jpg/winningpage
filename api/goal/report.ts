@@ -198,7 +198,10 @@ async function buildGrowthReport({
   );
   if (!endLog) endLog = startLog;
 
-  const admission = computeAdmissionDelta({
+  // src/lib/goal/report/aggregate.js(다른 배치 소유, 이 작업 범위 밖)의
+  // computeAdmissionDelta는 파라미터 타입이 없어 사용 기반 추론이 실제 인자
+  // shape(targets 래핑)과 어긋난다(pre-existing) — 이 호출 인자만 any로 넘긴다.
+  const admissionArgs = {
     targets: {
       ideal: {
         university: student.ideal_university,
@@ -211,7 +214,9 @@ async function buildGrowthReport({
     },
     startLog,
     endLog,
-  });
+  };
+  // biome-ignore lint/suspicious/noExplicitAny: 위 사유 — aggregate.js 파라미터 타입 추론 결함(범위 밖).
+  const admission = computeAdmissionDelta(admissionArgs as any);
 
   const heroNarrative = buildHeroNarrative({
     period: type,
@@ -249,7 +254,8 @@ async function buildGrowthReport({
     { label: "최소 목표", value: minRate, max: 100 },
   ];
 
-  let studyTimeBars;
+  // aggregate.js(범위 밖) 반환 타입 미정 — biome noImplicitAnyLet 회피용 최소 타입.
+  let studyTimeBars: unknown[];
   let monthlyWeeks = [];
   if (type === "monthly") {
     monthlyWeeks = buildMonthlyWeeks({
@@ -267,7 +273,10 @@ async function buildGrowthReport({
     studyTimeBars = buildWeeklyStudyTimeBars(records, period.start);
   }
 
-  const report = {
+  // monthly에서만 뒤이어 strategy 키를 추가한다(아래) — 조건부 확장 shape이라
+  // 넓은 인덱스 타입으로 선언한다(응답은 res.json 으로 그대로 나가고 이 함수
+  // 내부에서 report.xxx로 재조회하지 않는다).
+  const report: Record<string, unknown> = {
     period: type,
     heading: type === "monthly" ? "월간 성장 리포트" : "주간 성장 리포트",
     periodLabel: period.periodLabel,
@@ -483,7 +492,12 @@ async function buildDirectionReport({ student, track, periodParam }) {
   const nowYmd = kstYMD(new Date());
   const gradeSystem = deriveGradeSystem(student.grade, nowYmd);
 
-  const subjectsRaw = isNaesin
+  // src/lib/goal/report/aggregate.js(다른 배치 소유, 이 작업 범위 밖)의
+  // buildNaesinSubjectMetrics/buildJeongsiSubjectMetrics는 반환 타입이 없어
+  // 이 삼항이 두 shape(내신 grade 필드 vs 정시 percentile 필드)의 유니온으로
+  // 추론된다 — isNaesin 분기로 실제로는 이미 배타적이므로 이 지점만 any로 받는다.
+  // biome-ignore lint/suspicious/noExplicitAny: 위 사유 — aggregate.js 반환 타입 미정(범위 밖).
+  const subjectsRaw: any[] = isNaesin
     ? buildNaesinSubjectMetrics(student, chosenOption.entry)
     : buildJeongsiSubjectMetrics(student, chosenOption.entry);
 

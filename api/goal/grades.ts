@@ -103,8 +103,12 @@ function isInDomain(raw: unknown, domain: { min: number; max: number }) {
   return Number.isFinite(num) && num >= domain.min && num <= domain.max;
 }
 
+// unwrapped {status, body}를 돌려준다 — 호출부가 항상 `return { error: fail(...) }`
+// 형태의 object literal로 감싸야 TS가 형제 프로퍼티를 undefined로 자동 추론해
+// validated.error / validated.record 접근이 좁혀진다(순수 타입 추론 편의,
+// 런타임 JSON 응답 바이트는 이전과 동일 — { error: { status, body: { detail } } }).
 function fail(status: number, detail: string) {
-  return { error: { status, body: { detail } } };
+  return { status, body: { detail } };
 }
 
 /**
@@ -112,24 +116,25 @@ function fail(status: number, detail: string) {
  * naesin 은 1~9 등급, mock 은 0~100 백분위 도메인만 다르다(시안 실측, 위 헤더 주석 참고).
  */
 function validateEntry(entry: unknown, type: "naesin" | "mock") {
-  if (!isPlainObject(entry)) return fail(400, "성적 입력이 올바르지 않습니다.");
+  if (!isPlainObject(entry))
+    return { error: fail(400, "성적 입력이 올바르지 않습니다.") };
 
   const term = String(entry.term ?? "").trim();
-  if (!term) return fail(400, "회차를 입력해 주세요.");
+  if (!term) return { error: fail(400, "회차를 입력해 주세요.") };
   if (term.length > TERM_MAX_LENGTH)
-    return fail(400, "회차 이름이 너무 깁니다.");
+    return { error: fail(400, "회차 이름이 너무 깁니다.") };
   if (RESERVED_KEYS[type].includes(term)) {
-    return fail(400, "사용할 수 없는 회차 이름입니다.");
+    return { error: fail(400, "사용할 수 없는 회차 이름입니다.") };
   }
 
   const dateField = type === "naesin" ? entry.enteredAt : entry.examDate;
   const dateLabel = type === "naesin" ? "입력일" : "응시일";
   const dateValue = String(dateField ?? "").trim();
   if (!DATE_RE.test(dateValue))
-    return fail(400, `${dateLabel}을 올바르게 입력해 주세요.`);
+    return { error: fail(400, `${dateLabel}을 올바르게 입력해 주세요.`) };
 
   if (!isPlainObject(entry.subjects))
-    return fail(400, "과목별 점수가 올바르지 않습니다.");
+    return { error: fail(400, "과목별 점수가 올바르지 않습니다.") };
 
   const domain = type === "naesin" ? GRADE_DOMAIN : PERCENTILE_DOMAIN;
   const domainLabel = type === "naesin" ? "1~9 등급" : "0~100 백분위";
@@ -138,7 +143,9 @@ function validateEntry(entry: unknown, type: "naesin" | "mock") {
   for (const key of SUBJECT_KEYS) {
     const raw = entry.subjects[key];
     if (!isInDomain(raw, domain)) {
-      return fail(400, `과목별 점수는 ${domainLabel} 사이여야 합니다.`);
+      return {
+        error: fail(400, `과목별 점수는 ${domainLabel} 사이여야 합니다.`),
+      };
     }
     subjects[key] = Number(raw);
   }
@@ -246,8 +253,14 @@ async function handlePost(
 
   const record = validated.record;
 
-  const patch: { naesin_scores?: unknown; mock_exam_scores?: unknown } = {};
-  let records;
+  // updateStudentGrades(goalRepo.js)는 구조분해 파라미터라 두 키를 모두 요구하는
+  // 타입으로 추론된다 — 안 바꾼 쪽은 undefined로 명시해 그 함수 내부의
+  // `!== undefined` 판정(패치 생략)을 그대로 탄다(런타임 동작 동일).
+  const patch: { naesin_scores: unknown; mock_exam_scores: unknown } = {
+    naesin_scores: undefined,
+    mock_exam_scores: undefined,
+  };
+  let records: unknown[];
   if (type === "naesin") {
     const naesinScores = row.naesin_scores || {};
     records = upsertRecord(naesinScores.records, record);

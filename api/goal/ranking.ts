@@ -24,6 +24,7 @@
 // profiles.name 원본은 이 응답 밖으로 나가지 않는다(본인 제외) — top 배열은
 // 항상 maskName()을 거친 문자열만 담는다.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { kstYMD } from "../../src/lib/goal/calc/index.ts";
 import { num, openGoalSession } from "../_lib/goalRepo.js";
@@ -81,7 +82,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(session.error.status).json(session.error.body);
     }
 
-    const { supabaseAdmin, profileId, allowed } = session;
+    const { profileId, allowed } = session;
+    // openGoalSession(goalRepo.js, Stage3 대상)의 JSDoc은 supabaseAdmin을 약한
+    // `object`로만 선언한다 — 이 파일은 goalRepo.js 헬퍼를 거치지 않고 supabase
+    // 클라이언트를 직접 호출하는 유일한 goal/* 라우트라 실제 클라이언트 타입으로
+    // 되돌린다(createSupabaseAdmin()의 실제 반환 타입, goalRepo.js는 수정하지 않는다).
+    const supabaseAdmin = session.supabaseAdmin as SupabaseClient;
 
     // 조회형 규약 — 미결제는 에러가 아니다(goalRepo.js openGoalSession 주석과 동일).
     if (!allowed) {

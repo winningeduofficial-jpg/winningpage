@@ -156,7 +156,9 @@ async function handleGet(
     return res.status(400).json({ detail: "from은 to보다 이전이어야 합니다." });
   }
   const rangeDays =
-    (new Date(`${to}T00:00:00Z`) - new Date(`${from}T00:00:00Z`)) / 86400000;
+    (new Date(`${to}T00:00:00Z`).getTime() -
+      new Date(`${from}T00:00:00Z`).getTime()) /
+    86400000;
   if (rangeDays > MAX_RANGE_DAYS) {
     return res
       .status(400)

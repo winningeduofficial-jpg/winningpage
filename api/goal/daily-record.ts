@@ -25,6 +25,7 @@
 // 그래서 카드 제출이 페이지에서 이미 기록한 컨디션·태그를 지우지 않고, 페이지
 // 제출도 카드가 이미 기록한 순공 시간을 지우지 않는다.
 
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   calculateDailyBonusV2,
   diffDaysYMD,
@@ -32,8 +33,6 @@ import {
   kstYMD,
   VIRTUAL_DAY_NAMES,
 } from "../../src/lib/goal/calc/index.ts";
-
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   appendProbabilityLog,
   fetchStudentRow,
@@ -95,8 +94,12 @@ function isNumericInput(raw: unknown) {
   return typeof raw === "number" || typeof raw === "string";
 }
 
+// unwrapped {status, body}를 돌려준다 — 호출부가 항상 `return { error: fail(...) }`
+// 형태의 object literal로 감싸야 TS가 형제 프로퍼티를 undefined로 자동 추론해
+// gate.error / tasksResult.error 접근이 좁혀진다(순수 타입 추론 편의, 런타임
+// JSON 응답 바이트는 이전과 동일 — { error: { status, body } }).
 function fail(status: number, body: Record<string, unknown>) {
-  return { error: { status, body } };
+  return { status, body };
 }
 
 function readBody(req: VercelRequest) {
@@ -121,14 +124,18 @@ function mapWhitelist(
 ) {
   if (rawArray === undefined) return { value: undefined };
   if (!Array.isArray(rawArray)) {
-    return fail(400, { detail: `${label} 형식이 올바르지 않습니다.` });
+    return {
+      error: fail(400, { detail: `${label} 형식이 올바르지 않습니다.` }),
+    };
   }
 
   const mapped: string[] = [];
   for (const code of rawArray) {
     const mappedLabel = labelMap[String(code)];
     if (!mappedLabel) {
-      return fail(400, { detail: `${label}에 알 수 없는 값이 있습니다.` });
+      return {
+        error: fail(400, { detail: `${label}에 알 수 없는 값이 있습니다.` }),
+      };
     }
     mapped.push(mappedLabel);
   }
@@ -153,10 +160,10 @@ async function requireActiveStudent(
   const row = await fetchStudentRow(supabaseAdmin, profileId);
 
   if (!row?.onboarded_at) {
-    return { error: fail(409, { reason: "not_onboarded" }).error };
+    return { error: fail(409, { reason: "not_onboarded" }) };
   }
   if (row.status !== "active") {
-    return { error: fail(409, { reason: "awaiting_cuts" }).error };
+    return { error: fail(409, { reason: "awaiting_cuts" }) };
   }
 
   return { row };
@@ -288,18 +295,20 @@ async function handlePost(
   // 없으면(오늘 첫 제출이 카드-only) ''(빈 문자열)로 둔다. bonusV2 는 ''를
   // CONDITION_MULTIPLIER 미매칭 → normal(1.0) 로 적용한다(팀장 지시 "카드 최초 제출은
   // condition 미보유 허용" 규칙).
-  let bodyCondition;
+  let bodyCondition: string;
   if (body.bodyCondition !== undefined) {
-    if (!BODY_CONDITIONS.has(body.bodyCondition)) {
+    // Set.has()는 런타임에 타입이 달라도(string이 아니어도) 그냥 false를 준다 —
+    // as string은 그 동작을 바꾸지 않고 TS 인자 타입만 맞춘다.
+    if (!BODY_CONDITIONS.has(body.bodyCondition as string)) {
       return res.status(400).json({ detail: "컨디션 값이 올바르지 않습니다." });
     }
-    bodyCondition = body.bodyCondition;
+    bodyCondition = body.bodyCondition as string;
   } else {
     bodyCondition = existing?.body_condition || "";
   }
 
   // memo — trim + 1000자 컷. 신규 값이 없으면 기존 값 유지.
-  let memo;
+  let memo: string;
   if (body.memo !== undefined) {
     if (typeof body.memo !== "string") {
       return res.status(400).json({ detail: "메모 형식이 올바르지 않습니다." });
@@ -311,7 +320,7 @@ async function handlePost(
 
   // studyHours — 병합 결과에 최종 검증을 건다(부분 제출이라 "이 요청에 studyHours가
   // 없었다"와 "0시간을 제출했다"를 구분해야 한다 — 후자만 명시적 400 사유를 준다).
-  let studyHoursInput;
+  let studyHoursInput: number;
   if (body.studyHours !== undefined) {
     if (!isNumericInput(body.studyHours)) {
       return res
