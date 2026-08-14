@@ -6,7 +6,15 @@ import WizardActions from "../WizardActions";
 
 // 6단계 — docs/figma-goal/part-03.md #8(빈값) / #9(입력 후). 요일별 자습 시간.
 // "다음"은 요일 중 하나라도 0h 초과일 때 활성화된다(part-03 #9 상태/인터랙션 근거).
-export default function Step6StudyHours({ goPrev, goNext }) {
+type Step6StudyHoursProps = {
+  goPrev: () => void;
+  goNext: () => void;
+};
+
+export default function Step6StudyHours({
+  goPrev,
+  goNext,
+}: Step6StudyHoursProps) {
   const { studyHours, setStudyHour } = useGoalOnboarding();
   const canProceed = WEEKDAY_OPTIONS.some(({ key }) => studyHours[key] > 0);
 

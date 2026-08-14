@@ -8,7 +8,15 @@ import WizardActions from "../WizardActions";
 // 시안상 두 버튼 모두 항상 활성(비활성/에러 표현 없음) — 기본값이 이미 채워져 있어 별도
 // 검증 없이 "다음"을 누르면 온보딩이 완료된다. "다음" 클릭은 Onboarding.jsx의
 // onFinish(계산 로딩 오버레이 → 대시보드 이동)로 연결된다.
-export default function Step7DailySchedule({ goPrev, onFinish }) {
+type Step7DailyScheduleProps = {
+  goPrev: () => void;
+  onFinish: () => void;
+};
+
+export default function Step7DailySchedule({
+  goPrev,
+  onFinish,
+}: Step7DailyScheduleProps) {
   const { dailySchedule, setDailyScheduleField } = useGoalOnboarding();
 
   return (

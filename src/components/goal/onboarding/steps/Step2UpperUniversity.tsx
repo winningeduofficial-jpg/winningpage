@@ -4,7 +4,15 @@ import UniversitySelect from "../UniversitySelect";
 import WizardActions from "../WizardActions";
 
 // 2단계 — docs/figma-goal/part-01.md #3 + part-02.md #4. 상한(이상) 목표 대학.
-export default function Step2UpperUniversity({ goPrev, goNext }) {
+type Step2UpperUniversityProps = {
+  goPrev: () => void;
+  goNext: () => void;
+};
+
+export default function Step2UpperUniversity({
+  goPrev,
+  goNext,
+}: Step2UpperUniversityProps) {
   const { upperUniversity, setUpperUniversity } = useGoalOnboarding();
   const canProceed =
     !!upperUniversity.university && !!upperUniversity.department;

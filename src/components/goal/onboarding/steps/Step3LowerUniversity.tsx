@@ -8,7 +8,15 @@ import WizardActions from "../WizardActions";
 //
 // 시안 오타 정정(작업 지시 §확정 사항 7): 스텝 라벨 "상한 대학교 입력" → "하한 대학교 입력",
 // 보조설명 "하햔선" → "하한선".
-export default function Step3LowerUniversity({ goPrev, goNext }) {
+type Step3LowerUniversityProps = {
+  goPrev: () => void;
+  goNext: () => void;
+};
+
+export default function Step3LowerUniversity({
+  goPrev,
+  goNext,
+}: Step3LowerUniversityProps) {
   const { lowerUniversity, setLowerUniversity } = useGoalOnboarding();
   const canProceed =
     !!lowerUniversity.university && !!lowerUniversity.department;

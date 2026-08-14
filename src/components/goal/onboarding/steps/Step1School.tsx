@@ -12,7 +12,11 @@ import WizardActions from "../WizardActions";
 //
 // 일반고・특목자사고 경로만 구현한다(작업 지시 §확정 사항 2). 중학교・초등학교를 고르면 분기
 // 시안이 없으므로 "준비 중" 안내로 막고 다음 단계로 진행시키지 않는다 — "다음"은 영구 비활성.
-export default function Step1School({ goNext }) {
+type Step1SchoolProps = {
+  goNext: () => void;
+};
+
+export default function Step1School({ goNext }: Step1SchoolProps) {
   const { schoolType, grade, setSchoolType, setGrade } = useGoalOnboarding();
 
   const isHighSchoolPath = schoolType === "general" || schoolType === "special";
