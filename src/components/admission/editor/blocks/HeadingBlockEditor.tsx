@@ -1,8 +1,16 @@
 import { useId } from "react";
 import ImeSafeInput from "../ImeSafeInput";
 
+type HeadingBlockEditorProps = {
+  block: { text?: string };
+  onChange: (block: { text?: string }) => void;
+};
+
 // HeadingBlock 최소 편집기 — text 하나.
-export default function HeadingBlockEditor({ block, onChange }) {
+export default function HeadingBlockEditor({
+  block,
+  onChange,
+}: HeadingBlockEditorProps) {
   const inputId = useId();
   return (
     <div className="p-2">

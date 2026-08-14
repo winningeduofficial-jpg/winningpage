@@ -3,7 +3,11 @@
 // 렌더하지 않는다(설계 문서 §2.3 — Gate B 허용 diff 1번). NoteBlock은 그와
 // 별개로 실제 내용이 있을 때만 만들어지는 블록이라 같은 클래스를 재사용해도
 // 안전하다.
-export default function NoteView({ text }) {
+type NoteViewProps = {
+  text?: string | null;
+};
+
+export default function NoteView({ text }: NoteViewProps) {
   if (!text) return null;
   return <div className="admission-result-note">{text}</div>;
 }

@@ -1,8 +1,16 @@
 import { useId } from "react";
 import ImeSafeTextarea from "../ImeSafeTextarea";
 
+type PreTextBlockEditorProps = {
+  block: { text?: string };
+  onChange: (block: { text?: string }) => void;
+};
+
 // PreTextBlock 최소 편집기 — textarea 하나(여러 줄 원문 텍스트).
-export default function PreTextBlockEditor({ block, onChange }) {
+export default function PreTextBlockEditor({
+  block,
+  onChange,
+}: PreTextBlockEditorProps) {
   const inputId = useId();
   return (
     <div className="p-2">

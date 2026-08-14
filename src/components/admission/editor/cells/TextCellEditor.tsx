@@ -1,7 +1,15 @@
 import ImeSafeInput from "../ImeSafeInput";
 
+type TextCellEditorProps = {
+  value: string | { text?: string } | null | undefined;
+  onChange: (value: string) => void;
+};
+
 // 일반 문자열 셀 편집기.
-export default function TextCellEditor({ value, onChange }) {
+export default function TextCellEditor({
+  value,
+  onChange,
+}: TextCellEditorProps) {
   const text = typeof value === "string" ? value : (value?.text ?? "");
 
   return (

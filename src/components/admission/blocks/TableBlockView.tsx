@@ -6,6 +6,10 @@ import AdmissionTable from "../table/AdmissionTable";
 //
 // block 가드(columns/rows가 배열인가)도 AdmissionTable이 describeTable로
 // 흡수했다 — 뷰 진입점만이 아니라 편집 진입점도 같은 보호를 받게 하기 위해서다.
-export default function TableBlockView({ block }) {
+type TableBlockViewProps = {
+  block: unknown;
+};
+
+export default function TableBlockView({ block }: TableBlockViewProps) {
   return <AdmissionTable block={block} />;
 }
