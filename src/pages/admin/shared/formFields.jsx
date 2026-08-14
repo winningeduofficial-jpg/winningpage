@@ -1,3 +1,15 @@
+// sql/52_mentor_applications.sql의 status 컬럼 주석에 적힌 값 그대로(CHECK 제약은 없지만
+// 이 6개가 실제 사용 값이다). CONFIGS.mentorApplications 목록 컬럼과 MentorApplicationsAdmin의
+// 상세 상태변경 Select가 이 배열 하나를 공유한다 — 값이 어긋나면 목록에 라벨이 안 붙는다.
+export const MENTOR_APPLICATION_STATUS_OPTIONS = [
+  { value: "submitted", label: "제출됨" },
+  { value: "screening", label: "서류심사" },
+  { value: "interview", label: "면접" },
+  { value: "training", label: "교육" },
+  { value: "active", label: "활동중" },
+  { value: "rejected", label: "불합격" },
+];
+
 export function normalizeProgramIds(value) {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (!value) return [];
