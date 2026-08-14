@@ -9,7 +9,7 @@
 
 import { UserCheck, UserPlus } from "lucide-react";
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,

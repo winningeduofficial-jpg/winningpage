@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Location } from "react-router-dom";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import type { Location } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { isOnboardingDone } from "../../lib/goalOnboarding";
 import RequireEntitlement from "../RequireEntitlement";
 

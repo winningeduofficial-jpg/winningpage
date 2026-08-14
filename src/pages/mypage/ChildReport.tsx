@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { supabase } from "../../lib/supabase";
 
 // 학부모 뷰어 셸 — 자녀의 성장 리포트를 학부모가 열람한다.

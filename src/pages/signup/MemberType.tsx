@@ -7,7 +7,7 @@
 // (§6.2) — 임시로 lucide-react 아이콘을 자리표시자로 사용. 실제 일러스트 확보 시 교체 필요.
 
 import { GraduationCap, Users } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,

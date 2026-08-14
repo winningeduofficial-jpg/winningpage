@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router";
 import OnboardingCalculatingOverlay from "../../components/goal/onboarding/OnboardingCalculatingOverlay";
 import OnboardingStepShell from "../../components/goal/onboarding/OnboardingStepShell";
 import Step1School from "../../components/goal/onboarding/steps/Step1School";

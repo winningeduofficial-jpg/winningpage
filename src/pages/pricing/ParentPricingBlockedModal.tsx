@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import ConfirmModal from "../../components/checkout/ConfirmModal";
 
 // 학부모가 "이용신청 > 서비스요금"(/pricing)으로 들어왔을 때 뜨는 차단 모달

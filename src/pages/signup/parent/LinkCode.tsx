@@ -12,7 +12,7 @@
 //   서버가 시간당 조회 30회 / 실패 10회로 끊는다(api/lookup-child.js). 6자가 채워질
 //   때마다 즉시 쏘면 오타 몇 번에 한도가 차버려서, 입력이 멎은 뒤에 한 번만 보낸다.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,

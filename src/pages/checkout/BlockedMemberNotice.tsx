@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 // 학생/학부모가 아닌 로그인 사용자를 위한 안내. /checkout 과 /pricing 양쪽에서
 // 재사용한다(2026-08-12b 팀 리드 지시 — "학생/학부모가 아니면 /checkout

@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { COMPANY } from "../data/company";
 import { useNavGroups } from "../hooks/useNavGroups";
 

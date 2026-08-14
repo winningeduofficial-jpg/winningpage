@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { type Location, Navigate, Outlet, useLocation } from "react-router-dom";
+import { type Location, Navigate, Outlet, useLocation } from "react-router";
 import { useSessionOptional } from "../context/SessionContext";
 import { fetchEntitlement } from "../lib/entitlement";
 import { supabase } from "../lib/supabase";

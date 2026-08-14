@@ -1,7 +1,7 @@
 import { ArrowLeft, ArrowUpRight, Download } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 import bizAiPlatform from "../assets/company/biz-ai-platform.png";
 import bizConsulting from "../assets/company/biz-consulting.png";
 import bizNetwork from "../assets/company/biz-network.png";

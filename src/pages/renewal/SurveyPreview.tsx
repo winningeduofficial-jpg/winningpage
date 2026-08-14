@@ -1,5 +1,5 @@
 import { type ComponentProps, useMemo } from "react";
-import { useNavigate, useOutletContext } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router";
 import type { CascadeLevel } from "../../components/renewal/survey/CascadingSelect";
 import QuestionCardList from "../../components/renewal/survey/QuestionCardList";
 import SurveyProgress from "../../components/renewal/survey/SurveyProgress";

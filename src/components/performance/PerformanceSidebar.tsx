@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 
 // 수행평가 앱 좌측 고정 사이드바 — docs/수행평가-상세-명세.md §3.2(블록 실측) / §3.3(진행단계
 // 상태 머신) / §3.4(메뉴 라벨 정본). 프로필 · 메뉴 · 진행단계 3블록으로 구성된다.
@@ -165,7 +165,7 @@ export default function PerformanceSidebar({
               <li key={item.to}>
                 {/* ⚠️ NavLink가 아니라 Link다. NavLink는 `aria-current` prop을 자기 기본값
                     (`'page'`)으로 흡수하고 **라우터 자체 prefix 매칭**으로 다시 계산해 내보낸다
-                    (react-router-dom/dist/index.js: `ariaCurrentProp = "page"` →
+                    (react-router/dist/index.js: `ariaCurrentProp = "page"` →
                     `isActive ? ariaCurrentProp : undefined`). 그래서 `/app/performance/reports`
                     에서 `위닝 채팅`(`to=/app/performance`, end 없음)까지 prefix로 걸려
                     두 항목이 동시에 `aria-current="page"`가 된다 — pill은 하나인데 스크린리더는

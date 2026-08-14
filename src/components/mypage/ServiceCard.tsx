@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 /**
  * 마이페이지 "나의 서비스" 탭 카드 — Figma hsokTD6OilcNEXyCR24sn4 노드 3762:18713 실측.

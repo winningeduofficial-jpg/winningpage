@@ -1,5 +1,5 @@
 import { useEffect, useEffectEvent, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import GoalEmptyState from "../../components/goal/GoalEmptyState";
 import GoalPageHeader from "../../components/goal/GoalPageHeader";
 import AddScheduleFullModal from "../../components/goal/modals/AddScheduleFullModal";

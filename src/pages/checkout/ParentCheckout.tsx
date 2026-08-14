@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router";
 import ConfirmModal from "../../components/checkout/ConfirmModal";
 import { CHECKOUT_AGREEMENTS } from "../../data/legalDocs";
 import { formatKRW } from "../../data/pricingCatalog";

@@ -9,7 +9,7 @@
 //   학부모가 입력하면 link_code_not_found가 났다 — 화면상으로는 정상이라 발견이 어렵다.
 //   여기서 코드를 "만들어내면" 안 된다. 없으면 없다고 보여줘야 한다.
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,

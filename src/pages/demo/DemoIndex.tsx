@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { DEMO_REGISTRY } from "../../demo/demoRegistry";
 
 // 어드민 전용 데모 허브 — 시연 진입점일 뿐 디자인 대상이 아니라 작게 유지한다.

@@ -1,6 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import checkboxUnselected from "../../assets/checkout/checkbox-24.svg";
 import checkboxSelected from "../../assets/checkout/checkbox-24-selected.svg";
 import sectionArrow from "../../assets/checkout/section-arrow-38.svg";

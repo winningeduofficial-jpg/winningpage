@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Navigate, useParams } from "react-router-dom";
+import { Navigate, useParams } from "react-router";
 import { DEMO_REGISTRY } from "../../demo/demoRegistry";
 
 // srcDoc 문서의 document URL은 about:srcdoc이지만 base URL은 부모(SPA) 문서를 그대로

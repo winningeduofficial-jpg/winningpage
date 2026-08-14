@@ -5,7 +5,7 @@
 // as='link'면 react-router Link로 렌더(내부 이동), as='button'이면 버튼(클릭 핸들러만 필요한
 // 액션, 예: 코드 복사)으로 렌더한다.
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 const TONE_CLASSES: Record<string, string> = {
   primary: "text-primary",

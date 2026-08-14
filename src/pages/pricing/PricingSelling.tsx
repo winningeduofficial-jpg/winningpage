@@ -1,7 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router";
 import { formatKRW, SINGLE_SELECT_NOTICE } from "../../data/pricingCatalog";
 import { saveCart } from "../../lib/cart";
 import { useProducts } from "../../lib/products";

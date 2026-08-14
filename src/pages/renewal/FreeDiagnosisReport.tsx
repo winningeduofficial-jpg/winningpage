@@ -1,5 +1,5 @@
 import { type ComponentProps, useMemo } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router";
 import "../../styles/report-print.css";
 import "../../styles/report-responsive.css";
 import ReportPageOne from "../../components/renewal/report/ReportPageOne";

@@ -19,7 +19,7 @@
 //    을 직접 읽는다) — 뷰어가 상단에 샘플 표시를 띄운다. 자세한 사정은 ChildReport
 //    파일 상단 주석 참고.
 
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   approved: { label: "연결됨", cls: "bg-[#e7f2fb] text-accent" },
