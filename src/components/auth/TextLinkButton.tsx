@@ -65,8 +65,9 @@ export default function TextLinkButton({
   } ${className}`;
 
   if (as === "link") {
+    // as="link"인 모든 호출부(Login/StudentComplete/MemberType 등)가 to를 항상 함께 넘긴다.
     return (
-      <Link to={to} onClick={onClick} className={classes}>
+      <Link to={to!} onClick={onClick} className={classes}>
         {children}
       </Link>
     );

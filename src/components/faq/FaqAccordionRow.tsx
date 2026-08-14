@@ -76,7 +76,9 @@ export default function FaqAccordionRow({
             post={{
               id: faq.id,
               content_json: faq.content_json,
-              content: faq.answer,
+              // exactOptionalPropertyTypes: ColumnBodyPost.content는 명시적 undefined를
+              // 허용하지 않으므로, 값이 있을 때만 키 자체를 넣는다(동작은 동일).
+              ...(faq.answer !== undefined ? { content: faq.answer } : {}),
             }}
           />
         )}
