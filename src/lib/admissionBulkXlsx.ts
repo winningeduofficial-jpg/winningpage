@@ -116,6 +116,7 @@
 // =====================================================================
 
 import * as XLSX from "xlsx";
+import type { AdmissionDoc } from "./admissionDoc.js";
 import {
   HWP_SECTION_JSON_KEYS,
   shouldSkipForRegression,
@@ -184,14 +185,21 @@ export const MAX_XLSX_CELL_LENGTH = 32767;
 export const TRUNCATION_MARKER =
   "…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]";
 
-function serializeExportCell(rawValue) {
+function serializeExportCell(rawValue: unknown): string | number | boolean {
   if (rawValue === null || rawValue === undefined) return "";
   if (typeof rawValue === "boolean" || typeof rawValue === "number")
     return rawValue;
   return String(rawValue);
 }
 
-function truncateIfNeeded(value, location, truncatedCells) {
+type TruncationLocation = { id: unknown; rowIndex: number; column: string };
+type TruncatedCell = TruncationLocation & { originalLength: number };
+
+function truncateIfNeeded(
+  value: string | number | boolean,
+  location: TruncationLocation,
+  truncatedCells: TruncatedCell[],
+): string | number | boolean {
   if (typeof value !== "string" || value.length <= MAX_XLSX_CELL_LENGTH)
     return value;
   const keep = MAX_XLSX_CELL_LENGTH - TRUNCATION_MARKER.length;
@@ -222,7 +230,7 @@ function truncateIfNeeded(value, location, truncatedCells) {
 // 그 암묵적 동작에만 기대지 않고, 셀 타입을 명시적으로 강제해 이 계약을
 // 코드로 못박는다(SheetJS 버전이 바뀌어도 안전 — 아래 verify 스크립트가
 // 매 셀의 t/f를 직접 검사해 회귀를 잡는다).
-function forceStringCellTypes(worksheet) {
+function forceStringCellTypes(worksheet: XLSX.WorkSheet): XLSX.WorkSheet {
   Object.keys(worksheet).forEach((address) => {
     if (address.startsWith("!")) return;
     const cell = worksheet[address];
@@ -240,11 +248,12 @@ function forceStringCellTypes(worksheet) {
  * truncatedCells에 기록한다(호출부가 경고를 띄울 수 있게). 모든 문자열
  * 셀은 명시적으로 's'(문자열) 타입으로 강제한다(formula injection 방어
  * — 위 주석 참고, 값 자체는 조금도 바뀌지 않아 왕복 무손실이다).
- * @param {Array<Record<string, unknown>>} rows
- * @returns {{ workbook: import('xlsx').WorkBook, truncatedCells: Array<{ id: unknown, rowIndex: number, column: string, originalLength: number }> }}
  */
-export function exportAdmissionRowsToXlsx(rows) {
-  const truncatedCells = [];
+export function exportAdmissionRowsToXlsx(rows: Record<string, unknown>[]): {
+  workbook: XLSX.WorkBook;
+  truncatedCells: TruncatedCell[];
+} {
+  const truncatedCells: TruncatedCell[] = [];
   const dataRows = rows.map((row, rowIndex) =>
     BULK_XLSX_COLUMNS.map((column) => {
       const serialized = serializeExportCell(row?.[column]);
@@ -270,15 +279,18 @@ export function exportAdmissionRowsToXlsx(rows) {
 // — 개별 카운터 변수를 늘려가며 수동으로 세면 새 type을 추가할 때마다
 // 카운터를 빼먹기 쉽다(이미 한 번 그런 패턴으로 필드를 여러 개 손으로
 // 늘려간 적이 있다). 배열 자체가 진실의 원천이므로 여기서 한 번만 접는다.
-function buildTypeCounts(items) {
-  return items.reduce((acc, item) => {
-    const key = item.type || "unknown";
-    acc[key] = (acc[key] || 0) + 1;
-    return acc;
-  }, {});
+function buildTypeCounts(items: { type?: string }[]): Record<string, number> {
+  return items.reduce(
+    (acc: Record<string, number>, item) => {
+      const key = item.type || "unknown";
+      acc[key] = (acc[key] || 0) + 1;
+      return acc;
+    },
+    {} as Record<string, number>,
+  );
 }
 
-function parseBooleanCell(value, fallback = true) {
+function parseBooleanCell(value: unknown, fallback = true): boolean {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value !== 0;
   const s = clean(value).toUpperCase();
@@ -286,6 +298,21 @@ function parseBooleanCell(value, fallback = true) {
   if (s === "FALSE" || s === "0") return false;
   return fallback;
 }
+
+type JsonSource =
+  | "rawUnchangedPreserved"
+  | "failed"
+  | "empty"
+  | "regressionSkipped"
+  | "rawChangedRegenerated"
+  | "generated-from-raw";
+
+type CategoryResult = {
+  doc?: AdmissionDoc;
+  html?: string;
+  jsonSource: JsonSource;
+  jsonDetail?: string;
+};
 
 // 카테고리 하나(doc+html)를 계산한다. 반환: { doc, html, jsonSource,
 // jsonDetail } — doc/html이 undefined면 그 카테고리는 payload에서
@@ -306,14 +333,15 @@ function parseBooleanCell(value, fallback = true) {
 //     기존 행) 비교 대상이 없다 — raw에서 그냥 생성한다("generated-
 //     from-raw", 경고 불필요).
 function buildCategoryFromXlsxRow(
-  sectionKey,
-  rawText,
-  existingDoc,
-  existingRawText,
-  referenceRow,
-) {
+  sectionKey: string,
+  rawText: string,
+  existingDoc: AdmissionDoc | undefined,
+  existingRawText: unknown,
+  referenceRow: { university_name: string; detail_status: unknown },
+): CategoryResult {
   if (existingDoc) {
-    const rawUnchanged = clean(rawText) === clean(existingRawText || "");
+    const rawUnchanged =
+      clean(rawText) === clean((existingRawText as string) || "");
     if (rawUnchanged) {
       return {
         doc: undefined,
@@ -323,9 +351,9 @@ function buildCategoryFromXlsxRow(
     }
   }
 
-  let candidate;
-  let html;
-  let detail;
+  let candidate: AdmissionDoc | undefined;
+  let html: string | undefined;
+  let detail: string | undefined;
 
   if (rawText) {
     try {
@@ -343,7 +371,7 @@ function buildCategoryFromXlsxRow(
         detail = `raw→doc 생성 실패: ${errors.join("; ")}`;
       }
     } catch (err) {
-      detail = `raw→doc 예외: ${err.message}`;
+      detail = `raw→doc 예외: ${(err as Error).message}`;
     }
   }
 
@@ -373,19 +401,55 @@ function buildCategoryFromXlsxRow(
   };
 }
 
+type ErrorType =
+  | "sheetNotFound"
+  | "truncatedMetadata"
+  | "missingRequiredFields"
+  | "missingUniversityName";
+
+type WarningType =
+  | "newUniversity"
+  | "truncated"
+  | "importFailed"
+  | "regressionSkipped"
+  | "rawChangedRegenerated";
+
+type ErrorEntry = {
+  row: number;
+  admissionYear: unknown;
+  universityKey: unknown;
+  reason: string;
+  type: ErrorType;
+};
+
+type WarningEntry = {
+  row: number;
+  admissionYear: unknown;
+  universityKey: unknown;
+  column?: string;
+  reason?: string;
+  type: WarningType;
+};
+
+// `${admission_year}::${university_key}` 키. 값은 최소 id, 6개
+// *_json(HWP_SECTION_JSON_KEYS 값, 회귀 가드 비교용), 그리고 6개
+// raw 카테고리 컬럼(CATEGORY_KEYS와 같은 이름)을 담아야 한다 — 컬럼
+// 이름이 런타임 상수(HWP_SECTION_JSON_KEYS/CATEGORY_KEYS)에서 나와
+// 타입 레벨로 개별 선언할 수 없어 단일 인덱스 시그니처로 표현한다.
+type ExistingRow = { id: unknown; [key: string]: unknown };
+
 /**
  * xlsx workbook → payload 행 배열(그대로 upsert에 쓸 수 있는 형태) +
  * errors/warnings + 적용 전 미리보기용 summary.
  *
- * @param {import('xlsx').WorkBook} workbook
- * @param {Map<string, { id: unknown, [jsonKey: string]: unknown, [rawSectionKey: string]: unknown }>} existingRows
- *   `${admission_year}::${university_key}` 키. 값은 최소 id, 6개
- *   *_json(HWP_SECTION_JSON_KEYS 값, 회귀 가드 비교용), 그리고 6개
- *   raw 카테고리 컬럼(CATEGORY_KEYS와 같은 이름 — previous_year_changes/
- *   selection_method/minimum_requirements/exam_schedule/
- *   school_record_method/recruitment_quota, "업로드 raw가 기존 DB raw와
- *   같은가" 1차 판정 비교용)을 담아야 한다. 호출부가 DB에서 미리 조회해
- *   넘긴다 — 이 lib은 DB를 안 만진다.
+ * @param existingRows `${admission_year}::${university_key}` 키. 값은
+ *   최소 id, 6개 *_json(HWP_SECTION_JSON_KEYS 값, 회귀 가드 비교용),
+ *   그리고 6개 raw 카테고리 컬럼(CATEGORY_KEYS와 같은 이름 —
+ *   previous_year_changes/selection_method/minimum_requirements/
+ *   exam_schedule/school_record_method/recruitment_quota, "업로드 raw가
+ *   기존 DB raw와 같은가" 1차 판정 비교용)을 담아야 한다. 호출부가 DB에서
+ *   미리 조회해 넘긴다 — 이 lib은 DB를 안 만진다.
+ *
  * warnings/errors는 둘 다 `type`으로 종류를 구분한다(열거형 — UI는
  * `reason` 문자열을 파싱하지 말고 `type`으로 분기·집계해야 한다.
  * `reason`은 사람이 읽는 설명 전용이다). `summary.warningCounts`/
@@ -396,30 +460,30 @@ function buildCategoryFromXlsxRow(
  * 파일(html 3종 포함)을 업로드해도 거부하지 않고, BULK_XLSX_COLUMNS에
  * 있는 23개만 이름으로 찾아 읽는다. 나머지(옛 html 컬럼 등)는 그냥
  * 무시된다.
- *
- * @returns {{
- *   rows: Array<Record<string, unknown>>,
- *   errors: Array<{
- *     row: number, admissionYear: unknown, universityKey: unknown, reason: string,
- *     type: 'sheetNotFound' | 'truncatedMetadata' | 'missingRequiredFields' | 'missingUniversityName'
- *   }>,
- *   warnings: Array<{
- *     row: number, admissionYear: unknown, universityKey: unknown, column?: string, reason: string,
- *     type: 'newUniversity' | 'truncated' | 'importFailed' | 'regressionSkipped' | 'rawChangedRegenerated'
- *   }>,
- *   summary: {
- *     willInsert: number, willUpdate: number, willSkip: number, newYears: number[],
- *     newUniversityCount: number, truncatedCellSkipCount: number,
- *     warningCounts: Record<string, number>, errorCounts: Record<string, number>
- *   }
- * }}
  */
-export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
+export function parseAdmissionRowsFromXlsx(
+  workbook: XLSX.WorkBook,
+  existingRows: Map<string, ExistingRow>,
+): {
+  rows: Record<string, unknown>[];
+  errors: ErrorEntry[];
+  warnings: WarningEntry[];
+  summary: {
+    willInsert: number;
+    willUpdate: number;
+    willSkip: number;
+    newYears: number[];
+    newUniversityCount: number;
+    truncatedCellSkipCount: number;
+    warningCounts: Record<string, number>;
+    errorCounts: Record<string, number>;
+  };
+} {
   const sheetName = workbook.SheetNames[0];
   const worksheet = sheetName ? workbook.Sheets[sheetName] : null;
-  const errors = [];
-  const warnings = [];
-  const rows = [];
+  const errors: ErrorEntry[] = [];
+  const warnings: WarningEntry[] = [];
+  const rows: Record<string, unknown>[] = [];
   let willInsert = 0;
   let willUpdate = 0;
   let willSkip = 0;
@@ -431,7 +495,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   // 이지만(가장 긴 콘텐츠 컬럼도 6,279자, 32,767 근처도 안 감), 다른
   // 컬럼이 나중에 한도를 넘을 수 있어 방어 로직 자체는 남겨뒀다.
   let truncatedCellSkipCount = 0;
-  const newYearsSet = new Set();
+  const newYearsSet = new Set<number>();
 
   if (!worksheet) {
     errors.push({
@@ -462,19 +526,19 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
   // 이 집합에 없는 연도는 "신규 연도"로 간주해 그 연도 전체를 insert
   // 허용한다(경고 없이). 이미 아는 연도인데 university_key만 새로우면
   // "같은 연도의 신규 대학"으로 보고 경고를 남긴다(오타 방어).
-  const knownYears = new Set();
+  const knownYears = new Set<string>();
   existingRows.forEach((_value, key) => {
     const year = key.split("::")[0];
     knownYears.add(year);
   });
 
-  const grid = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+  const grid = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 });
   // 헤더 행을 실제로 읽어 컬럼 이름 → 인덱스 맵을 만든다(위치 고정
   // 인덱스가 아니다) — 옛 26컬럼 파일(html 3종 포함)이나 컬럼 순서가
   // 다른 파일이 와도 안전하다. BULK_XLSX_COLUMNS에 없는 컬럼(옛 html
   // 등)은 맵에는 들어가지만 아래에서 아예 조회하지 않아 자연히 무시된다.
   const headerRow = Array.isArray(grid[0]) ? grid[0] : [];
-  const columnIndexByName = new Map();
+  const columnIndexByName = new Map<unknown, number>();
   headerRow.forEach((name, idx) => {
     const key = typeof name === "string" ? name.trim() : name;
     if (
@@ -499,7 +563,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
     )
       return;
 
-    const rowObj = {};
+    const rowObj: Record<string, unknown> = {};
     BULK_XLSX_COLUMNS.forEach((col) => {
       const idx = columnIndexByName.get(col);
       rowObj[col] = idx === undefined ? undefined : rawRow[idx];
@@ -517,7 +581,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       METADATA_COLUMNS_FOR_TRUNCATION_CHECK.filter(
         (col) =>
           typeof rowObj[col] === "string" &&
-          rowObj[col].includes(TRUNCATION_MARKER),
+          (rowObj[col] as string).includes(TRUNCATION_MARKER),
       );
     if (truncatedMetadataColumns.length) {
       errors.push({
@@ -583,7 +647,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
       willUpdate += 1;
     }
 
-    const payload = {
+    const payload: Record<string, unknown> = {
       admission_year: admissionYear,
       university_key: universityKey,
       university_name: universityName,
@@ -650,7 +714,7 @@ export function parseAdmissionRowsFromXlsx(workbook, existingRows) {
 
       const dbHtmlColumn = HWP_SECTION_HTML_KEYS[sectionKey];
       const jsonColumn = HWP_SECTION_JSON_KEYS[sectionKey];
-      const existingDoc = existing?.[jsonColumn];
+      const existingDoc = existing?.[jsonColumn] as AdmissionDoc | undefined;
       const existingRawText = existing?.[sectionKey];
 
       const { doc, html, jsonSource, jsonDetail } = buildCategoryFromXlsxRow(
