@@ -1,5 +1,24 @@
 import { WEEKDAY_ACCENT, WEEKDAY_BG_CLASS } from "../weekdayTokens";
 
+type PlanTask = {
+  id: string | number;
+  subject: string;
+  title: string;
+};
+
+type PlanDay = {
+  day: string;
+  date: string | number;
+  dateYmd: string;
+  tasks: PlanTask[];
+};
+
+type WeekdayPlanBoardProps = {
+  days: PlanDay[];
+  onAddTask: (day: string, dateYmd: string) => void;
+  todayKey?: string | null;
+};
+
 // 주간 학습 계획표 보드 — docs/figma-goal/part-09.md #27(빈) / part-10.md #29(채움) 정본 그리드.
 // #29가 그리드 규격의 정본이다(화면별 지침 §2 확정 사항): 개방형 1194px(74.625rem) =
 // 150px(9.375rem) × 7컬럼 + 24px(1.5rem) 갭 × 6. #28의 카드형 1176px(컬럼 106 / gap 58)은 채택하지
@@ -11,7 +30,7 @@ import { WEEKDAY_ACCENT, WEEKDAY_BG_CLASS } from "../weekdayTokens";
 // y=419부터)를 그대로 따랐다.
 //
 // WEEKDAY_BG_CLASS/WEEKDAY_ACCENT는 공용 상수 모듈(weekdayTokens.js)로 분리했다(코드 검수 NIT §6).
-const DAY_KEY = {
+const DAY_KEY: Record<string, string> = {
   월요일: "mon",
   화요일: "tue",
   수요일: "wed",
@@ -25,7 +44,11 @@ const DAY_KEY = {
 // 넘긴다(src/lib/goalPlanUtils.js getTodayShortKeyInWeek). 확정 사항: 오늘 요일은
 // 헤더 pill에 링 강조 + 굵기를 한 단계 더 올려 표시한다(원래 확정 pill 디자인은
 // 그대로 두고 얹기만 한다).
-export default function WeekdayPlanBoard({ days, onAddTask, todayKey }) {
+export default function WeekdayPlanBoard({
+  days,
+  onAddTask,
+  todayKey,
+}: WeekdayPlanBoardProps) {
   return (
     <div className="w-full max-w-[74.625rem]">
       {/* 요일 헤더 행 — 150×36, gap 24px(part-09 §269). 요일명(bold)+날짜(회색) 인라인 2스타일 —

@@ -15,13 +15,23 @@ import { resolveSubjectId } from "../subjectTokens";
 // fetchGoalWorkbooks 응답). 진도 갱신 동선이 시안에 없어, 칩을 클릭하면 onEditBook이
 // 호출되어 AddWorkbookModal을 수정 모드로 재사용해 연다(Efforts.jsx 판단 지점).
 
+type EffortBook = { id: string | number; title: string };
+
+type EffortSubjectCardProps = {
+  subject: string;
+  completed?: number;
+  books?: EffortBook[];
+  onAddBook?: () => void;
+  onEditBook?: (book: EffortBook) => void;
+};
+
 export default function EffortSubjectCard({
   subject,
   completed,
   books,
   onAddBook,
   onEditBook,
-}) {
+}: EffortSubjectCardProps) {
   const color = resolveSubjectId(subject);
   const hasBooks = Array.isArray(books) && books.length > 0;
 

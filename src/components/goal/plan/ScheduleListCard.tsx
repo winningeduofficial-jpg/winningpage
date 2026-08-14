@@ -5,7 +5,22 @@ import GoalDdayBadge from "../GoalDdayBadge";
 // 삭제 UI는 시안에 없다(part-13 §323 "삭제는 수정 모달 내부에 있을 가능성" 추정) — 삭제는
 // 수정 모달(AddScheduleFullModal.jsx) 안에 구현했다(중요일정 D 백엔드 배선 UoW).
 // 일정 종류 배지는 시안 실측 근거가 없어 2026-08-13 확정으로 추가한 UI 보정이다.
-export default function ScheduleListCard({ schedule, onEdit }) {
+type ScheduleListCardSchedule = {
+  dday?: string | number;
+  category?: string;
+  title: string;
+  meta?: string;
+};
+
+type ScheduleListCardProps = {
+  schedule: ScheduleListCardSchedule;
+  onEdit?: () => void;
+};
+
+export default function ScheduleListCard({
+  schedule,
+  onEdit,
+}: ScheduleListCardProps) {
   return (
     <div className="flex min-h-[7.5rem] items-center justify-between gap-6 rounded-2xl border border-line/60 bg-white px-6 py-5">
       <div className="flex min-w-0 items-center gap-[1.875rem]">
