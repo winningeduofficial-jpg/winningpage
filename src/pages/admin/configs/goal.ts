@@ -1,6 +1,6 @@
-import { GOAL_CUT_RANGE } from "../../../lib/goalUniversityCutsBulkXlsx";
 import type { FieldOption } from "../shared/csvExport";
 import { GOAL_CUT_SOURCE_OPTIONS } from "../shared/formFields";
+import { GOAL_CUT_RANGE } from "./goalUniversityCutsBulkXlsx";
 
 // ---------------------------------------------------------------------
 // 목표관리 도메인 상수 (docs/figma-goal/goal-admin-spec.md §4-1-2)
@@ -16,13 +16,11 @@ const GOAL_CUT_TYPE_OPTIONS: FieldOption[] = [
 ];
 
 // GOAL_CUT_RANGE(sql/55 의 goal_university_cuts_avg_cut_check 미러)는 여기서
-// 선언하지 않고 src/lib/goalUniversityCutsBulkXlsx.js 에서 import 한다 —
+// 선언하지 않고 같은 디렉토리의 goalUniversityCutsBulkXlsx.ts 에서 import 한다 —
 // 폼(config.validate)과 엑셀 파서가 **같은 상수**를 봐야 두 입력 경로의
 // 스케일 판정이 갈라지지 않기 때문이다. CHECK 는 "1~9 범위 안의 정시
 // 백분위"(예: 3.5) 같은 혼입을 잡지 못하므로 그 상수가 실질 방어선이다
 // (명세 §3-D4). 수시는 작을수록 우세(등급), 정시는 클수록 우세(백분위)다.
-// goalUniversityCutsBulkXlsx.js는 이 배치 소유가 아니라(.js 유지, allowJs로
-// 구조 추론) GOAL_CUT_RANGE는 여기서 재선언하지 않고 그 추론 타입을 그대로 쓴다.
 
 // row(goal_university_cuts 행)는 AdminForm(AdminEngine.jsx, 미변환)이 소유하는
 // 제네릭 폼 상태라 구체 타입이 없다 — 이 파일이 실제로 읽고 쓰는 키만 얕게 좁힌다.

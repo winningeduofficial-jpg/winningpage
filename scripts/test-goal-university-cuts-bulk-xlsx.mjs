@@ -1,5 +1,5 @@
 // =====================================================================
-// src/lib/goalUniversityCutsBulkXlsx.js 검증 스크립트.
+// src/pages/admin/configs/goalUniversityCutsBulkXlsx.ts 검증 스크립트.
 //
 // **DB를 만지지 않는다 — 손으로 만든 픽스처만 쓴다.** 이 lib 은 순수
 // 함수뿐이고, 유일한 외부 입력인 existingCutTypeById(Map)도 호출부가
@@ -18,7 +18,7 @@ import {
   GOAL_CUTS_XLSX_HEADERS,
   parseGoalUniversityCutRowsFromXlsx,
   TRUNCATION_MARKER,
-} from "../src/lib/goalUniversityCutsBulkXlsx.js";
+} from "../src/pages/admin/configs/goalUniversityCutsBulkXlsx.js";
 
 let failCount = 0;
 let passCount = 0;

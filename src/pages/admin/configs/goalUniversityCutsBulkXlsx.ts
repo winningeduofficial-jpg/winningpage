@@ -33,7 +33,7 @@
 
 import * as XLSX from "xlsx";
 
-import { clean } from "./admissionParsing.js";
+import { clean } from "../../../lib/admissionParsing.js";
 
 type CutType = "normal" | "special" | "jungsi";
 
