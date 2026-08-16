@@ -1,32 +1,21 @@
-// =====================================================================
-// src/lib/goal/calc/bonusV2.js 회귀 테스트 — 일별 기록 수식 v2.
+// bonusV2.ts 회귀 테스트 — 일별 기록 수식 v2.
 //
-// bonus.js(v1)와 달리 이 수식은 외부 원본 앱에 대응 코드가 없다(팀장 작업
-// 지시 "수식 v2" 절, 2026-08-13 확정 — bonusV2.js 헤더 참고). 그래서 여기 기대값은
+// bonus.ts(v1)와 달리 이 수식은 외부 원본 앱에 대응 코드가 없다(팀장 작업
+// 지시 "수식 v2" 절, 2026-08-13 확정 — bonusV2.ts 헤더 참고). 그래서 여기 기대값은
 // 원본에서 뽑은 골든 픽스처가 아니라 확정된 수식(delta = rate × 달성률배수 ×
 // 컨디션배수 × 과목태그배수)을 손으로 계산해 검증하는 명세 테스트다.
-//
-// 실행: node --test scripts/test-bonus-v2.mjs
-//   ⚠ 디렉터리 인자(node --test scripts/)는 Node 24 에서 파일을 탐색하지 않고
-//   디렉터리를 단일 모듈로 오해해 0건 통과(가짜 green)로 떨어진다(src/lib/goal/
-//   calc/의 test:calc 스크립트 주석과 동일 함정) — 반드시 파일 경로를 직접 지정한다.
-//   package.json 의 test:bonus-v2 스크립트가 이미 이 형태로 고정돼 있다.
-// =====================================================================
 
-import assert from "node:assert/strict";
-import { test } from "node:test";
-import { getAchievementRateMultiplier } from "../src/lib/goal/calc/bonus.ts";
-import {
-  CONDITION_MULTIPLIER,
-  calculateDailyBonusV2,
-} from "../src/lib/goal/calc/bonusV2.ts";
+import { expect, test } from "vitest";
+
+import { getAchievementRateMultiplier } from "./bonus.ts";
+import { CONDITION_MULTIPLIER, calculateDailyBonusV2 } from "./bonusV2.ts";
 
 // 부동소수 오차 허용 비교. round4 결과는 소수 4자리 이내라 1e-9 여유면 충분하다.
-function assertClose(actual, expected, label) {
-  assert.ok(
+function assertClose(actual: number, expected: number, label: string) {
+  expect(
     Math.abs(actual - expected) < 1e-9,
     `${label}: 기대 ${expected}, 실제 ${actual}`,
-  );
+  ).toBeTruthy();
 }
 
 // 계산 편의를 위한 대표 rate 4종(이상수시, 이상정시, 최소수시, 최소정시).
@@ -37,12 +26,12 @@ const RATES = {
   minJungsiRate: 0.4,
 };
 
-function round4(v) {
+function round4(v: number): number {
   return Math.round(v * 10000) / 10000;
 }
 
 test("컨디션 배수 상수는 확정 값 그대로다", () => {
-  assert.deepEqual(CONDITION_MULTIPLIER, {
+  expect(CONDITION_MULTIPLIER).toEqual({
     great: 1.1,
     normal: 1.0,
     tired: 0.9,
@@ -67,11 +56,7 @@ test("달성률 100% · normal · 태그 없음 → rate 그대로", () => {
 
 test("달성률 170% 초과 · great · 태그 2종 모두 → 1.2 × 1.1 × 1.1 = 1.452배", () => {
   // studyHours=20, ideal/minHours=10 → 200% → getAchievementRateMultiplier 170 초과 구간(1.2).
-  assert.equal(
-    getAchievementRateMultiplier(200),
-    1.2,
-    "사전 조건: 200% 는 1.2배 구간",
-  );
+  expect(getAchievementRateMultiplier(200)).toBe(1.2);
 
   const r = calculateDailyBonusV2({
     ...RATES,
@@ -244,12 +229,14 @@ test("컨디션 미지값·빈 문자열은 normal(1.0)로 취급된다(카드-o
   const withEmpty = calculateDailyBonusV2({ ...base, condition: "" });
   const withUndefined = calculateDailyBonusV2({
     ...base,
-    condition: undefined,
+    // 카드-only 제출은 실제로 condition 필드가 통째로 빠진 채 들어온다 —
+    // 타입 계약(condition: string)보다 넓은 런타임 입력을 의도적으로 검증한다.
+    condition: undefined as unknown as string,
   });
   const withNormal = calculateDailyBonusV2({ ...base, condition: "normal" });
 
-  assert.deepEqual(withEmpty, withNormal, "빈 문자열은 normal과 동일");
-  assert.deepEqual(withUndefined, withNormal, "undefined는 normal과 동일");
+  expect(withEmpty).toEqual(withNormal);
+  expect(withUndefined).toEqual(withNormal);
 });
 
 test("round4: 결과는 소수 4자리로 반올림된다", () => {
@@ -273,11 +260,14 @@ test("round4: 결과는 소수 4자리로 반올림된다", () => {
 
   // 소수 5자리 이상이 결과에 남지 않는지 직접 확인.
   const decimals = String(r.idealSusiBonus).split(".")[1] || "";
-  assert.ok(decimals.length <= 4, `소수 자릿수 초과: ${r.idealSusiBonus}`);
+  expect(
+    decimals.length <= 4,
+    `소수 자릿수 초과: ${r.idealSusiBonus}`,
+  ).toBeTruthy();
 });
 
 test("0시간 감점 분기가 없다 — v1과 달리 studyHours=0도 정상 수식을 그대로 태운다", () => {
-  // bonusV2.js 는 0시간 차단을 호출자(daily-record API) 책임으로 위임한다(헤더 주석).
+  // bonusV2.ts 는 0시간 차단을 호출자(daily-record API) 책임으로 위임한다(헤더 주석).
   // 이 함수 자체는 studyHours=0 이어도 달성률 0%로 계산할 뿐 별도 감점 분기가 없다.
   const r = calculateDailyBonusV2({
     ...RATES,
@@ -287,11 +277,7 @@ test("0시간 감점 분기가 없다 — v1과 달리 studyHours=0도 정상 �
     idealHours: 10,
     minHours: 10,
   });
-  assert.equal(
-    getAchievementRateMultiplier(0),
-    0,
-    "사전 조건: 0% 달성률 배수는 0",
-  );
+  expect(getAchievementRateMultiplier(0)).toBe(0);
   assertClose(r.idealSusiBonus, 0, "0% 달성률 → 배수 0 → delta 0");
   assertClose(r.minJungsiBonus, 0, "0% 달성률 → 배수 0 → delta 0");
 });
