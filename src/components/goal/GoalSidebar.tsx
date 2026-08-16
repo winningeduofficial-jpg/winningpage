@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink } from "react-router";
 import { mockStudent } from "../../data/goalMock";
 import { kstYMD } from "../../lib/goal/calc/index.js";
 import { fetchGoalSchedules, fetchGoalTimer } from "../../lib/goalApi";

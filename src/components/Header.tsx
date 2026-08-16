@@ -1,7 +1,7 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { ChevronDown, Menu, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 import megaPromoDiagnosisImg from "../assets/mega/promo-diagnosis.png";
 import {
   MEGA_COL_GAP,

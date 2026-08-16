@@ -1,6 +1,6 @@
 import { Check, CheckCircle2, Clock, Copy } from "lucide-react";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { COMPANY } from "../data/company";
 import { useMemberType } from "../hooks/useMemberType";
 import { clearCart } from "../lib/cart";

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 // B-1(2026-08-11 확정) — q15 캐스케이드 fetch 상태(옵션 5벌 + loading + error)를 이 셸이 소유한다.
 import {
   type CascadeValue,

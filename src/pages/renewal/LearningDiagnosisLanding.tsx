@@ -1,5 +1,5 @@
 import type { CSSProperties, MutableRefObject } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import heroBrowserV2 from "../../assets/renewal/landing/hero-browser-v2.png";
 import heroGlow from "../../assets/renewal/landing/hero-glow.svg";
 import heroGrain from "../../assets/renewal/landing/hero-grain.png";

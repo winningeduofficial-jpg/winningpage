@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import GoalCard from "../GoalCard";
 import GoalDdayBadge from "../GoalDdayBadge";
 import GoalEmptyState from "../GoalEmptyState";

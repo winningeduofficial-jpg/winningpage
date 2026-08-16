@@ -8,7 +8,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet } from "react-router";
 import { fetchEntitlement } from "../lib/entitlement";
 import { supabase } from "../lib/supabase";
 

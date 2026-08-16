@@ -1,5 +1,5 @@
 import type { MouseEvent, MutableRefObject } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import heroGrain from "../../assets/renewal/landing/hero-grain.png";
 import heroAura from "../../assets/services/in-depth-research/hero-aura.svg";
 import audienceData from "../../assets/services/research/audience-data.png";

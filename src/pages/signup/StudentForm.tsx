@@ -28,7 +28,7 @@
 //     (/api/send-phone-code reason:'phone_taken'). 경합으로 뚫린 경우는 가입 RPC의
 //     duplicate_phone이 잡는다(sql/40_auth_signup.sql [16]).
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AgreementList,
   AuthLayout,

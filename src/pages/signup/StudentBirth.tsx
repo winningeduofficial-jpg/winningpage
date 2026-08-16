@@ -7,7 +7,7 @@
 // export하는 computeIsUnder14(강화된 검증: 1900년 미만/미래 날짜/Date 롤오버 거부)를
 // 그대로 재사용한다(§3.3 B-2: "생일이 지나지 않은 경우 만 14세 미만으로 처리").
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,

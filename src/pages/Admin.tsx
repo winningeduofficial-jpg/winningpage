@@ -1,5 +1,6 @@
 import { ChevronDown, Download, Plus, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router";
 import * as XLSX from "xlsx";
 // 쿠폰관리는 제네릭 CRUD 로 표현되지 않는다(파생 사용 건수 · NULL=무제한 3상태
 // 입력 · slug 사전중복검사 · 사용이력 드릴다운 + void RPC). config.custom +
@@ -41,6 +42,10 @@ import {
 } from "../lib/goalUniversityCutsBulkXlsx";
 import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
+import {
+  ADMIN_DEFAULT_SECTION_KEY,
+  ADMIN_SECTION_KEYS,
+} from "./admin/adminSectionKeys";
 import { admissionConfigs } from "./admin/configs/admission";
 import { boardConfigs } from "./admin/configs/board";
 import { goalConfigs } from "./admin/configs/goal";
@@ -173,6 +178,21 @@ const CONFIGS = {
   ...revenueConfigs,
   ...goalConfigs,
 };
+
+// App.jsx의 ADMIN_SECTION_KEYS(라우트 목록, adminSectionKeys.ts)와 여기 CONFIGS가
+// 어긋나면 새 config 키를 추가하고도 라우트를 안 만든(또는 반대) 상태로 배포될 수
+// 있다 — dev에서만 즉시 알아채도록 콘솔 경고를 낸다(빌드 실패로는 만들지 않는다,
+// 두 파일이 물리적으로 분리돼 있어야 하는 이유는 adminSectionKeys.ts 상단 주석 참고).
+if (import.meta.env.DEV) {
+  const declared = [...ADMIN_SECTION_KEYS].sort();
+  const actual = Object.keys(CONFIGS).sort();
+  if (JSON.stringify(declared) !== JSON.stringify(actual)) {
+    console.error(
+      "[admin] adminSectionKeys.ts와 CONFIGS가 어긋났습니다 — 라우트 목록을 갱신하세요.",
+      { declared, actual },
+    );
+  }
+}
 
 // config.custom인 5개 config가 렌더할 실제 컴포넌트를 config.customComponentKey
 // 문자열 → 컴포넌트 함수로 조회하는 간접 레이어. CONFIGS 리터럴 안에 컴포넌트
@@ -2625,21 +2645,48 @@ function MoneySummary({ activeKey, rows }) {
   );
 }
 
-export default function Admin() {
-  const [activeKey, setActiveKey] = useState("popups");
-  const [mode, setMode] = useState("list");
+// 섹션(=CONFIGS 키)마다 App.jsx가 개별 <Route>로 매핑하고, 그 라우트의 element가
+// 이 컴포넌트를 section prop과 함께 렌더한다(라우트 정의는 adminSectionKeys.ts +
+// App.jsx 참고) — activeKey는 더 이상 내부 state가 아니라 어느 라우트가
+// 매칭됐는지로 결정된다. 섹션이 바뀌면 다른 라우트가 매칭되어 이 컴포넌트가
+// 통째로 새로 마운트되므로, 예전 changeTab이 손으로 초기화하던
+// mode/editingRow/pendingSection/keyword/searchTerm/page/pendingCreateDefaults는
+// 전부 마운트 시점의 useState 초기값으로 자연히 리셋된다.
+export function AdminSectionRoute({ section }: { section: string }) {
+  const activeKey = section;
+  const navigate = useNavigate();
+  const location = useLocation();
+  // 다른 섹션에서 navigateWithPrefill로 건너온 1회성 등록 프리필(§4-3-C-4 원클릭
+  // 컷 만들기). react-router의 location.state로 나른다 — 예전에는 같은 컴포넌트
+  // 인스턴스 안에서 setActiveKey 다음에 setPendingCreateDefaults를 같은 배치로
+  // 불러 순서만 보장하면 됐지만, 지금은 탭 전환이 실제 라우트 전환(다른 컴포넌트
+  // 인스턴스로 마운트)이라 이동 전 인스턴스의 state를 그대로 넘길 수 없다.
+  const initialPrefill = location.state?.prefillCreateDefaults ?? null;
+  const [mode, setMode] = useState(initialPrefill ? "create" : "list");
   const [editingRow, setEditingRow] = useState<AdminRow | null>(null);
   // 목록 셀 [수정]으로 진입할 때 폼이 마운트되자마자 열 섹션 키. null이면
   // 기존 ✏️ 경로(폼 화면부터). AdminForm의 initialSection/origin으로만 쓰인다.
   const [pendingSection, setPendingSection] = useState<string | null>(null);
   // 다른 탭에서 넘겨 온 신규 등록 프리필. pendingSection과 같은 성격이지만
   // 결정적으로 다른 점이 하나 있다 — changeTab이 이 값을 지우지 않는다.
-  // 공급자(학생 상세의 "이 조합의 컷 만들기")가 changeTab으로 탭을 옮긴 뒤
+  // 공급자(학생 상세의 "이 조합의 컷 만들기")가 navigateWithPrefill로 탭을 옮긴 뒤
   // 폼을 여는 구조라, 여기서 리셋하면 프리필이 통째로 사라진다.
   // 대신 소비 직후(취소·저장) 와 수동 [등록] 클릭 시 비운다 — 1회성 값이다.
   // 기본값 null이라 이 state를 쓰지 않는 기존 44개 탭은 동작이 바뀌지 않는다.
   const [pendingCreateDefaults, setPendingCreateDefaults] =
-    useState<Partial<AdminRow> | null>(null);
+    useState<Partial<AdminRow> | null>(initialPrefill);
+  // location.state는 History API의 history.state에 실려 새로고침 후에도 남는다 —
+  // 마운트 시 1회 소비한 뒤 지워서, 이 섹션에서 새로고침해도 프리필이 재적용되지
+  // 않게 한다(등록 폼이 반복해서 다시 뜨는 걸 막는다). 마운트 시점 값만 봐야 하는
+  // 1회성 효과라 initialPrefill/navigate/location을 deps에 넣지 않는다 — 넣으면
+  // 정리 직후(state: null) 자기 자신이 다시 걸려 무한 반복하거나, 이후 같은
+  // 섹션 안에서의 navigate 호출에도 재실행된다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 위 설명 참고 — 마운트 1회성 효과.
+  useEffect(() => {
+    if (!initialPrefill) return;
+    navigate(location.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // 목록 CRUD(등록·수정·삭제) 성공 횟수. ListSummary가 "자기 집계를 다시 읽어야
   // 하는 시점"을 아는 유일한 신호다 — loadRows()는 목록 rows만 새로 받고
   // ListSummary가 스스로 던지는 집계 쿼리(예: GoalCutsOverviewBlock의 head
@@ -2785,25 +2832,23 @@ export default function Admin() {
     setTotalCount(paginate ? (count ?? 0) : nextRows.length);
   }
 
-  // 탭 전환. 목록 상태 초기화를 useEffect([activeKey])가 아니라 클릭 시점에 한
-  // 번에 묶는다 — 효과로 늦게 되돌리면 서버 페이지네이션 탭에서 "activeKey 변경 →
-  // (옛 page로) 조회 → page/keyword 리셋 → 재조회"로 요청이 두 번 나간다.
-  function changeTab(key) {
-    setActiveKey(key);
-    setMode("list");
-    setEditingRow(null);
-    setPendingSection(null);
-    setMetaEditRow(null);
-    setKeyword("");
-    setSearchTerm("");
-    setPage(1);
-    // 1회성 프리필은 탭을 옮기면 무조건 버린다. 남겨 두면 "학생 상세 →
-    // 컷 만들기 → (취소하지 않고) 다른 탭으로 이동" 뒤 그 탭의 등록 폼에
-    // 엉뚱한 컬럼(university_name 등)이 섞여 들어간다.
-    // 프리필 경로는 깨지지 않는다 — 공급자(GoalStudentDetail.createCutFromSlot)가
-    // onNavigate → onPrefillCreate 순서로 부르므로 같은 배치 안에서 null이
-    // 먼저, 값이 나중에 적용된다.
-    setPendingCreateDefaults(null);
+  // 탭 전환. 이제 activeKey는 다른 <Route>로의 실제 이동이다 — 이동한 순간 이
+  // 컴포넌트는 언마운트되고 목적지 섹션의 인스턴스가 새로 마운트되므로,
+  // 예전처럼 mode/editingRow/pendingSection/keyword/searchTerm/page를 손으로
+  // 하나하나 리셋할 필요가 없다(각 useState 초기값이 그 일을 대신한다).
+  function changeTab(key: string) {
+    navigate(`/admin/${key}`);
+  }
+
+  // "이 조합의 컷 만들기"(§4-3-C-4) 전용 — 다른 섹션으로 이동하면서 그 섹션의
+  // 등록 폼을 프리필값과 함께 바로 연다. 일반 changeTab과 분리한 이유: 프리필값은
+  // location.state로 실어야 목적지 인스턴스(마운트 시점)가 읽을 수 있다 — 지금
+  // 인스턴스의 setState는 이동과 동시에 버려진다.
+  function navigateWithPrefill(
+    key: string,
+    prefillCreateDefaults: Record<string, unknown>,
+  ) {
+    navigate(`/admin/${key}`, { state: { prefillCreateDefaults } });
   }
 
   // 검색어 디바운스. 확정되는 순간 1페이지로 되돌린다 — 5페이지를 보다 검색하면
@@ -2845,11 +2890,6 @@ export default function Admin() {
     const lastPage = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
     if (page > lastPage) setPage(lastPage);
   }, [config.serverPaginate, totalCount, page]);
-
-  async function logout() {
-    await supabase.auth.signOut();
-    window.location.replace("/");
-  }
 
   // uploadImage는 컴포넌트 상태에 의존하지 않는 순수 함수라 모듈 스코프로 뺐다 — PremiumBookAdmin의
   // 제네릭 개별 페이지 편집(AdminForm onUpload)에서도 그대로 재사용한다. 정의는 파일 하단, Admin() 선언
@@ -3115,6 +3155,273 @@ export default function Admin() {
     downloadCsvText(filename, csvHeader(config.columns), parts.join("\n"));
   }
 
+  // 사이드바/탑바는 AdminLayout(부모 라우트, <Outlet/> 을 감싸는 영속 셸)이 그린다 —
+  // 여기서는 섹션 본문만 반환한다. AdminLayout의 배치(ml-[224px] pt-[56px] 등)는
+  // 예전에 이 컴포넌트의 <main>/바깥 div가 지던 책임을 그대로 넘겨받았다.
+  return (
+    <>
+      {config.custom ? (
+        // custom: true 인 config 는 전부 customComponentKey를 지정한다(coupons /
+        // premiumBookPages / mentorApplications / learningDiagnosis / goalStudents) —
+        // 실제 컴포넌트는 CUSTOM_COMPONENT_REGISTRY[key]로 조회한다(렌더 결과·동작은
+        // 과거 config.CustomComponent 직접 참조와 동일, 조회 방식만 간접화됐다).
+        //
+        // 🔴 공용 변경 (e) — 명세 §4-1-3 의 (a)~(d) 에 없던 5번째 항목이다.
+        //   왜 필요한가: 토대 단계가 pendingCreateDefaults state 를 만들었지만
+        //   **공급자가 생길 통로가 없었다.** 그 유일한 공급자는 학생 상세의
+        //   "이 조합의 컷 만들기"(명세 §4-3-C-4)인데, 그 화면은 customComponentKey 로
+        //   렌더되고 이 줄이 props 를 하나도 넘기지 않았다. 그래서 버튼을 눌러도
+        //   탭을 옮기거나 폼을 열 수단이 없다.
+        //   기존 소비처 무영향 근거: onNavigateWithPrefill을 실제로 쓰는 컴포넌트는
+        //   goalStudents뿐이고 나머지(coupons / premiumBookPages /
+        //   mentorApplications / learningDiagnosis)는 인자를 받지 않는 함수 선언이라
+        //   여분의 props를 그냥 무시한다.
+        //
+        // config={config}: PremiumBookAdmin/MentorApplicationsAdmin/GoalStudentsAdmin이
+        // 별도 파일로 분리되며 CONFIGS.<ownKey> 대신 이 prop을 읽는다(3단계) — activeKey가
+        // 곧 그 config의 키이므로 CONFIGS[activeKey]와 항상 같은 값이다. coupons/
+        // learningDiagnosis는 이 prop을 읽지 않고 그냥 무시한다.
+        (() => {
+          const CustomComponent =
+            CUSTOM_COMPONENT_REGISTRY[config.customComponentKey];
+          return (
+            <CustomComponent
+              config={config}
+              onNavigateWithPrefill={navigateWithPrefill}
+            />
+          );
+        })()
+      ) : mode === "list" ? (
+        config.comingSoon ? (
+          <div className="bg-white p-10 shadow">
+            <h1 className="text-2xl font-black text-[#111827]">
+              {config.title}
+            </h1>
+            <p className="mt-3 text-sm font-bold text-gray-500">
+              {config.description}
+            </p>
+            <div className="mt-6 rounded border border-[#B88737]/30 bg-[#FFF8E8] px-5 py-4 text-sm font-bold text-[#7A4A12]">
+              이 메뉴는 추후 별도 Supabase 연결 후 활성화됩니다.
+            </div>
+          </div>
+        ) : (
+          <>
+            {config.tabs && (
+              <div className="mb-4 flex gap-2">
+                {config.tabs.map((tab) => (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => changeTab(tab.key)}
+                    className={`h-9 border px-5 text-sm font-black transition ${
+                      activeKey === tab.key
+                        ? "border-[#2348ff] bg-[#2348ff] text-white"
+                        : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="mb-6 bg-white px-6 py-5 shadow">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={loadRows}
+                    className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+                  >
+                    <RefreshCw size={14} />
+                    초기화
+                  </button>
+
+                  {(config.excel ||
+                    [
+                      "members",
+                      "payments",
+                      "settlements",
+                      "dailySettlements",
+                      "refunds",
+                    ].includes(activeKey)) && (
+                    <button
+                      type="button"
+                      onClick={downloadExcel}
+                      disabled={Boolean(exporting)}
+                      className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Download size={14} />
+                      {exporting
+                        ? `내보내는 중 ${Math.floor((exporting.done / Math.max(1, exporting.total)) * 100)}%`
+                        : "엑셀 다운로드"}
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    value={keyword}
+                    onChange={(e) => setKeyword(e.target.value)}
+                    placeholder={config.searchPlaceholder}
+                    className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-none"
+                  />
+                  <button
+                    type="button"
+                    className="inline-flex h-9 items-center gap-1 border border-l-0 border-gray-500 bg-white px-4 text-sm font-bold"
+                  >
+                    <Search size={14} />
+                    검색
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <h1 className="text-xl font-black">{config.title}</h1>
+                  {config.homepage && (
+                    <div className="mt-1 space-y-1">
+                      <p className="text-sm font-bold text-red-500">
+                        이 메뉴에서 저장한 내용은 실제 홈페이지에 반영됩니다.
+                      </p>
+
+                      {config.guideText && (
+                        <p className="whitespace-pre-line text-sm font-black leading-6 text-red-600">
+                          {config.guideText}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {config.retentionNotice && (
+                    <p className="mt-1 text-xs font-bold text-gray-500">
+                      {config.retentionNotice}
+                    </p>
+                  )}
+                </div>
+
+                {!config.noCreate && !config.readOnly && (
+                  <button
+                    type="button"
+                    onClick={createRow}
+                    className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white shrink-0 whitespace-nowrap"
+                  >
+                    <Plus size={14} />
+                    등록
+                  </button>
+                )}
+              </div>
+
+              {/* rowCapWarning은 "전량 로드가 1,000행 상한에 잘렸다"는 경고라
+                      config.serverPaginate 탭에는 선언하지 않는다 — 그쪽은 .range()로
+                      PAGE_SIZE행만 받고 전체 건수를 count로 따로 받으므로 상한 자체에
+                      닿지 않는다. */}
+              {config.rowCapWarning && rows.length >= 1000 && (
+                <p className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
+                  조회된 건수가 1,000건에 도달했습니다 — Supabase 기본 조회
+                  상한으로 오래된 신청 건이 목록에서 빠졌을 수 있습니다. 전체
+                  건수가 아닙니다.
+                </p>
+              )}
+
+              {exporting && (
+                <p className="mt-4 rounded border border-[#c7d2fe] bg-[#eef2ff] px-4 py-3 text-sm font-black leading-6 text-[#2348ff]">
+                  CSV 내보내는 중 — {exporting.done.toLocaleString()} /{" "}
+                  {exporting.total.toLocaleString()}건. 완료될 때까지 이 화면을
+                  닫지 마세요.
+                </p>
+              )}
+            </div>
+
+            <MoneySummary activeKey={activeKey} rows={filteredRows} />
+            {/* mutationSeq: 목록 CRUD 성공 시에만 올라가는 카운터. 자기 집계를
+                    따로 던지는 ListSummary(현재 GoalCutsListSummary 하나)가 이 값을
+                    보고 다시 읽는다. 이 prop을 받지 않는 기존 3개
+                    (AcceptanceRateSummary / AdmissionListSummary /
+                    AdmissionResultsListSummary)는 전부 props를 구조분해로 받으므로
+                    추가 prop을 그냥 무시한다 — 회귀 없음. */}
+            {ListSummaryComponent && (
+              <ListSummaryComponent
+                rows={rows}
+                onReload={loadRows}
+                mutationSeq={mutationSeq}
+              />
+            )}
+
+            {loading ? (
+              <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+                데이터를 불러오는 중입니다.
+              </div>
+            ) : (
+              <AdminTable
+                config={config}
+                rows={filteredRows}
+                page={page}
+                setPage={setPage}
+                totalCount={totalCount}
+                onEdit={editRow}
+                onDelete={deleteRow}
+                activeKey={activeKey}
+                onCompleteRefund={completeRefund}
+                onOpenSection={openRowSection}
+                onOpenMetaEdit={setMetaEditRow}
+              />
+            )}
+
+            {metaEditRow && (
+              <AdmissionMetaEditModal
+                row={metaEditRow}
+                onClose={() => setMetaEditRow(null)}
+                onSave={(form) => saveAdmissionMeta(metaEditRow, form)}
+              />
+            )}
+          </>
+        )
+      ) : (
+        <AdminForm
+          config={config}
+          mode={mode}
+          row={editingRow}
+          origin={pendingSection ? "list" : "form"}
+          initialSection={pendingSection}
+          createDefaults={pendingCreateDefaults}
+          onCancel={() => {
+            setMode("list");
+            setEditingRow(null);
+            setPendingSection(null);
+            setPendingCreateDefaults(null);
+          }}
+          onSave={saveRow}
+          onUpload={uploadImage}
+        />
+      )}
+    </>
+  );
+}
+
+// /admin의 영속 셸 — 사이드바(AdminSidebar) + 탑바(AdminTopbar) + 섹션 본문(Outlet).
+// App.jsx가 /admin 부모 라우트의 element로 이 컴포넌트를 쓰고, 그 아래 자식
+// 라우트로 ADMIN_SECTION_KEYS(adminSectionKeys.ts) 각각을 개별 <Route path={key}
+// element={<AdminSectionRoute section={key} />} />로 매핑한다 — 섹션이 바뀔 때
+// Outlet 안쪽(AdminSectionRoute)만 새로 마운트되고, 이 셸(사이드바 펼침 상태
+// 등)은 그대로 유지된다.
+export function AdminLayout() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  // 사이드바 하이라이트용 activeKey — 라우팅 매칭(어느 config를 쓸지 결정하는 것)에는
+  // 관여하지 않는다. 그건 App.jsx의 개별 <Route path={key}> 매칭이 이미 끝낸 일이고,
+  // 여기서는 그 결과인 URL을 보고 "지금 어느 메뉴가 눌려 있어 보여야 하는가"만 고른다.
+  const activeKey =
+    location.pathname.replace(/^\/admin\/?/, "") || ADMIN_DEFAULT_SECTION_KEY;
+
+  function changeTab(key: string) {
+    navigate(`/admin/${key}`);
+  }
+
+  async function logout() {
+    await supabase.auth.signOut();
+    window.location.replace("/");
+  }
+
   return (
     <div className="min-h-screen bg-[#f4f4f4] text-[#111827]">
       <AdminSidebar activeKey={activeKey} setActiveKey={changeTab} />
@@ -3122,245 +3429,7 @@ export default function Admin() {
 
       <main className="ml-[224px] pt-[56px]">
         <div className="min-h-[calc(100vh-56px)] px-7 py-8">
-          {config.custom ? (
-            // custom: true 인 config 는 전부 customComponentKey를 지정한다(coupons /
-            // premiumBookPages / mentorApplications / learningDiagnosis / goalStudents) —
-            // 실제 컴포넌트는 CUSTOM_COMPONENT_REGISTRY[key]로 조회한다(렌더 결과·동작은
-            // 과거 config.CustomComponent 직접 참조와 동일, 조회 방식만 간접화됐다).
-            //
-            // 🔴 공용 변경 (e) — 명세 §4-1-3 의 (a)~(d) 에 없던 5번째 항목이다.
-            //   왜 필요한가: 토대 단계가 pendingCreateDefaults state 를 만들었지만
-            //   **공급자가 생길 통로가 없었다.** 그 유일한 공급자는 학생 상세의
-            //   "이 조합의 컷 만들기"(명세 §4-3-C-4)인데, 그 화면은 customComponentKey 로
-            //   렌더되고 이 줄이 props 를 하나도 넘기지 않았다. 그래서 버튼을 눌러도
-            //   탭을 옮기거나 폼을 열 수단이 없다.
-            //   기존 소비처 무영향 근거: onNavigate/onPrefillCreate를 실제로 쓰는
-            //   컴포넌트는 goalStudents뿐이고 나머지(coupons / premiumBookPages /
-            //   mentorApplications / learningDiagnosis)는 인자를 받지 않는 함수 선언이라
-            //   여분의 props를 그냥 무시한다.
-            //
-            // config={config}: PremiumBookAdmin/MentorApplicationsAdmin/GoalStudentsAdmin이
-            // 별도 파일로 분리되며 CONFIGS.<ownKey> 대신 이 prop을 읽는다(3단계) — activeKey가
-            // 곧 그 config의 키이므로 CONFIGS[activeKey]와 항상 같은 값이다. coupons/
-            // learningDiagnosis는 이 prop을 읽지 않고 그냥 무시한다.
-            (() => {
-              const CustomComponent =
-                CUSTOM_COMPONENT_REGISTRY[config.customComponentKey];
-              return (
-                <CustomComponent
-                  config={config}
-                  onNavigate={changeTab}
-                  onPrefillCreate={(values) => {
-                    setPendingCreateDefaults(values);
-                    setMode("create");
-                  }}
-                />
-              );
-            })()
-          ) : mode === "list" ? (
-            config.comingSoon ? (
-              <div className="bg-white p-10 shadow">
-                <h1 className="text-2xl font-black text-[#111827]">
-                  {config.title}
-                </h1>
-                <p className="mt-3 text-sm font-bold text-gray-500">
-                  {config.description}
-                </p>
-                <div className="mt-6 rounded border border-[#B88737]/30 bg-[#FFF8E8] px-5 py-4 text-sm font-bold text-[#7A4A12]">
-                  이 메뉴는 추후 별도 Supabase 연결 후 활성화됩니다.
-                </div>
-              </div>
-            ) : (
-              <>
-                {config.tabs && (
-                  <div className="mb-4 flex gap-2">
-                    {config.tabs.map((tab) => (
-                      <button
-                        key={tab.key}
-                        type="button"
-                        onClick={() => changeTab(tab.key)}
-                        className={`h-9 border px-5 text-sm font-black transition ${
-                          activeKey === tab.key
-                            ? "border-[#2348ff] bg-[#2348ff] text-white"
-                            : "border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-                        }`}
-                      >
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mb-6 bg-white px-6 py-5 shadow">
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={loadRows}
-                        className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
-                      >
-                        <RefreshCw size={14} />
-                        초기화
-                      </button>
-
-                      {(config.excel ||
-                        [
-                          "members",
-                          "payments",
-                          "settlements",
-                          "dailySettlements",
-                          "refunds",
-                        ].includes(activeKey)) && (
-                        <button
-                          type="button"
-                          onClick={downloadExcel}
-                          disabled={Boolean(exporting)}
-                          className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <Download size={14} />
-                          {exporting
-                            ? `내보내는 중 ${Math.floor((exporting.done / Math.max(1, exporting.total)) * 100)}%`
-                            : "엑셀 다운로드"}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center">
-                      <input
-                        value={keyword}
-                        onChange={(e) => setKeyword(e.target.value)}
-                        placeholder={config.searchPlaceholder}
-                        className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-none"
-                      />
-                      <button
-                        type="button"
-                        className="inline-flex h-9 items-center gap-1 border border-l-0 border-gray-500 bg-white px-4 text-sm font-bold"
-                      >
-                        <Search size={14} />
-                        검색
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between gap-4">
-                    <div className="min-w-0">
-                      <h1 className="text-xl font-black">{config.title}</h1>
-                      {config.homepage && (
-                        <div className="mt-1 space-y-1">
-                          <p className="text-sm font-bold text-red-500">
-                            이 메뉴에서 저장한 내용은 실제 홈페이지에
-                            반영됩니다.
-                          </p>
-
-                          {config.guideText && (
-                            <p className="whitespace-pre-line text-sm font-black leading-6 text-red-600">
-                              {config.guideText}
-                            </p>
-                          )}
-                        </div>
-                      )}
-                      {config.retentionNotice && (
-                        <p className="mt-1 text-xs font-bold text-gray-500">
-                          {config.retentionNotice}
-                        </p>
-                      )}
-                    </div>
-
-                    {!config.noCreate && !config.readOnly && (
-                      <button
-                        type="button"
-                        onClick={createRow}
-                        className="inline-flex h-9 items-center gap-1 bg-[#2348ff] px-4 text-sm font-black text-white shrink-0 whitespace-nowrap"
-                      >
-                        <Plus size={14} />
-                        등록
-                      </button>
-                    )}
-                  </div>
-
-                  {/* rowCapWarning은 "전량 로드가 1,000행 상한에 잘렸다"는 경고라
-                      config.serverPaginate 탭에는 선언하지 않는다 — 그쪽은 .range()로
-                      PAGE_SIZE행만 받고 전체 건수를 count로 따로 받으므로 상한 자체에
-                      닿지 않는다. */}
-                  {config.rowCapWarning && rows.length >= 1000 && (
-                    <p className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
-                      조회된 건수가 1,000건에 도달했습니다 — Supabase 기본 조회
-                      상한으로 오래된 신청 건이 목록에서 빠졌을 수 있습니다.
-                      전체 건수가 아닙니다.
-                    </p>
-                  )}
-
-                  {exporting && (
-                    <p className="mt-4 rounded border border-[#c7d2fe] bg-[#eef2ff] px-4 py-3 text-sm font-black leading-6 text-[#2348ff]">
-                      CSV 내보내는 중 — {exporting.done.toLocaleString()} /{" "}
-                      {exporting.total.toLocaleString()}건. 완료될 때까지 이
-                      화면을 닫지 마세요.
-                    </p>
-                  )}
-                </div>
-
-                <MoneySummary activeKey={activeKey} rows={filteredRows} />
-                {/* mutationSeq: 목록 CRUD 성공 시에만 올라가는 카운터. 자기 집계를
-                    따로 던지는 ListSummary(현재 GoalCutsListSummary 하나)가 이 값을
-                    보고 다시 읽는다. 이 prop을 받지 않는 기존 3개
-                    (AcceptanceRateSummary / AdmissionListSummary /
-                    AdmissionResultsListSummary)는 전부 props를 구조분해로 받으므로
-                    추가 prop을 그냥 무시한다 — 회귀 없음. */}
-                {ListSummaryComponent && (
-                  <ListSummaryComponent
-                    rows={rows}
-                    onReload={loadRows}
-                    mutationSeq={mutationSeq}
-                  />
-                )}
-
-                {loading ? (
-                  <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
-                    데이터를 불러오는 중입니다.
-                  </div>
-                ) : (
-                  <AdminTable
-                    config={config}
-                    rows={filteredRows}
-                    page={page}
-                    setPage={setPage}
-                    totalCount={totalCount}
-                    onEdit={editRow}
-                    onDelete={deleteRow}
-                    activeKey={activeKey}
-                    onCompleteRefund={completeRefund}
-                    onOpenSection={openRowSection}
-                    onOpenMetaEdit={setMetaEditRow}
-                  />
-                )}
-
-                {metaEditRow && (
-                  <AdmissionMetaEditModal
-                    row={metaEditRow}
-                    onClose={() => setMetaEditRow(null)}
-                    onSave={(form) => saveAdmissionMeta(metaEditRow, form)}
-                  />
-                )}
-              </>
-            )
-          ) : (
-            <AdminForm
-              config={config}
-              mode={mode}
-              row={editingRow}
-              origin={pendingSection ? "list" : "form"}
-              initialSection={pendingSection}
-              createDefaults={pendingCreateDefaults}
-              onCancel={() => {
-                setMode("list");
-                setEditingRow(null);
-                setPendingSection(null);
-                setPendingCreateDefaults(null);
-              }}
-              onSave={saveRow}
-              onUpload={uploadImage}
-            />
-          )}
+          <Outlet />
         </div>
       </main>
     </div>

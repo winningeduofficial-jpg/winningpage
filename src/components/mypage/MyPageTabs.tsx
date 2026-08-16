@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router";
 
 // 마이페이지 탭바(Figma 3762:18713 학생/멘토, 3762:20390 학부모).
 // 탭 상태는 URL 쿼리 `?tab=`로 관리한다(MyPage.jsx) — 새로고침·공유 링크에서도

@@ -20,7 +20,7 @@
 import { Check } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { AGREEMENT_COPY } from "../../data/mentorApply";
 
 // 시안 색은 필수 #0B84FD(accent) / 선택 #D9D9D9 다. 선택 배지에 #D9D9D9(=line 토큰) 을 그대로

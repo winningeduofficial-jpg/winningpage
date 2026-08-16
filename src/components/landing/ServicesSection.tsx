@@ -10,7 +10,7 @@ import {
   Users,
 } from "lucide-react";
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { SERVICE_NAME_ROUTES } from "../../data/navigation";
 import { resolvePromotedSlugLink } from "../../hooks/useNavGroups";
 

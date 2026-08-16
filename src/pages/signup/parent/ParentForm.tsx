@@ -15,7 +15,7 @@
 //   코드를 반복 전송하지 않도록 마지막 시도값을 기억한다 — 지웠다 다시 입력하는
 //   것만으로 시도가 깎이면 안 된다.
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AgreementList,
   AuthLayout,

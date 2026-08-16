@@ -5,7 +5,7 @@
 // 링크 이동 — §3.3 F: "별도 풀페이지가 존재하므로 페이지 이동으로 추정" 채택).
 import { Check, ChevronRight } from "lucide-react";
 import type { CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 type AgreementRowProps = {
   label: string;

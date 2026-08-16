@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { openPaidServiceOrAlert } from "../lib/paidServiceAccess";
 import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";

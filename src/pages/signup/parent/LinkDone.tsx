@@ -8,7 +8,7 @@
 //   없는 자녀 데이터를 보여주는 화면이 된다. 그래서 지표 블록을 걷어내고 대기 상태를
 //   명시한다. 지표는 승인 이후 화면(마이페이지)에 데이터 소스가 생기면 그쪽에 붙는 게 맞다.
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,

@@ -30,7 +30,7 @@ import { Check } from "lucide-react";
 // 3원칙 1번 위반)는 전부 단일값 text-[1.125rem] 로 정리했다.
 // CTA 는 인라인 style={{ backgroundColor: BRAND_NAVY }} 대신 클래스 리터럴 bg-[#013262] 를 쓴다.
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { formatKRW } from "../../data/pricingCatalog";
 import { useProducts } from "../../lib/products";
 import ServiceSection from "./ServiceSection";

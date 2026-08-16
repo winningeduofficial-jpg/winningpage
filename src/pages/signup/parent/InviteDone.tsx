@@ -3,7 +3,7 @@
 // 연결 로직은 전부 백엔드 신규(§4.2-3 GAP) — inviteUrl은 공통 가입 링크 mock 값
 // (토큰 딥링크 미사용, 2026-07-30 기획 결정).
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,

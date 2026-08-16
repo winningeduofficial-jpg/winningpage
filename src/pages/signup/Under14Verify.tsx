@@ -19,7 +19,7 @@
 
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,

@@ -1,6 +1,6 @@
 import type { MutableRefObject } from "react";
 import { useCallback, useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import heroGrain from "../../assets/renewal/landing/hero-grain.png";
 import iconFolder from "../../assets/renewal/landing/icon-folder-v2.png";
 import iconLock from "../../assets/renewal/landing/icon-lock-v2.png";

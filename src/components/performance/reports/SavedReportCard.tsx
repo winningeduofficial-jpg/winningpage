@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import ArtifactChip from "./ArtifactChip";
 
 // 저장 리포트 목록 카드 — docs/수행평가-상세-명세.md §5.18(`3754:3121`)/§7.3 실측.

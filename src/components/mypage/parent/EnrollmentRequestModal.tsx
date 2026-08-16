@@ -1,5 +1,5 @@
 import { useCallback, useId, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { formatKRW } from "../../../data/pricingCatalog";
 import { supabase } from "../../../lib/supabase";
 import MyPageModalShell from "../MyPageModalShell";

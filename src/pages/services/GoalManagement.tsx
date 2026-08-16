@@ -1,5 +1,5 @@
 import type { CSSProperties, MutableRefObject } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import audienceDirection from "../../assets/services/goal/audience-direction.png";
 import audienceExecution from "../../assets/services/goal/audience-execution.png";
 import audienceGoal from "../../assets/services/goal/audience-goal.png";

@@ -1,6 +1,6 @@
 import type { ReactNode, RefObject } from "react";
 import { forwardRef, useEffect, useEffectEvent, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams } from "react-router";
 import AiLoadingBubble from "../../components/performance/chat/AiLoadingBubble";
 import ChatTimeline, {
   type PerformanceChatMessage,
