@@ -591,20 +591,10 @@ function CategorySectionButton({
 // 제목에 있어 필드 라벨을 반복할 이유가 없다.
 function AdmissionGroupField({
   field,
-  form,
-  readonly: _readonly,
-  onChange: _onChange,
-  onPatch,
-  onDirty,
+  children,
 }: {
   field: AdminField;
-  form: AdminRow;
-  // exactOptionalPropertyTypes: 호출부(config.readOnly)가 boolean | undefined를
-  // 명시적으로 넘기므로 undefined도 프로퍼티 타입에 포함한다(AdminInput disabled와 동일 이유).
-  readonly?: boolean | undefined;
-  onChange: (key: string, value: any) => void;
-  onPatch: (patch: AdminRow) => void;
-  onDirty: () => void;
+  children: ReactNode;
 }) {
   if (field.type !== "admissionDoc") return null;
   return (
@@ -615,12 +605,7 @@ function AdmissionGroupField({
       className="admission-surface border-b border-[#edf0f4] py-4"
       data-section={field.group}
     >
-      <AdmissionDocFieldEditor
-        field={field}
-        form={form}
-        onPatch={onPatch}
-        onDirty={onDirty}
-      />
+      {children}
     </div>
   );
 }
@@ -1322,15 +1307,14 @@ export function AdminForm<T extends AdminRow = AdminRow>({
         onSave={() => formRef.current?.requestSubmit()}
       >
         {groupFields.map((field) => (
-          <AdmissionGroupField
-            key={field.key}
-            field={field}
-            form={form}
-            readonly={readonly}
-            onChange={change}
-            onPatch={patch}
-            onDirty={() => setDirty(true)}
-          />
+          <AdmissionGroupField key={field.key} field={field}>
+            <AdmissionDocFieldEditor
+              field={field}
+              form={form}
+              onPatch={patch}
+              onDirty={() => setDirty(true)}
+            />
+          </AdmissionGroupField>
         ))}
       </AdmissionSectionEditModal>
     </>
