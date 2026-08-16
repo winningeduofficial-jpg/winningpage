@@ -1,10 +1,9 @@
 import { useEffect } from "react";
 import {
   createBrowserRouter,
-  createRoutesFromElements,
   Navigate,
   Outlet,
-  Route,
+  type RouteObject,
   RouterProvider,
   useLocation,
 } from "react-router";
@@ -50,37 +49,43 @@ function RootLayout() {
   );
 }
 
-const routes = createRoutesFromElements(
-  <Route element={<RootLayout />}>
-    <Route element={<SiteLayout />}>
-      {homeRoutes()}
-      {diagnosisRoutes()}
-      {goalOnboardingRoutes()}
-      {serviceLandingRoutes()}
-      {admissionRoutes()}
-      {contentRoutes()}
-      {applyRoutes()}
-      {dynamicPageRoutes()}
-      {authRoutes()}
-      {termsRoutes()}
-      {mypageRoutes()}
-    </Route>
+const routes: RouteObject[] = [
+  {
+    Component: RootLayout,
+    children: [
+      {
+        Component: SiteLayout,
+        children: [
+          ...homeRoutes,
+          ...diagnosisRoutes,
+          ...goalOnboardingRoutes,
+          ...serviceLandingRoutes,
+          ...admissionRoutes,
+          ...contentRoutes,
+          ...applyRoutes,
+          ...dynamicPageRoutes,
+          ...authRoutes,
+          ...termsRoutes,
+          ...mypageRoutes,
+        ],
+      },
 
-    {/* 목표관리 학생 앱 — 사이드바 셸(GoalAppLayout) 그룹. SiteLayout 밖. */}
-    {goalAppRoutes()}
+      // 목표관리 학생 앱 — 사이드바 셸(GoalAppLayout) 그룹. SiteLayout 밖.
+      ...goalAppRoutes,
 
-    {/* 수행평가 학생 앱 — SessionProvider/RequireEntitlement 셸. SiteLayout 밖. */}
-    {performanceAppRoutes()}
+      // 수행평가 학생 앱 — SessionProvider/RequireEntitlement 셸. SiteLayout 밖.
+      ...performanceAppRoutes,
 
-    {standaloneRoutes()}
+      ...standaloneRoutes,
 
-    {adminRoutes()}
+      ...adminRoutes,
 
-    {demoRoutes()}
+      ...demoRoutes,
 
-    <Route path="*" element={<Navigate to="/" replace />} />
-  </Route>,
-);
+      { path: "*", Component: () => <Navigate to="/" replace /> },
+    ],
+  },
+];
 
 // middleware(가드 3종의 판정 로직, src/lib/routeMiddleware.ts)는 v8부터 기본
 // 활성화라 future.v8_middleware 옵션 자체가 사라졌다(react-router 8.3.0, 2026-08-15 범프).
