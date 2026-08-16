@@ -210,22 +210,22 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
     isOngoing,
   } = parsed;
 
-  const statusLabel = isOngoing
-    ? totalCount
-      ? `잔여 ${totalCount}회`
-      : "이용중"
-    : "이용완료";
+  const statusLabel = (() => {
+    if (!isOngoing) return "이용완료";
+    if (totalCount) return `잔여 ${totalCount}회`;
+    return "이용중";
+  })();
 
   // 카테고리별 메타 한 줄(좌/우) — 시안이 서비스 성격마다 다른 정보를 보여주므로 분기한다.
   let metaLeft = "-";
   let metaRight = "-";
   if (category === "session") {
     metaLeft = totalCount ? `${totalCount}회권` : "-";
-    metaRight = isOngoing
-      ? validityDays
-        ? `유효기간 ${validityDays}일`
-        : "-"
-      : formatDateSpaced(paidAt);
+    metaRight = (() => {
+      if (!isOngoing) return formatDateSpaced(paidAt);
+      if (validityDays) return `유효기간 ${validityDays}일`;
+      return "-";
+    })();
     if (!isOngoing)
       metaLeft = totalCount ? `총 ${totalCount}회 이용` : "이용 완료";
   } else if (category === "diagnosis") {
@@ -236,11 +236,11 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
       paidAt || endDate
         ? `${formatDate(paidAt)} ~ ${formatDate(endDate)}`
         : "-";
-    metaRight = isOngoing
-      ? remainingDays !== null
-        ? `${remainingDays}일 남음`
-        : "-"
-      : "만료";
+    metaRight = (() => {
+      if (!isOngoing) return "만료";
+      if (remainingDays !== null) return `${remainingDays}일 남음`;
+      return "-";
+    })();
   }
 
   const href = programLink(serviceName);

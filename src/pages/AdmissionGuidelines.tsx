@@ -1757,133 +1757,143 @@ export default function AdmissionGuidelines() {
                 </div>
               </div>
 
-              {universitiesLoading ? (
-                <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
-                  <p className="text-lg font-semibold text-[#525252]">
-                    대학 목록을 불러오는 중입니다.
-                  </p>
-                </div>
-              ) : universitiesError ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 py-16 text-center">
-                  <p className="text-lg font-semibold text-red-600">
-                    데이터를 불러오지 못했습니다.
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-red-400">
-                    잠시 후 다시 시도해주세요.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => window.location.reload()}
-                    className="mt-4 rounded-full border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100"
-                  >
-                    다시 시도
-                  </button>
-                </div>
-              ) : visibleUniversities.length === 0 ? (
-                <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
-                  <p className="text-lg font-semibold text-[#525252]">
-                    검색 결과가 없습니다.
-                  </p>
-                  <p className="mt-2 text-sm font-medium text-[#808080]">
-                    검색어를 지우거나 다른 지역을 선택하세요.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-[#8f8f8f] wide:hidden">
-                    좌우로 밀어 표를 확인하세요
-                    <ChevronRight className="h-3 w-3" />
-                  </p>
-                  {resourcesLoading ? (
-                    <p className="mb-2 text-xs font-semibold text-[#8f8f8f]">
-                      상세 자료를 불러오는 중입니다 — 잠시 후 &quot;보기&quot;
-                      버튼이 표시됩니다.
+              {(() => {
+                if (universitiesLoading)
+                  return (
+                    <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
+                      <p className="text-lg font-semibold text-[#525252]">
+                        대학 목록을 불러오는 중입니다.
+                      </p>
+                    </div>
+                  );
+                if (universitiesError)
+                  return (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 py-16 text-center">
+                      <p className="text-lg font-semibold text-red-600">
+                        데이터를 불러오지 못했습니다.
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-red-400">
+                        잠시 후 다시 시도해주세요.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="mt-4 rounded-full border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-100"
+                      >
+                        다시 시도
+                      </button>
+                    </div>
+                  );
+                if (visibleUniversities.length === 0)
+                  return (
+                    <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
+                      <p className="text-lg font-semibold text-[#525252]">
+                        검색 결과가 없습니다.
+                      </p>
+                      <p className="mt-2 text-sm font-medium text-[#808080]">
+                        검색어를 지우거나 다른 지역을 선택하세요.
+                      </p>
+                    </div>
+                  );
+                return (
+                  <>
+                    <p className="mb-2 flex items-center gap-1 text-xs font-semibold text-[#8f8f8f] wide:hidden">
+                      좌우로 밀어 표를 확인하세요
+                      <ChevronRight className="h-3 w-3" />
                     </p>
-                  ) : resourcesError ? (
-                    <p className="mb-2 text-xs font-semibold text-red-500">
-                      상세 자료를 불러오지 못했습니다. 새로고침 후 다시
-                      시도해주세요.
-                    </p>
-                  ) : null}
-                  <UniversityResourceTable
-                    universities={pagedUniversities}
-                    resourceIndex={resourceIndex}
-                    onOpenInfo={handleOpenInfo}
-                  />
+                    {resourcesLoading ? (
+                      <p className="mb-2 text-xs font-semibold text-[#8f8f8f]">
+                        상세 자료를 불러오는 중입니다 — 잠시 후 &quot;보기&quot;
+                        버튼이 표시됩니다.
+                      </p>
+                    ) : resourcesError ? (
+                      <p className="mb-2 text-xs font-semibold text-red-500">
+                        상세 자료를 불러오지 못했습니다. 새로고침 후 다시
+                        시도해주세요.
+                      </p>
+                    ) : null}
+                    <UniversityResourceTable
+                      universities={pagedUniversities}
+                      resourceIndex={resourceIndex}
+                      onOpenInfo={handleOpenInfo}
+                    />
 
-                  {totalPages > 1 ? (
-                    // 1882:1291(1882:1833) 실측: 화살표쌍 gap 9px, 블록간 gap 20px,
-                    // 번호 버튼은 32x32 정사각·간격 0(딱 붙음), 활성만 남색 필채움 원형.
-                    <nav
-                      className="mt-8 flex flex-wrap items-center justify-center gap-5"
-                      aria-label="페이지네이션"
-                    >
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => goToPage(1)}
-                          disabled={safeCurrentPage === 1}
-                          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
-                          aria-label="처음 페이지"
-                        >
-                          <ChevronsLeft className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            goToPage(Math.max(1, safeCurrentPage - 1))
-                          }
-                          disabled={safeCurrentPage === 1}
-                          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
-                          aria-label="이전 페이지"
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </button>
-                      </div>
-
-                      <div className="flex items-center">
-                        {paginationNumbers.map((pageNumber) => (
+                    {totalPages > 1 ? (
+                      // 1882:1291(1882:1833) 실측: 화살표쌍 gap 9px, 블록간 gap 20px,
+                      // 번호 버튼은 32x32 정사각·간격 0(딱 붙음), 활성만 남색 필채움 원형.
+                      <nav
+                        className="mt-8 flex flex-wrap items-center justify-center gap-5"
+                        aria-label="페이지네이션"
+                      >
+                        <div className="flex items-center gap-2">
                           <button
-                            key={pageNumber}
                             type="button"
-                            onClick={() => goToPage(pageNumber)}
-                            className={`flex h-8 w-8 items-center justify-center rounded-full text-base tracking-[-0.02em] transition ${
-                              pageNumber === safeCurrentPage
-                                ? "bg-[#013262] font-medium text-white"
-                                : "font-normal text-[#525252] hover:text-[#013262]"
-                            }`}
+                            onClick={() => goToPage(1)}
+                            disabled={safeCurrentPage === 1}
+                            className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="처음 페이지"
                           >
-                            {pageNumber}
+                            <ChevronsLeft className="h-4 w-4" />
                           </button>
-                        ))}
-                      </div>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              goToPage(Math.max(1, safeCurrentPage - 1))
+                            }
+                            disabled={safeCurrentPage === 1}
+                            className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="이전 페이지"
+                          >
+                            <ChevronLeft className="h-4 w-4" />
+                          </button>
+                        </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            goToPage(Math.min(totalPages, safeCurrentPage + 1))
-                          }
-                          disabled={safeCurrentPage === totalPages}
-                          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
-                          aria-label="다음 페이지"
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => goToPage(totalPages)}
-                          disabled={safeCurrentPage === totalPages}
-                          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
-                          aria-label="마지막 페이지"
-                        >
-                          <ChevronsRight className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </nav>
-                  ) : null}
-                </>
-              )}
+                        <div className="flex items-center">
+                          {paginationNumbers.map((pageNumber) => (
+                            <button
+                              key={pageNumber}
+                              type="button"
+                              onClick={() => goToPage(pageNumber)}
+                              className={`flex h-8 w-8 items-center justify-center rounded-full text-base tracking-[-0.02em] transition ${
+                                pageNumber === safeCurrentPage
+                                  ? "bg-[#013262] font-medium text-white"
+                                  : "font-normal text-[#525252] hover:text-[#013262]"
+                              }`}
+                            >
+                              {pageNumber}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              goToPage(
+                                Math.min(totalPages, safeCurrentPage + 1),
+                              )
+                            }
+                            disabled={safeCurrentPage === totalPages}
+                            className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="다음 페이지"
+                          >
+                            <ChevronRight className="h-4 w-4" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => goToPage(totalPages)}
+                            disabled={safeCurrentPage === totalPages}
+                            className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                            aria-label="마지막 페이지"
+                          >
+                            <ChevronsRight className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </nav>
+                    ) : null}
+                  </>
+                );
+              })()}
             </section>
           </section>
         </div>
@@ -2012,59 +2022,71 @@ export default function AdmissionGuidelines() {
                   기본값(showSectionTitle=false, showChangeNoColumn=false) — 기존 동작
                   그대로(절 제목 숨김, 전년도와 차이점 번호 컬럼 숨김+36/64 재배분). */}
           <AdmissionSurface />
-          {selectedInfo.status === "loading" ? (
-            <div
-              className="flex items-center justify-center gap-2 py-16 text-sm font-semibold text-[#8f8f8f]"
-              role="status"
-              aria-live="polite"
-            >
-              <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bcdcff] border-t-[#0b84fd]" />
-              불러오는 중입니다...
-            </div>
-          ) : selectedInfo.status === "error" ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-16 text-sm font-semibold text-red-500">
-              <p>상세 자료를 불러오지 못했습니다.</p>
-              <button
-                type="button"
-                onClick={handleRetryInfo}
-                className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0b84fd] px-5 text-sm font-semibold text-white transition hover:bg-[#0a6fd6]"
-              >
-                다시 시도
-              </button>
-            </div>
-          ) : selectedInfo.mode === "doc" ? (
-            <div className="admission-table-wrap">
-              {/* selectedInfo.doc/section은 이 페이지 로컬 SelectedInfo(무타입
-                  dot-access) 형태다 — mode==='doc' 분기는 resolveInfoContent가
-                  실제로 AdmissionDoc/section 객체를 채운 경우로만 진입한다. */}
-              <AdmissionSectionView
-                doc={
-                  selectedInfo.doc as ComponentPropsWithoutRef<
-                    typeof AdmissionSectionView
-                  >["doc"]
-                }
-                sectionKey={selectedInfo.section?.key as string}
-                surface="public"
-              />
-            </div>
-          ) : selectedInfo.mode === "html" ? (
-            // resolveInfoContent의 html은 항상 자기 래퍼(admission-existing-html
-            // 또는 admission-raw-section-wrap)를 문자열 안에 이미 갖고 있다
-            // (alreadyWrapped 분기, :219-226 부근). 여기서 className을 또
-            // 주면 admission-existing-html이 이중으로 붙어 overflow-x:auto
-            // 스크롤 컨테이너가 중첩된다 — className 없이 SafeHtml에 그대로
-            // 넘긴다(SafeHtml은 className 없으면 감싸는 div도 만들지 않는다).
-            <div className="admission-table-wrap">
-              {/* mode==='html' 분기는 resolveInfoContent가 html을 채운 경우로만 진입한다. */}
-              <SafeHtml html={selectedInfo.html ?? ""} />
-            </div>
-          ) : selectedInfo.text ? (
-            <div className="whitespace-pre-wrap">{selectedInfo.text}</div>
-          ) : (
-            <div className="whitespace-pre-wrap text-[#8f8f8f]">
-              등록된 정보가 없습니다.
-            </div>
-          )}
+          {(() => {
+            if (selectedInfo.status === "loading")
+              return (
+                <div
+                  className="flex items-center justify-center gap-2 py-16 text-sm font-semibold text-[#8f8f8f]"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bcdcff] border-t-[#0b84fd]" />
+                  불러오는 중입니다...
+                </div>
+              );
+            if (selectedInfo.status === "error")
+              return (
+                <div className="flex flex-col items-center justify-center gap-4 py-16 text-sm font-semibold text-red-500">
+                  <p>상세 자료를 불러오지 못했습니다.</p>
+                  <button
+                    type="button"
+                    onClick={handleRetryInfo}
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0b84fd] px-5 text-sm font-semibold text-white transition hover:bg-[#0a6fd6]"
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              );
+            if (selectedInfo.mode === "doc")
+              return (
+                <div className="admission-table-wrap">
+                  {/* selectedInfo.doc/section은 이 페이지 로컬 SelectedInfo(무타입
+                      dot-access) 형태다 — mode==='doc' 분기는 resolveInfoContent가
+                      실제로 AdmissionDoc/section 객체를 채운 경우로만 진입한다. */}
+                  <AdmissionSectionView
+                    doc={
+                      selectedInfo.doc as ComponentPropsWithoutRef<
+                        typeof AdmissionSectionView
+                      >["doc"]
+                    }
+                    sectionKey={selectedInfo.section?.key as string}
+                    surface="public"
+                  />
+                </div>
+              );
+            if (selectedInfo.mode === "html")
+              // resolveInfoContent의 html은 항상 자기 래퍼(admission-existing-html
+              // 또는 admission-raw-section-wrap)를 문자열 안에 이미 갖고 있다
+              // (alreadyWrapped 분기, :219-226 부근). 여기서 className을 또
+              // 주면 admission-existing-html이 이중으로 붙어 overflow-x:auto
+              // 스크롤 컨테이너가 중첩된다 — className 없이 SafeHtml에 그대로
+              // 넘긴다(SafeHtml은 className 없으면 감싸는 div도 만들지 않는다).
+              return (
+                <div className="admission-table-wrap">
+                  {/* mode==='html' 분기는 resolveInfoContent가 html을 채운 경우로만 진입한다. */}
+                  <SafeHtml html={selectedInfo.html ?? ""} />
+                </div>
+              );
+            if (selectedInfo.text)
+              return (
+                <div className="whitespace-pre-wrap">{selectedInfo.text}</div>
+              );
+            return (
+              <div className="whitespace-pre-wrap text-[#8f8f8f]">
+                등록된 정보가 없습니다.
+              </div>
+            );
+          })()}
         </AdmissionModalShell>
       ) : null}
 

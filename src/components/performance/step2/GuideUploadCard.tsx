@@ -213,13 +213,12 @@ export default function GuideUploadCard({
   // `aria-live` 영역은 **항상 마운트돼 있어야** 변경이 읽힌다(나중에 삽입되는 노드는
   // 브라우저·스크린리더 조합에 따라 초기 내용으로 취급돼 조용히 지나간다). 그래서
   // 문구만 갈아 끼우고 요소 자체는 조건부로 렌더하지 않는다.
-  const statusMessage = processing
-    ? PROCESSING_STATUS
-    : submitting
-      ? SUBMITTING_STATUS
-      : photos.length
-        ? attachedStatus(photos.length)
-        : "";
+  const statusMessage = (() => {
+    if (processing) return PROCESSING_STATUS;
+    if (submitting) return SUBMITTING_STATUS;
+    if (photos.length) return attachedStatus(photos.length);
+    return "";
+  })();
 
   return (
     <InlineCard className="pb-6">

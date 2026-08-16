@@ -1319,11 +1319,12 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
               disabled={!confirmChecked || applying}
               className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
             >
-              {applying
-                ? applyProgress
-                  ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
-                  : "적용 중…"
-                : "적용"}
+              {(() => {
+                if (!applying) return "적용";
+                if (applyProgress)
+                  return `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`;
+                return "적용 중…";
+              })()}
             </button>
             <button
               type="button"
@@ -2112,11 +2113,12 @@ function GoalCutsBackfillPanel({ onReload }) {
                   disabled={!confirmChecked || applying}
                   className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
                 >
-                  {applying
-                    ? applyProgress
-                      ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
-                      : "적용 중…"
-                    : "적용"}
+                  {(() => {
+                    if (!applying) return "적용";
+                    if (applyProgress)
+                      return `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`;
+                    return "적용 중…";
+                  })()}
                 </button>
                 <button
                   type="button"
@@ -2520,11 +2522,12 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
               disabled={!confirmChecked || applying}
               className="h-9 bg-[#2348ff] px-4 font-black text-white disabled:opacity-50"
             >
-              {applying
-                ? applyProgress
-                  ? `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`
-                  : "적용 중…"
-                : "적용"}
+              {(() => {
+                if (!applying) return "적용";
+                if (applyProgress)
+                  return `적용 중… ${applyProgress.done.toLocaleString()} / ${applyProgress.total.toLocaleString()}행`;
+                return "적용 중…";
+              })()}
             </button>
             <button
               type="button"

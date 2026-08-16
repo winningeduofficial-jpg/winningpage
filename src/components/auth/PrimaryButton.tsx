@@ -58,6 +58,11 @@ export default function PrimaryButton({
   className = "",
 }: PrimaryButtonProps) {
   const isDisabled = disabled || loading;
+  const toneClassName = (() => {
+    if (!isDisabled) return "bg-primary text-white hover:bg-primary/90";
+    if (loading) return "cursor-progress bg-primary/80 text-white";
+    return "cursor-not-allowed bg-line text-white";
+  })();
 
   return (
     <button
@@ -67,13 +72,7 @@ export default function PrimaryButton({
       aria-busy={loading || undefined}
       className={`flex items-center justify-center gap-2 ${WEIGHT_CLASSES[weight] || WEIGHT_CLASSES.semibold} transition active:scale-[0.97] motion-reduce:active:scale-100 ${
         fullWidth ? "w-full" : ""
-      } ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${RADIUS_CLASSES[radius] || RADIUS_CLASSES.default} ${
-        isDisabled
-          ? loading
-            ? "cursor-progress bg-primary/80 text-white"
-            : "cursor-not-allowed bg-line text-white"
-          : "bg-primary text-white hover:bg-primary/90"
-      } ${className}`}
+      } ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${RADIUS_CLASSES[radius] || RADIUS_CLASSES.default} ${toneClassName} ${className}`}
     >
       {loading && (
         <Loader2

@@ -751,15 +751,13 @@ export default function PaymentSuccess() {
             }`}
           >
             <p className="text-[0.875rem] font-semibold leading-5 text-ink">
-              {isWaitingDeposit
-                ? "입금 안내"
-                : needsLogin
-                  ? "로그인 후 이용"
-                  : grantPermanent
-                    ? "이용 등록 확인이 필요합니다"
-                    : grantFailed
-                      ? "이용 권한 등록 지연"
-                      : "이용 안내"}
+              {(() => {
+                if (isWaitingDeposit) return "입금 안내";
+                if (needsLogin) return "로그인 후 이용";
+                if (grantPermanent) return "이용 등록 확인이 필요합니다";
+                if (grantFailed) return "이용 권한 등록 지연";
+                return "이용 안내";
+              })()}
             </p>
             {/* 문구는 각 상태에서 "검증 가능한 사실"만 남긴 초안이다 — 최종 문안은
                   사용자 승인 대기(입장 앱 없는 상품 안내 / 비회원 결제 안내 2건). */}
@@ -767,21 +765,23 @@ export default function PaymentSuccess() {
                   leading-relaxed 를 유지한다 — 시안의 lh20(1.43)은 한 줄짜리 명세 행 기준
                   값이라 3~4줄 문단에 그대로 쓰면 답답해진다. */}
             <p className="mt-2 break-keep text-[0.875rem] font-medium leading-relaxed text-ink">
-              {isWaitingDeposit
-                ? "위 가상계좌로 입금기한 내에 입금해 주세요. 입금이 확인되면 이용 권한이 자동으로 부여됩니다."
-                : needsLogin
-                  ? "결제가 확인되었습니다. 이용 권한은 결제하신 계정에 등록되어 있습니다. 로그인하신 뒤 이용해 주세요."
-                  : needsSignup
-                    ? "결제는 정상적으로 완료됐습니다. 다만 비회원으로 결제하셔서 이용 권한을 넣어 드릴 계정이 없습니다. 아래 버튼으로 회원가입하신 뒤 주문번호와 함께 문의해 주시면 바로 등록해 드립니다."
-                    : grantPermanent
-                      ? "결제는 정상적으로 완료됐습니다. 다만 이 주문은 이용 권한 자동 등록이 되지 않아 확인이 필요합니다. 아래 연락처로 주문번호와 함께 문의해 주시면 바로 등록해 드립니다."
-                      : grantFailed
-                        ? "결제는 정상적으로 완료됐습니다. 다만 이용 권한 등록이 아직 끝나지 않았습니다. 이 페이지를 새로고침하면 자동으로 다시 시도되며, 계속 같은 안내가 보이면 아래 연락처로 주문번호와 함께 문의해 주세요."
-                        : noEntryProduct
-                          ? "결제가 확인되었습니다. 이 상품은 별도 입장 화면 없이 진행되는 서비스라, 이용 방법은 아래 연락처로 안내드립니다. 주문 내역은 마이페이지에서 확인할 수 있습니다."
-                          : entries.length > 1
-                            ? "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 각 프로그램에 입장해 주세요."
-                            : "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 프로그램에 입장해 주세요."}
+              {(() => {
+                if (isWaitingDeposit)
+                  return "위 가상계좌로 입금기한 내에 입금해 주세요. 입금이 확인되면 이용 권한이 자동으로 부여됩니다.";
+                if (needsLogin)
+                  return "결제가 확인되었습니다. 이용 권한은 결제하신 계정에 등록되어 있습니다. 로그인하신 뒤 이용해 주세요.";
+                if (needsSignup)
+                  return "결제는 정상적으로 완료됐습니다. 다만 비회원으로 결제하셔서 이용 권한을 넣어 드릴 계정이 없습니다. 아래 버튼으로 회원가입하신 뒤 주문번호와 함께 문의해 주시면 바로 등록해 드립니다.";
+                if (grantPermanent)
+                  return "결제는 정상적으로 완료됐습니다. 다만 이 주문은 이용 권한 자동 등록이 되지 않아 확인이 필요합니다. 아래 연락처로 주문번호와 함께 문의해 주시면 바로 등록해 드립니다.";
+                if (grantFailed)
+                  return "결제는 정상적으로 완료됐습니다. 다만 이용 권한 등록이 아직 끝나지 않았습니다. 이 페이지를 새로고침하면 자동으로 다시 시도되며, 계속 같은 안내가 보이면 아래 연락처로 주문번호와 함께 문의해 주세요.";
+                if (noEntryProduct)
+                  return "결제가 확인되었습니다. 이 상품은 별도 입장 화면 없이 진행되는 서비스라, 이용 방법은 아래 연락처로 안내드립니다. 주문 내역은 마이페이지에서 확인할 수 있습니다.";
+                if (entries.length > 1)
+                  return "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 각 프로그램에 입장해 주세요.";
+                return "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 프로그램에 입장해 주세요.";
+              })()}
             </p>
             {/* 12.5px 은 시안에 없는 단계였다 — 14px 로 올리고 보조 정보라는 사실은
                   ink.sub(#808080)로 표현한다(무게는 본문과 같은 w500). */}
@@ -805,59 +805,69 @@ export default function PaymentSuccess() {
                     카카오톡은 채널 URL 정본이 없어 링크로 걸지 않았다(문의 줄에
                     아이디로 노출). */}
           <div className="mx-auto mt-8 w-full max-w-[40.625rem] sm:mt-10">
-            {canStart ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                {entries.map((item) => (
-                  <button
-                    key={item.serviceKey}
-                    type="button"
-                    onClick={(event) => handleStart(event, item)}
-                    className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+            {(() => {
+              if (canStart)
+                return (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                    {entries.map((item) => (
+                      <button
+                        key={item.serviceKey}
+                        type="button"
+                        onClick={(event) => handleStart(event, item)}
+                        className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                      >
+                        {entries.length > 1
+                          ? `${item.label} 시작하기`
+                          : "프로그램 시작하기"}
+                      </button>
+                    ))}
+                  </div>
+                );
+              if (needsLogin)
+                return (
+                  <Link
+                    to="/login"
+                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
                   >
-                    {entries.length > 1
-                      ? `${item.label} 시작하기`
-                      : "프로그램 시작하기"}
-                  </button>
-                ))}
-              </div>
-            ) : needsLogin ? (
-              <Link
-                to="/login"
-                className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-              >
-                로그인하고 이용하기
-              </Link>
-            ) : needsSignup ? (
-              <Link
-                to="/signup"
-                className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-              >
-                회원가입하고 이용 등록하기
-              </Link>
-            ) : grantPermanent ? (
-              <a
-                href={`tel:${COMPANY.centerTel}`}
-                className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-              >
-                센터로 문의하기
-              </a>
-            ) : (
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    isParentPayer
-                      ? `${FALLBACK_PATH}?tab=payments`
-                      : FALLBACK_PATH,
-                  )
-                }
-                className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-              >
-                {isParentPayer
-                  ? "결제 내역 보러가기"
-                  : "마이페이지에서 확인하기"}
-              </button>
-            )}
+                    로그인하고 이용하기
+                  </Link>
+                );
+              if (needsSignup)
+                return (
+                  <Link
+                    to="/signup"
+                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                  >
+                    회원가입하고 이용 등록하기
+                  </Link>
+                );
+              if (grantPermanent)
+                return (
+                  <a
+                    href={`tel:${COMPANY.centerTel}`}
+                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                  >
+                    센터로 문의하기
+                  </a>
+                );
+              return (
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      isParentPayer
+                        ? `${FALLBACK_PATH}?tab=payments`
+                        : FALLBACK_PATH,
+                    )
+                  }
+                  className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                >
+                  {isParentPayer
+                    ? "결제 내역 보러가기"
+                    : "마이페이지에서 확인하기"}
+                </button>
+              );
+            })()}
           </div>
         </div>
       )}
