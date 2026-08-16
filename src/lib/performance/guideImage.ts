@@ -27,11 +27,7 @@
 //      일부 스캐너 출력은 실제로 정사각이므로 예외로 빼고 디코더 보정에 맡긴다.
 //    · JPEG이 아닌 입력(PNG/WEBP)은 EXIF 방향 태그가 사실상 쓰이지 않아 검사하지 않는다.
 
-export const ALLOWED_IMAGE_MIME_TYPES = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-];
+const ALLOWED_IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/webp"];
 
 // §8.8 「HEIC」 — 외부 앱은 `accept="image/*"`(suhaengpyeong/index.html:1540)라 HEIC가
 // 파일 선택기에 그대로 노출됐다. 목록을 좁혀 애초에 고를 수 없게 한다.
@@ -40,7 +36,7 @@ export const IMAGE_ACCEPT_ATTR = ALLOWED_IMAGE_MIME_TYPES.join(",");
 export const MAX_PHOTOS = 5; // §8.8 「최대 장수」
 export const MAX_FILE_BYTES = 10 * 1024 * 1024; // §8.8 「파일당」
 export const MAX_TOTAL_BYTES = 25 * 1024 * 1024; // §8.8 「합계」
-export const MAX_LONG_EDGE = 2000; // §8.8 「클라이언트 전처리」
+const MAX_LONG_EDGE = 2000; // §8.8 「클라이언트 전처리」
 
 // §8.8 지정 문구. 토스트 문구를 임의로 바꾸지 말 것 — 해결 방법을 알려주는 것이 이 문구의 요점이다.
 export const HEIC_REJECT_MESSAGE =

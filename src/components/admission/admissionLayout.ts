@@ -27,7 +27,7 @@ const GENERIC_TABLE_VARIANT_LAYOUT: TableVariantLayout = {
   tableClassName: "admission-data-table",
 };
 
-export const TABLE_VARIANT_LAYOUT: Record<string, TableVariantLayout> = {
+const TABLE_VARIANT_LAYOUT: Record<string, TableVariantLayout> = {
   selection: {
     scrollWrapClassName: "admission-scroll-table",
     tableClassName: "admission-data-table admission-selection-table",
@@ -153,7 +153,7 @@ export function getCellKind(variant?: string, role?: string): CellKind {
 // 각 항목 옆에 생성기 함수/좌표를 남긴다. selection/change는 이미 있는
 // SELECTION_CELL_CLASS_BY_ROLE/CHANGE_CELL_CLASS_BY_ROLE 키를 그대로
 // 재사용해 값이 두 곳에서 어긋날 여지를 없앴다.
-export const KNOWN_ROLES_BY_VARIANT: Record<string, string[]> = {
+const KNOWN_ROLES_BY_VARIANT: Record<string, string[]> = {
   selection: Object.keys(SELECTION_CELL_CLASS_BY_ROLE), // type,name,seats,minimum,method
   change: Object.keys(CHANGE_CELL_CLASS_BY_ROLE), // no,title,content
   // exam_schedule doc 생성기(admissionParsing.js:2493/3465): 전형/대상/일정.

@@ -15,7 +15,7 @@ import { SCHEMA_VERSION } from "../data/diagnosisScoringTable.js";
 import { normalizeAnswers } from "./diagnosisScoring.js";
 
 /** sessionStorage 키. 새로고침·직접 URL 진입에서도 같은 리포트가 나오게 하는 유일한 근거다. */
-export const DIAGNOSIS_INPUT_STORAGE_KEY = "winning.freeDiagnosis.input";
+const DIAGNOSIS_INPUT_STORAGE_KEY = "winning.freeDiagnosis.input";
 
 /**
  * 원시 answers → DiagnosisInput 로 정규화해 저장하고 그 값을 돌려준다.
@@ -71,7 +71,7 @@ export function submitDiagnosisAnswers(
 }
 
 /** 저장. 실패해도 던지지 않는다 — 라우터 state 경로가 살아 있어 리포트는 그대로 렌더된다. */
-export function saveDiagnosisInput(input: unknown): boolean {
+function saveDiagnosisInput(input: unknown): boolean {
   try {
     window.sessionStorage.setItem(
       DIAGNOSIS_INPUT_STORAGE_KEY,

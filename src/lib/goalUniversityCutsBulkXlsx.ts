@@ -68,7 +68,7 @@ export const GOAL_CUT_RANGE: Record<
 // DB 컬럼 ↔ 엑셀 헤더. university_key / department_key 는 컬럼으로 두지
 // 않는다 — 어드민은 항상 표시명과 동일하게 강제하고(명세 §3-D5) 파서가
 // name 에서 복사한다. created_at / updated_at 은 DB 가 관리한다.
-export const GOAL_CUTS_XLSX_COLUMNS: { key: string; header: string }[] = [
+const GOAL_CUTS_XLSX_COLUMNS: { key: string; header: string }[] = [
   { key: "id", header: "id" },
   { key: "cut_type", header: "컷 종류" },
   { key: "university_name", header: "대학명" },
@@ -83,39 +83,39 @@ export const GOAL_CUTS_XLSX_COLUMNS: { key: string; header: string }[] = [
 export const GOAL_CUTS_XLSX_HEADERS = GOAL_CUTS_XLSX_COLUMNS.map(
   (c) => c.header,
 );
-export const GOAL_CUTS_XLSX_SHEET_NAME = "목표관리 대학 컷";
+const GOAL_CUTS_XLSX_SHEET_NAME = "목표관리 대학 컷";
 
 // 엑셀 셀의 한글 라벨 ↔ DB 값. 폼(GOAL_CUT_TYPE_OPTIONS)의 라벨과 일부러
 // 다르게 짧게 뒀다 — 엑셀에서는 셀 폭이 좁고 관리자가 직접 타이핑한다.
-export const CUT_TYPE_LABEL_BY_VALUE: Record<CutType, string> = {
+const CUT_TYPE_LABEL_BY_VALUE: Record<CutType, string> = {
   normal: "수시 일반",
   special: "수시 특목",
   jungsi: "정시",
 };
-export const CUT_TYPE_VALUE_BY_LABEL: Record<string, CutType> = {
+const CUT_TYPE_VALUE_BY_LABEL: Record<string, CutType> = {
   "수시 일반": "normal",
   "수시 특목": "special",
   정시: "jungsi",
 };
 
-export const SOURCE_LABEL_BY_VALUE: Record<string, string> = {
+const SOURCE_LABEL_BY_VALUE: Record<string, string> = {
   admission_results: "입결정보 유도",
   manual: "수기 입력",
 };
-export const SOURCE_VALUE_BY_LABEL: Record<string, string> = {
+const SOURCE_VALUE_BY_LABEL: Record<string, string> = {
   "입결정보 유도": "admission_results",
   "수기 입력": "manual",
 };
 
 // source_year 는 smallint 다. DB 에 CHECK 는 없지만 오타(20260 등)를
 // 조용히 저장하면 백필 재실행 판정이 어긋나므로 업무 규칙으로 좁힌다.
-export const SOURCE_YEAR_MIN = 2000;
-export const SOURCE_YEAR_MAX = 2100;
+const SOURCE_YEAR_MIN = 2000;
+const SOURCE_YEAR_MAX = 2100;
 
 // admissionResultsBulkXlsx.js 와 동일 값. 그쪽에서 import 해도 되지만
 // (실제로 export 돼 있다) 그 파일 머리말이 "함수를 공유하지 않는다"고
 // 못박은 도메인 lib 이라, 상수만 끌어와 결합을 만들지 않고 여기 둔다.
-export const MAX_XLSX_CELL_LENGTH = 32767;
+const MAX_XLSX_CELL_LENGTH = 32767;
 export const TRUNCATION_MARKER =
   "…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]";
 

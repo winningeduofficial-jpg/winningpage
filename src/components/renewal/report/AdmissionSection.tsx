@@ -7,7 +7,7 @@
 // min-h + items-start 로 바꿔 실제 줄 수만큼 늘어나게 한다(가로 스크롤 없이 세로로 흡수).
 import { SCREEN_EXTRAS } from "../../../data/diagnosisScreenCopy";
 
-export type AdmissionRow = {
+type AdmissionRow = {
   label: string;
   grade?: string;
   gap?: string;

@@ -82,7 +82,7 @@ export function getStepRequiredQuestions(step: number) {
   );
 }
 
-export function getStepUnansweredCount(step: number, answers?: SurveyAnswers) {
+function getStepUnansweredCount(step: number, answers?: SurveyAnswers) {
   return getStepRequiredQuestions(step).filter(
     (question) => !isQuestionAnswered(question, answers?.[question.id]),
   ).length;

@@ -66,7 +66,7 @@ export function searchable(
     .toLowerCase();
 }
 
-export function csvEscape(value: unknown): string {
+function csvEscape(value: unknown): string {
   const raw = String(value ?? "");
   // CSV formula injection 방어 — Excel/Sheets는 따옴표로 감싼 필드여도
   // 선두 = + - @ 및 탭/CR을 수식으로 해석한다. 선행 작은따옴표로 무력화한다.

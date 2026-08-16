@@ -59,7 +59,7 @@ const GENERIC_MESSAGE =
  * `userMessage`는 서버가 준 한국어 문구를 그대로 쓴다 — 서버는 §8.6 공통 규약대로 원 예외·
  * 모델 원문을 응답에 싣지 않으므로(`design-report.js`의 `fail()`) 화면에 그대로 띄워도 된다.
  */
-export class DesignReportError extends Error {
+class DesignReportError extends Error {
   code: string;
   userMessage: string;
   confirmedTopicId: string | null;

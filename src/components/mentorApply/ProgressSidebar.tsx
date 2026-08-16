@@ -56,7 +56,7 @@ export type ProgressSection = {
  * 첨부(File). 타입별로 빈 값의 모양이 다르므로 한 곳에서 판정한다.
  * 숫자 0 과 문자열 '0' 은 유효한 입력이므로 채워진 것으로 본다(falsy 검사만으로는 오판).
  */
-export function isFieldFilled(value: FieldValue) {
+function isFieldFilled(value: FieldValue) {
   if (value === null || value === undefined) return false;
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
@@ -66,7 +66,7 @@ export function isFieldFilled(value: FieldValue) {
 }
 
 /** 단계 하나의 진행률. */
-export function getSectionProgress(fields: string[], values: FormValues) {
+function getSectionProgress(fields: string[], values: FormValues) {
   const list = Array.isArray(fields) ? fields : [];
   const total = list.length;
   const filled = list.filter((name) => isFieldFilled(values?.[name])).length;
@@ -83,10 +83,7 @@ export function getSectionProgress(fields: string[], values: FormValues) {
  * (확인 항목 21에서 복제 실수로 확정), 같은 필드를 두 단계가 공유하게 되더라도 사용자가 채워야 할
  * "일의 개수"는 하나이기 때문이다. 단계별 percent 는 그 단계 자신의 목록으로만 계산한다.
  */
-export function computeProgress(
-  sections: ProgressSection[],
-  values: FormValues,
-) {
+function computeProgress(sections: ProgressSection[], values: FormValues) {
   const list = Array.isArray(sections) ? sections : [];
   const steps = list.map((section) => ({
     ...section,

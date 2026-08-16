@@ -7,7 +7,7 @@
 // 유일키가 (cut_type, university_key, department_key) 라 손실 위험이다.
 
 // 규칙만으로는 못 맞히는 단축형 → 전체형 예외. 완전일치(trim 후) 우선.
-export const NORMALIZE_EXCEPTIONS: Record<string, string> = {
+const NORMALIZE_EXCEPTIONS: Record<string, string> = {
   한국외대: "한국외국어대학교",
   "한국외대(글로벌)": "한국외국어대학교",
 };

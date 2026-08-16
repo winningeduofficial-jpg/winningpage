@@ -48,7 +48,7 @@ const ADMIN_ERROR_MESSAGE_MAP: Array<{ pattern: RegExp; message: string }> = [
   { pattern: /23505/, message: "이미 등록된 값입니다(중복)." },
 ];
 
-export function mapAdminErrorMessage(
+function mapAdminErrorMessage(
   error: AdminErrorLike | null | undefined,
 ): string {
   const raw = `${error?.message || ""} ${error?.code || ""}`;

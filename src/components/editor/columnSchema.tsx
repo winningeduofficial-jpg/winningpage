@@ -2,10 +2,10 @@ import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
 import { useCallback, useRef, useState } from "react";
 
-export const CALLOUT_DEFAULT_ICON = "💡";
+const CALLOUT_DEFAULT_ICON = "💡";
 
 // 강조 박스(callout). variant 프롭은 만들지 않는다 — 허용값이 하나뿐인 확장은 speculative generality다.
-export const Callout = createReactBlockSpec(
+const Callout = createReactBlockSpec(
   {
     type: "callout",
     propSchema: {
@@ -153,7 +153,7 @@ function ImageRowRender({
   );
 }
 
-export const ImageRow = createReactBlockSpec(
+const ImageRow = createReactBlockSpec(
   {
     type: "imageRow",
     content: "none",

@@ -30,7 +30,7 @@ const MENU_ITEMS = [
 ];
 
 // §3.3 스텝 라벨 원문. `작성・평가`의 가운뎃점은 U+30FB(・)이며 시안 원문 그대로다.
-export const PERFORMANCE_STEPS = [
+const PERFORMANCE_STEPS = [
   { step: 1, label: "기본 정보" },
   { step: 2, label: "안내문 입력" },
   { step: 3, label: "주제 추천" },

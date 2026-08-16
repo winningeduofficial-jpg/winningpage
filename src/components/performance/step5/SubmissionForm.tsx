@@ -116,7 +116,7 @@ const TOPIC_LABEL = "주제";
 const SAVE_LABEL = "중간 저장";
 const SUBMIT_LABEL = "제출하고 평가 리포트 받기";
 
-export type SubmissionField = {
+type SubmissionField = {
   key: string;
   label: string;
   helper?: string;

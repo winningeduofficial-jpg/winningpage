@@ -68,7 +68,7 @@ const NBSP = /\u00a0/g;
  *    안 걸린다. 사용자가 중점을 쳐 넣을 도리가 없으니 공백과 같은 급으로 무시한다
  *    (통일 단계를 먼저 밟는 이유는 그래야 4종 변형이 한 번에 지워지기 때문이다).
  */
-export function normalizeForSearch(text: unknown): string {
+function normalizeForSearch(text: unknown): string {
   return (
     String(text ?? "")
       .normalize("NFC")

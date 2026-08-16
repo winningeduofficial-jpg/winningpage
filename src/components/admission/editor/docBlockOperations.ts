@@ -80,7 +80,7 @@ export function createDefaultBlock(kind: string): Block | null {
 //
 // 아래 매핑은 admissionParsing.js의 build*DocBlocks 6종을 읽기 전용으로
 // 전수 확인해 만들었다(추측 아님, 각 항목에 함수명·좌표 주석):
-export const PRIMARY_ADDABLE_KINDS_BY_SECTION: Record<string, string[]> = {
+const PRIMARY_ADDABLE_KINDS_BY_SECTION: Record<string, string[]> = {
   // buildChangeDocBlocks(:2329) — table(change) 1개뿐. 주석: "이
   // 카테고리는 원래도 plainList 폴백이 없다"(parseChangeItems가 "없음"도
   // 항상 최소 1행으로 반환).
@@ -114,7 +114,7 @@ export const PRIMARY_ADDABLE_KINDS_BY_SECTION: Record<string, string[]> = {
 // 새 group을 만들지는 않는다). 실측(team-lead
 // DB 집계: table 1310/heading 185/emptyBox 108/group 42/note 11/
 // plainList 9/footnote 1)의 note 11건도 전부 이 group 내부 값과 일치한다.
-export const ALL_BLOCK_KINDS: string[] = [
+const ALL_BLOCK_KINDS: string[] = [
   "table",
   "note",
   "emptyBox",

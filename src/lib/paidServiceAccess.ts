@@ -98,7 +98,7 @@ const PAID_SERVICE_CONFIGS: PaidServiceConfig[] = [
   },
 ];
 
-export function getPaidServiceConfig(service?: PaidServiceLike) {
+function getPaidServiceConfig(service?: PaidServiceLike) {
   return PAID_SERVICE_CONFIGS.find((config) => config.match(service)) || null;
 }
 

@@ -57,7 +57,7 @@ const SECONDARY = `${BUTTON_BASE} border border-performance-line bg-white text-[
 // 면 색은 그대로 두고 글자색만 `ink`(#525252, 5.54:1)로 내린다(`SubmissionForm`과 동일 판단).
 const PRIMARY = `${BUTTON_BASE} bg-primary text-[1rem] font-semibold leading-[1.25rem] text-white hover:bg-primary/90 aria-disabled:bg-performance-line aria-disabled:text-ink aria-disabled:hover:bg-performance-line`;
 
-export type EvaluationBusyAction = "confirm" | "new_assessment" | null;
+type EvaluationBusyAction = "confirm" | "new_assessment" | null;
 
 type EvaluationBranchActionsProps = {
   /** `추가 평가 받기` — 확정 없이 폼 복원. */

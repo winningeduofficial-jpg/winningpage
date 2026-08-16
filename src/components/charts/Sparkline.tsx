@@ -102,7 +102,7 @@ const BALLOON = {
 
 // 등급 축 도메인. 등급은 1이 최상이므로 y를 반전한다(작은 값이 위).
 // 시안 1882:2958이 2.7과 3.2를 같은 y에 그린 것은 오류라 재현하지 않는다(명세 §8).
-export function gradeDomain(values: number[]) {
+function gradeDomain(values: number[]) {
   const min = Math.min(...values);
   const max = Math.max(...values);
   let lo = Math.max(1, Math.floor((min - 0.4) * 2) / 2);

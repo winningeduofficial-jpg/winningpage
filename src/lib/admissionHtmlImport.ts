@@ -57,7 +57,7 @@ import {
 // 카테고리별 시도 순서(표 → emptyBox → plainList). 앞선 임포터가 null을
 // 반환하거나 DOM 동형 검증에 실패하면 다음으로 넘어간다 — 전부 실패하면
 // needsReview(강행 금지).
-export const IMPORTER_CHAINS = {
+const IMPORTER_CHAINS = {
   previous_year_changes: [
     { name: "table", run: (html) => importChangeDocFromHtml(html) },
     {
@@ -447,7 +447,7 @@ function compareElementNodes(a, b, pathLabel) {
 // 임포트한 doc을 renderDocToHtml로 재렌더한 결과와 원본 dbHtml을 형제
 // 목록으로 비교한다(둘 다 admission-hwp-section-title + admission-raw-
 // section-wrap 형제 구조).
-export function compareDomEquivalence(htmlA, htmlB) {
+function compareDomEquivalence(htmlA, htmlB) {
   const treeA = parseMiniHtml(htmlA);
   const treeB = parseMiniHtml(htmlB);
   const childrenA = collectSignificantChildren(treeA.body);

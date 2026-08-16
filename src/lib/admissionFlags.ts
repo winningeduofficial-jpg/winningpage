@@ -14,7 +14,7 @@
 // 셀 0건(전 카테고리 실제 구조화), has_*_json 뷰 플래그가 not-null
 // 카운트와 정확히 일치, UPDATE 실패 0건. `?jsonrender=0`으로 런타임 중
 // legacy html/text 경로로 즉시 복귀 가능(배포 없이).
-export const ADMISSION_JSON_ENABLED = true;
+const ADMISSION_JSON_ENABLED = true;
 
 // ?jsonrender=0 킬스위치 — 배포 없이 즉시 doc 렌더를 끄고 legacy html/text
 // 경로로 되돌리기 위함. ADMISSION_JSON_ENABLED와 함께 이 함수 하나로만
