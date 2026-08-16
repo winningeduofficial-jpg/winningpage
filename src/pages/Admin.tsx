@@ -75,6 +75,7 @@ import {
 // CSV 청크 내보내기 1회 요청 크기. PostgREST 기본 응답 상한이 1,000행이라 이보다
 // 크게 잡아도 잘려 나온다 — 43k행이면 44회 왕복이다.
 const EXPORT_CHUNK = 1000;
+const SEARCH_DEBOUNCE_MS = 300;
 
 const MENU_GROUPS = [
   {
@@ -2858,7 +2859,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
     const timer = setTimeout(() => {
       setSearchTerm(keyword.trim());
       setPage(1);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [keyword]);
 

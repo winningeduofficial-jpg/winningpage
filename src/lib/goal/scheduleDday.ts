@@ -4,6 +4,8 @@
 // 일치시킨다.
 import { kstYMD } from "./calc/index.js";
 
+const MS_PER_DAY = 86400000;
+
 /**
  * 'YYYY-MM-DD' 마감일 → GoalDdayBadge용 D-day 문자열.
  * 오늘(KST) 기준. 당일은 'D-day', 지난 일정은 'D+N'.
@@ -13,7 +15,7 @@ export function formatScheduleDday(dueDate: string, now = new Date()) {
   const diffDays = Math.round(
     (new Date(`${dueDate}T00:00:00Z`).getTime() -
       new Date(`${today}T00:00:00Z`).getTime()) /
-      86400000,
+      MS_PER_DAY,
   );
 
   if (diffDays === 0) return "D-day";

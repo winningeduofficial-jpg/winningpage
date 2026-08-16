@@ -29,6 +29,9 @@ type AgreementListProps = {
   className?: string;
 };
 
+const STAGGER_STEP_MS = 40;
+const STAGGER_BUFFER_MS = 260;
+
 export default function AgreementList({
   items,
   allChecked = false,
@@ -44,7 +47,7 @@ export default function AgreementList({
 
     const timer = window.setTimeout(
       () => setBatchAnimating(false),
-      itemCount * 40 + 260,
+      itemCount * STAGGER_STEP_MS + STAGGER_BUFFER_MS,
     );
     return () => window.clearTimeout(timer);
   }, [batchAnimating, itemCount]);

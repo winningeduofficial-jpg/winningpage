@@ -30,6 +30,8 @@ function safeRedirect(value: string | null) {
   }
 }
 
+const LOGIN_TIMEOUT_MS = 12000;
+
 export default function Login() {
   const [params] = useSearchParams();
   const redirectTo = safeRedirect(params.get("redirect"));
@@ -72,7 +74,10 @@ export default function Login() {
       });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
-        window.setTimeout(() => reject(new Error("login_timeout")), 12000);
+        window.setTimeout(
+          () => reject(new Error("login_timeout")),
+          LOGIN_TIMEOUT_MS,
+        );
       });
 
       const { data, error } = await Promise.race([

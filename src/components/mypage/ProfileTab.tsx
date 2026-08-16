@@ -16,6 +16,7 @@ import ToggleRow from "./ToggleRow";
 import WithdrawModal from "./WithdrawModal";
 
 const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
+const COPY_FEEDBACK_MS = 2000;
 
 // 이용안내(chevron 링크) — PNG 라벨 그대로, 라우트는 src/App.jsx에 실제 등록된 것만
 // 사용(읽기로 확인). "마케팅 목적의 개인정보 수집 및 이용"/"광고성 정보 수신 동의"는 PNG상
@@ -328,7 +329,7 @@ export default function ProfileTab({
     try {
       await navigator.clipboard.writeText(linkCode);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      window.setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
     } catch (copyError) {
       console.warn("연결코드 복사 실패:", copyError);
     }

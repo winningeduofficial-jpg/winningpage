@@ -70,6 +70,7 @@ const SERVICE_ENTRY: Record<string, ServiceEntry> = {
 // 구매 내역 확인 경로. 로그인이 필요하므로(src/pages/MyPage.jsx:133 이 세션 없으면
 // /login 으로 보낸다) 회원 주문에서만 CTA 로 쓴다.
 const FALLBACK_PATH = "/mypage";
+const COPY_FEEDBACK_MS = 2000;
 
 // 새로고침으로 복구되지 않는 부여 실패.
 //
@@ -267,11 +268,18 @@ function methodLabel(payment?: PaymentInfo | null) {
 // 시안(1882-14270)은 '4895-4589-****-****' 로 앞 8자리만 노출한다. 토스도 이미
 // 일부를 가려서 주지만(예: 43301234****123*) 가리는 자리가 달라, 뒤 8자리를
 // 다시 '*' 로 덮은 뒤 4자리씩 하이픈으로 끊는다.
+const CARD_NUMBER_VISIBLE_DIGITS = 8;
+const CARD_NUMBER_MIN_DIGITS = 12;
+
 function formatCardNumber(raw?: string | null) {
   const value = String(raw || "").replace(/[^0-9*]/g, "");
   if (!value) return "-";
-  const length = Math.max(value.length, 12); // 12 = 최소 카드번호 자릿수
-  const masked = value.slice(0, 8).padEnd(8, "*") + "*".repeat(length - 8);
+  const length = Math.max(value.length, CARD_NUMBER_MIN_DIGITS);
+  const masked =
+    value
+      .slice(0, CARD_NUMBER_VISIBLE_DIGITS)
+      .padEnd(CARD_NUMBER_VISIBLE_DIGITS, "*") +
+    "*".repeat(length - CARD_NUMBER_VISIBLE_DIGITS);
   // masked는 항상 길이 12+ 비-개행 문자열이라 /.{1,4}/g 매치가 항상 성립한다.
   return masked.match(/.{1,4}/g)!.join("-");
 }
@@ -466,7 +474,10 @@ export default function PaymentSuccess() {
     if (!ok) return; // 실패해도 화면은 그대로 — 버튼을 숨기거나 에러를 띄우지 않는다.
     setCopied(true);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    copyTimeoutRef.current = setTimeout(
+      () => setCopied(false),
+      COPY_FEEDBACK_MS,
+    );
   }
 
   // 가상계좌(토스 status = WAITING_FOR_DEPOSIT)는 계좌 발급까지만 끝난 상태다.

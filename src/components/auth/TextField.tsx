@@ -58,6 +58,8 @@ interface TextFieldProps {
   className?: string;
 }
 
+const SHAKE_DURATION_MS = 320;
+
 export default function TextField({
   label,
   id,
@@ -94,7 +96,7 @@ export default function TextField({
   useEffect(() => {
     if (status === "error" && prevStatusRef.current !== "error") {
       setShake(true);
-      const timer = window.setTimeout(() => setShake(false), 320);
+      const timer = window.setTimeout(() => setShake(false), SHAKE_DURATION_MS);
       prevStatusRef.current = status;
       return () => window.clearTimeout(timer);
     }

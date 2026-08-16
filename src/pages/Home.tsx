@@ -12,6 +12,7 @@ import { supabase } from "../lib/supabase";
 // fetch 실패 시 각 섹션은 빈 배열 폴백으로 미렌더 처리 — 픽스처 자동 폴백은 없음.
 // 공지사항 섹션(company_news/notices)은 이 플래그와 무관하게 항상 DB 연동.
 const LANDING_PREVIEW = false;
+const NEWS_SECTION_PREVIEW_COUNT = 5;
 
 type Banner = {
   id?: string;
@@ -466,7 +467,7 @@ export default function Home() {
           .order("is_pinned", { ascending: false })
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false })
-          .limit(5),
+          .limit(NEWS_SECTION_PREVIEW_COUNT),
         supabase
           .from("notices")
           .select("id, title, created_at, is_pinned, sort_order, category")
@@ -474,7 +475,7 @@ export default function Home() {
           .order("is_pinned", { ascending: false })
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false })
-          .limit(5),
+          .limit(NEWS_SECTION_PREVIEW_COUNT),
       ]);
 
       if (!mounted) return;

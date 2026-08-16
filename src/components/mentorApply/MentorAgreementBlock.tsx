@@ -49,6 +49,9 @@ type MentorAgreementBlockProps = {
   error?: string;
 };
 
+const STAGGER_STEP_MS = 40;
+const STAGGER_BUFFER_MS = 260;
+
 export default function MentorAgreementBlock({
   items, // [{ key, label, required, to }] — src/data/mentorApply.js MENTOR_AGREEMENTS
   values, // { [key]: boolean }
@@ -69,7 +72,7 @@ export default function MentorAgreementBlock({
 
     const timer = window.setTimeout(
       () => setBatchAnimating(false),
-      list.length * 40 + 260,
+      list.length * STAGGER_STEP_MS + STAGGER_BUFFER_MS,
     );
     return () => window.clearTimeout(timer);
   }, [batchAnimating, list.length]);

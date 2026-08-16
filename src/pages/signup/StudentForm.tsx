@@ -79,6 +79,7 @@ export const REGION_OPTIONS = [
 ];
 
 const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
+const PHONE_RESEND_COOLDOWN_SECONDS = 60;
 
 // §3.3 C-1 약관 6행 중 "모두 동의합니다"를 제외한 개별 5항목.
 // identityRequired 키는 스펙 7825(정본) 채택 — 8057/8293의 중복 "개인정보 수집 및 이용"
@@ -184,7 +185,7 @@ export default function StudentForm() {
     status: "default",
   });
   const [phoneSending, setPhoneSending] = useState(false);
-  const phoneCooldown = useCooldown(60);
+  const phoneCooldown = useCooldown(PHONE_RESEND_COOLDOWN_SECONDS);
   // 서버가 시도를 세므로 같은 코드를 두 번 보내지 않는다.
   const lastPhoneAttempt = useRef("");
   const [emailMessage, setEmailMessage] = useState<FieldMessage>({
