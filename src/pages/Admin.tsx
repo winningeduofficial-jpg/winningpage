@@ -19,7 +19,7 @@ import {
 } from "../lib/admissionBulkXlsx";
 import { HWP_SECTION_JSON_KEYS } from "../lib/admissionDoc";
 import {
-  BULK_XLSX_COLUMNS as ADMISSION_RESULTS_BULK_XLSX_COLUMNS,
+  ADMISSION_RESULTS_BULK_XLSX_COLUMNS,
   exportAdmissionResultRowsToXlsx,
   parseAdmissionResultRowsFromXlsx,
 } from "../lib/admissionResultsBulkXlsx";

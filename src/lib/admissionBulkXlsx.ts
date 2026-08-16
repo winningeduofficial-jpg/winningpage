@@ -64,7 +64,7 @@
 //
 // 하위호환(2026-08-07): 옛 26컬럼 파일(html 포함)을 업로드해도 거부하지
 // 않는다 — 헤더 행을 실제로 읽어 **컬럼 이름으로** 값을 찾는다(위치
-// 고정 인덱스가 아니다). BULK_XLSX_COLUMNS에 없는 컬럼(옛 html 3종
+// 고정 인덱스가 아니다). ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS에 없는 컬럼(옛 html 3종
 // 포함)은 그냥 무시된다 — html을 읽어서 쓰지 않는다(위 정책에 html
 // 자체가 없다). 이 방식은 컬럼이 없어도(구버전 필드 부재) 안전하고
 // (undefined로 처리), 컬럼 순서가 달라도 안전하다.
@@ -129,7 +129,7 @@ import {
   renderDocToHtml,
 } from "./admissionParsing.js";
 
-export const BULK_XLSX_COLUMNS = [
+const ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS = [
   "id",
   "admission_year",
   "source_name",
@@ -155,7 +155,7 @@ export const BULK_XLSX_COLUMNS = [
   "matched_text_name",
 ];
 
-// 6개 카테고리 → raw 컬럼명(1:1, BULK_XLSX_COLUMNS의 컬럼명과 동일하다).
+// 6개 카테고리 → raw 컬럼명(1:1, ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS의 컬럼명과 동일하다).
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
 
 // 메타데이터 컬럼(콘텐츠 카테고리 6종 제외) 중 잘림 마커를 검사할 대상.
@@ -255,7 +255,7 @@ export function exportAdmissionRowsToXlsx(rows: Record<string, unknown>[]): {
 } {
   const truncatedCells: TruncatedCell[] = [];
   const dataRows = rows.map((row, rowIndex) =>
-    BULK_XLSX_COLUMNS.map((column) => {
+    ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS.map((column) => {
       const serialized = serializeExportCell(row?.[column]);
       return truncateIfNeeded(
         serialized,
@@ -266,7 +266,10 @@ export function exportAdmissionRowsToXlsx(rows: Record<string, unknown>[]): {
   );
 
   const worksheet = forceStringCellTypes(
-    XLSX.utils.aoa_to_sheet([BULK_XLSX_COLUMNS, ...dataRows]),
+    XLSX.utils.aoa_to_sheet([
+      ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS,
+      ...dataRows,
+    ]),
   );
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "모집요강");
@@ -465,7 +468,7 @@ type ExistingRow = { id: unknown; [key: string]: unknown };
  * 항상 보여야 하는 UI 요구사항 때문에 추가했다.
  *
  * 컬럼은 **이름으로** 찾는다(위치 고정 인덱스가 아니다) — 옛 26컬럼
- * 파일(html 3종 포함)을 업로드해도 거부하지 않고, BULK_XLSX_COLUMNS에
+ * 파일(html 3종 포함)을 업로드해도 거부하지 않고, ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS에
  * 있는 23개만 이름으로 찾아 읽는다. 나머지(옛 html 컬럼 등)는 그냥
  * 무시된다.
  */
@@ -544,7 +547,7 @@ export function parseAdmissionRowsFromXlsx(
   const grid = XLSX.utils.sheet_to_json<unknown[]>(worksheet, { header: 1 });
   // 헤더 행을 실제로 읽어 컬럼 이름 → 인덱스 맵을 만든다(위치 고정
   // 인덱스가 아니다) — 옛 26컬럼 파일(html 3종 포함)이나 컬럼 순서가
-  // 다른 파일이 와도 안전하다. BULK_XLSX_COLUMNS에 없는 컬럼(옛 html
+  // 다른 파일이 와도 안전하다. ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS에 없는 컬럼(옛 html
   // 등)은 맵에는 들어가지만 아래에서 아예 조회하지 않아 자연히 무시된다.
   const headerRow = Array.isArray(grid[0]) ? grid[0] : [];
   const columnIndexByName = new Map<unknown, number>();
@@ -573,7 +576,7 @@ export function parseAdmissionRowsFromXlsx(
       return;
 
     const rowObj: Record<string, unknown> = {};
-    BULK_XLSX_COLUMNS.forEach((col) => {
+    ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS.forEach((col) => {
       const idx = columnIndexByName.get(col);
       rowObj[col] = idx === undefined ? undefined : rawRow[idx];
     });
