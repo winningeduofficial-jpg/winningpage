@@ -2,13 +2,13 @@ import {
   HWP_SECTION_JSON_KEYS,
   type SectionKey,
   validateAdmissionDoc,
-} from "../../../lib/admissionDoc";
-import {
-  HWP_SECTION_LABELS,
-  HWP_SECTION_ORDER,
-} from "../../../lib/admissionParsing";
-import { blocksToPlainText } from "../../../lib/blockToPlainText";
-import type { AdminColumn, AdminConfig } from "../shared/AdminEngine";
+} from "@/lib/admissionDoc";
+import { HWP_SECTION_LABELS, HWP_SECTION_ORDER } from "@/lib/admissionParsing";
+import { blocksToPlainText } from "@/lib/blockToPlainText";
+import type {
+  AdminColumn,
+  AdminConfig,
+} from "@/pages/admin/shared/AdminEngine";
 import {
   AdmissionParsingPreview,
   admissionGuidelinesValidate,

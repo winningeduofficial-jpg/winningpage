@@ -2,8 +2,8 @@ import { Outlet } from "react-router";
 import {
   PerformanceShellProvider,
   usePerformanceShell,
-} from "../../context/PerformanceShellContext";
-import { ToastProvider } from "../../context/ToastContext";
+} from "@/context/PerformanceShellContext";
+import { ToastProvider } from "@/context/ToastContext";
 import PerformanceSidebar from "./PerformanceSidebar";
 import QuotaExhaustedBanner from "./quota/QuotaExhaustedBanner";
 

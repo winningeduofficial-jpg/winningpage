@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import GoalCard from "../../components/goal/GoalCard";
+import GoalCard from "@/components/goal/GoalCard";
 import GrowthReportBody, {
   type GrowthReport as GrowthReportData,
-} from "../../components/goal/report/GrowthReportBody";
-import { fetchGoalReport } from "../../lib/goalApi";
+} from "@/components/goal/report/GrowthReportBody";
+import { fetchGoalReport } from "@/lib/goalApi";
 
 const VALID_PERIODS = ["weekly", "monthly"] as const;
 type ReportPeriod = (typeof VALID_PERIODS)[number];

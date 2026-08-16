@@ -10,11 +10,11 @@
 //   14px Medium #525252 **중앙정렬**이라 타이포가 다르다. prop 으로는 덮을 수 없어 헤더만
 //   children 안에서 직접 그리고, 섹션 태그·컨테이너는 ServiceSection 을 그대로 쓴다.
 import { useEffect, useState } from "react";
-import { FAQ_SECTION, MENTOR_FAQ } from "../../data/mentorApply";
-import { supabase } from "../../lib/supabase";
-import ServiceFaq from "../services/ServiceFaq";
-import ServiceSection from "../services/ServiceSection";
-import { MENTOR_HEADING_LG } from "../services/serviceTokens";
+import ServiceFaq from "@/components/services/ServiceFaq";
+import ServiceSection from "@/components/services/ServiceSection";
+import { MENTOR_HEADING_LG } from "@/components/services/serviceTokens";
+import { FAQ_SECTION, MENTOR_FAQ } from "@/data/mentorApply";
+import { supabase } from "@/lib/supabase";
 
 // 2026-08-11: FAQ 질문·답변과 섹션 헤더 카피가 DB(mentor_apply_faqs / mentor_apply_copy,
 //    sql/53_mentor_apply_faq_admin.sql)로 이관되어 어드민에서 편집 가능해졌다. 이 파일이 하던

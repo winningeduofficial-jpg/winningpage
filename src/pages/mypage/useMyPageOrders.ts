@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  FAKE_ENTITLEMENT_ENABLED,
-  getMockPaidOrders,
-} from "../../lib/entitlement";
-import { supabase } from "../../lib/supabase";
+import { FAKE_ENTITLEMENT_ENABLED, getMockPaidOrders } from "@/lib/entitlement";
+import { supabase } from "@/lib/supabase";
 import type { SessionUser } from "./useMyPageProfile";
 
 export type Order = {

@@ -1,5 +1,5 @@
-import GoalPageHeader from "../GoalPageHeader";
-import GoalTabs from "../GoalTabs";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import GoalTabs from "@/components/goal/GoalTabs";
 import DirectionSummaryBanner from "./DirectionSummaryBanner";
 import PeriodChipRow from "./PeriodChipRow";
 import SubjectDirectionCard from "./SubjectDirectionCard";

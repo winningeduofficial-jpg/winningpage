@@ -7,8 +7,8 @@ import {
   useRef,
   useState,
 } from "react";
-import { supabase } from "../../../lib/supabase";
-import MyPageModalShell from "../MyPageModalShell";
+import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import { supabase } from "@/lib/supabase";
 
 // 자녀 연결 모달 (Figma 3709:2579 입력 / 3709:2599 완료).
 // 두 화면이 같은 흐름의 앞뒤라 한 컴포넌트에서 단계로 전환한다.

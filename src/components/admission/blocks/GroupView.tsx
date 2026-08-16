@@ -1,4 +1,4 @@
-import type { Block } from "../../../lib/admissionDoc";
+import type { Block } from "@/lib/admissionDoc";
 import { renderBlock } from "./renderBlock";
 
 // specialBlock(admissionParsing.js:2626, `<section class="admission-special-block">

@@ -1,7 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router";
 
-import Chip from "../Chip";
+import Chip from "@/components/Chip";
 
 /**
  * 뉴스 섹션 (0729 시안 Figma node 2207:13148, 1101×293 재구현) — 독립 풀폭 섹션

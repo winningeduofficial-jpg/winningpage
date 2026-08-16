@@ -1,4 +1,4 @@
-import { useInfiniteMarquee } from "../../hooks/useInfiniteMarquee";
+import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
 import MentorCard from "./MentorCard";
 
 /**

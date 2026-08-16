@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
-import AcceptanceRateHero from "../../components/admission/AcceptanceRateHero";
+import AcceptanceRateHero from "@/components/admission/AcceptanceRateHero";
 import AdmissionCaseCard, {
   type AdmissionCaseRow,
-} from "../../components/admission/AdmissionCaseCard";
+} from "@/components/admission/AdmissionCaseCard";
 import {
   CASE_CATEGORIES,
   CATEGORY_LABELS,

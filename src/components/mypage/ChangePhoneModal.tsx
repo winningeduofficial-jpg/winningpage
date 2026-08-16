@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useId, useState } from "react";
-import { useCooldown } from "../../hooks/useCooldown";
+import { useCooldown } from "@/hooks/useCooldown";
 import {
   isValidMobile,
   normalizePhone,
   sendPhoneCode,
   verifyPhoneCode,
-} from "../../lib/phoneVerification";
-import { supabase } from "../../lib/supabase";
+} from "@/lib/phoneVerification";
+import { supabase } from "@/lib/supabase";
 import MyPageModalShell from "./MyPageModalShell";
 
 // 휴대폰 번호 변경 (Figma 3973:15330 입력 / 3973:16090 인증번호 / 3973:16297 확인

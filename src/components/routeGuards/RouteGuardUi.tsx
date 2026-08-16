@@ -2,7 +2,7 @@ import { useRevalidator, useRouteError } from "react-router";
 import {
   AdminForbiddenError,
   RouteCheckFailedError,
-} from "../../lib/routeMiddleware";
+} from "@/lib/routeMiddleware";
 
 // src/lib/routeMiddleware.ts의 판정(middleware)과 짝을 이루는 UI 조각들.
 // middleware는 redirect() 아니면 throw만 할 수 있어 화면을 그릴 수 없다 —

@@ -7,7 +7,7 @@
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import ChangeEmailModal from "./ChangeEmailModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ChangePhoneModal from "./ChangePhoneModal";

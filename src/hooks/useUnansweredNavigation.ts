@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 // 완료 판정(getStepUnansweredCount)과 반드시 같은 술어를 써야 한다 — isAnswered 를 직접 쓰면
 // requiredFields 미충족 문항이 "미완료지만 스크롤 대상은 없음"이 되어 CTA 가 죽은 버튼이 된다.
-import { isQuestionAnswered } from "../lib/renewalSurvey";
+import { isQuestionAnswered } from "@/lib/renewalSurvey";
 
 /**
  * 하단 CTA가 "미완료"일 때 클릭하면 첫 미응답 문항으로 스크롤 + 일시 하이라이트한다.

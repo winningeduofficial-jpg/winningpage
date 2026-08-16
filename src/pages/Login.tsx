@@ -6,9 +6,9 @@ import {
   PrimaryButton,
   TextField,
   TextLinkButton,
-} from "../components/auth";
-import { useRedirectIfAuthenticated } from "../hooks/useRedirectIfAuthenticated";
-import { supabase } from "../lib/supabase";
+} from "@/components/auth";
+import { useRedirectIfAuthenticated } from "@/hooks/useRedirectIfAuthenticated";
+import { supabase } from "@/lib/supabase";
 
 // 오픈 리다이렉트 방지: 같은 사이트 내부 경로만 허용
 function safeRedirect(value: string | null) {

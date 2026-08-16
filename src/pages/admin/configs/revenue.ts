@@ -1,4 +1,4 @@
-import type { FieldOption } from "../shared/csvExport";
+import type { FieldOption } from "@/pages/admin/shared/csvExport";
 
 // refund_requests.status DB CHECK 값(requested|processing|completed|rejected)과
 // 화면 라벨을 분리한다 — 저장은 영문, 표시는 한글(MyPage.jsx REFUND_STATUS

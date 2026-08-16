@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { formatKRW } from "../../data/pricingCatalog";
-import { supabase } from "../../lib/supabase";
+import { formatKRW } from "@/data/pricingCatalog";
+import { supabase } from "@/lib/supabase";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import PaymentTable from "./PaymentTable";
 import {

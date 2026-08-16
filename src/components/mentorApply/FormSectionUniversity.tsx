@@ -10,14 +10,14 @@
 // 넘긴 id 를 그대로 가리키므로 라벨 클릭·스크린리더 연결이 정상 동작하고, 같은 카드 안의
 // 인풋·텍스트에어리어와 라벨 위치·gap·에러 슬롯 높이가 정확히 일치한다.
 
+import SelectField from "@/components/auth/SelectField";
 import {
   ADMISSION_HISTORY_OPTIONS,
   ENROLLMENT_STATUS_OPTIONS,
   FINAL_TRACK_OPTIONS,
   FORM_SECTIONS,
-} from "../../data/mentorApply";
-import { isValidAdmissionYear, isWithinMaxLength } from "../../lib/validators";
-import SelectField from "../auth/SelectField";
+} from "@/data/mentorApply";
+import { isValidAdmissionYear, isWithinMaxLength } from "@/lib/validators";
 import ChipGroup from "./ChipGroup";
 import FormFieldRow from "./FormFieldRow";
 import FormSectionCard from "./FormSectionCard";

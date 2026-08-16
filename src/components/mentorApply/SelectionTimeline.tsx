@@ -26,8 +26,9 @@
 //     `max-w-content` 1164px 를 잘림 없이 확보하는 최소 뷰포트) 때문이다.
 //     세로 모드에서도 원 5개 해석은 유지된다 — 스텝 4개의 시작점 4개 + 마지막 종료 눈금 1개.
 //
-import { SELECTION_SECTION, SELECTION_STEPS } from "../../data/mentorApply";
-import { MENTOR_HEADING_MD } from "../services/serviceTokens";
+
+import { MENTOR_HEADING_MD } from "@/components/services/serviceTokens";
+import { SELECTION_SECTION, SELECTION_STEPS } from "@/data/mentorApply";
 
 // 도트 5단 램프(#E9EDF2 → #426EA9). 좌→우 점진적으로 진해지며, 활성/비활성 상태가 아니라
 // "진행도가 쌓인다"는 정적 시각 은유다(명세 §5 색상).

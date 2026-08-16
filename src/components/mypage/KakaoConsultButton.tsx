@@ -1,4 +1,4 @@
-import { COMPANY } from "../../data/company";
+import { COMPANY } from "@/data/company";
 
 // 카카오톡 상담 플로팅 버튼 (Figma 3679:1230 버튼 / 3679:1233 말풍선).
 //

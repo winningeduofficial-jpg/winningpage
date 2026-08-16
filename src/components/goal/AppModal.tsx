@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
 import { useId, useRef } from "react";
-import { useModalBehavior } from "../../hooks/useModalBehavior";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 
 type AppModalProps = {
   open: boolean;

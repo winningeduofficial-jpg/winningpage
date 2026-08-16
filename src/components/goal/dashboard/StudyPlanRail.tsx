@@ -1,20 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalChecklistRow from "@/components/goal/GoalChecklistRow";
+import GoalEmptyState from "@/components/goal/GoalEmptyState";
+import AddTaskModal from "@/components/goal/modals/AddTaskModal";
 import {
   createGoalPlanTask,
   deleteGoalPlanTask,
   fetchGoalPlanTasks,
   updateGoalPlanTask,
-} from "../../../lib/goalApi";
+} from "@/lib/goalApi";
 import {
   durationLabelToMinutes,
   getTodayWeekdayLabel,
   getWeekDates,
   kstYMD,
-} from "../../../lib/goalPlanUtils";
-import GoalCard from "../GoalCard";
-import GoalChecklistRow from "../GoalChecklistRow";
-import GoalEmptyState from "../GoalEmptyState";
-import AddTaskModal from "../modals/AddTaskModal";
+} from "@/lib/goalPlanUtils";
 
 // 우측 레일 "OO요일 나의 학습 계획하기" 카드 — 데이터 유무에 따라 194↔342 가변(part-07 §272).
 // 절대 좌표 대신 flex column + gap 20px(부모 GoalDashboard 레일 스택)로 쌓는다.

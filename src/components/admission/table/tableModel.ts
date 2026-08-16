@@ -26,7 +26,6 @@
 // 없음)와 즉시 불일치한다. rowSpan/colSpan은 값이 1이어도 "생략"으로 바꾸는
 // 최적화를 하지 말고, 반대로 현행이 안 찍는 자리에 1을 채워 넣지도 말 것.
 
-import type { TableBlock } from "../../../lib/admissionDoc";
 import {
   type CellKind,
   CHANGE_CELL_CLASS_BY_ROLE,
@@ -39,8 +38,9 @@ import {
   recruitFixedEmptyFallback,
   SELECTION_CELL_CLASS_BY_ROLE,
   selectionEmptyFallback,
-} from "../admissionLayout";
-import { resolveCellKind } from "../editor/tableEditorValidation";
+} from "@/components/admission/admissionLayout";
+import { resolveCellKind } from "@/components/admission/editor/tableEditorValidation";
+import type { TableBlock } from "@/lib/admissionDoc";
 
 // admissionDoc.js의 Cell은 필드가 필수(text:string 등)지만, 이 모델은 실데이터의
 // 느슨한 형태(text?/badge?/chips? 전부 선택)까지 받아들인다 — describeCell이

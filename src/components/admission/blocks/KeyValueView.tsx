@@ -22,7 +22,7 @@
 // `PURCHASE_ARIA_LABEL`과 같은 관례). `rel="noopener noreferrer"`는 `target="_blank"`의
 // 필수 동반 속성이다(opener 탈취·referrer 유출 방지).
 
-import { withDedupedKeys } from "../../../lib/reactKeys";
+import { withDedupedKeys } from "@/lib/reactKeys";
 
 /** 링크 라벨 접미. 시각적 표시가 없는 링크라 접근성 이름으로만 새 창을 알린다. */
 const NEW_WINDOW_SUFFIX = " (새 창)";

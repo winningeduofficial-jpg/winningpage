@@ -1,14 +1,14 @@
 import { useState } from "react";
-import AdmissionSectionView from "../../../components/admission/AdmissionSectionView";
-import SafeHtml from "../../../components/admission/SafeHtml";
-import type { AdmissionDoc } from "../../../lib/admissionDoc";
+import AdmissionSectionView from "@/components/admission/AdmissionSectionView";
+import SafeHtml from "@/components/admission/SafeHtml";
+import type { AdmissionDoc } from "@/lib/admissionDoc";
 import {
   HWP_SECTION_JSON_KEYS,
   isEmptyDoc,
   stableStringifyDoc,
   validateAdmissionDoc,
-} from "../../../lib/admissionDoc";
-import { isDocRenderEnabled } from "../../../lib/admissionFlags";
+} from "@/lib/admissionDoc";
+import { isDocRenderEnabled } from "@/lib/admissionFlags";
 import {
   buildHwpCategoryDoc,
   buildHwpCategoryHtml,
@@ -17,7 +17,7 @@ import {
   HWP_SECTION_LABELS,
   HWP_SECTION_ORDER,
   splitHwpTextIntoSections,
-} from "../../../lib/admissionParsing";
+} from "@/lib/admissionParsing";
 
 // admissionGuidelines row/form은 AdminForm(AdminEngine.jsx, 미변환)이 소유하는
 // 제네릭 폼 상태다 — HWP 6섹션(raw/*_html/*_json) + university_name 정도만

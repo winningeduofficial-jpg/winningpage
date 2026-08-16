@@ -1,12 +1,12 @@
 import type { FormEvent, ReactNode } from "react";
 import { useMemo, useState } from "react";
+import PrimaryButton from "@/components/auth/PrimaryButton";
+import SelectField from "@/components/auth/SelectField";
+import TextField from "@/components/auth/TextField";
 import {
   getSubjectOptions,
   SUBJECT_GROUPS,
-} from "../../../data/performanceCurriculum";
-import PrimaryButton from "../../auth/PrimaryButton";
-import SelectField from "../../auth/SelectField";
-import TextField from "../../auth/TextField";
+} from "@/data/performanceCurriculum";
 
 // STEP1 기본 정보 입력 폼 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) 단정 전문.
 //

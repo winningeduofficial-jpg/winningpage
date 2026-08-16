@@ -18,8 +18,8 @@ import {
   InfoCard,
   PrimaryButton,
   TextField,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 import { sendChildInvite } from "./mockApi";
 
 const PHONE_REGEX = /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/;

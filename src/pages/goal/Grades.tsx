@@ -1,21 +1,17 @@
 import type { ComponentProps } from "react";
 import { useEffect, useState } from "react";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import AddMockExamGradeModal from "../../components/goal/modals/AddMockExamGradeModal";
-import AddNaesinGradeModal from "../../components/goal/modals/AddNaesinGradeModal";
-import GoalGaugeCard from "../../components/goal/report/GoalGaugeCard";
-import GoalTable from "../../components/goal/report/GoalTable";
-import {
-  addGoalGrade,
-  fetchGoalGrades,
-  fetchGoalStudent,
-} from "../../lib/goalApi";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import AddMockExamGradeModal from "@/components/goal/modals/AddMockExamGradeModal";
+import AddNaesinGradeModal from "@/components/goal/modals/AddNaesinGradeModal";
+import GoalGaugeCard from "@/components/goal/report/GoalGaugeCard";
+import GoalTable from "@/components/goal/report/GoalTable";
+import { addGoalGrade, fetchGoalGrades, fetchGoalStudent } from "@/lib/goalApi";
 import {
   improvementDelta,
   latestKpi,
   round1,
   toTableRows,
-} from "../../lib/goalGrades";
+} from "@/lib/goalGrades";
 
 // 성적 관리(#35) + 내신/모의고사 성적 추가 모달(#36, 4022:5216) — 실데이터 배선.
 //

@@ -1,4 +1,4 @@
-import ImeSafeInput from "../ImeSafeInput";
+import ImeSafeInput from "@/components/admission/editor/ImeSafeInput";
 
 type TextCellEditorProps = {
   value: string | { text?: string } | null | undefined;

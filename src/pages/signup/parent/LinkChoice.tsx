@@ -15,8 +15,8 @@ import {
   AuthTitle,
   ChoiceCard,
   TextLinkButton,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 
 type LinkChoiceProps = {
   mode?: "initial" | "add";

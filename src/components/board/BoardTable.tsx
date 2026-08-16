@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 
-import Chip from "../Chip";
+import Chip from "@/components/Chip";
 
 /**
  * 게시판(회사소식·공지사항) 공통 표 — 번호 / 제목 / 조회수 / 작성일 4컬럼.

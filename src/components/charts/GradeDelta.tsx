@@ -36,7 +36,7 @@ import {
   computeDeltaFromSeries,
   DELTA_STATE,
   formatGradeValue,
-} from "../../lib/admissionResults";
+} from "@/lib/admissionResults";
 import { CHART_COLORS, CHART_FONT_SIZE } from "./chartTheme";
 
 // buildTrackSeries()가 만드는 셀 하나 — 이 컴포넌트가 실제로 읽는 필드만 좁혀서 둔다.

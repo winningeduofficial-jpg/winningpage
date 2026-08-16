@@ -7,11 +7,11 @@ import {
   useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import ConfirmModal from "../../components/checkout/ConfirmModal";
-import { CHECKOUT_AGREEMENTS } from "../../data/legalDocs";
-import { formatKRW } from "../../data/pricingCatalog";
-import { supabase } from "../../lib/supabase";
-import { ANONYMOUS, getTossPayments } from "../../lib/toss";
+import ConfirmModal from "@/components/checkout/ConfirmModal";
+import { CHECKOUT_AGREEMENTS } from "@/data/legalDocs";
+import { formatKRW } from "@/data/pricingCatalog";
+import { supabase } from "@/lib/supabase";
+import { ANONYMOUS, getTossPayments } from "@/lib/toss";
 import { useEnrollmentOrder } from "./useEnrollmentOrder";
 import { usePaymentAgreementHistory } from "./usePaymentAgreementHistory";
 

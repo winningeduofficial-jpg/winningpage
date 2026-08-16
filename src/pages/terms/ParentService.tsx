@@ -5,7 +5,7 @@
 // 규정하는 하나의 약관), 학부모 전제를 설명하는 도입부 문장은 이 페이지에만 유지한다.
 import TermsPageLayout, {
   TermsArticleBody,
-} from "../../components/auth/TermsPageLayout";
+} from "@/components/auth/TermsPageLayout";
 
 const INTRO =
   "학부모회원은 만 19세 이상 성인을 전제로 하며, 자녀(학생회원)와는 별도의 독립 계정으로 가입합니다. 연동 없이도 학부모회원 계정 자체는 이용할 수 있습니다.";

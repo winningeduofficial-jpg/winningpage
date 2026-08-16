@@ -1,5 +1,8 @@
 import type { ChangeEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import OutlineButton from "@/components/auth/OutlineButton";
+import PrimaryButton from "@/components/auth/PrimaryButton";
+import InlineCard from "@/components/performance/chat/InlineCard";
 import {
   HEIC_REJECT_MESSAGE,
   IMAGE_ACCEPT_ATTR,
@@ -9,10 +12,7 @@ import {
   MAX_PHOTOS,
   MAX_TOTAL_BYTES,
   prepareGuideImage,
-} from "../../../lib/performance/guideImage";
-import OutlineButton from "../../auth/OutlineButton";
-import PrimaryButton from "../../auth/PrimaryButton";
-import InlineCard from "../chat/InlineCard";
+} from "@/lib/performance/guideImage";
 import PhotoAddTile from "./PhotoAddTile";
 import PhotoThumb from "./PhotoThumb";
 

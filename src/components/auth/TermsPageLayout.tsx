@@ -5,7 +5,7 @@
 // 반응형(adapt.md): 인라인 style은 브레이크포인트를 못 태우므로 클래스로 이전 — 1100px은
 // w-full 위 상한(max-w)일 뿐이라 유동폭 자체는 원래도 성립했고, 여백만 모바일 우선으로 램프.
 import type { ReactNode } from "react";
-import { withDedupedKeys } from "../../lib/reactKeys";
+import { withDedupedKeys } from "@/lib/reactKeys";
 
 interface TermsPageLayoutProps {
   title?: ReactNode;

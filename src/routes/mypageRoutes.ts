@@ -1,6 +1,6 @@
 import type { RouteObject } from "react-router";
-import MyPage from "../pages/MyPage";
-import ChildReport from "../pages/mypage/ChildReport";
+import MyPage from "@/pages/MyPage";
+import ChildReport from "@/pages/mypage/ChildReport";
 
 const mypageRoutes: RouteObject[] = [
   // 마이페이지 리뉴얼(Figma 3762:18713 학생/멘토, 3762:20390 학부모) — 공통

@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { type Location, Navigate, Outlet, useLocation } from "react-router";
-import { useSessionOptional } from "../context/SessionContext";
-import { fetchEntitlement } from "../lib/entitlement";
-import { supabase } from "../lib/supabase";
+import { useSessionOptional } from "@/context/SessionContext";
+import { fetchEntitlement } from "@/lib/entitlement";
+import { supabase } from "@/lib/supabase";
 import PerformanceSkeleton from "./performance/PerformanceSkeleton";
 
 // 유료 서비스 진입 가드 — 명세서 §2.2의 4상태(`loading`/`guest`/`forbidden`/`ok`)

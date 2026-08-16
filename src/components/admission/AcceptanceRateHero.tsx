@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
-import cau from "../../assets/admission/universities/cau.png";
-import hanyang from "../../assets/admission/universities/hanyang.png";
-import hufs from "../../assets/admission/universities/hufs.png";
-import kaist from "../../assets/admission/universities/kaist.png";
-import konkuk from "../../assets/admission/universities/konkuk.png";
-import korea from "../../assets/admission/universities/korea.png";
-import pusan from "../../assets/admission/universities/pusan.png";
-import skku from "../../assets/admission/universities/skku.png";
-import snu from "../../assets/admission/universities/snu.png";
-import sogang from "../../assets/admission/universities/sogang.png";
-import unist from "../../assets/admission/universities/unist.png";
-import yonsei from "../../assets/admission/universities/yonsei.png";
-import type { AdmissionCaseLogoRow } from "../../pages/admission/admissionCaseData";
+import cau from "@/assets/admission/universities/cau.png";
+import hanyang from "@/assets/admission/universities/hanyang.png";
+import hufs from "@/assets/admission/universities/hufs.png";
+import kaist from "@/assets/admission/universities/kaist.png";
+import konkuk from "@/assets/admission/universities/konkuk.png";
+import korea from "@/assets/admission/universities/korea.png";
+import pusan from "@/assets/admission/universities/pusan.png";
+import skku from "@/assets/admission/universities/skku.png";
+import snu from "@/assets/admission/universities/snu.png";
+import sogang from "@/assets/admission/universities/sogang.png";
+import unist from "@/assets/admission/universities/unist.png";
+import yonsei from "@/assets/admission/universities/yonsei.png";
+import CountUpNumber from "@/components/CountUpNumber";
+import type { AdmissionCaseLogoRow } from "@/pages/admission/admissionCaseData";
 import {
   computeAcceptanceAverage,
   DEFAULT_HERO_SCOPE,
@@ -19,8 +20,7 @@ import {
   fetchAcceptanceRates,
   fetchAdmissionCaseLogos,
   HERO_SCOPES,
-} from "../../pages/admission/admissionCaseData";
-import CountUpNumber from "../CountUpNumber";
+} from "@/pages/admission/admissionCaseData";
 
 interface LogoItem {
   key: string;

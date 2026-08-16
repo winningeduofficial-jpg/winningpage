@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { addGoalGrade } from "../../../lib/goalApi";
-import GoalCard from "../GoalCard";
-import GoalCardHeader from "../GoalCardHeader";
-import GoalStatChip from "../GoalStatChip";
-import AddNaesinGradeModal from "../modals/AddNaesinGradeModal";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalCardHeader from "@/components/goal/GoalCardHeader";
+import GoalStatChip from "@/components/goal/GoalStatChip";
+import AddNaesinGradeModal from "@/components/goal/modals/AddNaesinGradeModal";
+import { addGoalGrade } from "@/lib/goalApi";
 
 type NaesinCardData = {
   round: string;

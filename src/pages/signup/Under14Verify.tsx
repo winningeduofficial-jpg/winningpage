@@ -25,8 +25,8 @@ import {
   AuthTitle,
   InfoCard,
   PrimaryButton,
-} from "../../components/auth";
-import { useSignup } from "../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 import { runIdentityVerification } from "./identityVerification";
 
 // 만 14세 미만 가입 플로우 전체를 가리는 플래그 — StudentBirth.jsx와 동일.

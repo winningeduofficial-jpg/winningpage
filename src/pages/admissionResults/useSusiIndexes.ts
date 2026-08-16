@@ -3,7 +3,7 @@ import {
   fetchSusiDepartments,
   fetchSusiUniversities,
   fetchTrendingDepartments,
-} from "../../lib/admissionResultsQueries";
+} from "@/lib/admissionResultsQueries";
 
 // admissionResultsQueries.js(수정 범위 밖의 JSDoc 없는 .js)가 돌려주는 행 모양을
 // 이 셸이 실제로 읽는 필드만 좁혀서 적는다.

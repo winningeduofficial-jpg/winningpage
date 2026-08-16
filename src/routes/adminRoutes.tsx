@@ -1,14 +1,14 @@
 import type { RouteObject } from "react-router";
 import { Navigate } from "react-router";
-import { AdminAccessBoundary } from "../components/routeGuards/RouteGuardUi";
-import { requireAdminMiddleware } from "../lib/routeMiddleware";
+import { AdminAccessBoundary } from "@/components/routeGuards/RouteGuardUi";
+import { requireAdminMiddleware } from "@/lib/routeMiddleware";
 // Admin 섹션 라우트 목록 — CONFIGS(Admin.tsx, 도메인 config 8개 파일 + 폼 컴포넌트를
 // 물고 있어 무겁다) 대신 이 파일만 정적으로 import한다. adminSectionKeys.ts 상단
 // 주석 참고 — /admin에 들어가지 않는 사용자의 초기 번들에 CONFIGS를 얹지 않기 위함이다.
 import {
   ADMIN_DEFAULT_SECTION_KEY,
   ADMIN_SECTION_KEYS,
-} from "../pages/admin/adminSectionKeys";
+} from "@/pages/admin/adminSectionKeys";
 
 // 청크(../pages/Admin) 다운로드 대기 중 표시 — route.lazy가 대기하는 동안
 // (middleware 판정 + JS 청크 로딩을 함께 블록한다) 정적 최상위 HydrateFallback으로
@@ -39,7 +39,7 @@ const adminRoutes: RouteObject[] = [
   {
     path: "/admin",
     lazy: async () => {
-      const { AdminLayout } = await import("../pages/Admin");
+      const { AdminLayout } = await import("@/pages/Admin");
       return { Component: AdminLayout };
     },
     middleware: [requireAdminMiddleware],
@@ -55,7 +55,7 @@ const adminRoutes: RouteObject[] = [
       ...ADMIN_SECTION_KEYS.map((key) => ({
         path: key,
         lazy: async () => {
-          const { AdminSectionRoute } = await import("../pages/Admin");
+          const { AdminSectionRoute } = await import("@/pages/Admin");
           return { Component: () => <AdminSectionRoute section={key} /> };
         },
       })),

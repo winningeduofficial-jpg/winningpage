@@ -11,8 +11,8 @@ import {
 } from "lucide-react";
 import { useMemo } from "react";
 import { Link } from "react-router";
-import { SERVICE_NAME_ROUTES } from "../../data/navigation";
-import { resolvePromotedSlugLink } from "../../hooks/useNavGroups";
+import { SERVICE_NAME_ROUTES } from "@/data/navigation";
+import { resolvePromotedSlugLink } from "@/hooks/useNavGroups";
 
 // program_categories 활성 row(sort_order asc).
 type Service = {

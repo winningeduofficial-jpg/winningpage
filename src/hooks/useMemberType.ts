@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 // Header.jsx(:151 근방)가 profiles 를 조회하는 것과 같은 컬럼 세트.
 const PROFILE_COLUMNS = "id, name, email, username, member_type, role";

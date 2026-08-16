@@ -1,6 +1,6 @@
 // 2페이지 첫 섹션 — §타이틀(학교 생활 및 입시 준비도) + 종합점수 + 요약 2줄.
 // props: { scoreLabel, summaryLines } — data.readiness 에서 전달.
-import { withDedupedKeys } from "../../../lib/reactKeys";
+import { withDedupedKeys } from "@/lib/reactKeys";
 
 type ReadinessOverviewProps = {
   scoreLabel: string;

@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import type { TableBlock } from "../../../lib/admissionDoc";
-import { withDedupedKeys } from "../../../lib/reactKeys";
-import AdmissionTable from "../table/AdmissionTable";
-import { describeCell } from "../table/tableModel";
+import AdmissionTable from "@/components/admission/table/AdmissionTable";
+import { describeCell } from "@/components/admission/table/tableModel";
+import type { TableBlock } from "@/lib/admissionDoc";
+import { withDedupedKeys } from "@/lib/reactKeys";
 import createEditSlots, { EDIT_PARITY_FROZEN } from "./editSlots";
 import TableGroupHeaderEditor from "./TableGroupHeaderEditor";
 import * as ops from "./tableBlockOperations";

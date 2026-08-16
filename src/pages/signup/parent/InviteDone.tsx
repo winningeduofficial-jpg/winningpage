@@ -10,8 +10,8 @@ import {
   OutlineButton,
   TextField,
   TextLinkButton,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 
 export default function InviteDone() {
   const navigate = useNavigate();

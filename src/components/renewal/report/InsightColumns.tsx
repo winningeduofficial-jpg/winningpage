@@ -1,7 +1,7 @@
 // 잘하고 있는 부분(3) / 보완할 부분(4) 2열 리스트.
 // props: { strengths, improvements } — 문자열 배열.
 // R3(2026-08-11) — 2열 고정폭(30.875rem×2 ≈ 988px)은 모바일에서 세로 스택으로 바뀐다.
-import { withDedupedKeys } from "../../../lib/reactKeys";
+import { withDedupedKeys } from "@/lib/reactKeys";
 
 type InsightColumnsProps = {
   strengths: string[];

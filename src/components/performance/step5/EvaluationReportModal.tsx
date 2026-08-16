@@ -1,12 +1,12 @@
 import { useId } from "react";
-import PerformanceReportSurface from "../report/PerformanceReportSurface";
+import PerformanceReportSurface from "@/components/performance/report/PerformanceReportSurface";
 import ReportModalShell, {
   REPORT_MODAL_FOOTER_BUTTON,
-} from "../report/ReportModalShell";
+} from "@/components/performance/report/ReportModalShell";
 import SectionedReportView, {
   getVisibleSections,
   type ReportSection,
-} from "../report/SectionedReportView";
+} from "@/components/performance/report/SectionedReportView";
 
 // STEP5 평가 리포트 모달 — docs/수행평가-상세-명세.md §5.16(`3754:4512` 실측) / §8.5 렌더 계약.
 //

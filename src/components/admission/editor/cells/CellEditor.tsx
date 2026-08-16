@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { resolveCellKind } from "../tableEditorValidation";
+import { resolveCellKind } from "@/components/admission/editor/tableEditorValidation";
 import BadgeCellEditor from "./BadgeCellEditor";
 import ChipsCellEditor from "./ChipsCellEditor";
 import TextCellEditor from "./TextCellEditor";

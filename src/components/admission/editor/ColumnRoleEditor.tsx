@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "react";
-import { getKnownRolesForVariant } from "../admissionLayout";
+import { getKnownRolesForVariant } from "@/components/admission/admissionLayout";
 import ImeSafeInput from "./ImeSafeInput";
 
 const CUSTOM_ROLE_OPTION = "__custom__";

@@ -1,8 +1,8 @@
-import type { Block } from "../../../../lib/admissionDoc";
 import AdmissionBlockEditor, {
   type AdmissionBlock,
-} from "../AdmissionBlockEditor";
-import * as docOps from "../docBlockOperations";
+} from "@/components/admission/editor/AdmissionBlockEditor";
+import * as docOps from "@/components/admission/editor/docBlockOperations";
+import type { Block } from "@/lib/admissionDoc";
 
 type GroupBlock = AdmissionBlock & { children?: AdmissionBlock[] };
 

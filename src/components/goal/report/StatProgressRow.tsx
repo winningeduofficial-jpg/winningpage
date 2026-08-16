@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import GoalProgressBar from "../GoalProgressBar";
+import GoalProgressBar from "@/components/goal/GoalProgressBar";
 
 type StatProgressRowProps = {
   label: ReactNode;

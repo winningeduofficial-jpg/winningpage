@@ -5,7 +5,7 @@ import {
   checkFieldsMinLength,
   countFieldChars,
   SUBMISSION_MIN_CHARS,
-} from "../../../lib/performance/submission";
+} from "@/lib/performance/submission";
 import CharCounter from "./CharCounter";
 
 // STEP5 수행평가 제출폼 — docs/수행평가-상세-명세.md §5.14(`3754:3992` 빈 상태 /

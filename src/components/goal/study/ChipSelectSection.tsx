@@ -1,4 +1,4 @@
-import GoalCard from "../GoalCard";
+import GoalCard from "@/components/goal/GoalCard";
 import SelectChip from "./SelectChip";
 
 // 섹션3 "방해 요인"(531×265) / 섹션4 "오늘 완료한 핵심 학습 항목"(1190×184) 공용 — 둘 다 다중

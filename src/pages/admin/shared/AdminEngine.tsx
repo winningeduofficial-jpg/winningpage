@@ -11,30 +11,30 @@ import {
 } from "lucide-react";
 import type { FormEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import AdmissionSurface from "../../../components/admission/AdmissionSurface";
-import AdmissionSectionEditModal from "../../../components/admission/editor/AdmissionSectionEditModal";
-import DocBlocksEditor from "../../../components/admission/editor/DocBlocksEditor";
-import type { ColumnBodyPost } from "../../../components/column/ColumnBody";
+import AdmissionSurface from "@/components/admission/AdmissionSurface";
+import AdmissionSectionEditModal from "@/components/admission/editor/AdmissionSectionEditModal";
+import DocBlocksEditor from "@/components/admission/editor/DocBlocksEditor";
+import type { ColumnBodyPost } from "@/components/column/ColumnBody";
 import BlockEditor, {
   type BlockEditorHandle,
-} from "../../../components/editor/BlockEditor";
-import ColumnPreviewModal from "../../../components/editor/ColumnPreviewModal";
+} from "@/components/editor/BlockEditor";
+import ColumnPreviewModal from "@/components/editor/ColumnPreviewModal";
 import {
   type AdmissionDoc,
   HWP_SECTION_JSON_KEYS,
   type SectionKey,
   validateAdmissionDoc,
-} from "../../../lib/admissionDoc";
+} from "@/lib/admissionDoc";
 import {
   clean as cleanAdmissionText,
   HWP_SECTION_HTML_KEYS,
   HWP_SECTION_LABELS,
   renderDocToHtml,
-} from "../../../lib/admissionParsing";
-import { blocksToPlainText } from "../../../lib/blockToPlainText";
-import { plainTextToBlocks } from "../../../lib/plainTextToBlocks";
-import { withDedupedKeys } from "../../../lib/reactKeys";
-import { supabase } from "../../../lib/supabase";
+} from "@/lib/admissionParsing";
+import { blocksToPlainText } from "@/lib/blockToPlainText";
+import { plainTextToBlocks } from "@/lib/plainTextToBlocks";
+import { withDedupedKeys } from "@/lib/reactKeys";
+import { supabase } from "@/lib/supabase";
 import { reportAdminError } from "./adminErrors";
 import {
   type FieldOption,

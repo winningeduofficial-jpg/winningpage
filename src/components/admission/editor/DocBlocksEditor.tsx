@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import type { Block } from "../../../lib/admissionDoc";
-import { withDedupedKeys } from "../../../lib/reactKeys";
+import type { Block } from "@/lib/admissionDoc";
+import { withDedupedKeys } from "@/lib/reactKeys";
 import AdmissionBlockEditor from "./AdmissionBlockEditor";
 import * as docOps from "./docBlockOperations";
 import { validateBlocks } from "./tableEditorValidation";

@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import {
   formatDate,
   getThumbnailUrl,
-} from "../../pages/admission/admissionCaseData";
+} from "@/pages/admission/admissionCaseData";
 
 type ThumbnailProps = {
   url?: string | undefined;

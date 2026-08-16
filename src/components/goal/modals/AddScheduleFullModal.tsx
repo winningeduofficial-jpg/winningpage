@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { SCHEDULE_CATEGORIES } from "../../../lib/goal/scheduleCategory";
+import AppModal from "@/components/goal/AppModal";
+import ModalField from "@/components/goal/ModalField";
+import SegmentedChipGroup from "@/components/goal/SegmentedChipGroup";
+import { SCHEDULE_CATEGORIES } from "@/lib/goal/scheduleCategory";
 import {
   createGoalSchedule,
   deleteGoalSchedule,
   updateGoalSchedule,
-} from "../../../lib/goalApi";
-import AppModal from "../AppModal";
-import ModalField from "../ModalField";
-import SegmentedChipGroup from "../SegmentedChipGroup";
+} from "@/lib/goalApi";
 
 // 중요일정 등록·수정 모달(624px 버전) — docs/figma-goal/part-14.md #40 (530×624 = 33.125rem ×
 // 39rem, **모달 정본** — 화면별 지침 §3 확정 사항). 대시보드 진입용 AddScheduleModal(#19,

@@ -7,26 +7,26 @@ import * as XLSX from "xlsx";
 // customComponentKey(CUSTOM_COMPONENT_REGISTRY 조회)로 붙인다 — premiumBookPages 선례와 같은 방식이다.
 // Admin.jsx 가 5,700줄이라 컴포넌트 본체는 별도 파일에 둔다(이 파일이 그 파일을
 // import 하므로 역방향 import 는 만들지 않는다 — 순환 참조 방지).
-import CouponAdmin from "../components/admin/CouponAdmin";
-import GoalStudentsAdmin from "../components/admin/GoalStudentsAdmin";
-import LearningDiagnosisAdmin from "../components/admin/LearningDiagnosisAdmin";
-import MentorApplicationsAdmin from "../components/admin/MentorApplicationsAdmin";
-import PremiumBookAdmin from "../components/admin/PremiumBookAdmin";
-import AdmissionMetaEditModal from "../components/admission/editor/AdmissionMetaEditModal";
+import CouponAdmin from "@/components/admin/CouponAdmin";
+import GoalStudentsAdmin from "@/components/admin/GoalStudentsAdmin";
+import LearningDiagnosisAdmin from "@/components/admin/LearningDiagnosisAdmin";
+import MentorApplicationsAdmin from "@/components/admin/MentorApplicationsAdmin";
+import PremiumBookAdmin from "@/components/admin/PremiumBookAdmin";
+import AdmissionMetaEditModal from "@/components/admission/editor/AdmissionMetaEditModal";
 import {
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
-} from "../lib/admissionBulkXlsx";
-import { HWP_SECTION_JSON_KEYS } from "../lib/admissionDoc";
+} from "@/lib/admissionBulkXlsx";
+import { HWP_SECTION_JSON_KEYS } from "@/lib/admissionDoc";
 import {
   ADMISSION_RESULTS_BULK_XLSX_COLUMNS,
   exportAdmissionResultRowsToXlsx,
   parseAdmissionResultRowsFromXlsx,
-} from "../lib/admissionResultsBulkXlsx";
+} from "@/lib/admissionResultsBulkXlsx";
 import {
   getAdmissionActiveYear,
   setAdmissionActiveYear,
-} from "../lib/admissionSettings";
+} from "@/lib/admissionSettings";
 import {
   computeGoalCutBackfill,
   fetchBackfillSourceRows,
@@ -35,9 +35,9 @@ import {
   type GoalCutBackfillPayload,
   type GoalCutBackfillStats,
   goalCutConflictKey,
-} from "../lib/goal/goalCutBackfill";
-import { withDedupedKeys } from "../lib/reactKeys";
-import { supabase } from "../lib/supabase";
+} from "@/lib/goal/goalCutBackfill";
+import { withDedupedKeys } from "@/lib/reactKeys";
+import { supabase } from "@/lib/supabase";
 import {
   ADMIN_DEFAULT_SECTION_KEY,
   ADMIN_SECTION_KEYS,

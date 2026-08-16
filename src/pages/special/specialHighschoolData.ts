@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 // 시안(2239:1559) 기반 탭 + 국제고(2026-08 웹서치 검증으로 부산국제고는 외고가
 // 아니라 국제고로 확인되어 신설). 'all' 외의 key는 DB special_highschool_cases.

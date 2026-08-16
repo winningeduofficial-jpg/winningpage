@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "react";
-import ImeSafeInput from "../ImeSafeInput";
+import ImeSafeInput from "@/components/admission/editor/ImeSafeInput";
 
 type BadgeCellValue = { text?: string; badge?: string };
 

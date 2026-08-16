@@ -5,13 +5,13 @@ import {
   useOutletContext,
   useParams,
 } from "react-router";
-import type { CascadeLevel } from "../../components/renewal/survey/CascadingSelect";
-import QuestionCardList from "../../components/renewal/survey/QuestionCardList";
-import SurveyProgress from "../../components/renewal/survey/SurveyProgress";
-import { useUnansweredNavigation } from "../../hooks/useUnansweredNavigation";
+import type { CascadeLevel } from "@/components/renewal/survey/CascadingSelect";
+import QuestionCardList from "@/components/renewal/survey/QuestionCardList";
+import SurveyProgress from "@/components/renewal/survey/SurveyProgress";
+import { useUnansweredNavigation } from "@/hooks/useUnansweredNavigation";
 // sql/72(2026-08-13) — 문항 문구 어드민 오버라이드. 셸이 fetch 해 outlet context 로 내려준 값을
 // 화면에 실제 보여줄 questions 배열에만 입힌다(요건 판정용 requiredQuestions 는 구조만 보므로 무관).
-import { applySurveyCopyOverrides } from "../../lib/diagnosisSurveyCopyOverrides";
+import { applySurveyCopyOverrides } from "@/lib/diagnosisSurveyCopyOverrides";
 import {
   getRemainingAfterStep,
   getStepPath,
@@ -22,7 +22,7 @@ import {
   SURVEY_FIRST_STEP_PATH,
   SURVEY_REPORT_PATH,
   SURVEY_TOTAL_STEPS,
-} from "../../lib/renewalSurvey";
+} from "@/lib/renewalSurvey";
 
 /**
  * 설문 한 스텝. 셸(SurveyStepShell)의 자식 라우트이므로 <main>/타이틀 블록은 셸이 소유하고,

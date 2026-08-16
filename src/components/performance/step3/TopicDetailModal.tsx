@@ -1,8 +1,8 @@
 import { useId, useRef } from "react";
-import { useModalBehavior } from "../../../hooks/useModalBehavior";
 import SectionedReportView, {
   getVisibleSections,
-} from "../report/SectionedReportView";
+} from "@/components/performance/report/SectionedReportView";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 import type { Topic } from "./TopicCard";
 
 // STEP3 주제 상세 모달 — docs/수행평가-상세-명세.md §5.11(`3754:4872` 실측) / §10.2 P9

@@ -1,4 +1,4 @@
-import type { Block } from "../../../lib/admissionDoc";
+import type { Block } from "@/lib/admissionDoc";
 
 // Block 배열(문서 전체) 순서 변경·추가·삭제를 순수 함수로 분리 —
 // tableBlockOperations.js와 같은 이유로 컴포넌트(DocBlocksEditor.jsx)와

@@ -27,7 +27,7 @@ import "../../../styles/grade-input-grid-filler.css";
 import {
   GRADE_SYSTEM_INPUT_RULES,
   MOCK_GRADE_INPUT_RULE,
-} from "../../../data/renewalSurveyQuestions";
+} from "@/data/renewalSurveyQuestions";
 
 // grade-input-grid-filler.css 의 data-v-{bp} 속성명과 반드시 같은 순서로 대응한다.
 // wide(74rem/1184px) 이상은 auto-fill(6.25rem) 트랙이지만, 그리드 자체가 max-w-[62rem](992px)로

@@ -1,4 +1,4 @@
-import GoalCard from "../GoalCard";
+import GoalCard from "@/components/goal/GoalCard";
 
 // "오늘의 조언" 카드(530×194 = 33.125rem×12.125rem, part-07 #20 y=700) — 카드 타이틀 + 본문만
 // 렌더한다. 조언 뱃지("일일 분석 조언"/"AI 입시 분석 조언")는 이 카드 소속이 아니라 페이지

@@ -1,9 +1,9 @@
 import type { RouteObject } from "react-router";
 import { Navigate } from "react-router";
-import LearningDiagnosisLanding from "../pages/renewal/LearningDiagnosisLanding";
-import SurveyPreview from "../pages/renewal/SurveyPreview";
-import SurveyStepPage from "../pages/renewal/SurveyStepPage";
-import SurveyStepShell from "../pages/renewal/SurveyStepShell";
+import LearningDiagnosisLanding from "@/pages/renewal/LearningDiagnosisLanding";
+import SurveyPreview from "@/pages/renewal/SurveyPreview";
+import SurveyStepPage from "@/pages/renewal/SurveyStepPage";
+import SurveyStepShell from "@/pages/renewal/SurveyStepShell";
 
 // 학습진단 6종 URL 통일 규칙 정본(2026-08-10) — 소개(마케팅) 페이지는
 // /services/{slug}(자식 = /services 목록 페이지), 앱(이용 화면)은 /app/{slug}/...

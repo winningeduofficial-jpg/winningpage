@@ -31,8 +31,8 @@ import { Check } from "lucide-react";
 // CTA 는 인라인 style={{ backgroundColor: BRAND_NAVY }} 대신 클래스 리터럴 bg-[#013262] 를 쓴다.
 import type { ReactNode } from "react";
 import { Link } from "react-router";
-import { formatKRW } from "../../data/pricingCatalog";
-import { useProducts } from "../../lib/products";
+import { formatKRW } from "@/data/pricingCatalog";
+import { useProducts } from "@/lib/products";
 import ServiceSection from "./ServiceSection";
 
 type ServicePricingCta = {

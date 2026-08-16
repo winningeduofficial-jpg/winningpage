@@ -19,8 +19,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import GradeDelta from "../../components/charts/GradeDelta";
-import Sparkline from "../../components/charts/Sparkline";
+import GradeDelta from "@/components/charts/GradeDelta";
+import Sparkline from "@/components/charts/Sparkline";
 import {
   buildDetailModel,
   CELL_STATE,
@@ -29,9 +29,9 @@ import {
   formatGradeValue,
   RESULT_YEARS,
   UNDISCLOSED_CELL,
-} from "../../lib/admissionResults";
-import { fetchSusiResultRows } from "../../lib/admissionResultsQueries";
-import { withDedupedKeys } from "../../lib/reactKeys";
+} from "@/lib/admissionResults";
+import { fetchSusiResultRows } from "@/lib/admissionResultsQueries";
+import { withDedupedKeys } from "@/lib/reactKeys";
 import { CONTAINER } from "./constants";
 import { ErrorBlock, LoadingBlock } from "./StateBlocks";
 

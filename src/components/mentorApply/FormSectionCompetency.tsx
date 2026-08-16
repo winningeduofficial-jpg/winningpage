@@ -15,14 +15,14 @@
 //      설명·placeholder 가 완전히 같은 **복제 실수로 확정**됐다(확인 항목 ⑳). 1개만 만든다.
 //   ③ 텍스트에어리어에 `maxLength` + `showCounter` 를 켰다. 아래 MAX_LENGTHS 주석 참고.
 import type { ReactNode } from "react";
+import SelectField from "@/components/auth/SelectField";
 import {
   AVAILABLE_TIMESLOT_OPTIONS,
   CONSULT_FIELD_OPTIONS,
   CONSULT_GRADE_OPTIONS,
   FORM_SECTIONS,
   WEEKLY_CAPACITY_OPTIONS,
-} from "../../data/mentorApply";
-import SelectField from "../auth/SelectField";
+} from "@/data/mentorApply";
 import ChipGroup from "./ChipGroup";
 import FormFieldRow from "./FormFieldRow";
 import FormSectionCard from "./FormSectionCard";

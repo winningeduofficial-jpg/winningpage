@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { SessionUser } from "./useMyPageProfile";
 
 // 결제 대기 주문 건수 — orders 조회는 paid/waiting_deposit 만 읽으므로

@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from "react";
 import { useRef } from "react";
-import GoalCard from "../GoalCard";
+import GoalCard from "@/components/goal/GoalCard";
 
 type ConditionOption = { value: string; label: string; emoji?: string };
 

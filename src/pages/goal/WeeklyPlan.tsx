@@ -1,17 +1,17 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import GoalCard from "../../components/goal/GoalCard";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import AddTaskModal from "../../components/goal/modals/AddTaskModal";
-import WeekdayPlanBoard from "../../components/goal/plan/WeekdayPlanBoard";
-import { createGoalPlanTask, fetchGoalPlanTasks } from "../../lib/goalApi";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import AddTaskModal from "@/components/goal/modals/AddTaskModal";
+import WeekdayPlanBoard from "@/components/goal/plan/WeekdayPlanBoard";
+import { createGoalPlanTask, fetchGoalPlanTasks } from "@/lib/goalApi";
 import {
   durationLabelToMinutes,
   formatWeekRangeLabel,
   getTodayShortKeyInWeek,
   getWeekDates,
   WEEKDAY_LABELS,
-} from "../../lib/goalPlanUtils";
+} from "@/lib/goalPlanUtils";
 
 // 주간 학습 계획표(#27 빈 / #29 채움) — docs/figma-goal/part-09.md·part-10.md.
 // 단계 E(임무 지시) 배선: GET /api/goal/plan-tasks로 이번 주 실데이터를 그리드에 채우고,

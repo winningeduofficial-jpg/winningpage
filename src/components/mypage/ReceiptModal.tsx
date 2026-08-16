@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef } from "react";
-import { COMPANY } from "../../data/company";
-import { formatKRW } from "../../data/pricingCatalog";
+import { COMPANY } from "@/data/company";
+import { formatKRW } from "@/data/pricingCatalog";
 
 // 결제 영수증 모달 (Figma 3762:19227).
 // AppModal(src/components/goal/AppModal.jsx)은 하단 취소/저장 버튼이 항상 어두운 단색(#2E2A26)

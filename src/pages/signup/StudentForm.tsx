@@ -36,9 +36,9 @@ import {
   PrimaryButton,
   SelectField,
   TextField,
-} from "../../components/auth";
-import { useSignup } from "../../context/SignupContext";
-import { useCooldown } from "../../hooks/useCooldown";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
+import { useCooldown } from "@/hooks/useCooldown";
 import {
   DUPLICATE_PHONE_MESSAGE,
   isValidMobile,
@@ -46,7 +46,7 @@ import {
   PHONE_RESEND_COOLDOWN_SECONDS,
   sendPhoneCode,
   verifyPhoneCode,
-} from "../../lib/phoneVerification";
+} from "@/lib/phoneVerification";
 import {
   applySignupPassword,
   EMAIL_RESEND_COOLDOWN_SECONDS,
@@ -54,8 +54,8 @@ import {
   MESSAGES,
   sendSignupEmailCode,
   verifySignupEmailCode,
-} from "../../lib/signupEmailAuth";
-import { supabase } from "../../lib/supabase";
+} from "@/lib/signupEmailAuth";
+import { supabase } from "@/lib/supabase";
 
 // Under14Form(D-2)도 동일 지역 목록(17개 시도 + '기타')을 쓰므로 이 상수를 공유한다.
 export const REGION_OPTIONS = [

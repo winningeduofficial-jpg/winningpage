@@ -1,14 +1,14 @@
 import { ExternalLink, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabase";
-import { AdminTable } from "../../pages/admin/shared/AdminEngine";
-import { normalizeArray, searchable } from "../../pages/admin/shared/csvExport";
+import { supabase } from "@/lib/supabase";
+import { AdminTable } from "@/pages/admin/shared/AdminEngine";
+import { normalizeArray, searchable } from "@/pages/admin/shared/csvExport";
 import {
   ActionButton,
   Field,
   MENTOR_APPLICATION_STATUS_OPTIONS,
   Select,
-} from "../../pages/admin/shared/formFields";
+} from "@/pages/admin/shared/formFields";
 
 // ---------------------------------------------------------------------------
 // 멘토 신청 내역(mentorApplications) — CONFIGS.mentorApplications 참고.

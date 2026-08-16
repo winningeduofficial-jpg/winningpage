@@ -1,5 +1,5 @@
-import type { FieldOption } from "../shared/csvExport";
-import { GOAL_CUT_SOURCE_OPTIONS } from "../shared/formFields";
+import type { FieldOption } from "@/pages/admin/shared/csvExport";
+import { GOAL_CUT_SOURCE_OPTIONS } from "@/pages/admin/shared/formFields";
 import { GOAL_CUT_RANGE } from "./goalUniversityCutsBulkXlsx";
 
 // ---------------------------------------------------------------------

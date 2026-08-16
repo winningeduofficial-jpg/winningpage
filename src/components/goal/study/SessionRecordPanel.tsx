@@ -1,5 +1,5 @@
-import GoalCard from "../GoalCard";
-import { getSubjectStrongClass } from "../subjectTokens";
+import GoalCard from "@/components/goal/GoalCard";
+import { getSubjectStrongClass } from "@/components/goal/subjectTokens";
 
 // 오늘 세션 기록 패널(#25 우측, 420×382 = 26.25rem×23.875rem). part-09 §81~85 내부 스펙.
 // 상태 라벨은 시안에 `측정 완료`/`진행 중` 2종만 등장하고 "일시정지" 상태 라벨은 미정의다

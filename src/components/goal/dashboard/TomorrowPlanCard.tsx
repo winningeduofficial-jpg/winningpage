@@ -1,5 +1,5 @@
-import GoalCard from "../GoalCard";
-import { getSubjectBgClass } from "../subjectTokens";
+import GoalCard from "@/components/goal/GoalCard";
+import { getSubjectBgClass } from "@/components/goal/subjectTokens";
 
 // "내일 계획 제시" 카드(530×194) — 과목 칩 4개(part-07 카피 전문). 칩 배경은 과목 색 토큰
 // (tailwind.config.js `goal.subject.*`) 재사용, 미지정 과목은 etc(중립 웜그레이)로 폴백

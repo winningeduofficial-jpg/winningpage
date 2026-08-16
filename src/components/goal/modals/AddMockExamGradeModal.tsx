@@ -1,8 +1,8 @@
 import type { ChangeEvent } from "react";
 import { useId, useState } from "react";
-import { goalModalOptions } from "../../../data/goalMock";
-import AppModal from "../AppModal";
-import ModalField from "../ModalField";
+import AppModal from "@/components/goal/AppModal";
+import ModalField from "@/components/goal/ModalField";
+import { goalModalOptions } from "@/data/goalMock";
 
 // 모의고사 성적 추가 모달 — docs/figma-goal/part-08.md #22 (530×574 = 33.125rem × 35.875rem,
 // 높이는 주석용). 트리거: MockExamCard("+ 성적 추가").

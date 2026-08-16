@@ -16,8 +16,8 @@ import {
   InfoCard,
   PrimaryButton,
   TextLinkButton,
-} from "../../components/auth";
-import { useSignup } from "../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 
 // 연결코드 안내 노출 여부. 학부모 연결 기능 오픈 시점에 맞춰 켠다.
 const CHILD_LINK_ENABLED = import.meta.env.VITE_CHILD_LINK_ENABLED === "true";

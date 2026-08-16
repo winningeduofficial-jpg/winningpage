@@ -24,8 +24,8 @@
  * 추측이 아니라 원본 스크립트의 stage 정의로 확인된 사실이다.
  */
 
-import { isUsableNumber } from "../data/diagnosisGradeScale.js";
-import { ADMISSION_FETCH_ERROR } from "../data/diagnosisScoringTable.js";
+import { isUsableNumber } from "@/data/diagnosisGradeScale.js";
+import { ADMISSION_FETCH_ERROR } from "@/data/diagnosisScoringTable.js";
 import { supabase } from "./supabase";
 
 export { ADMISSION_FETCH_ERROR };

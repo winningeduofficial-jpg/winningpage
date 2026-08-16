@@ -22,7 +22,7 @@
 //   롤백 자체가 실패해도 사용자에게 다시 알리지 않는다 — 이미 보여줄 실패가 있고,
 //   최후 수단으로 24시간 고아 스윕이 같은 자리를 치운다.
 
-import { supabase } from "../supabase";
+import { supabase } from "@/lib/supabase";
 import { AI_CALL_TIMEOUT_MS, fetchWithTimeout } from "./apiClient";
 
 /** 서버 메시지가 없을 때만 쓰는 폴백. 서버가 준 문구가 있으면 항상 그쪽이 우선이다. */

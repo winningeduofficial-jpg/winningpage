@@ -1,11 +1,9 @@
 import { ChevronRight, Link as LinkIcon, Share2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router";
-import ColumnBody, {
-  hasBlockContent,
-} from "../../components/column/ColumnBody";
-import ColumnCard from "../../components/column/ColumnCard";
-import { withDedupedKeys } from "../../lib/reactKeys";
+import ColumnBody, { hasBlockContent } from "@/components/column/ColumnBody";
+import ColumnCard from "@/components/column/ColumnCard";
+import { withDedupedKeys } from "@/lib/reactKeys";
 import {
   ALL_CATEGORY,
   type ColumnRow,

@@ -1,4 +1,4 @@
-import { useMemberType } from "../hooks/useMemberType";
+import { useMemberType } from "@/hooks/useMemberType";
 import BlockedMemberNotice from "./checkout/BlockedMemberNotice";
 import MemberTypeRetryNotice from "./checkout/MemberTypeRetryNotice";
 import ParentCheckout from "./checkout/ParentCheckout";

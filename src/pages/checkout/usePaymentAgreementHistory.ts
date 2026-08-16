@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 // 결제 약관 동의(sql/78) — user_term_agreements 원장. null=조회 중.
 // 재구매·다른 자녀 결제처럼 이미 동의 이력이 있으면 화면에서 이 섹션을

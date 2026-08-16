@@ -1,13 +1,13 @@
 import type { RouteObject } from "react-router";
-import { AuthCheckingFallback } from "../components/routeGuards/RouteGuardUi";
-import { requireAuthMiddleware } from "../lib/routeMiddleware";
-import Checkout from "../pages/Checkout";
-import Home from "../pages/Home";
-import Legal from "../pages/Legal";
-import PaymentFail from "../pages/PaymentFail";
-import PaymentSuccess from "../pages/PaymentSuccess";
-import Pricing from "../pages/Pricing";
-import FreeDiagnosisReport from "../pages/renewal/FreeDiagnosisReport";
+import { AuthCheckingFallback } from "@/components/routeGuards/RouteGuardUi";
+import { requireAuthMiddleware } from "@/lib/routeMiddleware";
+import Checkout from "@/pages/Checkout";
+import Home from "@/pages/Home";
+import Legal from "@/pages/Legal";
+import PaymentFail from "@/pages/PaymentFail";
+import PaymentSuccess from "@/pages/PaymentSuccess";
+import Pricing from "@/pages/Pricing";
+import FreeDiagnosisReport from "@/pages/renewal/FreeDiagnosisReport";
 
 // 홈/가격/체크아웃/법적 문서 — 마케팅 최상위 정적 페이지 그룹.
 const homeRoutes: RouteObject[] = [

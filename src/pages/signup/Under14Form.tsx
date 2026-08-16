@@ -26,17 +26,17 @@ import {
   PrimaryButton,
   SelectField,
   TextField,
-} from "../../components/auth";
-import { useSignup } from "../../context/SignupContext";
-import { useCooldown } from "../../hooks/useCooldown";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
+import { useCooldown } from "@/hooks/useCooldown";
 import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
   MESSAGES,
   sendSignupEmailCode,
   verifySignupEmailCode,
-} from "../../lib/signupEmailAuth";
-import { supabase } from "../../lib/supabase";
+} from "@/lib/signupEmailAuth";
+import { supabase } from "@/lib/supabase";
 // AS-IS Signup.jsx(§2.2)의 17개 시도 + '기타' select 관례를 StudentForm(C-1)과 공유한다
 // (§3.3 C-1 예시 데이터 "울산"과 표기 형식 일치 — "울산광역시"가 아닌 "울산").
 import { REGION_OPTIONS } from "./StudentForm";

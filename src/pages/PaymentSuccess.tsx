@@ -1,14 +1,14 @@
 import { Check, CheckCircle2, Clock, Copy } from "lucide-react";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { COMPANY } from "../data/company";
-import { useMemberType } from "../hooks/useMemberType";
+import { COMPANY } from "@/data/company";
+import { useMemberType } from "@/hooks/useMemberType";
 import type {
   PaymentInfo,
   VirtualAccountInfo,
-} from "../hooks/usePaymentConfirmation";
-import { usePaymentConfirmation } from "../hooks/usePaymentConfirmation";
-import { openPaidServiceOrAlert } from "../lib/paidServiceAccess";
+} from "@/hooks/usePaymentConfirmation";
+import { usePaymentConfirmation } from "@/hooks/usePaymentConfirmation";
+import { openPaidServiceOrAlert } from "@/lib/paidServiceAccess";
 
 // 색은 전부 tailwind 토큰으로 쓴다(하드코딩 hex 없음). 이전 ACCENT = '#2563EB' 는
 // 시안 어느 캔버스에도 없는 값이었다 — 완료 화면 시안을 픽셀 실측하면

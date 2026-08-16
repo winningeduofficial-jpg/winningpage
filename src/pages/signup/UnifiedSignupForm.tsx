@@ -42,17 +42,17 @@ import {
   PrimaryButton,
   SelectField,
   TextField,
-} from "../../components/auth";
-import { useSignup } from "../../context/SignupContext";
-import { useCooldown } from "../../hooks/useCooldown";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
+import { useCooldown } from "@/hooks/useCooldown";
 import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
   MESSAGES,
   sendSignupEmailCode,
   verifySignupEmailCode,
-} from "../../lib/signupEmailAuth";
-import { supabase } from "../../lib/supabase";
+} from "@/lib/signupEmailAuth";
+import { supabase } from "@/lib/supabase";
 // StudentForm(C-1)/Under14Form(D-2)과 동일한 17개 시도 + '기타' 지역 목록을 공유한다.
 import { REGION_OPTIONS } from "./StudentForm";
 

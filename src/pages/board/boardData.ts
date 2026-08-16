@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 /**
  * 게시판(회사소식/공지사항) 공통 데이터 레이어.

@@ -7,7 +7,7 @@ import {
   getDisplayDate,
   getThumbnailUrl,
   getViewCount,
-} from "../../pages/column/columnData";
+} from "@/pages/column/columnData";
 
 type ColumnLike = {
   id: string | number;
