@@ -3,9 +3,12 @@ import { type MouseEvent, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { COMPANY } from "../data/company";
 import { useMemberType } from "../hooks/useMemberType";
-import { clearCart } from "../lib/cart";
+import type {
+  PaymentInfo,
+  VirtualAccountInfo,
+} from "../hooks/usePaymentConfirmation";
+import { usePaymentConfirmation } from "../hooks/usePaymentConfirmation";
 import { openPaidServiceOrAlert } from "../lib/paidServiceAccess";
-import { supabase } from "../lib/supabase";
 
 // 색은 전부 tailwind 토큰으로 쓴다(하드코딩 hex 없음). 이전 ACCENT = '#2563EB' 는
 // 시안 어느 캔버스에도 없는 값이었다 — 완료 화면 시안을 픽셀 실측하면
@@ -154,47 +157,6 @@ const BANKS: Record<string, string> = {
   90: "카카오뱅크",
   92: "토스뱅크",
 };
-
-interface CardInfo {
-  cardType?: string;
-  issuerCode?: string;
-  number?: string;
-  installmentPlanMonths?: number;
-  approveNo?: string;
-}
-
-interface VirtualAccountInfo {
-  customerName?: string;
-  dueDate?: string;
-  bank?: string;
-  bankCode?: string;
-  accountNumber?: string;
-}
-
-interface EasyPayInfo {
-  provider?: string;
-}
-
-interface AccessResult {
-  ok?: boolean;
-  granted?: string[];
-  skipped?: string[];
-  error?: string;
-}
-
-interface PaymentInfo {
-  orderId?: string;
-  card?: CardInfo;
-  virtualAccount?: VirtualAccountInfo;
-  easyPay?: EasyPayInfo;
-  method?: string;
-  approvedAt?: string;
-  requestedAt?: string;
-  totalAmount?: number;
-  vat?: number;
-  status?: string;
-  access?: AccessResult;
-}
 
 interface RowItem {
   label: string;
@@ -416,14 +378,11 @@ export default function PaymentSuccess() {
   const orderId = params.get("orderId");
   const amount = params.get("amount");
 
-  // missing_params 는 error 와 분리한다 — 파라미터 없는 재방문(예: 가상계좌
-  // 구매자가 계좌번호를 다시 보려고 히스토리로 돌아오는 경우)은 실패가 아니라
-  // 정상적인 재방문이라 빨간 에러 취급을 하면 안 된다.
-  const [status, setStatus] = useState<
-    "confirming" | "done" | "error" | "missing_params"
-  >("confirming");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [payment, setPayment] = useState<PaymentInfo | null>(null); // 승인 응답(토스 raw)
+  const { status, errorMsg, payment } = usePaymentConfirmation({
+    paymentKey,
+    orderId,
+    amount,
+  });
   // 계좌번호 복사 피드백. 2초 후 자동으로 꺼진다.
   const [copied, setCopied] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -433,56 +392,6 @@ export default function PaymentSuccess() {
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    if (!paymentKey || !orderId || !amount) {
-      setStatus("missing_params");
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-
-        const res = await fetch("/api/confirm-payment", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          },
-          body: JSON.stringify({ paymentKey, orderId, amount }),
-        });
-
-        let result: PaymentInfo & { error?: string } = {};
-        try {
-          result = await res.json();
-        } catch {
-          result = {};
-        }
-
-        if (cancelled) return;
-
-        if (!res.ok || result?.error) {
-          setStatus("error");
-          setErrorMsg(result?.error ?? "결제 승인에 실패했습니다.");
-        } else {
-          setPayment(result);
-          setStatus("done");
-          clearCart();
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setStatus("error");
-        setErrorMsg(String(err?.message ?? err));
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentKey, orderId, amount]);
 
   const totalAmount = payment?.totalAmount ?? Number(amount);
   const vat =
