@@ -63,7 +63,7 @@ import {
 } from "./admin/shared/AdminEngine";
 import { AdminTopbar } from "./admin/shared/AdminTopbar";
 import { reportAdminError } from "./admin/shared/adminErrors";
-import { getFreshSupabaseAccessToken } from "./admin/shared/adminSession";
+import { getFreshSupabaseAccessTokenOrSignOut } from "./admin/shared/adminSession";
 import {
   csvBody,
   csvHeader,
@@ -249,7 +249,7 @@ async function requestWinningEmbedding(row) {
   if (!row?.id) return null;
 
   try {
-    const accessToken = await getFreshSupabaseAccessToken();
+    const accessToken = await getFreshSupabaseAccessTokenOrSignOut();
 
     const response = await fetch(WINNING_EMBED_ENDPOINT, {
       method: "POST",
