@@ -9,8 +9,7 @@
 // 이 파일의 목적 절반은 "원본의 병리를 고정"하는 것이다. 아래 NOTE(target-parity) 가 붙은
 // 케이스는 버그처럼 보여도 원본 동작이며, 사용자가 그대로 이식하기로 확정했다. 고치지 말 것.
 
-import assert from "node:assert/strict";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 
 import type { AcademySlot, DayPattern } from "./schedule.ts";
 import {
@@ -24,7 +23,7 @@ import {
 
 const EPS = 1e-9;
 const near = (a, b, label) =>
-  assert.ok(Math.abs(a - b) < EPS, `${label}: ${a} !== ${b}`);
+  expect(Math.abs(a - b) < EPS, `${label}: ${a} !== ${b}`).toBeTruthy();
 
 // ---------------------------------------------------------------------------
 // sumWeeklySchedule
@@ -224,7 +223,7 @@ test("getEffectiveScheduleTarget — now 주입이 결과에 영향 없음 (구�
     "2026-08-16",
     new Date("2030-12-31T00:00:00Z"),
   );
-  assert.deepEqual(a, b);
+  expect(a).toEqual(b);
 });
 
 // ---------------------------------------------------------------------------
@@ -336,14 +335,12 @@ test("getStudyMultiplier — [parity] 카톨릭/가톨릭 오타 분기", () => 
 
 // NOTE(target-parity): null/undefined 방어가 없어 TypeError 가 난다. 원본 그대로.
 test("getStudyMultiplier — [parity] null 입력이면 TypeError", () => {
-  assert.throws(
-    () => getStudyMultiplier(null as unknown as string, "의예과"),
+  expect(() => getStudyMultiplier(null as unknown as string, "의예과")).toThrow(
     TypeError,
   );
-  assert.throws(
-    () => getStudyMultiplier("서울대학교", undefined as unknown as string),
-    TypeError,
-  );
+  expect(() =>
+    getStudyMultiplier("서울대학교", undefined as unknown as string),
+  ).toThrow(TypeError);
 });
 
 // ---------------------------------------------------------------------------
@@ -498,25 +495,22 @@ test("calcAvailableHours — [parity] 기상(9시)이 등교(8시)보다 늦으�
 
 // NOTE(target-parity): day / day.academies 방어가 없어 TypeError 가 난다. 원본 그대로.
 test("calcAvailableHours — [parity] day 또는 academies 누락이면 TypeError", () => {
-  assert.throws(
-    () => calcAvailableHours(null as unknown as DayPattern, false),
-    TypeError,
-  );
-  assert.throws(
-    () =>
-      calcAvailableHours(
-        // academies 필드를 의도적으로 누락한 잘못된 입력 — 런타임 TypeError 를 검증하는
-        // 케이스라 값은 그대로 두고 타입만 캐스팅한다.
-        {
-          wake: "7",
-          sleep: "24",
-          schoolStart: "",
-          schoolEnd: "",
-        } as DayPattern,
-        false,
-      ),
-    TypeError,
-  );
+  expect(() =>
+    calcAvailableHours(null as unknown as DayPattern, false),
+  ).toThrow(TypeError);
+  expect(() =>
+    calcAvailableHours(
+      // academies 필드를 의도적으로 누락한 잘못된 입력 — 런타임 TypeError 를 검증하는
+      // 케이스라 값은 그대로 두고 타입만 캐스팅한다.
+      {
+        wake: "7",
+        sleep: "24",
+        schoolStart: "",
+        schoolEnd: "",
+      } as DayPattern,
+      false,
+    ),
+  ).toThrow(TypeError);
 });
 
 // ---------------------------------------------------------------------------
@@ -757,7 +751,10 @@ test("calculateWeekSchedule — [parity] 병리① 목표 역전 (이상 0.46 < 
   for (const key of Object.keys(expected)) {
     near(got[key]!.ideal, expected[key]!.ideal, `${key}.ideal`);
     near(got[key]!.min, expected[key]!.min, `${key}.min`);
-    assert.ok(got[key]!.ideal < got[key]!.min, `${key}: 역전이 유지돼야 한다`);
+    expect(
+      got[key]!.ideal < got[key]!.min,
+      `${key}: 역전이 유지돼야 한다`,
+    ).toBeTruthy();
   }
 });
 
@@ -784,18 +781,18 @@ test("calculateWeekSchedule — [parity] 병리② 목표가 가용시간을 초
   // 실제로 가용시간을 넘는지 확인 — 주말 가용은 15.5h 인데 목표 ideal 은 16h
   const weekendAvail = calcAvailableHours(WEEKEND_NO_ACADEMY, false);
   near(weekendAvail, 15.5, "weekendAvail");
-  assert.ok(
+  expect(
     got.saturday!.ideal > weekendAvail,
     "이상 목표가 가용시간을 초과해야 한다(병리 유지)",
-  );
+  ).toBeTruthy();
 
   // 평일은 가용 5.5h 인데 목표가 16h — 초과폭이 훨씬 크다
   const weekdayAvail = calcAvailableHours(WEEKDAY_DAY, true);
   near(weekdayAvail, 5.5, "weekdayAvail");
-  assert.ok(
+  expect(
     got.monday!.ideal > weekdayAvail,
     "평일도 초과해야 한다(병리 유지)",
-  );
+  ).toBeTruthy();
 });
 
 // ---------------------------------------------------------------------------

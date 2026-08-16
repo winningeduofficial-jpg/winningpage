@@ -16,6 +16,12 @@ export default mergeConfig(
         fileURLToPath(new URL("./vitest.setup.ts", import.meta.url)),
       ],
       css: false,
+      exclude: [
+        "**/node_modules/**",
+        // node:test 기반 — 아직 Vitest로 이식되지 않았다(후속 task 10.2 이후 범위).
+        // vitest run에 그대로 걸리면 "No test suite found"로 CI가 깨진다.
+        "api/_lib/serviceAccess.test.ts",
+      ],
       coverage: {
         provider: "v8",
         reporter: ["text", "html"],

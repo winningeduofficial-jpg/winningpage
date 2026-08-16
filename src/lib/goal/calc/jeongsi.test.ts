@@ -12,10 +12,9 @@
 // 즉 아래 기대값은 전부 "원본이 실제로 뱉은 값"이며, 옳아 보이는 값이 아니다.
 // 값이 이상해 보여도 고치지 마라 — 이식 파리티가 깨졌다는 뜻이 된다.
 //
-// 실행: cd /Users/hyunsoo/uwellnow/winningpage-goal-app && node --test src/lib/goal/calc/jeongsi.test.js
+// 실행: cd /Users/hyunsoo/uwellnow/winningpage-goal-app && npm test -- src/lib/goal/calc/jeongsi.test.ts
 
-import assert from "node:assert/strict";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 
 import {
   calcJeongsiBaseProb,
@@ -32,13 +31,16 @@ import {
 // 부동소수 비교 헬퍼. NaN 은 NaN 끼리만 같다고 본다(원본이 NaN 을 뱉는 케이스가 있다).
 function assertClose(actual, expected, label) {
   if (Number.isNaN(expected)) {
-    assert.ok(Number.isNaN(actual), `${label}: NaN 기대했으나 ${actual}`);
+    expect(
+      Number.isNaN(actual),
+      `${label}: NaN 기대했으나 ${actual}`,
+    ).toBeTruthy();
     return;
   }
-  assert.ok(
+  expect(
     Math.abs(actual - expected) < 1e-9,
     `${label}: 기대 ${expected}, 실제 ${actual}`,
-  );
+  ).toBeTruthy();
 }
 
 // ── 골든 픽스처 (원본 실행 결과) ───────────────────────────────────────
@@ -419,17 +421,15 @@ const COMPOSITE_INPUTS = {
 // ── 테스트 ─────────────────────────────────────────────────────────────
 
 test("getPercentileBands: 9구간 리터럴이 원본과 완전히 일치한다", () => {
-  assert.deepEqual(getPercentileBands(), FIXTURES.bands);
+  expect(getPercentileBands()).toEqual(FIXTURES.bands);
 });
 
 test("getPercentileBands: 9구간 전부 width === max - min + 1 이다", () => {
   // 분석 문서(target-app-analysis.md §9.5·부록)는 "일치하지 않는 구간이 있다"고 적었으나
   // 원본을 실행해 확인한 결과 9구간 모두 일치한다. 문서 쪽이 틀렸다.
   for (const band of getPercentileBands()) {
-    assert.equal(
-      band.width,
+    expect(band.width, `밴드 ${band.min}~${band.max} 의 width 불일치`).toBe(
       band.max - band.min + 1,
-      `밴드 ${band.min}~${band.max} 의 width 불일치`,
     );
   }
 });
@@ -437,7 +437,7 @@ test("getPercentileBands: 9구간 전부 width === max - min + 1 이다", () => 
 test("getPercentileBands: 매 호출마다 새 배열을 돌려준다(호출자 변형에 안전)", () => {
   const first = getPercentileBands();
   first[0]!.weight = 999;
-  assert.equal(getPercentileBands()[0]!.weight, 1.0);
+  expect(getPercentileBands()[0]!.weight).toBe(1.0);
 });
 
 test("getWeightedEffortAmount: 골든 픽스처", () => {
@@ -538,26 +538,25 @@ test("calcJeongsiProb: totalExams 기본값 14", () => {
 
 test("calcJeongsiProb: 항상 0~100 범위 안이다", () => {
   for (const [, , , , expected] of FIXTURES.prob) {
-    assert.ok(
+    expect(
       (expected as number) >= 0 && (expected as number) <= 100,
       `범위 밖 픽스처: ${expected}`,
-    );
+    ).toBeTruthy();
   }
 });
 
 test("GRADE_PERCENTILE: 9등급 구간 리터럴이 원본과 일치한다", () => {
-  assert.deepEqual(GRADE_PERCENTILE, FIXTURES.gradePercentile);
+  expect(GRADE_PERCENTILE).toEqual(FIXTURES.gradePercentile);
 });
 
 test("getPercentileChips: 골든 픽스처", () => {
   for (const [gradeStr, expected] of FIXTURES.chips) {
-    assert.deepEqual(
+    expect(
       // FIXTURES.chips 는 [string, chip[]][] 튜플인데 리터럴 배열이라 TS 가
       // gradeStr 을 `string | chip[]` 로 합쳐 추론한다 — 런타임엔 항상 string.
       getPercentileChips(gradeStr as string),
-      expected,
       `chips(${JSON.stringify(gradeStr)})`,
-    );
+    ).toEqual(expected);
   }
 });
 
@@ -572,13 +571,13 @@ test("getEnglishPenaltyFE: 골든 픽스처", () => {
 });
 
 test("getEnglishPenaltyFE: NaN 등급은 NaN 을 낸다(원본 동작)", () => {
-  assert.ok(Number.isNaN(getEnglishPenaltyFE(NaN)));
+  expect(Number.isNaN(getEnglishPenaltyFE(NaN))).toBeTruthy();
 });
 
 test("calcJeongsiCompositeFE: 골든 픽스처", () => {
   for (const [name, expected] of FIXTURES.composite) {
     const input = COMPOSITE_INPUTS[name as string];
-    assert.notEqual(input, undefined, `입력 픽스처 누락: ${name}`);
+    expect(input, `입력 픽스처 누락: ${name}`).not.toBe(undefined);
     assertClose(calcJeongsiCompositeFE(input), expected, `composite(${name})`);
   }
 });

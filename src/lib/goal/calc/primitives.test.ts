@@ -5,10 +5,9 @@
 // 그 원본 함수에 직접 통과시켜 출력을 받아 적었다. 기대값은 손계산이 아니라
 // 원본 실행 결과다.
 //
-// 실행: cd <repo> && node --test src/lib/goal/calc/primitives.test.js
+// 실행: cd <repo> && npm test -- src/lib/goal/calc/primitives.test.ts
 
-import assert from "node:assert/strict";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 
 import {
   applyPreHighGradePenalty,
@@ -29,13 +28,13 @@ function assertNum(actual, expected, label) {
     !Number.isFinite(actual) ||
     Object.is(expected, -0)
   ) {
-    assert.strictEqual(actual, expected, label);
+    expect(actual, label).toBe(expected);
     return;
   }
-  assert.ok(
+  expect(
     Math.abs(actual - expected) < 1e-9,
     `${label}: ${actual} !== ${expected}`,
-  );
+  ).toBeTruthy();
 }
 
 // [입력, round1 결과]
@@ -446,10 +445,8 @@ test("clampProb — 원본 출력과 일치", () => {
 
 test("getSchoolCutType — 특목/특목,자사,영재고만 special", () => {
   for (const [input, expected] of SCHOOL_CUT_TYPE_CASES) {
-    assert.strictEqual(
-      getSchoolCutType(input),
+    expect(getSchoolCutType(input), `getSchoolCutType(${String(input)})`).toBe(
       expected,
-      `getSchoolCutType(${String(input)})`,
     );
   }
 });
@@ -523,16 +520,16 @@ test("calcNaesinProb — totalExams 기본값은 10", () => {
 });
 
 test("toNum — 유한수가 아니면 fallback", () => {
-  assert.strictEqual(toNum(3), 3);
-  assert.strictEqual(toNum("3.5"), 3.5);
-  assert.strictEqual(toNum(""), 0);
-  assert.strictEqual(toNum(null), 0);
-  assert.strictEqual(toNum(undefined), 0);
-  assert.strictEqual(toNum("abc"), 0);
-  assert.strictEqual(toNum(NaN), 0);
-  assert.strictEqual(toNum(Infinity), 0);
-  assert.strictEqual(toNum(-Infinity), 0);
-  assert.strictEqual(toNum("abc", 7), 7);
-  assert.strictEqual(toNum(undefined, -1), -1);
-  assert.strictEqual(toNum(0, 5), 0);
+  expect(toNum(3)).toBe(3);
+  expect(toNum("3.5")).toBe(3.5);
+  expect(toNum("")).toBe(0);
+  expect(toNum(null)).toBe(0);
+  expect(toNum(undefined)).toBe(0);
+  expect(toNum("abc")).toBe(0);
+  expect(toNum(NaN)).toBe(0);
+  expect(toNum(Infinity)).toBe(0);
+  expect(toNum(-Infinity)).toBe(0);
+  expect(toNum("abc", 7)).toBe(7);
+  expect(toNum(undefined, -1)).toBe(-1);
+  expect(toNum(0, 5)).toBe(0);
 });

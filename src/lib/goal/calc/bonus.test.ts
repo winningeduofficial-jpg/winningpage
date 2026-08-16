@@ -16,8 +16,7 @@
 // Date 를 만들지 않으므로 이 위치에서 지정해도 안전하다.
 process.env.TZ = "Asia/Seoul";
 
-import assert from "node:assert/strict";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 
 import {
   ACHIEVEMENT_MULTIPLIER,
@@ -33,20 +32,21 @@ import {
 // 부동소수 비교. NaN 은 NaN 끼리 같은 것으로 본다(원본이 NaN 을 그대로 흘리는 경로가 있다).
 function assertClose(actual, expected, label) {
   if (Number.isNaN(expected)) {
-    assert.ok(Number.isNaN(actual), `${label}: NaN 기대, 실제 ${actual}`);
+    expect(
+      Number.isNaN(actual),
+      `${label}: NaN 기대, 실제 ${actual}`,
+    ).toBeTruthy();
     return;
   }
-  assert.ok(
+  expect(
     Math.abs(actual - expected) < 1e-9,
     `${label}: 기대 ${expected}, 실제 ${actual}`,
-  );
+  ).toBeTruthy();
 }
 
 function assertBonusEqual(actual, expected, label) {
-  assert.deepEqual(
-    Object.keys(actual).sort(),
+  expect(Object.keys(actual).sort(), `${label}: 반환 키 집합 불일치`).toEqual(
     Object.keys(expected).sort(),
-    `${label}: 반환 키 집합 불일치`,
   );
   for (const key of Object.keys(expected)) {
     assertClose(actual[key], expected[key], `${label}.${key}`);
@@ -58,23 +58,23 @@ function assertBonusEqual(actual, expected, label) {
 // ─────────────────────────────────────────────────────────────
 
 test("배수 상수는 원본 값 그대로다", () => {
-  assert.deepEqual(ACHIEVEMENT_MULTIPLIER, {
+  expect(ACHIEVEMENT_MULTIPLIER).toEqual({
     full: 1.0,
     high: 0.9,
     mid: 0.7,
     low: 0.4,
     none: 0.1,
   });
-  assert.deepEqual(FOCUS_MULTIPLIER, {
+  expect(FOCUS_MULTIPLIER).toEqual({
     excellent: 1.1,
     good: 1.0,
     normal: 0.9,
     low: 0.7,
     veryLow: 0.5,
   });
-  assert.equal(TASK_BONUS_MULTIPLIER, 1.1);
-  assert.equal(TASK_NAESIN, "내신 과목");
-  assert.equal(TASK_MOCK_EXAM, "기출/모의고사");
+  expect(TASK_BONUS_MULTIPLIER).toBe(1.1);
+  expect(TASK_NAESIN).toBe("내신 과목");
+  expect(TASK_MOCK_EXAM).toBe("기출/모의고사");
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -452,20 +452,20 @@ test("calcStudentBonusRates: 골든 픽스처", () => {
     );
   }
 
-  assert.equal(i, EXPECTED_CSBR.length, "픽스처 개수와 실행 횟수가 다르다");
+  expect(i, "픽스처 개수와 실행 횟수가 다르다").toBe(EXPECTED_CSBR.length);
 });
 
 test("calcStudentBonusRates: 주입한 Date 를 변형하지 않는다 (원본 대비 의도적 개선)", () => {
   const now = new Date(2026, 7, 11, 13, 47, 22, 123);
   const before = now.getTime();
   calcStudentBonusRates("고3", ...BASE_PROBS, now);
-  assert.equal(now.getTime(), before, "인자로 받은 Date 가 자정으로 변형됐다");
+  expect(now.getTime(), "인자로 받은 Date 가 자정으로 변형됐다").toBe(before);
 });
 
 test("calcStudentBonusRates: now 기본값은 현재 시각이다", () => {
   const injected = calcStudentBonusRates("고3", ...BASE_PROBS, new Date());
   const defaulted = calcStudentBonusRates("고3", ...BASE_PROBS);
-  assert.deepEqual(defaulted, injected);
+  expect(defaulted).toEqual(injected);
 });
 
 test("calcStudentBonusRates: 기준일 당일은 이미 지난 것으로 보고 내년으로 넘긴다", () => {
@@ -502,7 +502,7 @@ test("calcStudentBonusRates: 학년 오프셋은 365일 등차 12단이다", () 
       `${g} 오프셋(${365 * idx})`,
     );
   });
-  assert.equal(365 * 11, 4015, "초1 오프셋은 4015");
+  expect(365 * 11, "초1 오프셋은 4015").toBe(4015);
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -546,9 +546,9 @@ test("getAchievementRateMultiplier: 골든 픽스처", () => {
 
 test("getAchievementRateMultiplier: 부등호 방향(130·170 은 초과, 100 은 이상)", () => {
   // 경계값 자체는 아래 구간에 속한다 — 원본 그대로.
-  assert.equal(getAchievementRateMultiplier(130), 1.0);
-  assert.equal(getAchievementRateMultiplier(170), 1.1);
-  assert.equal(getAchievementRateMultiplier(100), 1.0);
+  expect(getAchievementRateMultiplier(130)).toBe(1.0);
+  expect(getAchievementRateMultiplier(170)).toBe(1.1);
+  expect(getAchievementRateMultiplier(100)).toBe(1.0);
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -963,10 +963,8 @@ const EXPECTED_CDB = [
 ];
 
 test("calculateDailyBonus: 골든 픽스처", () => {
-  assert.equal(
-    CDB_CASES.length,
+  expect(CDB_CASES.length, "케이스 수와 픽스처 수가 다르다").toBe(
     EXPECTED_CDB.length,
-    "케이스 수와 픽스처 수가 다르다",
   );
   CDB_CASES.forEach(([ach, foc, rates, tasks, sh, ih, mh], idx) => {
     const result = calculateDailyBonus(
@@ -1004,7 +1002,7 @@ test("calculateDailyBonus: 0시간 + 목표 0시간이면 감점 없이 전부 0
     0,
     0,
   );
-  assert.deepEqual(r, {
+  expect(r).toEqual({
     calculatedBonus: 0,
     idealSusiBonus: 0,
     idealJungsiBonus: 0,
@@ -1045,19 +1043,19 @@ test("calculateDailyBonus: 0시간 감점은 rate 전액이며 clamp 가 없다"
     8,
     5,
   );
-  assert.deepEqual(withTasks, r);
+  expect(withTasks).toEqual(r);
 });
 
 test("calculateDailyBonus: rate 가 0 인 채 0시간이면 -0 이 나온다 (원본 그대로)", () => {
   const r = calculateDailyBonus("full", "good", 0, 0, 0, 0, [], 0, 8, 5);
-  assert.ok(
+  expect(
     Object.is(r.idealSusiBonus, -0),
     "idealSusiBonus 는 -0 이어야 한다",
-  );
-  assert.ok(
+  ).toBeTruthy();
+  expect(
     Object.is(r.minJungsiBonus, -0),
     "minJungsiBonus 는 -0 이어야 한다",
-  );
+  ).toBeTruthy();
 });
 
 test("calculateDailyBonus: 태그 가산은 수시/정시로 갈린다", () => {
@@ -1129,30 +1127,28 @@ test("calculateDailyBonus: 별칭 필드는 항상 이상 목표 값을 가리�
     10,
     10,
   );
-  assert.equal(r.calculatedBonus, r.idealSusiBonus);
-  assert.equal(r.susiBonus, r.idealSusiBonus);
-  assert.equal(r.jungsiBonus, r.idealJungsiBonus);
+  expect(r.calculatedBonus).toBe(r.idealSusiBonus);
+  expect(r.susiBonus).toBe(r.idealSusiBonus);
+  expect(r.jungsiBonus).toBe(r.idealJungsiBonus);
 });
 
 test("calculateDailyBonus: tasks 가 배열이 아니면 TypeError (원본 그대로, 가드 없음)", () => {
-  assert.throws(
-    () =>
-      calculateDailyBonus(
-        "full",
-        "good",
-        0.1,
-        0.2,
-        0.3,
-        0.4,
-        null as unknown as string[],
-        8,
-        8,
-        5,
-      ),
-    TypeError,
-  );
+  expect(() =>
+    calculateDailyBonus(
+      "full",
+      "good",
+      0.1,
+      0.2,
+      0.3,
+      0.4,
+      null as unknown as string[],
+      8,
+      8,
+      5,
+    ),
+  ).toThrow(TypeError);
   // 단, 0시간 분기는 tasks 를 만지기 전에 반환하므로 예외가 나지 않는다.
-  assert.doesNotThrow(() =>
+  expect(() =>
     calculateDailyBonus(
       "full",
       "good",
@@ -1165,7 +1161,7 @@ test("calculateDailyBonus: tasks 가 배열이 아니면 TypeError (원본 그�
       8,
       5,
     ),
-  );
+  ).not.toThrow();
 });
 
 test("calculateDailyBonus: 순수 함수 — 같은 입력이면 항상 같은 출력이고 인자를 변형하지 않는다", () => {
@@ -1195,8 +1191,8 @@ test("calculateDailyBonus: 순수 함수 — 같은 입력이면 항상 같은 �
     8,
     5,
   );
-  assert.deepEqual(a, b);
-  assert.deepEqual(tasks, snapshot);
+  expect(a).toEqual(b);
+  expect(tasks).toEqual(snapshot);
 });
 
 // ─────────────────────────────────────────────────────────────
@@ -1227,8 +1223,8 @@ test("게이지 통합: 매일 목표를 정확히 채우면 D-day 에 100% 에 
     gauge += bonus.idealSusiBonus;
   }
   // round4 누적 오차 때문에 정확히 100 은 아니다 — 원본도 같은 오차를 갖는다.
-  assert.ok(
+  expect(
     Math.abs(gauge - 100) < 0.5,
     `게이지 ${gauge} 가 100 근처가 아니다`,
-  );
+  ).toBeTruthy();
 });
