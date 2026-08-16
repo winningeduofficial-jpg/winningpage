@@ -9,7 +9,7 @@
  * 리드 캡처가 범위 밖(Q-01 문서 결정)이므로 이메일·유저네임 대체 조회 체인은 두지 않는다 —
  * id 매칭 1회로 충분하고, 실패하면 조용히 익명 폴백으로 떨어진다.
  */
-import { supabase } from "./supabase";
+import { supabase } from "../../lib/supabase";
 
 export async function fetchLoggedInStudentName() {
   try {

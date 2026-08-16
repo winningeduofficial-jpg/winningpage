@@ -36,10 +36,6 @@ import {
   type GoalCutBackfillStats,
   goalCutConflictKey,
 } from "../lib/goal/goalCutBackfill";
-import {
-  exportGoalUniversityCutRowsToXlsx,
-  parseGoalUniversityCutRowsFromXlsx,
-} from "../lib/goalUniversityCutsBulkXlsx";
 import { withDedupedKeys } from "../lib/reactKeys";
 import { supabase } from "../lib/supabase";
 import {
@@ -49,6 +45,10 @@ import {
 import { admissionConfigs } from "./admin/configs/admission";
 import { boardConfigs } from "./admin/configs/board";
 import { goalConfigs } from "./admin/configs/goal";
+import {
+  exportGoalUniversityCutRowsToXlsx,
+  parseGoalUniversityCutRowsFromXlsx,
+} from "./admin/configs/goalUniversityCutsBulkXlsx";
 import { mainConfigs } from "./admin/configs/main";
 import { memberConfigs } from "./admin/configs/member";
 import { programConfigs } from "./admin/configs/program";
