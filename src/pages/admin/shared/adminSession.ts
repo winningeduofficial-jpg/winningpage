@@ -20,7 +20,10 @@ function decodeJwtPayload(token: string) {
   }
 }
 
-export async function getFreshSupabaseAccessToken() {
+// 이름에 "OrSignOut"을 붙인 이유: 토큰 갱신 실패·만료 시 이 함수가 조회만 하지 않고
+// supabase.auth.signOut()까지 호출한다(아래 두 분기). 호출부의 catch가 "에러 메시지만
+// 보여주면 되는" 실패로 오인하지 않도록 이름에 그 부수효과를 그대로 드러낸다.
+export async function getFreshSupabaseAccessTokenOrSignOut() {
   const { data: sessionData, error: sessionError } =
     await supabase.auth.getSession();
 
