@@ -42,7 +42,7 @@ import * as XLSX from "xlsx";
 
 import { clean } from "./admissionParsing.js";
 
-export const BULK_XLSX_COLUMNS = [
+export const ADMISSION_RESULTS_BULK_XLSX_COLUMNS = [
   "id",
   "is_active",
   "result_year",
@@ -194,7 +194,7 @@ export function exportAdmissionResultRowsToXlsx(
 ): { workbook: XLSX.WorkBook; truncatedCells: TruncatedCell[] } {
   const truncatedCells: TruncatedCell[] = [];
   const dataRows = (rows || []).map((row, rowIndex) =>
-    BULK_XLSX_COLUMNS.map((column) => {
+    ADMISSION_RESULTS_BULK_XLSX_COLUMNS.map((column) => {
       const serialized = serializeExportCell(row?.[column]);
       return truncateIfNeeded(
         serialized,
@@ -205,7 +205,7 @@ export function exportAdmissionResultRowsToXlsx(
   );
 
   const worksheet = forceStringCellTypes(
-    XLSX.utils.aoa_to_sheet([BULK_XLSX_COLUMNS, ...dataRows]),
+    XLSX.utils.aoa_to_sheet([ADMISSION_RESULTS_BULK_XLSX_COLUMNS, ...dataRows]),
   );
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, "입결정보");
@@ -439,7 +439,7 @@ export function parseAdmissionResultRowsFromXlsx(
       return;
 
     const rowObj: Record<string, unknown> = {};
-    BULK_XLSX_COLUMNS.forEach((col) => {
+    ADMISSION_RESULTS_BULK_XLSX_COLUMNS.forEach((col) => {
       const idx = columnIndexByName.get(col);
       rowObj[col] = idx === undefined ? undefined : rawRow[idx];
     });
@@ -458,7 +458,7 @@ export function parseAdmissionResultRowsFromXlsx(
     // (1) 잘림 마커 — 이 테이블은 카테고리 구분 없이 전 컬럼이 "메타데이터"
     // 성격이라(모집요강처럼 재생성 가능한 raw/doc 쌍이 없다), 어느 컬럼에서
     // 발견되든 행 전체를 거부한다(잘린 채 반영하면 데이터가 손상된다).
-    const truncatedColumns = BULK_XLSX_COLUMNS.filter(
+    const truncatedColumns = ADMISSION_RESULTS_BULK_XLSX_COLUMNS.filter(
       (col) =>
         typeof rowObj[col] === "string" &&
         (rowObj[col] as string).includes(TRUNCATION_MARKER),

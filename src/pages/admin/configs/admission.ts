@@ -427,7 +427,7 @@ export const admissionConfigs: Record<string, AdminConfig> = {
     homepage: true,
     // config.excel(공용 CSV 다운로드 스위치) 없음(의도) — 6컬럼(admission_year/
     // region/university_name/matched_hwp_name/detail_status/is_active,
-    // 전부 BULK_XLSX_COLUMNS에 포함돼 있어 기능 후퇴 없음) 대신
+    // 전부 ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS에 포함돼 있어 기능 후퇴 없음) 대신
     // AdmissionBulkXlsxPanel의 23컬럼 xlsx로 통일한다(2026-08-07 사용자
     // 지시 — "엑셀 다운로드 버튼이 여러 개다, 우리가 개발한 걸로
     // 통일해라"). 이 플래그는 14개 메뉴가 공유하는 공용 렌더 코드
