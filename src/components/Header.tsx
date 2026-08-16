@@ -262,6 +262,11 @@ async function fetchProfile(
 }
 
 const MEGA_CLOSE_DELAY_MS = 100;
+// megaPanelPhase를 'closing' → 'closed'로 옮기는 JS 타이머 지연이자, 메가 딤+패널의
+// 클로즈 transitionDuration(인라인 style)이기도 하다 — 아래 두 <div>가 이 상수를 그대로
+// style로 소비한다. Tailwind duration-[Nms] 유틸은 정적 문자열만 JIT가 인식하므로 JS
+// 상수를 클래스명에 보간할 수 없어, 클로징 구간만 인라인 style로 뺐다(둘이 어긋나면
+// setMegaPanelPhase("closed")가 트랜지션 도중에 발화해 깜빡임이 생긴다).
 const MEGA_PANEL_CLOSING_MS = 120;
 const CSAT_DDAY_REFRESH_MS = 60 * 60 * 1000;
 const LOGOUT_FALLBACK_TIMEOUT_MS = 1800;
@@ -869,9 +874,14 @@ export default function Header() {
           isMegaPanelOpen
             ? "visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]"
             : isMegaPanelClosing
-              ? "visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]"
+              ? "visible opacity-0 pointer-events-none transition-opacity ease-[var(--ease-out-quart)]"
               : "invisible opacity-0 pointer-events-none"
         }`}
+        style={
+          isMegaPanelClosing
+            ? { transitionDuration: `${MEGA_PANEL_CLOSING_MS}ms` }
+            : undefined
+        }
         onClick={() => setActiveMega(null)}
         aria-hidden="true"
       />
@@ -881,9 +891,14 @@ export default function Header() {
           isMegaPanelOpen
             ? "visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]"
             : isMegaPanelClosing
-              ? "visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]"
+              ? "visible opacity-0 translate-y-0 pointer-events-none transition-all ease-[var(--ease-out-quart)]"
               : "invisible opacity-0 -translate-y-2 pointer-events-none"
         }`}
+        style={
+          isMegaPanelClosing
+            ? { transitionDuration: `${MEGA_PANEL_CLOSING_MS}ms` }
+            : undefined
+        }
         aria-hidden={!isMegaPanelOpen}
         onMouseEnter={clearMegaCloseTimer}
         onMouseLeave={scheduleMegaClose}

@@ -58,6 +58,9 @@ interface TextFieldProps {
   className?: string;
 }
 
+// auth-field-shake(index.css)가 --duration-slow(320ms) 토큰으로 재생되는 애니메이션이라
+// shake 클래스를 떼는 타이밍도 같은 값이어야 한다 — 어긋나면 애니메이션이 끝나기 전에
+// 클래스가 빠지거나(끊겨 보임), 끝난 뒤에도 한동안 클래스가 남아있게 된다.
 const SHAKE_DURATION_MS = 320;
 
 export default function TextField({

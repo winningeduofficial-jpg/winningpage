@@ -22,6 +22,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { AGREEMENT_COPY } from "../../data/mentorApply";
+import { STAGGER_BUFFER_MS, STAGGER_STEP_MS } from "../../lib/agreementStagger";
 
 // 시안 색은 필수 #0B84FD(accent) / 선택 #D9D9D9 다. 선택 배지에 #D9D9D9(=line 토큰) 을 그대로
 // 쓰면 흰 배경 대비 1.38:1 로 판독이 불가능해, AgreementRow.jsx 의 선례("text-line은 대비
@@ -48,9 +49,6 @@ type MentorAgreementBlockProps = {
   /** 필수 항목 미동의 시 표시할 메시지(시안에 에러 상태 없음 — 확인 항목 25) */
   error?: string;
 };
-
-const STAGGER_STEP_MS = 40;
-const STAGGER_BUFFER_MS = 260;
 
 export default function MentorAgreementBlock({
   items, // [{ key, label, required, to }] — src/data/mentorApply.js MENTOR_AGREEMENTS
@@ -184,7 +182,7 @@ function CheckBox({ checked, index = 0, popping = false }: CheckBoxProps) {
       style={
         popping
           ? ({
-              animationDelay: "calc(var(--i) * 40ms)",
+              animationDelay: `calc(var(--i) * ${STAGGER_STEP_MS}ms)`,
               "--i": index,
             } as CSSProperties)
           : undefined
