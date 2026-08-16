@@ -82,6 +82,8 @@ export default function ChangePhoneModal({
   const phoneValid =
     isValidMobile(normalizedNext) &&
     normalizedNext !== normalizePhone(currentPhone || "");
+  const canSendPhoneCode =
+    phoneValid && Boolean(password) && !sending && !cooldown.active;
 
   // 인증번호 발송 — 본인 확인(현재 비밀번호) 후 sendPhoneCode.
   const sendCode = useCallback(async () => {
@@ -332,11 +334,9 @@ export default function ChangePhoneModal({
               <button
                 type="button"
                 onClick={sendCode}
-                disabled={
-                  !phoneValid || !password || sending || cooldown.active
-                }
+                disabled={!canSendPhoneCode}
                 className={`h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
-                  phoneValid && password && !sending && !cooldown.active
+                  canSendPhoneCode
                     ? "bg-primary text-white hover:opacity-90"
                     : "cursor-not-allowed bg-line text-white"
                 }`}
@@ -438,9 +438,9 @@ export default function ChangePhoneModal({
             <button
               type="button"
               onClick={sendCode}
-              disabled={!phoneValid || !password || sending || cooldown.active}
+              disabled={!canSendPhoneCode}
               className={`h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
-                phoneValid && password && !sending && !cooldown.active
+                canSendPhoneCode
                   ? "bg-primary text-white hover:opacity-90"
                   : "cursor-not-allowed bg-line text-white"
               }`}

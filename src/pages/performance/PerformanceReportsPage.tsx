@@ -582,6 +582,7 @@ export default function PerformanceReportsPage() {
   // §5.19 단정 — "빈 상태에서는 목록 헤더가 노출되지 않는다". 이 조건은 **로드된 리포트가
   // 아예 하나도 없는** 최초 빈 상태에 한정한다(필터로 0건이 된 경우는 별개 — 아래 참고).
   const isTrulyEmpty = !listLoading && !listError && items.length === 0;
+  const showListContent = !listLoading && !listError && !isTrulyEmpty;
 
   return (
     <div className="mt-10">
@@ -641,7 +642,7 @@ export default function PerformanceReportsPage() {
         </div>
       )}
 
-      {!listLoading && !listError && !isTrulyEmpty && (
+      {showListContent && (
         <>
           {filteredItems.length === 0 ? (
             <p className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">

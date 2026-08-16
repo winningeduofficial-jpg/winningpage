@@ -337,6 +337,12 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
     () => coupons.filter((c) => c.isActive),
     [coupons],
   );
+  const hasNoVisibleCoupons =
+    couponsLoaded && !couponError && visibleCoupons.length === 0;
+  const codeFeedbackReasonText =
+    codeFeedback?.type === "ineligible" && codeFeedback.reason
+      ? COUPON_REASON_TEXT[codeFeedback.reason]
+      : undefined;
 
   const couponDiscount = useMemo(() => {
     if (!order) return 0;
@@ -692,21 +698,17 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                     {CODE_NOT_FOUND_TEXT}
                   </p>
                 )}
-                {codeFeedback?.type === "ineligible" &&
-                  codeFeedback.reason &&
-                  COUPON_REASON_TEXT[codeFeedback.reason] && (
-                    <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
-                      {COUPON_REASON_TEXT[codeFeedback.reason]}
-                    </p>
-                  )}
+                {codeFeedbackReasonText && (
+                  <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
+                    {codeFeedbackReasonText}
+                  </p>
+                )}
 
-                {couponsLoaded &&
-                  !couponError &&
-                  visibleCoupons.length === 0 && (
-                    <p className="mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">
-                      보유한 쿠폰이 없습니다.
-                    </p>
-                  )}
+                {hasNoVisibleCoupons && (
+                  <p className="mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">
+                    보유한 쿠폰이 없습니다.
+                  </p>
+                )}
 
                 {visibleCoupons.length > 0 && (
                   <>
@@ -725,6 +727,10 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                             : c.ownerIsStudent === false
                               ? "학부모 쿠폰"
                               : null;
+                        const reasonText =
+                          !eligible && c.reason
+                            ? COUPON_REASON_TEXT[c.reason]
+                            : undefined;
                         return (
                           <button
                             type="button"
@@ -768,13 +774,11 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                                   {String(c.validUntil).replace(/-/g, ".")}까지
                                 </span>
                               )}
-                              {!eligible &&
-                                c.reason &&
-                                COUPON_REASON_TEXT[c.reason] && (
-                                  <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
-                                    {COUPON_REASON_TEXT[c.reason]}
-                                  </span>
-                                )}
+                              {reasonText && (
+                                <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
+                                  {reasonText}
+                                </span>
+                              )}
                             </span>
                             <span className="shrink-0 text-[0.75rem] font-medium leading-[1.25rem] text-primary sm:text-[0.875rem]">
                               -{formatKRW(c.discount)}
