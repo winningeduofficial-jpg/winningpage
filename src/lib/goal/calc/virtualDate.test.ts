@@ -11,8 +11,7 @@
 //   (getRecordDateFromActualStart 는 DST 타임존에서 결과가 달라질 수 있어 —
 //    모듈의 NOTE(target-parity) 참고 — 전환 구간을 넘는 입력은 픽스처에서 제외했다.)
 
-import assert from "node:assert/strict";
-import { test } from "node:test";
+import { expect, test } from "vitest";
 
 import {
   addDaysYMD,
@@ -30,21 +29,18 @@ import {
 // 결과가 { value } | { nan } | { throws } 중 무엇이든 동일하게 검증하는 헬퍼
 function assertOut(fn, expected, label) {
   if (expected.throws) {
-    assert.throws(
-      fn,
-      (v: unknown) =>
-        (v as { constructor: { name: string } }).constructor.name ===
-        expected.throws,
-      label,
-    );
+    const errorClass = (
+      globalThis as unknown as Record<string, new (...args: unknown[]) => Error>
+    )[expected.throws];
+    expect(fn, label).toThrow(errorClass);
     return;
   }
   const actual = fn();
   if (expected.nan) {
-    assert.ok(Number.isNaN(actual), label);
+    expect(Number.isNaN(actual), label).toBeTruthy();
     return;
   }
-  assert.deepStrictEqual(actual, expected.value, label);
+  expect(actual, label).toEqual(expected.value);
 }
 
 // ---------- getDayIndexFromYMDServer (월=0 … 일=6) ----------
@@ -95,11 +91,10 @@ test("getDayIndexFromYMDServer — 월요일 기준 인덱스가 JS getDay 와 �
     "2026-08-16",
   ];
   week.forEach((ymd, i) => {
-    assert.equal(
+    expect(
       getDayIndexFromYMDServer(ymd, new Date("2026-08-10T15:30:00Z")),
-      i,
       ymd,
-    );
+    ).toBe(i);
   });
 });
 
@@ -388,10 +383,15 @@ test("isMiniStartDay — 목·금·토(3·4·5) 만 true", () => {
     "2026-08-15",
     "2026-08-16",
   ];
-  assert.deepStrictEqual(
-    week.map((d) => isMiniStartDay(d, now)),
-    [false, false, false, true, true, true, false],
-  );
+  expect(week.map((d) => isMiniStartDay(d, now))).toEqual([
+    false,
+    false,
+    false,
+    true,
+    true,
+    true,
+    false,
+  ]);
 });
 
 // ---------- getRecordDateFromActualStart ----------
@@ -1246,10 +1246,10 @@ test("kstYMD — UTC 15:00 에서 KST 날짜가 넘어간다", () => {
 });
 
 test("toYMD — 문자열은 앞 10자, falsy 는 빈 문자열", () => {
-  assert.equal(toYMD("2026-08-10T12:34:56Z"), "2026-08-10");
-  assert.equal(toYMD("2026-08-10"), "2026-08-10");
-  assert.equal(toYMD(""), "");
-  assert.equal(toYMD(null), "");
-  assert.equal(toYMD(undefined), "");
-  assert.equal(toYMD(0), "");
+  expect(toYMD("2026-08-10T12:34:56Z")).toBe("2026-08-10");
+  expect(toYMD("2026-08-10")).toBe("2026-08-10");
+  expect(toYMD("")).toBe("");
+  expect(toYMD(null)).toBe("");
+  expect(toYMD(undefined)).toBe("");
+  expect(toYMD(0)).toBe("");
 });
