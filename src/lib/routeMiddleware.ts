@@ -2,6 +2,7 @@ import type { MiddlewareFunction } from "react-router";
 import { redirect } from "react-router";
 import { fetchEntitlement } from "./entitlement";
 import { isOnboardingDone } from "./goalOnboarding";
+import { getCached, setCached } from "./routeMiddlewareCache";
 import { supabase } from "./supabase";
 
 // 라우트 미들웨어(future.v8_middleware) 이관본 — 기존 ProtectedRoute.jsx /
@@ -74,13 +75,29 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
     throw loginRedirect(request);
   }
 
+  const cachedRole = getCached<string | null>(user.id, "admin-role");
+
+  if (cachedRole !== undefined) {
+    if (cachedRole !== "admin") {
+      throw new AdminForbiddenError();
+    }
+    return;
+  }
+
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("role")
     .eq("id", user.id)
     .maybeSingle();
 
-  if (error || profile?.role !== "admin") {
+  if (error) {
+    throw new AdminForbiddenError();
+  }
+
+  const role = profile?.role ?? null;
+  setCached(user.id, "admin-role", role);
+
+  if (role !== "admin") {
     throw new AdminForbiddenError();
   }
 };
@@ -93,12 +110,21 @@ export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
   request,
 }) => {
   const { data: sessionData } = await supabase.auth.getSession();
+  const user = sessionData.session?.user;
 
-  if (!sessionData.session?.user) {
+  if (!user) {
     throw loginRedirect(request);
   }
 
-  const { allowed } = await fetchEntitlement("goal");
+  const cachedAllowed = getCached<boolean>(user.id, "goal-entitlement");
+  const allowed =
+    cachedAllowed !== undefined
+      ? cachedAllowed
+      : (await fetchEntitlement("goal")).allowed;
+
+  if (cachedAllowed === undefined && allowed !== null) {
+    setCached(user.id, "goal-entitlement", allowed);
+  }
 
   if (allowed === true) return;
 
@@ -124,7 +150,18 @@ export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
 // 어디로 가는지)는 원본과 동일하다 — App.jsx의 라우트 배선 주석 참고.
 export const requireGoalOnboardingDoneMiddleware: MiddlewareFunction =
   async () => {
-    const onboardingDone = await isOnboardingDone();
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData.session?.user;
+
+    const cachedDone = user
+      ? getCached<boolean>(user.id, "goal-onboarding-done")
+      : undefined;
+    const onboardingDone =
+      cachedDone !== undefined ? cachedDone : await isOnboardingDone();
+
+    if (user && cachedDone === undefined && onboardingDone !== null) {
+      setCached(user.id, "goal-onboarding-done", onboardingDone);
+    }
 
     if (onboardingDone === true) return;
 
