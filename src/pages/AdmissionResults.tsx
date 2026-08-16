@@ -101,7 +101,7 @@ export default function AdmissionResults() {
   } = useSusiDepartments(universityKey, isDetail);
 
   // 실패하면 섹션을 통째로 감춘다(부가 정보라 에러 UI를 띄우지 않는다).
-  const trending = useTrendingDepartments(isDetail);
+  const { trending } = useTrendingDepartments(isDetail);
 
   const universityOptions = useMemo(
     () =>

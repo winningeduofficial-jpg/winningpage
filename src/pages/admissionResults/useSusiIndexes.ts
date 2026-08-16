@@ -105,6 +105,9 @@ export function useSusiDepartments(universityKey: string, skip: boolean) {
 }
 
 // Q4 — 지금 뜨고 있는 학과. 실패하면 섹션을 통째로 감춘다(부가 정보라 에러 UI를 띄우지 않는다).
+// 반환 shape은 위 두 훅(useSusiUniversities/useSusiDepartments)과 통일해
+// { trending }으로 감싼다 — loading/error가 없는 건 의도된 설계 차이(에러 UI 없음)지,
+// 데이터 자체를 배열로 노출할 이유는 아니다.
 export function useTrendingDepartments(skip: boolean) {
   const [trending, setTrending] = useState<TrendingDepartmentRow[]>([]);
 
@@ -123,5 +126,5 @@ export function useTrendingDepartments(skip: boolean) {
     };
   }, [skip]);
 
-  return trending;
+  return { trending };
 }
