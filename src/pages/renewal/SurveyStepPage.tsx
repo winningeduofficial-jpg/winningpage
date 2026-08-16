@@ -82,11 +82,11 @@ export default function SurveyStepPage() {
   // 화면에 보이는 필수 문항(선택입력·중첩 문항 제외)을 전부 답해야 다음으로 넘어간다.
   const stepComplete = isStepComplete(step, answers);
 
-  const label = stepComplete
-    ? isLastStep
-      ? "진단 결과 보기"
-      : `${getRemainingAfterStep(step)}개 문항이 남았어요`
-    : "모든 항목에 응답해주세요";
+  const label = (() => {
+    if (!stepComplete) return "모든 항목에 응답해주세요";
+    if (isLastStep) return "진단 결과 보기";
+    return `${getRemainingAfterStep(step)}개 문항이 남았어요`;
+  })();
 
   // 마지막 스텝의 CTA 가 채점 파이프라인의 진입점이다(§7.4.2). 정규화·저장은 answers 를 소유한
   // 셸(submitDiagnosis)이 하고, 여기서는 그 결과를 라우터 state 로도 넘긴다 —
@@ -97,11 +97,11 @@ export default function SurveyStepPage() {
     navigate(SURVEY_REPORT_PATH, { state: { diagnosisInput } });
   };
 
-  const handleClick = stepComplete
-    ? isLastStep
-      ? goToReport
-      : () => navigate(getStepPath(step + 1))
-    : scrollToFirstUnanswered;
+  const handleClick = (() => {
+    if (!stepComplete) return scrollToFirstUnanswered;
+    if (isLastStep) return goToReport;
+    return () => navigate(getStepPath(step + 1));
+  })();
 
   return (
     <>

@@ -394,13 +394,12 @@ export function computeDelta(previous, current) {
     previousCut != null && currentCut != null && previousCut !== currentCut;
 
   const arrow = DELTA_ARROW[direction];
-  const tone = cutMismatch
-    ? "muted"
-    : direction === DELTA_STATE.IMPROVED
-      ? "up"
-      : direction === DELTA_STATE.WORSENED
-        ? "down"
-        : "flat";
+  const tone = (() => {
+    if (cutMismatch) return "muted";
+    if (direction === DELTA_STATE.IMPROVED) return "up";
+    if (direction === DELTA_STATE.WORSENED) return "down";
+    return "flat";
+  })();
 
   return {
     // 컷 기준이 다르면 Δ 계산은 하되 상태를 CUT_MISMATCH로 승격해 톤을 낮춘다.

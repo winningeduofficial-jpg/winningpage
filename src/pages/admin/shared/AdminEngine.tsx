@@ -330,12 +330,11 @@ function AdminInput({
         // 0으로 두면 "미공개"와 "값이 0"이 구분되지 않아 공개면이 경쟁률
         // 0.00 : 1, 모집인원 0명을 정상값처럼 렌더한다. 선언한 필드에만 적용되므로
         // sort_order 같은 NOT NULL 숫자 컬럼은 기존 동작(빈 값 → 0) 그대로다.
-        const next =
-          field.type === "number"
-            ? e.target.value === "" && field.nullable
-              ? null
-              : Number(e.target.value || 0)
-            : e.target.value;
+        const next = (() => {
+          if (field.type !== "number") return e.target.value;
+          if (e.target.value === "" && field.nullable) return null;
+          return Number(e.target.value || 0);
+        })();
         onChange(field.key, next);
       }}
       disabled={disabled}

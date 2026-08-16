@@ -252,42 +252,51 @@ export default function RefundRequestModal({
           {/* 금액은 학생에게 보여주지 않는다(2026-08-13 확정) — 결제 주체인
               학부모의 확인 화면(RefundApprovalModal)에서만 공개한다. 산정 자체는
               그대로 돌아간다(아래 blockedByPolicy 가 0원 건을 막는 근거로 쓴다). */}
-          {asStudent ? null : loading ? (
-            <p className="mt-3 text-[0.875rem] text-ink-sub">
-              환불 금액 계산 중...
-            </p>
-          ) : quoteError ? (
-            <p className="mt-3 text-[0.875rem] text-error">{quoteError}</p>
-          ) : (
-            <div className="mt-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between text-[0.875rem]">
-                <span className="text-ink-sub">결제 금액</span>
-                <span className="text-ink-strong">
-                  {formatKRW(grossAmount)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between text-[0.875rem]">
-                <span className="text-ink-sub">취소 수수료</span>
-                <span className="text-error">
-                  {/* 이 분기(loading=false, quoteError="")는 fetch 성공 후
-                      setQuote(row)까지 끝난 상태라 feeAmount는 항상 non-null이다. */}
-                  {feeAmount! > 0 ? `-${formatKRW(feeAmount!)}` : formatKRW(0)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between border-t border-line pt-2 text-[0.9375rem] font-semibold">
-                <span className="text-ink">환불 금액</span>
-                <span className="text-ink-strong">
-                  {formatKRW(refundAmount)}
-                </span>
-              </div>
-
-              {policyText && (
-                <p className="break-keep text-[0.75rem] leading-relaxed text-ink-sub">
-                  {policyText}
+          {(() => {
+            if (asStudent) return null;
+            if (loading)
+              return (
+                <p className="mt-3 text-[0.875rem] text-ink-sub">
+                  환불 금액 계산 중...
                 </p>
-              )}
-            </div>
-          )}
+              );
+            if (quoteError)
+              return (
+                <p className="mt-3 text-[0.875rem] text-error">{quoteError}</p>
+              );
+            return (
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex items-center justify-between text-[0.875rem]">
+                  <span className="text-ink-sub">결제 금액</span>
+                  <span className="text-ink-strong">
+                    {formatKRW(grossAmount)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[0.875rem]">
+                  <span className="text-ink-sub">취소 수수료</span>
+                  <span className="text-error">
+                    {/* 이 분기(loading=false, quoteError="")는 fetch 성공 후
+                        setQuote(row)까지 끝난 상태라 feeAmount는 항상 non-null이다. */}
+                    {feeAmount! > 0
+                      ? `-${formatKRW(feeAmount!)}`
+                      : formatKRW(0)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-line pt-2 text-[0.9375rem] font-semibold">
+                  <span className="text-ink">환불 금액</span>
+                  <span className="text-ink-strong">
+                    {formatKRW(refundAmount)}
+                  </span>
+                </div>
+
+                {policyText && (
+                  <p className="break-keep text-[0.75rem] leading-relaxed text-ink-sub">
+                    {policyText}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
 
         {/* 사유 선택 — 환불 금액이 0원이면 고를 필요가 없으므로 숨긴다. */}

@@ -158,51 +158,59 @@ export default function StudyPlanRail() {
       {/* not-allowed(미결제)·no-session 등은 이 위젯이 스스로 처리하지 않는다 — RequireGoalAccess가
           대시보드 라우트를 이미 3단계 게이트로 감싸므로(Dashboard.jsx §154 주석과 동일 전제) 정상
           경로에선 도달하지 않는 방어적 분기다. */}
-      {result === null ? (
-        <p className="py-6 text-center text-[0.8125rem] leading-[1.4] text-ink-sub">
-          불러오는 중…
-        </p>
-      ) : result.kind !== "success" ? (
-        <p className="py-6 text-center text-[0.8125rem] leading-[1.4] text-ink-sub">
-          불러오지 못했습니다. 새로고침해 주세요.
-        </p>
-      ) : hasTasks ? (
-        <>
-          <ul className="flex flex-col gap-2">
-            {tasks.map((task, index) => (
-              <GoalChecklistRow
-                key={task.id}
-                index={index + 1}
-                text={task.title}
-                status={task.done ? "done" : "pending"}
-                onCheck={() => handleCheck(task)}
-                onDelete={() => handleDelete(task)}
-              />
-            ))}
-          </ul>
-          {/* part-06 §279: "+ 버튼을 눌러 과제를 추가하세요"는 행이 있어도 상시 노출되는 안내문 —
-              실제 + 버튼 노드는 시안에 없어 텍스트 자체를 클릭 가능한 트리거로 만들었다(추정). */}
-          <button
-            type="button"
-            onClick={() => setModalOpen(true)}
-            className="text-center text-[0.75rem] leading-[1.4] text-ink-sub underline-offset-2 hover:underline"
-          >
-            + 버튼을 눌러 과제를 추가하세요
-          </button>
-          <button
-            type="button"
-            onClick={handleRefresh}
-            className="h-[2.375rem] w-full rounded-lg bg-[#4CAF6D] text-[0.875rem] font-semibold leading-[1.4] text-white"
-          >
-            오늘 학습 계획 저장하기
-          </button>
-        </>
-      ) : (
-        <GoalEmptyState
-          message="+ 버튼을 눌러 과제를 추가하세요"
-          onAdd={() => setModalOpen(true)}
-        />
-      )}
+      {(() => {
+        if (result === null)
+          return (
+            <p className="py-6 text-center text-[0.8125rem] leading-[1.4] text-ink-sub">
+              불러오는 중…
+            </p>
+          );
+        if (result.kind !== "success")
+          return (
+            <p className="py-6 text-center text-[0.8125rem] leading-[1.4] text-ink-sub">
+              불러오지 못했습니다. 새로고침해 주세요.
+            </p>
+          );
+        if (hasTasks)
+          return (
+            <>
+              <ul className="flex flex-col gap-2">
+                {tasks.map((task, index) => (
+                  <GoalChecklistRow
+                    key={task.id}
+                    index={index + 1}
+                    text={task.title}
+                    status={task.done ? "done" : "pending"}
+                    onCheck={() => handleCheck(task)}
+                    onDelete={() => handleDelete(task)}
+                  />
+                ))}
+              </ul>
+              {/* part-06 §279: "+ 버튼을 눌러 과제를 추가하세요"는 행이 있어도 상시 노출되는 안내문 —
+                  실제 + 버튼 노드는 시안에 없어 텍스트 자체를 클릭 가능한 트리거로 만들었다(추정). */}
+              <button
+                type="button"
+                onClick={() => setModalOpen(true)}
+                className="text-center text-[0.75rem] leading-[1.4] text-ink-sub underline-offset-2 hover:underline"
+              >
+                + 버튼을 눌러 과제를 추가하세요
+              </button>
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="h-[2.375rem] w-full rounded-lg bg-[#4CAF6D] text-[0.875rem] font-semibold leading-[1.4] text-white"
+              >
+                오늘 학습 계획 저장하기
+              </button>
+            </>
+          );
+        return (
+          <GoalEmptyState
+            message="+ 버튼을 눌러 과제를 추가하세요"
+            onAdd={() => setModalOpen(true)}
+          />
+        );
+      })()}
 
       <AddTaskModal
         open={modalOpen}

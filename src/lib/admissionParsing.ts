@@ -1844,11 +1844,11 @@ function normalizeStudentRecordInfoRows(rows) {
 
     // '90%(등급) 반영' 다음에 '(기본점수 ...)'처럼 붙는 행은 한 행으로 묶는다.
     const next = rows[i + 1];
-    const nextLabel = next
-      ? clean(next[0]) === "내용"
-        ? studentRecordDisplayLabel(next[1])
-        : clean(next[0])
-      : "";
+    const nextLabel = (() => {
+      if (!next) return "";
+      if (clean(next[0]) === "내용") return studentRecordDisplayLabel(next[1]);
+      return clean(next[0]);
+    })();
     const nextContent = next ? clean(next[1]) : "";
     if (
       (label === "교과 반영" ||
@@ -3967,13 +3967,13 @@ export function importSelectionDocFromHtml(html) {
     const badgeMatch = minimumCell.innerHtml.match(
       /admission-minimum-badge\s+(has|none)/i,
     );
-    const badge = badgeMatch
-      ? badgeMatch[1].toLowerCase() === "has"
-        ? "minimumHas"
-        : "minimumNone"
-      : minimumCell.text === "-"
-        ? "minimumNone"
-        : "minimumHas";
+    const badge = (() => {
+      if (badgeMatch)
+        return badgeMatch[1].toLowerCase() === "has"
+          ? "minimumHas"
+          : "minimumNone";
+      return minimumCell.text === "-" ? "minimumNone" : "minimumHas";
+    })();
     rows.push([
       typeCell.text || "-",
       nameCell.text || "-",

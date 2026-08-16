@@ -540,14 +540,12 @@ export function urgencyOf(input, areaScores) {
     (area) => scoreOf(areaScores, area) < URGENCY_AREA_THRESHOLD,
   ).length;
   const score = (SCHEDULE_POINTS[input?.schedule] ?? 0) + 10 * lowAreaCount;
-  const level =
-    score >= URGENCY_BANDS.L4
-      ? "L4"
-      : score >= URGENCY_BANDS.L3
-        ? "L3"
-        : score >= URGENCY_BANDS.L2
-          ? "L2"
-          : "L1";
+  const level = (() => {
+    if (score >= URGENCY_BANDS.L4) return "L4";
+    if (score >= URGENCY_BANDS.L3) return "L3";
+    if (score >= URGENCY_BANDS.L2) return "L2";
+    return "L1";
+  })();
   return { score, level, lowAreaCount };
 }
 
@@ -679,14 +677,12 @@ export function rankServices(input, areaScores) {
       );
       // 반올림하지 않는다 — tier 판정은 원값으로 한다(§4.5 경계값). 표시용 반올림은 리포트 계층 몫.
       const fit = difficultyPart + wishPart + areaPart;
-      const tier =
-        fit >= SERVICE_BANDS.HIGH
-          ? "HIGH"
-          : fit >= SERVICE_BANDS.MID
-            ? "MID"
-            : fit >= SERVICE_BANDS.LOW
-              ? "LOW"
-              : null;
+      const tier = (() => {
+        if (fit >= SERVICE_BANDS.HIGH) return "HIGH";
+        if (fit >= SERVICE_BANDS.MID) return "MID";
+        if (fit >= SERVICE_BANDS.LOW) return "LOW";
+        return null;
+      })();
       const lowestLinkedArea = sortByScoreAsc(rule.linkedAreas, areaScores)[0];
 
       return {
