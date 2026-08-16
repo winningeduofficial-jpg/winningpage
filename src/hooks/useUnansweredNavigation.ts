@@ -16,6 +16,8 @@ type SurveyQuestion = {
   [key: string]: unknown;
 };
 
+const HIGHLIGHT_AUTO_DISMISS_MS = 3000;
+
 export function useUnansweredNavigation(
   requiredQuestions: SurveyQuestion[],
   answers: Record<string | number, unknown> | null | undefined,
@@ -39,7 +41,10 @@ export function useUnansweredNavigation(
   // 응답하지 않아도 3초 내외로 자동 해제한다(오류가 아니라 안내이므로 계속 남아있지 않는다).
   useEffect(() => {
     if (highlightedId == null) return undefined;
-    const timer = setTimeout(() => setHighlightedId(null), 3000);
+    const timer = setTimeout(
+      () => setHighlightedId(null),
+      HIGHLIGHT_AUTO_DISMISS_MS,
+    );
     return () => clearTimeout(timer);
   }, [highlightedId]);
 

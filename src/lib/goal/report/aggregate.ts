@@ -18,6 +18,8 @@ import type { DaySchedule } from "../calc/schedule.js";
 import { getEffectiveScheduleTarget } from "../calc/schedule.js";
 import { addDaysYMD, getMondayYMD } from "../calc/virtualDate.js";
 
+const MS_PER_DAY = 86400000;
+
 // goal_students 행 — 이 파일이 실제로 읽는 필드만(온보딩 컷 4종 + 시작일 +
 // getEffectiveScheduleTarget/calc/schedule.js 에 그대로 넘기는 study_schedule).
 // 그 외 컬럼(확률·target 대학 등)은 이 모듈이 쓰지 않아 index signature 로 열어 둔다.
@@ -147,7 +149,7 @@ export function diffDaysInclusive(
       .map(Number)
       .map((v, i) => (i === 1 ? v - 1 : v)) as [number, number, number]),
   );
-  return Math.round((end - start) / 86400000) + 1;
+  return Math.round((end - start) / MS_PER_DAY) + 1;
 }
 
 // ---------------------------------------------------------------------------

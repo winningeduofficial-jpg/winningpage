@@ -18,6 +18,7 @@ import { buildMyMenu } from "./myMenuItems";
 
 const CSAT_DATE = "2026-11-19";
 const HEADER_PROFILE_CACHE_KEY = "winning-header-profile";
+const MS_PER_DAY = 86400000;
 
 // ---- 헤더 2중 좌표계 정렬 상수 (0729 시안 2207:12337, Playwright 실측 기준) ----
 // 좌표계 1 (로고 + 계정 그룹): max-w-[120rem](1920px) 밴드. 좌우 마진은 px-8(2rem)에서
@@ -87,7 +88,7 @@ function getCsatDay() {
     kstNow.getDate(),
   );
   const target = new Date(`${CSAT_DATE}T00:00:00+09:00`);
-  const diff = Math.ceil((target.getTime() - today.getTime()) / 86400000);
+  const diff = Math.ceil((target.getTime() - today.getTime()) / MS_PER_DAY);
 
   if (diff > 0) return `수능 D-${diff}`;
   if (diff === 0) return "수능 D-DAY";
@@ -260,6 +261,11 @@ async function fetchProfile(
   return byId || byEmail || byUsername || null;
 }
 
+const MEGA_CLOSE_DELAY_MS = 100;
+const MEGA_PANEL_CLOSING_MS = 120;
+const CSAT_DDAY_REFRESH_MS = 60 * 60 * 1000;
+const LOGOUT_FALLBACK_TIMEOUT_MS = 1800;
+
 export default function Header() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(() =>
@@ -353,7 +359,7 @@ export default function Header() {
     megaCloseTimerRef.current = window.setTimeout(() => {
       setActiveMega(null);
       megaCloseTimerRef.current = null;
-    }, 100);
+    }, MEGA_CLOSE_DELAY_MS);
   }
 
   useEffect(() => () => clearMegaCloseTimer(), [clearMegaCloseTimer]);
@@ -386,7 +392,7 @@ export default function Header() {
     megaPanelAnimTimerRef.current = window.setTimeout(() => {
       setMegaPanelPhase("closed");
       megaPanelAnimTimerRef.current = null;
-    }, 120);
+    }, MEGA_PANEL_CLOSING_MS);
 
     return () => {
       if (megaPanelAnimTimerRef.current) {
@@ -399,7 +405,7 @@ export default function Header() {
   useEffect(() => {
     const timer = window.setInterval(
       () => setCsatDDay(getCsatDay()),
-      60 * 60 * 1000,
+      CSAT_DDAY_REFRESH_MS,
     );
     return () => window.clearInterval(timer);
   }, []);
@@ -563,7 +569,9 @@ export default function Header() {
     try {
       await Promise.race([
         supabase.auth.signOut({ scope: "local" }),
-        new Promise((resolve) => window.setTimeout(resolve, 1800)),
+        new Promise((resolve) =>
+          window.setTimeout(resolve, LOGOUT_FALLBACK_TIMEOUT_MS),
+        ),
       ]);
     } catch (error) {
       console.error("로그아웃 오류:", error);

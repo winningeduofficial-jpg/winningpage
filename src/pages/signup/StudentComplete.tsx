@@ -21,6 +21,7 @@ import { useSignup } from "../../context/SignupContext";
 
 // 연결코드 안내 노출 여부. 학부모 연결 기능 오픈 시점에 맞춰 켠다.
 const CHILD_LINK_ENABLED = import.meta.env.VITE_CHILD_LINK_ENABLED === "true";
+const COPY_FEEDBACK_MS = 2000;
 
 export default function StudentComplete() {
   const navigate = useNavigate();
@@ -48,7 +49,7 @@ export default function StudentComplete() {
     try {
       await navigator.clipboard.writeText(linkCode);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      window.setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
     } catch (error) {
       // TODO: 클립보드 API 미지원 환경 대비 폴백(예: 임시 textarea + execCommand) 필요.
       console.error("연동 코드 복사 오류:", error);

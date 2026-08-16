@@ -34,6 +34,8 @@ type DailyRecordBanner = {
   message: string;
 };
 
+const HIGHLIGHT_AUTO_DISMISS_MS = 2000;
+
 export default function DailyRecord() {
   const [condition, setCondition] = useState<string | null>(null);
   const [disturbances, setDisturbances] = useState<string[]>([]);
@@ -146,7 +148,7 @@ export default function DailyRecord() {
       block: "center",
     });
     setHighlightStudyTime(true);
-    setTimeout(() => setHighlightStudyTime(false), 2000);
+    setTimeout(() => setHighlightStudyTime(false), HIGHLIGHT_AUTO_DISMISS_MS);
   };
 
   const handleSave = async () => {

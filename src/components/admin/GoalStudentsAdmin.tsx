@@ -188,6 +188,8 @@ const GOAL_STUDENT_STATUS_OPTIONS: { value: string; label: string }[] = [
 // id 집합을 먼저 얻어야 하는데, 그 조회가 잘리면 초과분 학생이 결과에서 조용히
 // 사라진다. 상한에 닿으면 화면에 절단 사실을 띄운다(searchTruncated).
 const PROFILE_SEARCH_LIMIT = 500;
+const SEARCH_DEBOUNCE_MS = 300;
+const MS_PER_DAY = 86400000;
 
 const GOAL_STUDENT_FILTERS: { key: string; label: string }[] = [
   { key: "all", label: "전체" },
@@ -429,7 +431,7 @@ function goalDiffDays(fromYMD: unknown, toYMD: unknown) {
   const a = Date.parse(`${String(fromYMD).slice(0, 10)}T00:00:00Z`);
   const b = Date.parse(`${String(toYMD).slice(0, 10)}T00:00:00Z`);
   if (Number.isNaN(a) || Number.isNaN(b)) return 0;
-  return Math.round((b - a) / 86400000);
+  return Math.round((b - a) / MS_PER_DAY);
 }
 
 function goalSigned(value: unknown, digits = 4) {
@@ -521,7 +523,7 @@ export default function GoalStudentsAdmin({
     const timer = setTimeout(() => {
       setTerm(keyword.trim());
       setPage(1);
-    }, 300);
+    }, SEARCH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [keyword]);
 

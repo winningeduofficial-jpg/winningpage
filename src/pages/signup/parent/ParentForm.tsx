@@ -43,6 +43,7 @@ import {
 import { supabase } from "../../../lib/supabase";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_RESEND_COOLDOWN_SECONDS = 60;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
 type FieldStatus = "default" | "error" | "success";
@@ -148,7 +149,7 @@ export default function ParentForm() {
   const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const phoneCooldown = useCooldown(60);
+  const phoneCooldown = useCooldown(PHONE_RESEND_COOLDOWN_SECONDS);
   const emailCooldown = useCooldown(EMAIL_RESEND_COOLDOWN_SECONDS);
 
   // 서버가 시도를 세므로 같은 코드를 두 번 보내지 않는다.

@@ -34,6 +34,7 @@ import ServiceCard from "./ServiceCard";
 const DURATION_BRACKET_RE = /^\[(.+?)\]\s*(.+)$/;
 const MONTHS_RE = /(\d+)\s*개월/;
 const COUNT_RE = /(\d+)\s*회/;
+const MS_PER_DAY = 86400000;
 
 type Order = {
   id: string;
@@ -160,11 +161,11 @@ function parseOrder(order: Order): ParsedOrder {
 
   const now = new Date();
   const remainingDays = endDate
-    ? Math.ceil((endDate.getTime() - now.getTime()) / 86400000)
+    ? Math.ceil((endDate.getTime() - now.getTime()) / MS_PER_DAY)
     : null;
   const validityDays =
     endDate && paidAt
-      ? Math.round((endDate.getTime() - paidAt.getTime()) / 86400000)
+      ? Math.round((endDate.getTime() - paidAt.getTime()) / MS_PER_DAY)
       : null;
 
   // 기간을 알 수 없는 주문은 기본적으로 "이용 중"으로 두지만, 무료진단은 원래 결제 즉시
