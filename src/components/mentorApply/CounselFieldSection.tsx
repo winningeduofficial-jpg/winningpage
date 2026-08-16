@@ -1,6 +1,6 @@
 import { COUNSEL_FIELD_SECTION, COUNSEL_FIELDS } from "../../data/mentorApply";
 import { MENTOR_ASSETS } from "../../data/mentorApplyAssets";
-import useInfiniteMarquee from "../../hooks/useInfiniteMarquee";
+import { useInfiniteMarquee } from "../../hooks/useInfiniteMarquee";
 import { MENTOR_HEADING_MD } from "../services/serviceTokens";
 
 // 멘토신청 §4 상담 분야 — 7카드 풀블리드 무한 마퀴 (docs/mentor-apply-spec.md §4 F-1, Figma 3408:4545).

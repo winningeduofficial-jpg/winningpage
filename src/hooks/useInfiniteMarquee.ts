@@ -383,5 +383,3 @@ function normalizeScrollPosition(
     container.scrollLeft += cycleWidth;
   }
 }
-
-export default useInfiniteMarquee;

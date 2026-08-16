@@ -235,5 +235,3 @@ export function SessionProvider({
     </SessionContext.Provider>
   );
 }
-
-export default SessionProvider;

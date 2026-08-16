@@ -127,5 +127,3 @@ export const SAMPLE_REPORT_COPY = Object.freeze({
    */
   WATERMARK: "예시",
 });
-
-export default SCREEN_EXTRAS;
