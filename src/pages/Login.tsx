@@ -1,5 +1,5 @@
-import { type FormEvent, useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { type FormEvent, useState } from "react";
+import { useSearchParams } from "react-router";
 import {
   AuthLayout,
   AuthTitle,
@@ -7,6 +7,7 @@ import {
   TextField,
   TextLinkButton,
 } from "../components/auth";
+import { useRedirectIfAuthenticated } from "../hooks/useRedirectIfAuthenticated";
 import { supabase } from "../lib/supabase";
 
 // 오픈 리다이렉트 방지: 같은 사이트 내부 경로만 허용
@@ -29,23 +30,7 @@ function safeRedirect(value: string | null) {
   }
 }
 
-// getSession()이 응답 없이 무한 대기하는 경우를 대비한 타임아웃 폴백.
-// MyPage.jsx / Header.jsx의 withTimeout 선례와 동일한 패턴이다.
-function withTimeout<T, F = null>(
-  promise: Promise<T>,
-  ms: number,
-  fallbackValue: F = null as F,
-): Promise<T | F> {
-  return Promise.race([
-    promise,
-    new Promise<F>((resolve) => {
-      window.setTimeout(() => resolve(fallbackValue), ms);
-    }),
-  ]);
-}
-
 export default function Login() {
-  const navigate = useNavigate();
   const [params] = useSearchParams();
   const redirectTo = safeRedirect(params.get("redirect"));
 
@@ -54,42 +39,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   // 이미 로그인된 사용자에게 로그인 폼이 잠깐 노출되는 것을 막는 게이트.
-  // getSession() 확인이 끝날 때까지는 로딩 화면만 보여준다.
-  const [sessionChecking, setSessionChecking] = useState(true);
-
-  useEffect(() => {
-    let alive = true;
-
-    async function checkSession() {
-      try {
-        const { data } = await withTimeout(supabase.auth.getSession(), 3500, {
-          data: { session: null },
-        });
-
-        if (!alive) return;
-
-        if (data?.session?.user) {
-          // 이미 로그인된 사용자는 목적지로 이동시키되, 이동 중 폼이
-          // 번쩍이지 않도록 sessionChecking은 계속 true로 둔다.
-          navigate(redirectTo, { replace: true });
-          return;
-        }
-
-        setSessionChecking(false);
-      } catch (error) {
-        console.error("기존 세션 확인 오류:", error);
-        // 세션 확인 자체가 실패해도 로그인 폼은 반드시 열어야 하므로
-        // fail-open으로 게이트를 해제한다.
-        if (alive) setSessionChecking(false);
-      }
-    }
-
-    checkSession();
-
-    return () => {
-      alive = false;
-    };
-  }, [navigate, redirectTo]);
+  const sessionChecking = useRedirectIfAuthenticated(redirectTo);
 
   function getFriendlyError(errorMessage?: string) {
     if (!errorMessage) return "로그인 중 문제가 발생했습니다.";
