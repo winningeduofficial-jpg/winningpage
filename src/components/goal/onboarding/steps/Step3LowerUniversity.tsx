@@ -1,7 +1,7 @@
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
-import QuestionCard from "../QuestionCard";
-import UniversitySelect from "../UniversitySelect";
-import WizardActions from "../WizardActions";
+import QuestionCard from "@/components/goal/onboarding/QuestionCard";
+import UniversitySelect from "@/components/goal/onboarding/UniversitySelect";
+import WizardActions from "@/components/goal/onboarding/WizardActions";
+import { useGoalOnboarding } from "@/context/GoalOnboardingContext";
 
 // 3단계 — docs/figma-goal/part-02.md #5. 하한(최소) 목표 대학 — Step2와 동일 컴포넌트를
 // target="lower"로 재사용한다.

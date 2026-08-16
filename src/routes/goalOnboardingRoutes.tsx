@@ -3,9 +3,9 @@ import { Navigate } from "react-router";
 import {
   GoalAccessBoundary,
   GoalAccessCheckingFallback,
-} from "../components/routeGuards/RouteGuardUi";
-import { requireGoalAccessMiddleware } from "../lib/routeMiddleware";
-import GoalOnboarding from "../pages/goal/Onboarding";
+} from "@/components/routeGuards/RouteGuardUi";
+import { requireGoalAccessMiddleware } from "@/lib/routeMiddleware";
+import GoalOnboarding from "@/pages/goal/Onboarding";
 
 // 목표관리 온보딩(설문 7단계) — 시안상 공통 헤더/푸터가 있고 사이드바가 없어
 // SiteLayout 안에 둔다(GoalAppLayout 사이드바 셸에는 넣지 않는다). RequireGoalAccess가

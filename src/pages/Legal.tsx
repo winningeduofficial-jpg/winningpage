@@ -1,5 +1,5 @@
-import { getLegalDoc } from "../data/legalDocs";
-import { withDedupedKeys } from "../lib/reactKeys";
+import { getLegalDoc } from "@/data/legalDocs";
+import { withDedupedKeys } from "@/lib/reactKeys";
 
 // 조/항 제목 라인 판별
 function isHeading(line: string, docKey?: string) {

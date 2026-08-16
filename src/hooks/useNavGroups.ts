@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from "react";
-import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from "../data/navigation";
-import { supabase } from "../lib/supabase";
+import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from "@/data/navigation";
+import { supabase } from "@/lib/supabase";
 
 interface NavItem {
   label: string;

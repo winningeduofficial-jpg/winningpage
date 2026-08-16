@@ -1,51 +1,51 @@
 import type { ReactNode, RefObject } from "react";
 import { forwardRef, useEffect, useEffectEvent, useRef, useState } from "react";
 import { useParams } from "react-router";
-import AiLoadingBubble from "../../components/performance/chat/AiLoadingBubble";
+import AiLoadingBubble from "@/components/performance/chat/AiLoadingBubble";
 import ChatTimeline, {
   type PerformanceChatMessage,
-} from "../../components/performance/chat/ChatTimeline";
-import InlineCard from "../../components/performance/chat/InlineCard";
-import { PERFORMANCE_LOADING_COPY } from "../../components/performance/chat/loadingCopy";
-import { deriveStepStates } from "../../components/performance/deriveStepStates";
-import QuotaExhaustedCard from "../../components/performance/quota/QuotaExhaustedCard";
-import ResumeChoiceCard from "../../components/performance/resume/ResumeChoiceCard";
-import BasicInfoForm from "../../components/performance/step1/BasicInfoForm";
-import GuideUploadCard from "../../components/performance/step2/GuideUploadCard";
-import ManualInfoForm from "../../components/performance/step2/ManualInfoForm";
-import type { Topic } from "../../components/performance/step3/TopicCard";
-import TopicCardList from "../../components/performance/step3/TopicCardList";
-import TopicDetailModal from "../../components/performance/step3/TopicDetailModal";
+} from "@/components/performance/chat/ChatTimeline";
+import InlineCard from "@/components/performance/chat/InlineCard";
+import { PERFORMANCE_LOADING_COPY } from "@/components/performance/chat/loadingCopy";
+import { deriveStepStates } from "@/components/performance/deriveStepStates";
+import QuotaExhaustedCard from "@/components/performance/quota/QuotaExhaustedCard";
+import ResumeChoiceCard from "@/components/performance/resume/ResumeChoiceCard";
+import BasicInfoForm from "@/components/performance/step1/BasicInfoForm";
+import GuideUploadCard from "@/components/performance/step2/GuideUploadCard";
+import ManualInfoForm from "@/components/performance/step2/ManualInfoForm";
+import type { Topic } from "@/components/performance/step3/TopicCard";
+import TopicCardList from "@/components/performance/step3/TopicCardList";
+import TopicDetailModal from "@/components/performance/step3/TopicDetailModal";
 import DesignReportModal, {
   type DesignReport,
-} from "../../components/performance/step4/DesignReportModal";
-import EvaluationBranchActions from "../../components/performance/step5/EvaluationBranchActions";
+} from "@/components/performance/step4/DesignReportModal";
+import EvaluationBranchActions from "@/components/performance/step5/EvaluationBranchActions";
 import EvaluationReportModal, {
   type EvaluationReport,
-} from "../../components/performance/step5/EvaluationReportModal";
+} from "@/components/performance/step5/EvaluationReportModal";
 import SubmissionForm, {
   type SubmissionFieldValues,
   type SubmissionSchema,
-} from "../../components/performance/step5/SubmissionForm";
-import { usePerformanceShell } from "../../context/PerformanceShellContext";
-import { useSession } from "../../context/SessionContext";
-import { useToast } from "../../context/ToastContext";
-import { requestDesignReport } from "../../lib/performance/designReport";
+} from "@/components/performance/step5/SubmissionForm";
+import { usePerformanceShell } from "@/context/PerformanceShellContext";
+import { useSession } from "@/context/SessionContext";
+import { useToast } from "@/context/ToastContext";
+import { requestDesignReport } from "@/lib/performance/designReport";
 import {
   finalizeSubmission,
   requestEvaluation,
-} from "../../lib/performance/evaluation";
+} from "@/lib/performance/evaluation";
 import {
   analyzeGuideUpload,
   submitManualGuide,
   uploadGuidePhotos,
-} from "../../lib/performance/guideUpload";
-import { fetchSessionDetail } from "../../lib/performance/session";
+} from "@/lib/performance/guideUpload";
+import { fetchSessionDetail } from "@/lib/performance/session";
 import {
   fetchSubmissionForm,
   saveSubmission,
-} from "../../lib/performance/submission";
-import { recommendTopics } from "../../lib/performance/topics";
+} from "@/lib/performance/submission";
+import { recommendTopics } from "@/lib/performance/topics";
 
 // STEP1~STEP5 채팅 화면 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) / §5.6(`3754:3261`) /
 // §5.7(`3754:3315`) / §5.8(`3754:3370`·`3754:3431`) / §5.9(`3754:3562`·`3754:3493`) /

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { TableBlock } from "../../../lib/admissionDoc";
+import type { TableBlock } from "@/lib/admissionDoc";
 import {
   type CellDesc,
   describeCell,

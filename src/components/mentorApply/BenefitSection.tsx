@@ -1,7 +1,7 @@
-import { BENEFIT_SECTION, BENEFITS } from "../../data/mentorApply";
-import { MENTOR_ASSETS } from "../../data/mentorApplyAssets";
-import ServiceSection from "../services/ServiceSection";
-import { MENTOR_HEADING_LG } from "../services/serviceTokens";
+import ServiceSection from "@/components/services/ServiceSection";
+import { MENTOR_HEADING_LG } from "@/components/services/serviceTokens";
+import { BENEFIT_SECTION, BENEFITS } from "@/data/mentorApply";
+import { MENTOR_ASSETS } from "@/data/mentorApplyAssets";
 
 // 멘토신청 §3 활동 혜택 — 아이콘 + 제목 + 설명 3카드 (docs/mentor-apply-spec.md §3, Figma 3408:4289).
 //

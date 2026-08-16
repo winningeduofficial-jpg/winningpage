@@ -12,8 +12,8 @@ import {
   AuthTitle,
   OutlineButton,
   TextLinkButton,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 
 export default function ParentHome() {
   const navigate = useNavigate();

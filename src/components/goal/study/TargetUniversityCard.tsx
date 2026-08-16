@@ -1,5 +1,5 @@
-import GoalCard from "../GoalCard";
-import GoalProgressBar from "../GoalProgressBar";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalProgressBar from "@/components/goal/GoalProgressBar";
 
 // 내 목표 대학(#24) 상단 카드 — 이상/최소 목표 대학 공용. part-08 §298~300/320~323.
 // 대시보드 우측 레일의 `TargetUniversityRail`(components/goal/dashboard/, 372px 축약판)과 데이터

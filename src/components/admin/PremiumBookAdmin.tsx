@@ -1,15 +1,15 @@
 import { Plus, RefreshCw, UploadCloud } from "lucide-react";
 import type { ChangeEvent } from "react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import BookViewer from "@/components/premiumBook/BookViewer";
+import type { PremiumBookPage } from "@/components/premiumBook/bookPairing";
+import { supabase } from "@/lib/supabase";
 import {
   AdminForm,
   AdminTable,
   uploadImage,
-} from "../../pages/admin/shared/AdminEngine";
-import { reportAdminError } from "../../pages/admin/shared/adminErrors";
-import BookViewer from "../premiumBook/BookViewer";
-import type { PremiumBookPage } from "../premiumBook/bookPairing";
+} from "@/pages/admin/shared/AdminEngine";
+import { reportAdminError } from "@/pages/admin/shared/adminErrors";
 
 // CONFIGS(admin-shared-configs 배치 소관, 아직 JS)의 config 값 shape을 여기서 로컬로 추론한다 —
 // 이 컴포넌트가 실제로 읽는 필드만 명시하고 나머지(table/columns/fields/defaults 등, AdminTable/

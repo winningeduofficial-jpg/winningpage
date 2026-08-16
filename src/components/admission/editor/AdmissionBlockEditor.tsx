@@ -1,4 +1,4 @@
-import type { TableBlock } from "../../../lib/admissionDoc";
+import type { TableBlock } from "@/lib/admissionDoc";
 import EmptyBoxBlockEditor from "./blocks/EmptyBoxBlockEditor";
 import FootnoteBlockEditor from "./blocks/FootnoteBlockEditor";
 import GroupBlockEditor from "./blocks/GroupBlockEditor";

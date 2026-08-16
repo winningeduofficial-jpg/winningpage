@@ -1,6 +1,6 @@
 import type { RouteObject } from "react-router";
-import RequireEntitlement from "../components/RequireEntitlement";
-import { SessionProvider } from "../context/SessionContext";
+import RequireEntitlement from "@/components/RequireEntitlement";
+import { SessionProvider } from "@/context/SessionContext";
 
 // 수행평가 학생 앱(performance) — 목표관리와 같은 규칙으로 SiteLayout 밖에 둔다.
 // 시안 24노드 어디에도 사이트 헤더/푸터가 없고 셸이 자체 사이드바를 갖는다
@@ -57,7 +57,7 @@ const performanceAppRoutes: RouteObject[] = [
           {
             lazy: async () => {
               const { default: PerformanceAppLayout } = await import(
-                "../components/performance/PerformanceAppLayout"
+                "@/components/performance/PerformanceAppLayout"
               );
               return { Component: PerformanceAppLayout };
             },
@@ -67,7 +67,7 @@ const performanceAppRoutes: RouteObject[] = [
                 path: "/app/performance",
                 lazy: async () => {
                   const { default: PerformanceChatPage } = await import(
-                    "../pages/performance/PerformanceChatPage"
+                    "@/pages/performance/PerformanceChatPage"
                   );
                   return { Component: PerformanceChatPage };
                 },
@@ -78,7 +78,7 @@ const performanceAppRoutes: RouteObject[] = [
                 path: "/app/performance/reports",
                 lazy: async () => {
                   const { default: PerformanceReportsPage } = await import(
-                    "../pages/performance/PerformanceReportsPage"
+                    "@/pages/performance/PerformanceReportsPage"
                   );
                   return { Component: PerformanceReportsPage };
                 },
@@ -87,7 +87,7 @@ const performanceAppRoutes: RouteObject[] = [
                 path: "/app/performance/reports/:sessionId",
                 lazy: async () => {
                   const { default: PerformanceReportsPage } = await import(
-                    "../pages/performance/PerformanceReportsPage"
+                    "@/pages/performance/PerformanceReportsPage"
                   );
                   return { Component: PerformanceReportsPage };
                 },
@@ -99,7 +99,7 @@ const performanceAppRoutes: RouteObject[] = [
                 path: "/app/performance/:sessionId",
                 lazy: async () => {
                   const { default: PerformanceChatPage } = await import(
-                    "../pages/performance/PerformanceChatPage"
+                    "@/pages/performance/PerformanceChatPage"
                   );
                   return { Component: PerformanceChatPage };
                 },

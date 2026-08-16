@@ -1,4 +1,4 @@
-import InlineCard from "../chat/InlineCard";
+import InlineCard from "@/components/performance/chat/InlineCard";
 
 // 회차 소진 인라인 카드 (표면 B) — docs/수행평가-상세-명세.md §5.20 / §9.3 / §8.6.
 //

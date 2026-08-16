@@ -13,8 +13,8 @@ import {
   AuthTitle,
   ChoiceCard,
   TextLinkButton,
-} from "../../components/auth";
-import { useSignup } from "../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 
 export default function MemberType() {
   const navigate = useNavigate();

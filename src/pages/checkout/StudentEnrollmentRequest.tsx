@@ -1,15 +1,15 @@
 import type { User } from "@supabase/supabase-js";
 import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import checkboxUnselected from "../../assets/checkout/checkbox-24.svg";
-import checkboxSelected from "../../assets/checkout/checkbox-24-selected.svg";
-import sectionArrow from "../../assets/checkout/section-arrow-38.svg";
-import successCheck from "../../assets/checkout/success-check-60.svg";
-import ConfirmModal from "../../components/checkout/ConfirmModal";
-import { formatKRW } from "../../data/pricingCatalog";
-import { getApprovedParentLink } from "../../lib/parentLink";
-import { type ServiceProduct, useProducts } from "../../lib/products";
-import { supabase } from "../../lib/supabase";
+import checkboxUnselected from "@/assets/checkout/checkbox-24.svg";
+import checkboxSelected from "@/assets/checkout/checkbox-24-selected.svg";
+import sectionArrow from "@/assets/checkout/section-arrow-38.svg";
+import successCheck from "@/assets/checkout/success-check-60.svg";
+import ConfirmModal from "@/components/checkout/ConfirmModal";
+import { formatKRW } from "@/data/pricingCatalog";
+import { getApprovedParentLink } from "@/lib/parentLink";
+import { type ServiceProduct, useProducts } from "@/lib/products";
+import { supabase } from "@/lib/supabase";
 
 // 학생 — 결제 요청(수강신청) 화면. Figma 실측 재작업(2026-08-12b, 팀 리드가
 // get_design_context 로 직접 뽑은 전문 기준 — 이전 라운드는 Figma 접근 없이

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useState } from "react";
-import { supabase } from "../../lib/supabase";
-import { isValidEmail } from "../../lib/validators";
+import { supabase } from "@/lib/supabase";
+import { isValidEmail } from "@/lib/validators";
 import MyPageModalShell from "./MyPageModalShell";
 
 // 이메일 변경 (Figma 3633:1461 입력 / 3633:1657 인증 / 3633:1853 확인 / 3633:2034 완료).

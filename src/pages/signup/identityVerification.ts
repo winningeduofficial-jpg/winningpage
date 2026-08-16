@@ -19,7 +19,7 @@
 //     PUBLIC_SITE_URL=http://localhost:3000
 //   NICE는 return_url을 사전 등록 없이 받으므로 localhost도 그대로 통과한다(확인 완료).
 
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 const POPUP_NAME = "niceIdentity";
 const POPUP_FEATURES =

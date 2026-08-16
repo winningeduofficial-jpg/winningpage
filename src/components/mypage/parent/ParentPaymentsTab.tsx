@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { formatKRW } from "../../../data/pricingCatalog";
-import { supabase } from "../../../lib/supabase";
-import PaymentDetailModal from "../PaymentDetailModal";
-import PaymentStatusBadge from "../PaymentStatusBadge";
-import PaymentTable from "../PaymentTable";
+import PaymentDetailModal from "@/components/mypage/PaymentDetailModal";
+import PaymentStatusBadge from "@/components/mypage/PaymentStatusBadge";
+import PaymentTable from "@/components/mypage/PaymentTable";
 import {
   formatApprovedAt,
   formatOrderId,
   resolveOrderStatus,
-} from "../paymentRows";
-import ReceiptModal from "../ReceiptModal";
-import RefundNoticeModal from "../RefundNoticeModal";
-import RefundRequestModal from "../RefundRequestModal";
+} from "@/components/mypage/paymentRows";
+import ReceiptModal from "@/components/mypage/ReceiptModal";
+import RefundNoticeModal from "@/components/mypage/RefundNoticeModal";
+import RefundRequestModal from "@/components/mypage/RefundRequestModal";
+import { formatKRW } from "@/data/pricingCatalog";
+import { supabase } from "@/lib/supabase";
 import EnrollmentRequestModal from "./EnrollmentRequestModal";
 import RefundApprovalModal from "./RefundApprovalModal";
 

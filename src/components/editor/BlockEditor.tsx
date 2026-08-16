@@ -12,7 +12,7 @@ import {
   useCreateBlockNote,
 } from "@blocknote/react";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { blocksToPlainText } from "../../lib/blockToPlainText";
+import { blocksToPlainText } from "@/lib/blockToPlainText";
 import { columnSchema } from "./columnSchema";
 // @blocknote/ariakit/style.css 하나가 core+react+ariakit 스타일을 전부 포함하는 자체완결 번들이다
 // (실측 확인). 각 패키지는 JS 엔트리에서 CSS를 자동 import하지 않으므로 명시적으로 붙여야 한다 —

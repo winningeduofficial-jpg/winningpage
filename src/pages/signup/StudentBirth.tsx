@@ -14,8 +14,8 @@ import {
   InfoCard,
   PrimaryButton,
   TextField,
-} from "../../components/auth";
-import { computeIsUnder14, useSignup } from "../../context/SignupContext";
+} from "@/components/auth";
+import { computeIsUnder14, useSignup } from "@/context/SignupContext";
 
 // 14세 미만 가입 플로우(D-1 PASS 본인인증 스텁 등)는 아직 백엔드 연동이 없는 데드엔드라
 // 기본 off. off인 배포에서는 14세 미만으로 판정돼도 under14 라우트로 보내지 않고 준비 중

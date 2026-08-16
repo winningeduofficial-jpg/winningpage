@@ -1,5 +1,5 @@
-import GoalCard from "../GoalCard";
-import GoalProgressBar from "../GoalProgressBar";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalProgressBar from "@/components/goal/GoalProgressBar";
 
 // Row1 카드① `이번 주/달 목표 달성 현황` — part-11 §235~237(주간, h=200) / part-12 §110·
 // part-15 §262~264(월간, h=451 확장형) 겸용. 컴포넌트 트리는 하나로 두고 `variant`로 데이터만

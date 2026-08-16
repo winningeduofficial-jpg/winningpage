@@ -1,5 +1,5 @@
 import { useId } from "react";
-import ImeSafeInput from "../ImeSafeInput";
+import ImeSafeInput from "@/components/admission/editor/ImeSafeInput";
 
 type HeadingBlockEditorProps = {
   block: { text?: string };

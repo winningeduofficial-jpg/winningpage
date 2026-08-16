@@ -1,14 +1,14 @@
 import { useEffect, useEffectEvent, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import GoalEmptyState from "../../components/goal/GoalEmptyState";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import AddScheduleFullModal from "../../components/goal/modals/AddScheduleFullModal";
-import ScheduleListCard from "../../components/goal/plan/ScheduleListCard";
+import GoalEmptyState from "@/components/goal/GoalEmptyState";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import AddScheduleFullModal from "@/components/goal/modals/AddScheduleFullModal";
+import ScheduleListCard from "@/components/goal/plan/ScheduleListCard";
 import {
   formatScheduleDday,
   formatScheduleMeta,
-} from "../../lib/goal/scheduleDday";
-import { fetchGoalSchedules } from "../../lib/goalApi";
+} from "@/lib/goal/scheduleDday";
+import { fetchGoalSchedules } from "@/lib/goalApi";
 
 // 중요일정(#41 목록 정본 / #40 등록·수정 모달 정본, 530×624) — docs/figma-goal/part-14.md.
 // GET /api/goal/schedules 실데이터로 배선(중요일정 D 백엔드 배선 UoW) — mockSchedules는

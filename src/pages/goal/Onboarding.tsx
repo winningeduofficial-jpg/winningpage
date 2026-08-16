@@ -1,19 +1,19 @@
 import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
-import OnboardingCalculatingOverlay from "../../components/goal/onboarding/OnboardingCalculatingOverlay";
-import OnboardingStepShell from "../../components/goal/onboarding/OnboardingStepShell";
-import Step1School from "../../components/goal/onboarding/steps/Step1School";
-import Step2UpperUniversity from "../../components/goal/onboarding/steps/Step2UpperUniversity";
-import Step3LowerUniversity from "../../components/goal/onboarding/steps/Step3LowerUniversity";
-import Step4Naesin from "../../components/goal/onboarding/steps/Step4Naesin";
-import Step5MockExam from "../../components/goal/onboarding/steps/Step5MockExam";
-import Step6StudyHours from "../../components/goal/onboarding/steps/Step6StudyHours";
-import Step7DailySchedule from "../../components/goal/onboarding/steps/Step7DailySchedule";
+import OnboardingCalculatingOverlay from "@/components/goal/onboarding/OnboardingCalculatingOverlay";
+import OnboardingStepShell from "@/components/goal/onboarding/OnboardingStepShell";
+import Step1School from "@/components/goal/onboarding/steps/Step1School";
+import Step2UpperUniversity from "@/components/goal/onboarding/steps/Step2UpperUniversity";
+import Step3LowerUniversity from "@/components/goal/onboarding/steps/Step3LowerUniversity";
+import Step4Naesin from "@/components/goal/onboarding/steps/Step4Naesin";
+import Step5MockExam from "@/components/goal/onboarding/steps/Step5MockExam";
+import Step6StudyHours from "@/components/goal/onboarding/steps/Step6StudyHours";
+import Step7DailySchedule from "@/components/goal/onboarding/steps/Step7DailySchedule";
 import {
   GoalOnboardingProvider,
   useGoalOnboarding,
-} from "../../context/GoalOnboardingContext";
-import { submitGoalIntake } from "../../lib/goalApi";
+} from "@/context/GoalOnboardingContext";
+import { submitGoalIntake } from "@/lib/goalApi";
 
 // 목표관리 온보딩 7단계 위저드 — docs/figma-goal/00-INDEX.md §3 G1 / §4-1.
 // 라우트 계약(다른 에이전트가 App.jsx에 배선): `/app/goal/onboarding/:step` → 이 파일.

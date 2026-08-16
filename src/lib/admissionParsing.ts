@@ -7,7 +7,7 @@ import {
   ACADEMY_SPECIAL_DATA,
   POLICE_SPECIAL_DATA,
   SCIENCE_SPECIAL_DATA,
-} from "../data/admissionSpecialUniversityData.js";
+} from "@/data/admissionSpecialUniversityData.js";
 // 타입 전용 import — 런타임 값은 전혀 끌어오지 않는다(isolatedModules가
 // `import type`을 완전히 지워 번들에서 사라진다). admissionDoc.ts가
 // "admissionParsing.js를 import하지 않는다"고 선언한 순환 의존 회피

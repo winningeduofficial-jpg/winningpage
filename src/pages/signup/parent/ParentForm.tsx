@@ -22,9 +22,9 @@ import {
   AuthTitle,
   PrimaryButton,
   TextField,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
-import { useCooldown } from "../../../hooks/useCooldown";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
+import { useCooldown } from "@/hooks/useCooldown";
 import {
   DUPLICATE_PHONE_MESSAGE,
   isValidMobile,
@@ -32,7 +32,7 @@ import {
   PHONE_RESEND_COOLDOWN_SECONDS,
   sendPhoneCode,
   verifyPhoneCode,
-} from "../../../lib/phoneVerification";
+} from "@/lib/phoneVerification";
 import {
   applySignupPassword,
   MESSAGES as EMAIL_MESSAGES,
@@ -40,8 +40,8 @@ import {
   EMAIL_STATE,
   sendSignupEmailCode,
   verifySignupEmailCode,
-} from "../../../lib/signupEmailAuth";
-import { supabase } from "../../../lib/supabase";
+} from "@/lib/signupEmailAuth";
+import { supabase } from "@/lib/supabase";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;

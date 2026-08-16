@@ -1,4 +1,4 @@
-import type { FieldOption } from "../shared/csvExport";
+import type { FieldOption } from "@/pages/admin/shared/csvExport";
 
 interface WinningColumn {
   key: string;

@@ -13,7 +13,7 @@
 
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PAGE1_AREAS } from "../data/diagnosisScoringTable.ts";
+import { PAGE1_AREAS } from "@/data/diagnosisScoringTable.ts";
 import {
   admissionBand,
   levelOf,

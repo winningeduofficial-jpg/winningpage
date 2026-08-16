@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
-import ColumnBody, {
-  hasBlockContent,
-} from "../../components/column/ColumnBody";
-import { withDedupedKeys } from "../../lib/reactKeys";
+import ColumnBody, { hasBlockContent } from "@/components/column/ColumnBody";
+import { withDedupedKeys } from "@/lib/reactKeys";
 import {
   CATEGORY_LABELS,
   fetchAdmissionCaseById,

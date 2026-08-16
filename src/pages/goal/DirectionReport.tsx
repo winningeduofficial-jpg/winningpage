@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import GoalCard from "../../components/goal/GoalCard";
-import DirectionReportBody from "../../components/goal/report/DirectionReportBody";
-import { fetchGoalReport } from "../../lib/goalApi";
+import GoalCard from "@/components/goal/GoalCard";
+import DirectionReportBody from "@/components/goal/report/DirectionReportBody";
+import { fetchGoalReport } from "@/lib/goalApi";
 
 const VALID_TABS = ["naesin", "jeongsi"] as const;
 type DirectionTab = (typeof VALID_TABS)[number];

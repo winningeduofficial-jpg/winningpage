@@ -1,6 +1,12 @@
-import type { TableBlock } from "../../../lib/admissionDoc";
-import type { TableParity, TableSlots } from "../table/AdmissionTable";
-import type { CellDesc, HeaderCellDesc } from "../table/tableModel";
+import type {
+  TableParity,
+  TableSlots,
+} from "@/components/admission/table/AdmissionTable";
+import type {
+  CellDesc,
+  HeaderCellDesc,
+} from "@/components/admission/table/tableModel";
+import type { TableBlock } from "@/lib/admissionDoc";
 import ColumnRoleEditor from "./ColumnRoleEditor";
 import CellEditor from "./cells/CellEditor";
 import ImeSafeInput from "./ImeSafeInput";

@@ -6,7 +6,7 @@
 import { Check, ChevronRight } from "lucide-react";
 import type { CSSProperties } from "react";
 import { Link } from "react-router";
-import { STAGGER_STEP_MS } from "../../lib/agreementStagger";
+import { STAGGER_STEP_MS } from "@/lib/agreementStagger";
 
 type AgreementRowProps = {
   label: string;

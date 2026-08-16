@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import GoalCard from "../GoalCard";
-import InsightBox from "../InsightBox";
+import GoalCard from "@/components/goal/GoalCard";
+import InsightBox from "@/components/goal/InsightBox";
 
 type ConditionTileProps = {
   emoji?: ReactNode;

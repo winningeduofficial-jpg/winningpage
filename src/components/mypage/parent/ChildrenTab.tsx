@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { supabase } from "../../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import ChildCard, { type Child } from "./ChildCard";
 import LinkChildModal from "./LinkChildModal";
 import RemoveChildModal from "./RemoveChildModal";

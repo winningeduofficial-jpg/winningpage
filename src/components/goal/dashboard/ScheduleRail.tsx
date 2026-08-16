@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
-import GoalCard from "../GoalCard";
-import GoalDdayBadge from "../GoalDdayBadge";
-import GoalEmptyState from "../GoalEmptyState";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalDdayBadge from "@/components/goal/GoalDdayBadge";
+import GoalEmptyState from "@/components/goal/GoalEmptyState";
 
 // AddScheduleModal.jsx(#19, 530×574)는 여기서 더 이상 쓰지 않는다 — DB(goal_schedules,
 // sql/74)에 없는 "일정"(반복 범위) select 필드가 있어 그대로 배선하면 값을 조용히

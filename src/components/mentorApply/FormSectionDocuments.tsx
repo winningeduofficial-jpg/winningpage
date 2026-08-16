@@ -21,13 +21,13 @@
 //    참조해 이름을 전달한다. 칩 그룹(다른 섹션 파일)은 자체적으로 ariaLabel prop 을 받는
 //    구조라 이 패턴이 필요 없다.
 import type { ReactNode } from "react";
+import PrimaryButton from "@/components/auth/PrimaryButton";
 import {
   CANCELLATION_NOTICE,
   FORM_SECTIONS,
   MENTOR_AGREEMENTS,
   SUBMIT_BUTTON_LABEL,
-} from "../../data/mentorApply";
-import PrimaryButton from "../auth/PrimaryButton";
+} from "@/data/mentorApply";
 import FileDropzone from "./FileDropzone";
 import FormSectionCard from "./FormSectionCard";
 import MentorAgreementBlock from "./MentorAgreementBlock";

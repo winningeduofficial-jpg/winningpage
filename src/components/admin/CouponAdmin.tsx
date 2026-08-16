@@ -11,7 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 // =====================================================================
 // 어드민 "쿠폰관리" — 목록 / 생성·수정 / 사용이력 / void / 발급 관리

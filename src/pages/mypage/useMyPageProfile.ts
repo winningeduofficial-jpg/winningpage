@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { NavigateFunction } from "react-router";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export type SessionUser = {
   id: string;

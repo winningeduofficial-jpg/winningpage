@@ -11,7 +11,7 @@
 
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
-import { STAGGER_BUFFER_MS, STAGGER_STEP_MS } from "../../lib/agreementStagger";
+import { STAGGER_BUFFER_MS, STAGGER_STEP_MS } from "@/lib/agreementStagger";
 import AgreementRow from "./AgreementRow";
 
 type AgreementItem = {

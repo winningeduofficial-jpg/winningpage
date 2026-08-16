@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router";
-import KakaoConsultButton from "../components/mypage/KakaoConsultButton";
-import MyPageTabs from "../components/mypage/MyPageTabs";
-import MyServicesTab from "../components/mypage/MyServicesTab";
-import PaymentsTab from "../components/mypage/PaymentsTab";
-import ProfileTab from "../components/mypage/ProfileTab";
-import ChildrenTab from "../components/mypage/parent/ChildrenTab";
-import ParentPaymentsTab from "../components/mypage/parent/ParentPaymentsTab";
+import KakaoConsultButton from "@/components/mypage/KakaoConsultButton";
+import MyPageTabs from "@/components/mypage/MyPageTabs";
+import MyServicesTab from "@/components/mypage/MyServicesTab";
+import PaymentsTab from "@/components/mypage/PaymentsTab";
+import ProfileTab from "@/components/mypage/ProfileTab";
+import ChildrenTab from "@/components/mypage/parent/ChildrenTab";
+import ParentPaymentsTab from "@/components/mypage/parent/ParentPaymentsTab";
 import { useMyPageOrders } from "./mypage/useMyPageOrders";
 import { useMyPageProfile } from "./mypage/useMyPageProfile";
 import { useMyPageTab } from "./mypage/useMyPageTab";

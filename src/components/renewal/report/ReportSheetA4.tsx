@@ -4,7 +4,7 @@
 // 폭에 맞춘 단일 컬럼 카드로 리플로우한다. min-height 도 함께 제거해 실제 컨텐츠 높이만큼만
 // 차지하게 한다(강제로 A4 비율을 유지할 이유가 화면에는 없다 — 그 비율은 인쇄 전용 요구다).
 import type { ReactNode } from "react";
-import { SAMPLE_REPORT_COPY } from "../../../data/diagnosisScreenCopy";
+import { SAMPLE_REPORT_COPY } from "@/data/diagnosisScreenCopy";
 
 type ReportSheetA4Props = {
   page: number;

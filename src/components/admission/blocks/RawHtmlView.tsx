@@ -1,4 +1,4 @@
-import SafeHtml from "../SafeHtml";
+import SafeHtml from "@/components/admission/SafeHtml";
 
 // RawHtmlBlock 렌더러 — SafeHtml 화이트리스트 렌더러를 그대로 쓴다.
 // admission-existing-html 클래스는 wrapExistingHtml(admissionParsing.js:2705)이

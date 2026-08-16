@@ -15,7 +15,7 @@
 // 미확정 사항(확인 항목 34)에 대한 구현 판단 2가지 — 둘 다 아래 해당 위치에 근거를 적어 두었다.
 //   ① sticky 상단 오프셋: `wide:top-[6.5rem]`
 //   ② 단계 배지 클릭 시 앵커 이동: **구현함**
-import { PROGRESS_SIDEBAR } from "../../data/mentorApply";
+import { PROGRESS_SIDEBAR } from "@/data/mentorApply";
 
 // sticky 상단 오프셋. 선례는 src/pages/AdmissionGuidelines.jsx:1388 의 `lg:sticky lg:top-[104px]`
 // 이며, 그 104px 의 내역은 전역 헤더 + 여백이다: Header.jsx:508 이 `fixed top-0` 이고 그 안쪽 바가

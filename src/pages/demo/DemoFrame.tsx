@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { Navigate, useParams } from "react-router";
-import { DEMO_REGISTRY } from "../../demo/demoRegistry";
+import { DEMO_REGISTRY } from "@/demo/demoRegistry";
 
 // srcDoc 문서의 document URL은 about:srcdoc이지만 base URL은 부모(SPA) 문서를 그대로
 // 상속한다. 그래서 목업 안의 <a href="#process">가 about:srcdoc이 아니라 부모 경로

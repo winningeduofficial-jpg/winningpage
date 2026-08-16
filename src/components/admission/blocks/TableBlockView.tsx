@@ -1,5 +1,5 @@
-import type { TableBlock } from "../../../lib/admissionDoc";
-import AdmissionTable from "../table/AdmissionTable";
+import AdmissionTable from "@/components/admission/table/AdmissionTable";
+import type { TableBlock } from "@/lib/admissionDoc";
 
 // TableBlock 뷰 진입점. 예전에는 variant별 렌더러 5개를 디스패치했지만,
 // 이제 골격이 한 벌(table/AdmissionTable.jsx)이고 variant 분기는 전부

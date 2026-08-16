@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import MyPageModalShell from "./MyPageModalShell";
 
 // 비밀번호 변경 (Figma 3633:2219 입력 / 3633:2611 확인 / 3633:2792 완료).

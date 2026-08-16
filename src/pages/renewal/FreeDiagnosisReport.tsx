@@ -2,14 +2,14 @@ import { type ComponentProps, useMemo } from "react";
 import { Navigate, useLocation } from "react-router";
 import "../../styles/report-print.css";
 import "../../styles/report-responsive.css";
-import ReportPageOne from "../../components/renewal/report/ReportPageOne";
-import ReportPageTwo from "../../components/renewal/report/ReportPageTwo";
-import ReportScreenExtras from "../../components/renewal/report/ReportScreenExtras";
-import ReportSincerityBanner from "../../components/renewal/report/ReportSincerityBanner";
+import ReportPageOne from "@/components/renewal/report/ReportPageOne";
+import ReportPageTwo from "@/components/renewal/report/ReportPageTwo";
+import ReportScreenExtras from "@/components/renewal/report/ReportScreenExtras";
+import ReportSincerityBanner from "@/components/renewal/report/ReportSincerityBanner";
 // 저장 키·스키마 검증은 storage 모듈이 소유한다 — 저장 주체(설문 CTA)와 읽기 주체(이 페이지)가
 // 다른 파일이라 리터럴을 양쪽에 두면 조용히 갈라진다.
-import { loadDiagnosisInput } from "../../lib/diagnosisInputStorage";
-import { buildReport } from "../../lib/diagnosisReport";
+import { loadDiagnosisInput } from "@/lib/diagnosisInputStorage";
+import { buildReport } from "@/lib/diagnosisReport";
 
 // 입력 없이 이 URL 로 진입했을 때 되돌려보낼 설문 시작점. 라우트 정본(App.jsx)과 같은 경로다.
 const SURVEY_ENTRY_PATH = "/app/learning-diagnosis/survey";

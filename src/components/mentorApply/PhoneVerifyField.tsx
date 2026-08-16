@@ -25,14 +25,14 @@
 // 세기 때문에(phoneVerification.js 파일 주석) 자동 검증은 지웠다 다시 입력하는 것만으로
 // 시도를 깎는데, 버튼 방식은 그 문제도 같이 없앤다.
 import { useState } from "react";
-import { useCooldown } from "../../hooks/useCooldown";
+import { useCooldown } from "@/hooks/useCooldown";
 import {
   DUPLICATE_PHONE_MESSAGE,
   isValidMobile,
   normalizePhone,
   sendPhoneCode,
   verifyPhoneCode,
-} from "../../lib/phoneVerification";
+} from "@/lib/phoneVerification";
 
 const PHONE_PURPOSE = "mentor_apply";
 // ParentForm.jsx:109 와 동일한 60초. 서버(api/send-phone-code.js)가 강제하는 값을

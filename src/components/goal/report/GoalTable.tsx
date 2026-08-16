@@ -1,6 +1,6 @@
-import DeltaBadge from "../DeltaBadge";
-import GoalCardHeader from "../GoalCardHeader";
-import GoalEmptyState from "../GoalEmptyState";
+import DeltaBadge from "@/components/goal/DeltaBadge";
+import GoalCardHeader from "@/components/goal/GoalCardHeader";
+import GoalEmptyState from "@/components/goal/GoalEmptyState";
 
 const COLUMNS = [
   { key: "term", label: "회차" },

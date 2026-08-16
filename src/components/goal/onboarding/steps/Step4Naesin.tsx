@@ -1,9 +1,9 @@
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
-import { NAESIN_EXAMS } from "../../../../data/goalOnboardingMock";
-import GradeNumberField from "../GradeNumberField";
-import NoneCheckbox from "../NoneCheckbox";
-import QuestionCard from "../QuestionCard";
-import WizardActions from "../WizardActions";
+import GradeNumberField from "@/components/goal/onboarding/GradeNumberField";
+import NoneCheckbox from "@/components/goal/onboarding/NoneCheckbox";
+import QuestionCard from "@/components/goal/onboarding/QuestionCard";
+import WizardActions from "@/components/goal/onboarding/WizardActions";
+import { useGoalOnboarding } from "@/context/GoalOnboardingContext";
+import { NAESIN_EXAMS } from "@/data/goalOnboardingMock";
 
 function isValidGrade(raw: string) {
   const num = Number(raw);

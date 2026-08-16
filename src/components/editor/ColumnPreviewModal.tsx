@@ -1,10 +1,10 @@
 import { X } from "lucide-react";
 import { useEffect } from "react";
-import { getCoverUrl } from "../../pages/column/columnData";
 import ColumnBody, {
   type ColumnBodyPost,
   getContentBlocks,
-} from "../column/ColumnBody";
+} from "@/components/column/ColumnBody";
+import { getCoverUrl } from "@/pages/column/columnData";
 import { isEmptyDocument } from "./BlockEditor";
 
 type ColumnPreviewModalProps = {

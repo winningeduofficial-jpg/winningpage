@@ -24,12 +24,11 @@
 //    TODO 로 표시해 두었다.
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-
-import { FORM_HEADER, PROGRESS_SIDEBAR } from "../../data/mentorApply";
-import { isValidMobile, normalizePhone } from "../../lib/phoneVerification";
-import { supabase } from "../../lib/supabase";
-import { isWithinMaxLength } from "../../lib/validators";
-import { MENTOR_HEADING_LG } from "../services/serviceTokens";
+import { MENTOR_HEADING_LG } from "@/components/services/serviceTokens";
+import { FORM_HEADER, PROGRESS_SIDEBAR } from "@/data/mentorApply";
+import { isValidMobile, normalizePhone } from "@/lib/phoneVerification";
+import { supabase } from "@/lib/supabase";
+import { isWithinMaxLength } from "@/lib/validators";
 import FormSectionApplicant, {
   APPLICANT_FIELDS,
   APPLICANT_REQUIRED_FIELDS,

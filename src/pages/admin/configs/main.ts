@@ -1,5 +1,5 @@
 import type { ComponentType } from "react";
-import type { FieldOption } from "../shared/csvExport";
+import type { FieldOption } from "@/pages/admin/shared/csvExport";
 import {
   MentorCardFormPreview,
   mentorFormToPayload,

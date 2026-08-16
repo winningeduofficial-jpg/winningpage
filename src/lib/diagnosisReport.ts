@@ -23,7 +23,7 @@ import {
   COPY_FALLBACK,
   TYPE_COPY,
   URGENCY_COPY,
-} from "../data/diagnosisCopy.js";
+} from "@/data/diagnosisCopy.js";
 import {
   AREA_CODES,
   AREA_LABEL,
@@ -37,8 +37,8 @@ import {
   TARGET_SCORE,
   URGENCY_AREA_THRESHOLD,
   URGENCY_LEVEL_LABEL,
-} from "../data/diagnosisScoringTable.js";
-import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.js";
+} from "@/data/diagnosisScoringTable.js";
+import { renewalSurveyQuestions } from "@/data/renewalSurveyQuestions.js";
 import {
   areaCopy,
   commonCopy,

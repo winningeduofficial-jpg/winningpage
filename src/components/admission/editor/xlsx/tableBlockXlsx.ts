@@ -27,13 +27,16 @@
 //     개행(\n)으로 이어붙인다(엑셀 Alt+Enter 줄바꿈과 동일한 형태로
 //     보인다). 빈 배열은 빈 문자열.
 import * as XLSX from "xlsx";
-import type { Cell, Column, TableBlock } from "../../../../lib/admissionDoc";
 import {
   defaultNewColumnRole,
   getCellKind,
   getKnownRolesForVariant,
-} from "../../admissionLayout";
-import { blocksEqual, validateTableBlock } from "../tableEditorValidation";
+} from "@/components/admission/admissionLayout";
+import {
+  blocksEqual,
+  validateTableBlock,
+} from "@/components/admission/editor/tableEditorValidation";
+import type { Cell, Column, TableBlock } from "@/lib/admissionDoc";
 
 // 엑셀 셀 문자 수 한도(SheetJS가 XLSX.writeFile 시점에 실제로 이 값으로
 // throw한다 — 직접 재현 확인함). 사전 검사로 이 예외를 만나기 전에

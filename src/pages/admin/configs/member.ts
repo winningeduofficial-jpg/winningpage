@@ -1,5 +1,5 @@
-import type { FieldOption } from "../shared/csvExport";
-import { MENTOR_APPLICATION_STATUS_OPTIONS } from "../shared/formFields";
+import type { FieldOption } from "@/pages/admin/shared/csvExport";
+import { MENTOR_APPLICATION_STATUS_OPTIONS } from "@/pages/admin/shared/formFields";
 
 interface MemberColumn {
   key: string;

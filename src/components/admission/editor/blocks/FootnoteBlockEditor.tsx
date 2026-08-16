@@ -1,4 +1,4 @@
-import ImeSafeInput from "../ImeSafeInput";
+import ImeSafeInput from "@/components/admission/editor/ImeSafeInput";
 
 // FootnoteBlock 편집기 — items: string[] 추가·삭제·수정. legacy
 // (buildRecruitmentHtml, admissionParsing.js:2288)는 items를 공백으로

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
-import { supabase } from "../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 // getSession()이 응답 없이 무한 대기하는 경우를 대비한 타임아웃 폴백.
 // MyPage.jsx / Header.jsx의 withTimeout 선례와 동일한 패턴이다.

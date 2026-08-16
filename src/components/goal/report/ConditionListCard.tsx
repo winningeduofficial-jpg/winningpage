@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import GoalCard from "../GoalCard";
+import GoalCard from "@/components/goal/GoalCard";
 
 type ConditionRow = {
   label: string;

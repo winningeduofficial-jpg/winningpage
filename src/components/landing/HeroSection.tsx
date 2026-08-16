@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
-import { resolvePromotedSlugLink } from "../../hooks/useNavGroups";
+import { resolvePromotedSlugLink } from "@/hooks/useNavGroups";
 
 /** 좌측 메인 배너 캐러셀 자동 전환 간격 (ms) — 10s */
 const MAIN_BANNER_INTERVAL = 10000;

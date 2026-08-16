@@ -1,5 +1,5 @@
 import type { Key } from "react";
-import type { Block } from "../../../lib/admissionDoc";
+import type { Block } from "@/lib/admissionDoc";
 import EmptyBoxView from "./EmptyBoxView";
 import FootnoteView from "./FootnoteView";
 import GroupView from "./GroupView";

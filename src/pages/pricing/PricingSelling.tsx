@@ -2,10 +2,10 @@ import { ChevronRight } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { formatKRW, SINGLE_SELECT_NOTICE } from "../../data/pricingCatalog";
-import { saveCart } from "../../lib/cart";
-import { useProducts } from "../../lib/products";
-import { supabase } from "../../lib/supabase";
+import { formatKRW, SINGLE_SELECT_NOTICE } from "@/data/pricingCatalog";
+import { saveCart } from "@/lib/cart";
+import { useProducts } from "@/lib/products";
+import { supabase } from "@/lib/supabase";
 
 // lib/products.js(useProducts)의 반환 형태를 그대로 옮긴 로컬 타입 — products.js는
 // 아직 JS(API 전환 단계 미착수)라 이 페이지에서만 쓰는 최소 형태로 로컬 정의한다.

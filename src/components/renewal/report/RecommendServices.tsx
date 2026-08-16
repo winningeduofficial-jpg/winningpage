@@ -7,7 +7,7 @@
 // leadNote(F-05 · F-06) — '왜 카드가 적은지'를 설명하는 조건부 안내(중3 / 고3 6월 이후).
 // prop 이름을 serviceLimit 이 아니라 일반명 leadNote 로 둔 이유: 학년별 제한 안내가 두 자리로
 // 갈라지지 않게 같은 슬롯을 계속 재사용하기 위해서다. 조건 판정은 엔진이 소유한다(buildNotices).
-import { withDedupedKeys } from "../../../lib/reactKeys";
+import { withDedupedKeys } from "@/lib/reactKeys";
 
 type RecommendCard = {
   rank?: string;

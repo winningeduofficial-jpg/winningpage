@@ -1,6 +1,6 @@
 import type { RouteObject } from "react-router";
-import { AdminAccessBoundary } from "../components/routeGuards/RouteGuardUi";
-import { requireAdminMiddleware } from "../lib/routeMiddleware";
+import { AdminAccessBoundary } from "@/components/routeGuards/RouteGuardUi";
+import { requireAdminMiddleware } from "@/lib/routeMiddleware";
 
 // 데모 라우트 공용 청크 로딩 폴백 — /admin 것과 같은 스타일로 맞춘다. route.lazy가
 // 대기하는 동안(middleware 판정 + 청크 로딩을 함께 블록) 쓰이므로 정적 최상위
@@ -27,7 +27,7 @@ const demoRoutes: RouteObject[] = [
   {
     path: "/demo",
     lazy: async () => {
-      const { default: DemoIndex } = await import("../pages/demo/DemoIndex");
+      const { default: DemoIndex } = await import("@/pages/demo/DemoIndex");
       return { Component: DemoIndex };
     },
     middleware: [requireAdminMiddleware],
@@ -37,7 +37,7 @@ const demoRoutes: RouteObject[] = [
   {
     path: "/demo/:demoKey",
     lazy: async () => {
-      const { default: DemoFrame } = await import("../pages/demo/DemoFrame");
+      const { default: DemoFrame } = await import("@/pages/demo/DemoFrame");
       return { Component: DemoFrame };
     },
     middleware: [requireAdminMiddleware],
@@ -47,7 +47,7 @@ const demoRoutes: RouteObject[] = [
   {
     path: "/services/growth",
     lazy: async () => {
-      const { default: DemoFrame } = await import("../pages/demo/DemoFrame");
+      const { default: DemoFrame } = await import("@/pages/demo/DemoFrame");
       return {
         Component: () => <DemoFrame demoKeyOverride="growth-intro" />,
       };

@@ -15,15 +15,15 @@ import {
   getSchoolCutType,
   kstYMD,
   VIRTUAL_DAY_NAMES,
-} from "../../lib/goal/calc/index.js";
-import { supabase } from "../../lib/supabase";
-import { PAGE_SIZE } from "../../pages/admin/shared/AdminEngine";
-import { getFreshSupabaseAccessTokenOrSignOut } from "../../pages/admin/shared/adminSession";
-import { formatValue } from "../../pages/admin/shared/csvExport";
+} from "@/lib/goal/calc/index.js";
+import { supabase } from "@/lib/supabase";
+import { PAGE_SIZE } from "@/pages/admin/shared/AdminEngine";
+import { getFreshSupabaseAccessTokenOrSignOut } from "@/pages/admin/shared/adminSession";
+import { formatValue } from "@/pages/admin/shared/csvExport";
 import {
   ActionButton,
   GOAL_CUT_SOURCE_OPTIONS,
-} from "../../pages/admin/shared/formFields";
+} from "@/pages/admin/shared/formFields";
 
 // 이 파일 로컬 전용 타입(새 전역 타입 파일 없음). goal_students/goal_student_state는
 // 파생·원자료 컬럼이 매우 많은 넓은 테이블/뷰라 실제로 읽는 필드만 명시하고

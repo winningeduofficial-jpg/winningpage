@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { clearCart } from "../lib/cart";
-import { supabase } from "../lib/supabase";
+import { clearCart } from "@/lib/cart";
+import { supabase } from "@/lib/supabase";
 
 interface CardInfo {
   cardType?: string;

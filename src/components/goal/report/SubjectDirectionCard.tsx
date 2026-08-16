@@ -1,4 +1,4 @@
-import GoalCard from "../GoalCard";
+import GoalCard from "@/components/goal/GoalCard";
 
 // #37 내신(과목군) / #38 정시(과목) 공용 카드(660×311) — part-13 구현 노트 "카드 4개는 과목군
 // 단위 반복 컴포넌트 1개로 처리". name/badge 포맷만 데이터로 갈리고(국어군 vs 국어, `2.00 등급`

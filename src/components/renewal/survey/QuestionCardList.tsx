@@ -1,8 +1,8 @@
 import {
   GRADE_SYSTEM_INPUT_RULES,
   getOptionCode,
-} from "../../../data/renewalSurveyQuestions";
-import { surveyEmbeddedByParent } from "../../../lib/renewalSurvey";
+} from "@/data/renewalSurveyQuestions";
+import { surveyEmbeddedByParent } from "@/lib/renewalSurvey";
 import AnswerField from "./AnswerField";
 import type { CascadeLevel } from "./CascadingSelect";
 import EmbeddedField from "./EmbeddedField";

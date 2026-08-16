@@ -20,9 +20,9 @@
 //    1번에서 입력한 번호로 5번에서 그대로 인증할 수 있다. 시안이 같은 값을 두 번 묻는
 //    구조인지(중복 결함)는 명세 미해결 항목이다.
 
-import { FORM_SECTIONS, MENTOR_REGION_OPTIONS } from "../../data/mentorApply";
-import { isValidMobile } from "../../lib/phoneVerification";
-import { isValidBirthDate, isValidEmail } from "../../lib/validators";
+import { FORM_SECTIONS, MENTOR_REGION_OPTIONS } from "@/data/mentorApply";
+import { isValidMobile } from "@/lib/phoneVerification";
+import { isValidBirthDate, isValidEmail } from "@/lib/validators";
 import ChipGroup from "./ChipGroup";
 import FormFieldRow from "./FormFieldRow";
 import FormSectionCard from "./FormSectionCard";

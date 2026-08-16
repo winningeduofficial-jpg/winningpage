@@ -1,36 +1,32 @@
 import { useEffect, useState } from "react";
-import AchievementChart from "../../components/goal/dashboard/AchievementChart";
-import AdviceCard from "../../components/goal/dashboard/AdviceCard";
-import DashboardPageHeader from "../../components/goal/dashboard/DashboardPageHeader";
-import MockExamCard from "../../components/goal/dashboard/MockExamCard";
-import NaesinCard from "../../components/goal/dashboard/NaesinCard";
-import RankingRail from "../../components/goal/dashboard/RankingRail";
-import ScheduleRail from "../../components/goal/dashboard/ScheduleRail";
-import StudyPlanRail from "../../components/goal/dashboard/StudyPlanRail";
-import TargetUniversityRail from "../../components/goal/dashboard/TargetUniversityRail";
-import TodayGoalCard from "../../components/goal/dashboard/TodayGoalCard";
-import TomorrowPlanCard from "../../components/goal/dashboard/TomorrowPlanCard";
-import GoalCard from "../../components/goal/GoalCard";
-import {
-  mockAdvice,
-  mockDailyGoal,
-  mockDailyGoalEmpty,
-} from "../../data/goalMock";
+import AchievementChart from "@/components/goal/dashboard/AchievementChart";
+import AdviceCard from "@/components/goal/dashboard/AdviceCard";
+import DashboardPageHeader from "@/components/goal/dashboard/DashboardPageHeader";
+import MockExamCard from "@/components/goal/dashboard/MockExamCard";
+import NaesinCard from "@/components/goal/dashboard/NaesinCard";
+import RankingRail from "@/components/goal/dashboard/RankingRail";
+import ScheduleRail from "@/components/goal/dashboard/ScheduleRail";
+import StudyPlanRail from "@/components/goal/dashboard/StudyPlanRail";
+import TargetUniversityRail from "@/components/goal/dashboard/TargetUniversityRail";
+import TodayGoalCard from "@/components/goal/dashboard/TodayGoalCard";
+import TomorrowPlanCard from "@/components/goal/dashboard/TomorrowPlanCard";
+import GoalCard from "@/components/goal/GoalCard";
+import { mockAdvice, mockDailyGoal, mockDailyGoalEmpty } from "@/data/goalMock";
 import {
   getDayIndexFromYMDServer,
   kstYMD,
   VIRTUAL_DAY_NAMES,
-} from "../../lib/goal/calc/index.js";
+} from "@/lib/goal/calc/index.js";
 import {
   formatScheduleDday,
   formatScheduleMeta,
-} from "../../lib/goal/scheduleDday";
+} from "@/lib/goal/scheduleDday";
 import {
   fetchGoalRanking,
   fetchGoalSchedules,
   fetchGoalStudent,
   fetchTodayGoalRecord,
-} from "../../lib/goalApi";
+} from "@/lib/goalApi";
 
 // ---------------------------------------------------------------------------
 // GET /api/goal/student → 4개 실데이터 카드(TargetUniversityRail/MockExamCard/

@@ -1,8 +1,8 @@
 import { useCallback, useId, useState } from "react";
 import { useNavigate } from "react-router";
-import { formatKRW } from "../../../data/pricingCatalog";
-import { supabase } from "../../../lib/supabase";
-import MyPageModalShell from "../MyPageModalShell";
+import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import { formatKRW } from "@/data/pricingCatalog";
+import { supabase } from "@/lib/supabase";
 
 // 학부모 결제요청 확인 모달 — 자녀가 올린 결제 요청을 결제하거나 거절한다.
 //

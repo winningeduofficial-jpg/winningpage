@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import ConfirmModal from "../../components/checkout/ConfirmModal";
+import ConfirmModal from "@/components/checkout/ConfirmModal";
 
 // 학부모가 "이용신청 > 서비스요금"(/pricing)으로 들어왔을 때 뜨는 차단 모달
 // (2026-08-12b 팀 리드 지시). 학부모는 이 화면에서 새 상품을 직접 결제할 수

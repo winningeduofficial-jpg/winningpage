@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { UNIVERSITY_OPTIONS } from "../../../data/goalOnboardingMock";
+import { UNIVERSITY_OPTIONS } from "@/data/goalOnboardingMock";
 
 // 대학 검색 콤보박스 + 학과 셀렉트 — docs/figma-goal/00-INDEX.md §5-3 `UniversitySelect`.
 // 상한(2단계)・하한(3단계) 두 스텝이 이 컴포넌트 하나를 `target` prop만 바꿔 공유한다

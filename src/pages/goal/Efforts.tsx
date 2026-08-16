@@ -1,12 +1,12 @@
 import { useEffect, useEffectEvent, useState } from "react";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import AddWorkbookModal from "../../components/goal/modals/AddWorkbookModal";
-import EffortSubjectCard from "../../components/goal/plan/EffortSubjectCard";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import AddWorkbookModal from "@/components/goal/modals/AddWorkbookModal";
+import EffortSubjectCard from "@/components/goal/plan/EffortSubjectCard";
 import {
   createGoalWorkbook,
   fetchGoalWorkbooks,
   updateGoalWorkbook,
-} from "../../lib/goalApi";
+} from "@/lib/goalApi";
 
 // 나의 노력(#30 빈 / #32 채움) — docs/figma-goal/part-10.md·part-11.md.
 // 실데이터 배선(mockEfforts 제거) — src/data/goalPlanMock.js의 mockEfforts/mockEffortsEmpty는

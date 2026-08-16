@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { formatKRW } from "../../data/pricingCatalog";
+import { formatKRW } from "@/data/pricingCatalog";
 import MyPageModalShell from "./MyPageModalShell";
 
 // 결제 상세 내역 모달 (Figma 3665:6278).

@@ -1,6 +1,6 @@
-import GoalCard from "../GoalCard";
-import GoalCardHeader from "../GoalCardHeader";
-import { getSubjectStrongClass } from "../subjectTokens";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalCardHeader from "@/components/goal/GoalCardHeader";
+import { getSubjectStrongClass } from "@/components/goal/subjectTokens";
 
 // 섹션1 "과목별 순공 시간"(#26, 1190×571). part-09 §169~175.
 //

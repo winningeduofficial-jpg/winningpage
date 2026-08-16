@@ -11,8 +11,8 @@
 // 카피는 src/data/mentorApply.js(HERO_COPY), 이미지 경로는 src/data/mentorApplyAssets.js 만
 // 참조한다. 리터럴을 박지 마라.
 import type { CSSProperties } from "react";
-import { HERO_COPY } from "../../data/mentorApply";
-import { MENTOR_ASSETS } from "../../data/mentorApplyAssets";
+import { HERO_COPY } from "@/data/mentorApply";
+import { MENTOR_ASSETS } from "@/data/mentorApplyAssets";
 
 // CTA 앵커 타깃 id.
 //

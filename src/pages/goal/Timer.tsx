@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import SessionRecordPanel from "../../components/goal/study/SessionRecordPanel";
-import SubjectTimerCard from "../../components/goal/study/SubjectTimerCard";
-import TimerSummaryBar from "../../components/goal/study/TimerSummaryBar";
-import { getSubjectLabel } from "../../components/goal/subjectTokens";
-import { TIMER_SUBJECT_ORDER } from "../../data/goalStudyMock";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import SessionRecordPanel from "@/components/goal/study/SessionRecordPanel";
+import SubjectTimerCard from "@/components/goal/study/SubjectTimerCard";
+import TimerSummaryBar from "@/components/goal/study/TimerSummaryBar";
+import { getSubjectLabel } from "@/components/goal/subjectTokens";
+import { TIMER_SUBJECT_ORDER } from "@/data/goalStudyMock";
 import {
   getDayIndexFromYMDServer,
   kstYMD,
   VIRTUAL_DAY_NAMES,
-} from "../../lib/goal/calc/index.js";
+} from "@/lib/goal/calc/index.js";
 import {
   fetchGoalStudent,
   fetchGoalTimer,
@@ -17,7 +17,7 @@ import {
   setGoalTimerTarget,
   startGoalTimer,
   stopGoalTimer,
-} from "../../lib/goalApi";
+} from "@/lib/goalApi";
 
 const POLL_INTERVAL_MS = 20 * 1000; // GET 폴링 15~30초 범위(임무 지시)
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;

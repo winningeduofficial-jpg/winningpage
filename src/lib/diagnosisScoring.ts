@@ -21,7 +21,7 @@ import {
   isUsableNumber,
   middleAvgToNine,
   roundHalfUp,
-} from "../data/diagnosisGradeScale.js";
+} from "@/data/diagnosisGradeScale.js";
 import {
   // §11 자체 결정 상수 — 값은 전부 표에 있고 이 모듈은 읽기만 한다.
   ADMISSION_BAND_BASE_PROBABILITY,
@@ -76,11 +76,11 @@ import {
   URGENCY_AREA_THRESHOLD,
   URGENCY_BANDS,
   URGENCY_SCOPE,
-} from "../data/diagnosisScoringTable.js";
+} from "@/data/diagnosisScoringTable.js";
 import {
   getOptionCode,
   renewalSurveyQuestions,
-} from "../data/renewalSurveyQuestions.js";
+} from "@/data/renewalSurveyQuestions.js";
 
 /* ================================================================== *
  * 0. 공통 유틸

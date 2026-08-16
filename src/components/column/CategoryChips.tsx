@@ -1,4 +1,4 @@
-import { ALL_CATEGORY, COLUMN_CATEGORIES } from "../../pages/column/columnData";
+import { ALL_CATEGORY, COLUMN_CATEGORIES } from "@/pages/column/columnData";
 
 const OPTIONS = [ALL_CATEGORY, ...COLUMN_CATEGORIES];
 

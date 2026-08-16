@@ -1,8 +1,8 @@
 import { Download, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "react-router";
-import { withDedupedKeys } from "../lib/reactKeys";
-import { supabase } from "../lib/supabase";
+import { withDedupedKeys } from "@/lib/reactKeys";
+import { supabase } from "@/lib/supabase";
 
 interface CategoryMeta {
   title: string;

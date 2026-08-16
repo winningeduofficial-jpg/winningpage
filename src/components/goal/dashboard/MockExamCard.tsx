@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { addGoalGrade, fetchGoalGrades } from "../../../lib/goalApi";
-import { recentHistory } from "../../../lib/goalGrades";
-import DeltaBadge from "../DeltaBadge";
-import GoalCard from "../GoalCard";
-import GoalCardHeader from "../GoalCardHeader";
-import GoalDdayBadge from "../GoalDdayBadge";
-import GoalStatChip from "../GoalStatChip";
-import AddMockExamGradeModal from "../modals/AddMockExamGradeModal";
+import DeltaBadge from "@/components/goal/DeltaBadge";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalCardHeader from "@/components/goal/GoalCardHeader";
+import GoalDdayBadge from "@/components/goal/GoalDdayBadge";
+import GoalStatChip from "@/components/goal/GoalStatChip";
+import AddMockExamGradeModal from "@/components/goal/modals/AddMockExamGradeModal";
+import { addGoalGrade, fetchGoalGrades } from "@/lib/goalApi";
+import { recentHistory } from "@/lib/goalGrades";
 
 // "모의고사" 카드(530×364 = 33.125rem×22.75rem, part-07 #20 정본 기준). 저장 후에는
 // 4022:5403 변형으로 전환된다 — 하단이 "학습 조언"에서 "기록한 성적"(최근 3건, 회차/백분위/

@@ -1,4 +1,4 @@
-import MentorCard from "../../../components/landing/MentorCard";
+import MentorCard from "@/components/landing/MentorCard";
 
 // ── 멘토 성공전략 카드: photo_layout jsonb ↔ 평탄화 폼 필드 변환 + 라이브 프리뷰 ──
 

@@ -1,4 +1,4 @@
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
 
 // 내 정보 수정 — 사이드바 하단 유틸 링크 대상. 시안 프레임 없음(docs/figma-goal §7-3 라우트 제안
 // 기준 신규 라우트). 다음 단계에서 학생 정보·목표 재입력 폼으로 채운다.

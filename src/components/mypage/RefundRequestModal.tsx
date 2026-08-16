@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useState } from "react";
-import { formatKRW } from "../../data/pricingCatalog";
-import { supabase } from "../../lib/supabase";
+import { formatKRW } from "@/data/pricingCatalog";
+import { supabase } from "@/lib/supabase";
 import MyPageModalShell from "./MyPageModalShell";
 
 // 환불 신청 모달 (Figma 3665:6635).

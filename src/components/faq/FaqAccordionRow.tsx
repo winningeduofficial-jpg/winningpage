@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
-import ColumnBody from "../column/ColumnBody";
+import ColumnBody from "@/components/column/ColumnBody";
 import "./faqAnswerBody.css";
 
 // 답변 패널(id={answerId})은 항상 렌더하고 hidden 속성으로 접는다(ServiceFaq.jsx:41-43

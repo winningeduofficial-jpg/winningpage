@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import AcceptanceRateHero from "../../components/admission/AcceptanceRateHero";
-import SpecialHighschoolCaseCard from "../../components/special/SpecialHighschoolCaseCard";
+import AcceptanceRateHero from "@/components/admission/AcceptanceRateHero";
+import SpecialHighschoolCaseCard from "@/components/special/SpecialHighschoolCaseCard";
 import {
   fetchSpecialHighschoolCases,
   filterByType,

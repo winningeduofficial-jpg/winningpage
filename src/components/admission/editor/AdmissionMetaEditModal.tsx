@@ -1,6 +1,6 @@
 import { useState } from "react";
-import AdmissionModalShell from "../modal/AdmissionModalShell";
-import AdmissionModalStyles from "../modal/AdmissionModalStyles";
+import AdmissionModalShell from "@/components/admission/modal/AdmissionModalShell";
+import AdmissionModalStyles from "@/components/admission/modal/AdmissionModalStyles";
 
 type MetaFieldType = "text" | "number" | "textarea" | "select" | "radioBoolean";
 

@@ -1,6 +1,6 @@
-import { FAQ_CATEGORIES } from "../../../data/faqCategories";
-import { blocksToPlainText } from "../../../lib/blockToPlainText";
-import type { FieldOption } from "../shared/csvExport";
+import { FAQ_CATEGORIES } from "@/data/faqCategories";
+import { blocksToPlainText } from "@/lib/blockToPlainText";
+import type { FieldOption } from "@/pages/admin/shared/csvExport";
 
 interface BoardColumn {
   key: string;

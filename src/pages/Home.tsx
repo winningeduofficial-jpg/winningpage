@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import AcceptanceSection from "../components/landing/AcceptanceSection";
-import HeroSection from "../components/landing/HeroSection";
-import MentorSection from "../components/landing/MentorSection";
-import NewsSection from "../components/landing/NewsSection";
-import ServicesSection from "../components/landing/ServicesSection";
-import * as landingPreview from "../data/landingPreview";
-import { supabase } from "../lib/supabase";
+import AcceptanceSection from "@/components/landing/AcceptanceSection";
+import HeroSection from "@/components/landing/HeroSection";
+import MentorSection from "@/components/landing/MentorSection";
+import NewsSection from "@/components/landing/NewsSection";
+import ServicesSection from "@/components/landing/ServicesSection";
+import * as landingPreview from "@/data/landingPreview";
+import { supabase } from "@/lib/supabase";
 
 // 랜딩 콘텐츠(배너/대학/서비스/멘토): Supabase DB fetch 모드 (LANDING_PREVIEW=false).
 // true로 되돌리면 ../data/landingPreview 정적 픽스처로 렌더 (로컬 프리뷰 전용 스위치).

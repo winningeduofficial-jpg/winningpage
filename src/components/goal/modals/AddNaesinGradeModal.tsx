@@ -1,7 +1,7 @@
 import type { ChangeEvent } from "react";
 import { useId, useState } from "react";
-import AppModal from "../AppModal";
-import ModalField from "../ModalField";
+import AppModal from "@/components/goal/AppModal";
+import ModalField from "@/components/goal/ModalField";
 
 // 내신 성적 추가 모달(#36, 530×537 = 33.125rem×33.5625rem) — #35 내신 표의 `+ 회차 추가` 트리거.
 // `AddMockExamGradeModal`(part-08 #22, 모의고사 표 전용)과 동일한 셸 패턴(회차/응시일 2열 +

@@ -1,27 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
-import SelectField from "../../components/auth/SelectField";
-import PerformanceReportSurface from "../../components/performance/report/PerformanceReportSurface";
+import SelectField from "@/components/auth/SelectField";
+import PerformanceReportSurface from "@/components/performance/report/PerformanceReportSurface";
 import ReportModalShell, {
   REPORT_MODAL_FOOTER_BUTTON,
-} from "../../components/performance/report/ReportModalShell";
+} from "@/components/performance/report/ReportModalShell";
 import SectionedReportView, {
   getVisibleSections,
   type ReportSection,
-} from "../../components/performance/report/SectionedReportView";
-import ArtifactChip from "../../components/performance/reports/ArtifactChip";
+} from "@/components/performance/report/SectionedReportView";
+import ArtifactChip from "@/components/performance/reports/ArtifactChip";
 import SavedReportCard, {
   formatSavedAt,
-} from "../../components/performance/reports/SavedReportCard";
-import DesignReportModal from "../../components/performance/step4/DesignReportModal";
+} from "@/components/performance/reports/SavedReportCard";
+import DesignReportModal from "@/components/performance/step4/DesignReportModal";
 import EvaluationReportModal, {
   type EvaluationReport,
-} from "../../components/performance/step5/EvaluationReportModal";
-import { useSession } from "../../context/SessionContext";
+} from "@/components/performance/step5/EvaluationReportModal";
+import { useSession } from "@/context/SessionContext";
 import {
   fetchSavedReportDetail,
   fetchSavedReportsList,
-} from "../../lib/performance/reports";
+} from "@/lib/performance/reports";
 
 // 저장 리포트(P12) 목록/상세 화면 — docs/수행평가-상세-명세.md §5.18(`3754:3121` 목록)/
 // §5.19(`3754:3077` 빈 상태)/§10.2 P12/§11.1 Q65(라우트 채택).

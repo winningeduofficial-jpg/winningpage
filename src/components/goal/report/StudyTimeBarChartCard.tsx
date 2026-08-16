@@ -1,4 +1,4 @@
-import GoalCard from "../GoalCard";
+import GoalCard from "@/components/goal/GoalCard";
 import VerticalBarChart from "./VerticalBarChart";
 
 // Row1 카드② — 주간 `요일별 공부 시간`(결함4 정정 제목) / 월간 `주차별 공부 시간`.

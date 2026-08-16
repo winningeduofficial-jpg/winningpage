@@ -1,5 +1,5 @@
 import { useId } from "react";
-import ImeSafeTextarea from "../ImeSafeTextarea";
+import ImeSafeTextarea from "@/components/admission/editor/ImeSafeTextarea";
 
 type PreTextBlockEditorProps = {
   block: { text?: string };

@@ -1,7 +1,7 @@
 import { ChevronDown, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabase";
-import { reportAdminError } from "../../pages/admin/shared/adminErrors";
+import { supabase } from "@/lib/supabase";
+import { reportAdminError } from "@/pages/admin/shared/adminErrors";
 import {
   ActionButton,
   boolValue,
@@ -13,7 +13,7 @@ import {
   Textarea,
   TextInput,
   Toggle,
-} from "../../pages/admin/shared/formFields";
+} from "@/pages/admin/shared/formFields";
 
 // DB 로우 shape을 이 파일 안에서 로컬로 정의한다(learning_diagnosis_* 테이블, 새 전역 타입 파일 없음).
 // id 컬럼은 uuid(sql/00_base_schema.sql learning_diagnosis_*) — supabase-js가 string으로 반환한다.

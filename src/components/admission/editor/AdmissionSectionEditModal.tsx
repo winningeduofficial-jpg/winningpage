@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import AdmissionSurface from "../AdmissionSurface";
-import AdmissionModalShell from "../modal/AdmissionModalShell";
-import AdmissionModalStyles from "../modal/AdmissionModalStyles";
+import AdmissionSurface from "@/components/admission/AdmissionSurface";
+import AdmissionModalShell from "@/components/admission/modal/AdmissionModalShell";
+import AdmissionModalStyles from "@/components/admission/modal/AdmissionModalStyles";
 import AdmissionEditorSurface from "./AdmissionEditorSurface";
 
 // 어드민 대학모집요강 "카테고리 편집" 다이얼로그.

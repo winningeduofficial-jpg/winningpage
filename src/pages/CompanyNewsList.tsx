@@ -1,4 +1,4 @@
-import BoardListPage from "../components/board/BoardListPage";
+import BoardListPage from "@/components/board/BoardListPage";
 import { BOARD_SOURCES } from "./board/boardData";
 
 /**

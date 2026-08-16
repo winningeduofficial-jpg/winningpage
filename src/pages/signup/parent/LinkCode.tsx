@@ -19,15 +19,15 @@ import {
   ChildPreviewCard,
   PrimaryButton,
   TextField,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 import {
   CODE_LENGTH,
   findImpossibleChars,
   lookupChild,
   normalizeLinkCode,
   requestParentLink,
-} from "../../../lib/parentLink";
+} from "@/lib/parentLink";
 
 const LOOKUP_DEBOUNCE_MS = 400;
 

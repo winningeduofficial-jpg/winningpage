@@ -36,7 +36,7 @@ import {
   MOCK_EXAM_SUBJECTS,
   NAESIN_EXAMS,
   WEEKDAY_OPTIONS,
-} from "../data/goalOnboardingMock";
+} from "@/data/goalOnboardingMock";
 
 const STORAGE_KEY = "goal-onboarding-flow";
 

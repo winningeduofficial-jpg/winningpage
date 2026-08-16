@@ -1,4 +1,4 @@
-import type { TableBlock } from "../../../lib/admissionDoc";
+import type { TableBlock } from "@/lib/admissionDoc";
 import ImeSafeInput from "./ImeSafeInput";
 
 type TableGroup = NonNullable<TableBlock["groups"]>[number];

@@ -1,11 +1,11 @@
 import type { RouteObject } from "react-router";
 import { Navigate } from "react-router";
-import AdmissionBoard from "../pages/AdmissionBoard";
-import AdmissionGuidelines from "../pages/AdmissionGuidelines";
-import AdmissionResults from "../pages/AdmissionResults";
-import AdmissionCaseDetail from "../pages/admission/AdmissionCaseDetail";
-import AdmissionCases from "../pages/admission/AdmissionCases";
-import SpecialHighschoolCases from "../pages/special/SpecialHighschoolCases";
+import AdmissionBoard from "@/pages/AdmissionBoard";
+import AdmissionGuidelines from "@/pages/AdmissionGuidelines";
+import AdmissionResults from "@/pages/AdmissionResults";
+import AdmissionCaseDetail from "@/pages/admission/AdmissionCaseDetail";
+import AdmissionCases from "@/pages/admission/AdmissionCases";
+import SpecialHighschoolCases from "@/pages/special/SpecialHighschoolCases";
 
 const admissionRoutes: RouteObject[] = [
   { path: "/admission/guidelines", Component: AdmissionGuidelines },

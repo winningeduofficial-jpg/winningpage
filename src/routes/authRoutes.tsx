@@ -1,22 +1,22 @@
 import type { RouteObject } from "react-router";
 import { Outlet } from "react-router";
-import { SignupProvider } from "../context/SignupContext";
-import Login from "../pages/Login";
+import { SignupProvider } from "@/context/SignupContext";
+import Login from "@/pages/Login";
 // 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
-import MemberType from "../pages/signup/MemberType";
-import InviteChild from "../pages/signup/parent/InviteChild";
-import InviteDone from "../pages/signup/parent/InviteDone";
-import LinkChoice from "../pages/signup/parent/LinkChoice";
-import LinkCode from "../pages/signup/parent/LinkCode";
-import LinkDone from "../pages/signup/parent/LinkDone";
-import ParentForm from "../pages/signup/parent/ParentForm";
-import ParentHome from "../pages/signup/parent/ParentHome";
-import StudentBirth from "../pages/signup/StudentBirth";
-import StudentComplete from "../pages/signup/StudentComplete";
-import StudentForm from "../pages/signup/StudentForm";
-import Under14Form from "../pages/signup/Under14Form";
-import Under14Verify from "../pages/signup/Under14Verify";
-import UnifiedSignupForm from "../pages/signup/UnifiedSignupForm";
+import MemberType from "@/pages/signup/MemberType";
+import InviteChild from "@/pages/signup/parent/InviteChild";
+import InviteDone from "@/pages/signup/parent/InviteDone";
+import LinkChoice from "@/pages/signup/parent/LinkChoice";
+import LinkCode from "@/pages/signup/parent/LinkCode";
+import LinkDone from "@/pages/signup/parent/LinkDone";
+import ParentForm from "@/pages/signup/parent/ParentForm";
+import ParentHome from "@/pages/signup/parent/ParentHome";
+import StudentBirth from "@/pages/signup/StudentBirth";
+import StudentComplete from "@/pages/signup/StudentComplete";
+import StudentForm from "@/pages/signup/StudentForm";
+import Under14Form from "@/pages/signup/Under14Form";
+import Under14Verify from "@/pages/signup/Under14Verify";
+import UnifiedSignupForm from "@/pages/signup/UnifiedSignupForm";
 
 // 신규 노드 2516-1974('통합 가입 폼', docs/impl-status-recheck.md §4) — 시안 미확정(손그림
 // 낙서) 임시 라우트라 플래그가 켜져 있을 때만 등록한다. 꺼져 있으면 라우트 자체가 없으므로

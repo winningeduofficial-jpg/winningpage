@@ -1,5 +1,5 @@
-import radioChecked from "../../../assets/renewal/radio-checked.svg";
-import radioUnchecked from "../../../assets/renewal/radio-unchecked.svg";
+import radioChecked from "@/assets/renewal/radio-checked.svg";
+import radioUnchecked from "@/assets/renewal/radio-unchecked.svg";
 
 /**
  * OptionGroup

@@ -1,4 +1,4 @@
-import { withDedupedKeys } from "../../../lib/reactKeys";
+import { withDedupedKeys } from "@/lib/reactKeys";
 import MetaTag from "./MetaTag";
 
 export type Topic = {

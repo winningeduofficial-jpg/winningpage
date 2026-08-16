@@ -1,23 +1,23 @@
 import { useEffect, useState } from "react";
-import audienceCareer from "../../assets/callmentor/audience-career.png";
-import audienceEntranceExam from "../../assets/callmentor/audience-entrance-exam.png";
-import audienceMotivation from "../../assets/callmentor/audience-motivation.png";
-import audienceStudyMethod from "../../assets/callmentor/audience-study-method.jpg";
-import heroCallMockup from "../../assets/callmentor/hero-call-mockup.webp";
-import iconValueCard from "../../assets/callmentor/icon-value-card.svg";
-import iconValueCheck from "../../assets/callmentor/icon-value-check.svg";
-import iconValuePlan from "../../assets/callmentor/icon-value-plan.svg";
-import stepCall from "../../assets/callmentor/step-call.jpg";
-import stepDiagnosis from "../../assets/callmentor/step-diagnosis.jpg";
-import stepMentorMatch from "../../assets/callmentor/step-mentor-match.jpg";
-import stepReview from "../../assets/callmentor/step-review.jpg";
-import CmButton from "../../components/callmentor/CmButton";
-import MentorSection from "../../components/landing/MentorSection";
-import ServiceAudienceCards from "../../components/services/ServiceAudienceCards";
-import ServiceSection from "../../components/services/ServiceSection";
-import ServiceTestimonials from "../../components/services/ServiceTestimonials";
-import { alertServiceNotReady } from "../../lib/paidServiceAccess";
-import { supabase } from "../../lib/supabase";
+import audienceCareer from "@/assets/callmentor/audience-career.png";
+import audienceEntranceExam from "@/assets/callmentor/audience-entrance-exam.png";
+import audienceMotivation from "@/assets/callmentor/audience-motivation.png";
+import audienceStudyMethod from "@/assets/callmentor/audience-study-method.jpg";
+import heroCallMockup from "@/assets/callmentor/hero-call-mockup.webp";
+import iconValueCard from "@/assets/callmentor/icon-value-card.svg";
+import iconValueCheck from "@/assets/callmentor/icon-value-check.svg";
+import iconValuePlan from "@/assets/callmentor/icon-value-plan.svg";
+import stepCall from "@/assets/callmentor/step-call.jpg";
+import stepDiagnosis from "@/assets/callmentor/step-diagnosis.jpg";
+import stepMentorMatch from "@/assets/callmentor/step-mentor-match.jpg";
+import stepReview from "@/assets/callmentor/step-review.jpg";
+import CmButton from "@/components/callmentor/CmButton";
+import MentorSection from "@/components/landing/MentorSection";
+import ServiceAudienceCards from "@/components/services/ServiceAudienceCards";
+import ServiceSection from "@/components/services/ServiceSection";
+import ServiceTestimonials from "@/components/services/ServiceTestimonials";
+import { alertServiceNotReady } from "@/lib/paidServiceAccess";
+import { supabase } from "@/lib/supabase";
 
 /**
  * 콜멘토 랜딩 — 골드(#AF9364 · #BF923D) 강조색과 검정 하단 CTA 밴드를 사수한 프리미엄

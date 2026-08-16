@@ -8,7 +8,7 @@ import {
   getDisplayNumber,
   getViewCount,
   paginate,
-} from "../../pages/board/boardData";
+} from "@/pages/board/boardData";
 import BoardPagination from "./BoardPagination";
 import BoardSearchBar from "./BoardSearchBar";
 import BoardTable from "./BoardTable";
