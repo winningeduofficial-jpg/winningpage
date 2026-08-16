@@ -17,6 +17,11 @@
 // (duplicate_phone) 양쪽에서 같은 말을 해야 해서 상수로 뽑아 export한다.
 export const DUPLICATE_PHONE_MESSAGE = "중복된 전화번호입니다.";
 
+// 재발송 쿨타임(초) — 학생/학부모 가입 폼 양쪽이 같은 값을 useCooldown에 넘겨야
+// UI 표시가 서버 제한과 어긋나지 않는다(EMAIL_RESEND_COOLDOWN_SECONDS와 동일한
+// 이유로 signupEmailAuth.ts에서도 상수로 뽑아 export한 전례를 따른다).
+export const PHONE_RESEND_COOLDOWN_SECONDS = 60;
+
 const MESSAGES: Record<string, string> = {
   invalid_phone: "휴대폰 번호 형식이 올바르지 않습니다.",
   phone_taken: DUPLICATE_PHONE_MESSAGE,

@@ -6,6 +6,7 @@
 import { Check, ChevronRight } from "lucide-react";
 import type { CSSProperties } from "react";
 import { Link } from "react-router";
+import { STAGGER_STEP_MS } from "../../lib/agreementStagger";
 
 type AgreementRowProps = {
   label: string;
@@ -49,7 +50,7 @@ export default function AgreementRow({
           style={
             showCheckPop
               ? ({
-                  animationDelay: `calc(var(--i) * 40ms)`,
+                  animationDelay: `calc(var(--i) * ${STAGGER_STEP_MS}ms)`,
                   "--i": index,
                 } as CSSProperties)
               : undefined

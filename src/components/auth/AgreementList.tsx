@@ -11,6 +11,7 @@
 
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
+import { STAGGER_BUFFER_MS, STAGGER_STEP_MS } from "../../lib/agreementStagger";
 import AgreementRow from "./AgreementRow";
 
 type AgreementItem = {
@@ -28,9 +29,6 @@ type AgreementListProps = {
   onToggleItem?: (key: string) => void;
   className?: string;
 };
-
-const STAGGER_STEP_MS = 40;
-const STAGGER_BUFFER_MS = 260;
 
 export default function AgreementList({
   items,

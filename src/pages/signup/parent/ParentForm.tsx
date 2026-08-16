@@ -29,6 +29,7 @@ import {
   DUPLICATE_PHONE_MESSAGE,
   isValidMobile,
   normalizePhone,
+  PHONE_RESEND_COOLDOWN_SECONDS,
   sendPhoneCode,
   verifyPhoneCode,
 } from "../../../lib/phoneVerification";
@@ -43,7 +44,6 @@ import {
 import { supabase } from "../../../lib/supabase";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const PHONE_RESEND_COOLDOWN_SECONDS = 60;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 
 type FieldStatus = "default" | "error" | "success";
