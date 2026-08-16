@@ -274,14 +274,121 @@ export default function ChangePhoneModal({
     );
   }
 
-  const isVerifyStep = step === "verify";
   const sendLabel = cooldown.active
     ? `${cooldown.remaining}초 후`
     : requested
       ? "다시 보내기"
       : "인증번호 보내기";
 
-  // ── 입력(3973:15330) / 인증번호(3973:16090) ─────────────────────────
+  // form / verify 두 단계는 번호 입력칸(수정 가능 ↔ 읽기전용)과 본인확인 방식
+  // (비밀번호 ↔ 인증코드)이 뒤바뀌어 사실상 서로 다른 화면이다 — confirm/done
+  // 처럼 단계별로 완전히 갈라서 렌더한다(같은 파일 안 기존 관례).
+  if (step === "form") {
+    return (
+      <MyPageModalShell
+        open={open}
+        onClose={onClose}
+        labelledBy={titleId}
+        className="w-[26rem]"
+      >
+        <div className="flex-1 overflow-y-auto px-6 pt-8">
+          <h2
+            id={titleId}
+            className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title"
+          >
+            휴대폰 번호를 변경해요
+          </h2>
+          <p className="mt-3 text-center text-[0.8125rem] leading-[1.6] text-ink-sub">
+            알림과 본인 확인에 사용되는 번호예요.
+          </p>
+
+          <div className="mt-7">
+            <span className="text-[0.8125rem] font-semibold text-ink">
+              현재 휴대폰 번호
+            </span>
+            <div
+              className={`mt-2 ${FIELD_CLASS} flex items-center bg-surface-footer text-ink-sub`}
+            >
+              {currentPhone || "-"}
+            </div>
+          </div>
+
+          <label className="mt-5 block">
+            <span className="text-[0.8125rem] font-semibold text-ink">
+              새 휴대폰 번호
+            </span>
+            <div className="mt-2 flex gap-2">
+              <input
+                type="tel"
+                autoComplete="tel"
+                value={nextPhone}
+                onChange={(e) => {
+                  setNextPhone(e.target.value);
+                  setErrorMsg("");
+                }}
+                placeholder="010-0000-0000"
+                className={FIELD_CLASS}
+              />
+              <button
+                type="button"
+                onClick={sendCode}
+                disabled={
+                  !phoneValid || !password || sending || cooldown.active
+                }
+                className={`h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
+                  phoneValid && password && !sending && !cooldown.active
+                    ? "bg-primary text-white hover:opacity-90"
+                    : "cursor-not-allowed bg-line text-white"
+                }`}
+              >
+                {sendLabel}
+              </button>
+            </div>
+          </label>
+
+          <label className="mt-5 block">
+            <span className="text-[0.8125rem] font-semibold text-ink">
+              현재 비밀번호
+            </span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setErrorMsg("");
+              }}
+              placeholder="본인 확인을 위해 비밀번호를 입력해주세요"
+              className={`mt-2 ${FIELD_CLASS}`}
+            />
+          </label>
+
+          {errorMsg && (
+            <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 px-6 py-5">
+          <button
+            type="button"
+            onClick={onClose}
+            className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30"
+          >
+            취소
+          </button>
+          <button
+            type="button"
+            disabled
+            className="h-12 rounded-xl text-[0.875rem] font-semibold text-white transition cursor-not-allowed bg-line"
+          >
+            다음
+          </button>
+        </div>
+      </MyPageModalShell>
+    );
+  }
+
+  // ── 인증번호(3973:16090, step === "verify") ──────────────────────────
   return (
     <MyPageModalShell
       open={open}
@@ -324,9 +431,9 @@ export default function ChangePhoneModal({
                 setNextPhone(e.target.value);
                 setErrorMsg("");
               }}
-              readOnly={isVerifyStep}
+              readOnly
               placeholder="010-0000-0000"
-              className={`${FIELD_CLASS} ${isVerifyStep ? "bg-surface-footer text-ink-sub" : ""}`}
+              className={`${FIELD_CLASS} bg-surface-footer text-ink-sub`}
             />
             <button
               type="button"
@@ -343,45 +450,24 @@ export default function ChangePhoneModal({
           </div>
         </label>
 
-        {!isVerifyStep && (
-          <label className="mt-5 block">
-            <span className="text-[0.8125rem] font-semibold text-ink">
-              현재 비밀번호
-            </span>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                setErrorMsg("");
-              }}
-              placeholder="본인 확인을 위해 비밀번호를 입력해주세요"
-              className={`mt-2 ${FIELD_CLASS}`}
-            />
-          </label>
-        )}
-
-        {isVerifyStep && (
-          <label className="mt-5 block">
-            <span className="text-[0.8125rem] font-semibold text-ink">
-              인증번호
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={code}
-              onChange={(e) => {
-                setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6));
-                setErrorMsg("");
-              }}
-              placeholder="카카오톡으로 보낸 인증번호를 입력해주세요"
-              className={`mt-2 ${FIELD_CLASS}`}
-            />
-          </label>
-        )}
+        <label className="mt-5 block">
+          <span className="text-[0.8125rem] font-semibold text-ink">
+            인증번호
+          </span>
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={code}
+            onChange={(e) => {
+              setCode(e.target.value.replace(/[^0-9]/g, "").slice(0, 6));
+              setErrorMsg("");
+            }}
+            placeholder="카카오톡으로 보낸 인증번호를 입력해주세요"
+            className={`mt-2 ${FIELD_CLASS}`}
+          />
+        </label>
 
         {errorMsg && (
           <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
@@ -399,9 +485,9 @@ export default function ChangePhoneModal({
         <button
           type="button"
           onClick={verifyCode}
-          disabled={!isVerifyStep || code.trim().length !== 6 || verifying}
+          disabled={code.trim().length !== 6 || verifying}
           className={`h-12 rounded-xl text-[0.875rem] font-semibold text-white transition ${
-            isVerifyStep && code.trim().length === 6 && !verifying
+            code.trim().length === 6 && !verifying
               ? "bg-primary hover:opacity-90"
               : "cursor-not-allowed bg-line"
           }`}
