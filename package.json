@@ -54,6 +54,8 @@
     "@vercel/node": "^5.10.0",
     "autoprefixer": "^10.4.20",
     "babel-plugin-react-compiler": "^1.0.0",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
     "eslint-plugin-react-hooks": "^6.1.1",
     "knip": "^6.32.2",
     "pdfjs-dist": "^6.2.108",
