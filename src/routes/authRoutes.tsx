@@ -1,4 +1,5 @@
-import { Outlet, Route } from "react-router";
+import type { RouteObject } from "react-router";
+import { Outlet } from "react-router";
 import { SignupProvider } from "../context/SignupContext";
 import Login from "../pages/Login";
 // 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
@@ -35,36 +36,37 @@ function SignupFlowLayout() {
 
 // 로그인·회원가입 리뉴얼(§5.2) — 헤더/푸터 포함 풀 페이지가 시안 확정이므로
 // SiteLayout 안으로 편입(구 Login.jsx/Signup.jsx의 pt-16 보정 관례 그대로 재사용).
-export default function authRoutes() {
-  return (
-    <>
-      <Route path="/login" element={<Login />} />
+const authRoutes: RouteObject[] = [
+  { path: "/login", Component: Login },
 
-      <Route element={<SignupFlowLayout />}>
-        <Route path="/signup" element={<MemberType />} />
-        <Route path="/signup/student/birth" element={<StudentBirth />} />
-        <Route path="/signup/student" element={<StudentForm />} />
-        <Route
-          path="/signup/student/under14/verify"
-          element={<Under14Verify />}
-        />
-        <Route path="/signup/student/under14" element={<Under14Form />} />
-        {UNIFIED_SIGNUP_ENABLED && (
-          <Route path="/signup/unified" element={<UnifiedSignupForm />} />
-        )}
-        <Route path="/signup/student/complete" element={<StudentComplete />} />
-        <Route path="/signup/parent" element={<ParentForm />} />
-        <Route path="/signup/parent/link" element={<LinkChoice />} />
-        <Route
-          path="/signup/parent/link/add"
-          element={<LinkChoice mode="add" />}
-        />
-        <Route path="/signup/parent/link/code" element={<LinkCode />} />
-        <Route path="/signup/parent/link/done" element={<LinkDone />} />
-        <Route path="/signup/parent/invite" element={<InviteChild />} />
-        <Route path="/signup/parent/invite/done" element={<InviteDone />} />
-        <Route path="/signup/parent/home" element={<ParentHome />} />
-      </Route>
-    </>
-  );
-}
+  {
+    Component: SignupFlowLayout,
+    children: [
+      { path: "/signup", Component: MemberType },
+      { path: "/signup/student/birth", Component: StudentBirth },
+      { path: "/signup/student", Component: StudentForm },
+      {
+        path: "/signup/student/under14/verify",
+        Component: Under14Verify,
+      },
+      { path: "/signup/student/under14", Component: Under14Form },
+      ...(UNIFIED_SIGNUP_ENABLED
+        ? [{ path: "/signup/unified", Component: UnifiedSignupForm }]
+        : []),
+      { path: "/signup/student/complete", Component: StudentComplete },
+      { path: "/signup/parent", Component: ParentForm },
+      { path: "/signup/parent/link", Component: LinkChoice },
+      {
+        path: "/signup/parent/link/add",
+        Component: () => <LinkChoice mode="add" />,
+      },
+      { path: "/signup/parent/link/code", Component: LinkCode },
+      { path: "/signup/parent/link/done", Component: LinkDone },
+      { path: "/signup/parent/invite", Component: InviteChild },
+      { path: "/signup/parent/invite/done", Component: InviteDone },
+      { path: "/signup/parent/home", Component: ParentHome },
+    ],
+  },
+];
+
+export default authRoutes;

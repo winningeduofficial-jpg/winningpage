@@ -1,4 +1,5 @@
-import { Navigate, Route } from "react-router";
+import type { RouteObject } from "react-router";
+import { Navigate } from "react-router";
 import {
   GoalAccessBoundary,
   GoalAccessCheckingFallback,
@@ -10,18 +11,19 @@ import GoalOnboarding from "../pages/goal/Onboarding";
 // SiteLayout 안에 둔다(GoalAppLayout 사이드바 셸에는 넣지 않는다). RequireGoalAccess가
 // 로그인・이용권 판정을 적용하되, 온보딩 경로 자체는 3단계(온보딩 완료 판정)를
 // 건너뛴다 — 자세한 이유는 RequireGoalAccess.jsx 상단 주석 참고.
-export default function goalOnboardingRoutes() {
-  return (
-    <Route
-      middleware={[requireGoalAccessMiddleware]}
-      HydrateFallback={GoalAccessCheckingFallback}
-      ErrorBoundary={GoalAccessBoundary}
-    >
-      <Route
-        path="/app/goal/onboarding"
-        element={<Navigate to="/app/goal/onboarding/step-1" replace />}
-      />
-      <Route path="/app/goal/onboarding/:step" element={<GoalOnboarding />} />
-    </Route>
-  );
-}
+const goalOnboardingRoutes: RouteObject[] = [
+  {
+    middleware: [requireGoalAccessMiddleware],
+    HydrateFallback: GoalAccessCheckingFallback,
+    ErrorBoundary: GoalAccessBoundary,
+    children: [
+      {
+        path: "/app/goal/onboarding",
+        Component: () => <Navigate to="/app/goal/onboarding/step-1" replace />,
+      },
+      { path: "/app/goal/onboarding/:step", Component: GoalOnboarding },
+    ],
+  },
+];
+
+export default goalOnboardingRoutes;
