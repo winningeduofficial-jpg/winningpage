@@ -91,6 +91,7 @@ export default function ChangeEmailModal({
   const emailValid =
     isValidEmail(nextEmail) &&
     nextEmail.trim().toLowerCase() !== baseEmail.toLowerCase();
+  const canSendEmailCode = emailValid && Boolean(password) && !saving;
 
   // 인증번호 발송 — updateUser({ email }) 이 곧 발송 트리거다.
   const sendCode = useCallback(async () => {
@@ -349,9 +350,9 @@ export default function ChangeEmailModal({
               <button
                 type="button"
                 onClick={sendCode}
-                disabled={!emailValid || !password || saving}
+                disabled={!canSendEmailCode}
                 className={`h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
-                  emailValid && password && !saving
+                  canSendEmailCode
                     ? "bg-primary text-white hover:opacity-90"
                     : "cursor-not-allowed bg-line text-white"
                 }`}
@@ -454,9 +455,9 @@ export default function ChangeEmailModal({
             <button
               type="button"
               onClick={sendCode}
-              disabled={!emailValid || !password || saving}
+              disabled={!canSendEmailCode}
               className={`h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
-                emailValid && password && !saving
+                canSendEmailCode
                   ? "bg-primary text-white hover:opacity-90"
                   : "cursor-not-allowed bg-line text-white"
               }`}

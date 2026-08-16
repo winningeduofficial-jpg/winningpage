@@ -87,6 +87,7 @@ const SERVICE_DETAIL_ROUTES = {
 export default function PricingSelling() {
   const navigate = useNavigate();
   const { services, loading, error, refetch } = useProducts();
+  const hasNoServices = Boolean(error) || services.length === 0;
   // 서비스별 단일 선택: { [serviceKey]: productId }
   const [selected, setSelected] = useState<SelectedMap>({});
 
@@ -252,7 +253,7 @@ export default function PricingSelling() {
             </div>
           )}
 
-          {!loading && (error || services.length === 0) && (
+          {!loading && hasNoServices && (
             <div className="rounded-2xl border border-error/30 bg-white p-10 text-center">
               <p className="text-sm font-bold text-error">
                 요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.

@@ -1471,6 +1471,9 @@ export default function AdmissionGuidelines() {
     : null;
   const isGlobalSearchMode =
     !selectedRegion && !selectedSpecialGroupKey && keyword.trim();
+  const hasActiveSelection = Boolean(
+    selectedRegion || selectedSpecialGroupKey || keyword,
+  );
   const currentListTitle =
     selectedSpecialGroup?.label ||
     selectedRegion ||
@@ -1741,7 +1744,7 @@ export default function AdmissionGuidelines() {
                     </span>
                   </h2>
 
-                  {selectedRegion || selectedSpecialGroupKey || keyword ? (
+                  {hasActiveSelection ? (
                     <button
                       type="button"
                       onClick={clearSelection}

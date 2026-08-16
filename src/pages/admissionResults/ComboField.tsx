@@ -175,6 +175,7 @@ export default function ComboField({
   const showList = !loading && !error && filtered.length > 0;
   const showNoResult =
     !loading && !error && hasOptions && filtered.length === 0;
+  const showEmptyOptions = !loading && !error && !hasOptions;
 
   // 바깥에서 들어온 value 변경만 입력값에 되비춘다.
   // 타이핑 중 onClear로 value가 null이 되는 경로는 핸들러가 syncedRef를 미리 맞춰 두므로
@@ -434,7 +435,7 @@ export default function ComboField({
               />
             ) : null}
 
-            {!loading && !error && !hasOptions ? (
+            {showEmptyOptions ? (
               <PopoverStatus
                 title={emptyTitle}
                 description={emptyDescription}

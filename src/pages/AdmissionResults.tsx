@@ -127,6 +127,8 @@ export default function AdmissionResults() {
     () => new Set(universities.map((row) => row.university_key)),
     [universities],
   );
+  const universitiesUnavailable =
+    universitiesLoading || universitiesError || universityKeySet.size === 0;
 
   // 큐레이션 칩(trending_departments)은 키 체계가 슬러그 → 한글(Q3 확정)로 바뀌기 전에
   // 입력된 행이 남아 있을 수 있다. 키가 살아 있는지 보지 않고 존재만 확인하면
@@ -136,8 +138,7 @@ export default function AdmissionResults() {
   // 목록 로딩 중에는 아예 렌더하지 않는다. 먼저 그렸다가 걷어내면 깜빡임이 되고,
   // 트렌딩은 부가 정보라 조금 늦게 나타나는 편이 낫다.
   const trendingItems = useMemo(() => {
-    if (universitiesLoading || universitiesError || universityKeySet.size === 0)
-      return [];
+    if (universitiesUnavailable) return [];
     return trending
       .filter(
         (row) =>
@@ -153,7 +154,7 @@ export default function AdmissionResults() {
         departmentKey: row.department_key,
         logoUrl: row.logo_url ?? "",
       }));
-  }, [trending, universityKeySet, universitiesLoading, universitiesError]);
+  }, [trending, universityKeySet, universitiesUnavailable]);
 
   // 목록이 아직 없어도(딥링크 직후) 필드에 키라도 보여 준다.
   const university = useMemo(() => {
@@ -180,12 +181,11 @@ export default function AdmissionResults() {
   // 그대로 들고 있으면 필드에 정규화 키가 그대로 찍히고 모집단위는 영영 빈 목록이 된다.
   // 목록이 도착한 뒤에만 판정한다 — 로딩 중에는 "없는 키"와 "아직 안 온 키"를 구분할 수 없다.
   useEffect(() => {
-    if (universitiesLoading || universitiesError || universityKeySet.size === 0)
-      return;
+    if (universitiesUnavailable) return;
     if (!universityKey || universityKeySet.has(universityKey)) return;
     setUniversityKey("");
     setDepartmentKey("");
-  }, [universitiesLoading, universitiesError, universityKeySet, universityKey]);
+  }, [universitiesUnavailable, universityKeySet, universityKey]);
 
   useEffect(() => {
     if (departmentsLoading || departmentsError || departments.length === 0)
