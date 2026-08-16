@@ -51,7 +51,7 @@ export function cleanText(value: unknown) {
 // 그대로 노출되지 않도록 상시 치환한다. DB 레코드 수정은 운영자 몫(공통 구현 규칙 — DB 수정
 // 금지)이라 PROMOTED_SLUG_ROUTES와 같은 취지로 이 훅에서 안전망을 둔다. '컬럼' 전역 치환은 이
 // 파일 밖(테이블/레이아웃 컬럼 등)에서는 절대 하면 안 되고, 메뉴 라벨 문자열에만 좁게 적용한다.
-export function normalizeMenuLabel(label: unknown) {
+function normalizeMenuLabel(label: unknown) {
   return cleanText(label).replaceAll("컬럼", "칼럼");
 }
 
@@ -83,7 +83,7 @@ function resolveMenuLink(slug: unknown) {
 // 푸터・캐시가 항상 신규 라우트를 가리키도록 이 훅에서 일괄 치환한다. GNB DB 값 자체를
 // /services/* 로 바꾸는 것은 운영자 몫(공통 구현 규칙 — DB 수정 금지) — 이 매핑은 그 전까지의
 // 안전망이다. 직접 구 경로로 진입한 경우의 리다이렉트는 App.jsx의 <Navigate replace> 라우트가 담당.
-export const PROMOTED_SLUG_ROUTES: Record<string, string> = {
+const PROMOTED_SLUG_ROUTES: Record<string, string> = {
   "services-goal": "/services/goal",
   "services-ai-performance": "/services/performance",
   "services-self-assessment": "/services/self-assessment",

@@ -77,7 +77,7 @@ export function round1(value: unknown): number {
   return Math.round((toNum(value) ?? 0) * 10) / 10;
 }
 
-export function round0(value: unknown): number {
+function round0(value: unknown): number {
   return Math.round(toNum(value) ?? 0);
 }
 
@@ -90,14 +90,14 @@ function clamp0to100(value: unknown): number {
 // (schedule.js getEffectiveScheduleTarget 헤더 주석의 동일 전제를 그대로 따른다).
 // ---------------------------------------------------------------------------
 
-export function isValidYmd(value: unknown): value is string {
+function isValidYmd(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
     return false;
   const d = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 
-export function isValidYm(value: unknown): value is string {
+function isValidYm(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}$/.test(value);
 }
 
@@ -360,7 +360,7 @@ export function computeCohortPercentile(
 // D6 — 컨디션 4종(항상 전부 노출)
 // ---------------------------------------------------------------------------
 
-export const CONDITION_ORDER = [
+const CONDITION_ORDER = [
   { code: "great", emoji: "😆", label: "아주 좋음" },
   { code: "normal", emoji: "🙂", label: "보통" },
   { code: "tired", emoji: "😣", label: "피곤함" },
@@ -458,7 +458,7 @@ export function computeSubjectShare(
 // D8 — 시간대별 학습 효율(7버킷, 심야 0~6 포함)
 // ---------------------------------------------------------------------------
 
-export const TIME_SLOT_BUCKETS = [
+const TIME_SLOT_BUCKETS = [
   { label: "심야 0~6", startHour: 0, endHour: 6 },
   { label: "오전 6~9", startHour: 6, endHour: 9 },
   { label: "오전 9~12", startHour: 9, endHour: 12 },
@@ -469,7 +469,7 @@ export const TIME_SLOT_BUCKETS = [
 ] as const;
 
 /** 세션 started_at(timestamptz ISO)의 KST 시(0~23). */
-export function kstHour(isoString: string): number {
+function kstHour(isoString: string): number {
   const d = new Date(isoString);
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
@@ -813,7 +813,7 @@ export function classifyJeongsiZone(
   return "focus";
 }
 
-export const ZONE_LABELS: Record<GoalDirectionZone, string> = {
+const ZONE_LABELS: Record<GoalDirectionZone, string> = {
   strong: "강점 유지 구간",
   improve: "보완 필요 구간",
   focus: "집중 보완 구간",

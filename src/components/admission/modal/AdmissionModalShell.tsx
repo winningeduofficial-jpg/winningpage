@@ -45,11 +45,11 @@ import {
 // 렌더한다(공개: AdmissionGuidelines.jsx, 어드민: AdmissionSectionEditModal).
 
 // AdmissionGuidelines.jsx 원문 그대로.
-export const PUBLIC_SHEET_CLASS =
+const PUBLIC_SHEET_CLASS =
   "admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]";
-export const PUBLIC_BODY_CLASS =
+const PUBLIC_BODY_CLASS =
   "admission-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12";
-export const PUBLIC_FOOTER_CLASS =
+const PUBLIC_FOOTER_CLASS =
   "border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-12 md:pb-8 md:pt-4";
 
 export default function AdmissionModalShell({

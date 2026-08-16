@@ -142,11 +142,11 @@ export interface CutsInput {
 }
 
 // 요일별 이상/최소 목표 시간 1행 + 그 맵.
-export interface DayTarget {
+interface DayTarget {
   ideal: number;
   min: number;
 }
-export type WeeklyScheduleMap = Record<string, DayTarget>;
+type WeeklyScheduleMap = Record<string, DayTarget>;
 
 // buildInitialStudentState 입력.
 export interface BuildInitialStudentStateInput {

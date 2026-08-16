@@ -1055,5 +1055,3 @@ export function buildReport(input: any, ctx: BuildReportCtx = {}) {
 // 저장 키(DIAGNOSIS_INPUT_STORAGE_KEY)·직렬화·스키마 검증은 src/lib/diagnosisInputStorage.js 가
 // 단독으로 소유한다. 여기 두면 설문 셸이 이 모듈을 import 하게 되어 제출 한 번을 위해 문구집과
 // 리포트 조립 코드가 통째로 설문 번들에 끌려오고, 리터럴이 두 벌로 갈라질 자리도 생긴다.
-
-export default buildReport;

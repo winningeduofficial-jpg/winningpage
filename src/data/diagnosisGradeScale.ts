@@ -23,22 +23,22 @@
  * 5등급제(고교) 원점수 정의역. 정의역 밖은 clamp 로 접는다(§4.1 경계값).
  * 표의 x 간격은 0.01 이라 그리드에 없는 값은 raw*100 을 ROUND_HALF_UP 해 스냅한다.
  */
-export const HS5_MIN = 1.0;
-export const HS5_MAX = 5.0;
+const HS5_MIN = 1.0;
+const HS5_MAX = 5.0;
 
 /**
  * 중학교 평균(100점 만점) 원점수 정의역. 표의 x 는 100.0 에서 26.0 으로 0.1 씩 내려가므로
  * 인덱스는 1000 - round(raw*10) 으로 뒤집어 얻는다.
  */
-export const MID_MAX_SCORE = 100.0;
-export const MID_MIN_SCORE = 26.0;
+const MID_MAX_SCORE = 100.0;
+const MID_MIN_SCORE = 26.0;
 
 /**
  * 5등급제(고교) → 9등급 환산표. 401개.
  * index = roundHalfUp(raw * 100, 0) - 100  (raw 1.00 → 0, 5.00 → 400)
  * 줄 끝 주석은 그 줄 첫~마지막 원소의 원점수 x 다.
  */
-export const HS5_TO_NINE = [
+const HS5_TO_NINE = [
   1.55,
   1.57,
   1.58,
@@ -447,7 +447,7 @@ export const HS5_TO_NINE = [
  * index = 1000 - roundHalfUp(raw * 10, 0)  (raw 100.0 → 0, 26.0 → 740)
  * 인덱스가 커질수록 원점수는 내려가고 등급은 올라간다(등급은 낮을수록 좋다).
  */
-export const MID_TO_NINE = [
+const MID_TO_NINE = [
   2.33,
   2.35,
   2.37,

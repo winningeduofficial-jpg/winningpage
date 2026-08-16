@@ -61,9 +61,9 @@ export type AdminRow = Record<string, any>;
 // csvExport.ts의 FieldOption과 동일한 셰이프(문자열 또는 {value,label}) —
 // formatValue/csvBody가 field.options/column.options를 그대로 받아 쓰므로
 // 별도 타입을 만들지 않고 재사용한다.
-export type AdminOption = FieldOption;
+type AdminOption = FieldOption;
 
-export type AdminImageSpec = {
+type AdminImageSpec = {
   width?: number;
   height?: number;
   tolerance?: number;
@@ -79,7 +79,7 @@ export type AdminImageSpec = {
 // 옮긴다. type은 필드 전용 값(text/select/...)과 컬럼 전용 값(boolean/image/...)의
 // 합집합이다 — 실제로 한쪽에만 쓰이지만, 같은 프로퍼티 이름을 공유하는 이상
 // 유니온을 좁게 유지할 이유가 없다(둘 다 문자열 비교로만 분기한다).
-export type AdminFieldType =
+type AdminFieldType =
   | "text"
   | "number"
   | "date"
@@ -155,7 +155,7 @@ export type AdminUploadHandler<T extends AdminRow = AdminRow> = (
 // 만든 {name,url,size,type}이지만, 기존 데이터에는 문자열(URL)만 저장된
 // 경우도 있다(아래 렌더가 `typeof item === 'string'` 분기로 두 형태를 모두
 // 받아온다).
-export type AdminFileListItem =
+type AdminFileListItem =
   | string
   | { name?: string; url?: string; size?: number; type?: string };
 

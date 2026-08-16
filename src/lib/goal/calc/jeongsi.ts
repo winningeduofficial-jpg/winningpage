@@ -236,7 +236,7 @@ export function getEnglishPenaltyFE(grade: number) {
 // 소수 둘째 자리까지 반올림한다.
 //
 // calcJeongsiCompositeFE 입력 회차 1건의 과목 점수.
-export interface JeongsiSubjectScore {
+interface JeongsiSubjectScore {
   grade?: unknown;
   percentile?: number | null;
 }

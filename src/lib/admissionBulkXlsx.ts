@@ -181,7 +181,7 @@ const METADATA_COLUMNS_FOR_TRUNCATION_CHECK = [
 // src/components/admission/editor/xlsx/tableBlockXlsx.js에서 이미 실측
 // 확인된 값과 동일하다. 그 파일을 import하지 않고 상수만 다시 적는다 —
 // src/lib/이 src/components/에 의존하면 계층이 거꾸로 된다).
-export const MAX_XLSX_CELL_LENGTH = 32767;
+const MAX_XLSX_CELL_LENGTH = 32767;
 export const TRUNCATION_MARKER =
   "…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]";
 

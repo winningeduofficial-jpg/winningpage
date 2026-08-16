@@ -139,7 +139,7 @@ const NATURAL_KEY_COLUMNS = [
 // 엑셀 셀 문자 수 한도. 이 테이블 컬럼은 대부분 짧은 스칼라값이라 실측상
 // 걸릴 일이 거의 없지만(note/waitlist_rank 정도만 자유 텍스트), 대입모집
 // 요강 lib과 같은 방어 로직을 남겨 둔다(admissionBulkXlsx.js와 동일 값).
-export const MAX_XLSX_CELL_LENGTH = 32767;
+const MAX_XLSX_CELL_LENGTH = 32767;
 export const TRUNCATION_MARKER =
   "…[셀 한도 초과로 잘림 — 이 셀을 그대로 업로드하면 데이터가 손상됩니다]";
 

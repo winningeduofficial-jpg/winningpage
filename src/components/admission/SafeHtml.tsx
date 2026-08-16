@@ -345,7 +345,7 @@ function defaultParseDocument(html: string): Document | null {
  *
  * null이면 렌더할 게 없다는 뜻. degraded=true면 children은 이미 문자열(평문 격하 결과)이다.
  */
-export function sanitizeToReact(
+function sanitizeToReact(
   html: string,
   parseDocument?: (html: string) => Document | null,
 ): { degraded: boolean; children: ReactNode } | null {

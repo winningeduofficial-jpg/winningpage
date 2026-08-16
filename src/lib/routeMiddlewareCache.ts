@@ -46,7 +46,7 @@ export function setCached<T>(userId: string, kind: string, value: T): void {
   cache.set(cacheKey(userId, kind), { value, expiresAt: Date.now() + TTL_MS });
 }
 
-export function clearRouteMiddlewareCache(): void {
+function clearRouteMiddlewareCache(): void {
   cache.clear();
 }
 

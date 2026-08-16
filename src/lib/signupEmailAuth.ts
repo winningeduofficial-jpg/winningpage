@@ -41,7 +41,7 @@ export const EMAIL_STATE = {
 };
 
 // verifyOtp에 넘길 타입. 발송에 쓴 API에 따라 달라서 발송 결과로 함께 돌려준다.
-export const OTP_MODE = {
+const OTP_MODE = {
   SIGNUP: "signup",
   EMAIL: "email",
 };
@@ -63,7 +63,7 @@ export const MESSAGES = {
 /**
  * 이메일 가입 상태를 조회한다.
  */
-export async function checkEmailSignupState(
+async function checkEmailSignupState(
   email: string,
 ): Promise<{ state?: string; error?: Error }> {
   const { data, error } = await supabase.rpc("check_email_signup_state", {

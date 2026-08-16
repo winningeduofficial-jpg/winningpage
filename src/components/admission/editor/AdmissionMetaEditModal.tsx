@@ -45,7 +45,7 @@ export interface AdmissionMetaRow {
 // 그대로 통해 기존 행 저장 경로(saveRow와 같은 supabase update)를 재사용한다.
 // 이 모달은 폼 값(9필드)만 만들어 올릴 뿐 저장 자체는 모른다 — *_json/*_html
 // 컬럼을 건드리지 않는 보장은 호출부(Admin.jsx) 쪽 책임이다.
-export const ADMISSION_META_FIELDS: MetaFieldDef[] = [
+const ADMISSION_META_FIELDS: MetaFieldDef[] = [
   { key: "university_name", label: "대학명", type: "text", required: true },
   { key: "matched_hwp_name", label: "원문 대학명", type: "text" },
   { key: "university_key", label: "대학 키값", type: "text", required: true },

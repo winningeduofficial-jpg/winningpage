@@ -81,7 +81,7 @@ const FINALIZE_GENERIC =
   "최종본을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
 /** 화면이 분기에 쓸 수 있는 형태로 실패를 감싼다. */
-export class EvaluationRequestError extends Error {
+class EvaluationRequestError extends Error {
   code: string;
   userMessage: string;
   field: string | null;

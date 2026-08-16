@@ -37,7 +37,6 @@
 export {
   checkFieldsMinLength,
   countFieldChars,
-  countFieldsChars,
   SUBMISSION_MIN_CHARS,
 } from "../../../api/_lib/performance/submission-chars.js";
 
@@ -80,7 +79,7 @@ type SavedState = {
  * 예외·모델 원문을 응답에 싣지 않으므로(`submission.js`의 `fail()`) 그대로 띄워도 된다.
  * 이름은 `topics.js`/`designReport.js`와 맞춘다(같은 화면 상태 슬롯으로 흘러간다).
  */
-export class SubmissionError extends Error {
+class SubmissionError extends Error {
   code: string;
   userMessage: string;
   saved: SavedState | null;

@@ -16,13 +16,11 @@ import {
 // 여전히 없음).
 import type { AdmissionDoc, Block, SectionKey, Warning } from "./admissionDoc";
 
-export { ACADEMY_SPECIAL_DATA, POLICE_SPECIAL_DATA, SCIENCE_SPECIAL_DATA };
-
 export function clean(value) {
   return String(value || "").trim();
 }
 
-export function sanitizeAdmissionDisplayText(
+function sanitizeAdmissionDisplayText(
   value,
   { keepMajorFootnote = false } = {},
 ) {
@@ -78,7 +76,7 @@ export function looksLikeHtml(value) {
   );
 }
 
-export function escapeHtml(value) {
+function escapeHtml(value) {
   return clean(value)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -93,7 +91,7 @@ export function escapeHtml(value) {
 // 판별 근거는 scripts/normalize-admission-html.mjs의 주석과 동일(HWP 원문자 ①②가 보조
 // 평면 PUA-A 코드로 내보내진 케이스만 확정 매핑, 그 외 PUA는 손대지 않는다).
 const KNOWN_PUA_CODEPOINT_MAP = { 983758: "①", 983759: "②" };
-export function replaceKnownPuaChars(value) {
+function replaceKnownPuaChars(value) {
   let text = String(value || "");
   for (const [codePoint, replacement] of Object.entries(
     KNOWN_PUA_CODEPOINT_MAP,
@@ -105,7 +103,7 @@ export function replaceKnownPuaChars(value) {
   return text;
 }
 
-export function normalizeAdmissionText(value) {
+function normalizeAdmissionText(value) {
   return (
     replaceKnownPuaChars(clean(value))
       .replace(/\r\n/g, "\n")
@@ -120,7 +118,7 @@ export function normalizeAdmissionText(value) {
   );
 }
 
-export function splitAdmissionLines(value) {
+function splitAdmissionLines(value) {
   const normalized = normalizeAdmissionText(value);
   if (!normalized) return [];
 
@@ -137,7 +135,7 @@ export function splitAdmissionLines(value) {
     .filter((line) => !Object.values(SECTION_NOTES).includes(line));
 }
 
-export const SECTION_NOTES = {
+const SECTION_NOTES = {
   previous_year_changes: "",
   selection_method: "",
   minimum_requirements: "",
@@ -146,7 +144,7 @@ export const SECTION_NOTES = {
   recruitment_quota: "",
 };
 
-export const HWP_SECTION_TITLES = {
+const HWP_SECTION_TITLES = {
   previous_year_changes: "1. 전년도와 차이점",
   selection_method: "2. 전형방법",
   minimum_requirements: "3. 최저학력기준",
@@ -173,7 +171,7 @@ export const HWP_SECTION_LABELS = {
   recruitment_quota: "모집인원 및 입결",
 };
 
-export function getSectionNumber(sectionKey) {
+function getSectionNumber(sectionKey) {
   const idx = HWP_SECTION_ORDER.indexOf(sectionKey);
   return idx >= 0 ? String(idx + 1) : "";
 }
@@ -182,7 +180,7 @@ export function getSectionTitleText(sectionKey) {
   return HWP_SECTION_TITLES[sectionKey] || HWP_SECTION_LABELS[sectionKey] || "";
 }
 
-export function stripRepeatedSheetNavigation(value) {
+function stripRepeatedSheetNavigation(value) {
   return normalizeAdmissionText(value)
     .split("\n")
     .map((line) => clean(line))
@@ -208,7 +206,7 @@ export function stripRepeatedSheetNavigation(value) {
     .trim();
 }
 
-export function sliceNumberedSection(value, sectionKey) {
+function sliceNumberedSection(value, sectionKey) {
   const text = stripRepeatedSheetNavigation(value);
   if (!text) return "";
 
@@ -244,7 +242,7 @@ export function hasDifferentNumberedSectionOnly(value, sectionKey) {
   return found.length > 0 && !found.includes(requestedNo);
 }
 
-export function getRowStringValues(row) {
+function getRowStringValues(row) {
   if (!row || typeof row !== "object") return [];
   return Object.entries(row)
     .filter(([, value]) => typeof value === "string" && clean(value))
@@ -283,7 +281,7 @@ export function withHwpSectionHeading(html, sectionKey) {
   return `<div class="admission-hwp-section-title">${escapeHtml(heading)}</div>${html}`;
 }
 
-export function isNumericTableValue(line) {
+function isNumericTableValue(line) {
   const v = clean(line);
   if (!v) return false;
   return (
@@ -295,35 +293,35 @@ export function isNumericTableValue(line) {
   );
 }
 
-export function isRequirementMark(line) {
+function isRequirementMark(line) {
   const v = clean(line);
   return /^[◯○●ＸX☆★♥♡❤]+$/.test(v) || /^[1-9]$/.test(v) || /^[-–—]$/.test(v);
 }
 
-export function isMinimumResultToken(line) {
+function isMinimumResultToken(line) {
   const v = clean(line).replace(/\s+/g, "");
   return /^(?:\d+합\d+|\d+개\d+|\d+개등급|\d+등급|한국사\d+|없음|미적용)$/.test(
     v,
   );
 }
 
-export function isDateLike(line) {
+function isDateLike(line) {
   const v = clean(line);
   return /\d{1,2}\.\d{1,2}\.?\s*\([^)]+\)|\d{1,2}\.\d{1,2}\.?|\d{1,2}월|\d{4}\.\d{1,2}\.\d{1,2}/.test(
     v,
   );
 }
 
-export function isSelectionType(line) {
+function isSelectionType(line) {
   return /^(교과|종합|논술|실기|수능|정시|기타)$/.test(clean(line));
 }
 
-export function isFootnoteLine(line) {
+function isFootnoteLine(line) {
   const v = clean(line);
   return /^\([☆★♥♡❤]\)|^[☆★♥♡❤]\s*[:：]|^※|^\*|^주\)|^\([^)]+\)\s*:/.test(v);
 }
 
-export function htmlTable(
+function htmlTable(
   headers,
   rows,
   options: { compact?: boolean; className?: string } = {},
@@ -353,7 +351,7 @@ export function htmlTable(
   `;
 }
 
-export function decodeBasicHtmlEntities(value) {
+function decodeBasicHtmlEntities(value) {
   return String(value || "")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -379,7 +377,7 @@ export function stripHtmlToText(value) {
 // buildGroupNameForColumn/normalizeRecruitmentExactHtml의 colspan 계산이 실제
 // 데이터 컬럼 수와 맞지 않아 전형 그룹 헤더가 옆 전형의 컬럼까지 침범하는 문제가
 // 발생했다(가톨릭관동대/고려대 사례).
-export function parseHtmlTableRows(html) {
+function parseHtmlTableRows(html) {
   const source = String(html || "");
   const rowMatches: string[] = source.match(/<tr[\s\S]*?<\/tr>/gi) || [];
 
@@ -443,18 +441,18 @@ export function parseHtmlTableRows(html) {
   return grid.filter((row) => row.some((cell) => clean(cell)));
 }
 
-export function padRows(rows) {
+function padRows(rows) {
   const width = Math.max(0, ...rows.map((row) => row.length));
   return rows.map((row) =>
     Array.from({ length: width }, (_, idx) => clean(row[idx] || "")),
   );
 }
 
-export function isYearHeaderToken(value) {
+function isYearHeaderToken(value) {
   return /^(27|26|25)$/.test(clean(value));
 }
 
-export function isDescriptorHeader(value) {
+function isDescriptorHeader(value) {
   const v = clean(value).replace(/\s+/g, "");
   return [
     "계열",
@@ -466,14 +464,14 @@ export function isDescriptorHeader(value) {
   ].includes(v);
 }
 
-export function isMetricHeader(value) {
+function isMetricHeader(value) {
   const v = clean(value).replace(/\s+/g, "");
   return /^(인원|모집인원|경쟁률|70%\(?등급\)?|70%|50%\(?등급\)?|50%|평균|최저|입결|등급)$/.test(
     v,
   );
 }
 
-export function normalizeMetricLabel(value) {
+function normalizeMetricLabel(value) {
   const v = clean(value).replace(/\s+/g, "");
   if (!v) return "";
   if (v === "모집인원") return "인원";
@@ -484,7 +482,7 @@ export function normalizeMetricLabel(value) {
   return "";
 }
 
-export function isGroupHeaderCandidate(value) {
+function isGroupHeaderCandidate(value) {
   const v = clean(value);
   if (!v) return false;
   if (isYearHeaderToken(v) || isDescriptorHeader(v) || isMetricHeader(v))
@@ -498,7 +496,7 @@ export function isGroupHeaderCandidate(value) {
   return false;
 }
 
-export function getColumnFilledValue(headerRows, rowIdx, colIdx, predicate) {
+function getColumnFilledValue(headerRows, rowIdx, colIdx, predicate) {
   let current = "";
   for (let c = 0; c <= colIdx; c += 1) {
     const candidate = clean(headerRows[rowIdx]?.[c] || "");
@@ -508,7 +506,7 @@ export function getColumnFilledValue(headerRows, rowIdx, colIdx, predicate) {
   return "";
 }
 
-export function findYearHeaderRow(rows) {
+function findYearHeaderRow(rows) {
   let bestIdx = -1;
   let bestCount = 0;
   rows.slice(0, 10).forEach((row, idx) => {
@@ -521,7 +519,7 @@ export function findYearHeaderRow(rows) {
   return bestCount >= 3 ? bestIdx : -1;
 }
 
-export function findDescriptorColumns(headerRows) {
+function findDescriptorColumns(headerRows) {
   const width = Math.max(0, ...headerRows.map((row) => row.length));
   const found: {
     series?: number;
@@ -581,7 +579,7 @@ export function findDescriptorColumns(headerRows) {
   );
 }
 
-export function inferMetricFromHeaders(
+function inferMetricFromHeaders(
   headerRows,
   yearRowIdx,
   colIdx,
@@ -610,7 +608,7 @@ export function inferMetricFromHeaders(
   return "값";
 }
 
-export function buildGroupNameForColumn(headerRows, yearRowIdx, colIdx) {
+function buildGroupNameForColumn(headerRows, yearRowIdx, colIdx) {
   const parts: string[] = [];
   for (let r = 0; r < yearRowIdx; r += 1) {
     const value = getColumnFilledValue(
@@ -633,7 +631,7 @@ export function buildGroupNameForColumn(headerRows, yearRowIdx, colIdx) {
   return cleaned.join(" - ") || "전형";
 }
 
-export function isNumericNoiseCell(value) {
+function isNumericNoiseCell(value) {
   const v = clean(value).replace(/,/g, "").trim();
   if (!v) return false;
   if (/^[-+]?\d+(?:\.\d+)?(?:\s*\([^)]*\))?$/.test(v)) return true;
@@ -641,7 +639,7 @@ export function isNumericNoiseCell(value) {
   return false;
 }
 
-export function isValidDescriptorCell(key, value) {
+function isValidDescriptorCell(key, value) {
   const v = clean(value);
   if (!v) return false;
   if (isNumericNoiseCell(v)) return false;
@@ -827,7 +825,7 @@ export function normalizeChangeTokenSpacing(text) {
     .trim();
 }
 
-export function splitSubnumberedChangeItem(text) {
+function splitSubnumberedChangeItem(text) {
   const raw = clean(text);
   if (!raw) return [];
   const markers = [...raw.matchAll(/(?:^|\s)(\d+)\)\s*/g)];
@@ -850,7 +848,7 @@ export function splitSubnumberedChangeItem(text) {
     .filter(Boolean);
 }
 
-export function parseChangeRowTitleAndContent(text) {
+function parseChangeRowTitleAndContent(text) {
   const source = normalizeChangeTokenSpacing(text);
   let title = "주요 변경";
   let content = source;
@@ -907,7 +905,7 @@ export function parseChangeRowTitleAndContent(text) {
   return { title, content };
 }
 
-export function buildChangeValueHtml(content) {
+function buildChangeValueHtml(content) {
   const value = normalizeChangeTokenSpacing(content);
   if (!value) return '<span class="muted">-</span>';
   const normalized = value
@@ -918,7 +916,7 @@ export function buildChangeValueHtml(content) {
   return `<div class="admission-change-plain-cell">${escapeHtml(normalized)}</div>`;
 }
 
-export function buildChangeTableHtml(rows) {
+function buildChangeTableHtml(rows) {
   const headers = ["번호", "변경 항목", "변경 내용"];
   return `
     <div class="admission-raw-section-wrap">
@@ -949,7 +947,7 @@ export function buildChangeTableHtml(rows) {
 // 뒤 buildChangeTableHtml에 넘기는 얇은 래퍼로 남는다. "없음" 특수 케이스도
 // 여기서 {no,title,content} 1건으로 통일해 반환한다(원래도 title/no가 이미
 // html이 아닌 값이라 표현에 문제 없다).
-export function parseChangeItems(lines) {
+function parseChangeItems(lines) {
   const cleaned = lines
     .map(clean)
     .filter(Boolean)
@@ -1016,7 +1014,7 @@ export function parseChangeItems(lines) {
   });
 }
 
-export function buildPreviousYearChangesHtml(lines, _sectionKey) {
+function buildPreviousYearChangesHtml(lines, _sectionKey) {
   const items = parseChangeItems(lines);
   const rows = items.map((item) => ({
     no: item.no,
@@ -1027,7 +1025,7 @@ export function buildPreviousYearChangesHtml(lines, _sectionKey) {
   return buildChangeTableHtml(rows);
 }
 
-export function buildPlainListHtml(lines, sectionKey) {
+function buildPlainListHtml(lines, sectionKey) {
   const body: string[] = [];
   let bullets: string[] = [];
 
@@ -1063,20 +1061,20 @@ export function buildPlainListHtml(lines, sectionKey) {
   `;
 }
 
-export function isSelectionSeatToken(line) {
+function isSelectionSeatToken(line) {
   const v = clean(line).replace(/[()]/g, "").replace(/\s/g, "");
   if (!v || /^[-–—]$/.test(v)) return false;
   // 1,341처럼 쉼표가 있는 대형 모집인원도 인원값으로 본다.
   return /^\d{1,4}$/.test(v) || /^\d{1,3}(?:,\d{3})+$/.test(v);
 }
 
-export function normalizeSelectionSeat(value) {
+function normalizeSelectionSeat(value) {
   const v = clean(value);
   if (!v || /^[-–—]$/.test(v)) return "-";
   return v;
 }
 
-export function looksLikeSelectionMinimumToken(line) {
+function looksLikeSelectionMinimumToken(line) {
   const v = clean(line);
   if (!v) return false;
   if (/^[-–—]$/.test(v)) return true;
@@ -1109,7 +1107,7 @@ export function looksLikeSelectionMinimumToken(line) {
   return false;
 }
 
-export function normalizeSelectionMinimum(value) {
+function normalizeSelectionMinimum(value) {
   const v = clean(value);
   if (!v || /^[-–—]$/.test(v)) return "-";
   const marked = v.match(/^([◯○●]+)(?:\(([^)]+)\))?$/);
@@ -1120,7 +1118,7 @@ export function normalizeSelectionMinimum(value) {
   return v.replace(/,/g, "/");
 }
 
-export function isSelectionMethodLike(value) {
+function isSelectionMethodLike(value) {
   const v = clean(value);
   if (!v) return false;
   if (looksLikeSelectionMinimumToken(v)) return false;
@@ -1130,7 +1128,7 @@ export function isSelectionMethodLike(value) {
   );
 }
 
-export function splitLeadingSelectionMinimumAndMethod(value) {
+function splitLeadingSelectionMinimumAndMethod(value) {
   const v = clean(value).replace(/ /g, " ");
   if (!v) return { minimum: "", method: "" };
 
@@ -1152,7 +1150,7 @@ export function splitLeadingSelectionMinimumAndMethod(value) {
   return { minimum: "", method: "" };
 }
 
-export function sanitizeSelectionMethodText(value) {
+function sanitizeSelectionMethodText(value) {
   const parts = clean(value)
     .split(/\s*\/\s*/g)
     .map((part) => clean(part))
@@ -1165,14 +1163,14 @@ export function sanitizeSelectionMethodText(value) {
   return parts.join(" / ");
 }
 
-export function normalizeSelectionName(value) {
+function normalizeSelectionName(value) {
   return clean(value)
     .replace(/가톨릭지도차추천/g, "가톨릭지도자추천")
     .replace(/잠재능력우수자서류/g, "잠재능력우수자서류")
     .replace(/잠재능력우수자면접/g, "잠재능력우수자면접");
 }
 
-export function isSelectionNameCandidate(value) {
+function isSelectionNameCandidate(value) {
   const v = clean(value);
   if (!v) return false;
   if (/^(전형|유형|전형명|인원|최저|전형방법)$/.test(v)) return false;
@@ -1193,7 +1191,7 @@ export function isSelectionNameCandidate(value) {
   return true;
 }
 
-export function isSelectionRowStart(data, idx) {
+function isSelectionRowStart(data, idx) {
   const token = clean(data[idx]);
   if (!isSelectionNameCandidate(token)) return false;
   const next = clean(data[idx + 1]);
@@ -1206,7 +1204,7 @@ export function isSelectionRowStart(data, idx) {
   return false;
 }
 
-export function buildSelectionMethodTable(rows) {
+function buildSelectionMethodTable(rows) {
   return `
     <div class="admission-scroll-table">
       <table class="admission-data-table admission-selection-table">
@@ -1243,7 +1241,7 @@ export function buildSelectionMethodTable(rows) {
 
 // Phase 1 절단면: validRows 확정까지가 순수 파싱, 그 이후(폴백 판정 +
 // 렌더)만 buildSelectionMethodHtml에 남긴다.
-export function parseSelectionMethodRows(lines) {
+function parseSelectionMethodRows(lines) {
   const idx = lines.findIndex((line) => clean(line) === "전형방법");
   const start = idx >= 0 ? idx + 1 : 0;
   const ignored = new Set([
@@ -1394,7 +1392,7 @@ export function parseSelectionMethodRows(lines) {
   return validRows;
 }
 
-export function buildSelectionMethodHtml(lines, sectionKey) {
+function buildSelectionMethodHtml(lines, sectionKey) {
   const validRows = parseSelectionMethodRows(lines);
   if (!validRows.length) return buildPlainListHtml(lines, sectionKey);
 
@@ -1408,7 +1406,7 @@ export function buildSelectionMethodHtml(lines, sectionKey) {
 // Phase 1 절단면: 폴백 판정("없음" 특수 케이스)은 rows로 표현할 수 없는
 // 별도 렌더(빈 박스)라 buildExamScheduleHtml에 남기고, 그 다음 행 추출부만
 // 분리한다.
-export function parseExamScheduleRows(lines) {
+function parseExamScheduleRows(lines) {
   const headerEnd = Math.max(
     lines.findIndex((line) => clean(line) === "날짜"),
     lines.findIndex((line) => clean(line) === "일정"),
@@ -1468,7 +1466,7 @@ export function parseExamScheduleRows(lines) {
   return rows;
 }
 
-export function buildExamScheduleHtml(lines, sectionKey) {
+function buildExamScheduleHtml(lines, sectionKey) {
   if (lines.some((line) => clean(line) === "없음")) {
     return `
       <div class="admission-raw-section-wrap">
@@ -1489,7 +1487,7 @@ export function buildExamScheduleHtml(lines, sectionKey) {
   `;
 }
 
-export function nextLooksLikeRequirementRow(lines, fromIndex) {
+function nextLooksLikeRequirementRow(lines, fromIndex) {
   let hasMark = false;
   for (let k = fromIndex; k < Math.min(lines.length, fromIndex + 10); k += 1) {
     if (isRequirementMark(lines[k])) hasMark = true;
@@ -1498,7 +1496,7 @@ export function nextLooksLikeRequirementRow(lines, fromIndex) {
   return false;
 }
 
-export function isLikelyMinimumNote(line) {
+function isLikelyMinimumNote(line) {
   const v = clean(line);
   return (
     /^\(?소수점/.test(v) ||
@@ -1514,7 +1512,7 @@ export function isLikelyMinimumNote(line) {
   );
 }
 
-export function shouldSkipMinimumNote(line) {
+function shouldSkipMinimumNote(line) {
   const original = clean(line);
   const v = original.replace(/\s+/g, "");
   // 비고 칸은 실제 설명만 남긴다. 원표의 체크 기호/별표/영역 숫자가 밀린 조각은 비고가 아니다.
@@ -1536,7 +1534,7 @@ export function shouldSkipMinimumNote(line) {
   );
 }
 
-export function isLikelyAdmissionTypeLabel(line) {
+function isLikelyAdmissionTypeLabel(line) {
   const v = clean(line);
   if (!v) return false;
   if (/(학과|학부|전공|대학|계열|모집단위)$/.test(v)) return false;
@@ -1545,7 +1543,7 @@ export function isLikelyAdmissionTypeLabel(line) {
   );
 }
 
-export function subjectLabelForMark(mark, idx, marks, subjectHeaders = []) {
+function subjectLabelForMark(mark, idx, marks, subjectHeaders = []) {
   const compactLabels = ["국어", "수학", "영어", "탐구"];
   const fullMap = {
     국: "국어",
@@ -1575,13 +1573,13 @@ export function subjectLabelForMark(mark, idx, marks, subjectHeaders = []) {
   return `${label} ${v}`;
 }
 
-export function formatRequirementMarks(marks, subjectHeaders = []) {
+function formatRequirementMarks(marks, subjectHeaders = []) {
   return marks
     .map((mark, idx) => subjectLabelForMark(mark, idx, marks, subjectHeaders))
     .join(" / ");
 }
 
-export function splitMinimumLabel(labelParts, lastType) {
+function splitMinimumLabel(labelParts, lastType) {
   const parts = labelParts
     .map((part) => sanitizeAdmissionDisplayText(part))
     .filter(Boolean);
@@ -1614,7 +1612,7 @@ export function splitMinimumLabel(labelParts, lastType) {
 // Phase 1 절단면: "없음" 특수 케이스(rows로 표현 불가한 빈 박스 렌더)는
 // buildMinimumRequirementsHtml에 남기고, flush() 완료까지의 행 추출부만
 // 분리한다.
-export function parseMinimumRequirementRows(lines) {
+function parseMinimumRequirementRows(lines) {
   const headerStart = lines.findIndex((line) => clean(line) === "국");
   const headerEnd = lines.findIndex((line) => clean(line) === "비고");
   const subjectHeaders =
@@ -1720,7 +1718,7 @@ export function parseMinimumRequirementRows(lines) {
   return rows;
 }
 
-export function buildMinimumRequirementsHtml(lines, sectionKey) {
+function buildMinimumRequirementsHtml(lines, sectionKey) {
   if (lines.some((line) => clean(line) === "없음")) {
     return `
       <div class="admission-raw-section-wrap">
@@ -1741,7 +1739,7 @@ export function buildMinimumRequirementsHtml(lines, sectionKey) {
   `);
 }
 
-export function isRecordInfoLabel(line) {
+function isRecordInfoLabel(line) {
   const v = clean(line);
   return (
     /^(전형명|유형|대상|반영교과|반영과목 수|필수 반영|선택 반영|학년|반영 비율|반영비율|교과점수|산출방법|교과성적|학생부|과목|공통과목 \/ 일반선택과목.*|진로선택과목.*|출결 성적 반영 방법|봉사 점수 반영 방법)$/.test(
@@ -1750,7 +1748,7 @@ export function isRecordInfoLabel(line) {
   );
 }
 
-export function isGradeHeaderToken(line) {
+function isGradeHeaderToken(line) {
   const v = clean(line);
   return (
     /^[1-9]$/.test(v) ||
@@ -1765,7 +1763,7 @@ export function isGradeHeaderToken(line) {
   );
 }
 
-export function studentRecordDisplayLabel(content) {
+function studentRecordDisplayLabel(content) {
   const v = clean(content);
   if (!v) return "세부 항목";
   if (/^※|^주\)/.test(v)) return "참고";
@@ -1797,7 +1795,7 @@ export function studentRecordDisplayLabel(content) {
   return "세부 항목";
 }
 
-export function sanitizeStudentRecordRows(rows) {
+function sanitizeStudentRecordRows(rows) {
   const out: string[][] = [];
   const seen = new Set();
 
@@ -1819,7 +1817,7 @@ export function sanitizeStudentRecordRows(rows) {
   return out;
 }
 
-export function normalizeStudentRecordInfoRows(rows) {
+function normalizeStudentRecordInfoRows(rows) {
   const normalized: string[][] = [];
   const applyValues: string[] = [];
 
@@ -1873,7 +1871,7 @@ export function normalizeStudentRecordInfoRows(rows) {
   return sanitizeStudentRecordRows(normalized);
 }
 
-export function buildRecordInfoRows(lines) {
+function buildRecordInfoRows(lines) {
   const rows: string[][] = [];
   let i = 0;
   while (i < lines.length) {
@@ -1913,7 +1911,7 @@ export function buildRecordInfoRows(lines) {
 // buildGradeScoreTables는 그 결과를 renderGradeScoreTable로 렌더하는 얇은
 // 래퍼로 남는다. 템플릿 리터럴의 공백·개행은 골든 바이트 비교 대상이라
 // 원본 그대로 유지한다.
-export function buildGradeScoreBlocks(lines) {
+function buildGradeScoreBlocks(lines) {
   const blocks: { metric: string; headers: string[]; rows: string[][] }[] = [];
   let i = 0;
 
@@ -2003,11 +2001,11 @@ function renderGradeScoreTable({ metric, headers, rows }) {
       `;
 }
 
-export function buildGradeScoreTables(lines) {
+function buildGradeScoreTables(lines) {
   return buildGradeScoreBlocks(lines).map(renderGradeScoreTable);
 }
 
-export function buildStudentRecordHtml(lines, sectionKey) {
+function buildStudentRecordHtml(lines, sectionKey) {
   const firstGradeIdx = lines.findIndex((line) =>
     /^(석차등급|성취도|평균석차등급|원점수|미인정 결석일수|봉사시간)$/.test(
       clean(line),
@@ -2034,13 +2032,13 @@ export function buildStudentRecordHtml(lines, sectionKey) {
   `;
 }
 
-export function isMajorAdmissionCategory(line) {
+function isMajorAdmissionCategory(line) {
   return /^(학생부교과|학생부종합|논술|실기|수능|정시|교과|종합)$/.test(
     clean(line),
   );
 }
 
-export function scoreRecruitLabel(label, category) {
+function scoreRecruitLabel(label, category) {
   const l = clean(label);
   const c = clean(category);
   if (!l || !c) return 0;
@@ -2061,7 +2059,7 @@ export function scoreRecruitLabel(label, category) {
   return 0;
 }
 
-export function deriveRecruitGroupLabels(headerLines, groupCount) {
+function deriveRecruitGroupLabels(headerLines, groupCount) {
   const ignore = new Set([
     "계열",
     "대학",
@@ -2138,18 +2136,18 @@ export function deriveRecruitGroupLabels(headerLines, groupCount) {
   return result.slice(0, groupCount);
 }
 
-export function toNumberForRecruit(value) {
+function toNumberForRecruit(value) {
   const v = clean(value).replace(/[(),]/g, "");
   if (!/^-?\d+(?:\.\d+)?$/.test(v)) return null;
   return Number(v);
 }
 
-export function isIntegerLike(value) {
+function isIntegerLike(value) {
   const n = toNumberForRecruit(value);
   return n !== null && Math.abs(n - Math.round(n)) < 0.00001;
 }
 
-export function splitRecruitValues(values, groupCount) {
+function splitRecruitValues(values, groupCount) {
   if (!groupCount) return [values];
   const n = values.length;
   const memo = new Map<string, { score: number; chunks: string[][] }>();
@@ -2205,7 +2203,7 @@ export function splitRecruitValues(values, groupCount) {
   return result.chunks;
 }
 
-export function inferSingleRecruitLabel(value) {
+function inferSingleRecruitLabel(value) {
   const n = toNumberForRecruit(value);
   if (n === null) return "수치";
   // 입결 등급은 보통 1.00~9.00 범위다. 1 미만은 등급으로 보기 어려우므로 경쟁률로 표시한다.
@@ -2216,7 +2214,7 @@ export function inferSingleRecruitLabel(value) {
   return "입결";
 }
 
-export function recruitChunkLabelMap(chunk) {
+function recruitChunkLabelMap(chunk) {
   if (chunk.length >= 5)
     return ["27 인원", "26 인원", "26 경쟁률", "25 경쟁률", "26 입결"];
   if (chunk.length === 4) {
@@ -2238,7 +2236,7 @@ export function recruitChunkLabelMap(chunk) {
   return [];
 }
 
-export function buildRecruitCell(values) {
+function buildRecruitCell(values) {
   if (!values?.length) return '<span class="muted">-</span>';
   const labels = recruitChunkLabelMap(values);
   return `<div class="admission-recruit-cell-values">
@@ -2248,7 +2246,7 @@ export function buildRecruitCell(values) {
 
 // Phase 1 절단면: 렌더 직전(rows/groupLabels/footnotes 확정)까지가 순수
 // 파싱이다. buildRecruitmentHtml은 이 결과로 폴백 판정 + 렌더만 한다.
-export function parseRecruitmentRows(lines) {
+function parseRecruitmentRows(lines) {
   const pattern = ["27", "26", "26", "25", "26"];
   let dataStart = -1;
   let yearStart = -1;
@@ -2347,7 +2345,7 @@ export function parseRecruitmentRows(lines) {
   return { rows, groupLabels, footnotes };
 }
 
-export function buildRecruitmentHtml(lines, sectionKey) {
+function buildRecruitmentHtml(lines, sectionKey) {
   const { rows, groupLabels, footnotes } = parseRecruitmentRows(lines);
   if (!rows.length) return buildPlainListHtml(lines, sectionKey);
 
@@ -2379,11 +2377,11 @@ export function buildRecruitmentHtml(lines, sectionKey) {
   `);
 }
 
-export function specialBlock(title, bodyHtml) {
+function specialBlock(title, bodyHtml) {
   return `<section class="admission-special-block"><div class="admission-special-title">${escapeHtml(title)}</div>${bodyHtml}</section>`;
 }
 
-export function buildScienceSpecialHtml(universityName) {
+function buildScienceSpecialHtml(universityName) {
   const data =
     SCIENCE_SPECIAL_DATA[universityName] ||
     SCIENCE_SPECIAL_DATA[removeCampus(universityName)] ||
@@ -2400,7 +2398,7 @@ export function buildScienceSpecialHtml(universityName) {
   `;
 }
 
-export function buildPoliceSpecialHtml() {
+function buildPoliceSpecialHtml() {
   return `
     <div class="admission-raw-section-wrap admission-special-wrap">
       <div class="admission-result-note">경찰대학 입학자료를 일정, 선발 구조, 평가 요소, 최근 경쟁률로 나누어 정리한 내용입니다.</div>
@@ -2414,7 +2412,7 @@ export function buildPoliceSpecialHtml() {
   `;
 }
 
-export function buildAcademySpecialHtml() {
+function buildAcademySpecialHtml() {
   return `
     <div class="admission-raw-section-wrap admission-special-wrap">
       <div class="admission-result-note">사관학교와 국군간호사관학교 입학자료를 일정, 모집인원, 1차 시험, 가산점으로 나누어 정리한 내용입니다.</div>
@@ -2426,7 +2424,7 @@ export function buildAcademySpecialHtml() {
   `;
 }
 
-export function buildSpecialCategoryHtml(rawValue, row, universityName) {
+function buildSpecialCategoryHtml(rawValue, row, universityName) {
   const name = clean(
     universityName || row?.university_name || row?.university_key,
   );
@@ -2475,7 +2473,7 @@ export function buildSmartRawHtml(
   return buildPlainListHtml(lines, sectionKey);
 }
 
-export function buildSafeTextSectionHtml(value, sectionKey) {
+function buildSafeTextSectionHtml(value, sectionKey) {
   const text = splitAdmissionLines(value)
     .map((line) => sanitizeAdmissionDisplayText(line))
     .filter(Boolean)
@@ -3119,7 +3117,7 @@ export function buildSpecialCategoryDoc(rawValue, row, universityName) {
 }
 
 // buildSmartRawHtml 미러.
-export function buildSmartRawDoc(
+function buildSmartRawDoc(
   value,
   sectionKey,
   row: any = null,
@@ -3902,7 +3900,7 @@ function extractBodyRows(tbodyHtml) {
  * @param {string} html
  * @returns {{headerRows: object[][], bodyRows: object[][], hasBodyMerge: boolean, groups?: {name:string,count:number}[], fixedColumnCount?: number}}
  */
-export function parseHtmlTableGrid(html) {
+function parseHtmlTableGrid(html) {
   const source = String(html || "");
   const theadMatch = source.match(/<thead[^>]*>([\s\S]*?)<\/thead>/i);
   const tbodyMatch = source.match(/<tbody[^>]*>([\s\S]*?)<\/tbody>/i);
@@ -4389,7 +4387,7 @@ export function normalizeName(value) {
     .toLowerCase();
 }
 
-export function removeCampus(value) {
+function removeCampus(value) {
   return clean(value).replace(/\([^)]*\)/g, "");
 }
 
@@ -4408,7 +4406,7 @@ export function getSectionText(row, key) {
   return clean(row?.[key]);
 }
 
-export function getFullResourceName(row) {
+function getFullResourceName(row) {
   const name = clean(row?.university_name || row?.name);
   const campus = clean(row?.campus);
 

@@ -225,7 +225,7 @@ const VOID_ERROR_TEXT: Record<string, string> = {
 // console.error(원본 error)로 남긴다(loadGrants/searchUsers 등 이 파일의
 // 기존 조회 실패 처리와 같은 방식). 이 화면 밖에서도 같은 문제가 생기면
 // 이 상수를 그대로 재사용할 수 있도록 export 한다.
-export const ADMIN_UNKNOWN_ERROR_TEXT = "알 수 없는 오류가 발생했습니다.";
+const ADMIN_UNKNOWN_ERROR_TEXT = "알 수 없는 오류가 발생했습니다.";
 
 // 조회(select) 실패 4곳(loadList/loadHistory/loadGrants/searchUsers) 전용
 // 문구(2026-08-12, 사용자 지시로 채움). ADMIN_UNKNOWN_ERROR_TEXT 를 그대로

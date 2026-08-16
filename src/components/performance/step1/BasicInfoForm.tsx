@@ -114,7 +114,7 @@ const INFO_ITEMS = [
   },
 ];
 
-export type BasicInfoFormSubmitValues = {
+type BasicInfoFormSubmitValues = {
   gradeLabel: string;
   semester: string;
   subjectGroup: string;

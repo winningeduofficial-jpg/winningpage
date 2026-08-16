@@ -24,15 +24,7 @@ export const WEEKDAY_LABELS = [
   "일요일",
 ];
 // WeekdayPlanBoard.jsx의 내부 DAY_KEY 값과 같은 순서·표기(mon~sun).
-export const WEEKDAY_SHORT_KEYS = [
-  "mon",
-  "tue",
-  "wed",
-  "thu",
-  "fri",
-  "sat",
-  "sun",
-];
+const WEEKDAY_SHORT_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 /**
  * 표시할 주(월~일)의 실제 날짜 7개(YYYY-MM-DD)를 돌려준다.

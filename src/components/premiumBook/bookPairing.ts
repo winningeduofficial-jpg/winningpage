@@ -12,7 +12,7 @@
 //
 // false로 확정한 근거는 사용자 결정(2026-08-07) — "양(좌우) 페이지로 시작." 16장(짝수)이라
 // 이 값에서는 구조적 부재(void) 면이 아예 생기지 않는다.
-export const COVER_ALONE = false;
+const COVER_ALONE = false;
 
 // 면의 3종. 빈 면 2종을 구분하는 것이 명세 §D7의 요구다.
 //   page — 실제 페이지
@@ -23,7 +23,7 @@ export const FACE_PAGE = "page";
 export const FACE_GAP = "gap";
 export const FACE_VOID = "void";
 
-export type FaceKind = typeof FACE_PAGE | typeof FACE_GAP | typeof FACE_VOID;
+type FaceKind = typeof FACE_PAGE | typeof FACE_GAP | typeof FACE_VOID;
 
 export type PremiumBookPage = {
   id?: unknown;
@@ -38,7 +38,7 @@ export type Face = {
   page: PremiumBookPage | null;
 };
 
-export type BookView = {
+type BookView = {
   index: number;
   left: Face;
   right: Face;

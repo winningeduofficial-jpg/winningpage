@@ -22,7 +22,7 @@ export function formatScheduleDday(dueDate: string, now = new Date()) {
 }
 
 /** 'YYYY-MM-DD' → '8월 2일'(시안 카피 포맷). */
-export function formatScheduleDateLabel(dueDate: string) {
+function formatScheduleDateLabel(dueDate: string) {
   const [, month, day] = String(dueDate).split("-").map(Number);
   return `${month}월 ${day}일`;
 }

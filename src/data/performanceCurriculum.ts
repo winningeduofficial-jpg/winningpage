@@ -59,7 +59,7 @@ export const SUBJECT_GROUPS = [
 ];
 
 // 교과군별 과목 목록(각 배열 끝의 '직접 입력'도 원문 그대로 유지) — index.html:945-960.
-export const SUBJECT_OPTIONS_BY_GROUP = {
+const SUBJECT_OPTIONS_BY_GROUP = {
   국어: [
     "공통국어 1",
     "공통국어 2",

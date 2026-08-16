@@ -106,7 +106,7 @@ const ADMISSION_RESULT_COLUMNS = [
 const TRENDING_COLUMNS =
   "university_name,department_name,university_key,department_key,logo_url";
 
-export const TRENDING_LIMIT = 12;
+const TRENDING_LIMIT = 12;
 
 // ---------------------------------------------------------------------------
 // 공통 결과 정규화
@@ -241,7 +241,7 @@ export async function fetchSusiResultRows(
 // 이 경고에 잡히면 신호가 노이즈가 되므로, screening_category 컬럼값을 그대로 신뢰한
 // 행은 제외하고 fallback을 실제로 탄 행만 모은다(src/lib/admissionResults.js
 // collectFallbackAdmissionTracks 참고).
-export function warnUnclassifiedAdmissionTypes(
+function warnUnclassifiedAdmissionTypes(
   rows: AdmissionResultRow[] | null | undefined,
 ) {
   if (!import.meta.env?.DEV) return;
