@@ -23,7 +23,7 @@ import {
   COPY_FALLBACK,
   TYPE_COPY,
   URGENCY_COPY,
-} from "../data/diagnosisCopy.js";
+} from "@/data/diagnosisCopy.js";
 import {
   AREA_CODES,
   AREA_LABEL,
@@ -37,8 +37,8 @@ import {
   TARGET_SCORE,
   URGENCY_AREA_THRESHOLD,
   URGENCY_LEVEL_LABEL,
-} from "../data/diagnosisScoringTable.js";
-import { renewalSurveyQuestions } from "../data/renewalSurveyQuestions.js";
+} from "@/data/diagnosisScoringTable.js";
+import { renewalSurveyQuestions } from "@/data/renewalSurveyQuestions.js";
 import {
   areaCopy,
   commonCopy,
@@ -291,7 +291,13 @@ function optionLabelOf(questionId, code) {
   const question = QUESTION_BY_ID.get(questionId);
   const index = question?.optionCodes?.indexOf(code) ?? -1;
   if (index === -1) return null;
-  const option = question.options?.[index];
+  // index !== -1이면 위 optionCodes?.indexOf가 성공했으므로 question은 항상 존재.
+  // renewalSurveyQuestions 원본 데이터의 options 원소는 문자열 배열의 유니온으로 좁게
+  // 추론돼(never로 collapse) object 형태 옵션 분기가 타입상 막히므로 명시 캐스팅으로 되돌린다.
+  const option = question!.options?.[index] as
+    | string
+    | { label?: string; value?: string }
+    | undefined;
   return typeof option === "string"
     ? option
     : (option?.label ?? option?.value ?? null);
@@ -584,7 +590,8 @@ function buildAdmission(input: DiagnosisInputLike, ctx: BuildReportCtx) {
   // 접두가 비면(문구집이 '{prob}% 합격 가능성' 류로 바뀌면) 라벨이 화면에서 조용히 사라진다.
   const headlineTpl = templateCopy("admission_headline") ?? "";
   const probabilityLabel =
-    headlineTpl.split("{prob}")[0].trim() || REPORT_FALLBACK.PROBABILITY_LABEL;
+    // split은 구분자 유무와 무관하게 항상 1개 이상의 원소를 반환하므로 [0]은 항상 존재.
+    headlineTpl.split("{prob}")[0]!.trim() || REPORT_FALLBACK.PROBABILITY_LABEL;
 
   const query = input.admissionQuery;
   const year = ctx.admissionMeta?.year ?? null;
@@ -651,7 +658,8 @@ function buildAdmission(input: DiagnosisInputLike, ctx: BuildReportCtx) {
     probabilityValue:
       probDisplayMode === "HEADLINE_SLOT" && probabilityRange != null
         ? probabilityRange
-        : (ADMISSION_BAND_LABEL[band] ?? REPORT_FALLBACK.BAND_VALUE_NODATA),
+        : ((band ? ADMISSION_BAND_LABEL[band] : undefined) ??
+          REPORT_FALLBACK.BAND_VALUE_NODATA),
     // 조회 실패에 BAND_NODATA('…자료가 없어 산출하지 않았습니다')를 쓰는 것은 학생에게 거짓을
     // 말하는 것이다 — 그 문장은 영구 부재를 **단정**한다. 실패 전용 문구로 가른다(인쇄에도 나간다).
     summary: fetchFailed
@@ -1047,5 +1055,3 @@ export function buildReport(input: any, ctx: BuildReportCtx = {}) {
 // 저장 키(DIAGNOSIS_INPUT_STORAGE_KEY)·직렬화·스키마 검증은 src/lib/diagnosisInputStorage.js 가
 // 단독으로 소유한다. 여기 두면 설문 셸이 이 모듈을 import 하게 되어 제출 한 번을 위해 문구집과
 // 리포트 조립 코드가 통째로 설문 번들에 끌려오고, 리터럴이 두 벌로 갈라질 자리도 생긴다.
-
-export default buildReport;

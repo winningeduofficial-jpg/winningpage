@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 // 회차 소진 안내 (표면 A) — 셸 상단 배너. docs/수행평가-상세-명세.md §5.20 (A) / §11.1 Q47.
 //

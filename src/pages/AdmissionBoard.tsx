@@ -1,8 +1,8 @@
 import { Download, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
-import { withDedupedKeys } from "../lib/reactKeys";
-import { supabase } from "../lib/supabase";
+import { Link, useLocation, useParams } from "react-router";
+import { withDedupedKeys } from "@/lib/reactKeys";
+import { supabase } from "@/lib/supabase";
 
 interface CategoryMeta {
   title: string;
@@ -58,6 +58,8 @@ function normalizeArray(value: unknown): unknown[] {
   return [];
 }
 
+const PREVIEW_MAX_LENGTH = 120;
+
 function formatDate(value: unknown): string {
   if (!value) return "";
   const date = new Date(value as string | number | Date);
@@ -70,7 +72,9 @@ function getContentPreview(value: unknown): string {
     .replace(/\s+/g, " ")
     .trim();
   if (!text) return "";
-  return text.length > 120 ? `${text.slice(0, 120)}...` : text;
+  return text.length > PREVIEW_MAX_LENGTH
+    ? `${text.slice(0, PREVIEW_MAX_LENGTH)}...`
+    : text;
 }
 
 function getAttachmentName(file: AttachmentFile | null | undefined): string {

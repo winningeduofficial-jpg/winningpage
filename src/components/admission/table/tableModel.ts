@@ -19,14 +19,13 @@
 // 하지 않는다. 이 파일은 React를 import하지 않으며 훅/state를 갖지 않는다.
 //
 // ⚠ 이 모듈의 출력은 Gate B(verify-admission-doc-equivalence.mjs, 실데이터
-// 2506건)와 verify-admission-block-render.mjs(합성 25건)의 바이트 계약을 그대로
+// 2506건)와 AdmissionSectionView.test.tsx(합성 25건)의 바이트 계약을 그대로
 // 짊어진다. 특히 span은 현행 계산과 1비트도 달라선 안 된다 —
 // verify-admission-doc-equivalence.mjs:511-522/534-536의 속성 비교가
 // "className='' vs 속성 부재"는 흡수하지만 `rowSpan={1}`을 찍으면 미러(속성
 // 없음)와 즉시 불일치한다. rowSpan/colSpan은 값이 1이어도 "생략"으로 바꾸는
 // 최적화를 하지 말고, 반대로 현행이 안 찍는 자리에 1을 채워 넣지도 말 것.
 
-import type { TableBlock } from "../../../lib/admissionDoc";
 import {
   type CellKind,
   CHANGE_CELL_CLASS_BY_ROLE,
@@ -39,8 +38,9 @@ import {
   recruitFixedEmptyFallback,
   SELECTION_CELL_CLASS_BY_ROLE,
   selectionEmptyFallback,
-} from "../admissionLayout";
-import { resolveCellKind } from "../editor/tableEditorValidation";
+} from "@/components/admission/admissionLayout";
+import { resolveCellKind } from "@/components/admission/editor/tableEditorValidation";
+import type { TableBlock } from "@/lib/admissionDoc";
 
 // admissionDoc.js의 Cell은 필드가 필수(text:string 등)지만, 이 모델은 실데이터의
 // 느슨한 형태(text?/badge?/chips? 전부 선택)까지 받아들인다 — describeCell이
@@ -364,7 +364,9 @@ export function describeCell(
   const columns = Array.isArray(block?.columns) ? block.columns : [];
   const rows = Array.isArray(block?.rows) ? block.rows : [];
   const row = Array.isArray(rows[rowIdx]) ? rows[rowIdx] : [];
-  const raw = row[colIdx];
+  // row가 colIdx보다 짧아도(ragged) 아래 헬퍼들은 falsy cell을 이미
+  // 빈 텍스트/no-chips로 취급해 왔다(cellTextOf/cellChipsOf 참고) — ""도 falsy라 동일하게 처리된다.
+  const raw = row[colIdx] ?? "";
   const role = columns[colIdx]?.role;
   const text = cellTextOf(raw);
   // 셀 종류 판정 단일 정본. 표시(className/leaf)와 편집(kind) 양쪽이 이 한

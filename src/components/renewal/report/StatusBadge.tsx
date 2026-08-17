@@ -18,7 +18,8 @@ export default function StatusBadge({
   children,
   className = "",
 }: StatusBadgeProps) {
-  const { bg, text } = TONES[tone] ?? TONES.blue;
+  // blue는 TONES에 항상 존재하는 리터럴 키(폴백 보장) — noUncheckedIndexedAccess 대응.
+  const { bg, text } = TONES[tone] ?? TONES.blue!;
 
   return (
     <span

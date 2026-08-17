@@ -8,7 +8,7 @@ import {
   getDisplayNumber,
   getViewCount,
   paginate,
-} from "../../pages/board/boardData";
+} from "@/pages/board/boardData";
 import BoardPagination from "./BoardPagination";
 import BoardSearchBar from "./BoardSearchBar";
 import BoardTable from "./BoardTable";
@@ -215,7 +215,9 @@ export default function BoardListPage({
           <div ref={listRef} className="mt-[1.9375rem] scroll-mt-24">
             <BoardTable
               rows={pageRows}
-              getDetailHref={getDetailHref}
+              // exactOptionalPropertyTypes: BoardTableProps.getDetailHref는 명시적 undefined를
+              // 허용하지 않으므로, 값이 있을 때만 프롭 자체를 스프레드한다(동작은 동일).
+              {...(getDetailHref ? { getDetailHref } : {})}
               getDisplayNumber={(row, indexInPage) =>
                 getDisplayNumber(
                   row,

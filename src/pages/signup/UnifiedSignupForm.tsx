@@ -25,8 +25,15 @@
 //    표시상 접어버리지만 원문 재현 원칙에 따라 문자열 그대로 남긴다.
 
 import { Check } from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import {
+  type ReactNode,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useNavigate } from "react-router";
 import {
   AgreementList,
   AuthLayout,
@@ -35,17 +42,17 @@ import {
   PrimaryButton,
   SelectField,
   TextField,
-} from "../../components/auth";
-import { useSignup } from "../../context/SignupContext";
-import { useCooldown } from "../../hooks/useCooldown";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
+import { useCooldown } from "@/hooks/useCooldown";
 import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
   MESSAGES,
   sendSignupEmailCode,
   verifySignupEmailCode,
-} from "../../lib/signupEmailAuth";
-import { supabase } from "../../lib/supabase";
+} from "@/lib/signupEmailAuth";
+import { supabase } from "@/lib/supabase";
 // StudentForm(C-1)/Under14Form(D-2)과 동일한 17개 시도 + '기타' 지역 목록을 공유한다.
 import { REGION_OPTIONS } from "./StudentForm";
 
@@ -285,10 +292,9 @@ export default function UnifiedSignupForm() {
 
   // 6자리가 채워지면 곧바로 검증한다 — 별도 "확인" 버튼을 두지 않는다.
   // (휴대폰 알림톡 인증과 같은 방식. StudentForm/ParentForm/Under14Form과 동일 패턴)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
-  useEffect(() => {
-    const token = formData.emailCode;
-
+  // OTP 자동검증 — updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프로
+  // 이어지지 않도록 useEffectEvent로 감싼다. emailCode 6자리 완성 시에만 실행되어야 한다.
+  const onEmailCodeChange = useEffectEvent((token: string) => {
     if (
       token.length !== 6 ||
       !verification.email.requested ||
@@ -305,7 +311,12 @@ export default function UnifiedSignupForm() {
     verifySignupEmailCode({
       email: normalizedEmail,
       token,
-      mode: verification.email.mode,
+      // verifySignupEmailCode는 담당 파일이 아니라 수정할 수 없다 —
+      // exactOptionalPropertyTypes 때문에 값이 null이면 키 자체를 생략해 전달한다
+      // (내부에서 `mode || OTP_MODE.SIGNUP`로 처리하므로 동작은 동일하다).
+      ...(verification.email.mode !== null && {
+        mode: verification.email.mode,
+      }),
     }).then(async ({ error }) => {
       if (error) {
         updateVerification("email", { verified: false });
@@ -339,6 +350,10 @@ export default function UnifiedSignupForm() {
         status: "success",
       });
     });
+  });
+
+  useEffect(() => {
+    onEmailCodeChange(formData.emailCode);
   }, [formData.emailCode]);
 
   // TODO(§4.3 GAP): "다음" 버튼이 가리키는 후속 스텝이 시안에 없다("다음" 버튼 → 후속 스텝
@@ -434,9 +449,9 @@ export default function UnifiedSignupForm() {
           actionDisabled={emailCooldown.active || verification.email.verified}
           // 발송 이후의 안내·에러는 인증코드 필드에서 보여준다(문구 중복 방지).
           // status도 같이 내린다 — 문구 없이 error만 남으면 이 입력만 흔들린다.
-          helperText={
-            verification.email.requested ? undefined : emailMessage.text
-          }
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={verification.email.requested ? "" : emailMessage.text}
           status={
             verification.email.requested ? "default" : emailMessage.status
           }

@@ -5,7 +5,7 @@ import {
   checkFieldsMinLength,
   countFieldChars,
   SUBMISSION_MIN_CHARS,
-} from "../../../lib/performance/submission";
+} from "@/lib/performance/submission";
 import CharCounter from "./CharCounter";
 
 // STEP5 수행평가 제출폼 — docs/수행평가-상세-명세.md §5.14(`3754:3992` 빈 상태 /
@@ -116,7 +116,7 @@ const TOPIC_LABEL = "주제";
 const SAVE_LABEL = "중간 저장";
 const SUBMIT_LABEL = "제출하고 평가 리포트 받기";
 
-export type SubmissionField = {
+type SubmissionField = {
   key: string;
   label: string;
   helper?: string;

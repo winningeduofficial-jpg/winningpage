@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { goalModalOptions } from "../../../data/goalMock";
-import AppModal from "../AppModal";
-import ModalField from "../ModalField";
-import SegmentedChipGroup from "../SegmentedChipGroup";
-import { resolveSubjectId } from "../subjectTokens";
+import AppModal from "@/components/goal/AppModal";
+import ModalField from "@/components/goal/ModalField";
+import SegmentedChipGroup from "@/components/goal/SegmentedChipGroup";
+import { resolveSubjectId } from "@/components/goal/subjectTokens";
+import { goalModalOptions } from "@/data/goalMock";
 
 // 문제집 추가/수정 모달 — docs/figma-goal/part-11.md #31 (530×468 = 33.125rem × 29.25rem).
 // 트리거: 「나의 노력」 과목 카드 `+ 문제집 추가`(과목 프리셀렉트, 신규) / 헤더 `+ 과목 추가하기`
@@ -30,8 +30,10 @@ type EditingWorkbook = {
   id: number | string;
   subject: string;
   title: string;
-  totalPages: number;
-  currentPage: number;
+  // goalApi.ts의 GoalWorkbook과 동일하게 null 가능 — 아래 프리필 로직이 이미 `?? 0`으로
+  // 방어하고 있어 실제로는 null-safe였다(타입만 실데이터에 맞춘다).
+  totalPages: number | null;
+  currentPage: number | null;
 };
 
 type AddWorkbookModalSubmitPayload = {
@@ -107,7 +109,10 @@ export default function AddWorkbookModal({
     setSubmitting(true);
     try {
       const ok = await onSubmit({
-        id: editingWorkbook?.id,
+        // exactOptionalPropertyTypes: id는 optional 필드라 명시적 undefined 값을 허용하지
+        // 않는다 — editingWorkbook이 있을 때만 키를 넘긴다(없을 때 키 생략은 undefined 값과
+        // 동일하게 처리된다).
+        ...(editingWorkbook ? { id: editingWorkbook.id } : {}),
         subject: resolveSubjectId(subject),
         title: title.trim(),
         currentPage: Number(currentPage) || 0,

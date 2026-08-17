@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useId, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useModalBehavior } from "../../../hooks/useModalBehavior";
+import { useModalBehavior } from "@/hooks/useModalBehavior";
 
 // 대형 리포트 모달의 **껍데기** — docs/수행평가-상세-명세.md §5.13(`3754:4722` 설계 리포트) /
 // §5.16(`3754:4512` 평가 리포트) 공통.

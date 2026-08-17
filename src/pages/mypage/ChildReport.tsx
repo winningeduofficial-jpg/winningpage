@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { Link, useParams } from "react-router";
+import { supabase } from "@/lib/supabase";
 
 // 학부모 뷰어 셸 — 자녀의 성장 리포트를 학부모가 열람한다.
 // 진입: 마이페이지 > 자녀 등록 및 수정 > 자녀 카드.

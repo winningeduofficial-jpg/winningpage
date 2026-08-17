@@ -1,4 +1,4 @@
-import { useInfiniteMarquee } from "../../hooks/useInfiniteMarquee";
+import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
 import MentorCard from "./MentorCard";
 
 /**
@@ -68,7 +68,9 @@ export default function MentorSection({
             기준 좌우 페이드(데스크톱 9rem)를 동일하게 적용한다. */}
         <div className="mx-auto w-full max-w-[120rem]" {...containerHandlers}>
           <div
-            ref={scrollRef}
+            // useInfiniteMarquee의 scrollRef는 여러 엘리먼트 종류에 공용으로 쓰이도록
+            // HTMLElement로 넓게 잡혀 있다 — 이 자리는 div이므로 타입만 좁혀 붙인다.
+            ref={scrollRef as React.RefObject<HTMLDivElement>}
             className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
             <ul

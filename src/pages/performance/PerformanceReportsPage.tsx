@@ -1,27 +1,27 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import SelectField from "../../components/auth/SelectField";
-import PerformanceReportSurface from "../../components/performance/report/PerformanceReportSurface";
+import { Link, useParams } from "react-router";
+import SelectField from "@/components/auth/SelectField";
+import PerformanceReportSurface from "@/components/performance/report/PerformanceReportSurface";
 import ReportModalShell, {
   REPORT_MODAL_FOOTER_BUTTON,
-} from "../../components/performance/report/ReportModalShell";
+} from "@/components/performance/report/ReportModalShell";
 import SectionedReportView, {
   getVisibleSections,
   type ReportSection,
-} from "../../components/performance/report/SectionedReportView";
-import ArtifactChip from "../../components/performance/reports/ArtifactChip";
+} from "@/components/performance/report/SectionedReportView";
+import ArtifactChip from "@/components/performance/reports/ArtifactChip";
 import SavedReportCard, {
   formatSavedAt,
-} from "../../components/performance/reports/SavedReportCard";
-import DesignReportModal from "../../components/performance/step4/DesignReportModal";
+} from "@/components/performance/reports/SavedReportCard";
+import DesignReportModal from "@/components/performance/step4/DesignReportModal";
 import EvaluationReportModal, {
   type EvaluationReport,
-} from "../../components/performance/step5/EvaluationReportModal";
-import { useSession } from "../../context/SessionContext";
+} from "@/components/performance/step5/EvaluationReportModal";
+import { useSession } from "@/context/SessionContext";
 import {
   fetchSavedReportDetail,
   fetchSavedReportsList,
-} from "../../lib/performance/reports";
+} from "@/lib/performance/reports";
 
 // 저장 리포트(P12) 목록/상세 화면 — docs/수행평가-상세-명세.md §5.18(`3754:3121` 목록)/
 // §5.19(`3754:3077` 빈 상태)/§10.2 P12/§11.1 Q65(라우트 채택).
@@ -109,7 +109,7 @@ type ArtifactType = "design" | "evaluation" | "final";
 type ViewerState = {
   type: ArtifactType;
   sessionId: string;
-  topicTitle?: string;
+  topicTitle?: string | undefined;
   report: SectionsReport | EvaluationReport | null;
   loading: boolean;
   error: string | null;
@@ -150,7 +150,7 @@ type FinalReportModalProps = {
   /** §5.16/§5.13과 대칭인 최종 제출본 뷰어. 상세 API의 `final` 필드
    * (`{sections, submissionId, ...}`) 그대로다 — 재사용 판단은 파일 상단 주석 참고. */
   report?: SectionsReport | null;
-  topicTitle?: string;
+  topicTitle?: string | undefined;
   onClose: () => void;
 };
 
@@ -172,7 +172,7 @@ function FinalReportModal({
     <ReportModalShell
       open={isOpen}
       title="최종 제출본"
-      subtitle={topicTitle}
+      {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="최종 제출본 본문"
       onClose={onClose}
       footer={
@@ -401,8 +401,8 @@ export default function PerformanceReportsPage() {
   }: {
     sessionId: string;
     type: ArtifactType;
-    reportId?: string | null;
-    topicTitle?: string;
+    reportId?: string | null | undefined;
+    topicTitle?: string | undefined;
   }) {
     if (!accessToken || !sessionId || !reportId) return;
 
@@ -582,6 +582,7 @@ export default function PerformanceReportsPage() {
   // §5.19 단정 — "빈 상태에서는 목록 헤더가 노출되지 않는다". 이 조건은 **로드된 리포트가
   // 아예 하나도 없는** 최초 빈 상태에 한정한다(필터로 0건이 된 경우는 별개 — 아래 참고).
   const isTrulyEmpty = !listLoading && !listError && items.length === 0;
+  const showListContent = !listLoading && !listError && !isTrulyEmpty;
 
   return (
     <div className="mt-10">
@@ -641,7 +642,7 @@ export default function PerformanceReportsPage() {
         </div>
       )}
 
-      {!listLoading && !listError && !isTrulyEmpty && (
+      {showListContent && (
         <>
           {filteredItems.length === 0 ? (
             <p className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
@@ -652,9 +653,13 @@ export default function PerformanceReportsPage() {
               {filteredItems.map((item) => (
                 <SavedReportCard
                   key={item.sessionId}
-                  title={item.topicTitle}
+                  {...(item.topicTitle !== undefined
+                    ? { title: item.topicTitle }
+                    : {})}
                   meta={buildMeta(item)}
-                  savedAt={item.updatedAt}
+                  {...(item.updatedAt !== undefined
+                    ? { savedAt: item.updatedAt }
+                    : {})}
                   sessionId={item.sessionId}
                   artifacts={toArtifacts(item)}
                   onArtifactClick={(type, reportId) =>

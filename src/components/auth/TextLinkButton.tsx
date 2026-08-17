@@ -5,7 +5,7 @@
 // as='link'면 react-router Link로 렌더(내부 이동), as='button'이면 버튼(클릭 핸들러만 필요한
 // 액션, 예: 코드 복사)으로 렌더한다.
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 const TONE_CLASSES: Record<string, string> = {
   primary: "text-primary",
@@ -65,8 +65,9 @@ export default function TextLinkButton({
   } ${className}`;
 
   if (as === "link") {
+    // as="link"인 모든 호출부(Login/StudentComplete/MemberType 등)가 to를 항상 함께 넘긴다.
     return (
-      <Link to={to} onClick={onClick} className={classes}>
+      <Link to={to!} onClick={onClick} className={classes}>
         {children}
       </Link>
     );

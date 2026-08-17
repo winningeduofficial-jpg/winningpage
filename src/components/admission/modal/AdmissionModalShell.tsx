@@ -45,11 +45,11 @@ import {
 // 렌더한다(공개: AdmissionGuidelines.jsx, 어드민: AdmissionSectionEditModal).
 
 // AdmissionGuidelines.jsx 원문 그대로.
-export const PUBLIC_SHEET_CLASS =
+const PUBLIC_SHEET_CLASS =
   "admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]";
-export const PUBLIC_BODY_CLASS =
+const PUBLIC_BODY_CLASS =
   "admission-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12";
-export const PUBLIC_FOOTER_CLASS =
+const PUBLIC_FOOTER_CLASS =
   "border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-12 md:pb-8 md:pt-4";
 
 export default function AdmissionModalShell({
@@ -74,8 +74,15 @@ export default function AdmissionModalShell({
   title?: ReactNode;
   idPrefix?: string;
   sheetClassName?: string;
+  // React 19 @types/react부터 RefObject<T>.current가 더는 암묵적으로 T | null이
+  // 아니다(불변). useRef<T>(null)의 반환 타입이 RefObject<T | null>이므로 호출부와
+  // 맞추려면 여기도 명시적으로 null을 더해야 한다.
   bodyRef?: RefObject<HTMLDivElement | null>;
-  bodyProps?: ComponentPropsWithoutRef<"div">;
+  // ComponentPropsWithoutRef<"div">는 data-* 인덱스 시그니처가 없어(호출부가
+  // 넘기는 { "data-section": ... } 실사용과 어긋난다) 명시적으로 얹는다.
+  bodyProps?: ComponentPropsWithoutRef<"div"> & {
+    [dataAttr: `data-${string}`]: string | undefined;
+  };
   bodyClassName?: string;
   belowBody?: ReactNode;
   footerClassName?: string;
@@ -151,7 +158,9 @@ export default function AdmissionModalShell({
       if (!focusable.length) return;
 
       const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      const last = focusable.at(-1);
+      // length 가드(위 focusable.length 체크)로 항상 참 — 타입 좁히기용.
+      if (!first || !last) return;
 
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();

@@ -15,7 +15,7 @@ import {
   stableStringifyDoc,
   type TableBlock,
   validateAdmissionDoc,
-} from "../../../lib/admissionDoc";
+} from "@/lib/admissionDoc";
 
 // 편집 중인 Block 배열(문서 전체 또는 그 일부)을 최소 AdmissionDoc으로
 // 감싸 validateAdmissionDoc에 넘긴다. section은 validateAdmissionDoc이

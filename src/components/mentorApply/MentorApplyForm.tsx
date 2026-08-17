@@ -24,12 +24,11 @@
 //    TODO 로 표시해 두었다.
 import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
-
-import { FORM_HEADER, PROGRESS_SIDEBAR } from "../../data/mentorApply";
-import { isValidMobile, normalizePhone } from "../../lib/phoneVerification";
-import { supabase } from "../../lib/supabase";
-import { isWithinMaxLength } from "../../lib/validators";
-import { MENTOR_HEADING_LG } from "../services/serviceTokens";
+import { MENTOR_HEADING_LG } from "@/components/services/serviceTokens";
+import { FORM_HEADER, PROGRESS_SIDEBAR } from "@/data/mentorApply";
+import { isValidMobile, normalizePhone } from "@/lib/phoneVerification";
+import { supabase } from "@/lib/supabase";
+import { isWithinMaxLength } from "@/lib/validators";
 import FormSectionApplicant, {
   APPLICANT_FIELDS,
   APPLICANT_REQUIRED_FIELDS,
@@ -589,34 +588,35 @@ export default function MentorApplyForm() {
         ? "done"
         : "idle";
 
+  // PROGRESS_SIDEBAR.steps는 5개 고정 배열이라 인덱스 0~4 항상 존재한다.
   const sidebarSections = [
     {
       no: 1,
-      label: PROGRESS_SIDEBAR.steps[0],
+      label: PROGRESS_SIDEBAR.steps[0]!,
       id: APPLICANT_SECTION_ID,
       fields: APPLICANT_REQUIRED_FIELDS,
     },
     {
       no: 2,
-      label: PROGRESS_SIDEBAR.steps[1],
+      label: PROGRESS_SIDEBAR.steps[1]!,
       id: UNIVERSITY_SECTION_ID,
       fields: UNIVERSITY_REQUIRED_FIELDS,
     },
     {
       no: 3,
-      label: PROGRESS_SIDEBAR.steps[2],
+      label: PROGRESS_SIDEBAR.steps[2]!,
       id: HIGHSCHOOL_SECTION_ID,
       fields: HIGHSCHOOL_REQUIRED_FIELDS,
     },
     {
       no: 4,
-      label: PROGRESS_SIDEBAR.steps[3],
+      label: PROGRESS_SIDEBAR.steps[3]!,
       id: COMPETENCY_SECTION_ID,
       fields: COMPETENCY_REQUIRED_FIELD_NAMES,
     },
     {
       no: 5,
-      label: PROGRESS_SIDEBAR.steps[4],
+      label: PROGRESS_SIDEBAR.steps[4]!,
       id: DOCUMENTS_SECTION_ID,
       fields: ["proof_file", "phone_verified", "agreements"],
     },
@@ -658,7 +658,7 @@ export default function MentorApplyForm() {
       // 1~2단계: 업로드 URL 발급 + Storage 직접 업로드. 재시도로 다시 들어왔고 같은
       // 파일을 이미 올려 뒀다면(uploadedProof) 건너뛴다.
       let proofPath = isSameProof(uploadedProof, file)
-        ? uploadedProof.path
+        ? uploadedProof!.path // isSameProof가 true면 uploadedProof는 null이 아님
         : null;
 
       if (!proofPath) {
@@ -669,9 +669,10 @@ export default function MentorApplyForm() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: normalizedPhone,
-            fileName: file.name,
-            contentType: file.type,
-            size: file.size,
+            // 검증(제출 전 클라이언트 검증, validateDocumentsSection)을 이미 통과했으므로 file != null
+            fileName: file!.name,
+            contentType: file!.type,
+            size: file!.size,
           }),
         });
         const issueResult = await issueResponse.json().catch(() => null);
@@ -684,14 +685,14 @@ export default function MentorApplyForm() {
         // path 하나만 인가하므로 동작한다(팀 계약, api/mentor-apply-upload-url.js).
         const { error: storageError } = await supabase.storage
           .from(BUCKET)
-          .uploadToSignedUrl(issueResult.path, issueResult.token, file);
+          .uploadToSignedUrl(issueResult.path, issueResult.token, file!); // 위와 동일: 검증 통과 후 file != null
 
         if (storageError) {
           throw new SubmitStepError("upload", { detail: storageError.message });
         }
 
         proofPath = issueResult.path;
-        setUploadedProof({ file, path: proofPath });
+        setUploadedProof({ file: file!, path: proofPath! }); // file: 위와 동일; proofPath: 바로 위 줄에서 issueResult.path로 할당됨
       }
 
       // 3단계: 나머지 필드 + 업로드 경로로 제출.
@@ -710,7 +711,7 @@ export default function MentorApplyForm() {
         agree_ad: agreements.ad === true,
         // base64 첨부 대신 1~2단계에서 올린 경로만 보낸다(팀 계약, api/mentor-apply.js).
         proof_file_path: proofPath,
-        proof_file_name: file.name,
+        proof_file_name: file!.name, // 위와 동일: 검증 통과 후 file != null
       };
 
       const response = await fetch("/api/mentor-apply", {

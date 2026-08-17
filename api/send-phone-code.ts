@@ -150,7 +150,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ok: false,
         reason: limit.reason,
         retry_after: limit.retryAfter || COOLDOWN_SECONDS,
-        detail: LIMIT_MESSAGES[limit.reason] || "잠시 후에 다시 시도해 주세요.",
+        detail:
+          LIMIT_MESSAGES[limit.reason!] || "잠시 후에 다시 시도해 주세요.",
       });
     }
 

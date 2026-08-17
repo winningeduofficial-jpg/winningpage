@@ -4,7 +4,7 @@
 // 임무 지시에 따라 3.75rem(60px)/text-xl(20px) 강조 변형(10404)을 채택한다 — 최종 확정 시
 // size prop만 'default'로 되돌리면 된다.
 //
-// NICE 「통합인증」 표준창을 팝업으로 띄운다(src/lib/identityVerification.js).
+// NICE 「통합인증」 표준창을 팝업으로 띄운다(src/pages/signup/identityVerification.ts).
 // 인증이 끝나면 콜백이 opener로 결과를 postMessage 하고 팝업이 스스로 닫힌다.
 //
 // ⚠️ 버튼 라벨은 "PASS 간편 인증"이지만 실제로는 NICE 표준창이 열린다.
@@ -19,15 +19,15 @@
 
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,
   InfoCard,
   PrimaryButton,
-} from "../../components/auth";
-import { useSignup } from "../../context/SignupContext";
-import { runIdentityVerification } from "../../lib/identityVerification";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
+import { runIdentityVerification } from "./identityVerification";
 
 // 만 14세 미만 가입 플로우 전체를 가리는 플래그 — StudentBirth.jsx와 동일.
 // off인 배포에서는 URL 직접 진입도 막는다.
@@ -78,11 +78,15 @@ export default function Under14Verify() {
       }
 
       // requestId를 남겨둔다 — 가입 RPC가 이 인증을 소비하게 되면 필요하다.
+      // SignupContext(담당 파일 아님)의 SignupVerification['pass'] 타입이 아직
+      // { verified: boolean }만 선언해 requestId/verifiedAt을 모른다 — updateVerification
+      // 구현은 partial을 그대로 스프레드하므로 런타임엔 값이 저장되지만, 타입 상으로는
+      // 초과 프로퍼티라 여기서만 캐스트로 우회한다(동작 변경 없음, 타입 갭은 별도 보고).
       updateVerification("pass", {
         verified: true,
         requestId: result.requestId,
         verifiedAt: Date.now(),
-      });
+      } as Parameters<typeof updateVerification>[1]);
 
       navigate("/signup/student/under14");
     } finally {

@@ -88,5 +88,3 @@ export function usePerformanceShell(): PerformanceShellContextValue {
   }
   return ctx;
 }
-
-export { DEFAULT_STEP_STATES };

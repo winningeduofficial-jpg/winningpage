@@ -1,10 +1,10 @@
 import { ArrowLeft, Download } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import SafeHtml from "../components/admission/SafeHtml";
-import BoardListPage from "../components/board/BoardListPage";
-import { withDedupedKeys } from "../lib/reactKeys";
-import { supabase } from "../lib/supabase";
+import { useSearchParams } from "react-router";
+import SafeHtml from "@/components/admission/SafeHtml";
+import BoardListPage from "@/components/board/BoardListPage";
+import { withDedupedKeys } from "@/lib/reactKeys";
+import { supabase } from "@/lib/supabase";
 import {
   BOARD_SOURCES,
   type BoardRow,

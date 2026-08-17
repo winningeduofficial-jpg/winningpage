@@ -1,5 +1,5 @@
 // 법적 문서 원문 (docx 원본에서 자동 추출/정리). 내용 수정은 원본 갱신 후 재생성 권장.
-export const LEGAL_DOCS = {
+const LEGAL_DOCS = {
   terms: {
     title: "위닝에듀 서비스 이용약관",
     effective: "2026.08.01",

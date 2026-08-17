@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { formatKRW } from "../../data/pricingCatalog";
+import { formatKRW } from "@/data/pricingCatalog";
 import MyPageModalShell from "./MyPageModalShell";
 
 // 결제 상세 내역 모달 (Figma 3665:6278).
@@ -83,7 +83,7 @@ export default function PaymentDetailModal({
     { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
     { label: "부가 가치", value: Number.isFinite(vat) ? formatKRW(vat) : "-" },
     { label: "결제 금액", value: formatKRW(order.amount) },
-    { label: "결제 상태", value: STATUS_TEXT[status] || "-" },
+    { label: "결제 상태", value: STATUS_TEXT[status || ""] || "-" },
   ];
 
   // 환불 신청 버튼은 결제가 확정된 건에만 노출한다. 입금 대기(가상계좌 미입금)는

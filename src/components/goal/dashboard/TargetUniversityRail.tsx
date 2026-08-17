@@ -1,5 +1,5 @@
-import GoalCard from "../GoalCard";
-import GoalProgressBar from "../GoalProgressBar";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalProgressBar from "@/components/goal/GoalProgressBar";
 
 // 우측 레일 "이상목표대학"/"최소목표대학" 카드 2장(372×195 = 23.25rem×12.1875rem, part-07 #20).
 // 합격률 게이지(335×6 = 20.9375rem×0.375rem)도 라벨 % 기준 비례 계산(시안 px 불일치 — 확정사항 3).
@@ -13,7 +13,7 @@ type RateRowProps = {
   value: number;
   dotClassName: string;
   fillClassName: string;
-  available?: boolean;
+  available?: boolean | undefined;
 };
 
 function RateRow({
@@ -60,7 +60,7 @@ type UniversityCardProps = {
   department: string;
   susiRate: number;
   jeongsiRate: number;
-  jungsiAvailable?: boolean;
+  jungsiAvailable?: boolean | undefined;
 };
 
 function UniversityCard({

@@ -1,8 +1,8 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { ChevronDown, Menu, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import megaPromoDiagnosisImg from "../assets/mega/promo-diagnosis.png";
+import { Link, useLocation } from "react-router";
+import megaPromoDiagnosisImg from "@/assets/mega/promo-diagnosis.png";
 import {
   MEGA_COL_GAP,
   MEGA_COL_W,
@@ -10,14 +10,15 @@ import {
   NAV_CELL_GAP,
   NAV_CELL_W,
   NAV_GUARD,
-} from "../data/navigation";
-import { cleanText, isSameObject, useNavGroups } from "../hooks/useNavGroups";
-import { supabase } from "../lib/supabase";
+} from "@/data/navigation";
+import { cleanText, isSameObject, useNavGroups } from "@/hooks/useNavGroups";
+import { supabase } from "@/lib/supabase";
 import MobileNavDrawer from "./MobileNavDrawer";
 import { buildMyMenu } from "./myMenuItems";
 
 const CSAT_DATE = "2026-11-19";
 const HEADER_PROFILE_CACHE_KEY = "winning-header-profile";
+const MS_PER_DAY = 86400000;
 
 // ---- 헤더 2중 좌표계 정렬 상수 (0729 시안 2207:12337, Playwright 실측 기준) ----
 // 좌표계 1 (로고 + 계정 그룹): max-w-[120rem](1920px) 밴드. 좌우 마진은 px-8(2rem)에서
@@ -87,7 +88,7 @@ function getCsatDay() {
     kstNow.getDate(),
   );
   const target = new Date(`${CSAT_DATE}T00:00:00+09:00`);
-  const diff = Math.ceil((target.getTime() - today.getTime()) / 86400000);
+  const diff = Math.ceil((target.getTime() - today.getTime()) / MS_PER_DAY);
 
   if (diff > 0) return `수능 D-${diff}`;
   if (diff === 0) return "수능 D-DAY";
@@ -260,6 +261,16 @@ async function fetchProfile(
   return byId || byEmail || byUsername || null;
 }
 
+const MEGA_CLOSE_DELAY_MS = 100;
+// megaPanelPhase를 'closing' → 'closed'로 옮기는 JS 타이머 지연이자, 메가 딤+패널의
+// 클로즈 transitionDuration(인라인 style)이기도 하다 — 아래 두 <div>가 이 상수를 그대로
+// style로 소비한다. Tailwind duration-[Nms] 유틸은 정적 문자열만 JIT가 인식하므로 JS
+// 상수를 클래스명에 보간할 수 없어, 클로징 구간만 인라인 style로 뺐다(둘이 어긋나면
+// setMegaPanelPhase("closed")가 트랜지션 도중에 발화해 깜빡임이 생긴다).
+const MEGA_PANEL_CLOSING_MS = 120;
+const CSAT_DDAY_REFRESH_MS = 60 * 60 * 1000;
+const LOGOUT_FALLBACK_TIMEOUT_MS = 1800;
+
 export default function Header() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(() =>
@@ -353,7 +364,7 @@ export default function Header() {
     megaCloseTimerRef.current = window.setTimeout(() => {
       setActiveMega(null);
       megaCloseTimerRef.current = null;
-    }, 100);
+    }, MEGA_CLOSE_DELAY_MS);
   }
 
   useEffect(() => () => clearMegaCloseTimer(), [clearMegaCloseTimer]);
@@ -386,7 +397,7 @@ export default function Header() {
     megaPanelAnimTimerRef.current = window.setTimeout(() => {
       setMegaPanelPhase("closed");
       megaPanelAnimTimerRef.current = null;
-    }, 120);
+    }, MEGA_PANEL_CLOSING_MS);
 
     return () => {
       if (megaPanelAnimTimerRef.current) {
@@ -399,7 +410,7 @@ export default function Header() {
   useEffect(() => {
     const timer = window.setInterval(
       () => setCsatDDay(getCsatDay()),
-      60 * 60 * 1000,
+      CSAT_DDAY_REFRESH_MS,
     );
     return () => window.clearInterval(timer);
   }, []);
@@ -563,7 +574,9 @@ export default function Header() {
     try {
       await Promise.race([
         supabase.auth.signOut({ scope: "local" }),
-        new Promise((resolve) => window.setTimeout(resolve, 1800)),
+        new Promise((resolve) =>
+          window.setTimeout(resolve, LOGOUT_FALLBACK_TIMEOUT_MS),
+        ),
       ]);
     } catch (error) {
       console.error("로그아웃 오류:", error);
@@ -628,141 +641,147 @@ export default function Header() {
         </button>
 
         <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
-          {!isAuthReady ? (
-            <div className="h-[2rem] w-[16rem]" aria-hidden="true" />
-          ) : shouldShowLoggedInHeader ? (
-            <>
-              <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-[#013262] whitespace-nowrap">
-                {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
-              </div>
-
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
-              <div
-                className="relative flex items-center"
-                onMouseEnter={() => setMyOpen(true)}
-                onMouseLeave={() => setMyOpen(false)}
-              >
-                <button
-                  type="button"
-                  onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
-                >
-                  마이페이지
-                  <ChevronDown
-                    size={14}
-                    className={`transition ${myOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
-
-                {myOpen && (
-                  <div className="absolute right-0 top-full z-50 w-[16rem]">
-                    <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                      {myMenu.map((item) => {
-                        const Icon = item.icon;
-
-                        return (
-                          <Link
-                            key={item.label}
-                            to={item.to}
-                            onClick={() => setMyOpen(false)}
-                            className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
-                          >
-                            <Icon size={18} />
-                            {item.label}
-                          </Link>
-                        );
-                      })}
-                    </div>
+          {(() => {
+            if (!isAuthReady)
+              return <div className="h-[2rem] w-[16rem]" aria-hidden="true" />;
+            if (shouldShowLoggedInHeader)
+              return (
+                <>
+                  <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-[#013262] whitespace-nowrap">
+                    {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
                   </div>
-                )}
-              </div>
 
-              {isAdmin && (
+                  {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
+                  <div
+                    className="relative flex items-center"
+                    onMouseEnter={() => setMyOpen(true)}
+                    onMouseLeave={() => setMyOpen(false)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setMyOpen((prev) => !prev)}
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
+                    >
+                      마이페이지
+                      <ChevronDown
+                        size={14}
+                        className={`transition ${myOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    {myOpen && (
+                      <div className="absolute right-0 top-full z-50 w-[16rem]">
+                        <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                          {myMenu.map((item) => {
+                            const Icon = item.icon;
+
+                            return (
+                              <Link
+                                key={item.label}
+                                to={item.to}
+                                onClick={() => setMyOpen(false)}
+                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
+                              >
+                                <Icon size={18} />
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                    >
+                      <Settings size={14} />
+                      관리자
+                    </Link>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                  >
+                    로그아웃
+                  </button>
+                </>
+              );
+            if (isLoggedIn)
+              return (
+                <>
+                  {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
+                  <div
+                    className="relative flex items-center"
+                    onMouseEnter={() => setMyOpen(true)}
+                    onMouseLeave={() => setMyOpen(false)}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setMyOpen((prev) => !prev)}
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
+                    >
+                      마이페이지
+                      <ChevronDown
+                        size={14}
+                        className={`transition ${myOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    {myOpen && (
+                      <div className="absolute right-0 top-full z-50 w-[16rem]">
+                        <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                          {myMenu.map((item) => {
+                            const Icon = item.icon;
+
+                            return (
+                              <Link
+                                key={item.label}
+                                to={item.to}
+                                onClick={() => setMyOpen(false)}
+                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
+                              >
+                                <Icon size={18} />
+                                {item.label}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                  >
+                    로그아웃
+                  </button>
+                </>
+              );
+            return (
+              <>
                 <Link
-                  to="/admin"
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                  to="/login"
+                  className="inline-flex h-8 w-[5.625rem] shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
                 >
-                  <Settings size={14} />
-                  관리자
+                  로그인
                 </Link>
-              )}
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
-              >
-                로그아웃
-              </button>
-            </>
-          ) : isLoggedIn ? (
-            <>
-              {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
-              <div
-                className="relative flex items-center"
-                onMouseEnter={() => setMyOpen(true)}
-                onMouseLeave={() => setMyOpen(false)}
-              >
-                <button
-                  type="button"
-                  onClick={() => setMyOpen((prev) => !prev)}
-                  className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
+                <Link
+                  to="/signup"
+                  className="inline-flex h-8 w-[5.625rem] shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
                 >
-                  마이페이지
-                  <ChevronDown
-                    size={14}
-                    className={`transition ${myOpen ? "rotate-180" : ""}`}
-                  />
-                </button>
-
-                {myOpen && (
-                  <div className="absolute right-0 top-full z-50 w-[16rem]">
-                    <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                      {myMenu.map((item) => {
-                        const Icon = item.icon;
-
-                        return (
-                          <Link
-                            key={item.label}
-                            to={item.to}
-                            onClick={() => setMyOpen(false)}
-                            className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
-                          >
-                            <Icon size={18} />
-                            {item.label}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
-              >
-                로그아웃
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                to="/login"
-                className="inline-flex h-8 w-[5.625rem] shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
-              >
-                로그인
-              </Link>
-
-              <Link
-                to="/signup"
-                className="inline-flex h-8 w-[5.625rem] shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
-              >
-                회원가입
-              </Link>
-            </>
-          )}
+                  회원가입
+                </Link>
+              </>
+            );
+          })()}
         </div>
       </div>
 
@@ -855,9 +874,14 @@ export default function Header() {
           isMegaPanelOpen
             ? "visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]"
             : isMegaPanelClosing
-              ? "visible opacity-0 pointer-events-none transition-opacity duration-[120ms] ease-[var(--ease-out-quart)]"
+              ? "visible opacity-0 pointer-events-none transition-opacity ease-[var(--ease-out-quart)]"
               : "invisible opacity-0 pointer-events-none"
         }`}
+        style={
+          isMegaPanelClosing
+            ? { transitionDuration: `${MEGA_PANEL_CLOSING_MS}ms` }
+            : undefined
+        }
         onClick={() => setActiveMega(null)}
         aria-hidden="true"
       />
@@ -867,9 +891,14 @@ export default function Header() {
           isMegaPanelOpen
             ? "visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]"
             : isMegaPanelClosing
-              ? "visible opacity-0 translate-y-0 pointer-events-none transition-all duration-[120ms] ease-[var(--ease-out-quart)]"
+              ? "visible opacity-0 translate-y-0 pointer-events-none transition-all ease-[var(--ease-out-quart)]"
               : "invisible opacity-0 -translate-y-2 pointer-events-none"
         }`}
+        style={
+          isMegaPanelClosing
+            ? { transitionDuration: `${MEGA_PANEL_CLOSING_MS}ms` }
+            : undefined
+        }
         aria-hidden={!isMegaPanelOpen}
         onMouseEnter={clearMegaCloseTimer}
         onMouseLeave={scheduleMegaClose}

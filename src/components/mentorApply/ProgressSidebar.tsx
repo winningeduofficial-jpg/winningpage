@@ -15,7 +15,7 @@
 // 미확정 사항(확인 항목 34)에 대한 구현 판단 2가지 — 둘 다 아래 해당 위치에 근거를 적어 두었다.
 //   ① sticky 상단 오프셋: `wide:top-[6.5rem]`
 //   ② 단계 배지 클릭 시 앵커 이동: **구현함**
-import { PROGRESS_SIDEBAR } from "../../data/mentorApply";
+import { PROGRESS_SIDEBAR } from "@/data/mentorApply";
 
 // sticky 상단 오프셋. 선례는 src/pages/AdmissionGuidelines.jsx:1388 의 `lg:sticky lg:top-[104px]`
 // 이며, 그 104px 의 내역은 전역 헤더 + 여백이다: Header.jsx:508 이 `fixed top-0` 이고 그 안쪽 바가
@@ -56,7 +56,7 @@ export type ProgressSection = {
  * 첨부(File). 타입별로 빈 값의 모양이 다르므로 한 곳에서 판정한다.
  * 숫자 0 과 문자열 '0' 은 유효한 입력이므로 채워진 것으로 본다(falsy 검사만으로는 오판).
  */
-export function isFieldFilled(value: FieldValue) {
+function isFieldFilled(value: FieldValue) {
   if (value === null || value === undefined) return false;
   if (typeof value === "string") return value.trim().length > 0;
   if (Array.isArray(value)) return value.length > 0;
@@ -66,7 +66,7 @@ export function isFieldFilled(value: FieldValue) {
 }
 
 /** 단계 하나의 진행률. */
-export function getSectionProgress(fields: string[], values: FormValues) {
+function getSectionProgress(fields: string[], values: FormValues) {
   const list = Array.isArray(fields) ? fields : [];
   const total = list.length;
   const filled = list.filter((name) => isFieldFilled(values?.[name])).length;
@@ -83,10 +83,7 @@ export function getSectionProgress(fields: string[], values: FormValues) {
  * (확인 항목 21에서 복제 실수로 확정), 같은 필드를 두 단계가 공유하게 되더라도 사용자가 채워야 할
  * "일의 개수"는 하나이기 때문이다. 단계별 percent 는 그 단계 자신의 목록으로만 계산한다.
  */
-export function computeProgress(
-  sections: ProgressSection[],
-  values: FormValues,
-) {
+function computeProgress(sections: ProgressSection[], values: FormValues) {
   const list = Array.isArray(sections) ? sections : [];
   const steps = list.map((section) => ({
     ...section,
@@ -118,7 +115,7 @@ export function computeProgress(
 // 시안은 "25개" 전체가 accent 색이므로(§6-3 타이포) {count} 직후의 단위 문자 `개` 까지를 강조
 // 범위에 넣는다. 카피는 데이터 파일이 정본이라 여기서 문장을 새로 쓰지 않고 분해만 한다.
 const [REMAINING_HEAD, REMAINING_REST_RAW] =
-  PROGRESS_SIDEBAR.remainingTemplate.split("{count}");
+  PROGRESS_SIDEBAR.remainingTemplate.split("{count}") as [string, string]; // 템플릿에 "{count}"가 정확히 1회 포함되어 항상 2조각
 const REMAINING_UNIT = REMAINING_REST_RAW.startsWith("개") ? "개" : "";
 const REMAINING_TAIL = REMAINING_REST_RAW.slice(REMAINING_UNIT.length);
 

@@ -52,8 +52,10 @@ export default function ServiceTabsPanel({
   idPrefix,
   panelHeightClass = "",
 }: ServiceTabsPanelProps) {
+  // 호출부(GoalManagement/PerformanceAssessment/SelfAssessment)가 항상 비어있지 않은
+  // tabs 배열을 넘긴다는 전제 하의 폴백.
   const [activeTab, setActiveTab] = useState(
-    () => tabs.find((tab) => content[tab]?.length) ?? tabs[0],
+    () => tabs.find((tab) => content[tab]?.length) ?? tabs[0]!,
   );
   const activeCards = content[activeTab] || [];
 

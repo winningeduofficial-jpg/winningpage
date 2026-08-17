@@ -1,19 +1,19 @@
 import { useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
-import OnboardingCalculatingOverlay from "../../components/goal/onboarding/OnboardingCalculatingOverlay";
-import OnboardingStepShell from "../../components/goal/onboarding/OnboardingStepShell";
-import Step1School from "../../components/goal/onboarding/steps/Step1School";
-import Step2UpperUniversity from "../../components/goal/onboarding/steps/Step2UpperUniversity";
-import Step3LowerUniversity from "../../components/goal/onboarding/steps/Step3LowerUniversity";
-import Step4Naesin from "../../components/goal/onboarding/steps/Step4Naesin";
-import Step5MockExam from "../../components/goal/onboarding/steps/Step5MockExam";
-import Step6StudyHours from "../../components/goal/onboarding/steps/Step6StudyHours";
-import Step7DailySchedule from "../../components/goal/onboarding/steps/Step7DailySchedule";
+import { Navigate, useNavigate, useParams } from "react-router";
+import OnboardingCalculatingOverlay from "@/components/goal/onboarding/OnboardingCalculatingOverlay";
+import OnboardingStepShell from "@/components/goal/onboarding/OnboardingStepShell";
+import Step1School from "@/components/goal/onboarding/steps/Step1School";
+import Step2UpperUniversity from "@/components/goal/onboarding/steps/Step2UpperUniversity";
+import Step3LowerUniversity from "@/components/goal/onboarding/steps/Step3LowerUniversity";
+import Step4Naesin from "@/components/goal/onboarding/steps/Step4Naesin";
+import Step5MockExam from "@/components/goal/onboarding/steps/Step5MockExam";
+import Step6StudyHours from "@/components/goal/onboarding/steps/Step6StudyHours";
+import Step7DailySchedule from "@/components/goal/onboarding/steps/Step7DailySchedule";
 import {
   GoalOnboardingProvider,
   useGoalOnboarding,
-} from "../../context/GoalOnboardingContext";
-import { submitGoalIntake } from "../../lib/goalApi";
+} from "@/context/GoalOnboardingContext";
+import { submitGoalIntake } from "@/lib/goalApi";
 
 // 목표관리 온보딩 7단계 위저드 — docs/figma-goal/00-INDEX.md §3 G1 / §4-1.
 // 라우트 계약(다른 에이전트가 App.jsx에 배선): `/app/goal/onboarding/:step` → 이 파일.
@@ -68,7 +68,9 @@ function OnboardingWizard() {
     resetOnboardingFlow,
   } = useGoalOnboarding();
 
-  const stepIndex = STEP_ORDER.indexOf(step);
+  // step은 라우트 파라미터라 undefined일 수 있다 — indexOf는 빈 문자열에도 항상 -1을
+  // 반환해 아래 미존재 분기(step-1로 리다이렉트)로 동일하게 흘러간다.
+  const stepIndex = STEP_ORDER.indexOf(step ?? "");
 
   if (stepIndex === -1) {
     return <Navigate to="/app/goal/onboarding/step-1" replace />;

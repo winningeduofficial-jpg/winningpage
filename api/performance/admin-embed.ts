@@ -175,7 +175,19 @@ async function embedOne(
     };
   }
 
-  const searchText = buildKnowledgeSearchText(item);
+  // KnowledgeItemRow는 DB에서 null로 오지만 빌더는 값을 `|| ""`로 다뤄 동일하게 처리된다.
+  const searchText = buildKnowledgeSearchText({
+    knowledge_type: item.knowledge_type || "",
+    grade: item.grade || "",
+    subject: item.subject || "",
+    career_field: item.career_field || "",
+    title: item.title || "",
+    content: item.content || "",
+    source: item.source || "",
+    source_link: item.source_link || "",
+    keywords: item.keywords || "",
+    memo: item.memo || "",
+  });
 
   // 재호출 방지 캐시 — 저장 버튼을 여러 번 눌러도 Gemini 비용이 반복되지 않게 한다.
   // 비교는 `search_text` **문자열 정확 일치**다. 따라서 빌더 공식이 바뀌면 기존
@@ -324,7 +336,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ detail: "서버 설정이 올바르지 않습니다." });
   }
 
-  const auth = await resolveAdmin(supabaseAdmin, req);
+  const auth = await resolveAdmin(
+    supabaseAdmin,
+    req as { headers: Record<string, string> },
+  );
 
   if (auth.ok === false) {
     return res.status(auth.status).json({ detail: auth.detail });

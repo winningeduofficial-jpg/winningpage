@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
-import AdmissionSurface from "../AdmissionSurface";
-import AdmissionModalShell from "../modal/AdmissionModalShell";
-import AdmissionModalStyles from "../modal/AdmissionModalStyles";
+import AdmissionSurface from "@/components/admission/AdmissionSurface";
+import AdmissionModalShell from "@/components/admission/modal/AdmissionModalShell";
+import AdmissionModalStyles from "@/components/admission/modal/AdmissionModalStyles";
 import AdmissionEditorSurface from "./AdmissionEditorSurface";
 
 // 어드민 대학모집요강 "카테고리 편집" 다이얼로그.
@@ -26,7 +26,7 @@ import AdmissionEditorSurface from "./AdmissionEditorSurface";
 // 물려받는 순간 1280px 표를 스크롤할 수단 자체가 사라진다(커밋 9a9f3f0 이
 // 고친 실제 사고). 이름을 다르게 해서 숨김 규칙이 도달할 셀렉터 경로를
 // 문법적으로 없앴다. 여기에 'admission-modal-body' 를 쓰지 마라 —
-// scripts/verify-admission-modal-shell.mjs 의 소스 스캔 락이 막는다.
+// src/pages/AdmissionGuidelines.modalShell.test.tsx 의 소스 스캔 락이 막는다.
 // 편집 표의 스크롤 래퍼(.admission-scroll-table)는 이미 overflow-x:auto 라
 // 숨김 규칙만 안 걸리면 네이티브 바가 그대로 나온다.
 //

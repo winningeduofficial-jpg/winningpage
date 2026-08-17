@@ -1,4 +1,4 @@
-import GoalCard from "../GoalCard";
+import GoalCard from "@/components/goal/GoalCard";
 
 // 우측 레일 "오늘의 학습 순위" 카드(372×342, 행 332×38 pitch 46) — 사이드바 메뉴에서는
 // "학습 순위"가 정본에서 제외됐지만(goalNavItems.js 상단 주석) 대시보드 레일 카드는 유지

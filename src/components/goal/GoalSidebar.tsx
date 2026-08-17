@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router-dom";
-import { mockStudent } from "../../data/goalMock";
-import { kstYMD } from "../../lib/goal/calc/index.js";
-import { fetchGoalSchedules, fetchGoalTimer } from "../../lib/goalApi";
+import { NavLink } from "react-router";
+import { mockStudent } from "@/data/goalMock";
+import { kstYMD } from "@/lib/goal/calc/index.js";
+import { fetchGoalSchedules, fetchGoalTimer } from "@/lib/goalApi";
 import { GOAL_NAV_FOOTER, GOAL_NAV_GROUPS } from "./goalNavItems";
 
 // "진행중" 뱃지 폴링 간격 — Timer.jsx 본문 폴링(20초)보다 느슨하게 둔다. 사이드바는

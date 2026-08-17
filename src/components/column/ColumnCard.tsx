@@ -1,5 +1,5 @@
 import { Eye } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import {
   ALL_CATEGORY,
   formatDate,
@@ -7,7 +7,7 @@ import {
   getDisplayDate,
   getThumbnailUrl,
   getViewCount,
-} from "../../pages/column/columnData";
+} from "@/pages/column/columnData";
 
 type ColumnLike = {
   id: string | number;
@@ -21,7 +21,7 @@ function Thumbnail({
   className,
 }: {
   url?: string | null;
-  title?: string;
+  title?: string | undefined;
   className?: string;
 }) {
   if (!url) {

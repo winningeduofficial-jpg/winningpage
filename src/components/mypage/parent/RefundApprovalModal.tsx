@@ -1,7 +1,7 @@
 import { useCallback, useId, useState } from "react";
-import { formatKRW } from "../../../data/pricingCatalog";
-import { supabase } from "../../../lib/supabase";
-import MyPageModalShell from "../MyPageModalShell";
+import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import { formatKRW } from "@/data/pricingCatalog";
+import { supabase } from "@/lib/supabase";
 
 // 학부모 환불 확인 모달 — 자녀가 보낸 환불 요청을 승인/반려한다.
 //
@@ -141,7 +141,9 @@ export default function RefundApprovalModal({
                 <div className="flex items-center justify-between text-[0.875rem]">
                   <span className="text-ink-sub">취소 수수료</span>
                   <span className="text-error">
-                    {fee > 0 ? `-${formatKRW(fee)}` : formatKRW(0)}
+                    {/* fee는 gross와 동일 조건(gross===null?null:...)으로 계산돼
+                        gross!==null 블록 안에서는 항상 non-null이다. */}
+                    {fee! > 0 ? `-${formatKRW(fee!)}` : formatKRW(0)}
                   </span>
                 </div>
               </>

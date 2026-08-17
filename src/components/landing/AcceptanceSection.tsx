@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import useInfiniteMarquee from "../../hooks/useInfiniteMarquee";
+import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
 
 const TRACK_TABS = [
   { key: "general", label: "일반계열" },

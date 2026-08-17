@@ -32,7 +32,7 @@ export function getMentorFieldDescribedBy(
   fieldId: string,
   { helperText, error }: { helperText?: ReactNode; error?: ReactNode } = {},
 ) {
-  const ids = [];
+  const ids: string[] = []; // 명시 타입 — strict 하에서 빈 배열 리터럴이 never[]로 굳어지는 것을 막는다
   if (helperText) ids.push(`${fieldId}-helper`);
   if (error) ids.push(`${fieldId}-error`);
   return ids.length ? ids.join(" ") : undefined;
@@ -55,7 +55,7 @@ type MentorFieldShellProps = {
   label?: ReactNode;
   required?: boolean;
   helperText?: ReactNode;
-  error?: string;
+  error?: string | undefined; // exactOptionalPropertyTypes — 호출부가 명시적 undefined를 넘긴다
   className?: string;
   children?: ReactNode;
   /** 그룹 컨트롤(칩 그룹·파일 드롭존·약관 블록)용. 이 라벨이 가리킬 단일 포커스 대상이
@@ -140,10 +140,10 @@ type MentorTextFieldProps = {
   required?: boolean;
   helperText?: ReactNode;
   value?: string;
-  onChange?: (value: string) => void;
+  onChange?: ((value: string) => void) | undefined; // exactOptionalPropertyTypes — 호출부 handle()이 optional call 반환형을 넘긴다
   placeholder?: string;
   type?: string;
-  error?: string;
+  error?: string | undefined; // exactOptionalPropertyTypes — 호출부가 명시적 undefined를 넘긴다
   /** 인풋 "옆"에 붙는 액션 슬롯(ReactNode). 시안 5-2 의 94×34 `인증번호 발송`/`인증번호 확인`
    * 아웃라인 버튼이 여기 들어간다. auth/TextField 의 actionLabel/onAction(인풋 아래 링크)과 달리
    * 버튼 모양·라벨·상태를 호출부가 전부 소유하도록 노드 슬롯으로 열어 뒀다. */

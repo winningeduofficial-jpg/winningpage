@@ -21,7 +21,7 @@ export type SectionKey =
   | "school_record_method"
   | "recruitment_quota";
 
-export const SECTION_KEYS: SectionKey[] = [
+const SECTION_KEYS: SectionKey[] = [
   "previous_year_changes",
   "selection_method",
   "minimum_requirements",
@@ -121,50 +121,50 @@ export type Cell =
   | { text: string; badge: "minimumHas" | "minimumNone" }
   | { chips: { label: string; value: string }[] };
 
-export type KeyValueBlock = {
+type KeyValueBlock = {
   kind: "keyValue";
   rows: { label: string; content: string }[];
 };
 
-export type PlainListBlock = {
+type PlainListBlock = {
   kind: "plainList";
   items: { type: "bullet" | "subtitle" | "text"; text: string }[];
 };
 
-export type PreTextBlock = {
+type PreTextBlock = {
   kind: "preText";
   text: string;
 };
 
-export type EmptyBoxBlock = {
+type EmptyBoxBlock = {
   kind: "emptyBox";
   message: string;
 };
 
-export type NoteBlock = {
+type NoteBlock = {
   kind: "note";
   text: string;
 };
 
-export type FootnoteBlock = {
+type FootnoteBlock = {
   kind: "footnote";
   items: string[];
 };
 
-export type HeadingBlock = {
+type HeadingBlock = {
   kind: "heading";
   text: string;
 };
 
 /** 제목 + 표를 하나로 묶는 grid 컨테이너. 특수대학·환산표 필수. */
-export type GroupBlock = {
+type GroupBlock = {
   kind: "group";
   title?: string;
   children: Block[];
 };
 
 /** 탈출 해치 — 구조화 표현이 존재한 적 없는 입력을 무손실 보존. 잔량이 곧 남은 부채의 정량 지표다. */
-export type RawHtmlBlock = {
+type RawHtmlBlock = {
   kind: "rawHtml";
   html: string;
   reason: "curated-html" | "input-was-html" | "import-failed";
@@ -318,7 +318,7 @@ export function validateAdmissionDoc(doc: unknown): {
 // node:fs/promises·supabase client 생성이 있어 브라우저 번들에 못
 // 들어갔다. 순수 함수라 admissionDoc.js(스키마/검증 모듈)에 자연스럽게
 // 속한다.
-export function sumStringLength(value: unknown): number {
+function sumStringLength(value: unknown): number {
   if (typeof value === "string") return value.length;
   if (Array.isArray(value))
     return value.reduce((acc: number, v) => acc + sumStringLength(v), 0);
@@ -331,7 +331,7 @@ export function sumStringLength(value: unknown): number {
   return 0;
 }
 
-export function docRichness(doc: AdmissionDoc | null | undefined): {
+function docRichness(doc: AdmissionDoc | null | undefined): {
   blockCount: number;
   textLength: number;
 } {

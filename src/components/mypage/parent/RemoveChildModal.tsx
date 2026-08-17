@@ -1,6 +1,6 @@
 import { useCallback, useId, useState } from "react";
-import { supabase } from "../../../lib/supabase";
-import MyPageModalShell from "../MyPageModalShell";
+import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import { supabase } from "@/lib/supabase";
 import type { Child } from "./ChildCard";
 
 type RemoveChildModalProps = {

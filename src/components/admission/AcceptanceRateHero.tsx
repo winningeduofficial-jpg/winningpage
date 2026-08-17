@@ -1,25 +1,26 @@
 import { useEffect, useState } from "react";
-import cau from "../../assets/admission/universities/cau.png";
-import hanyang from "../../assets/admission/universities/hanyang.png";
-import hufs from "../../assets/admission/universities/hufs.png";
-import kaist from "../../assets/admission/universities/kaist.png";
-import konkuk from "../../assets/admission/universities/konkuk.png";
-import korea from "../../assets/admission/universities/korea.png";
-import pusan from "../../assets/admission/universities/pusan.png";
-import skku from "../../assets/admission/universities/skku.png";
-import snu from "../../assets/admission/universities/snu.png";
-import sogang from "../../assets/admission/universities/sogang.png";
-import unist from "../../assets/admission/universities/unist.png";
-import yonsei from "../../assets/admission/universities/yonsei.png";
-import type { AdmissionCaseLogoRow } from "../../pages/admission/admissionCaseData";
+import cau from "@/assets/admission/universities/cau.png";
+import hanyang from "@/assets/admission/universities/hanyang.png";
+import hufs from "@/assets/admission/universities/hufs.png";
+import kaist from "@/assets/admission/universities/kaist.png";
+import konkuk from "@/assets/admission/universities/konkuk.png";
+import korea from "@/assets/admission/universities/korea.png";
+import pusan from "@/assets/admission/universities/pusan.png";
+import skku from "@/assets/admission/universities/skku.png";
+import snu from "@/assets/admission/universities/snu.png";
+import sogang from "@/assets/admission/universities/sogang.png";
+import unist from "@/assets/admission/universities/unist.png";
+import yonsei from "@/assets/admission/universities/yonsei.png";
+import CountUpNumber from "@/components/CountUpNumber";
+import type { AdmissionCaseLogoRow } from "@/pages/admission/admissionCaseData";
 import {
   computeAcceptanceAverage,
   DEFAULT_HERO_SCOPE,
+  DEFAULT_HERO_SCOPE_CONFIG,
   fetchAcceptanceRates,
   fetchAdmissionCaseLogos,
   HERO_SCOPES,
-} from "../../pages/admission/admissionCaseData";
-import CountUpNumber from "../CountUpNumber";
+} from "@/pages/admission/admissionCaseData";
 
 interface LogoItem {
   key: string;
@@ -144,7 +145,7 @@ function toLogoItems(dbRows: AdmissionCaseLogoRow[]): LogoItem[] {
     src: row.logo_url,
     name: row.name,
     heightRem: Number(row.display_height_rem) || 2,
-    widthRem: undefined,
+    // widthRem 미지정 — DB 행은 width 컬럼이 없다(exactOptionalPropertyTypes라 undefined 명시 대신 키 자체를 생략).
     opacity: Number(row.opacity) || 1,
     // row_no 없거나 2가 아니면 1행으로 취급 — 마이그레이션 미적용 환경 대비.
     rowNo: Number(row.row_no) === 2 ? 2 : 1,
@@ -193,7 +194,7 @@ export default function AcceptanceRateHero({
   scope?: string;
 }) {
   const { heroLabel, fallbackRates } =
-    HERO_SCOPES[scope] || HERO_SCOPES[DEFAULT_HERO_SCOPE];
+    HERO_SCOPES[scope] || DEFAULT_HERO_SCOPE_CONFIG;
   // 초기값을 scope별 폴백으로 두어 첫 페인트부터 '5개년 평균 95.4%'가 나온다(레이아웃 시프트 없음).
   // scope는 마운트 후 바뀌지 않는 프레젠테이션 prop이라 lazy 초기화만으로 충분하고,
   // 조회 결과는 아래 useEffect가 scope 변경 시마다 다시 fetchAcceptanceRates(scope)로 덮어쓴다.

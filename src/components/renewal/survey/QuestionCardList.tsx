@@ -1,8 +1,8 @@
 import {
   GRADE_SYSTEM_INPUT_RULES,
   getOptionCode,
-} from "../../../data/renewalSurveyQuestions";
-import { surveyEmbeddedByParent } from "../../../lib/renewalSurvey";
+} from "@/data/renewalSurveyQuestions";
+import { surveyEmbeddedByParent } from "@/lib/renewalSurvey";
 import AnswerField from "./AnswerField";
 import type { CascadeLevel } from "./CascadingSelect";
 import EmbeddedField from "./EmbeddedField";
@@ -36,8 +36,9 @@ type QuestionCardListProps = {
   questions: SurveyQuestion[];
   answers: Answers;
   onAnswer: (questionId: string, value: unknown) => void;
-  highlightedId?: string | number | null;
-  cascadeLevels?: CascadeLevel[];
+  // exactOptionalPropertyTypes 대응 — 호출부(SurveyStepPage/SurveyPreview)가 옵셔널 필드를 그대로 넘긴다.
+  highlightedId?: string | number | null | undefined;
+  cascadeLevels?: CascadeLevel[] | undefined;
 };
 
 /**
@@ -63,7 +64,10 @@ function resolveConstraint(
   const dependsOn = question.extra?.validationDependsOn;
   if (!dependsOn) return undefined;
   const code = getOptionCode(dependsOn, answers?.[dependsOn]);
-  return GRADE_SYSTEM_INPUT_RULES[code] ?? GRADE_SYSTEM_INPUT_RULES.UNKNOWN;
+  // code가 null이면 기존에도 인덱싱이 매치되지 않아 UNKNOWN으로 폴백되던 것과 동일한 동작.
+  return code == null
+    ? GRADE_SYSTEM_INPUT_RULES.UNKNOWN
+    : (GRADE_SYSTEM_INPUT_RULES[code] ?? GRADE_SYSTEM_INPUT_RULES.UNKNOWN);
 }
 
 // cascadeLevels: q15(cascade 타입) 전용 fetch 상태(options/loading/error) — SurveyStepShell 의

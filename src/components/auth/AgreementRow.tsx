@@ -5,7 +5,8 @@
 // 링크 이동 — §3.3 F: "별도 풀페이지가 존재하므로 페이지 이동으로 추정" 채택).
 import { Check, ChevronRight } from "lucide-react";
 import type { CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
+import { STAGGER_STEP_MS } from "@/lib/agreementStagger";
 
 type AgreementRowProps = {
   label: string;
@@ -49,7 +50,7 @@ export default function AgreementRow({
           style={
             showCheckPop
               ? ({
-                  animationDelay: `calc(var(--i) * 40ms)`,
+                  animationDelay: `calc(var(--i) * ${STAGGER_STEP_MS}ms)`,
                   "--i": index,
                 } as CSSProperties)
               : undefined

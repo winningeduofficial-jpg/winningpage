@@ -37,8 +37,8 @@ const SELECTED_CLASS = "border-accent bg-surface-badge";
 type ChipGroupProps = {
   name?: string;
   options?: ChipOption[];
-  value?: string | string[];
-  onChange?: (value: string | string[]) => void;
+  value?: string | string[] | undefined; // exactOptionalPropertyTypes — 호출부가 명시적 undefined를 넘긴다
+  onChange?: ((value: string | string[]) => void) | undefined; // exactOptionalPropertyTypes — 호출부 handle()이 optional call 반환형을 넘긴다
   /** false → 단일선택(라디오, value 는 문자열) / true → 복수선택(체크박스, value 는 배열) */
   multiple?: boolean;
   /** 지정하면 고정 컬럼 그리드로 배치한다. 미지정이면 flex-wrap 으로 자연 줄바꿈. */
@@ -101,7 +101,7 @@ export default function ChipGroup({
     const nextIndex = (fromIndex + delta + total) % total;
     chipRefs.current[nextIndex]?.focus();
     // WAI-ARIA radiogroup 관례상 방향키 이동은 곧 선택이다.
-    handleSelect(normalizedOptions[nextIndex].value);
+    handleSelect(normalizedOptions[nextIndex]!.value); // nextIndex는 total로 모듈로 연산해 항상 범위 내
   };
 
   const handleKeyDown = (

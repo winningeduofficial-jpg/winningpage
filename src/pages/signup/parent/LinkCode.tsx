@@ -12,22 +12,22 @@
 //   서버가 시간당 조회 30회 / 실패 10회로 끊는다(api/lookup-child.js). 6자가 채워질
 //   때마다 즉시 쏘면 오타 몇 번에 한도가 차버려서, 입력이 멎은 뒤에 한 번만 보낸다.
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,
   ChildPreviewCard,
   PrimaryButton,
   TextField,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 import {
   CODE_LENGTH,
   findImpossibleChars,
   lookupChild,
   normalizeLinkCode,
   requestParentLink,
-} from "../../../lib/parentLink";
+} from "@/lib/parentLink";
 
 const LOOKUP_DEBOUNCE_MS = 400;
 
@@ -189,7 +189,9 @@ export default function LinkCode() {
           onChange={handleChange}
           placeholder="6자리 연결코드를 입력해 주세요"
           active={!!child && !alreadyLinked}
-          helperText={error || undefined}
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={error}
           status={error ? "error" : "default"}
           autoCapitalize="characters"
           autoComplete="off"
@@ -199,7 +201,9 @@ export default function LinkCode() {
         {child && (
           <ChildPreviewCard
             name={child.name}
-            grade={child.grade}
+            // ChildPreviewCardProps는 담당 파일이 아니라 수정할 수 없다 —
+            // exactOptionalPropertyTypes 때문에 값이 undefined면 키 자체를 생략한다.
+            {...(child.grade !== undefined && { grade: child.grade })}
             school={child.school}
             selected={selected}
             avatarSize={selected ? "lg" : "default"}

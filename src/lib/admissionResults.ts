@@ -43,7 +43,7 @@ export const CELL_STATE = {
 // pickGrade가 훑는 컷 우선순위. 50 → 70 → 85 → 90 (§8.4 Tier 1).
 // 85/90은 2025 전용이라 이 확장은 연도 간 "컷 기준 상이"를 구조적으로 늘린다 —
 // Δ 계산이 그 상태를 흡수한다(computeDelta의 CUT_MISMATCH).
-export const GRADE_CUTS = [50, 70, 85, 90];
+const GRADE_CUTS = [50, 70, 85, 90];
 
 // ---------------------------------------------------------------------------
 // 행 셰이프 — admissionResultsQueries.ts의 ADMISSION_RESULT_COLUMNS select 절 그대로.
@@ -137,7 +137,7 @@ export function pickGrade(row) {
 }
 
 // 등급 수치 + 컷 라벨 조합. 소수 자리는 항상 2자리 고정(시안 전 사례가 2자리).
-export function formatGradeWithCut(value, cut) {
+function formatGradeWithCut(value, cut) {
   const num = toNumber(value);
   if (num == null) return EMPTY_CELL;
   return cut == null ? num.toFixed(2) : `${num.toFixed(2)} (${cut})`;
@@ -156,7 +156,7 @@ export function formatGradeValue(value) {
 }
 
 // "2026 모집" 셀. 분할모집(진성 중복 29행)이 있으므로 호출부는 합계를 넘긴다.
-export function formatQuota(value) {
+function formatQuota(value) {
   const num = toNumber(value);
   return num == null ? EMPTY_CELL : String(num);
 }
@@ -184,13 +184,13 @@ export function formatCompetitionRate(value) {
 // 표기하면 오정보이므로, 호출부가 라벨을 동적으로 만들 수 있어야 한다.
 // cut / cuts는 표시 등급의 출처다. 한 덩어리 안에 컷 기준이 섞이면 cuts.length > 1이
 // 되고, cut은 최초로 등장한(= 우선순위가 가장 높은 행의) 컷을 대표값으로 쓴다.
-export function weightedGrade(rows) {
+function weightedGrade(rows) {
   let numerator = 0;
   let denominator = 0;
   let sampleN = 0;
   const years = new Set<number>();
   const cuts = new Set<number>();
-  let representativeCut = null;
+  let representativeCut: number | null = null;
 
   for (const row of rows ?? []) {
     const { value, cut } = pickGrade(row);
@@ -226,7 +226,7 @@ export function weightedGrade(rows) {
 }
 
 // 요약 카드 라벨. 표본이 1개년뿐일 때 "가중평균" 단어를 쓰지 않는 것이 핵심 규칙.
-export function summaryCardLabel(track, years) {
+function summaryCardLabel(track, years) {
   const name = trimmed(track);
   const list = years ?? [];
   if (list.length >= 2) return `${name} · ${list.length}개년 가중평균`;
@@ -277,7 +277,7 @@ function buildYearCell(rows, year) {
 
 // 그 연도 행들의 모집인원 합계. 분할모집에서 절반만 보이던 결함 수정(HTML 469).
 function sumQuota(rows, year) {
-  let total = null;
+  let total: number | null = null;
   for (const row of rowsOfYear(rows, year)) {
     const quota = toNumber(row.quota);
     if (quota == null) continue;
@@ -394,13 +394,12 @@ export function computeDelta(previous, current) {
     previousCut != null && currentCut != null && previousCut !== currentCut;
 
   const arrow = DELTA_ARROW[direction];
-  const tone = cutMismatch
-    ? "muted"
-    : direction === DELTA_STATE.IMPROVED
-      ? "up"
-      : direction === DELTA_STATE.WORSENED
-        ? "down"
-        : "flat";
+  const tone = (() => {
+    if (cutMismatch) return "muted";
+    if (direction === DELTA_STATE.IMPROVED) return "up";
+    if (direction === DELTA_STATE.WORSENED) return "down";
+    return "flat";
+  })();
 
   return {
     // 컷 기준이 다르면 Δ 계산은 하되 상태를 CUT_MISMATCH로 승격해 톤을 낮춘다.
@@ -430,7 +429,7 @@ export function computeDelta(previous, current) {
 // 2개년 축에서는 (2025, 2026)이 그대로 잡힌다.
 export function computeDeltaFromSeries(series) {
   const list = [...(series ?? [])].sort(
-    (a, b) => toNumber(a?.year) - toNumber(b?.year),
+    (a, b) => (toNumber(a?.year) ?? 0) - (toNumber(b?.year) ?? 0),
   );
   if (list.length === 0) return computeDelta(null, null);
   if (list.length === 1) return computeDelta(null, list[0]);
@@ -449,7 +448,7 @@ export function computeDeltaFromSeries(series) {
 // ⚠ 과거 opportunity 규칙에 `특수교육`이 들어 있어 특수교육 706행이 전량 기회균형
 // 탭으로 흡수되는 버그가 있었다. 축이 11종이 된 지금은 특수교육이 독립 탭이므로
 // opportunity 정규식에서 제거하고, 좁은 규칙을 먼저 두어 넓은 규칙이 삼키지 못하게 한다.
-export const CATEGORY_RULES = [
+const CATEGORY_RULES = [
   {
     key: "overseas",
     label: "재외국민",
@@ -509,8 +508,8 @@ export const CATEGORY_RULES = [
   },
 ];
 
-export const FALLBACK_CATEGORY = { key: "general", label: "일반" };
-export const ETC_CATEGORY = { key: "etc", label: "기타" };
+const FALLBACK_CATEGORY = { key: "general", label: "일반" };
+const ETC_CATEGORY = { key: "etc", label: "기타" };
 
 // screening_category 컬럼값 → 탭 키 매핑. 컬럼값을 그대로 신뢰하는 유일한 경로다.
 // 원자료 11종 전부를 덮는다(과거 6종만 덮어 7,192행 16.7%가 정규식 fallback으로
@@ -551,7 +550,7 @@ export const CATEGORY_ORDER = [
 // 정할 수 있는데 이 파일은 모집단위 1개분 행만 손에 쥐므로(모집단위 단위 count는
 // 어느 유형이든 한 자릿수) 여기서 임계를 적용하지 않는다. 접기 여부는 화면이
 // 이 목록을 보고 결정한다.
-export const TAIL_CATEGORY_KEYS = ["practical", "adult", "nonsul", "overseas"];
+const TAIL_CATEGORY_KEYS = ["practical", "adult", "nonsul", "overseas"];
 
 const CATEGORY_LABELS = {
   [FALLBACK_CATEGORY.key]: FALLBACK_CATEGORY.label,
@@ -622,8 +621,11 @@ function pickSummaryBasis(rows) {
   }
 
   // 모집인원 가중 최다 유형. quota 미기재 행은 1로 센다(가중평균 규칙과 동일).
-  const weights = new Map();
-  const order = [];
+  const weights = new Map<
+    string,
+    { key: string; label: string; weight: number }
+  >();
+  const order: string[] = [];
   for (const row of list) {
     const { key, label } = categorize(row);
     if (!weights.has(key)) {
@@ -631,14 +633,17 @@ function pickSummaryBasis(rows) {
       order.push(key);
     }
     const rawWeight = toNumber(row.quota);
-    weights.get(key).weight +=
-      rawWeight != null && rawWeight > 0 ? rawWeight : 1;
+    // 바로 위에서 weights.set(key, ...)을 이미 거쳤으므로(신규거나 기존이거나) 항상 존재.
+    const entry = weights.get(key)!;
+    entry.weight += rawWeight != null && rawWeight > 0 ? rawWeight : 1;
   }
 
+  // list.length===0은 위에서 이미 걸러졌으므로(early return) weights는 최소 1건 —
+  // sort 결과 배열도 비지 않는다.
   const winner = [...weights.values()].sort(
     (a, b) =>
       b.weight - a.weight || order.indexOf(a.key) - order.indexOf(b.key),
-  )[0];
+  )[0]!;
 
   return {
     basisKey: winner.key,
@@ -668,7 +673,13 @@ export function buildTrackSummaries(
     buckets.get(track).rows.push(row);
   }
 
-  const cards = [];
+  // 아래 push 리터럴의 정확한 셰이프를 새로 타이핑하지 않는다(파일 전체가
+  // JSDoc 시절부터 무타입 rows/row를 다뤄 왔다) — 뒤에서 실제로 읽는
+  // rowCount/order 두 필드만 명시하고 나머지는 인덱스 시그니처로 통과시킨다.
+  const cards: (Record<string, unknown> & {
+    rowCount: number;
+    order: number;
+  })[] = [];
   for (const bucket of buckets.values()) {
     const { basisKey, basis, rows: basisRows } = pickSummaryBasis(bucket.rows);
     const summary = weightedGrade(basisRows);
@@ -715,7 +726,7 @@ export function buildTrackSummaries(
 
 // 연도축 시계열. 한 연도에 여러 행이 있으면 그 연도의 가중평균을 쓴다.
 // 셀 3상태(값 / 미공개 / 행 부재)를 그대로 실어 화면이 "-"와 "미공개"를 구분할 수 있게 한다.
-export function buildTrackSeries(rows, { years = RESULT_YEARS } = {}) {
+function buildTrackSeries(rows, { years = RESULT_YEARS } = {}) {
   return years.map((year) => buildYearCell(rows, year));
 }
 

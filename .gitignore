@@ -20,6 +20,9 @@ build/
 .env.*
 !.env.example
 
+# dev DB 감사 스크립트(scripts/verify-admission-*.mjs)가 읽는 로컬 service_role 키 파일
+.dev-keys.json
+
 # Logs
 logs/
 *.log

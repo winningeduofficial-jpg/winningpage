@@ -229,11 +229,12 @@ function normalizeBasicInfo(raw: unknown): NormalizeBasicInfoResult {
   return {
     ok: true,
     columns: {
-      grade_label: clean.gradeLabel,
-      semester: clean.semester,
-      subject_group: clean.subjectGroup,
-      subject: clean.subject,
-      career_goal: clean.careerGoal,
+      // REQUIRED_BASIC_INFO_FIELDS 검증(위 루프)을 통과했으므로 5개 필드 모두 존재한다.
+      grade_label: clean.gradeLabel!,
+      semester: clean.semester!,
+      subject_group: clean.subjectGroup!,
+      subject: clean.subject!,
+      career_goal: clean.careerGoal!,
       // 프롬프트 기본값 '없음'은 애플리케이션(추천 프롬프트) 레이어의 몫이다(§8.3) —
       // 여기서는 미입력을 있는 그대로 null로 저장한다.
       previous_topic: clean.previousTopic || null,
@@ -295,7 +296,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const token = getBearerToken(req);
+    const token = getBearerToken(req as { headers: Record<string, string> });
     if (!token) {
       return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
     }
@@ -307,7 +308,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const userId = userData.user.id;
-    const serviceConfig = SERVICE_CONFIGS[SERVICE_KEY];
+    // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+    const serviceConfig = SERVICE_CONFIGS[SERVICE_KEY]!;
 
     // ── 이용권 재판정. §8.6 공통 규약 — 클라이언트 가드 통과 여부를 신뢰하지 않는다.
     const { allowed: hasAccess } = await hasPaidServiceAccess(

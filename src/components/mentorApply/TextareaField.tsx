@@ -24,9 +24,9 @@ type TextareaFieldProps = {
   required?: boolean;
   helperText?: ReactNode;
   value?: string;
-  onChange?: (value: string) => void;
+  onChange?: ((value: string) => void) | undefined; // exactOptionalPropertyTypes — 호출부 handle()이 optional call 반환형을 넘긴다
   placeholder?: string;
-  error?: string;
+  error?: string | undefined; // exactOptionalPropertyTypes — 호출부가 명시적 undefined를 넘긴다
   disabled?: boolean;
   /** 시안의 고정 높이 128 / 150 / 172 는 rows 로 근사한다(폰트·행간에 따라 실제 높이가
    * 달라지므로 픽셀 고정 대신 rows 로 두고, 정확한 높이가 필요하면 className 으로 덮는다). */

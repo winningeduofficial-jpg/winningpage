@@ -49,9 +49,12 @@ function groupProducts(rows: ProductRow[] | null | undefined): ServiceGroup[] {
         key: r.service_key,
         name: r.service_name,
         desc: r.service_desc || "",
-        order: Number.isFinite(r.service_sort_order)
-          ? r.service_sort_order
-          : 99,
+        // Number.isFinite는 타입가드가 아니므로 typeof로 좁혀야 삼항의 true 분기가 number로 좁혀진다.
+        order:
+          typeof r.service_sort_order === "number" &&
+          Number.isFinite(r.service_sort_order)
+            ? r.service_sort_order
+            : 99,
         products: [],
       });
     }
@@ -70,7 +73,7 @@ function groupProducts(rows: ProductRow[] | null | undefined): ServiceGroup[] {
 // products 테이블에서 활성 상품을 조회해 서비스별로 그룹핑한 배열을 반환한다.
 // serviceKey를 넘기면 해당 서비스 상품만 조회한다. 조회 실패 시 예외를 던진다
 // (호출부인 useProducts가 error 상태로 변환한다) — 조용히 빈 배열을 반환하지 않는다.
-export async function fetchProducts(
+async function fetchProducts(
   serviceKey?: string | null,
 ): Promise<ServiceGroup[]> {
   let query = supabase

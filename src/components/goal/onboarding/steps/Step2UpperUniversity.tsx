@@ -1,7 +1,7 @@
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
-import QuestionCard from "../QuestionCard";
-import UniversitySelect from "../UniversitySelect";
-import WizardActions from "../WizardActions";
+import QuestionCard from "@/components/goal/onboarding/QuestionCard";
+import UniversitySelect from "@/components/goal/onboarding/UniversitySelect";
+import WizardActions from "@/components/goal/onboarding/WizardActions";
+import { useGoalOnboarding } from "@/context/GoalOnboardingContext";
 
 // 2단계 — docs/figma-goal/part-01.md #3 + part-02.md #4. 상한(이상) 목표 대학.
 type Step2UpperUniversityProps = {

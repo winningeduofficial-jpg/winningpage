@@ -1,4 +1,4 @@
-import type { TableBlock } from "../../../lib/admissionDoc";
+import type { TableBlock } from "@/lib/admissionDoc";
 import EmptyBoxBlockEditor from "./blocks/EmptyBoxBlockEditor";
 import FootnoteBlockEditor from "./blocks/FootnoteBlockEditor";
 import GroupBlockEditor from "./blocks/GroupBlockEditor";
@@ -25,8 +25,8 @@ type AdmissionBlockEditorProps = {
   section?: unknown;
   block: AdmissionBlock;
   onChange: (block: AdmissionBlock) => void;
-  universityName?: string;
-  sectionLabel?: string;
+  universityName?: string | undefined;
+  sectionLabel?: string | undefined;
 };
 
 export default function AdmissionBlockEditor({

@@ -1,11 +1,14 @@
 import { Check, CheckCircle2, Clock, Copy } from "lucide-react";
 import { type MouseEvent, useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { COMPANY } from "../data/company";
-import { useMemberType } from "../hooks/useMemberType";
-import { clearCart } from "../lib/cart";
-import { openPaidServiceOrAlert } from "../lib/paidServiceAccess";
-import { supabase } from "../lib/supabase";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { COMPANY } from "@/data/company";
+import { useMemberType } from "@/hooks/useMemberType";
+import type {
+  PaymentInfo,
+  VirtualAccountInfo,
+} from "@/hooks/usePaymentConfirmation";
+import { usePaymentConfirmation } from "@/hooks/usePaymentConfirmation";
+import { openPaidServiceOrAlert } from "@/lib/paidServiceAccess";
 
 // 색은 전부 tailwind 토큰으로 쓴다(하드코딩 hex 없음). 이전 ACCENT = '#2563EB' 는
 // 시안 어느 캔버스에도 없는 값이었다 — 완료 화면 시안을 픽셀 실측하면
@@ -67,6 +70,7 @@ const SERVICE_ENTRY: Record<string, ServiceEntry> = {
 // 구매 내역 확인 경로. 로그인이 필요하므로(src/pages/MyPage.jsx:133 이 세션 없으면
 // /login 으로 보낸다) 회원 주문에서만 CTA 로 쓴다.
 const FALLBACK_PATH = "/mypage";
+const COPY_FEEDBACK_MS = 2000;
 
 // 새로고침으로 복구되지 않는 부여 실패.
 //
@@ -154,47 +158,6 @@ const BANKS: Record<string, string> = {
   90: "카카오뱅크",
   92: "토스뱅크",
 };
-
-interface CardInfo {
-  cardType?: string;
-  issuerCode?: string;
-  number?: string;
-  installmentPlanMonths?: number;
-  approveNo?: string;
-}
-
-interface VirtualAccountInfo {
-  customerName?: string;
-  dueDate?: string;
-  bank?: string;
-  bankCode?: string;
-  accountNumber?: string;
-}
-
-interface EasyPayInfo {
-  provider?: string;
-}
-
-interface AccessResult {
-  ok?: boolean;
-  granted?: string[];
-  skipped?: string[];
-  error?: string;
-}
-
-interface PaymentInfo {
-  orderId?: string;
-  card?: CardInfo;
-  virtualAccount?: VirtualAccountInfo;
-  easyPay?: EasyPayInfo;
-  method?: string;
-  approvedAt?: string;
-  requestedAt?: string;
-  totalAmount?: number;
-  vat?: number;
-  status?: string;
-  access?: AccessResult;
-}
 
 interface RowItem {
   label: string;
@@ -305,12 +268,20 @@ function methodLabel(payment?: PaymentInfo | null) {
 // 시안(1882-14270)은 '4895-4589-****-****' 로 앞 8자리만 노출한다. 토스도 이미
 // 일부를 가려서 주지만(예: 43301234****123*) 가리는 자리가 달라, 뒤 8자리를
 // 다시 '*' 로 덮은 뒤 4자리씩 하이픈으로 끊는다.
+const CARD_NUMBER_VISIBLE_DIGITS = 8;
+const CARD_NUMBER_MIN_DIGITS = 12;
+
 function formatCardNumber(raw?: string | null) {
   const value = String(raw || "").replace(/[^0-9*]/g, "");
   if (!value) return "-";
-  const length = Math.max(value.length, 12); // 12 = 최소 카드번호 자릿수
-  const masked = value.slice(0, 8).padEnd(8, "*") + "*".repeat(length - 8);
-  return masked.match(/.{1,4}/g).join("-");
+  const length = Math.max(value.length, CARD_NUMBER_MIN_DIGITS);
+  const masked =
+    value
+      .slice(0, CARD_NUMBER_VISIBLE_DIGITS)
+      .padEnd(CARD_NUMBER_VISIBLE_DIGITS, "*") +
+    "*".repeat(length - CARD_NUMBER_VISIBLE_DIGITS);
+  // masked는 항상 길이 12+ 비-개행 문자열이라 /.{1,4}/g 매치가 항상 성립한다.
+  return masked.match(/.{1,4}/g)!.join("-");
 }
 
 // 0개월 = 일시불 (시안 1882-14270)
@@ -381,7 +352,8 @@ function buildRows({
     });
   } else {
     rows.push({ label: "결제수단", value: methodLabel(payment) });
-    if (isCardPayment) {
+    // isCardPayment는 Boolean(card)를 포함하므로 card는 항상 non-null이다.
+    if (isCardPayment && card) {
       rows.push({ label: "카드번호", value: formatCardNumber(card.number) });
       rows.push({
         label: "할부 개월",
@@ -414,14 +386,11 @@ export default function PaymentSuccess() {
   const orderId = params.get("orderId");
   const amount = params.get("amount");
 
-  // missing_params 는 error 와 분리한다 — 파라미터 없는 재방문(예: 가상계좌
-  // 구매자가 계좌번호를 다시 보려고 히스토리로 돌아오는 경우)은 실패가 아니라
-  // 정상적인 재방문이라 빨간 에러 취급을 하면 안 된다.
-  const [status, setStatus] = useState<
-    "confirming" | "done" | "error" | "missing_params"
-  >("confirming");
-  const [errorMsg, setErrorMsg] = useState("");
-  const [payment, setPayment] = useState<PaymentInfo | null>(null); // 승인 응답(토스 raw)
+  const { status, errorMsg, payment } = usePaymentConfirmation({
+    paymentKey,
+    orderId,
+    amount,
+  });
   // 계좌번호 복사 피드백. 2초 후 자동으로 꺼진다.
   const [copied, setCopied] = useState(false);
   const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -431,56 +400,6 @@ export default function PaymentSuccess() {
       if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    if (!paymentKey || !orderId || !amount) {
-      setStatus("missing_params");
-      return;
-    }
-
-    let cancelled = false;
-    (async () => {
-      try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
-
-        const res = await fetch("/api/confirm-payment", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-          },
-          body: JSON.stringify({ paymentKey, orderId, amount }),
-        });
-
-        let result: PaymentInfo & { error?: string } = {};
-        try {
-          result = await res.json();
-        } catch {
-          result = {};
-        }
-
-        if (cancelled) return;
-
-        if (!res.ok || result?.error) {
-          setStatus("error");
-          setErrorMsg(result?.error ?? "결제 승인에 실패했습니다.");
-        } else {
-          setPayment(result);
-          setStatus("done");
-          clearCart();
-        }
-      } catch (err) {
-        if (cancelled) return;
-        setStatus("error");
-        setErrorMsg(String(err?.message ?? err));
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [paymentKey, orderId, amount]);
 
   const totalAmount = payment?.totalAmount ?? Number(amount);
   const vat =
@@ -520,7 +439,7 @@ export default function PaymentSuccess() {
   // (api/_lib/programAccess.js 의 skipped) 여기서 0개가 되어 CTA 가 내려간다.
   const entries = (access?.granted ?? [])
     .map((key) => SERVICE_ENTRY[key])
-    .filter(Boolean);
+    .filter((entry): entry is ServiceEntry => Boolean(entry));
   // 결제자가 학부모면 프로그램 입장 버튼을 띄우지 않는다.
   //
   // 쌍 구조(sql/68)에서 이용 권한(program_access_grants)은 **자녀**에게 부여된다
@@ -555,7 +474,10 @@ export default function PaymentSuccess() {
     if (!ok) return; // 실패해도 화면은 그대로 — 버튼을 숨기거나 에러를 띄우지 않는다.
     setCopied(true);
     if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
+    copyTimeoutRef.current = setTimeout(
+      () => setCopied(false),
+      COPY_FEEDBACK_MS,
+    );
   }
 
   // 가상계좌(토스 status = WAITING_FOR_DEPOSIT)는 계좌 발급까지만 끝난 상태다.
@@ -829,15 +751,13 @@ export default function PaymentSuccess() {
             }`}
           >
             <p className="text-[0.875rem] font-semibold leading-5 text-ink">
-              {isWaitingDeposit
-                ? "입금 안내"
-                : needsLogin
-                  ? "로그인 후 이용"
-                  : grantPermanent
-                    ? "이용 등록 확인이 필요합니다"
-                    : grantFailed
-                      ? "이용 권한 등록 지연"
-                      : "이용 안내"}
+              {(() => {
+                if (isWaitingDeposit) return "입금 안내";
+                if (needsLogin) return "로그인 후 이용";
+                if (grantPermanent) return "이용 등록 확인이 필요합니다";
+                if (grantFailed) return "이용 권한 등록 지연";
+                return "이용 안내";
+              })()}
             </p>
             {/* 문구는 각 상태에서 "검증 가능한 사실"만 남긴 초안이다 — 최종 문안은
                   사용자 승인 대기(입장 앱 없는 상품 안내 / 비회원 결제 안내 2건). */}
@@ -845,21 +765,23 @@ export default function PaymentSuccess() {
                   leading-relaxed 를 유지한다 — 시안의 lh20(1.43)은 한 줄짜리 명세 행 기준
                   값이라 3~4줄 문단에 그대로 쓰면 답답해진다. */}
             <p className="mt-2 break-keep text-[0.875rem] font-medium leading-relaxed text-ink">
-              {isWaitingDeposit
-                ? "위 가상계좌로 입금기한 내에 입금해 주세요. 입금이 확인되면 이용 권한이 자동으로 부여됩니다."
-                : needsLogin
-                  ? "결제가 확인되었습니다. 이용 권한은 결제하신 계정에 등록되어 있습니다. 로그인하신 뒤 이용해 주세요."
-                  : needsSignup
-                    ? "결제는 정상적으로 완료됐습니다. 다만 비회원으로 결제하셔서 이용 권한을 넣어 드릴 계정이 없습니다. 아래 버튼으로 회원가입하신 뒤 주문번호와 함께 문의해 주시면 바로 등록해 드립니다."
-                    : grantPermanent
-                      ? "결제는 정상적으로 완료됐습니다. 다만 이 주문은 이용 권한 자동 등록이 되지 않아 확인이 필요합니다. 아래 연락처로 주문번호와 함께 문의해 주시면 바로 등록해 드립니다."
-                      : grantFailed
-                        ? "결제는 정상적으로 완료됐습니다. 다만 이용 권한 등록이 아직 끝나지 않았습니다. 이 페이지를 새로고침하면 자동으로 다시 시도되며, 계속 같은 안내가 보이면 아래 연락처로 주문번호와 함께 문의해 주세요."
-                        : noEntryProduct
-                          ? "결제가 확인되었습니다. 이 상품은 별도 입장 화면 없이 진행되는 서비스라, 이용 방법은 아래 연락처로 안내드립니다. 주문 내역은 마이페이지에서 확인할 수 있습니다."
-                          : entries.length > 1
-                            ? "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 각 프로그램에 입장해 주세요."
-                            : "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 프로그램에 입장해 주세요."}
+              {(() => {
+                if (isWaitingDeposit)
+                  return "위 가상계좌로 입금기한 내에 입금해 주세요. 입금이 확인되면 이용 권한이 자동으로 부여됩니다.";
+                if (needsLogin)
+                  return "결제가 확인되었습니다. 이용 권한은 결제하신 계정에 등록되어 있습니다. 로그인하신 뒤 이용해 주세요.";
+                if (needsSignup)
+                  return "결제는 정상적으로 완료됐습니다. 다만 비회원으로 결제하셔서 이용 권한을 넣어 드릴 계정이 없습니다. 아래 버튼으로 회원가입하신 뒤 주문번호와 함께 문의해 주시면 바로 등록해 드립니다.";
+                if (grantPermanent)
+                  return "결제는 정상적으로 완료됐습니다. 다만 이 주문은 이용 권한 자동 등록이 되지 않아 확인이 필요합니다. 아래 연락처로 주문번호와 함께 문의해 주시면 바로 등록해 드립니다.";
+                if (grantFailed)
+                  return "결제는 정상적으로 완료됐습니다. 다만 이용 권한 등록이 아직 끝나지 않았습니다. 이 페이지를 새로고침하면 자동으로 다시 시도되며, 계속 같은 안내가 보이면 아래 연락처로 주문번호와 함께 문의해 주세요.";
+                if (noEntryProduct)
+                  return "결제가 확인되었습니다. 이 상품은 별도 입장 화면 없이 진행되는 서비스라, 이용 방법은 아래 연락처로 안내드립니다. 주문 내역은 마이페이지에서 확인할 수 있습니다.";
+                if (entries.length > 1)
+                  return "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 각 프로그램에 입장해 주세요.";
+                return "결제가 확인되어 지금 바로 이용할 수 있습니다. 아래 버튼으로 프로그램에 입장해 주세요.";
+              })()}
             </p>
             {/* 12.5px 은 시안에 없는 단계였다 — 14px 로 올리고 보조 정보라는 사실은
                   ink.sub(#808080)로 표현한다(무게는 본문과 같은 w500). */}
@@ -883,59 +805,69 @@ export default function PaymentSuccess() {
                     카카오톡은 채널 URL 정본이 없어 링크로 걸지 않았다(문의 줄에
                     아이디로 노출). */}
           <div className="mx-auto mt-8 w-full max-w-[40.625rem] sm:mt-10">
-            {canStart ? (
-              <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-                {entries.map((item) => (
-                  <button
-                    key={item.serviceKey}
-                    type="button"
-                    onClick={(event) => handleStart(event, item)}
-                    className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+            {(() => {
+              if (canStart)
+                return (
+                  <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+                    {entries.map((item) => (
+                      <button
+                        key={item.serviceKey}
+                        type="button"
+                        onClick={(event) => handleStart(event, item)}
+                        className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                      >
+                        {entries.length > 1
+                          ? `${item.label} 시작하기`
+                          : "프로그램 시작하기"}
+                      </button>
+                    ))}
+                  </div>
+                );
+              if (needsLogin)
+                return (
+                  <Link
+                    to="/login"
+                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
                   >
-                    {entries.length > 1
-                      ? `${item.label} 시작하기`
-                      : "프로그램 시작하기"}
-                  </button>
-                ))}
-              </div>
-            ) : needsLogin ? (
-              <Link
-                to="/login"
-                className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-              >
-                로그인하고 이용하기
-              </Link>
-            ) : needsSignup ? (
-              <Link
-                to="/signup"
-                className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-              >
-                회원가입하고 이용 등록하기
-              </Link>
-            ) : grantPermanent ? (
-              <a
-                href={`tel:${COMPANY.centerTel}`}
-                className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-              >
-                센터로 문의하기
-              </a>
-            ) : (
-              <button
-                type="button"
-                onClick={() =>
-                  navigate(
-                    isParentPayer
-                      ? `${FALLBACK_PATH}?tab=payments`
-                      : FALLBACK_PATH,
-                  )
-                }
-                className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
-              >
-                {isParentPayer
-                  ? "결제 내역 보러가기"
-                  : "마이페이지에서 확인하기"}
-              </button>
-            )}
+                    로그인하고 이용하기
+                  </Link>
+                );
+              if (needsSignup)
+                return (
+                  <Link
+                    to="/signup"
+                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                  >
+                    회원가입하고 이용 등록하기
+                  </Link>
+                );
+              if (grantPermanent)
+                return (
+                  <a
+                    href={`tel:${COMPANY.centerTel}`}
+                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                  >
+                    센터로 문의하기
+                  </a>
+                );
+              return (
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      isParentPayer
+                        ? `${FALLBACK_PATH}?tab=payments`
+                        : FALLBACK_PATH,
+                    )
+                  }
+                  className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                >
+                  {isParentPayer
+                    ? "결제 내역 보러가기"
+                    : "마이페이지에서 확인하기"}
+                </button>
+              );
+            })()}
           </div>
         </div>
       )}

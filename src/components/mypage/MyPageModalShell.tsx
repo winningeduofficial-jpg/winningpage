@@ -75,8 +75,9 @@ export default function MyPageModalShell({
       );
       if (focusables.length === 0) return;
 
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
+      // 위 length===0 가드로 focusables는 항상 1개 이상이다.
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
 
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();

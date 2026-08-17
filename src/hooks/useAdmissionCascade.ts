@@ -4,18 +4,18 @@ import {
   deriveMainTracks,
   deriveSubjectReflections,
   NO_SUBJECT_REFLECTION_LABEL,
-} from "../lib/diagnosisAdmissionCascade";
+} from "@/lib/diagnosisAdmissionCascade";
 import {
   ADMISSION_FETCH_ERROR,
   fetchAdmissionCuts,
-} from "../lib/diagnosisAdmissionCuts";
+} from "@/lib/diagnosisAdmissionCuts";
 // admissionResultsQueries.js(다른 세션 소유, recruitment_period 필터가 새 스키마에서 깨져 있다)를
 // 재사용하지 않는다 — diagnosisAdmissionMasterQueries.js 헤더 주석 참고.
 import {
   fetchAdmissionDepartments,
   fetchAdmissionTrackRows,
   fetchAdmissionUniversities,
-} from "../lib/diagnosisAdmissionMasterQueries";
+} from "@/lib/diagnosisAdmissionMasterQueries";
 
 interface UniversityRow {
   university_key: string;
@@ -242,8 +242,9 @@ export function useAdmissionCascade(cascadeValue?: CascadeValue | null) {
     const settle = fetchAdmissionCuts({
       universityKey,
       departmentKey,
-      mainTrack: value.admissionType,
-      admissionTrack: value.detailType,
+      // cascadeComplete가 truthy를 보장하므로 admissionType/detailType은 항상 존재.
+      mainTrack: value.admissionType!,
+      admissionTrack: value.detailType!,
       subjectReflection: resolvedSubjectReflection,
     })
       .then((result) => {

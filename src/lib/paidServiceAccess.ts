@@ -10,6 +10,7 @@ const PAID_GATE_DISABLED =
   import.meta.env.VITE_DISABLE_PAID_GATE === "true";
 
 const PAID_MESSAGE = "유료결제이후 이용해주세요!";
+const CURSOR_RESTORE_DELAY_MS = 600;
 
 // 호출부마다 필드 구성이 조금씩 다른 "서비스 카드/CTA 컨텍스트"를 느슨하게 받는다
 // (PaymentSuccess.tsx의 ServiceEntry, DynamicPage.tsx의 paidServiceContext 등).
@@ -98,7 +99,7 @@ const PAID_SERVICE_CONFIGS: PaidServiceConfig[] = [
   },
 ];
 
-export function getPaidServiceConfig(service?: PaidServiceLike) {
+function getPaidServiceConfig(service?: PaidServiceLike) {
   return PAID_SERVICE_CONFIGS.find((config) => config.match(service)) || null;
 }
 
@@ -225,6 +226,6 @@ export async function openPaidServiceOrAlert(
     setTimeout(() => {
       setGlobalLoadingCursor(false);
       setButtonLoading(targetEl, false);
-    }, 600);
+    }, CURSOR_RESTORE_DELAY_MS);
   }
 }

@@ -2,7 +2,7 @@ import { BlockNoteView } from "@blocknote/ariakit";
 import { ko } from "@blocknote/core/locales";
 import { useCreateBlockNote } from "@blocknote/react";
 import { useEffect, useRef } from "react";
-import { columnSchema } from "../editor/columnSchema";
+import { columnSchema } from "@/components/editor/columnSchema";
 // CSS는 반드시 이 파일 안에서 import — 상위에서 import하면 49KB CSS가 초기 번들에 남는다.
 import "@blocknote/ariakit/style.css";
 import "../editor/blockNoteContent.css";

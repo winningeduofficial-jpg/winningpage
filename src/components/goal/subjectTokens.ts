@@ -25,7 +25,7 @@ export function resolveSubjectId(key?: string | null) {
 // id → 한글 라벨. api/_lib/goalRepo.js SUBJECT_CODE_TO_LABEL과 글자 단위로 같다
 // (서버 파일은 클라이언트 번들에 끌어올 수 없어 — service_role 키를 물고 있는
 // supabaseAdmin.js를 재수출하게 된다 — 여기 별도로 둔다).
-export const SUBJECT_LABELS = {
+const SUBJECT_LABELS = {
   korean: "국어",
   math: "수학",
   english: "영어",
@@ -46,13 +46,3 @@ export function getSubjectBgClass(key?: string | null) {
 export function getSubjectStrongClass(key?: string | null) {
   return `bg-goal-subjectStrong-${resolveSubjectId(key)}`;
 }
-
-// recharts fill 등 hex 값이 직접 필요한 소비처를 위한 파스텔 매핑.
-// tailwind.config.js `goal.subject.*`와 반드시 동기화할 것.
-export const SUBJECT_HEX = {
-  korean: "#FCE4EC",
-  math: "#E3F2FD",
-  english: "#FFF8E1",
-  science: "#E8F5E9",
-  etc: "#F1EDE7",
-};

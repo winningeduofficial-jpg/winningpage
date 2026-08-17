@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import GoalTabs from "../GoalTabs";
+import GoalTabs from "@/components/goal/GoalTabs";
 import AdmissionChanceCard from "./AdmissionChanceCard";
 import ConditionListCard from "./ConditionListCard";
 import ConditionTileCard from "./ConditionTileCard";

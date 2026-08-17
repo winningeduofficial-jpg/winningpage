@@ -1,7 +1,7 @@
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import GapToTargetCard from "../../components/goal/study/GapToTargetCard";
-import TargetUniversityCard from "../../components/goal/study/TargetUniversityCard";
-import { mockTargetUniversities } from "../../data/goalMock";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import GapToTargetCard from "@/components/goal/study/GapToTargetCard";
+import TargetUniversityCard from "@/components/goal/study/TargetUniversityCard";
+import { mockTargetUniversities } from "@/data/goalMock";
 
 // 내 목표 대학(#24) — 이상/최소 목표 대학 2카드(680×348) + 목표까지 남은 격차 3행.
 // 대학명·합격률은 대시보드 계열이 정본이라 src/data/goalMock.js의 `mockTargetUniversities`를

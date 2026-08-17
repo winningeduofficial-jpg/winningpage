@@ -6,31 +6,14 @@ import {
   useMemo,
   useState,
 } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import ConfirmModal from "../../components/checkout/ConfirmModal";
-import { CHECKOUT_AGREEMENTS } from "../../data/legalDocs";
-import { formatKRW } from "../../data/pricingCatalog";
-import { supabase } from "../../lib/supabase";
-import { ANONYMOUS, getTossPayments } from "../../lib/toss";
-
-interface Order {
-  id: string;
-  status: string;
-  approval_status: string;
-  order_name: string;
-  list_amount: number;
-  discount_amount: number;
-  amount: number;
-  student_profile_id: string | null;
-}
-
-interface OrderItem {
-  id: string;
-  name: string;
-  list_price: number;
-  price: number;
-  quantity: number;
-}
+import { useNavigate, useSearchParams } from "react-router";
+import ConfirmModal from "@/components/checkout/ConfirmModal";
+import { CHECKOUT_AGREEMENTS } from "@/data/legalDocs";
+import { formatKRW } from "@/data/pricingCatalog";
+import { supabase } from "@/lib/supabase";
+import { ANONYMOUS, getTossPayments } from "@/lib/toss";
+import { useEnrollmentOrder } from "./useEnrollmentOrder";
+import { usePaymentAgreementHistory } from "./usePaymentAgreementHistory";
 
 interface CouponRow {
   id: string;
@@ -48,12 +31,6 @@ interface CouponRow {
 type CodeFeedback =
   | { type: "not_found" }
   | { type: "ineligible"; reason: string | null };
-
-interface ApprovedOrder {
-  order_id: string;
-  amount: number;
-  skipped_coupon_ids?: string[];
-}
 
 // 학부모 — 결제 요청 수락 + 결제 화면. 두 진입 모드를 하나의 라우트에서 갈라 받는다
 // (?order=<id> 유무). 학생이 fn_request_enrollment 로 만든 요청(StudentEnrollmentRequest.jsx
@@ -277,13 +254,15 @@ function OrderNotActionable({ text }: { text: ReactNode }) {
 
 // ?order=<id> 진입 — 수락 + 결제 본문.
 function EnrollmentCheckout({ orderId }: { orderId: string }) {
-  const [order, setOrder] = useState<Order | null>(null);
-  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
-  // 'not_found' | 'not_actionable' — 어느 쪽이든 화면은 OrderNotActionable 로 수렴한다.
-  const [orderError, setOrderError] = useState<
-    "not_found" | "not_actionable" | null
-  >(null);
-  const [orderLoading, setOrderLoading] = useState(true);
+  const {
+    order,
+    orderItems,
+    orderError,
+    orderLoading,
+    isResume,
+    approvedOrder,
+    setApprovedOrder,
+  } = useEnrollmentOrder(orderId);
 
   const [coupons, setCoupons] = useState<CouponRow[]>([]);
   const [couponError, setCouponError] = useState(false);
@@ -298,11 +277,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   const [codeFeedback, setCodeFeedback] = useState<CodeFeedback | null>(null);
   const [amountMismatch, setAmountMismatch] = useState(false);
 
-  // 결제 약관 동의(sql/78) — user_term_agreements 원장. null=조회 중.
-  // 재구매·다른 자녀 결제처럼 이미 동의 이력이 있으면 화면에서 이 섹션을
-  // 아예 건너뛴다(매 결제마다 다시 체크하게 하지 않는다 — 원장은 "이 회원이
-  // 이 문서에 동의했는가"를 표현하지 결제 건별 동의가 아니다).
-  const [paymentAgreed, setPaymentAgreed] = useState(null);
+  const [paymentAgreed, setPaymentAgreed] = usePaymentAgreementHistory();
   const [checkedRefund, setCheckedRefund] = useState(false);
   const [checkedPayment, setCheckedPayment] = useState(false);
   const [expandedRefund, setExpandedRefund] = useState(false);
@@ -311,111 +286,6 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   const [payMethod, setPayMethod] = useState("card");
   const [loading, setLoading] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
-  // fn_respond_enrollment 성공 응답을 캐시한다 — 승인은 즉시 서버에서 확정되므로
-  // (approval_status='approved', 쿠폰 귀속 insert 까지 끝남) 이후 토스 결제창만
-  // 실패/재시도해도 RPC 를 다시 부르지 않는다(재호출 시 enrollment_not_pending 로 죽는다).
-  const [approvedOrder, setApprovedOrder] = useState<ApprovedOrder | null>(
-    null,
-  );
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      setOrderLoading(true);
-      const { data, error } = await supabase
-        .from("orders")
-        .select(
-          "id, status, approval_status, order_name, list_amount, discount_amount, amount, student_profile_id",
-        )
-        .eq("id", orderId)
-        .maybeSingle();
-      if (!alive) return;
-
-      if (error || !data) {
-        if (error) console.warn("결제 요청 조회 실패:", error.message);
-        setOrderError("not_found");
-        setOrderLoading(false);
-        return;
-      }
-
-      // 진입 게이트 — 결제 전(status='pending') 주문만 받는다. 승인축은 두 값을
-      // 모두 통과시킨다.
-      //   requested = 아직 수락 전. 수락 + 쿠폰 선택 + 결제를 여기서 다 한다.
-      //   approved  = 수락(fn_respond_enrollment)까지 끝났는데 토스 결제창만 닫힌
-      //               상태 → **재개 모드**. 2026-08-13 이전에는 이 값이 게이트에
-      //               걸려 not_actionable 로 막혔고, 그래서 학부모가 수락 후
-      //               결제창을 닫으면 그 주문을 되살릴 방법이 아예 없었다
-      //               (docs/mypage-payment-handoff.md 작업 2).
-      if (
-        data.status !== "pending" ||
-        !["requested", "approved"].includes(data.approval_status)
-      ) {
-        setOrder(data);
-        setOrderError("not_actionable");
-        setOrderLoading(false);
-        return;
-      }
-
-      const { data: items, error: itemsError } = await supabase
-        .from("order_items")
-        .select("id, name, list_price, price, quantity")
-        .eq("order_id", orderId);
-      if (!alive) return;
-
-      if (itemsError) {
-        console.warn("주문 상품 조회 실패:", itemsError.message);
-        setOrderError("not_found");
-        setOrderLoading(false);
-        return;
-      }
-
-      // 재개 모드 — 수락이 이미 끝났으므로 fn_respond_enrollment 를 다시 부르면
-      // 안 된다(재호출은 enrollment_not_pending 으로 죽는다, 위 approvedOrder 주석).
-      // handlePay 가 그 RPC 를 건너뛰고 곧장 토스를 부르도록, 승인 결과와 같은
-      // 모양을 DB 행에서 만들어 미리 채운다. 금액은 쿠폰 귀속까지 반영된 확정값
-      // (orders.amount)이라 여기서 다시 계산하지 않는다.
-      if (data.approval_status === "approved") {
-        setApprovedOrder({ order_id: data.id, amount: data.amount });
-      }
-
-      setOrder(data);
-      setOrderItems(items || []);
-      setOrderError(null);
-      setOrderLoading(false);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, [orderId]);
-
-  // 결제 약관 동의 이력 조회(sql/78) — 3문서(refund_notice/payment_terms/
-  // payment_consent) 전부 agreed=true 일 때만 건너뛴다. RLS(user_term_agreements
-  // own read)가 본인 행만 돌려주므로 embed 결과는 항상 본인 것이다.
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const { data, error } = await supabase
-        .from("terms")
-        .select("code, user_term_agreements(agreed)")
-        .in("code", ["refund_notice", "payment_terms", "payment_consent"])
-        .eq("is_active", true);
-      if (!alive) return;
-      if (error) {
-        console.warn("결제 약관 동의 상태 조회 실패:", error.message);
-        setPaymentAgreed(false);
-        return;
-      }
-      const allAgreed =
-        (data || []).length === 3 &&
-        data.every((t) =>
-          (t.user_term_agreements || []).some((a) => a.agreed === true),
-        );
-      setPaymentAgreed(allAgreed);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   // 쿠폰 목록 — subtotal 은 요청 시점 amount(쿠폰 미적용, Baseline fn_respond_enrollment
   // 주석 "v_subtotal := v_order.amount"). p_student_profile_id 를 반드시 넘겨야
@@ -454,11 +324,6 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
     [order],
   );
 
-  // 재개 모드(수락 완료 + 결제만 남음). 쿠폰은 수락 시점에 이미 귀속됐고
-  // orders.amount 가 그 결과라, 다시 고르게 하면 화면 금액과 실제 청구액이
-  // 갈라진다 — 조회도 하지 않고 UI 도 감춘다.
-  const isResume = order?.approval_status === "approved";
-
   useEffect(() => {
     if (!order || isResume) return undefined;
     let alive = true;
@@ -472,6 +337,12 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
     () => coupons.filter((c) => c.isActive),
     [coupons],
   );
+  const hasNoVisibleCoupons =
+    couponsLoaded && !couponError && visibleCoupons.length === 0;
+  const codeFeedbackReasonText =
+    codeFeedback?.type === "ineligible" && codeFeedback.reason
+      ? COUPON_REASON_TEXT[codeFeedback.reason]
+      : undefined;
 
   const couponDiscount = useMemo(() => {
     if (!order) return 0;
@@ -571,6 +442,8 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
 
   async function handlePay() {
     if (!canPay) return;
+    // canPay가 Boolean(order)를 이미 검사하므로 도달 시 항상 non-null이다.
+    if (!order) return;
     setLoading(true);
     setPayError(null);
     try {
@@ -637,7 +510,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
         orderName: order.order_name || "위닝에듀 서비스",
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
-        customerEmail: user?.email ?? undefined,
+        customerEmail: user?.email ?? null,
       };
 
       if (method === "VIRTUAL_ACCOUNT") {
@@ -686,6 +559,9 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   if (orderError === "not_actionable") {
     return <OrderNotActionable text={ALREADY_PROCESSED_TEXT} />;
   }
+  // orderLoading=false && orderError=null 인 경로는 위 useEffect에서 항상
+  // setOrder(data)를 거친다 — 여기 도달하면 order는 non-null이다.
+  if (!order) return null;
 
   return (
     <main className="min-h-screen bg-white pt-16">
@@ -822,20 +698,17 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                     {CODE_NOT_FOUND_TEXT}
                   </p>
                 )}
-                {codeFeedback?.type === "ineligible" &&
-                  COUPON_REASON_TEXT[codeFeedback.reason] && (
-                    <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
-                      {COUPON_REASON_TEXT[codeFeedback.reason]}
-                    </p>
-                  )}
+                {codeFeedbackReasonText && (
+                  <p className="mt-3 text-[0.75rem] font-medium leading-[1.4] text-error">
+                    {codeFeedbackReasonText}
+                  </p>
+                )}
 
-                {couponsLoaded &&
-                  !couponError &&
-                  visibleCoupons.length === 0 && (
-                    <p className="mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">
-                      보유한 쿠폰이 없습니다.
-                    </p>
-                  )}
+                {hasNoVisibleCoupons && (
+                  <p className="mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">
+                    보유한 쿠폰이 없습니다.
+                  </p>
+                )}
 
                 {visibleCoupons.length > 0 && (
                   <>
@@ -854,6 +727,10 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                             : c.ownerIsStudent === false
                               ? "학부모 쿠폰"
                               : null;
+                        const reasonText =
+                          !eligible && c.reason
+                            ? COUPON_REASON_TEXT[c.reason]
+                            : undefined;
                         return (
                           <button
                             type="button"
@@ -897,9 +774,9 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                                   {String(c.validUntil).replace(/-/g, ".")}까지
                                 </span>
                               )}
-                              {!eligible && COUPON_REASON_TEXT[c.reason] && (
+                              {reasonText && (
                                 <span className="block text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
-                                  {COUPON_REASON_TEXT[c.reason]}
+                                  {reasonText}
                                 </span>
                               )}
                             </span>

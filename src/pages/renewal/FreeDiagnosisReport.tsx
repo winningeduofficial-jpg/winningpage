@@ -1,15 +1,15 @@
 import { type ComponentProps, useMemo } from "react";
-import { Navigate, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router";
 import "../../styles/report-print.css";
 import "../../styles/report-responsive.css";
-import ReportPageOne from "../../components/renewal/report/ReportPageOne";
-import ReportPageTwo from "../../components/renewal/report/ReportPageTwo";
-import ReportScreenExtras from "../../components/renewal/report/ReportScreenExtras";
-import ReportSincerityBanner from "../../components/renewal/report/ReportSincerityBanner";
+import ReportPageOne from "@/components/renewal/report/ReportPageOne";
+import ReportPageTwo from "@/components/renewal/report/ReportPageTwo";
+import ReportScreenExtras from "@/components/renewal/report/ReportScreenExtras";
+import ReportSincerityBanner from "@/components/renewal/report/ReportSincerityBanner";
 // 저장 키·스키마 검증은 storage 모듈이 소유한다 — 저장 주체(설문 CTA)와 읽기 주체(이 페이지)가
 // 다른 파일이라 리터럴을 양쪽에 두면 조용히 갈라진다.
-import { loadDiagnosisInput } from "../../lib/diagnosisInputStorage";
-import { buildReport } from "../../lib/diagnosisReport";
+import { loadDiagnosisInput } from "@/lib/diagnosisInputStorage";
+import { buildReport } from "@/lib/diagnosisReport";
 
 // 입력 없이 이 URL 로 진입했을 때 되돌려보낼 설문 시작점. 라우트 정본(App.jsx)과 같은 경로다.
 const SURVEY_ENTRY_PATH = "/app/learning-diagnosis/survey";
@@ -67,10 +67,18 @@ export default function FreeDiagnosisReport() {
       // ('…자료가 없어 산출하지 않았습니다')가 나가는데, 그 문장은 영구 부재를 단정하므로
       // 거짓말이 된다. 훅이 참조 비교로 판정해 불리언으로 저장해 둔 값을 그대로 넘긴다.
       const typedInput = input as DiagnosisInput;
+      // exactOptionalPropertyTypes 대응 — buildReport(범위 밖 파일)의 BuildReportCtx는 각 필드에
+      // undefined를 명시적으로 허용하지 않아, undefined면 키 자체를 생략한다(동작 동일).
       return buildReport(input, {
-        cuts: typedInput.admissionCuts,
-        cutsError: typedInput.admissionCutsError,
-        admissionMeta: typedInput.admissionMeta,
+        ...(typedInput.admissionCuts !== undefined
+          ? { cuts: typedInput.admissionCuts }
+          : {}),
+        ...(typedInput.admissionCutsError !== undefined
+          ? { cutsError: typedInput.admissionCutsError }
+          : {}),
+        ...(typedInput.admissionMeta !== undefined
+          ? { admissionMeta: typedInput.admissionMeta }
+          : {}),
       }) as DiagnosisReportData;
     } catch (error) {
       // 스키마 버전은 맞지만 내부가 손상된 페이로드(수기 편집·부분 저장). 흰 화면이나 가짜
@@ -95,7 +103,12 @@ export default function FreeDiagnosisReport() {
         {/* 불성실 응답 경고는 시트 **위**에 둔다 — '결과가 다를 수 있다'는 안내가 리포트 2장을
             다 읽은 뒤에 나오면 기능을 못 한다. 시트 밖인 이유는 승인된 A4 레이아웃의 첫 요소를
             밀어내지 않기 위해서다. */}
-        <ReportSincerityBanner message={data.notices?.sincerityBanner} />
+        {/* exactOptionalPropertyTypes 대응 — undefined면 키 자체를 생략(ReportSincerityBanner 미수정 범위). */}
+        <ReportSincerityBanner
+          {...(data.notices?.sincerityBanner !== undefined
+            ? { message: data.notices.sincerityBanner }
+            : {})}
+        />
 
         <ReportPageOne data={data} />
         <ReportPageTwo data={data} />

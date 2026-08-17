@@ -27,8 +27,8 @@
 //  3. 이미 가입에 쓰인 전화번호는 "인증번호 보내기" 단계에서 걸러낸다
 //     (/api/send-phone-code reason:'phone_taken'). 경합으로 뚫린 경우는 가입 RPC의
 //     duplicate_phone이 잡는다(sql/40_auth_signup.sql [16]).
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import {
   AgreementList,
   AuthLayout,
@@ -36,16 +36,17 @@ import {
   PrimaryButton,
   SelectField,
   TextField,
-} from "../../components/auth";
-import { useSignup } from "../../context/SignupContext";
-import { useCooldown } from "../../hooks/useCooldown";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
+import { useCooldown } from "@/hooks/useCooldown";
 import {
   DUPLICATE_PHONE_MESSAGE,
   isValidMobile,
   normalizePhone,
+  PHONE_RESEND_COOLDOWN_SECONDS,
   sendPhoneCode,
   verifyPhoneCode,
-} from "../../lib/phoneVerification";
+} from "@/lib/phoneVerification";
 import {
   applySignupPassword,
   EMAIL_RESEND_COOLDOWN_SECONDS,
@@ -53,8 +54,8 @@ import {
   MESSAGES,
   sendSignupEmailCode,
   verifySignupEmailCode,
-} from "../../lib/signupEmailAuth";
-import { supabase } from "../../lib/supabase";
+} from "@/lib/signupEmailAuth";
+import { supabase } from "@/lib/supabase";
 
 // Under14Form(D-2)도 동일 지역 목록(17개 시도 + '기타')을 쓰므로 이 상수를 공유한다.
 export const REGION_OPTIONS = [
@@ -184,7 +185,7 @@ export default function StudentForm() {
     status: "default",
   });
   const [phoneSending, setPhoneSending] = useState(false);
-  const phoneCooldown = useCooldown(60);
+  const phoneCooldown = useCooldown(PHONE_RESEND_COOLDOWN_SECONDS);
   // 서버가 시도를 세므로 같은 코드를 두 번 보내지 않는다.
   const lastPhoneAttempt = useRef("");
   const [emailMessage, setEmailMessage] = useState<FieldMessage>({
@@ -317,10 +318,9 @@ export default function StudentForm() {
     }
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.phone.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. phoneCode 6자리 완성 시에만 실행되어야 한다.
-  useEffect(() => {
-    const code = formData.phoneCode;
-
+  // OTP 자동검증 — updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프로
+  // 이어지지 않도록 useEffectEvent로 감싼다. phoneCode 6자리 완성 시에만 실행되어야 한다.
+  const onPhoneCodeChange = useEffectEvent((code: string) => {
     if (
       code.length !== 6 ||
       !verification.phone.requested ||
@@ -353,6 +353,10 @@ export default function StudentForm() {
         lastPhoneAttempt.current = "";
       }
     });
+  });
+
+  useEffect(() => {
+    onPhoneCodeChange(formData.phoneCode);
   }, [formData.phoneCode]);
 
   // --- 이메일 인증: 기존 Signup.jsx 시퀀스 그대로(중복확인 → signUp으로 OTP 발송) ---
@@ -449,10 +453,9 @@ export default function StudentForm() {
   // 6자리가 채워지면 곧바로 검증한다 — 휴대폰(알림톡) 인증과 같은 방식이라
   // 별도 "확인" 버튼을 두지 않는다(파일 상단 2026-08-07 변경 2번).
   // ParentForm(E-1)이 이미 쓰던 패턴이다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) OTP 자동검증 — verification.email.*/updateVerification을 deps에 넣으면 effect 안의 updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프 위험. emailCode 6자리 완성 시에만 실행되어야 한다.
-  useEffect(() => {
-    const token = formData.emailCode;
-
+  // OTP 자동검증 — updateVerification 호출이 자기 자신을 다시 트리거해 중복 검증 API 호출·루프로
+  // 이어지지 않도록 useEffectEvent로 감싼다. emailCode 6자리 완성 시에만 실행되어야 한다.
+  const onEmailCodeChange = useEffectEvent((token: string) => {
     if (
       token.length !== 6 ||
       !verification.email.requested ||
@@ -469,7 +472,12 @@ export default function StudentForm() {
     verifySignupEmailCode({
       email: normalizedEmail,
       token,
-      mode: verification.email.mode,
+      // verifySignupEmailCode는 담당 파일이 아니라 수정할 수 없다 —
+      // exactOptionalPropertyTypes 때문에 값이 null이면 키 자체를 생략해 전달한다
+      // (내부에서 `mode || OTP_MODE.SIGNUP`로 처리하므로 동작은 동일하다).
+      ...(verification.email.mode !== null && {
+        mode: verification.email.mode,
+      }),
     }).then(async ({ error }) => {
       if (error) {
         updateVerification("email", { verified: false });
@@ -506,6 +514,10 @@ export default function StudentForm() {
         status: "success",
       });
     });
+  });
+
+  useEffect(() => {
+    onEmailCodeChange(formData.emailCode);
   }, [formData.emailCode]);
 
   function validateForm() {
@@ -843,9 +855,9 @@ export default function StudentForm() {
           // 발송 이후의 안내·에러는 인증코드 필드 쪽에서 보여준다. 두 필드가 같은
           // 문구를 동시에 띄우면 어느 쪽 이야기인지 알기 어렵다. status도 함께
           // 내려야 한다 — 문구 없이 status만 error면 이 입력만 이유 없이 흔들린다.
-          helperText={
-            verification.email.requested ? undefined : emailMessage.text
-          }
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={verification.email.requested ? "" : emailMessage.text}
           status={
             verification.email.requested ? "default" : emailMessage.status
           }

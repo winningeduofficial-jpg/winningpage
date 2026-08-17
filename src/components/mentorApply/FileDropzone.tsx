@@ -166,6 +166,12 @@ export default function FileDropzone({
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  const dropzoneBorderClassName = (() => {
+    if (message) return "border-error";
+    if (dragging) return "border-accent";
+    return "border-line";
+  })();
+
   return (
     <div className={`flex w-full flex-col gap-2 ${className}`}>
       {/* 시각적으로는 숨기되 포커스는 받는다 — label(htmlFor)로 연결돼 있어
@@ -195,13 +201,7 @@ export default function FileDropzone({
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        className={`flex h-[11.375rem] w-full items-center justify-center rounded-[0.75rem] border bg-surface-footer px-[1.25rem] py-[2.5rem] transition-colors peer-focus-visible:border-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent/30 ${
-          dragging || message
-            ? message
-              ? "border-error"
-              : "border-accent"
-            : "border-line"
-        }`}
+        className={`flex h-[11.375rem] w-full items-center justify-center rounded-[0.75rem] border bg-surface-footer px-[1.25rem] py-[2.5rem] transition-colors peer-focus-visible:border-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent/30 ${dropzoneBorderClassName}`}
       >
         {value ? (
           // [시안 부재 — 파생 추정] 선택 완료 뷰.

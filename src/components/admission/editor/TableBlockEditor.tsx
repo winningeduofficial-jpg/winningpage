@@ -1,9 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
-import type { TableBlock } from "../../../lib/admissionDoc";
-import { withDedupedKeys } from "../../../lib/reactKeys";
-import AdmissionTable from "../table/AdmissionTable";
-import { describeCell } from "../table/tableModel";
+import AdmissionTable from "@/components/admission/table/AdmissionTable";
+import { describeCell } from "@/components/admission/table/tableModel";
+import type { TableBlock } from "@/lib/admissionDoc";
+import { withDedupedKeys } from "@/lib/reactKeys";
 import createEditSlots, { EDIT_PARITY_FROZEN } from "./editSlots";
 import TableGroupHeaderEditor from "./TableGroupHeaderEditor";
 import * as ops from "./tableBlockOperations";
@@ -64,7 +64,8 @@ interface XlsxOversizedCell {
   area: "header" | "body";
   row: number;
   col: number;
-  columnLabel?: string;
+  // xlsx/tableBlockXlsx.ts의 OversizedCell.columnLabel과 동일 사유(exactOptionalPropertyTypes라 undefined 명시 허용).
+  columnLabel?: string | undefined;
   length: number;
 }
 
@@ -90,8 +91,8 @@ export default function TableBlockEditor({
   section: string;
   block: TableBlock;
   onChange: (nextBlock: TableBlock) => void;
-  universityName?: string;
-  sectionLabel?: string;
+  universityName?: string | undefined;
+  sectionLabel?: string | undefined;
 }) {
   const validation = useMemo(
     () => validateTableBlock(section, block),
@@ -172,9 +173,11 @@ export default function TableBlockEditor({
   }
 
   function handleExportXlsx() {
+    // exportTableBlockToXlsx(수정 범위 밖)의 옵션 타입은 exactOptionalPropertyTypes라
+    // undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다.
     const result = exportTableBlockToXlsx(block, {
-      universityName,
-      sectionLabel,
+      ...(universityName !== undefined ? { universityName } : {}),
+      ...(sectionLabel !== undefined ? { sectionLabel } : {}),
     });
     setXlsxOversized(result.ok ? [] : result.oversized);
   }

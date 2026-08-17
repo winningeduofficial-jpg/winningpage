@@ -11,15 +11,15 @@
 // 토큰 없이는 불가능함 — 실제로는 가입 후 연결코드로 연결하는 흐름이 되어야 하며 이 동작은
 // 백엔드/기획 확정 필요(문구 자체는 Figma 시안 원문이라 수정하지 않음).
 import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,
   InfoCard,
   PrimaryButton,
   TextField,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 import { sendChildInvite } from "./mockApi";
 
 const PHONE_REGEX = /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/;

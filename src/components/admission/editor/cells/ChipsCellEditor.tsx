@@ -1,4 +1,4 @@
-import ImeSafeInput from "../ImeSafeInput";
+import ImeSafeInput from "@/components/admission/editor/ImeSafeInput";
 
 type Chip = { label?: string; value?: string };
 type ChipsCellValue = { chips?: Chip[] };

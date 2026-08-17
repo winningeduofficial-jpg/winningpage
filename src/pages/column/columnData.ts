@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 // 시안(hsokTD6OilcNEXyCR24sn4, 1882:7837/8153) 원문 그대로 — 오탈자·구분자(U+2022) 임의 수정 금지.
 // Admin.jsx select options는 이 배열과 자 단위로 동일해야 함 (edu-column-renewal-spec §4-5).

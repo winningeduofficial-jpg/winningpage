@@ -7,12 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useSearchParams } from "react-router-dom";
-import {
-  fetchSusiDepartments,
-  fetchSusiUniversities,
-  fetchTrendingDepartments,
-} from "../lib/admissionResultsQueries";
+import { useSearchParams } from "react-router";
 import type { ComboOption } from "./admissionResults/ComboField";
 import {
   CONTAINER,
@@ -21,39 +16,21 @@ import {
 } from "./admissionResults/constants";
 import SearchView from "./admissionResults/SearchView";
 import { LoadingBlock } from "./admissionResults/StateBlocks";
-
-// admissionResultsQueries.js(수정 범위 밖의 JSDoc 없는 .js)가 돌려주는 행 모양을
-// 이 셸이 실제로 읽는 필드만 좁혀서 적는다.
-interface UniversityIndexRow {
-  university_key: string;
-  university_name?: string;
-  dept_count?: number;
-  [key: string]: unknown;
-}
-
-interface DepartmentIndexRow {
-  department_key: string;
-  department_name?: string;
-  tracks?: string[];
-  [key: string]: unknown;
-}
-
-interface TrendingDepartmentRow {
-  university_key?: string;
-  department_key?: string;
-  university_name?: string;
-  department_name?: string;
-  logo_url?: string;
-  [key: string]: unknown;
-}
+import {
+  useSusiDepartments,
+  useSusiUniversities,
+  useTrendingDepartments,
+} from "./admissionResults/useSusiIndexes";
 
 // SearchView.tsx(수정 범위 밖)의 로컬(비export) TrendingItem과 구조가 같은
 // 이 셸 전용 사본이다 — export되지 않은 타입이라 import할 수 없다.
 interface TrendingItem {
   key: string;
   label: string;
-  universityKey?: string;
-  departmentKey?: string;
+  // trendingItems 계산부(.filter 뒤 .map)가 string | undefined 필드를 그대로
+  // 실어 보낸다 — exactOptionalPropertyTypes라 옵셔널 표기만으로는 안 받아진다.
+  universityKey?: string | undefined;
+  departmentKey?: string | undefined;
   logoUrl?: string;
 }
 
@@ -104,85 +81,27 @@ export default function AdmissionResults() {
   const [departmentKey, setDepartmentKey] = useState(detailDepartmentKey);
   const [openField, setOpenField] = useState<string | null>(null);
 
-  const [universities, setUniversities] = useState<UniversityIndexRow[]>([]);
-  const [universitiesLoading, setUniversitiesLoading] = useState(true);
-  const [universitiesError, setUniversitiesError] = useState(false);
-  const [universitiesReloadToken, setUniversitiesReloadToken] = useState(0);
-
-  const [departments, setDepartments] = useState<DepartmentIndexRow[]>([]);
-  const [departmentsLoading, setDepartmentsLoading] = useState(false);
-  const [departmentsError, setDepartmentsError] = useState(false);
-  const [departmentsReloadToken, setDepartmentsReloadToken] = useState(0);
-
-  const [trending, setTrending] = useState<TrendingDepartmentRow[]>([]);
-
   const detailRef = useRef<HTMLDivElement>(null);
 
-  // Q1 — 대학 목록
   // isDetail 가드: 딥링크(?u=&d=)로 바로 상세에 진입해도 검색 뷰 전용 목록 쿼리가
   // 무조건 실행되던 문제(SearchView는 렌더조차 안 되는데 응답을 기다림)를 막는다.
   // isDetail이 나중에 false로 바뀌면(onBack) 그때 다시 실행된다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) universitiesReloadToken은 effect 안에서 읽지 않는 재시도 트리거 전용 카운터다.
-  useEffect(() => {
-    if (isDetail) return undefined;
+  const {
+    universities,
+    loading: universitiesLoading,
+    error: universitiesError,
+    retry: retryUniversities,
+  } = useSusiUniversities(isDetail);
 
-    let alive = true;
-    async function loadUniversities() {
-      setUniversitiesLoading(true);
-      setUniversitiesError(false);
-      const { data, error } = await fetchSusiUniversities();
-      if (!alive) return;
-      setUniversities(data);
-      setUniversitiesError(Boolean(error));
-      setUniversitiesLoading(false);
-    }
-    loadUniversities();
-    return () => {
-      alive = false;
-    };
-  }, [universitiesReloadToken, isDetail]);
+  const {
+    departments,
+    loading: departmentsLoading,
+    error: departmentsError,
+    retry: retryDepartments,
+  } = useSusiDepartments(universityKey, isDetail);
 
-  // Q2 — 모집단위 목록 (대학 선택 시)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) departmentsReloadToken은 effect 안에서 읽지 않는 재시도 트리거 전용 카운터다.
-  useEffect(() => {
-    if (isDetail || !universityKey) {
-      setDepartments([]);
-      setDepartmentsError(false);
-      setDepartmentsLoading(false);
-      return undefined;
-    }
-
-    let alive = true;
-    async function loadDepartments() {
-      setDepartmentsLoading(true);
-      setDepartmentsError(false);
-      const { data, error } = await fetchSusiDepartments(universityKey);
-      if (!alive) return;
-      setDepartments(data);
-      setDepartmentsError(Boolean(error));
-      setDepartmentsLoading(false);
-    }
-    loadDepartments();
-    return () => {
-      alive = false;
-    };
-  }, [universityKey, departmentsReloadToken, isDetail]);
-
-  // Q4 — 지금 뜨고 있는 학과. 실패하면 섹션을 통째로 감춘다(부가 정보라 에러 UI를 띄우지 않는다).
-  useEffect(() => {
-    if (isDetail) return undefined;
-
-    let alive = true;
-    async function loadTrending() {
-      const { data } = await fetchTrendingDepartments();
-      if (!alive) return;
-      setTrending(data);
-    }
-    loadTrending();
-    return () => {
-      alive = false;
-    };
-  }, [isDetail]);
+  // 실패하면 섹션을 통째로 감춘다(부가 정보라 에러 UI를 띄우지 않는다).
+  const { trending } = useTrendingDepartments(isDetail);
 
   const universityOptions = useMemo(
     () =>
@@ -208,6 +127,8 @@ export default function AdmissionResults() {
     () => new Set(universities.map((row) => row.university_key)),
     [universities],
   );
+  const universitiesUnavailable =
+    universitiesLoading || universitiesError || universityKeySet.size === 0;
 
   // 큐레이션 칩(trending_departments)은 키 체계가 슬러그 → 한글(Q3 확정)로 바뀌기 전에
   // 입력된 행이 남아 있을 수 있다. 키가 살아 있는지 보지 않고 존재만 확인하면
@@ -217,8 +138,7 @@ export default function AdmissionResults() {
   // 목록 로딩 중에는 아예 렌더하지 않는다. 먼저 그렸다가 걷어내면 깜빡임이 되고,
   // 트렌딩은 부가 정보라 조금 늦게 나타나는 편이 낫다.
   const trendingItems = useMemo(() => {
-    if (universitiesLoading || universitiesError || universityKeySet.size === 0)
-      return [];
+    if (universitiesUnavailable) return [];
     return trending
       .filter(
         (row) =>
@@ -234,7 +154,7 @@ export default function AdmissionResults() {
         departmentKey: row.department_key,
         logoUrl: row.logo_url ?? "",
       }));
-  }, [trending, universityKeySet, universitiesLoading, universitiesError]);
+  }, [trending, universityKeySet, universitiesUnavailable]);
 
   // 목록이 아직 없어도(딥링크 직후) 필드에 키라도 보여 준다.
   const university = useMemo(() => {
@@ -261,12 +181,11 @@ export default function AdmissionResults() {
   // 그대로 들고 있으면 필드에 정규화 키가 그대로 찍히고 모집단위는 영영 빈 목록이 된다.
   // 목록이 도착한 뒤에만 판정한다 — 로딩 중에는 "없는 키"와 "아직 안 온 키"를 구분할 수 없다.
   useEffect(() => {
-    if (universitiesLoading || universitiesError || universityKeySet.size === 0)
-      return;
+    if (universitiesUnavailable) return;
     if (!universityKey || universityKeySet.has(universityKey)) return;
     setUniversityKey("");
     setDepartmentKey("");
-  }, [universitiesLoading, universitiesError, universityKeySet, universityKey]);
+  }, [universitiesUnavailable, universityKeySet, universityKey]);
 
   useEffect(() => {
     if (departmentsLoading || departmentsError || departments.length === 0)
@@ -337,8 +256,8 @@ export default function AdmissionResults() {
     universityError: universitiesError,
     departmentLoading: departmentsLoading,
     departmentError: departmentsError,
-    onRetryUniversities: () => setUniversitiesReloadToken((token) => token + 1),
-    onRetryDepartments: () => setDepartmentsReloadToken((token) => token + 1),
+    onRetryUniversities: retryUniversities,
+    onRetryDepartments: retryDepartments,
     openField,
     onOpenFieldChange: setOpenField,
     onSelectUniversity: handleSelectUniversity,

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { formatKRW } from "../../data/pricingCatalog";
-import { supabase } from "../../lib/supabase";
+import { formatKRW } from "@/data/pricingCatalog";
+import { supabase } from "@/lib/supabase";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import PaymentTable from "./PaymentTable";
 import {
@@ -212,9 +212,9 @@ export default function PaymentsTab({
           idText: formatOrderId(o.id),
           // 결제 전 건은 승인일시가 없다 — 신청 시각(created_at)이 이 표의 축이다.
           dateText: formatApprovedAt(o.created_at || o.paid_at),
-          productText: o.order_name,
+          productText: o.order_name || "",
           amountText: formatKRW(o.amount),
-          note: o.is_fake_entitlement ? "(개발용)" : null,
+          ...(o.is_fake_entitlement && { note: "(개발용)" }),
           raw: o,
         }))}
         onSelect={(row) => setDetailOrder(row.raw as Order)}
@@ -261,7 +261,9 @@ export default function PaymentsTab({
           setNoticeOpen(true);
           onRefundSubmitted?.();
         }}
-        onStaleData={onRefundSubmitted}
+        // onStaleData는 optional(exactOptionalPropertyTypes) — onRefundSubmitted가
+        // undefined면 키 자체를 생략한다(동작 동일, onStaleData?.() 호출부가 처리).
+        {...(onRefundSubmitted && { onStaleData: onRefundSubmitted })}
       />
 
       <RefundNoticeModal

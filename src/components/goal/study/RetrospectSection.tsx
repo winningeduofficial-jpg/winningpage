@@ -1,4 +1,4 @@
-import GoalCard from "../GoalCard";
+import GoalCard from "@/components/goal/GoalCard";
 
 // 섹션5 "한 문장 회고"(1190×238) — 텍스트영역 1137×109(71.0625rem×6.8125rem). part-09 §194~197.
 type RetrospectSectionProps = {

@@ -159,13 +159,12 @@ export default function BookViewer({
   const book = useMemo(() => buildViews(pages), [pages]);
   const { views, lastOrder, viewIndexByOrder, faceByOrder } = book;
 
-  const status = loading
-    ? "loading"
-    : error
-      ? "error"
-      : lastOrder === 0
-        ? "empty"
-        : "ready";
+  const status = (() => {
+    if (loading) return "loading";
+    if (error) return "error";
+    if (lastOrder === 0) return "empty";
+    return "ready";
+  })();
 
   // 책이 바뀌면 앵커를 범위 안으로 되돌린다.
   useEffect(() => {
@@ -373,13 +372,16 @@ export default function BookViewer({
         .map((face) => face.order),
     );
     const nextView = views[viewIndex + 1];
-    const wanted: number[] = isSpread
-      ? nextView
+    let wanted: number[];
+    if (isSpread) {
+      wanted = nextView
         ? [nextView.left, nextView.right]
             .filter((f) => f.kind === FACE_PAGE)
             .map((f) => f.order as number)
-        : []
-      : [anchorOrder + 1];
+        : [];
+    } else {
+      wanted = [anchorOrder + 1];
+    }
 
     const out: Face[] = [];
     for (const order of wanted) {

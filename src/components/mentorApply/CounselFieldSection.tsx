@@ -1,7 +1,7 @@
-import { COUNSEL_FIELD_SECTION, COUNSEL_FIELDS } from "../../data/mentorApply";
-import { MENTOR_ASSETS } from "../../data/mentorApplyAssets";
-import useInfiniteMarquee from "../../hooks/useInfiniteMarquee";
-import { MENTOR_HEADING_MD } from "../services/serviceTokens";
+import { MENTOR_HEADING_MD } from "@/components/services/serviceTokens";
+import { COUNSEL_FIELD_SECTION, COUNSEL_FIELDS } from "@/data/mentorApply";
+import { MENTOR_ASSETS } from "@/data/mentorApplyAssets";
+import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
 
 // 멘토신청 §4 상담 분야 — 7카드 풀블리드 무한 마퀴 (docs/mentor-apply-spec.md §4 F-1, Figma 3408:4545).
 //
@@ -105,7 +105,7 @@ export default function CounselFieldSection({
         >
           <ul className="flex w-max min-w-full items-stretch gap-[1.4375rem] px-5 py-2 sm:px-8">
             {repeatIndices.map((fieldIndex, position) => {
-              const item = COUNSEL_FIELDS[fieldIndex];
+              const item = COUNSEL_FIELDS[fieldIndex]!; // fieldIndex는 useInfiniteMarquee가 COUNSEL_FIELDS 길이 기준으로 생성해 항상 범위 내
 
               // N배 반복 중 초기 노출 사이클(1)만 스크린리더에 노출 — 랜딩 선례와 동일 계산식
               // (AcceptanceSection.jsx:130-131 / MentorSection.jsx:74-75).

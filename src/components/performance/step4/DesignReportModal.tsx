@@ -1,10 +1,10 @@
-import PerformanceReportSurface from "../report/PerformanceReportSurface";
+import PerformanceReportSurface from "@/components/performance/report/PerformanceReportSurface";
 import ReportModalShell, {
   REPORT_MODAL_FOOTER_BUTTON,
-} from "../report/ReportModalShell";
+} from "@/components/performance/report/ReportModalShell";
 import SectionedReportView, {
   getVisibleSections,
-} from "../report/SectionedReportView";
+} from "@/components/performance/report/SectionedReportView";
 
 // STEP4 설계 리포트 전체보기 모달 — docs/수행평가-상세-명세.md §5.13(`3754:4722` 실측) /
 // §10.2 P10 「대형 모달, PDF/인쇄(`@media print`)」.
@@ -38,7 +38,7 @@ type DesignReportSection = {
   text?: string;
 };
 
-type DesignReport = {
+export type DesignReport = {
   sections: DesignReportSection[];
 };
 
@@ -47,7 +47,7 @@ type DesignReportModalProps = {
   /** `design-report` 응답. 섹션 순서는 서버가 `DESIGN_REPORT_SECTIONS`로 이미 정렬해 내려준다. */
   report?: DesignReport | null;
   /** 확정한 주제 제목. 헤더 부제로 쓴다. */
-  topicTitle?: string;
+  topicTitle?: string | undefined;
   /** ESC·딤 클릭·`창 닫고 작성하기` 공통 핸들러. */
   onClose: () => void;
 };
@@ -73,7 +73,7 @@ export default function DesignReportModal({
       // 2줄 구조인데 **문구 원문이 실측 표에 없다** — 리포트 전체가 어느 주제의 것인지가
       // 이 자리에서 가장 필요한 정보라 주제명을 넣었다(제안). 주제가 없으면 줄을 통째로
       // 뺀다(가짜 문구를 지어내지 않는다).
-      subtitle={topicTitle}
+      {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="설계 리포트 본문"
       onClose={onClose}
       footer={

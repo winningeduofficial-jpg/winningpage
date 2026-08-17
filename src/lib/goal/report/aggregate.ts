@@ -3,7 +3,7 @@
 // 이 파일은 supabase 를 전혀 모른다 — 전부 행 배열(DB에서 이미 읽어 온 snake_case
 // 객체)과 원시 값(YMD 문자열 등)을 인자로 받아 숫자·구조를 계산만 한다. DB 조회는
 // api/_lib/goalRepo.js, DB 접속·라우팅은 api/goal/report.js 가 맡는다 — 그래야
-// 이 파일을 supabase 없이 scripts/test-report-aggregate.mjs 로 직접 테스트할 수 있다.
+// 이 파일을 supabase 없이 aggregate.test.ts 로 직접 테스트할 수 있다.
 //
 // 기간 경계는 순수 달력이다(팀장 확정, 변경 금지) — 주간 = 월~일, 월간 = 1일~말일.
 // getWeeklyReportRange · 가상 주차 함수는 이 모듈에서 절대 쓰지 않는다.
@@ -13,9 +13,12 @@
 // getEffectiveScheduleTarget(calc/schedule.js, 동결 순수 함수)이 그 경계 안의
 // 요일별 목표(월~토, 일요일 제외)를 합산한다. 새 요일 합산 로직을 이 파일에 만들지 않는다.
 
-import { GRADE_PERCENTILE } from "../calc/jeongsi.js";
-import { getEffectiveScheduleTarget } from "../calc/schedule.js";
-import { addDaysYMD, getMondayYMD } from "../calc/virtualDate.js";
+import { GRADE_PERCENTILE } from "@/lib/goal/calc/jeongsi.js";
+import type { DaySchedule } from "@/lib/goal/calc/schedule.js";
+import { getEffectiveScheduleTarget } from "@/lib/goal/calc/schedule.js";
+import { addDaysYMD, getMondayYMD } from "@/lib/goal/calc/virtualDate.js";
+
+const MS_PER_DAY = 86400000;
 
 // goal_students 행 — 이 파일이 실제로 읽는 필드만(온보딩 컷 4종 + 시작일 +
 // getEffectiveScheduleTarget/calc/schedule.js 에 그대로 넘기는 study_schedule).
@@ -26,7 +29,7 @@ export interface GoalStudentRow {
   min_naesin_cut?: number | string | null;
   ideal_jungsi_cut?: number | string | null;
   min_jungsi_cut?: number | string | null;
-  study_schedule?: Record<string, unknown> | null;
+  study_schedule?: Record<string, DaySchedule | undefined> | null;
   grade?: string | null;
   [key: string]: unknown;
 }
@@ -76,7 +79,7 @@ export function round1(value: unknown): number {
   return Math.round((toNum(value) ?? 0) * 10) / 10;
 }
 
-export function round0(value: unknown): number {
+function round0(value: unknown): number {
   return Math.round(toNum(value) ?? 0);
 }
 
@@ -89,14 +92,14 @@ function clamp0to100(value: unknown): number {
 // (schedule.js getEffectiveScheduleTarget 헤더 주석의 동일 전제를 그대로 따른다).
 // ---------------------------------------------------------------------------
 
-export function isValidYmd(value: unknown): value is string {
+function isValidYmd(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))
     return false;
   const d = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 
-export function isValidYm(value: unknown): value is string {
+function isValidYm(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}$/.test(value);
 }
 
@@ -120,7 +123,8 @@ function minYmd(
 
 /** 월의 마지막 날짜(YYYY-MM-DD). ym='YYYY-MM'. */
 export function lastDayOfMonthYmd(ym: string): string {
-  const [y, m] = ym.split("-").map(Number);
+  // ym='YYYY-MM' 형식 보장(호출부 resolveMonthlyPeriod 의 isValidYm 체크)
+  const [y, m] = ym.split("-").map(Number) as [number, number];
   // UTC 기준 다음 달 0일 = 이번 달 마지막 날 (윤년 자동 처리, virtualDate.js addDaysYMD와 동일 기법).
   const d = new Date(Date.UTC(y, m, 0));
   return d.toISOString().slice(0, 10);
@@ -145,7 +149,7 @@ export function diffDaysInclusive(
       .map(Number)
       .map((v, i) => (i === 1 ? v - 1 : v)) as [number, number, number]),
   );
-  return Math.round((end - start) / 86400000) + 1;
+  return Math.round((end - start) / MS_PER_DAY) + 1;
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +202,7 @@ export function computeEffectiveWindow({
 }: {
   periodStart: string;
   periodEnd: string;
-  actualStartDate?: string | null;
+  actualStartDate?: string | null | undefined;
   nowYmd: string;
 }): EffectiveWindow {
   const start = maxYmd(periodStart, actualStartDate || periodStart);
@@ -242,7 +246,12 @@ export function computeAchievementRate({
     return { idealRate: 0, minRate: 0, idealTargetHours: 0, minTargetHours: 0 };
   }
   const target = getEffectiveScheduleTarget(
-    student,
+    // getEffectiveScheduleTarget 은 study_schedule 만 읽는다(calc/schedule.js) — null/누락 모두
+    // `student?.study_schedule || {}`로 동일하게 처리되므로 값 변경 없이 정규화만(exactOptionalPropertyTypes
+    // 는 명시적 `undefined` 프로퍼티도 허용하지 않아 조건부로만 넣는다).
+    student.study_schedule != null
+      ? { study_schedule: student.study_schedule }
+      : {},
     effectiveWindow.start,
     effectiveWindow.end,
   );
@@ -353,7 +362,7 @@ export function computeCohortPercentile(
 // D6 — 컨디션 4종(항상 전부 노출)
 // ---------------------------------------------------------------------------
 
-export const CONDITION_ORDER = [
+const CONDITION_ORDER = [
   { code: "great", emoji: "😆", label: "아주 좋음" },
   { code: "normal", emoji: "🙂", label: "보통" },
   { code: "tired", emoji: "😣", label: "피곤함" },
@@ -385,11 +394,12 @@ export function computeConditionBreakdown(records: GoalDailyRecordRow[]): {
   const listRows = CONDITION_ORDER.map((c) => ({
     emoji: c.emoji,
     label: c.label,
-    value: `${byCondition[c.code].count}일`,
+    // byCondition 은 CONDITION_ORDER 코드로만 초기화됨(위) — c.code 는 항상 존재
+    value: `${byCondition[c.code]!.count}일`,
   }));
 
   const tiles = CONDITION_ORDER.map((c) => {
-    const { count, sum } = byCondition[c.code];
+    const { count, sum } = byCondition[c.code]!;
     return {
       emoji: c.emoji,
       label: c.label,
@@ -437,7 +447,8 @@ export function computeSubjectShare(
 
   const rows = Object.entries(totals)
     .map(([code, seconds]) => ({
-      label: SUBJECT_LABELS[code],
+      // totals 의 code 는 항상 SUBJECT_LABELS 키("etc" 포함, 위 loop 참고)
+      label: SUBJECT_LABELS[code]!,
       value: round0((seconds / total) * 100),
     }))
     .sort((a, b) => b.value - a.value);
@@ -449,7 +460,7 @@ export function computeSubjectShare(
 // D8 — 시간대별 학습 효율(7버킷, 심야 0~6 포함)
 // ---------------------------------------------------------------------------
 
-export const TIME_SLOT_BUCKETS = [
+const TIME_SLOT_BUCKETS = [
   { label: "심야 0~6", startHour: 0, endHour: 6 },
   { label: "오전 6~9", startHour: 6, endHour: 9 },
   { label: "오전 9~12", startHour: 9, endHour: 12 },
@@ -460,7 +471,7 @@ export const TIME_SLOT_BUCKETS = [
 ] as const;
 
 /** 세션 started_at(timestamptz ISO)의 KST 시(0~23). */
-export function kstHour(isoString: string): number {
+function kstHour(isoString: string): number {
   const d = new Date(isoString);
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Seoul",
@@ -738,7 +749,8 @@ export function deriveGradeSystem(
   if (!match || !isValidYmd(nowYmd)) return "9등급제";
 
   const gradeNum = Number(match[1]);
-  const [y, m] = nowYmd.split("-").map(Number);
+  // nowYmd 는 위에서 isValidYmd 로 'YYYY-MM-DD' 형식 확인됨
+  const [y, m] = nowYmd.split("-").map(Number) as [number, number];
   // 한국 학년도는 3월 시작 — 1~2월은 전년도 학년도 소속.
   const schoolYear = m >= 3 ? y : y - 1;
   // 이 학생이 고3이 되는 학년도(= 수능 응시 학년도).
@@ -803,7 +815,7 @@ export function classifyJeongsiZone(
   return "focus";
 }
 
-export const ZONE_LABELS: Record<GoalDirectionZone, string> = {
+const ZONE_LABELS: Record<GoalDirectionZone, string> = {
   strong: "강점 유지 구간",
   improve: "보완 필요 구간",
   focus: "집중 보완 구간",

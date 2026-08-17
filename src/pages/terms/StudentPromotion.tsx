@@ -17,7 +17,7 @@
 // 따른 것).
 import TermsPageLayout, {
   TermsSection,
-} from "../../components/auth/TermsPageLayout";
+} from "@/components/auth/TermsPageLayout";
 
 export default function StudentPromotion() {
   return (

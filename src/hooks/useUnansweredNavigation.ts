@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 // 완료 판정(getStepUnansweredCount)과 반드시 같은 술어를 써야 한다 — isAnswered 를 직접 쓰면
 // requiredFields 미충족 문항이 "미완료지만 스크롤 대상은 없음"이 되어 CTA 가 죽은 버튼이 된다.
-import { isQuestionAnswered } from "../lib/renewalSurvey";
+import { isQuestionAnswered } from "@/lib/renewalSurvey";
 
 /**
  * 하단 CTA가 "미완료"일 때 클릭하면 첫 미응답 문항으로 스크롤 + 일시 하이라이트한다.
@@ -16,11 +16,15 @@ type SurveyQuestion = {
   [key: string]: unknown;
 };
 
+const HIGHLIGHT_AUTO_DISMISS_MS = 3000;
+
 export function useUnansweredNavigation(
   requiredQuestions: SurveyQuestion[],
   answers: Record<string | number, unknown> | null | undefined,
 ) {
-  const [highlightedId, setHighlightedId] = useState(null);
+  const [highlightedId, setHighlightedId] = useState<string | number | null>(
+    null,
+  );
   const [announcement, setAnnouncement] = useState("");
 
   // 하이라이트 중인 문항이 응답되면 즉시 해제한다(사용자가 답을 입력한 순간이 가장 자연스러운 해제 시점).
@@ -37,7 +41,10 @@ export function useUnansweredNavigation(
   // 응답하지 않아도 3초 내외로 자동 해제한다(오류가 아니라 안내이므로 계속 남아있지 않는다).
   useEffect(() => {
     if (highlightedId == null) return undefined;
-    const timer = setTimeout(() => setHighlightedId(null), 3000);
+    const timer = setTimeout(
+      () => setHighlightedId(null),
+      HIGHLIGHT_AUTO_DISMISS_MS,
+    );
     return () => clearTimeout(timer);
   }, [highlightedId]);
 

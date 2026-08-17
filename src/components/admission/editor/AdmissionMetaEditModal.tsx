@@ -1,6 +1,6 @@
 import { useState } from "react";
-import AdmissionModalShell from "../modal/AdmissionModalShell";
-import AdmissionModalStyles from "../modal/AdmissionModalStyles";
+import AdmissionModalShell from "@/components/admission/modal/AdmissionModalShell";
+import AdmissionModalStyles from "@/components/admission/modal/AdmissionModalStyles";
 
 type MetaFieldType = "text" | "number" | "textarea" | "select" | "radioBoolean";
 
@@ -38,14 +38,14 @@ export interface AdmissionMetaRow {
 // 또 만들지 않는다 — AdmissionSectionEditModal.jsx와 같은 패턴).
 // bodyClassName은 명시적으로 넘긴다: AdmissionModalShell의 기본값
 // (PUBLIC_BODY_CLASS)은 'admission-modal-body'를 포함해 공개 전용
-// 가로 스크롤바 숨김 규칙을 물려받는다(scripts/verify-admission-modal-shell.mjs
+// 가로 스크롤바 숨김 규칙을 물려받는다(src/pages/AdmissionGuidelines.modalShell.test.tsx
 // 의 lock:no-admission-modal-body-in-admin이 이 클래스명을 락으로 막는다).
 //
 // 저장 경로: Admin.jsx의 saveAdmissionMeta가 config.rowToForm/formToPayload를
 // 그대로 통해 기존 행 저장 경로(saveRow와 같은 supabase update)를 재사용한다.
 // 이 모달은 폼 값(9필드)만 만들어 올릴 뿐 저장 자체는 모른다 — *_json/*_html
 // 컬럼을 건드리지 않는 보장은 호출부(Admin.jsx) 쪽 책임이다.
-export const ADMISSION_META_FIELDS: MetaFieldDef[] = [
+const ADMISSION_META_FIELDS: MetaFieldDef[] = [
   { key: "university_name", label: "대학명", type: "text", required: true },
   { key: "matched_hwp_name", label: "원문 대학명", type: "text" },
   { key: "university_key", label: "대학 키값", type: "text", required: true },
@@ -114,7 +114,7 @@ function MetaFieldInput({
         className={base}
       >
         <option value="">선택</option>
-        {field.options.map((option) => (
+        {(field.options || []).map((option) => (
           <option key={option} value={option}>
             {option}
           </option>

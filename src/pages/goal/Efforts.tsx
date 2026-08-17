@@ -1,12 +1,12 @@
-import { useEffect, useState } from "react";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import AddWorkbookModal from "../../components/goal/modals/AddWorkbookModal";
-import EffortSubjectCard from "../../components/goal/plan/EffortSubjectCard";
+import { useEffect, useEffectEvent, useState } from "react";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import AddWorkbookModal from "@/components/goal/modals/AddWorkbookModal";
+import EffortSubjectCard from "@/components/goal/plan/EffortSubjectCard";
 import {
   createGoalWorkbook,
   fetchGoalWorkbooks,
   updateGoalWorkbook,
-} from "../../lib/goalApi";
+} from "@/lib/goalApi";
 
 // 나의 노력(#30 빈 / #32 채움) — docs/figma-goal/part-10.md·part-11.md.
 // 실데이터 배선(mockEfforts 제거) — src/data/goalPlanMock.js의 mockEfforts/mockEffortsEmpty는
@@ -34,8 +34,10 @@ type Workbook = {
   id: string | number;
   subject: string;
   title: string;
-  totalPages: number;
-  currentPage: number;
+  // goalApi.ts의 GoalWorkbook과 동일하게 null 가능(서버 실값) — 이 파일에서는 상태 저장과
+  // 필터링(subject/status)에만 쓰여 null이어도 안전하다.
+  totalPages: number | null;
+  currentPage: number | null;
   status: "in_progress" | "done" | string;
 };
 
@@ -60,9 +62,12 @@ export default function Efforts() {
     setLoadError(true);
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) 마운트 1회만 — loadWorkbooks는 매 렌더 새로 생성되는 미메모 함수라 deps에 넣으면 렌더마다 재조회된다.
-  useEffect(() => {
+  const onMountLoadWorkbooks = useEffectEvent(() => {
     loadWorkbooks();
+  });
+
+  useEffect(() => {
+    onMountLoadWorkbooks();
   }, []);
 
   function openModal(subjectLabel: string | null) {
@@ -100,7 +105,9 @@ export default function Efforts() {
   }) {
     const outcome = id
       ? await updateGoalWorkbook({
-          id,
+          // GoalWorkbook.id는 항상 DB 숫자 PK다 — 모달이 재사용 목적으로 넓게 잡은
+          // string|number 타입만 여기서 좁힌다.
+          id: id as number,
           title,
           currentPage,
           totalPages: totalPage,

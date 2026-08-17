@@ -22,7 +22,7 @@ import { type RefObject, useEffect } from "react";
 // **visible 이 true 로 바뀌며 effect 가 한 번 더 도는 것만이** 트랙에
 // scroll 리스너를 붙인다. 이 의존성을 "불필요해 보인다"며 떨어뜨리면
 // 마크업은 100% 그대로인 채 스크롤 거리만 0이 된다 — 어떤 DOM 골든도
-// 못 잡는 무증상 사망이다. scripts/verify-admission-modal-shell.mjs 가
+// 못 잡는 무증상 사망이다. src/pages/AdmissionGuidelines.modalShell.test.tsx 가
 // 이 배열에 visible 이 들어 있는지 정적으로 확인한다.
 //
 // ⚠ 어드민 편집 모달에는 이 훅을 쓰지 않는다
@@ -54,7 +54,7 @@ export default function useModalProxyXScroll({
   visible: boolean;
   setModalXScroll: (next: ModalXScrollState) => void;
 }) {
-  // biome-ignore lint/correctness/useExhaustiveDependencies: visible은 파일 상단 주석·verify-admission-modal-shell.mjs가 보호하는 의도된 배열이다. barRef.current/bodyRef.current는 ref라 deps에 넣어도 변경을 못 잡아 의미가 없다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: visible은 파일 상단 주석·AdmissionGuidelines.modalShell.test.tsx가 보호하는 의도된 배열이다. barRef.current/bodyRef.current는 ref라 deps에 넣어도 변경을 못 잡아 의미가 없다.
   useEffect(() => {
     if (!selectedInfo) {
       setModalXScroll({ visible: false, width: 0 });
@@ -78,12 +78,13 @@ export default function useModalProxyXScroll({
 
     const pickTarget = (): HTMLElement | null => {
       const targets = getHorizontalTargets();
-      if (!targets.length) return null;
+      const [firstTarget] = targets;
+      if (!firstTarget) return null;
       return targets.reduce((best, current) => {
         const bestOverflow = best.scrollWidth - best.clientWidth;
         const currentOverflow = current.scrollWidth - current.clientWidth;
         return currentOverflow > bestOverflow ? current : best;
-      }, targets[0]);
+      }, firstTarget);
     };
 
     const syncTargetsFromBar = () => {

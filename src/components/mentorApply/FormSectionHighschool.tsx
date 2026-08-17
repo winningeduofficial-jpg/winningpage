@@ -8,8 +8,8 @@
 // (accent #0B84FD)의 유무가 그대로 그 차이라고 보고 `required` 를 빼는 것으로만 구현했다.
 // 별도 라벨 색이 확정되면 MentorFieldShell 에 optional 표기 슬롯을 여는 쪽이 맞다.
 
-import { FORM_SECTIONS, HIGHSCHOOL_TYPE_OPTIONS } from "../../data/mentorApply";
-import { isWithinMaxLength } from "../../lib/validators";
+import { FORM_SECTIONS, HIGHSCHOOL_TYPE_OPTIONS } from "@/data/mentorApply";
+import { isWithinMaxLength } from "@/lib/validators";
 import ChipGroup from "./ChipGroup";
 import FormFieldRow from "./FormFieldRow";
 import FormSectionCard from "./FormSectionCard";
@@ -71,11 +71,11 @@ export function validateHighschoolSection(values: HighschoolValues = {}) {
   return errors;
 }
 
-const SECTION = FORM_SECTIONS[2];
+const SECTION = FORM_SECTIONS[2]!; // FORM_SECTIONS는 5개 섹션 고정 배열, 2번 인덱스 항상 존재
 
 type FormSectionHighschoolProps = {
   values?: HighschoolValues;
-  errors?: Record<string, string>;
+  errors?: Record<string, string | undefined>; // MentorApplyForm의 errors 상태와 동일한 형태(값 지웠을 때 undefined)
   onChange?: (name: string, value: string) => void;
 };
 

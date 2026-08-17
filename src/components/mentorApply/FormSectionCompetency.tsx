@@ -15,21 +15,21 @@
 //      설명·placeholder 가 완전히 같은 **복제 실수로 확정**됐다(확인 항목 ⑳). 1개만 만든다.
 //   ③ 텍스트에어리어에 `maxLength` + `showCounter` 를 켰다. 아래 MAX_LENGTHS 주석 참고.
 import type { ReactNode } from "react";
+import SelectField from "@/components/auth/SelectField";
 import {
   AVAILABLE_TIMESLOT_OPTIONS,
   CONSULT_FIELD_OPTIONS,
   CONSULT_GRADE_OPTIONS,
   FORM_SECTIONS,
   WEEKLY_CAPACITY_OPTIONS,
-} from "../../data/mentorApply";
-import SelectField from "../auth/SelectField";
+} from "@/data/mentorApply";
 import ChipGroup from "./ChipGroup";
 import FormFieldRow from "./FormFieldRow";
 import FormSectionCard from "./FormSectionCard";
 import { MentorFieldShell } from "./MentorTextField";
 import TextareaField from "./TextareaField";
 
-const SECTION = FORM_SECTIONS.find((section) => section.no === 4);
+const SECTION = FORM_SECTIONS.find((section) => section.no === 4)!; // FORM_SECTIONS에 no===4 항목 항상 존재
 
 // 사이드바 앵커 기본값(§6-3). 부모가 다른 id 체계를 쓰면 prop 으로 덮는다.
 export const COMPETENCY_SECTION_ID = "mentor-apply-section-4";
@@ -126,7 +126,7 @@ type CompetencyValues = {
 
 type FormSectionCompetencyProps = {
   values?: CompetencyValues;
-  errors?: Record<string, string>;
+  errors?: Record<string, string | undefined>; // MentorApplyForm의 errors 상태와 동일한 형태(값 지웠을 때 undefined)
   onChange?: (name: string, value: string | string[]) => void;
   id?: string;
 };

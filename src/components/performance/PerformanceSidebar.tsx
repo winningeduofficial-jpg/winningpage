@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router";
 
 // 수행평가 앱 좌측 고정 사이드바 — docs/수행평가-상세-명세.md §3.2(블록 실측) / §3.3(진행단계
 // 상태 머신) / §3.4(메뉴 라벨 정본). 프로필 · 메뉴 · 진행단계 3블록으로 구성된다.
@@ -30,7 +30,7 @@ const MENU_ITEMS = [
 ];
 
 // §3.3 스텝 라벨 원문. `작성・평가`의 가운뎃점은 U+30FB(・)이며 시안 원문 그대로다.
-export const PERFORMANCE_STEPS = [
+const PERFORMANCE_STEPS = [
   { step: 1, label: "기본 정보" },
   { step: 2, label: "안내문 입력" },
   { step: 3, label: "주제 추천" },
@@ -41,7 +41,7 @@ export const PERFORMANCE_STEPS = [
 // §3.3 3상태. 시안 자체는 활성 pill 유무 2상태뿐이라 완료/미도래가 구분되지 않는데,
 // §3.3이 그 한계를 3상태로 확장하는 것을 정본으로 규정했다(배지 색·라벨 굵기·pill 표).
 const STEP_STATE_STYLES: Record<
-  string,
+  "done" | "current" | "todo",
   { badge: string; label: string; pill: boolean }
 > = {
   // 완료: 배지 #d1e8ff(surface-badge) + 체크, 라벨 #525252 w500, pill 없음.
@@ -165,14 +165,14 @@ export default function PerformanceSidebar({
               <li key={item.to}>
                 {/* ⚠️ NavLink가 아니라 Link다. NavLink는 `aria-current` prop을 자기 기본값
                     (`'page'`)으로 흡수하고 **라우터 자체 prefix 매칭**으로 다시 계산해 내보낸다
-                    (react-router-dom/dist/index.js: `ariaCurrentProp = "page"` →
+                    (react-router/dist/index.js: `ariaCurrentProp = "page"` →
                     `isActive ? ariaCurrentProp : undefined`). 그래서 `/app/performance/reports`
                     에서 `위닝 채팅`(`to=/app/performance`, end 없음)까지 prefix로 걸려
                     두 항목이 동시에 `aria-current="page"`가 된다 — pill은 하나인데 스크린리더는
                     둘 다 현재 페이지라고 읽는다. 게다가 className이 문자열이면 활성 항목에
                     `active` 리터럴 클래스까지 덧붙는다. 활성 판정이 아래처럼 커스텀이고 두
                     항목이 상호 배타이므로, prop을 <a>로 그대로 흘리는 Link를 쓴다.
-                    (회귀 검증: scripts/verify-performance-sidebar-nav.mjs) */}
+                    (회귀 검증: PerformanceSidebar.test.tsx, 옛 scripts/verify-performance-sidebar-nav.mjs) */}
                 <Link
                   to={item.to}
                   aria-current={isActive ? "page" : undefined}
@@ -207,9 +207,9 @@ export default function PerformanceSidebar({
         </p>
         <ol className="mt-[0.5625rem] flex flex-col gap-[0.0625rem]">
           {PERFORMANCE_STEPS.map(({ step, label }, index) => {
-            const state = STEP_STATE_STYLES[stepStates?.[index]]
-              ? stepStates[index]
-              : "todo";
+            const stepState = stepStates[index];
+            const state =
+              stepState && STEP_STATE_STYLES[stepState] ? stepState : "todo";
             const style = STEP_STATE_STYLES[state];
 
             return (

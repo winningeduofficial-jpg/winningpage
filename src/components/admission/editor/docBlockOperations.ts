@@ -1,4 +1,4 @@
-import type { Block } from "../../../lib/admissionDoc";
+import type { Block } from "@/lib/admissionDoc";
 
 // Block 배열(문서 전체) 순서 변경·추가·삭제를 순수 함수로 분리 —
 // tableBlockOperations.js와 같은 이유로 컴포넌트(DocBlocksEditor.jsx)와
@@ -12,24 +12,26 @@ export function updateBlockAt(
   return blocks.map((b, i) => (i === idx ? nextBlock : b));
 }
 
-export function removeBlockAt(blocks: Block[], idx: number): Block[] {
+// removeBlockAt/moveBlock/appendBlock 3종은 실제로 Block 셰이프에 의존하지
+// 않는 순수 배열 조작이라(team-lead 지시 — "재사용할 수 있으면 그렇게
+// 하라") 제네릭으로 열어 둔다. PlainListBlockEditor가 PlainListEditorItem[]에
+// 그대로 재사용한다. updateBlockAt/createDefaultBlock은 Block 전용으로 남긴다.
+export function removeBlockAt<T>(blocks: T[], idx: number): T[] {
   return blocks.filter((_, i) => i !== idx);
 }
 
-export function moveBlock(
-  blocks: Block[],
-  idx: number,
-  delta: number,
-): Block[] {
+export function moveBlock<T>(blocks: T[], idx: number, delta: number): T[] {
   const targetIdx = idx + delta;
   if (targetIdx < 0 || targetIdx >= blocks.length) return blocks;
   const next = blocks.slice();
   const [moved] = next.splice(idx, 1);
-  next.splice(targetIdx, 0, moved);
+  // targetIdx가 범위 안이라는 위 가드로 idx도 blocks 범위 안임이 보장된다
+  // (delta는 ±1, 호출부는 항상 map 인덱스를 그대로 넘긴다) — splice(idx,1)이 항상 1건을 뽑는다.
+  next.splice(targetIdx, 0, moved!);
   return next;
 }
 
-export function appendBlock(blocks: Block[], block: Block): Block[] {
+export function appendBlock<T>(blocks: T[], block: T): T[] {
   return [...blocks, block];
 }
 
@@ -78,7 +80,7 @@ export function createDefaultBlock(kind: string): Block | null {
 //
 // 아래 매핑은 admissionParsing.js의 build*DocBlocks 6종을 읽기 전용으로
 // 전수 확인해 만들었다(추측 아님, 각 항목에 함수명·좌표 주석):
-export const PRIMARY_ADDABLE_KINDS_BY_SECTION: Record<string, string[]> = {
+const PRIMARY_ADDABLE_KINDS_BY_SECTION: Record<string, string[]> = {
   // buildChangeDocBlocks(:2329) — table(change) 1개뿐. 주석: "이
   // 카테고리는 원래도 plainList 폴백이 없다"(parseChangeItems가 "없음"도
   // 항상 최소 1행으로 반환).
@@ -112,6 +114,8 @@ export const PRIMARY_ADDABLE_KINDS_BY_SECTION: Record<string, string[]> = {
 // 새 group을 만들지는 않는다). 실측(team-lead
 // DB 집계: table 1310/heading 185/emptyBox 108/group 42/note 11/
 // plainList 9/footnote 1)의 note 11건도 전부 이 group 내부 값과 일치한다.
+// export: TableBlockEditor.test.tsx(16e/16g)가 primary/advanced 분할의
+// 전체 집합 기준으로 직접 참조한다.
 export const ALL_BLOCK_KINDS: string[] = [
   "table",
   "note",

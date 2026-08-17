@@ -1,6 +1,6 @@
-import DeltaBadge from "../DeltaBadge";
-import GoalCard from "../GoalCard";
-import GoalProgressBar from "../GoalProgressBar";
+import DeltaBadge from "@/components/goal/DeltaBadge";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalProgressBar from "@/components/goal/GoalProgressBar";
 
 // 성적 관리 KPI 게이지 카드(680×207, #35) — 목표까지 격차를 진행바 + 목표 마커(세로선)로 표시.
 //
@@ -18,7 +18,7 @@ import GoalProgressBar from "../GoalProgressBar";
 // null 로 두어 호출부가 마커·목표 텍스트를 아예 생략하게 한다(가짜 목표를 그리지 않는다).
 type ComputeGaugeArgs = {
   value: number;
-  remaining?: number | null;
+  remaining?: number | null | undefined;
   lowerIsBetter?: boolean;
 };
 

@@ -78,12 +78,13 @@ export default function CascadingSelect({
   }, [openIndex]);
 
   function handleSelect(index: number, option: string) {
+    // index는 항상 meta.map 콜백에서 전달되어 범위 내(noUncheckedIndexedAccess 대응).
     const next: Record<string, string> = {
       ...currentValue,
-      [meta[index].key]: option,
+      [meta[index]!.key]: option,
     };
     for (let i = index + 1; i < meta.length; i += 1) {
-      next[meta[i].key] = "";
+      next[meta[i]!.key] = "";
     }
     onChange?.(next);
     setOpenIndex(null);
@@ -112,9 +113,18 @@ export default function CascadingSelect({
       {meta.map((level, index) => {
         const selected = currentValue[level.key] || "";
         const options = level.options;
+        // index>0일 때만 평가되므로 index-1은 항상 0 이상 범위 내(noUncheckedIndexedAccess 대응).
         const enabled =
-          index === 0 || Boolean(currentValue[meta[index - 1].key]);
+          index === 0 || Boolean(currentValue[meta[index - 1]!.key]);
         const isOpen = openIndex === index;
+        const buttonToneClassName = (() => {
+          if (!enabled)
+            return "cursor-not-allowed border-[#D7D7D7] bg-[#F5F5F5] text-[#D7D7D7]";
+          if (isOpen) return "border-[#013262] bg-white text-[#181D24]";
+          if (selected)
+            return "border-[#013262] bg-white text-[#181D24] hover:border-[#B0B0B0]";
+          return "border-[#D7D7D7] bg-white text-[#D7D7D7] hover:border-[#B0B0B0]";
+        })();
 
         return (
           <div key={level.key} className="relative flex min-w-0 flex-col gap-2">
@@ -132,15 +142,7 @@ export default function CascadingSelect({
               aria-haspopup="listbox"
               aria-expanded={isOpen}
               onClick={() => enabled && setOpenIndex(isOpen ? null : index)}
-              className={`flex h-[4.25rem] w-full items-center justify-between gap-6 rounded-[1.25rem] border px-5 text-left text-xl font-normal leading-5 transition-[background-color,border-color,color] duration-150 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent/30 ${
-                !enabled
-                  ? "cursor-not-allowed border-[#D7D7D7] bg-[#F5F5F5] text-[#D7D7D7]"
-                  : isOpen
-                    ? "border-[#013262] bg-white text-[#181D24]"
-                    : selected
-                      ? "border-[#013262] bg-white text-[#181D24] hover:border-[#B0B0B0]"
-                      : "border-[#D7D7D7] bg-white text-[#D7D7D7] hover:border-[#B0B0B0]"
-              }`}
+              className={`flex h-[4.25rem] w-full items-center justify-between gap-6 rounded-[1.25rem] border px-5 text-left text-xl font-normal leading-5 transition-[background-color,border-color,color] duration-150 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent/30 ${buttonToneClassName}`}
             >
               <span className="truncate">{selected || level.placeholder}</span>
               {/* chevron: lucide-react ChevronDown 24 유지 (§7 C-7 — 별도 SVG 추출 안 함) */}
@@ -162,33 +164,39 @@ export default function CascadingSelect({
                 aria-label={level.label}
                 className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-72 overflow-y-auto rounded-2xl border border-[#EDEDED] bg-white p-2 shadow-[0_1rem_2.5rem_rgba(15,23,42,0.12)]"
               >
-                {level.loading ? (
-                  <p className="px-4 py-3 text-base text-[#808080]">
-                    불러오는 중입니다…
-                  </p>
-                ) : level.error ? (
-                  // 재시도 콜백이 있으면(대학 단계) 다시 조회할 수 있게 버튼을 함께 준다 —
-                  // 없으면(하위 단계) 상위 선택을 바꾸면 자연히 재조회되므로 안내만 남긴다.
-                  <div className="flex flex-col gap-2 px-4 py-3">
-                    <p className="text-base text-[#C23B3B]">
-                      목록을 불러오지 못했습니다.
-                    </p>
-                    {level.onRetry && (
-                      <button
-                        type="button"
-                        onClick={() => level.onRetry()}
-                        className="inline-flex min-h-[2.75rem] w-fit items-center rounded-xl border border-[#013262] px-4 py-2 text-base font-medium text-[#013262] transition hover:bg-[#F1F8FF] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent/30"
-                      >
-                        다시 시도
-                      </button>
-                    )}
-                  </div>
-                ) : options.length === 0 ? (
-                  <p className="px-4 py-3 text-base text-[#808080]">
-                    선택 가능한 옵션이 없습니다.
-                  </p>
-                ) : (
-                  options.map((option) => {
+                {(() => {
+                  if (level.loading)
+                    return (
+                      <p className="px-4 py-3 text-base text-[#808080]">
+                        불러오는 중입니다…
+                      </p>
+                    );
+                  if (level.error)
+                    // 재시도 콜백이 있으면(대학 단계) 다시 조회할 수 있게 버튼을 함께 준다 —
+                    // 없으면(하위 단계) 상위 선택을 바꾸면 자연히 재조회되므로 안내만 남긴다.
+                    return (
+                      <div className="flex flex-col gap-2 px-4 py-3">
+                        <p className="text-base text-[#C23B3B]">
+                          목록을 불러오지 못했습니다.
+                        </p>
+                        {level.onRetry && (
+                          <button
+                            type="button"
+                            onClick={() => level.onRetry?.()}
+                            className="inline-flex min-h-[2.75rem] w-fit items-center rounded-xl border border-[#013262] px-4 py-2 text-base font-medium text-[#013262] transition hover:bg-[#F1F8FF] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent/30"
+                          >
+                            다시 시도
+                          </button>
+                        )}
+                      </div>
+                    );
+                  if (options.length === 0)
+                    return (
+                      <p className="px-4 py-3 text-base text-[#808080]">
+                        선택 가능한 옵션이 없습니다.
+                      </p>
+                    );
+                  return options.map((option) => {
                     const isSelected = option === selected;
                     return (
                       <button
@@ -212,8 +220,8 @@ export default function CascadingSelect({
                         )}
                       </button>
                     );
-                  })
-                )}
+                  });
+                })()}
               </div>
             )}
           </div>

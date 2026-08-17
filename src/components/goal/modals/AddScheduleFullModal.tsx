@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { SCHEDULE_CATEGORIES } from "../../../lib/goal/scheduleCategory";
+import AppModal from "@/components/goal/AppModal";
+import ModalField from "@/components/goal/ModalField";
+import SegmentedChipGroup from "@/components/goal/SegmentedChipGroup";
+import { SCHEDULE_CATEGORIES } from "@/lib/goal/scheduleCategory";
 import {
   createGoalSchedule,
   deleteGoalSchedule,
   updateGoalSchedule,
-} from "../../../lib/goalApi";
-import AppModal from "../AppModal";
-import ModalField from "../ModalField";
-import SegmentedChipGroup from "../SegmentedChipGroup";
+} from "@/lib/goalApi";
 
 // 중요일정 등록·수정 모달(624px 버전) — docs/figma-goal/part-14.md #40 (530×624 = 33.125rem ×
 // 39rem, **모달 정본** — 화면별 지침 §3 확정 사항). 대시보드 진입용 AddScheduleModal(#19,
@@ -44,7 +44,9 @@ type ScheduleInitial = {
   scheduleType?: string | null;
   title?: string;
   dueDate?: string;
-  memo?: string;
+  // Schedules.tsx의 원본 schedule.memo가 null일 수 있다(API 계약) — 아래 프리필 로직이
+  // 이미 `?? EMPTY_FORM.memo`로 방어하고 있어 null도 안전하다.
+  memo?: string | null;
 };
 
 type AddScheduleFullModalProps = {
@@ -116,13 +118,15 @@ export default function AddScheduleFullModal({
 
     const payload = {
       title: title.trim(),
-      category: scheduleType,
+      // canSubmit이 이미 scheduleType 존재를 보장한다(가드에서 return).
+      category: scheduleType!,
       dueDate,
       memo,
     };
     const result = isEditing
       ? await updateGoalSchedule({
-          id: initial.id as number,
+          // isEditing이 true면 initial과 initial.id가 존재함이 보장된다(Boolean(initial?.id)).
+          id: initial!.id as number,
           ...payload,
         })
       : await createGoalSchedule(payload);
@@ -159,18 +163,19 @@ export default function AddScheduleFullModal({
 
     setSubmitting(true);
     setErrorMessage("");
-    const result = await deleteGoalSchedule({ id: initial.id as number });
+    // isEditing이 true면 initial과 initial.id가 존재함이 보장된다(Boolean(initial?.id)).
+    const result = await deleteGoalSchedule({ id: initial!.id as number });
     setSubmitting(false);
 
     if (result.kind === "success") {
-      onDeleted?.(initial.id);
+      onDeleted?.(initial!.id!);
       resetForm();
       onClose();
       return;
     }
     if (result.kind === "not-found") {
       // 이미 지워진 행 — 목록 기준으로는 삭제와 같은 결과이므로 성공과 동일하게 처리한다.
-      onDeleted?.(initial.id);
+      onDeleted?.(initial!.id!);
       resetForm();
       onClose();
       return;

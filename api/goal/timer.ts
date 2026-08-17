@@ -24,6 +24,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   fetchSubjectTargets,
   fetchTimerDaySummary,
+  narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
   reconcileTimerState,
@@ -65,13 +66,14 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
     return res.status(session.error.status).json(session.error.body);
   }
 
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   // 조회형 규약 — 미결제는 에러가 아니다(student.js 관례 동일).
   if (!allowed) {
     return res.status(200).json({ allowed: false });
   }
 
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
   const now = new Date();
   const [summary, targets] = await Promise.all([
     fetchTimerDaySummary(supabaseAdmin, profileId, now),
@@ -94,13 +96,14 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     return res.status(session.error.status).json(session.error.body);
   }
 
-  const { supabaseAdmin, profileId, allowed } = session;
+  const { allowed } = session;
 
   // 쓰기형이므로 미결제는 403이다(조회형만 200 {allowed:false}).
   if (!allowed) {
     return res.status(403).json({ detail: PAID_MESSAGE });
   }
 
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
   const body = readBody(req);
   const action = body?.action;
   const now = new Date();

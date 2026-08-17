@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import GoalProgressBar from "../GoalProgressBar";
+import GoalProgressBar from "@/components/goal/GoalProgressBar";
 
 type StatProgressRowProps = {
   label: ReactNode;
   value: number;
-  unit?: string;
+  unit?: string | undefined;
   max?: number;
   fillClassName?: string;
 };
@@ -35,11 +35,12 @@ export default function StatProgressRow({
           {unit}
         </span>
       </div>
+      {/* GoalProgressBar(다른 UoW 소유)는 undefined 미허용 — 기본값과 동일한 값으로 정규화 */}
       <GoalProgressBar
         value={value}
         max={denom}
         thickness="0.375rem"
-        fillClassName={fillClassName}
+        fillClassName={fillClassName ?? "bg-surface-02"}
       />
     </div>
   );

@@ -11,7 +11,7 @@
 // 이 구현은 §5.4 공통 토큰(12px/text-ink)을 따르고 불일치는 주석으로만 남긴다.
 import TermsPageLayout, {
   TermsArticleBody,
-} from "../../components/auth/TermsPageLayout";
+} from "@/components/auth/TermsPageLayout";
 
 const BODY = `본 동의는 선택 사항이며, 동의하지 않아도 위닝에듀 서비스 이용에는 제한이 없습니다. 동의 후에도 언제든지 수신을 거부(철회)할 수 있습니다.
 1. 수집·이용 목적

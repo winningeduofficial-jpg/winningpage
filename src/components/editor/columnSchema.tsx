@@ -2,10 +2,10 @@ import { BlockNoteSchema, defaultBlockSpecs } from "@blocknote/core";
 import { createReactBlockSpec } from "@blocknote/react";
 import { useCallback, useRef, useState } from "react";
 
-export const CALLOUT_DEFAULT_ICON = "💡";
+const CALLOUT_DEFAULT_ICON = "💡";
 
 // 강조 박스(callout). variant 프롭은 만들지 않는다 — 허용값이 하나뿐인 확장은 speculative generality다.
-export const Callout = createReactBlockSpec(
+const Callout = createReactBlockSpec(
   {
     type: "callout",
     propSchema: {
@@ -153,7 +153,7 @@ function ImageRowRender({
   );
 }
 
-export const ImageRow = createReactBlockSpec(
+const ImageRow = createReactBlockSpec(
   {
     type: "imageRow",
     content: "none",
@@ -171,10 +171,18 @@ export const ImageRow = createReactBlockSpec(
 // 스키마는 모듈 스코프 싱글턴 — 에디터와 리더가 반드시 이 인스턴스를 공유한다.
 // 렌더마다 BlockNoteSchema.create를 호출하면 스키마 identity가 바뀌어 에디터가 재생성된다.
 // createReactBlockSpec은 팩토리를 반환하므로 등록 시 반드시 호출한다 — Callout(), ImageRow().
+// @blocknote/core의 defaultBlockSpecs 자체가 exactOptionalPropertyTypes: true 와 충돌한다
+// (heading의 isToggleable?: {...} | undefined 가 PropSpec 인덱스 시그니처와 안 맞음, 우리 코드가
+// 만든 타입이 아니라 라이브러리 선언 문제) — 위 ImageRow render의 as any 선례와 같은 취지로,
+// BlockNoteSchema.create() 결과 전체를 caller(BlockEditor.tsx 등)가 그대로 제네릭 인자로
+// 쓸 수 있도록 캐스팅한다(부분 캐스팅으로는 conditional type이 union으로 남아 하위 사용처에서
+// 같은 에러가 반복된다).
 export const columnSchema = BlockNoteSchema.create({
   blockSpecs: {
     ...defaultBlockSpecs,
     callout: Callout(),
     imageRow: ImageRow(),
-  },
-});
+    // biome-ignore lint/suspicious/noExplicitAny: 상단 주석 참고
+  } as any,
+  // biome-ignore lint/suspicious/noExplicitAny: 상단 주석 참고
+}) as any;

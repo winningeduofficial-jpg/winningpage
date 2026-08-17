@@ -1,4 +1,4 @@
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 /**
  * 게시판(회사소식/공지사항) 공통 데이터 레이어.
@@ -24,8 +24,8 @@ export const BOARD_SOURCES = Object.freeze({
   notices: "notices",
 });
 
-export type BoardSourceKey = keyof typeof BOARD_SOURCES;
-export type BoardTableName = (typeof BOARD_SOURCES)[BoardSourceKey];
+type BoardSourceKey = keyof typeof BOARD_SOURCES;
+type BoardTableName = (typeof BOARD_SOURCES)[BoardSourceKey];
 
 const BOARD_TABLE_NAMES = Object.freeze(Object.values(BOARD_SOURCES));
 

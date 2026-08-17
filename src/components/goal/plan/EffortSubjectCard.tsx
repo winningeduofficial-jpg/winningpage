@@ -1,5 +1,5 @@
-import SubjectChip from "../SubjectChip";
-import { resolveSubjectId } from "../subjectTokens";
+import SubjectChip from "@/components/goal/SubjectChip";
+import { resolveSubjectId } from "@/components/goal/subjectTokens";
 
 // 나의 노력 과목 카드 — docs/figma-goal/part-10.md #30(빈) / part-11.md #32(채움), 312×451.
 //

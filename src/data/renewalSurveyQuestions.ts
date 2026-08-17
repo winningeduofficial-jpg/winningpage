@@ -855,5 +855,3 @@ export function getOptionCode(questionId, label) {
   const index = question.options.indexOf(label);
   return index === -1 ? null : (question.optionCodes[index] ?? null);
 }
-
-export default renewalSurveyQuestions;

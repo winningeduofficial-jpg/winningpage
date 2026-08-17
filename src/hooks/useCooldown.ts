@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
+const TICK_INTERVAL_MS = 500;
+
 /**
  * 남은 초를 세어주는 재발송 쿨타임 훅.
  *
@@ -35,10 +37,10 @@ export function useCooldown(seconds: number) {
     }
 
     tick();
-    timerRef.current = setInterval(tick, 500);
+    timerRef.current = setInterval(tick, TICK_INTERVAL_MS);
 
     return () => {
-      clearInterval(timerRef.current);
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = null;
     };
   }, [deadline]);

@@ -17,7 +17,7 @@ const BUSY_LABEL = "불러오는 중…";
 
 type ChoiceButtonProps = {
   label: string;
-  onClick?: () => void;
+  onClick?: (() => void) | undefined;
   disabled?: boolean;
 };
 

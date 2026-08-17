@@ -1,12 +1,12 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import {
   formatDate,
   getThumbnailUrl,
-} from "../../pages/admission/admissionCaseData";
+} from "@/pages/admission/admissionCaseData";
 
 type ThumbnailProps = {
-  url?: string;
-  title?: string;
+  url?: string | undefined;
+  title?: string | undefined;
 };
 
 function Thumbnail({ url, title }: ThumbnailProps) {

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import ServiceCard from "./ServiceCard";
 
 /**
@@ -34,6 +34,7 @@ import ServiceCard from "./ServiceCard";
 const DURATION_BRACKET_RE = /^\[(.+?)\]\s*(.+)$/;
 const MONTHS_RE = /(\d+)\s*개월/;
 const COUNT_RE = /(\d+)\s*회/;
+const MS_PER_DAY = 86400000;
 
 type Order = {
   id: string;
@@ -141,9 +142,10 @@ function programLink(serviceName: string) {
 function parseOrder(order: Order): ParsedOrder {
   const rawName = String(order?.order_name || "").trim();
   const bracketMatch = rawName.match(DURATION_BRACKET_RE);
-  const durationSpec = bracketMatch ? bracketMatch[1] : "";
+  // DURATION_BRACKET_RE의 두 캡처그룹은 옵셔널(`?`)이 아니라 매치 성공 시 항상 존재한다.
+  const durationSpec = bracketMatch ? bracketMatch[1]! : "";
   const serviceName = bracketMatch
-    ? bracketMatch[2].trim()
+    ? bracketMatch[2]!.trim()
     : rawName || "이용권";
   const category = classifyService(serviceName);
 
@@ -159,11 +161,11 @@ function parseOrder(order: Order): ParsedOrder {
 
   const now = new Date();
   const remainingDays = endDate
-    ? Math.ceil((endDate.getTime() - now.getTime()) / 86400000)
+    ? Math.ceil((endDate.getTime() - now.getTime()) / MS_PER_DAY)
     : null;
   const validityDays =
     endDate && paidAt
-      ? Math.round((endDate.getTime() - paidAt.getTime()) / 86400000)
+      ? Math.round((endDate.getTime() - paidAt.getTime()) / MS_PER_DAY)
       : null;
 
   // 기간을 알 수 없는 주문은 기본적으로 "이용 중"으로 두지만, 무료진단은 원래 결제 즉시
@@ -208,22 +210,22 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
     isOngoing,
   } = parsed;
 
-  const statusLabel = isOngoing
-    ? totalCount
-      ? `잔여 ${totalCount}회`
-      : "이용중"
-    : "이용완료";
+  const statusLabel = (() => {
+    if (!isOngoing) return "이용완료";
+    if (totalCount) return `잔여 ${totalCount}회`;
+    return "이용중";
+  })();
 
   // 카테고리별 메타 한 줄(좌/우) — 시안이 서비스 성격마다 다른 정보를 보여주므로 분기한다.
   let metaLeft = "-";
   let metaRight = "-";
   if (category === "session") {
     metaLeft = totalCount ? `${totalCount}회권` : "-";
-    metaRight = isOngoing
-      ? validityDays
-        ? `유효기간 ${validityDays}일`
-        : "-"
-      : formatDateSpaced(paidAt);
+    metaRight = (() => {
+      if (!isOngoing) return formatDateSpaced(paidAt);
+      if (validityDays) return `유효기간 ${validityDays}일`;
+      return "-";
+    })();
     if (!isOngoing)
       metaLeft = totalCount ? `총 ${totalCount}회 이용` : "이용 완료";
   } else if (category === "diagnosis") {
@@ -234,11 +236,11 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
       paidAt || endDate
         ? `${formatDate(paidAt)} ~ ${formatDate(endDate)}`
         : "-";
-    metaRight = isOngoing
-      ? remainingDays !== null
-        ? `${remainingDays}일 남음`
-        : "-"
-      : "만료";
+    metaRight = (() => {
+      if (!isOngoing) return "만료";
+      if (remainingDays !== null) return `${remainingDays}일 남음`;
+      return "-";
+    })();
   }
 
   const href = programLink(serviceName);

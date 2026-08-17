@@ -53,7 +53,8 @@ export default function RadarChart6({
   const ringRatios = Array.from({ length: rings }, (_, i) => (i + 1) / rings);
 
   const dataPoints = axes.map((axis, k) =>
-    polarPoint(angles[k], (axis.score / max) * R_MAX),
+    // angles는 axes와 동일 length로 생성되어 k는 항상 범위 내(noUncheckedIndexedAccess 대응).
+    polarPoint(angles[k]!, (axis.score / max) * R_MAX),
   );
   const spokeEnds = angles.map((angle) => polarPoint(angle, R_MAX));
   const labelPoints = angles.map((angle) => polarPoint(angle, R_LABEL));
@@ -89,7 +90,8 @@ export default function RadarChart6({
 
       {spokeEnds.map((end, index) => (
         <line
-          key={`spoke-${axes[index].name}`}
+          // spokeEnds는 angles(=axes와 동일 length)에서 파생되어 index는 항상 범위 내.
+          key={`spoke-${axes[index]!.name}`}
           x1={CX}
           y1={CY}
           x2={end.x}
@@ -109,8 +111,10 @@ export default function RadarChart6({
       />
 
       {axes.map((axis, k) => {
-        const layout = LABEL_LAYOUT[k] ?? LABEL_LAYOUT[0];
-        const { x, y } = labelPoints[k];
+        // LABEL_LAYOUT[0]은 리터럴 6원소 배열의 첫 항목으로 항상 존재(폴백 보장).
+        const layout = LABEL_LAYOUT[k] ?? LABEL_LAYOUT[0]!;
+        // labelPoints는 angles(=axes와 동일 length)에서 파생되어 k는 항상 범위 내.
+        const { x, y } = labelPoints[k]!;
         return (
           <text key={axis.name} x={x} textAnchor={layout.anchor}>
             <tspan

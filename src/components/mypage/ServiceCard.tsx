@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 /**
  * 마이페이지 "나의 서비스" 탭 카드 — Figma hsokTD6OilcNEXyCR24sn4 노드 3762:18713 실측.
@@ -75,11 +75,13 @@ export default function ServiceCard({ card }: ServiceCardProps) {
       </div>
 
       {isOngoing ? (
+        // 유일한 호출부(MyServicesTab.buildServiceCard)가 isOngoing=true일 때
+        // actions를 항상 1개짜리 배열로 만든다.
         <Link
-          to={actions[0].href}
+          to={actions[0]!.href}
           className="text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem] text-accent transition hover:opacity-80"
         >
-          {actions[0].label} →
+          {actions[0]!.label} →
         </Link>
       ) : (
         <div className="flex items-center gap-[0.5rem]">

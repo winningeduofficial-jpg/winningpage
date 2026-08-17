@@ -1,5 +1,5 @@
-import GoalCard from "../GoalCard";
-import GoalProgressBar from "../GoalProgressBar";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalProgressBar from "@/components/goal/GoalProgressBar";
 
 // Row1 카드① `이번 주/달 목표 달성 현황` — part-11 §235~237(주간, h=200) / part-12 §110·
 // part-15 §262~264(월간, h=451 확장형) 겸용. 컴포넌트 트리는 하나로 두고 `variant`로 데이터만
@@ -14,10 +14,10 @@ type AchievementRow = { label: string; value: number; max?: number };
 type AchievementWeek = { label: string; min: number; upper: number };
 
 type GoalAchievementCardProps = {
-  title?: string;
+  title?: string | undefined;
   variant?: "weekly" | "monthly";
   rows: AchievementRow[];
-  weeks?: AchievementWeek[];
+  weeks?: AchievementWeek[] | undefined;
 };
 
 export default function GoalAchievementCard({
@@ -48,13 +48,14 @@ export default function GoalAchievementCard({
               value={row.value}
               max={row.max ?? 100}
               thickness="0.375rem"
-              fillClassName={ROW_FILL[index % ROW_FILL.length]}
+              // index % ROW_FILL.length 는 항상 배열 범위 내
+              fillClassName={ROW_FILL[index % ROW_FILL.length]!}
             />
           </div>
         ))}
       </div>
 
-      {variant === "monthly" && weeks?.length > 0 && (
+      {variant === "monthly" && weeks && weeks.length > 0 && (
         <>
           <div className="h-px w-full bg-[#EEEEEE]" aria-hidden="true" />
           <div className="flex flex-1 flex-col justify-center gap-3">

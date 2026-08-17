@@ -73,7 +73,7 @@ export const TRENDING_HEADING = "지금 뜨고 있는 학과";
 // 예상 밖의 값이 오면 원문을 그대로 노출한다(지어내지 않는다).
 export function formatTrackTags(tracks: unknown) {
   const list = Array.isArray(tracks) ? tracks : [];
-  const seen = [];
+  const seen: string[] = [];
   for (const raw of list) {
     const text = String(raw ?? "")
       .trim()

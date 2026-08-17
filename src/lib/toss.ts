@@ -1,7 +1,7 @@
 import { ANONYMOUS, loadTossPayments } from "@tosspayments/tosspayments-sdk";
 
 // 발급받은 클라이언트 키. (.env 의 VITE_TOSS_CLIENT_KEY / Vercel 환경변수)
-export const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY;
+const TOSS_CLIENT_KEY = import.meta.env.VITE_TOSS_CLIENT_KEY;
 
 // 비회원 결제용 상수. 회원이면 로그인한 사용자 고유값(user.id 등)을 customerKey 로 넘긴다.
 export { ANONYMOUS };

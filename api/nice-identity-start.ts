@@ -78,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const supabase = createSupabaseAdmin();
 
     // 로그인 상태면 user_id를 붙인다. 실패해도 진행한다 — 가입 전 호출이 정상이다.
-    let userId = null;
+    let userId: string | null = null;
     const token = getBearerToken(req);
 
     if (token) {

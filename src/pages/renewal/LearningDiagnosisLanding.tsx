@@ -1,16 +1,17 @@
-import { Link } from "react-router-dom";
-import heroBrowserV2 from "../../assets/renewal/landing/hero-browser-v2.png";
-import heroGlow from "../../assets/renewal/landing/hero-glow.svg";
-import heroGrain from "../../assets/renewal/landing/hero-grain.png";
-import iconFolder from "../../assets/renewal/landing/icon-folder-v2.png";
-import iconLock from "../../assets/renewal/landing/icon-lock-v2.png";
-import iconShield from "../../assets/renewal/landing/icon-shield-v2.png";
-import illustrationStrength from "../../assets/renewal/landing/illustration-strength.png";
-import illustrationTrial from "../../assets/renewal/landing/illustration-trial.png";
-import illustrationWeakness from "../../assets/renewal/landing/illustration-weakness.png";
-import macbookFull from "../../assets/renewal/landing/macbook-full.png";
-import ServiceProcessCards from "../../components/services/ServiceProcessCards";
-import { useInView } from "../../hooks/useInView";
+import type { CSSProperties, MutableRefObject } from "react";
+import { Link } from "react-router";
+import heroBrowserV2 from "@/assets/renewal/landing/hero-browser-v2.png";
+import heroGlow from "@/assets/renewal/landing/hero-glow.svg";
+import heroGrain from "@/assets/renewal/landing/hero-grain.png";
+import iconFolder from "@/assets/renewal/landing/icon-folder-v2.png";
+import iconLock from "@/assets/renewal/landing/icon-lock-v2.png";
+import iconShield from "@/assets/renewal/landing/icon-shield-v2.png";
+import illustrationStrength from "@/assets/renewal/landing/illustration-strength.png";
+import illustrationTrial from "@/assets/renewal/landing/illustration-trial.png";
+import illustrationWeakness from "@/assets/renewal/landing/illustration-weakness.png";
+import macbookFull from "@/assets/renewal/landing/macbook-full.png";
+import ServiceProcessCards from "@/components/services/ServiceProcessCards";
+import { useInView } from "@/hooks/useInView";
 
 const CTA_LINK_CLASS =
   "inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] px-8 text-base font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]";
@@ -136,7 +137,11 @@ const HERO_GRAIN_CLASS =
 function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
   // (GoalManagement.jsx HeroSection과 동일 useInView 훅 구조).
-  const [glowRef, glowInView] = useInView();
+  // useInView(범위 밖 파일)가 튜플이 아닌 배열을 반환해 각 원소가 유니온으로 추론되므로 단언.
+  const [glowRef, glowInView] = useInView() as [
+    MutableRefObject<HTMLDivElement | null>,
+    boolean,
+  ];
 
   return (
     <section className="relative overflow-hidden bg-white pb-14 sm:pb-16 md:pb-0 md:pt-[2.25rem]">
@@ -377,7 +382,11 @@ function BenefitsSection() {
 function MacbookMockup() {
   // 이 섹션은 페이지 y2750 지점이라 대부분의 시간 화면 밖이다.
   // 뷰포트에 들어와 있는 동안만 애니메이션을 돌린다(이탈 시 정지).
-  const [chipLayerRef, chipsInView] = useInView();
+  // useInView(범위 밖 파일)가 튜플이 아닌 배열을 반환해 각 원소가 유니온으로 추론되므로 단언.
+  const [chipLayerRef, chipsInView] = useInView() as [
+    MutableRefObject<HTMLDivElement | null>,
+    boolean,
+  ];
 
   return (
     <div className="relative mx-auto aspect-[1008/591] w-full max-w-[63rem]">
@@ -446,12 +455,15 @@ function MacbookMockup() {
             <div
               key={badge.label}
               className="absolute"
-              style={{
-                ...badge.style,
-                "--fd-x": badge.x.amplitude,
-                "--fd-y": badge.y.amplitude,
-                "--fd-rot": badge.rot.amplitude,
-              }}
+              style={
+                {
+                  ...badge.style,
+                  // CSS 커스텀 프로퍼티는 CSSProperties 타입에 없어 단언이 필요하다(동작 동일).
+                  "--fd-x": badge.x.amplitude,
+                  "--fd-y": badge.y.amplitude,
+                  "--fd-rot": badge.rot.amplitude,
+                } as CSSProperties
+              }
             >
               <div
                 className="fd-chip-x inline-block"

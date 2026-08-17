@@ -24,15 +24,7 @@ export const WEEKDAY_LABELS = [
   "일요일",
 ];
 // WeekdayPlanBoard.jsx의 내부 DAY_KEY 값과 같은 순서·표기(mon~sun).
-export const WEEKDAY_SHORT_KEYS = [
-  "mon",
-  "tue",
-  "wed",
-  "thu",
-  "fri",
-  "sat",
-  "sun",
-];
+const WEEKDAY_SHORT_KEYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 
 /**
  * 표시할 주(월~일)의 실제 날짜 7개(YYYY-MM-DD)를 돌려준다.
@@ -48,7 +40,8 @@ export function getWeekDates(weekOffset = 0, now = new Date()): string[] {
 /** weekDates(getWeekDates 반환값) 안에 오늘이 있으면 그 요일의 short key, 없으면 null. */
 export function getTodayShortKeyInWeek(weekDates: string[], now = new Date()) {
   const idx = weekDates.indexOf(kstYMD(now));
-  return idx === -1 ? null : WEEKDAY_SHORT_KEYS[idx];
+  // weekDates는 7일치, WEEKDAY_SHORT_KEYS도 7개 고정이라 idx(-1 아닌 경우)는 항상 유효하다.
+  return idx === -1 ? null : WEEKDAY_SHORT_KEYS[idx]!;
 }
 
 /**
@@ -67,7 +60,8 @@ export function getTodayWeekdayLabel(now = new Date()) {
 
 /** GoalPageHeader meta 라벨. 예: "2026.07.27 – 08.02" (WeeklyPlan.jsx 기존 정적 문구와 동일 포맷). */
 export function formatWeekRangeLabel(weekDates: string[]) {
-  const [start, end] = [weekDates[0], weekDates[weekDates.length - 1]];
+  // weekDates는 항상 getWeekDates()가 만든 7일치 배열이라 첫/끝 원소가 항상 존재한다.
+  const [start, end] = [weekDates[0]!, weekDates[weekDates.length - 1]!];
   const [sy, sm, sd] = start.split("-");
   const [, em, ed] = end.split("-");
   return `${sy}.${sm}.${sd} – ${em}.${ed}`;

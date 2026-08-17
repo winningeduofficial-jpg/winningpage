@@ -1,11 +1,11 @@
 import { ChevronRight } from "lucide-react";
 import type { KeyboardEvent } from "react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { formatKRW, SINGLE_SELECT_NOTICE } from "../../data/pricingCatalog";
-import { saveCart } from "../../lib/cart";
-import { useProducts } from "../../lib/products";
-import { supabase } from "../../lib/supabase";
+import { Link, useNavigate } from "react-router";
+import { formatKRW, SINGLE_SELECT_NOTICE } from "@/data/pricingCatalog";
+import { saveCart } from "@/lib/cart";
+import { useProducts } from "@/lib/products";
+import { supabase } from "@/lib/supabase";
 
 // lib/products.js(useProducts)의 반환 형태를 그대로 옮긴 로컬 타입 — products.js는
 // 아직 JS(API 전환 단계 미착수)라 이 페이지에서만 쓰는 최소 형태로 로컬 정의한다.
@@ -38,8 +38,8 @@ type CartItem = {
   name: string;
   listPrice: number;
   price: number;
-  badge?: string | null;
-  recommended?: boolean;
+  badge?: string | null | undefined;
+  recommended?: boolean | undefined;
 };
 
 // products.service_key → 서비스 상세 페이지 라우트.
@@ -87,6 +87,7 @@ const SERVICE_DETAIL_ROUTES = {
 export default function PricingSelling() {
   const navigate = useNavigate();
   const { services, loading, error, refetch } = useProducts();
+  const hasNoServices = Boolean(error) || services.length === 0;
   // 서비스별 단일 선택: { [serviceKey]: productId }
   const [selected, setSelected] = useState<SelectedMap>({});
 
@@ -144,7 +145,8 @@ export default function PricingSelling() {
 
     const nextIndex =
       (currentIndex + delta + products.length) % products.length;
-    const nextProduct = products[nextIndex];
+    // nextIndex는 products.length에 대한 모듈러 연산 결과라 항상 유효 범위 인덱스다.
+    const nextProduct = products[nextIndex]!;
     setSelected((prev) => ({ ...prev, [serviceKey]: nextProduct.id }));
 
     const group = e.currentTarget.closest('[role="radiogroup"]');
@@ -251,7 +253,7 @@ export default function PricingSelling() {
             </div>
           )}
 
-          {!loading && (error || services.length === 0) && (
+          {!loading && hasNoServices && (
             <div className="rounded-2xl border border-error/30 bg-white p-10 text-center">
               <p className="text-sm font-bold text-error">
                 요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.

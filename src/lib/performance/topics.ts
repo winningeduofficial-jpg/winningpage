@@ -54,7 +54,7 @@ const GENERIC_MESSAGE = "주제를 추천하지 못했어요. 잠시 후 다시 
  * `userMessage`는 `guideUpload.js`와 같은 이름을 쓴다 — 두 모듈의 에러가 같은 화면
  * 상태 슬롯으로 흘러 들어가므로 읽는 쪽이 출처를 따지지 않아도 되게 한다.
  */
-export class TopicRequestError extends Error {
+class TopicRequestError extends Error {
   code: string;
   userMessage: string;
   quotaRemaining: number | null;

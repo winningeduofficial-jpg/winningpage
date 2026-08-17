@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { addGoalGrade, fetchGoalGrades } from "../../../lib/goalApi";
-import { recentHistory } from "../../../lib/goalGrades";
-import DeltaBadge from "../DeltaBadge";
-import GoalCard from "../GoalCard";
-import GoalCardHeader from "../GoalCardHeader";
-import GoalDdayBadge from "../GoalDdayBadge";
-import GoalStatChip from "../GoalStatChip";
-import AddMockExamGradeModal from "../modals/AddMockExamGradeModal";
+import DeltaBadge from "@/components/goal/DeltaBadge";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalCardHeader from "@/components/goal/GoalCardHeader";
+import GoalDdayBadge from "@/components/goal/GoalDdayBadge";
+import GoalStatChip from "@/components/goal/GoalStatChip";
+import AddMockExamGradeModal from "@/components/goal/modals/AddMockExamGradeModal";
+import { addGoalGrade, fetchGoalGrades } from "@/lib/goalApi";
+import { recentHistory } from "@/lib/goalGrades";
 
 // "모의고사" 카드(530×364 = 33.125rem×22.75rem, part-07 #20 정본 기준). 저장 후에는
 // 4022:5403 변형으로 전환된다 — 하단이 "학습 조언"에서 "기록한 성적"(최근 3건, 회차/백분위/
@@ -26,11 +26,13 @@ type MockExamCardData = {
   advice: string;
 };
 
-// api/goal/grades.js 회차 기록 — mockRecords 원소.
+// api/goal/grades.js 회차 기록 — mockRecords 원소. recentHistory()가 delta 를 파생시켜 붙인다.
+// (index signature 대신 실제 쓰는 필드만 선언 — goalApi.ts 의 GoalGradeRecord 는 index
+// signature 가 없어 구조적 할당 시 인덱스 시그니처 요구가 오히려 막힌다, 판단 지점)
 type MockGradeRecord = {
   term: string;
   value: number;
-  [key: string]: unknown;
+  delta?: number | null;
 };
 
 type MockExamCardProps = {
@@ -103,7 +105,7 @@ export default function MockExamCard({ data }: MockExamCardProps) {
         <span className="text-[1rem] font-semibold leading-[1.4] text-ink-strong">
           {data.round}
         </span>
-        <GoalDdayBadge dday={data.dday} />
+        <GoalDdayBadge dday={data.dday ?? null} />
       </div>
       <GoalStatChip
         label={data.metricLabel}

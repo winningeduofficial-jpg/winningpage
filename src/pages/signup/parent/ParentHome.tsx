@@ -6,14 +6,14 @@
 // E-4의 자녀 이름 기준 호칭과는 별개다(§3.3 E-4 주석: 호칭 규칙 확인 필요, 이 화면은 본인
 // 이름 기준으로 데이터가 있으므로 그대로 사용).
 import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,
   OutlineButton,
   TextLinkButton,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 
 export default function ParentHome() {
   const navigate = useNavigate();

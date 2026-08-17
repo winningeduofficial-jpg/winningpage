@@ -74,13 +74,6 @@ import { supabase } from "./supabase";
 //     "미보유"로 취급해 곧장 리다이렉트하지 말고, 재시도 UI를 보여주거나 최소한 그
 //     자리에 머무르게 해야 한다(RequireGoalAccess.jsx 참고).
 //   - 그 외에는 서버가 준 실제 판정(true/false)을 그대로 반환한다.
-export async function hasEntitlement(
-  serviceKey: string,
-): Promise<boolean | null> {
-  const { allowed } = await fetchEntitlement(serviceKey);
-  return allowed;
-}
-
 export type EntitlementResult = {
   allowed: boolean | null;
   quotaRemaining: number | null;

@@ -1,5 +1,5 @@
-import GoalCard from "../GoalCard";
-import GoalCardHeader from "../GoalCardHeader";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalCardHeader from "@/components/goal/GoalCardHeader";
 
 // "목표까지 남은 격차" 카드(#24 하단) — 3행: 항목명 / 현재→목표 설명 / 남은 값.
 // part-08 §302~305/324~327. 시안 폭 1380px(86.25rem)은 프로젝트 공통 서브페이지 폭

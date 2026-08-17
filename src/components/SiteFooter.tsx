@@ -1,6 +1,6 @@
-import { Link } from "react-router-dom";
-import { COMPANY } from "../data/company";
-import { useNavGroups } from "../hooks/useNavGroups";
+import { Link } from "react-router";
+import { COMPANY } from "@/data/company";
+import { useNavGroups } from "@/hooks/useNavGroups";
 
 // 결제/랜딩 공용 푸터. 사업자 정보 + 이용약관/개인정보처리방침 링크 포함.
 // 메뉴 컬럼은 헤더 메가메뉴와 동일한 useNavGroups()(DB → 캐시 → fallback)를 공유한다.

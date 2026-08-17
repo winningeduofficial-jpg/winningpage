@@ -21,7 +21,7 @@ const ONBOARDING_DONE_KEY = "winning-goal-onboarding-done-v1";
 // 이 값이 실수로 환경변수에 들어가도(Vercel 등) 프로덕션 번들에서는 활성화가 절대 불가능하다.
 // FAKE_ENTITLEMENT_ENABLED(src/lib/entitlement.js)와 판정 대상이 다르다 — 그건 "결제했다고
 // 가정", 이건 "온보딩을 마쳤다고 가정"이다.
-export const FAKE_ONBOARDING_DONE_ENABLED =
+const FAKE_ONBOARDING_DONE_ENABLED =
   import.meta.env.DEV === true &&
   import.meta.env.VITE_FAKE_ONBOARDING_DONE === "true";
 

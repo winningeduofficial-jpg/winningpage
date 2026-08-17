@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import GoalCard from "../GoalCard";
-import InsightBox from "../InsightBox";
+import GoalCard from "@/components/goal/GoalCard";
+import InsightBox from "@/components/goal/InsightBox";
 import StatProgressRow from "./StatProgressRow";
 
 type StatRow = { label: string; value: number };
@@ -43,7 +43,8 @@ export default function SubjectShareCard({
         </div>
       ) : (
         <div className="flex flex-1 flex-col justify-center gap-4">
-          {rows.map((row) => (
+          {/* aggregate.ts computeSubjectShare 는 항상 rows 를 채워 반환(!empty ⇒ rows 존재) */}
+          {rows!.map((row) => (
             <StatProgressRow
               key={row.label}
               label={row.label}
@@ -56,7 +57,8 @@ export default function SubjectShareCard({
       )}
 
       {tip && (
-        <InsightBox variant={tip.variant} className="mt-auto">
+        // InsightBox(다른 UoW 소유)는 undefined 미허용 — "info"는 InsightBox 자체 기본값과 동일
+        <InsightBox variant={tip.variant ?? "info"} className="mt-auto">
           {tip.text}
         </InsightBox>
       )}

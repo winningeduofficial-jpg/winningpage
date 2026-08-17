@@ -7,7 +7,7 @@
 // 유일키가 (cut_type, university_key, department_key) 라 손실 위험이다.
 
 // 규칙만으로는 못 맞히는 단축형 → 전체형 예외. 완전일치(trim 후) 우선.
-export const NORMALIZE_EXCEPTIONS: Record<string, string> = {
+const NORMALIZE_EXCEPTIONS: Record<string, string> = {
   한국외대: "한국외국어대학교",
   "한국외대(글로벌)": "한국외국어대학교",
 };
@@ -29,7 +29,7 @@ export function normalizeUniversityName(short?: string | null) {
   // 끝의 괄호 그룹 하나를 캠퍼스 suffix 로 분리한다. 예: "고려대(세종)" →
   // base "고려대", suffix "(세종)".
   const suffixMatch = input.match(/^(.*)(\([^()]*\))$/);
-  const base = suffixMatch ? suffixMatch[1].trim() : input;
+  const base = suffixMatch ? suffixMatch[1]!.trim() : input;
   const suffix = suffixMatch ? suffixMatch[2] : "";
 
   const normalizedBase = applyBaseRule(base);

@@ -10,14 +10,14 @@
 // 넘긴 id 를 그대로 가리키므로 라벨 클릭·스크린리더 연결이 정상 동작하고, 같은 카드 안의
 // 인풋·텍스트에어리어와 라벨 위치·gap·에러 슬롯 높이가 정확히 일치한다.
 
+import SelectField from "@/components/auth/SelectField";
 import {
   ADMISSION_HISTORY_OPTIONS,
   ENROLLMENT_STATUS_OPTIONS,
   FINAL_TRACK_OPTIONS,
   FORM_SECTIONS,
-} from "../../data/mentorApply";
-import { isValidAdmissionYear, isWithinMaxLength } from "../../lib/validators";
-import SelectField from "../auth/SelectField";
+} from "@/data/mentorApply";
+import { isValidAdmissionYear, isWithinMaxLength } from "@/lib/validators";
 import ChipGroup from "./ChipGroup";
 import FormFieldRow from "./FormFieldRow";
 import FormSectionCard from "./FormSectionCard";
@@ -96,11 +96,11 @@ const EXAM_RESULTS_PLACEHOLDER = `형식) 대학 / 모집단위 / 전형 / 결�
  2. 연세대학교 / 경영학과 / 수시 논술 / 불합
  3. 중앙대학교 / 경영학부 / 정시 가군 / 추가합격 (3순위)`;
 
-const SECTION = FORM_SECTIONS[1];
+const SECTION = FORM_SECTIONS[1]!; // FORM_SECTIONS는 5개 섹션 고정 배열, 1번 인덱스 항상 존재
 
 type FormSectionUniversityProps = {
   values?: UniversityValues;
-  errors?: Record<string, string>;
+  errors?: Record<string, string | undefined>; // MentorApplyForm의 errors 상태와 동일한 형태(값 지웠을 때 undefined)
   onChange?: (name: string, value: string) => void;
 };
 

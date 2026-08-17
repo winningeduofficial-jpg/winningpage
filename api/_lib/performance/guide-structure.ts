@@ -27,7 +27,7 @@
 // 정규식·어휘 목록·판정 우선순위·`type`/`reason`/`writingFrame` 문구는 **원문 그대로**다.
 // 이 값들은 안내문 실물을 보며 굳은 현장 튜닝의 산물이고, "더 나은 정규식"으로 바꾸면
 // 판정이 조용히 뒤집힌다(그리고 아무 에러도 나지 않는다).
-// `scripts/verify-performance-guide-structure.mjs`가 원본 함수를 직접 실행해 같은
+// `api/_lib/performance/guide-structure.test.ts`(옛 scripts/verify-performance-guide-structure.mjs)가 원본 함수를 직접 실행해 같은
 // 입력·같은 출력을 매 `npm run verify`마다 대조한다.
 //
 // 남겨둔 성질 2가지 — 고치지 않았고, 고치려면 명세 결정이 먼저다:
@@ -156,21 +156,24 @@ export function extractAnswerQuestions(
   text = "",
 ): { no: number; text: string }[] {
   const seen = new Set<string>();
-  return [
-    ...String(text || "").matchAll(
-      /^\s*(?:[-*•]\s*)?질문\s*(\d+)\s*[:：]\s*([^\n]+)/gm,
-    ),
-  ]
-    .map((m) => ({ no: Number(m[1]), text: m[2].trim() }))
-    .filter((q) => q.text && !/목록\s*없음|없음/.test(q.text))
-    .filter((q) => !isRubricLikeQuestion(q.text))
-    .filter((q) => {
-      const key = `${q.no}:${q.text}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    })
-    .sort((a, b) => a.no - b.no);
+  return (
+    [
+      ...String(text || "").matchAll(
+        /^\s*(?:[-*•]\s*)?질문\s*(\d+)\s*[:：]\s*([^\n]+)/gm,
+      ),
+    ]
+      // m[2]는 정규식 캡처그룹 2번 — 매치가 존재하면(matchAll 결과) 항상 존재한다.
+      .map((m) => ({ no: Number(m[1]), text: m[2]!.trim() }))
+      .filter((q) => q.text && !/목록\s*없음|없음/.test(q.text))
+      .filter((q) => !isRubricLikeQuestion(q.text))
+      .filter((q) => {
+        const key = `${q.no}:${q.text}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .sort((a, b) => a.no - b.no)
+  );
 }
 
 /**

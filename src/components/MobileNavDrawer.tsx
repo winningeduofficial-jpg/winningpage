@@ -1,7 +1,7 @@
 import { ChevronDown, LogOut, Settings, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
-import type { useNavGroups } from "../hooks/useNavGroups";
+import { Link } from "react-router";
+import type { useNavGroups } from "@/hooks/useNavGroups";
 import { buildMyMenu } from "./myMenuItems";
 
 const FOCUSABLE_SELECTOR =
@@ -79,8 +79,9 @@ export default function MobileNavDrawer({
 
       if (focusable.length === 0) return;
 
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
+      // 위에서 focusable.length === 0을 return했으므로 0번/마지막 인덱스는 항상 존재.
+      const first = focusable[0]!;
+      const last = focusable[focusable.length - 1]!;
 
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();

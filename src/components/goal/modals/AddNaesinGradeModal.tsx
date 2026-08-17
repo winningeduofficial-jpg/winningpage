@@ -1,7 +1,7 @@
 import type { ChangeEvent } from "react";
 import { useId, useState } from "react";
-import AppModal from "../AppModal";
-import ModalField from "../ModalField";
+import AppModal from "@/components/goal/AppModal";
+import ModalField from "@/components/goal/ModalField";
 
 // 내신 성적 추가 모달(#36, 530×537 = 33.125rem×33.5625rem) — #35 내신 표의 `+ 회차 추가` 트리거.
 // `AddMockExamGradeModal`(part-08 #22, 모의고사 표 전용)과 동일한 셸 패턴(회차/응시일 2열 +
@@ -91,7 +91,8 @@ export default function AddNaesinGradeModal({
     !submitting &&
     semester.trim().length > 0 &&
     enteredAt.trim().length > 0 &&
-    SUBJECTS.every(({ key }) => grades[key].toString().trim().length > 0);
+    // SUBJECTS의 key는 grades 초기값에 항상 존재하는 고정 필드다.
+    SUBJECTS.every(({ key }) => grades[key]!.toString().trim().length > 0);
 
   function resetForm() {
     setSemester("");
@@ -167,7 +168,7 @@ export default function AddNaesinGradeModal({
             <GradeField
               key={key}
               label={label}
-              value={grades[key]}
+              value={grades[key]!}
               onChange={(event) =>
                 setGrades((prev) => ({ ...prev, [key]: event.target.value }))
               }

@@ -63,7 +63,7 @@ export default function PaymentStatusBadge({
   status,
   label,
 }: PaymentStatusBadgeProps) {
-  const preset = STATUS_STYLES[status];
+  const preset = STATUS_STYLES[status || ""];
   const text = label || preset?.label || status || "-";
   const cls = preset?.cls || FALLBACK_CLS;
 

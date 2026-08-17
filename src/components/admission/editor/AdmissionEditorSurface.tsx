@@ -18,9 +18,10 @@
 //     col5 wrap률을 48.5% → 17.5%로 낮추려고 잡은 배분을 정면으로 되돌리는
 //     일이다. 이득 1행 / 손실 557행.
 //   - 게다가 AdmissionSurface 의 <style> 본문은
-//     scripts/verify-admission-modal-shell.mjs 가 sha256 으로 접어 골든과
-//     대조한다 — 한 글자만 바꿔도 `--capture` 재생성이 강제되고, 그건 그
-//     스크립트가 경고하는 자기증명 순환에 손대는 일이다.
+//     src/pages/AdmissionGuidelines.modalShell.test.tsx 가 sha256 으로 접어
+//     골든과 대조한다 — 한 글자만 바꿔도 scripts/capture-admission-modal-shell-golden.mjs
+//     `--capture` 재생성이 강제되고, 그건 그 스크립트가 경고하는 자기증명
+//     순환에 손대는 일이다.
 //
 // 그럼 편집은 왜 좁은가 — td 가 아니라 input 이 눌린다
 // ----------------------------------------------------
@@ -57,8 +58,9 @@
 // (@media 는 specificity 에 영향을 주지 않는다).
 //
 // ⛔ 여기에 `.admission-table-editor` 없는 셀렉터를 추가하지 마라 —
-//    그 순간 공개 표가 함께 바뀐다. scripts/verify-admission-editor-surface.mjs
-//    의 surf:2 가 정규식 스캔으로 막는다. 길이 단위는 rem/% 만 쓴다(surf:3).
+//    그 순간 공개 표가 함께 바뀐다. AdmissionEditorSurface.test.tsx(옛
+//    scripts/verify-admission-editor-surface.mjs)의 surf:2 가 정규식 스캔으로
+//    막는다. 길이 단위는 rem/% 만 쓴다(surf:3).
 export default function AdmissionEditorSurface() {
   return (
     <style>{`

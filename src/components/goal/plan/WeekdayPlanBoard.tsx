@@ -1,4 +1,7 @@
-import { WEEKDAY_ACCENT, WEEKDAY_BG_CLASS } from "../weekdayTokens";
+import {
+  WEEKDAY_ACCENT,
+  WEEKDAY_BG_CLASS,
+} from "@/components/goal/weekdayTokens";
 
 type PlanTask = {
   id: string | number;

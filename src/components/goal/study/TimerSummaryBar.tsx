@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { stopGoalTimer } from "../../../lib/goalApi";
-import GoalCard from "../GoalCard";
+import { useNavigate } from "react-router";
+import GoalCard from "@/components/goal/GoalCard";
+import { stopGoalTimer } from "@/lib/goalApi";
 import { formatClock } from "./SubjectTimerCard";
 
 // 전체 합계 바(#25, 860×100) — 4과목 elapsedSeconds 합계. part-09 §135 "합계 반영: 클라이언트 계산".

@@ -142,11 +142,11 @@ export interface CutsInput {
 }
 
 // 요일별 이상/최소 목표 시간 1행 + 그 맵.
-export interface DayTarget {
+interface DayTarget {
   ideal: number;
   min: number;
 }
-export type WeeklyScheduleMap = Record<string, DayTarget>;
+type WeeklyScheduleMap = Record<string, DayTarget>;
 
 // buildInitialStudentState 입력.
 export interface BuildInitialStudentStateInput {
@@ -450,7 +450,7 @@ export function applyDailyRecord(
         "[pipeline] record.virtualDayIndex 또는 record.idealHours/minHours 직접 주입 중 하나가 필요합니다.",
       );
     }
-    const dayName = VIRTUAL_DAY_NAMES[virtualDayIndex];
+    const dayName = VIRTUAL_DAY_NAMES[virtualDayIndex]!;
     const daySchedule = state.weeklySchedule[dayName] || { ideal: 0, min: 0 };
     if (idealHours == null) idealHours = daySchedule.ideal;
     if (minHours == null) minHours = daySchedule.min;
@@ -466,8 +466,8 @@ export function applyDailyRecord(
     state.rates.minJungsiBonus,
     tasks,
     studyHours,
-    idealHours,
-    minHours,
+    idealHours!,
+    minHours!,
   );
 
   const cumulativeBonus = {

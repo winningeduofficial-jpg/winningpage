@@ -1,21 +1,21 @@
 import { useEffect, useRef, useState } from "react";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import ChipSelectSection from "../../components/goal/study/ChipSelectSection";
-import ConditionSection from "../../components/goal/study/ConditionSection";
-import RetrospectSection from "../../components/goal/study/RetrospectSection";
-import StudyTimeSection from "../../components/goal/study/StudyTimeSection";
-import { getSubjectLabel } from "../../components/goal/subjectTokens";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import ChipSelectSection from "@/components/goal/study/ChipSelectSection";
+import ConditionSection from "@/components/goal/study/ConditionSection";
+import RetrospectSection from "@/components/goal/study/RetrospectSection";
+import StudyTimeSection from "@/components/goal/study/StudyTimeSection";
+import { getSubjectLabel } from "@/components/goal/subjectTokens";
 import {
   mockConditionOptions,
   mockDisturbanceOptions,
   mockStudyItemOptions,
   TIMER_SUBJECT_ORDER,
-} from "../../data/goalStudyMock";
+} from "@/data/goalStudyMock";
 import {
   fetchGoalTimer,
   fetchTodayGoalRecord,
   submitDailyRecord,
-} from "../../lib/goalApi";
+} from "@/lib/goalApi";
 
 // 코드값 → 라벨(goalStudyMock.js 옵션 그대로) / 라벨 → 코드값(GET 응답 프리필용, 서버는
 // api/goal/daily-record.js 가 한글 라벨로 저장하므로 역매핑이 필요하다).
@@ -33,6 +33,8 @@ type DailyRecordBanner = {
   tone: "info" | "success" | "error";
   message: string;
 };
+
+const HIGHLIGHT_AUTO_DISMISS_MS = 2000;
 
 export default function DailyRecord() {
   const [condition, setCondition] = useState<string | null>(null);
@@ -99,12 +101,12 @@ export default function DailyRecord() {
       setStudyItems(
         (record.tasks || [])
           .map((label: string) => TASK_CODE_BY_LABEL[label])
-          .filter(Boolean),
+          .filter((code): code is string => Boolean(code)),
       );
       setDisturbances(
         (record.reasons || [])
           .map((label: string) => REASON_CODE_BY_LABEL[label])
-          .filter(Boolean),
+          .filter((code): code is string => Boolean(code)),
       );
       setRetrospect(record.memo || "");
     });
@@ -146,7 +148,7 @@ export default function DailyRecord() {
       block: "center",
     });
     setHighlightStudyTime(true);
-    setTimeout(() => setHighlightStudyTime(false), 2000);
+    setTimeout(() => setHighlightStudyTime(false), HIGHLIGHT_AUTO_DISMISS_MS);
   };
 
   const handleSave = async () => {
@@ -182,9 +184,11 @@ export default function DailyRecord() {
         // 항상 0으로 나와 "정시 확률이 0만큼 늘었다"는 오해를 줄 수 있다(jungsiAvailable
         // 플래그가 이 응답엔 없다 — buildStudentPayload 전용, 이 라우트 범위 밖).
         const delta = result.delta || { idealSusi: 0, minSusi: 0 };
+        // GoalProbsBlock.idealSusi/minSusi는 number|null이라 서버가 null을 주면 기존에도
+        // toFixed가 그대로 터졌다(고쳐 넣지 않고 타입만 통과, 보고 대상).
         setBanner({
           tone: "success",
-          message: `기록을 저장했어요. 이상 목표 +${delta.idealSusi.toFixed(2)}%p · 최소 목표 +${delta.minSusi.toFixed(2)}%p`,
+          message: `기록을 저장했어요. 이상 목표 +${delta.idealSusi!.toFixed(2)}%p · 최소 목표 +${delta.minSusi!.toFixed(2)}%p`,
         });
         break;
       }

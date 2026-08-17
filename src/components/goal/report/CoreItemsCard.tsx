@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import GoalCard from "../GoalCard";
-import InsightBox from "../InsightBox";
+import GoalCard from "@/components/goal/GoalCard";
+import InsightBox from "@/components/goal/InsightBox";
 import StatProgressRow from "./StatProgressRow";
 
 type StatRow = { label: string; value: number; unit?: string };
@@ -9,7 +9,7 @@ type CardTip = { variant?: string; text?: ReactNode };
 type CoreItemsCardProps = {
   title?: ReactNode;
   rows: StatRow[];
-  tip?: CardTip | null;
+  tip?: CardTip | null | undefined;
 };
 
 // Row3 카드① `완료한 핵심 학습 항목` — 주간 1행 / 월간 3행(part-11 §265, part-12 §125 결함9 정정 반영).
@@ -40,7 +40,8 @@ export default function CoreItemsCard({
         ))}
       </div>
       {tip && (
-        <InsightBox variant={tip.variant} className="mt-auto">
+        // InsightBox(다른 UoW 소유)는 undefined 미허용 — "info"는 InsightBox 자체 기본값과 동일
+        <InsightBox variant={tip.variant ?? "info"} className="mt-auto">
           {tip.text}
         </InsightBox>
       )}

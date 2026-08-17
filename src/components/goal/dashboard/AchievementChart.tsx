@@ -7,8 +7,8 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { CHART_COLORS, CHART_FONT_SIZE } from "../../charts/chartTheme";
-import GoalCard from "../GoalCard";
+import { CHART_COLORS, CHART_FONT_SIZE } from "@/components/charts/chartTheme";
+import GoalCard from "@/components/goal/GoalCard";
 
 // "학업 성취도 변화 추이" 카드(1076×408 = 67.25rem×25.5rem) — 4012:22399 정본(재조사,
 // docs/figma-goal/resurvey/4012-22399-목표관리-대시보드.md §학업 성취도 변화 추이).

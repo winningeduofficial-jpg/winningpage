@@ -8,8 +8,8 @@ import {
   useRef,
   useState,
 } from "react";
-import BookViewer from "../components/premiumBook/BookViewer";
-import { usePremiumBookPages } from "../components/premiumBook/usePremiumBookPages";
+import BookViewer from "@/components/premiumBook/BookViewer";
+import { usePremiumBookPages } from "@/components/premiumBook/usePremiumBookPages";
 
 // 이용신청 > 프리미엄 이용 (node 1882:11190) 정식 페이지.
 // 러프 구현 목표 — 픽셀 재현 아님, 섹션 구조·카피·컬러 위계만 재현한다.
@@ -124,16 +124,22 @@ function FormField({
   controlId,
 }: {
   label: string;
-  error?: string;
+  // 호출부가 errors.xxx(string | undefined)를 그대로 넘기므로
+  // exactOptionalPropertyTypes 대응으로 undefined를 명시한다.
+  error?: string | undefined;
   children: ReactNode;
   controlId?: string;
 }) {
   const generatedId = useId();
   const isSingleControl = controlId === undefined && isValidElement(children);
   const inputId = controlId ?? (isSingleControl ? generatedId : undefined);
+  // cloneElement props 타입은 담당 파일이 아니라 수정할 수 없다 —
+  // exactOptionalPropertyTypes 때문에 값이 undefined면 id 키 자체를 생략한다.
+  const resolvedId =
+    (children as ReactElement<{ id?: string }>)?.props?.id ?? inputId;
   const control = isSingleControl
     ? cloneElement(children as ReactElement<{ id?: string }>, {
-        id: (children as ReactElement<{ id?: string }>).props.id ?? inputId,
+        ...(resolvedId !== undefined && { id: resolvedId }),
       })
     : children;
   return (

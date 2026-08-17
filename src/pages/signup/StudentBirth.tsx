@@ -7,15 +7,15 @@
 // export하는 computeIsUnder14(강화된 검증: 1900년 미만/미래 날짜/Date 롤오버 거부)를
 // 그대로 재사용한다(§3.3 B-2: "생일이 지나지 않은 경우 만 14세 미만으로 처리").
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,
   InfoCard,
   PrimaryButton,
   TextField,
-} from "../../components/auth";
-import { computeIsUnder14, useSignup } from "../../context/SignupContext";
+} from "@/components/auth";
+import { computeIsUnder14, useSignup } from "@/context/SignupContext";
 
 // 14세 미만 가입 플로우(D-1 PASS 본인인증 스텁 등)는 아직 백엔드 연동이 없는 데드엔드라
 // 기본 off. off인 배포에서는 14세 미만으로 판정돼도 under14 라우트로 보내지 않고 준비 중
@@ -88,7 +88,9 @@ export default function StudentBirth() {
           value={value}
           onChange={handleChange}
           placeholder="생년월일 8자리 입력"
-          helperText={error || undefined}
+          // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
+          // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
+          helperText={error}
           status={error ? "error" : "default"}
           autoComplete="off"
           required

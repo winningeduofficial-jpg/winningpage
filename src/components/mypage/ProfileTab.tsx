@@ -6,8 +6,8 @@
 
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { supabase } from "../../lib/supabase";
+import { Link } from "react-router";
+import { supabase } from "@/lib/supabase";
 import ChangeEmailModal from "./ChangeEmailModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ChangePhoneModal from "./ChangePhoneModal";
@@ -16,6 +16,7 @@ import ToggleRow from "./ToggleRow";
 import WithdrawModal from "./WithdrawModal";
 
 const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
+const COPY_FEEDBACK_MS = 2000;
 
 // 이용안내(chevron 링크) — PNG 라벨 그대로, 라우트는 src/App.jsx에 실제 등록된 것만
 // 사용(읽기로 확인). "마케팅 목적의 개인정보 수집 및 이용"/"광고성 정보 수신 동의"는 PNG상
@@ -187,7 +188,8 @@ export default function ProfileTab({
         setParentLink(null);
         return;
       }
-      const row = data.find((r) => r.status === "approved") || data[0];
+      // 위 data.length===0 가드를 통과했으므로 data[0]은 항상 존재한다.
+      const row = data.find((r) => r.status === "approved") || data[0]!;
       setParentLink({
         id: row.id,
         status: row.status,
@@ -327,7 +329,7 @@ export default function ProfileTab({
     try {
       await navigator.clipboard.writeText(linkCode);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      window.setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
     } catch (copyError) {
       console.warn("연결코드 복사 실패:", copyError);
     }
@@ -594,7 +596,9 @@ export default function ProfileTab({
       <ChangeEmailModal
         open={emailOpen}
         currentEmail={form.email}
-        profileId={profileId}
+        // profileId는 optional(exactOptionalPropertyTypes) — undefined면 키 자체를
+        // 생략한다(ChangeEmailModal 내부도 `profileId &&`로 truthy 체크).
+        {...(profileId !== undefined && { profileId })}
         onClose={() => setEmailOpen(false)}
         onChanged={(email) => {
           updateForm("email", email);

@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from "react";
-import AcceptanceSection from "../components/landing/AcceptanceSection";
-import HeroSection from "../components/landing/HeroSection";
-import MentorSection from "../components/landing/MentorSection";
-import NewsSection from "../components/landing/NewsSection";
-import ServicesSection from "../components/landing/ServicesSection";
-import * as landingPreview from "../data/landingPreview";
-import { supabase } from "../lib/supabase";
+import AcceptanceSection from "@/components/landing/AcceptanceSection";
+import HeroSection from "@/components/landing/HeroSection";
+import MentorSection from "@/components/landing/MentorSection";
+import NewsSection from "@/components/landing/NewsSection";
+import ServicesSection from "@/components/landing/ServicesSection";
+import * as landingPreview from "@/data/landingPreview";
+import { supabase } from "@/lib/supabase";
 
 // 랜딩 콘텐츠(배너/대학/서비스/멘토): Supabase DB fetch 모드 (LANDING_PREVIEW=false).
 // true로 되돌리면 ../data/landingPreview 정적 픽스처로 렌더 (로컬 프리뷰 전용 스위치).
 // fetch 실패 시 각 섹션은 빈 배열 폴백으로 미렌더 처리 — 픽스처 자동 폴백은 없음.
 // 공지사항 섹션(company_news/notices)은 이 플래그와 무관하게 항상 DB 연동.
 const LANDING_PREVIEW = false;
+const NEWS_SECTION_PREVIEW_COUNT = 5;
 
 type Banner = {
   id?: string;
@@ -265,7 +266,11 @@ export default function Home() {
   const [heroReady, setHeroReady] = useState(false);
   const [popups, setPopups] = useState<Popup[]>([]);
   const [sideBanners, setSideBanners] = useState<SideBanner[]>(
-    LANDING_PREVIEW ? (landingPreview.sideBanners as SideBanner[]) : [],
+    // landingPreview 픽스처의 subtitle/link_url 등은 null 리터럴이라 SideBanner(undefined 허용)와
+    // 구조적으로 충분히 겹치지 않는다 — 프리뷰 전용 데이터 캐스팅이라 unknown 경유로 좁힌다.
+    LANDING_PREVIEW
+      ? (landingPreview.sideBanners as unknown as SideBanner[])
+      : [],
   );
   const [universities, setUniversities] = useState<University[]>(
     LANDING_PREVIEW ? (landingPreview.universities as University[]) : [],
@@ -462,7 +467,7 @@ export default function Home() {
           .order("is_pinned", { ascending: false })
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false })
-          .limit(5),
+          .limit(NEWS_SECTION_PREVIEW_COUNT),
         supabase
           .from("notices")
           .select("id, title, created_at, is_pinned, sort_order, category")
@@ -470,7 +475,7 @@ export default function Home() {
           .order("is_pinned", { ascending: false })
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false })
-          .limit(5),
+          .limit(NEWS_SECTION_PREVIEW_COUNT),
       ]);
 
       if (!mounted) return;

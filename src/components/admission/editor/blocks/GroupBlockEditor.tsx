@@ -1,7 +1,8 @@
 import AdmissionBlockEditor, {
   type AdmissionBlock,
-} from "../AdmissionBlockEditor";
-import * as docOps from "../docBlockOperations";
+} from "@/components/admission/editor/AdmissionBlockEditor";
+import * as docOps from "@/components/admission/editor/docBlockOperations";
+import type { Block } from "@/lib/admissionDoc";
 
 type GroupBlock = AdmissionBlock & { children?: AdmissionBlock[] };
 
@@ -9,8 +10,8 @@ type GroupBlockEditorProps = {
   section?: unknown;
   block: GroupBlock;
   onChange: (block: GroupBlock) => void;
-  universityName?: string;
-  sectionLabel?: string;
+  universityName?: string | undefined;
+  sectionLabel?: string | undefined;
 };
 
 // GroupBlock(kind:'group', 제목 + 중첩 children) 편집기.
@@ -29,8 +30,8 @@ type GroupBlockEditorProps = {
 // 정확 일치**로 찾는 하드코딩 화이트리스트라, 제목이나 개수·순서가 바뀌면
 // html 미러에서 그 group이 조용히 사라진다(= `?jsonrender=0` 킬스위치 경로와
 // doc-html-drift 게이트가 보는 바로 그 미러). 그래서 title은 <input>이 아니라
-// 텍스트로만 렌더한다 — verify-admission-table-editor.mjs 의 12e/12g/12h가
-// 이 세 축을 각각 못 박는다.
+// 텍스트로만 렌더한다 — TableBlockEditor.test.tsx(옛 verify-admission-table-editor.mjs)
+// 의 12e/12g/12h가 이 세 축을 각각 못 박는다.
 //
 // 표시판(blocks/GroupView.jsx)과 같은 껍데기 class를 쓴다 — 관리자가 공개
 // 화면과 같은 모양의 표를 보고 편집해야 하기 때문이다(AdmissionSurface.jsx
@@ -62,7 +63,14 @@ export default function GroupBlockEditor({
           onChange={(next) =>
             onChange({
               ...block,
-              children: docOps.updateBlockAt(children, idx, next),
+              // docBlockOperations는 lib/admissionDoc의 엄격한 Block 유니온을
+              // 다룬다 — children은 그 값들을 이 편집기의 느슨한 로컬
+              // AdmissionBlock 타입으로 통과시켜 온 것이라 런타임 형태는 같다.
+              children: docOps.updateBlockAt(
+                children as unknown as Block[],
+                idx,
+                next as unknown as Block,
+              ) as unknown as AdmissionBlock[],
             })
           }
           universityName={universityName}

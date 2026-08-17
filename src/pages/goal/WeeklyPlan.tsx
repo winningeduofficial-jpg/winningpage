@@ -1,17 +1,17 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import GoalCard from "../../components/goal/GoalCard";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import AddTaskModal from "../../components/goal/modals/AddTaskModal";
-import WeekdayPlanBoard from "../../components/goal/plan/WeekdayPlanBoard";
-import { createGoalPlanTask, fetchGoalPlanTasks } from "../../lib/goalApi";
+import GoalCard from "@/components/goal/GoalCard";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import AddTaskModal from "@/components/goal/modals/AddTaskModal";
+import WeekdayPlanBoard from "@/components/goal/plan/WeekdayPlanBoard";
+import { createGoalPlanTask, fetchGoalPlanTasks } from "@/lib/goalApi";
 import {
   durationLabelToMinutes,
   formatWeekRangeLabel,
   getTodayShortKeyInWeek,
   getWeekDates,
   WEEKDAY_LABELS,
-} from "../../lib/goalPlanUtils";
+} from "@/lib/goalPlanUtils";
 
 // 주간 학습 계획표(#27 빈 / #29 채움) — docs/figma-goal/part-09.md·part-10.md.
 // 단계 E(임무 지시) 배선: GET /api/goal/plan-tasks로 이번 주 실데이터를 그리드에 채우고,
@@ -53,7 +53,8 @@ export default function WeeklyPlan() {
   // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) weekDates는 weekOffset의 순함수라 weekOffset만 의존성으로 둔다 — 매 렌더 새 배열 참조 때문에 무한 재요청되는 것을 막는다.
   const loadTasks = useCallback(() => {
     setResult(null);
-    fetchGoalPlanTasks({ from: weekDates[0], to: weekDates[6] }).then((r) =>
+    // weekDates는 항상 getWeekDates()가 만든 7일치 배열이라 첫/끝 원소가 항상 존재한다.
+    fetchGoalPlanTasks({ from: weekDates[0]!, to: weekDates[6]! }).then((r) =>
       setResult(r as PlanTasksResult),
     );
   }, [weekOffset]);
@@ -89,7 +90,9 @@ export default function WeeklyPlan() {
     duration: string;
     schedule: string;
   }) {
-    const targetDates = schedule === "오늘만" ? [selectedDate] : weekDates;
+    // handleAddTask가 모달을 열기 전에 selectedDate를 항상 먼저 채운다("오늘만" 제출은
+    // 이 흐름을 통해서만 도달한다).
+    const targetDates = schedule === "오늘만" ? [selectedDate!] : weekDates;
     const durationMinutes = durationLabelToMinutes(duration);
 
     const results = await Promise.all(
@@ -127,7 +130,8 @@ export default function WeeklyPlan() {
     }
 
     return weekDates.map((dateYmd, i) => ({
-      day: WEEKDAY_LABELS[i],
+      // weekDates는 7개 고정, WEEKDAY_LABELS도 7개 고정이라 i는 항상 유효 인덱스다.
+      day: WEEKDAY_LABELS[i]!,
       date: Number(dateYmd.slice(8, 10)),
       dateYmd,
       tasks: (tasksByDate.get(dateYmd) || []).map((task) => ({
@@ -204,7 +208,9 @@ export default function WeeklyPlan() {
       <AddTaskModal
         open={taskModalOpen}
         onClose={handleCloseModal}
-        day={selectedDay ?? undefined}
+        // exactOptionalPropertyTypes: day는 명시적 undefined를 못 받는 optional prop이라
+        // 값이 있을 때만 스프레드로 넘긴다.
+        {...(selectedDay ? { day: selectedDay } : {})}
         onSubmit={handleTaskSubmit}
       />
     </>

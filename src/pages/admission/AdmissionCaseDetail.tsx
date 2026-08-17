@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import ColumnBody, {
-  hasBlockContent,
-} from "../../components/column/ColumnBody";
-import { withDedupedKeys } from "../../lib/reactKeys";
+import { Link, useParams } from "react-router";
+import ColumnBody, { hasBlockContent } from "@/components/column/ColumnBody";
+import { withDedupedKeys } from "@/lib/reactKeys";
 import {
   CATEGORY_LABELS,
   fetchAdmissionCaseById,
@@ -26,7 +24,8 @@ export default function AdmissionCaseDetail() {
 
     (async () => {
       setLoading(true);
-      const detail = await fetchAdmissionCaseById(id);
+      // 라우트가 항상 :id를 갖지만(App.jsx) useParams 타입은 optional이다 — 없으면 조회하지 않는다.
+      const detail = id ? await fetchAdmissionCaseById(id) : null;
       if (!alive) return;
       setPost(detail);
       setLoading(false);
@@ -39,7 +38,7 @@ export default function AdmissionCaseDetail() {
 
   // row.category('susi'|'jungsi')로 목록 경로 판정. 미확정/부재 시 기본 '/admission/susi'.
   const listPath =
-    post && CATEGORY_LABELS[post.category]
+    post?.category && CATEGORY_LABELS[post.category]
       ? `/admission/${post.category}`
       : "/admission/susi";
   const hasBlocks = hasBlockContent(post);

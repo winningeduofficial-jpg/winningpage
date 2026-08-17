@@ -11,6 +11,7 @@
 
 import { Check } from "lucide-react";
 import { useEffect, useState } from "react";
+import { STAGGER_BUFFER_MS, STAGGER_STEP_MS } from "@/lib/agreementStagger";
 import AgreementRow from "./AgreementRow";
 
 type AgreementItem = {
@@ -44,7 +45,7 @@ export default function AgreementList({
 
     const timer = window.setTimeout(
       () => setBatchAnimating(false),
-      itemCount * 40 + 260,
+      itemCount * STAGGER_STEP_MS + STAGGER_BUFFER_MS,
     );
     return () => window.clearTimeout(timer);
   }, [batchAnimating, itemCount]);
@@ -81,12 +82,14 @@ export default function AgreementList({
         <AgreementRow
           key={item.key}
           label={item.label}
-          required={item.required}
-          checked={item.checked}
-          to={item.to}
           index={index}
           staggered={batchAnimating}
           onToggle={() => onToggleItem?.(item.key)}
+          // exactOptionalPropertyTypes: AgreementRowProps의 옵셔널 필드는 명시적 undefined를
+          // 허용하지 않으므로, 값이 있을 때만 프롭 자체를 넣는다(동작은 동일).
+          {...(item.required !== undefined ? { required: item.required } : {})}
+          {...(item.checked !== undefined ? { checked: item.checked } : {})}
+          {...(item.to !== undefined ? { to: item.to } : {})}
         />
       ))}
     </div>

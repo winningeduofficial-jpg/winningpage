@@ -1,5 +1,5 @@
 import type { Key } from "react";
-import type { Block } from "../../../lib/admissionDoc";
+import type { Block } from "@/lib/admissionDoc";
 import EmptyBoxView from "./EmptyBoxView";
 import FootnoteView from "./FootnoteView";
 import GroupView from "./GroupView";
@@ -31,7 +31,11 @@ export function renderBlock(block: Block | null | undefined, key: Key) {
         <PlainListView
           key={key}
           items={block.items}
-          ordered={(block as { ordered?: boolean }).ordered}
+          // PlainListView(수정 범위 밖)의 ordered는 exactOptionalPropertyTypes라
+          // undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다.
+          {...((block as { ordered?: boolean }).ordered !== undefined
+            ? { ordered: (block as { ordered?: boolean }).ordered }
+            : {})}
         />
       );
     case "preText":

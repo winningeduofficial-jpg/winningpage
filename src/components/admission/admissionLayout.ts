@@ -20,7 +20,14 @@ interface TableVariantLayout {
   tableClassName: string;
 }
 
-export const TABLE_VARIANT_LAYOUT: Record<string, TableVariantLayout> = {
+// generic 레이아웃은 폴백으로도 재사용하므로 별도 상수로 뽑아 둔다
+// (Record 인덱스 접근이라 `TABLE_VARIANT_LAYOUT.generic`은 undefined 가능 타입이 된다).
+const GENERIC_TABLE_VARIANT_LAYOUT: TableVariantLayout = {
+  scrollWrapClassName: "admission-scroll-table",
+  tableClassName: "admission-data-table",
+};
+
+const TABLE_VARIANT_LAYOUT: Record<string, TableVariantLayout> = {
   selection: {
     scrollWrapClassName: "admission-scroll-table",
     tableClassName: "admission-data-table admission-selection-table",
@@ -59,15 +66,12 @@ export const TABLE_VARIANT_LAYOUT: Record<string, TableVariantLayout> = {
     tableClassName: "admission-data-table admission-special-table",
   },
   // 스키마 상 존재하나 현재 파서 어느 빌더도 만들지 않는 탈출구. 실측 근거 없음.
-  generic: {
-    scrollWrapClassName: "admission-scroll-table",
-    tableClassName: "admission-data-table",
-  },
+  generic: GENERIC_TABLE_VARIANT_LAYOUT,
 };
 
 export function getTableVariantLayout(variant?: string): TableVariantLayout {
   return (
-    (variant && TABLE_VARIANT_LAYOUT[variant]) || TABLE_VARIANT_LAYOUT.generic
+    (variant && TABLE_VARIANT_LAYOUT[variant]) || GENERIC_TABLE_VARIANT_LAYOUT
   );
 }
 
@@ -149,7 +153,7 @@ export function getCellKind(variant?: string, role?: string): CellKind {
 // 각 항목 옆에 생성기 함수/좌표를 남긴다. selection/change는 이미 있는
 // SELECTION_CELL_CLASS_BY_ROLE/CHANGE_CELL_CLASS_BY_ROLE 키를 그대로
 // 재사용해 값이 두 곳에서 어긋날 여지를 없앴다.
-export const KNOWN_ROLES_BY_VARIANT: Record<string, string[]> = {
+const KNOWN_ROLES_BY_VARIANT: Record<string, string[]> = {
   selection: Object.keys(SELECTION_CELL_CLASS_BY_ROLE), // type,name,seats,minimum,method
   change: Object.keys(CHANGE_CELL_CLASS_BY_ROLE), // no,title,content
   // exam_schedule doc 생성기(admissionParsing.js:2493/3465): 전형/대상/일정.
@@ -198,5 +202,5 @@ export function getKnownRolesForVariant(variant?: string): string[] {
 // "직접 입력" 경고 상태로 보여준다.
 export function defaultNewColumnRole(variant?: string): string {
   const roles = getKnownRolesForVariant(variant);
-  return roles.length ? roles[roles.length - 1] : "";
+  return roles.at(-1) ?? "";
 }

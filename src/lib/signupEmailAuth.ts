@@ -41,7 +41,7 @@ export const EMAIL_STATE = {
 };
 
 // verifyOtp에 넘길 타입. 발송에 쓴 API에 따라 달라서 발송 결과로 함께 돌려준다.
-export const OTP_MODE = {
+const OTP_MODE = {
   SIGNUP: "signup",
   EMAIL: "email",
 };
@@ -63,7 +63,7 @@ export const MESSAGES = {
 /**
  * 이메일 가입 상태를 조회한다.
  */
-export async function checkEmailSignupState(
+async function checkEmailSignupState(
   email: string,
 ): Promise<{ state?: string; error?: Error }> {
   const { data, error } = await supabase.rpc("check_email_signup_state", {
@@ -112,7 +112,7 @@ export async function sendSignupEmailCode({
   name,
   memberType,
 }: SendSignupEmailCodeParams): Promise<{
-  state?: string;
+  state?: string | undefined;
   mode?: string;
   resumed?: boolean;
   error?: Error;
@@ -176,7 +176,10 @@ export async function sendSignupEmailCode({
  * 취급하면 같은 비밀번호를 쓴 사용자가 가입을 끝낼 수 없게 된다.
  */
 function isSamePasswordError(
-  error: { code?: string; message?: string } | null | undefined,
+  error:
+    | { code?: string | undefined; message?: string | undefined }
+    | null
+    | undefined,
 ) {
   const code = String(error?.code || "").toLowerCase();
   const message = String(error?.message || "").toLowerCase();

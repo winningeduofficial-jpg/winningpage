@@ -40,7 +40,8 @@ const DimensionBarChart = ({ areas }: DimensionBarChartProps) => {
           </span>
           <ScoreBar
             score={area.score}
-            tone={area.tone}
+            // exactOptionalPropertyTypes 대응 — undefined일 때 tone 키 자체를 생략(ScoreBar 미수정 범위).
+            {...(area.tone !== undefined ? { tone: area.tone } : {})}
             responsive
             className="fd-dim-bar flex-1 lg:flex-none"
           />

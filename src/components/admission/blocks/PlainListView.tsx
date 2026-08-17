@@ -23,7 +23,7 @@
 //    `ordered`를 만들기 시작하는 순간 게이트가 조용히 갈라진다.
 //    (`keyValue`는 아직 미러에 케이스가 없다 — 대입 쪽 생성 경로가 0건이라 남겨 둔 것이고,
 //     그 경로가 생기면 미러도 함께 만들어야 한다.)
-import { withDedupedKeys } from "../../../lib/reactKeys";
+import { withDedupedKeys } from "@/lib/reactKeys";
 
 type PlainListItem = { type: "bullet" | "subtitle" | string; text: string };
 type ItemGroup =

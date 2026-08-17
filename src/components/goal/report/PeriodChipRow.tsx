@@ -5,7 +5,8 @@ type PeriodOption = { value: string; label: string };
 
 type PeriodChipRowProps = {
   options: PeriodOption[];
-  value: string;
+  // activePeriod 가 없을 수 있음(DirectionReportBody) — 매칭 없음=선택 칩 없음으로 이미 정상 처리됨
+  value: string | undefined;
   onChange: (value: string) => void;
   ariaLabel?: string;
 };
@@ -32,12 +33,14 @@ export default function PeriodChipRow({
     if (event.key === "ArrowRight") {
       event.preventDefault();
       const next = (index + 1) % options.length;
-      onChange(options[next].value);
+      // next 는 options.length 로 모듈러 연산한 인덱스라 항상 범위 내
+      onChange(options[next]!.value);
       focusOption(next);
     } else if (event.key === "ArrowLeft") {
       event.preventDefault();
       const prev = (index - 1 + options.length) % options.length;
-      onChange(options[prev].value);
+      // prev 는 options.length 로 모듈러 연산한 인덱스라 항상 범위 내
+      onChange(options[prev]!.value);
       focusOption(prev);
     }
   };

@@ -1,14 +1,14 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import GoalEmptyState from "../../components/goal/GoalEmptyState";
-import GoalPageHeader from "../../components/goal/GoalPageHeader";
-import AddScheduleFullModal from "../../components/goal/modals/AddScheduleFullModal";
-import ScheduleListCard from "../../components/goal/plan/ScheduleListCard";
+import { useEffect, useEffectEvent, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
+import GoalEmptyState from "@/components/goal/GoalEmptyState";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import AddScheduleFullModal from "@/components/goal/modals/AddScheduleFullModal";
+import ScheduleListCard from "@/components/goal/plan/ScheduleListCard";
 import {
   formatScheduleDday,
   formatScheduleMeta,
-} from "../../lib/goal/scheduleDday";
-import { fetchGoalSchedules } from "../../lib/goalApi";
+} from "@/lib/goal/scheduleDday";
+import { fetchGoalSchedules } from "@/lib/goalApi";
 
 // 중요일정(#41 목록 정본 / #40 등록·수정 모달 정본, 530×624) — docs/figma-goal/part-14.md.
 // GET /api/goal/schedules 실데이터로 배선(중요일정 D 백엔드 배선 UoW) — mockSchedules는
@@ -78,12 +78,15 @@ export default function Schedules() {
   // ScheduleRail("+")이 navigate(..., { state: { openCreate: true } })로 진입시킨 경우 —
   // 마운트 시 1회만 소비하고 즉시 history를 replace해 지운다. 지우지 않으면 뒤로가기로
   // 이 페이지에 돌아올 때마다(브라우저가 location.state를 유지한다) 모달이 또 열린다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) 의도적으로 마운트 1회만 — location.state/navigate를 deps에 넣으면 위 replace가 만드는 새 location으로 effect가 다시 돌아 무한 루프가 된다.
-  useEffect(() => {
+  const onMountConsumeOpenCreate = useEffectEvent(() => {
     if (location.state?.openCreate) {
       openCreate();
       navigate(location.pathname, { replace: true, state: null });
     }
+  });
+
+  useEffect(() => {
+    onMountConsumeOpenCreate();
   }, []);
 
   const displaySchedules = (schedules || []).map((schedule) =>
@@ -104,7 +107,8 @@ export default function Schedules() {
       scheduleType: schedule.category,
       title: schedule.title,
       dueDate: schedule.dueDate,
-      memo: schedule.memo,
+      // exactOptionalPropertyTypes: 명시적 undefined를 못 받는 optional 필드라 null로 맞춘다.
+      memo: schedule.memo ?? null,
     });
     setModalOpen(true);
   }

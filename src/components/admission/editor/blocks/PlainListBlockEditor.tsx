@@ -2,8 +2,12 @@
 // 달리 "Block 배열"에 특화된 로직이 아니라 순수 제네릭 배열 재배치·삭제·
 // 추가 함수다(team-lead 지시 — "재사용할 수 있으면 그렇게 하라"). items
 // 배열 조작에도 그대로 재사용해 같은 로직을 두 번 만들지 않는다.
-import { appendBlock, moveBlock, removeBlockAt } from "../docBlockOperations";
-import ImeSafeInput from "../ImeSafeInput";
+import {
+  appendBlock,
+  moveBlock,
+  removeBlockAt,
+} from "@/components/admission/editor/docBlockOperations";
+import ImeSafeInput from "@/components/admission/editor/ImeSafeInput";
 
 // PlainListBlock 편집기 — items의 type·text 편집 + 항목 추가·삭제·순서
 // 변경(2026-08-06 보완: "최소 편집"을 items 필드 편집으로만 좁게 해석해

@@ -29,9 +29,10 @@ type SurveyQuestion = {
 type AnswerFieldProps = {
   question: SurveyQuestion;
   value?: unknown;
-  constraint?: GradeInputRule;
+  // exactOptionalPropertyTypes 대응 — 호출부(QuestionCardList)가 옵셔널 필드를 그대로 넘긴다.
+  constraint?: GradeInputRule | undefined;
   highlighted?: boolean;
-  cascadeLevels?: CascadeLevel[];
+  cascadeLevels?: CascadeLevel[] | undefined;
   onChange?: (value: unknown) => void;
 };
 
@@ -62,6 +63,8 @@ export default function AnswerField({
 }: AnswerFieldProps) {
   const chipLayout = CHIP_LAYOUT_QUESTION_IDS.has(question.id);
 
+  // exactOptionalPropertyTypes 대응 — 하위 컴포넌트(대상 파일 범위 밖 포함)를 건드리지 않고,
+  // 값이 undefined인 optional prop은 조건부 스프레드로 키 자체를 생략한다(동작 동일).
   switch (question.type) {
     case "radio-row":
     case "radio-chip":
@@ -70,9 +73,11 @@ export default function AnswerField({
           variant={
             question.type === "radio-chip" || chipLayout ? "chip" : "row"
           }
-          options={question.options}
+          {...(question.options !== undefined
+            ? { options: question.options }
+            : {})}
           value={(value as string | null) ?? null}
-          onChange={onChange}
+          {...(onChange !== undefined ? { onChange } : {})}
         />
       );
     case "checkbox-row":
@@ -80,47 +85,66 @@ export default function AnswerField({
         <OptionGroup
           variant={chipLayout ? "chip" : "row"}
           multiple
-          maxSelect={question.maxSelect}
-          exclusiveValues={question.exclusiveValues}
-          options={question.options}
+          {...(question.maxSelect !== undefined
+            ? { maxSelect: question.maxSelect }
+            : {})}
+          {...(question.exclusiveValues !== undefined
+            ? { exclusiveValues: question.exclusiveValues }
+            : {})}
+          {...(question.options !== undefined
+            ? { options: question.options }
+            : {})}
           value={(value as string[]) ?? []}
-          onChange={onChange}
+          {...(onChange !== undefined ? { onChange } : {})}
         />
       );
     case "likert":
       return (
         <LikertMatrix
-          statements={question.extra?.statements}
-          scale={question.extra?.scale}
+          {...(question.extra?.statements !== undefined
+            ? { statements: question.extra.statements }
+            : {})}
+          {...(question.extra?.scale !== undefined
+            ? { scale: question.extra.scale }
+            : {})}
           value={(value as Record<string, number>) ?? {}}
           highlighted={highlighted}
-          onChange={onChange}
+          {...(onChange !== undefined ? { onChange } : {})}
         />
       );
     case "grade-grid":
       return (
         <GradeInputGrid
-          groups={question.extra?.groups}
-          constraint={constraint}
+          {...(question.extra?.groups !== undefined
+            ? { groups: question.extra.groups }
+            : {})}
+          {...(constraint !== undefined ? { constraint } : {})}
           value={(value as Record<string, string>) ?? {}}
-          onChange={onChange}
+          {...(onChange !== undefined ? { onChange } : {})}
         />
       );
-    case "cascade":
+    case "cascade": {
+      // 별도 변수로 고정해야 아래 조건부 스프레드에서 undefined가 좁혀진다(반복 평가 시 좁혀지지 않음).
+      const resolvedCascadeLevels = cascadeLevels ?? question.extra?.levels;
       return (
         <CascadingSelect
-          levels={cascadeLevels ?? question.extra?.levels}
+          {...(resolvedCascadeLevels !== undefined
+            ? { levels: resolvedCascadeLevels }
+            : {})}
           value={(value as Record<string, string>) ?? {}}
-          onChange={onChange}
+          {...(onChange !== undefined ? { onChange } : {})}
         />
       );
+    }
     case "text":
       return (
         <ConditionalTextInput
-          placeholder={question.extra?.placeholder}
+          {...(question.extra?.placeholder !== undefined
+            ? { placeholder: question.extra.placeholder }
+            : {})}
           multiline={Boolean(question.multiline)}
           value={(value as string) ?? ""}
-          onChange={onChange}
+          {...(onChange !== undefined ? { onChange } : {})}
         />
       );
     default:

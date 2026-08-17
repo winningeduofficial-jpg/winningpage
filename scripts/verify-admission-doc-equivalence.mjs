@@ -39,8 +39,8 @@
 // 코퍼스에 등장하지 않는다 — "정답이 없는" 케이스라 명시적으로 비교
 // 대상에서 제외한다(조용히 빼지 않고 실행 시 로그로 남긴다).
 //
-// JSX를 노드에서 로드하는 방법은 scripts/verify-admission-block-render.mjs
-// (safehtml 작성)가 이미 검증했다 — esbuild.build() 번들 모드로
+// JSX를 노드에서 로드하는 방법은 AdmissionSectionView.test.tsx(옛
+// scripts/verify-admission-block-render.mjs, safehtml 작성)가 이미 검증했다 — esbuild.build() 번들 모드로
 // AdmissionSectionView.jsx를 엔트리포인트 삼아 react/react-dom을
 // external 유지한 채 번들하고, 임시 파일에 써서 동적 import한다. 이
 // 스크립트는 같은 esbuild 옵션·globalThis.DOMParser 셔임 접근을 그대로
@@ -351,7 +351,7 @@ const ADMISSION_SECTION_VIEW_ENTRY = path.join(
   "src/components/admission/AdmissionSectionView.jsx",
 );
 
-// scripts/verify-admission-block-render.mjs와 동일한 미니 HTML 파서(요약본).
+// AdmissionSectionView.test.tsx(옛 scripts/verify-admission-block-render.mjs)와 동일한 미니 HTML 파서(요약본).
 // SafeHtml(RawHtmlView가 씀)이 브라우저 DOMParser를 전제하므로, 노드에서
 // 돌리려면 이 셔임이 필요하다. 이 코퍼스는 raw가 looksLikeHtml인 셀이
 // 0건(측정 스크립트 실측)이라 rawHtml 블록이 실제로는 등장하지 않지만,

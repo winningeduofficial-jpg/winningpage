@@ -1,5 +1,5 @@
-import GoalPageHeader from "../GoalPageHeader";
-import GoalTabs from "../GoalTabs";
+import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import GoalTabs from "@/components/goal/GoalTabs";
 import DirectionSummaryBanner from "./DirectionSummaryBanner";
 import PeriodChipRow from "./PeriodChipRow";
 import SubjectDirectionCard from "./SubjectDirectionCard";
@@ -69,10 +69,11 @@ export default function DirectionReportBody({
             ariaLabel="시험 회차 선택"
           />
         )}
+        {/* DirectionSummaryBanner(다른 UoW 소유)는 undefined 미허용 — 빈 문자열은 렌더 결과 동일 */}
         <DirectionSummaryBanner
-          meta={report.summary.meta}
-          typeLabel={report.summary.typeLabel}
-          body={report.summary.body}
+          meta={report.summary.meta ?? ""}
+          typeLabel={report.summary.typeLabel ?? ""}
+          body={report.summary.body ?? ""}
         />
         <div className="grid grid-cols-1 gap-x-[1.3125rem] gap-y-[2.5rem] xl:grid-cols-2">
           {report.subjects.map((subject) => (

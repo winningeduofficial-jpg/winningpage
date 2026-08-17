@@ -8,12 +8,10 @@
 //      자동 단언이 없었다.
 //   3. 경계값(45/60/70/80·±0.30)과 부동소수점 정규화 — 코드 3곳에 흩어져 있어 회귀 무방비였다.
 //
-// 실행: cd <repo> && node --test src/lib/diagnosisScoring.test.js
-//   (또는 npm run test:diagnosis)
+// 실행: cd <repo> && npm test -- src/lib/diagnosisScoring.test.ts
 
-import assert from "node:assert/strict";
-import { test } from "node:test";
-import { PAGE1_AREAS } from "../data/diagnosisScoringTable.ts";
+import { expect, test } from "vitest";
+import { PAGE1_AREAS } from "@/data/diagnosisScoringTable.ts";
 import {
   admissionBand,
   levelOf,
@@ -35,7 +33,7 @@ test("sortByScoreAsc: 전 영역 동점이면 입력 배열 순서를 그대로 
     FEEDBACK: 50,
     STABILITY: 50,
   };
-  assert.deepEqual(sortByScoreAsc(PAGE1_AREAS, scores), [
+  expect(sortByScoreAsc(PAGE1_AREAS, scores)).toEqual([
     "GOAL",
     "PLAN",
     "EXEC",
@@ -55,7 +53,7 @@ test("sortByScoreAsc: 부분 동점 — 최저는 앞으로, 동점 묶음은 �
     FEEDBACK: 50,
     STABILITY: 50,
   };
-  assert.deepEqual(sortByScoreAsc(PAGE1_AREAS, scores), [
+  expect(sortByScoreAsc(PAGE1_AREAS, scores)).toEqual([
     "EXEC",
     "GOAL",
     "PLAN",
@@ -68,8 +66,8 @@ test("sortByScoreAsc: 부분 동점 — 최저는 앞으로, 동점 묶음은 �
 test("sortByScoreAsc: 타이브레이크는 입력한 areas 배열 순서를 따른다(전역 상수 아님)", () => {
   // 같은 점수를 다른 순서 배열로 넘기면 그 배열 순서가 타이브레이크 기준이 된다.
   const scores = { GOAL: 50, PLAN: 50 };
-  assert.deepEqual(sortByScoreAsc(["PLAN", "GOAL"], scores), ["PLAN", "GOAL"]);
-  assert.deepEqual(sortByScoreAsc(["GOAL", "PLAN"], scores), ["GOAL", "PLAN"]);
+  expect(sortByScoreAsc(["PLAN", "GOAL"], scores)).toEqual(["PLAN", "GOAL"]);
+  expect(sortByScoreAsc(["GOAL", "PLAN"], scores)).toEqual(["GOAL", "PLAN"]);
 });
 
 // ── 2. admissionBand 부분 컷 대체마진 ───────────────────────────────
@@ -79,64 +77,64 @@ test("sortByScoreAsc: 타이브레이크는 입력한 areas 배열 순서를 따
 
 test("admissionBand: 양쪽 컷 — 경계값 4구간", () => {
   const cuts = { cut50: 2.0, cut70: 2.5 }; // reach = 2.8
-  assert.equal(admissionBand(2.0, cuts), "STABLE"); // <= c50
-  assert.equal(admissionBand(2.01, cuts), "FIT");
-  assert.equal(admissionBand(2.5, cuts), "FIT"); // == c70
-  assert.equal(admissionBand(2.51, cuts), "REACH");
-  assert.equal(admissionBand(2.8, cuts), "REACH"); // == reach
-  assert.equal(admissionBand(2.81, cuts), "RISK");
+  expect(admissionBand(2.0, cuts)).toBe("STABLE"); // <= c50
+  expect(admissionBand(2.01, cuts)).toBe("FIT");
+  expect(admissionBand(2.5, cuts)).toBe("FIT"); // == c70
+  expect(admissionBand(2.51, cuts)).toBe("REACH");
+  expect(admissionBand(2.8, cuts)).toBe("REACH"); // == reach
+  expect(admissionBand(2.81, cuts)).toBe("RISK");
 });
 
 test("admissionBand: cut70만 있으면 c50 = cut70 - 0.30 으로 STABLE 경계를 세운다", () => {
   const cuts = { cut50: null, cut70: 2.5 }; // c50 = 2.2, c70 = 2.5
-  assert.equal(admissionBand(2.2, cuts), "STABLE"); // == 대체 c50
-  assert.equal(admissionBand(2.3, cuts), "FIT");
+  expect(admissionBand(2.2, cuts)).toBe("STABLE"); // == 대체 c50
+  expect(admissionBand(2.3, cuts)).toBe("FIT");
 });
 
 test("admissionBand: cut50만 있으면 c70 = cut50 + 0.30 으로 FIT 경계를 세운다", () => {
   const cuts = { cut50: 2.0, cut70: null }; // c70 = 2.3, reach = 2.6
-  assert.equal(admissionBand(2.0, cuts), "STABLE");
-  assert.equal(admissionBand(2.3, cuts), "FIT"); // == 대체 c70
-  assert.equal(admissionBand(2.4, cuts), "REACH");
+  expect(admissionBand(2.0, cuts)).toBe("STABLE");
+  expect(admissionBand(2.3, cuts)).toBe("FIT"); // == 대체 c70
+  expect(admissionBand(2.4, cuts)).toBe("REACH");
 });
 
 test("admissionBand: 컷이 둘 다 없으면 null(= BAND_NODATA 신호)", () => {
-  assert.equal(admissionBand(2.5, { cut50: null, cut70: null }), null);
-  assert.equal(admissionBand(2.5, null), null);
+  expect(admissionBand(2.5, { cut50: null, cut70: null })).toBe(null);
+  expect(admissionBand(2.5, null)).toBe(null);
 });
 
 // ── 3. 경계값·부동소수점 정규화 ─────────────────────────────────────
 
 test("levelOf: 5밴드 경계(80/70/60/45)는 하한 포함", () => {
-  assert.equal(levelOf(80), "L1");
-  assert.equal(levelOf(79.9), "L2");
-  assert.equal(levelOf(70), "L2");
-  assert.equal(levelOf(69.9), "L3");
-  assert.equal(levelOf(60), "L3");
-  assert.equal(levelOf(59.9), "L4");
-  assert.equal(levelOf(45), "L4");
-  assert.equal(levelOf(44.9), "L5");
+  expect(levelOf(80)).toBe("L1");
+  expect(levelOf(79.9)).toBe("L2");
+  expect(levelOf(70)).toBe("L2");
+  expect(levelOf(69.9)).toBe("L3");
+  expect(levelOf(60)).toBe("L3");
+  expect(levelOf(59.9)).toBe("L4");
+  expect(levelOf(45)).toBe("L4");
+  expect(levelOf(44.9)).toBe("L5");
 });
 
 test("stateOf: 4상태 경계(70/60/45)는 하한 포함", () => {
-  assert.equal(stateOf(70), "TOP");
-  assert.equal(stateOf(69.9), "MID");
-  assert.equal(stateOf(60), "MID");
-  assert.equal(stateOf(59.9), "LOW");
-  assert.equal(stateOf(45), "LOW");
-  assert.equal(stateOf(44.9), "WEAK");
+  expect(stateOf(70)).toBe("TOP");
+  expect(stateOf(69.9)).toBe("MID");
+  expect(stateOf(60)).toBe("MID");
+  expect(stateOf(59.9)).toBe("LOW");
+  expect(stateOf(45)).toBe("LOW");
+  expect(stateOf(44.9)).toBe("WEAK");
 });
 
 test("roundHalfUp: 정확히 절반은 위로(4.475→4.48, 2.5→3, 69.95→70)", () => {
   // EPSILON 방식이 4.475→4.47 로 틀리던 자리 — toPrecision(15) 로 교정된 회귀 지점.
-  assert.equal(roundHalfUp(4.475, 2), 4.48);
-  assert.equal(roundHalfUp(2.5, 0), 3);
-  assert.equal(roundHalfUp(69.95, 1), 70);
+  expect(roundHalfUp(4.475, 2)).toBe(4.48);
+  expect(roundHalfUp(2.5, 0)).toBe(3);
+  expect(roundHalfUp(69.95, 1)).toBe(70);
 });
 
 test("admissionBand: reach 경계의 부동소수점 정규화(2.8+0.3≠3.1 함정)", () => {
   // reach = roundHalfUp(c70 + 0.30, 2). 정규화 없이 c70=2.8 이면 2.8+0.3=3.0999999999999996
   // 이라 mine=3.1 이 reach 를 넘어 RISK 로 오분류된다. 정규화가 살아 있으면 REACH.
   const cuts = { cut50: 2.5, cut70: 2.8 }; // reach 는 3.10 으로 정규화돼야 한다
-  assert.equal(admissionBand(3.1, cuts), "REACH");
+  expect(admissionBand(3.1, cuts)).toBe("REACH");
 });

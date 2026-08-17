@@ -1,17 +1,17 @@
-import { useEffect, useMemo } from "react";
+import { type ComponentProps, useEffect, useMemo } from "react";
 import {
   Navigate,
   useNavigate,
   useOutletContext,
   useParams,
-} from "react-router-dom";
-import type { CascadeLevel } from "../../components/renewal/survey/CascadingSelect";
-import QuestionCardList from "../../components/renewal/survey/QuestionCardList";
-import SurveyProgress from "../../components/renewal/survey/SurveyProgress";
-import { useUnansweredNavigation } from "../../hooks/useUnansweredNavigation";
+} from "react-router";
+import type { CascadeLevel } from "@/components/renewal/survey/CascadingSelect";
+import QuestionCardList from "@/components/renewal/survey/QuestionCardList";
+import SurveyProgress from "@/components/renewal/survey/SurveyProgress";
+import { useUnansweredNavigation } from "@/hooks/useUnansweredNavigation";
 // sql/72(2026-08-13) — 문항 문구 어드민 오버라이드. 셸이 fetch 해 outlet context 로 내려준 값을
 // 화면에 실제 보여줄 questions 배열에만 입힌다(요건 판정용 requiredQuestions 는 구조만 보므로 무관).
-import { applySurveyCopyOverrides } from "../../lib/diagnosisSurveyCopyOverrides";
+import { applySurveyCopyOverrides } from "@/lib/diagnosisSurveyCopyOverrides";
 import {
   getRemainingAfterStep,
   getStepPath,
@@ -22,7 +22,7 @@ import {
   SURVEY_FIRST_STEP_PATH,
   SURVEY_REPORT_PATH,
   SURVEY_TOTAL_STEPS,
-} from "../../lib/renewalSurvey";
+} from "@/lib/renewalSurvey";
 
 /**
  * 설문 한 스텝. 셸(SurveyStepShell)의 자식 라우트이므로 <main>/타이틀 블록은 셸이 소유하고,
@@ -41,7 +41,8 @@ type SurveyOutletContext = {
   setAnswer: (questionId: string, value: unknown) => void;
   submitDiagnosis: () => Promise<unknown>;
   cascadeLevels?: CascadeLevel[];
-  surveyCopyOverrides?: unknown;
+  // applySurveyCopyOverrides가 요구하는 실제 형태로 좁힌다(런타임 값은 항상 문자열 오버라이드).
+  surveyCopyOverrides?: Map<string, string> | null;
 };
 
 export default function SurveyStepPage() {
@@ -81,11 +82,11 @@ export default function SurveyStepPage() {
   // 화면에 보이는 필수 문항(선택입력·중첩 문항 제외)을 전부 답해야 다음으로 넘어간다.
   const stepComplete = isStepComplete(step, answers);
 
-  const label = stepComplete
-    ? isLastStep
-      ? "진단 결과 보기"
-      : `${getRemainingAfterStep(step)}개 문항이 남았어요`
-    : "모든 항목에 응답해주세요";
+  const label = (() => {
+    if (!stepComplete) return "모든 항목에 응답해주세요";
+    if (isLastStep) return "진단 결과 보기";
+    return `${getRemainingAfterStep(step)}개 문항이 남았어요`;
+  })();
 
   // 마지막 스텝의 CTA 가 채점 파이프라인의 진입점이다(§7.4.2). 정규화·저장은 answers 를 소유한
   // 셸(submitDiagnosis)이 하고, 여기서는 그 결과를 라우터 state 로도 넘긴다 —
@@ -96,16 +97,22 @@ export default function SurveyStepPage() {
     navigate(SURVEY_REPORT_PATH, { state: { diagnosisInput } });
   };
 
-  const handleClick = stepComplete
-    ? isLastStep
-      ? goToReport
-      : () => navigate(getStepPath(step + 1))
-    : scrollToFirstUnanswered;
+  const handleClick = (() => {
+    if (!stepComplete) return scrollToFirstUnanswered;
+    if (isLastStep) return goToReport;
+    return () => navigate(getStepPath(step + 1));
+  })();
 
   return (
     <>
+      {/* lib/renewalSurvey.ts의 SurveyQuestion과 QuestionCardList 지역 SurveyQuestion은
+          구조는 같지만 별개 타입 선언이라 이름은 같아도 서로 무관 판정된다 — 범위 밖 두 파일을
+          건드리지 않고 QuestionCardList 실제 prop 타입으로 단언한다(FreeDiagnosisReport.tsx와
+          동일 관행: ComponentProps<typeof X>["prop"]). */}
       <QuestionCardList
-        questions={stepQuestions}
+        questions={
+          stepQuestions as ComponentProps<typeof QuestionCardList>["questions"]
+        }
         answers={answers}
         onAnswer={setAnswer}
         highlightedId={highlightedId}

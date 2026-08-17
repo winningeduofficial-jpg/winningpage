@@ -86,7 +86,7 @@ export function getRecordDateFromActualStart(
 export function getDayIndexFromYMDServer(ymd: unknown, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
   const [y, m, d] = s.split("-").map(Number);
-  const jsDay = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
+  const jsDay = new Date(Date.UTC(y!, m! - 1, d!)).getUTCDay();
   return jsDay === 0 ? 6 : jsDay - 1;
 }
 
@@ -101,7 +101,7 @@ export function getDayIndexFromYMDServer(ymd: unknown, now = new Date()) {
 export function addDaysYMD(ymd: unknown, days: unknown, now = new Date()) {
   const s = toYMD(ymd) || kstYMD(now);
   const [y, m, d] = s.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d + Number(days || 0)));
+  const dt = new Date(Date.UTC(y!, m! - 1, d! + Number(days || 0)));
   return dt.toISOString().slice(0, 10);
 }
 
@@ -234,8 +234,8 @@ export function diffDaysYMD(
   const [fy, fm, fd] = fromStr.split("-").map(Number);
   const [ty, tm, td] = toStr.split("-").map(Number);
 
-  const fromMs = Date.UTC(fy, fm - 1, fd);
-  const toMs = Date.UTC(ty, tm - 1, td);
+  const fromMs = Date.UTC(fy!, fm! - 1, fd!);
+  const toMs = Date.UTC(ty!, tm! - 1, td!);
 
   return Math.round((toMs - fromMs) / MS_PER_DAY);
 }

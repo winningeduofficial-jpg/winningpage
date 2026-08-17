@@ -1,11 +1,15 @@
-import { useGoalOnboarding } from "../../../../context/GoalOnboardingContext";
+import QuestionCard from "@/components/goal/onboarding/QuestionCard";
+import RadioChip from "@/components/goal/onboarding/RadioChip";
+import WizardActions from "@/components/goal/onboarding/WizardActions";
+import {
+  type Grade,
+  type SchoolType,
+  useGoalOnboarding,
+} from "@/context/GoalOnboardingContext";
 import {
   HIGH_SCHOOL_GRADE_OPTIONS,
   SCHOOL_TYPE_OPTIONS,
-} from "../../../../data/goalOnboardingMock";
-import QuestionCard from "../QuestionCard";
-import RadioChip from "../RadioChip";
-import WizardActions from "../WizardActions";
+} from "@/data/goalOnboardingMock";
 
 // 1단계 — docs/figma-goal/part-01.md #1(학교 유형) + #2(선택 시 같은 화면에 누적 노출되는
 // 1-2 학년 카드). 별도 스텝이 아니라 하나의 스텝 안에서 카드가 조건부로 추가된다.
@@ -41,7 +45,8 @@ export default function Step1School({ goNext }: Step1SchoolProps) {
               key={option.value}
               label={option.label}
               selected={schoolType === option.value}
-              onClick={() => setSchoolType(option.value)}
+              // SCHOOL_TYPE_OPTIONS의 value는 SchoolType 리터럴 값만 담는 고정 목록이다.
+              onClick={() => setSchoolType(option.value as SchoolType)}
             />
           ))}
         </div>
@@ -63,7 +68,8 @@ export default function Step1School({ goNext }: Step1SchoolProps) {
                 key={option.value}
                 label={option.label}
                 selected={grade === option.value}
-                onClick={() => setGrade(option.value)}
+                // HIGH_SCHOOL_GRADE_OPTIONS의 value는 Grade 리터럴 값만 담는 고정 목록이다.
+                onClick={() => setGrade(option.value as Grade)}
               />
             ))}
           </div>

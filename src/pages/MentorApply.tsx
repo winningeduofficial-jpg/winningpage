@@ -22,14 +22,14 @@
 // ⚠ 문서 타이틀(document.title) 설정은 넣지 않았다. 이 저장소에는 페이지별 타이틀을 세팅하는
 //    공통 처리가 아예 없다(`grep -rn "document.title" src/` 결과 0건, PremiumApply 포함).
 //    이 페이지만 넣으면 다른 페이지로 이동했을 때 타이틀이 남아 오히려 어긋난다.
-import BenefitSection from "../components/mentorApply/BenefitSection";
-import CounselFieldSection from "../components/mentorApply/CounselFieldSection";
-import MajorCategorySection from "../components/mentorApply/MajorCategorySection";
-import MentorApplyForm from "../components/mentorApply/MentorApplyForm";
-import MentorFaq from "../components/mentorApply/MentorFaq";
-import MentorHero from "../components/mentorApply/MentorHero";
-import SelectionTimeline from "../components/mentorApply/SelectionTimeline";
-import ServiceSection from "../components/services/ServiceSection";
+import BenefitSection from "@/components/mentorApply/BenefitSection";
+import CounselFieldSection from "@/components/mentorApply/CounselFieldSection";
+import MajorCategorySection from "@/components/mentorApply/MajorCategorySection";
+import MentorApplyForm from "@/components/mentorApply/MentorApplyForm";
+import MentorFaq from "@/components/mentorApply/MentorFaq";
+import MentorHero from "@/components/mentorApply/MentorHero";
+import SelectionTimeline from "@/components/mentorApply/SelectionTimeline";
+import ServiceSection from "@/components/services/ServiceSection";
 
 export default function MentorApply() {
   return (

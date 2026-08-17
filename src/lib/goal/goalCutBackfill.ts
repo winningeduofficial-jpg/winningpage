@@ -10,14 +10,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizeUniversityName } from "./universityNameNormalize.js";
 
-export const GOAL_BACKFILL_SOURCE_TABLE = "admission_results";
+const GOAL_BACKFILL_SOURCE_TABLE = "admission_results";
 
 // 🔴 백필 소스 필터의 핵심 축. 기회균형·농어촌·지역인재·특성화고·특수교육은
 // **지원 자격이 제한된 전형**이라 일반 학생 기준으로 쓰면 컷이 비현실적으로
 // 완화된다. 반면 추천형(학교장추천 등)은 자격제한 전형이 아니고, 일반·교과와
 // 둘 다 있는 쌍의 평균 차이가 +0.059등급으로 사실상 동일하다 — 배제하면
 // 762쌍이 종합 컷으로 폴백돼 normal 컷이 오히려 느슨해진다(명세 §3-D3).
-export const GOAL_BACKFILL_SCREENING_CATEGORIES = ["일반", "추천형"];
+const GOAL_BACKFILL_SCREENING_CATEGORIES = ["일반", "추천형"];
 
 export type GoalBackfillYearMode = "prefer2026" | "only2026" | "only2025";
 
@@ -49,7 +49,7 @@ export interface GoalBackfillSourceRow {
 // 키 클라이언트, 백필 스크립트는 service role 클라이언트를 넘긴다). createClient()가
 // Database 제네릭 없이 생성돼 SupabaseClient<any>로 흘러온다(src/lib/supabase.ts와
 // admissionSettings.ts의 SupabaseClient 인자 전제와 동일).
-export function buildBackfillSourceQuery(
+function buildBackfillSourceQuery(
   client: SupabaseClient,
   yearMode: GoalBackfillYearMode,
   options: { head?: boolean } = {},
@@ -108,20 +108,21 @@ export async function fetchBackfillSourceRows(
   return all;
 }
 
-export function goalCutAverage(values: number[]): number | null {
+function goalCutAverage(values: number[]): number | null {
   if (!values.length) return null;
   const sum = values.reduce((acc, v) => acc + v, 0);
   return Math.round((sum / values.length) * 100) / 100;
 }
 
-export function goalCutQuantile(sorted: number[], q: number): number | null {
+function goalCutQuantile(sorted: number[], q: number): number | null {
   if (!sorted.length) return null;
   const pos = (sorted.length - 1) * q;
   const lo = Math.floor(pos);
   const hi = Math.ceil(pos);
-  if (lo === hi) return sorted[lo];
+  // pos는 0~sorted.length-1 범위이므로 lo/hi 모두 유효 인덱스다.
+  if (lo === hi) return sorted[lo]!;
   return (
-    Math.round((sorted[lo] + (sorted[hi] - sorted[lo]) * (pos - lo)) * 100) /
+    Math.round((sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (pos - lo)) * 100) /
     100
   );
 }
@@ -137,7 +138,7 @@ export function goalCutConflictKey(
   return `${cutType}\u0000${universityKey}\u0000${departmentKey}`;
 }
 
-export type GoalCutType = "normal" | "special";
+type GoalCutType = "normal" | "special";
 
 // goal_university_cuts upsert payload — 아래 computeGoalCutBackfill 헤더 주석의
 // "정확히 8개 키" 규약과 동일.

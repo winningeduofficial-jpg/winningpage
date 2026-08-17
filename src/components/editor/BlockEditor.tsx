@@ -12,7 +12,7 @@ import {
   useCreateBlockNote,
 } from "@blocknote/react";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { blocksToPlainText } from "../../lib/blockToPlainText";
+import { blocksToPlainText } from "@/lib/blockToPlainText";
 import { columnSchema } from "./columnSchema";
 // @blocknote/ariakit/style.css 하나가 core+react+ariakit 스타일을 전부 포함하는 자체완결 번들이다
 // (실측 확인). 각 패키지는 JS 엔트리에서 CSS를 자동 import하지 않으므로 명시적으로 붙여야 한다 —
@@ -115,6 +115,9 @@ type BlockEditorProps = {
 // uncontrolled. initialContent는 마운트 시 1회만 사용 — 값을 역주입하면 캐럿이 붕괴한다.
 const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(
   function BlockEditor({ initialContent, uploadFile }, ref) {
+    // columnSchema를 any로 다루는 선례(columnSchema.tsx 상단 주석)와 같은 이유로, 옵션 객체는
+    // any로 넘기고(exactOptionalPropertyTypes가 BlockNoteEditorOptions 내부 옵셔널 필드와 충돌)
+    // 반환값만 이 파일에서 실제로 쓰는 ColumnEditor로 되돌린다.
     const editor = useCreateBlockNote(
       {
         schema: columnSchema,
@@ -124,9 +127,10 @@ const BlockEditor = forwardRef<BlockEditorHandle, BlockEditorProps>(
           Array.isArray(initialContent) && initialContent.length > 0
             ? initialContent
             : undefined,
-      },
+        // biome-ignore lint/suspicious/noExplicitAny: 상단 주석 참고
+      } as any,
       [],
-    );
+    ) as ColumnEditor;
 
     useImperativeHandle(
       ref,

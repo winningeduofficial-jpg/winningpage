@@ -1,6 +1,12 @@
-import type { TableBlock } from "../../../lib/admissionDoc";
-import type { TableParity, TableSlots } from "../table/AdmissionTable";
-import type { CellDesc, HeaderCellDesc } from "../table/tableModel";
+import type {
+  TableParity,
+  TableSlots,
+} from "@/components/admission/table/AdmissionTable";
+import type {
+  CellDesc,
+  HeaderCellDesc,
+} from "@/components/admission/table/tableModel";
+import type { TableBlock } from "@/lib/admissionDoc";
 import ColumnRoleEditor from "./ColumnRoleEditor";
 import CellEditor from "./cells/CellEditor";
 import ImeSafeInput from "./ImeSafeInput";
@@ -22,9 +28,9 @@ import ImeSafeInput from "./ImeSafeInput";
 // 이 파일의 마크업은 전부 TableBlockEditor.jsx가 직접 들고 있던 자체
 // <table>(구 :269-378)에서 **문자 그대로** 옮겨온 것이다. 클래스 문자열,
 // aria-label 문구, disabled 조건, 버튼 순서를 "정리"하지 말 것 —
-// verify-admission-table-editor.mjs의 스모크 렌더 단언(:280 inputCount === 16,
-// :283 !out.includes('열 삭제'))이 이 동결의 롤백 신호이고, 그 숫자는
-// 갱신 대상이 아니라 **깨지면 되돌리라는 신호**다.
+// TableBlockEditor.test.tsx(옛 verify-admission-table-editor.mjs)의 스모크 렌더
+// 단언(:438 inputCount === 16, :441 !out.includes('열 삭제'))이 이 동결의
+// 롤백 신호이고, 그 숫자는 갱신 대상이 아니라 **깨지면 되돌리라는 신호**다.
 //
 // 위계(2026-08-06 사용자 지적 반영)도 그대로 옮겼다:
 //   1차 라벨 input · 셀 편집기 = 상시 노출
@@ -113,7 +119,9 @@ export default function createEditSlots({
             <>
               <ColumnRoleEditor
                 variant={block.variant}
-                role={column?.role}
+                // ColumnRoleEditor(수정 범위 밖)의 role은 exactOptionalPropertyTypes라
+                // undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다.
+                {...(column?.role !== undefined ? { role: column.role } : {})}
                 onChange={(next) => onUpdateColumnField(colIdx, "role", next)}
               />
               <select

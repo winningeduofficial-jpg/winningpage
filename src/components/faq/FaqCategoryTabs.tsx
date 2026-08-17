@@ -20,7 +20,8 @@ export default function FaqCategoryTabs({
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   function focusAndSelect(index: number) {
-    onChange(tabs[index]);
+    // 호출부(0 / tabs.length-1 / 모듈러 연산)가 항상 유효 범위 인덱스를 넘긴다.
+    onChange(tabs[index]!);
     buttonRefs.current[index]?.focus();
   }
 

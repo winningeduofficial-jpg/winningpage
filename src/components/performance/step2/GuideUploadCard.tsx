@@ -1,5 +1,8 @@
 import type { ChangeEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+import OutlineButton from "@/components/auth/OutlineButton";
+import PrimaryButton from "@/components/auth/PrimaryButton";
+import InlineCard from "@/components/performance/chat/InlineCard";
 import {
   HEIC_REJECT_MESSAGE,
   IMAGE_ACCEPT_ATTR,
@@ -9,10 +12,7 @@ import {
   MAX_PHOTOS,
   MAX_TOTAL_BYTES,
   prepareGuideImage,
-} from "../../../lib/performance/guideImage";
-import OutlineButton from "../../auth/OutlineButton";
-import PrimaryButton from "../../auth/PrimaryButton";
-import InlineCard from "../chat/InlineCard";
+} from "@/lib/performance/guideImage";
 import PhotoAddTile from "./PhotoAddTile";
 import PhotoThumb from "./PhotoThumb";
 
@@ -213,13 +213,12 @@ export default function GuideUploadCard({
   // `aria-live` 영역은 **항상 마운트돼 있어야** 변경이 읽힌다(나중에 삽입되는 노드는
   // 브라우저·스크린리더 조합에 따라 초기 내용으로 취급돼 조용히 지나간다). 그래서
   // 문구만 갈아 끼우고 요소 자체는 조건부로 렌더하지 않는다.
-  const statusMessage = processing
-    ? PROCESSING_STATUS
-    : submitting
-      ? SUBMITTING_STATUS
-      : photos.length
-        ? attachedStatus(photos.length)
-        : "";
+  const statusMessage = (() => {
+    if (processing) return PROCESSING_STATUS;
+    if (submitting) return SUBMITTING_STATUS;
+    if (photos.length) return attachedStatus(photos.length);
+    return "";
+  })();
 
   return (
     <InlineCard className="pb-6">
@@ -236,7 +235,7 @@ export default function GuideUploadCard({
             key={photo.id}
             src={photo.url}
             alt={`첨부한 안내문 사진 ${index + 1}`}
-            onRemove={locked ? undefined : () => handleRemove(photo.id)}
+            {...(locked ? {} : { onRemove: () => handleRemove(photo.id) })}
           />
         ))}
 
@@ -294,7 +293,7 @@ export default function GuideUploadCard({
           tone="muted"
           weight="medium"
           disabled={locked}
-          onClick={onSkip}
+          {...(onSkip ? { onClick: onSkip } : {})}
           className="border-performance-line text-ink-sub"
         >
           안내문 없이 시작하기

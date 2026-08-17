@@ -1,8 +1,8 @@
 import type { ChangeEvent } from "react";
 import { useId, useState } from "react";
-import { goalModalOptions } from "../../../data/goalMock";
-import AppModal from "../AppModal";
-import ModalField from "../ModalField";
+import AppModal from "@/components/goal/AppModal";
+import ModalField from "@/components/goal/ModalField";
+import { goalModalOptions } from "@/data/goalMock";
 
 // 모의고사 성적 추가 모달 — docs/figma-goal/part-08.md #22 (530×574 = 33.125rem × 35.875rem,
 // 높이는 주석용). 트리거: MockExamCard("+ 성적 추가").
@@ -83,7 +83,8 @@ export default function AddMockExamGradeModal({
   onClose,
   onSubmit,
 }: AddMockExamGradeModalProps) {
-  const [round, setRound] = useState(ROUND_OPTIONS[0].value);
+  // ROUND_OPTIONS는 goalModalOptions.mockExamRounds 고정 목록에서 파생되어 항상 비지 않는다.
+  const [round, setRound] = useState(ROUND_OPTIONS[0]!.value);
   const [examDate, setExamDate] = useState("");
   const [scores, setScores] = useState<Record<string, string>>({
     korean: "",
@@ -97,10 +98,11 @@ export default function AddMockExamGradeModal({
   const canSubmit =
     !submitting &&
     examDate.trim().length > 0 &&
-    SUBJECTS.every(({ key }) => scores[key].toString().trim().length > 0);
+    // SUBJECTS의 key는 scores 초기값에 항상 존재하는 고정 필드다.
+    SUBJECTS.every(({ key }) => scores[key]!.toString().trim().length > 0);
 
   function resetForm() {
-    setRound(ROUND_OPTIONS[0].value);
+    setRound(ROUND_OPTIONS[0]!.value);
     setExamDate("");
     setScores({ korean: "", math: "", english: "", science: "" });
     setError("");
@@ -170,7 +172,7 @@ export default function AddMockExamGradeModal({
               key={key}
               label={label}
               placeholder={placeholder}
-              value={scores[key]}
+              value={scores[key]!}
               onChange={(event) =>
                 setScores((prev) => ({ ...prev, [key]: event.target.value }))
               }

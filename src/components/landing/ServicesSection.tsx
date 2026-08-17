@@ -10,9 +10,9 @@ import {
   Users,
 } from "lucide-react";
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
-import { SERVICE_NAME_ROUTES } from "../../data/navigation";
-import { resolvePromotedSlugLink } from "../../hooks/useNavGroups";
+import { Link } from "react-router";
+import { SERVICE_NAME_ROUTES } from "@/data/navigation";
+import { resolvePromotedSlugLink } from "@/hooks/useNavGroups";
 
 // program_categories 활성 row(sort_order asc).
 type Service = {
@@ -28,6 +28,7 @@ type Service = {
 // DB(program_categories) link 컬럼이 죽은 값(레거시 '/services' 스텁 페이지 — 헤더/푸터 없는
 // 플레이스홀더, 실 목적지 아님)이거나 비어있을 때의 최종 폴백. 이름 매칭도 실패하면 여기로.
 const DEAD_SERVICE_LINK_FALLBACK = "/services/learning-diagnosis";
+const MAX_VISIBLE_SERVICES = 6;
 
 // service.link 해석 순서: 1) /page/services-* 구슬러그면 신규 라우트로 승격(useNavGroups와
 // 동일 매핑 재사용) 2) 그래도 죽은 값('/services')·빈 값이면 서비스명으로 정본 라우트 매칭
@@ -174,15 +175,17 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
 
 function ServiceCard({
   service,
-  layout = ILLUSTRATION_LAYOUTS[0],
+  // ILLUSTRATION_LAYOUTS는 비어있지 않은 상수 배열이라 [0]은 항상 존재.
+  layout = ILLUSTRATION_LAYOUTS[0]!,
 }: {
   service: Service;
   layout?: IllustrationLayout;
 }) {
   const link = resolveServiceLink(service);
   const isExternal = /^https?:\/\//i.test(link);
+  // serviceIconMap.default 키는 항상 정의돼 있는 최종 폴백.
   const FallbackIcon =
-    serviceIconMap[service.icon ?? "default"] || serviceIconMap.default;
+    serviceIconMap[service.icon ?? "default"] || serviceIconMap.default!;
 
   const content = (
     <>
@@ -303,7 +306,7 @@ export default function ServicesSection({
     () =>
       [...services]
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-        .slice(0, 6),
+        .slice(0, MAX_VISIBLE_SERVICES),
     [services],
   );
 
@@ -336,7 +339,8 @@ export default function ServicesSection({
             <li key={service.id} className="w-full max-w-[28.0938rem]">
               <ServiceCard
                 service={service}
-                layout={ILLUSTRATION_LAYOUTS[index] ?? ILLUSTRATION_LAYOUTS[0]}
+                // ILLUSTRATION_LAYOUTS는 비어있지 않은 상수 배열이라 [0] 폴백은 항상 존재.
+                layout={ILLUSTRATION_LAYOUTS[index] ?? ILLUSTRATION_LAYOUTS[0]!}
               />
             </li>
           ))}

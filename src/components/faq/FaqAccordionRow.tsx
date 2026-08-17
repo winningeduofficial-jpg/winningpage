@@ -1,6 +1,6 @@
 import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
-import ColumnBody from "../column/ColumnBody";
+import ColumnBody from "@/components/column/ColumnBody";
 import "./faqAnswerBody.css";
 
 // 답변 패널(id={answerId})은 항상 렌더하고 hidden 속성으로 접는다(ServiceFaq.jsx:41-43
@@ -76,7 +76,9 @@ export default function FaqAccordionRow({
             post={{
               id: faq.id,
               content_json: faq.content_json,
-              content: faq.answer,
+              // exactOptionalPropertyTypes: ColumnBodyPost.content는 명시적 undefined를
+              // 허용하지 않으므로, 값이 있을 때만 키 자체를 넣는다(동작은 동일).
+              ...(faq.answer !== undefined ? { content: faq.answer } : {}),
             }}
           />
         )}

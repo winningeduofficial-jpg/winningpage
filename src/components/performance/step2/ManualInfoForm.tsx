@@ -1,7 +1,7 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-import PrimaryButton from "../../auth/PrimaryButton";
-import InlineCard from "../chat/InlineCard";
+import PrimaryButton from "@/components/auth/PrimaryButton";
+import InlineCard from "@/components/performance/chat/InlineCard";
 
 // STEP2 안내문 없이 직접 입력 폼 — docs/수행평가-상세-명세.md §5.8(`3754:3370` 빈 상태 /
 // `3754:3431` 입력 완료 상태).

@@ -20,8 +20,9 @@
 import { Check } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { AGREEMENT_COPY } from "../../data/mentorApply";
+import { Link } from "react-router";
+import { AGREEMENT_COPY } from "@/data/mentorApply";
+import { STAGGER_BUFFER_MS, STAGGER_STEP_MS } from "@/lib/agreementStagger";
 
 // 시안 색은 필수 #0B84FD(accent) / 선택 #D9D9D9 다. 선택 배지에 #D9D9D9(=line 토큰) 을 그대로
 // 쓰면 흰 배경 대비 1.38:1 로 판독이 불가능해, AgreementRow.jsx 의 선례("text-line은 대비
@@ -69,7 +70,7 @@ export default function MentorAgreementBlock({
 
     const timer = window.setTimeout(
       () => setBatchAnimating(false),
-      list.length * 40 + 260,
+      list.length * STAGGER_STEP_MS + STAGGER_BUFFER_MS,
     );
     return () => window.clearTimeout(timer);
   }, [batchAnimating, list.length]);
@@ -181,7 +182,7 @@ function CheckBox({ checked, index = 0, popping = false }: CheckBoxProps) {
       style={
         popping
           ? ({
-              animationDelay: "calc(var(--i) * 40ms)",
+              animationDelay: `calc(var(--i) * ${STAGGER_STEP_MS}ms)`,
               "--i": index,
             } as CSSProperties)
           : undefined

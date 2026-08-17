@@ -19,8 +19,8 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import GradeDelta from "../../components/charts/GradeDelta";
-import Sparkline from "../../components/charts/Sparkline";
+import GradeDelta from "@/components/charts/GradeDelta";
+import Sparkline from "@/components/charts/Sparkline";
 import {
   buildDetailModel,
   CELL_STATE,
@@ -29,9 +29,9 @@ import {
   formatGradeValue,
   RESULT_YEARS,
   UNDISCLOSED_CELL,
-} from "../../lib/admissionResults";
-import { fetchSusiResultRows } from "../../lib/admissionResultsQueries";
-import { withDedupedKeys } from "../../lib/reactKeys";
+} from "@/lib/admissionResults";
+import { fetchSusiResultRows } from "@/lib/admissionResultsQueries";
+import { withDedupedKeys } from "@/lib/reactKeys";
 import { CONTAINER } from "./constants";
 import { ErrorBlock, LoadingBlock } from "./StateBlocks";
 
@@ -201,7 +201,13 @@ function SummaryCard({
   // 축이 3개년 이상으로 복원되면 Sparkline. buildTrackSeries의 셀은 display 필드를 쓰는데
   // Sparkline 계약은 displayValue라서 그 경계에서만 이름을 맞춰 준다.
   const sparklineSeries = useMemo(
-    () => card.series.map((cell) => ({ ...cell, displayValue: cell.display })),
+    () =>
+      card.series.map((cell) => ({
+        ...cell,
+        // Sparkline의 SparkPoint.displayValue는 string 필수 — GradeCell.display가
+        // 없을 일은 없지만(축 상 모든 연도가 채워진다) 타입상으로는 폴백을 둔다.
+        displayValue: cell.display ?? "",
+      })),
     [card.series],
   );
 
@@ -290,9 +296,11 @@ function SummaryCard({
         {axisYears.length >= SPARKLINE_MIN_YEARS ? (
           <Sparkline series={sparklineSeries} label={card.track} />
         ) : (
+          // GradeDelta(수정 범위 밖)의 delta는 exactOptionalPropertyTypes라
+          // undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다.
           <GradeDelta
             series={card.series}
-            delta={card.delta}
+            {...(card.delta !== undefined ? { delta: card.delta } : {})}
             label={card.track}
           />
         )}
@@ -600,7 +608,7 @@ function ReadingGuide({
 
 // StateBlocks.EmptyBlock을 쓰지 않는 이유: 상세 빈 상태만 "다른 모집단위 선택하기"
 // 복귀 액션을 함께 그려야 하는데 공용 블록에는 액션 슬롯이 없다. 껍데기 클래스는 동일하다.
-function DetailEmptyBlock({ onBack }: { onBack?: () => void }) {
+function DetailEmptyBlock({ onBack }: { onBack?: (() => void) | undefined }) {
   return (
     <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
       <p className="break-keep text-lg font-semibold text-[#525252]">
@@ -713,7 +721,10 @@ export default function DetailView({
   // buildDetailModel(admissionResults.js, 수정 범위 밖의 JSDoc 없는 .js)의 반환 모양을
   // 이 화면이 실제로 읽는 필드 기준으로 로컬 DetailModel에 맞춰 캐스트한다.
   const model = useMemo(
-    () => buildDetailModel(effectiveRows) as DetailModel,
+    // buildDetailModel(admissionResults.ts)의 실제 반환 셰이프는 이 화면이
+    // 좁혀 쓰는 로컬 DetailModel과 구조적으로 다 겹치지 않는다 — 의도된
+    // 좁히기 캐스트라 unknown을 경유한다.
+    () => buildDetailModel(effectiveRows) as unknown as DetailModel,
     [effectiveRows],
   );
 
@@ -769,9 +780,10 @@ export default function DetailView({
     return parts.join(" · ");
   }, [effectiveRows, model.isEmpty, model.observedYears]);
 
+  // RESULT_YEARS(admissionResults.ts)는 [2025, 2026] 고정 상수라 마지막 원소가 항상 존재.
   const activeYear =
     model.years[model.years.length - 1] ??
-    RESULT_YEARS[RESULT_YEARS.length - 1];
+    RESULT_YEARS[RESULT_YEARS.length - 1]!;
 
   // "N개년"은 축 상수(model.years)가 아니라 실제로 행이 있는 연도(observedYears)로 센다 —
   // 2025뿐인 모집단위에서 "2개년"이라 쓰면 거짓이다(§5.3(b) C3).
@@ -823,7 +835,11 @@ export default function DetailView({
         <section className="pb-20 pt-10 sm:pb-24 sm:pt-12">
           <div className={CONTAINER}>
             {isLoading && <LoadingBlock />}
-            {!isLoading && isError && <ErrorBlock onRetry={handleRetry} />}
+            {/* ErrorBlock(수정 범위 밖)의 onRetry는 exactOptionalPropertyTypes라
+                undefined 값을 명시적으로 넣을 수 없다 — 값이 있을 때만 키를 채운다. */}
+            {!isLoading && isError && (
+              <ErrorBlock {...(handleRetry ? { onRetry: handleRetry } : {})} />
+            )}
             {!isLoading && !isError && model.isEmpty && (
               <DetailEmptyBlock onBack={onBack} />
             )}

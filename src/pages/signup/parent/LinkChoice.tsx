@@ -9,14 +9,14 @@
 
 import { UserCheck, UserPlus } from "lucide-react";
 import { useEffect } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,
   ChoiceCard,
   TextLinkButton,
-} from "../../../components/auth";
-import { useSignup } from "../../../context/SignupContext";
+} from "@/components/auth";
+import { useSignup } from "@/context/SignupContext";
 
 type LinkChoiceProps = {
   mode?: "initial" | "add";

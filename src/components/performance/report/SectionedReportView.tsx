@@ -1,6 +1,6 @@
 import { useId } from "react";
-import type { Block } from "../../../lib/admissionDoc";
-import { renderBlock } from "../../admission/blocks/renderBlock";
+import { renderBlock } from "@/components/admission/blocks/renderBlock";
+import type { Block } from "@/lib/admissionDoc";
 
 // 리포트류 화면(§5.11 주제 상세 모달 / §5.13 설계 리포트 / §5.16 평가 리포트)이 공유하는
 // "섹션 라벨 + 본문" 렌더러 — docs/수행평가-상세-명세.md §10.2 P9가 `SectionedReportView`

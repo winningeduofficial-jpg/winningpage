@@ -1,7 +1,7 @@
 import { Pencil } from "lucide-react";
 import { useState } from "react";
-import GoalProgressBar from "../GoalProgressBar";
-import { getSubjectStrongClass } from "../subjectTokens";
+import GoalProgressBar from "@/components/goal/GoalProgressBar";
+import { getSubjectStrongClass } from "@/components/goal/subjectTokens";
 
 function pad(n: number) {
   return String(n).padStart(2, "0");

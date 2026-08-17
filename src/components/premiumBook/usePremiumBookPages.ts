@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { supabase } from "../../lib/supabase";
+import { supabase } from "@/lib/supabase";
 import type { PremiumBookPage } from "./bookPairing";
 import { createDevDummyPages } from "./devDummyPages";
 

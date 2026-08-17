@@ -1,10 +1,14 @@
-// TableBlock 구조 변경(셀/행/열)을 순수 함수로 분리 — TableBlockEditor.jsx가
-// 이 함수들을 그대로 소비하고, 검증 스크립트(scripts/verify-admission-table-editor.mjs)
+// TableBlock 구조 변경(셀/행/열)을 순수 함수로 분리 — TableBlockEditor.tsx가
+// 이 함수들을 그대로 소비하고, TableBlockEditor.test.tsx(옛 scripts/verify-admission-table-editor.mjs)
 // 도 React/DOM 없이 이 함수들만 직접 import해서 로직을 단언한다(컴포넌트를
 // 렌더하지 않고도 "열 추가 시 전 행 길이가 함께 맞춰지는지" 같은 구조적
 // 불변식을 검증할 수 있다).
-import type { Cell, Column, TableBlock } from "../../../lib/admissionDoc";
-import { defaultNewColumnRole, getCellKind } from "../admissionLayout";
+
+import {
+  defaultNewColumnRole,
+  getCellKind,
+} from "@/components/admission/admissionLayout";
+import type { Cell, Column, TableBlock } from "@/lib/admissionDoc";
 import { emptyCellForKind } from "./tableEditorValidation";
 
 export function updateCell(
@@ -75,7 +79,9 @@ export function moveRow(
   if (targetIdx < 0 || targetIdx >= block.rows.length) return block;
   const nextRows = block.rows.slice();
   const [moved] = nextRows.splice(rowIdx, 1);
-  nextRows.splice(targetIdx, 0, moved);
+  // targetIdx가 범위 안이라는 위 가드로 rowIdx도 block.rows 범위 안임이
+  // 보장된다(delta는 ±1, 호출부는 항상 유효한 행 인덱스를 넘긴다).
+  nextRows.splice(targetIdx, 0, moved!);
   return { ...block, rows: nextRows };
 }
 

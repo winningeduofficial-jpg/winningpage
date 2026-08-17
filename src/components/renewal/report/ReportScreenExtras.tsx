@@ -1,5 +1,5 @@
-import { SCREEN_EXTRAS } from "../../../data/diagnosisScreenCopy";
-import { templateCopy } from "../../../lib/diagnosisCopyBinding";
+import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
+import { templateCopy } from "@/lib/diagnosisCopyBinding";
 
 /**
  * 화면 전용 확장 영역(F-04 · F-05) — A4 시트 2장 **아래**에 이어지는 문서형 부록.
@@ -35,7 +35,8 @@ type AreaDetailRow = {
 
 type AreaDetailGroupProps = {
   title?: string;
-  rows?: AreaDetailRow[];
+  // exactOptionalPropertyTypes 대응 — 호출부가 `rows={possiblyUndefined}` 형태로 넘긴다.
+  rows?: AreaDetailRow[] | undefined;
 };
 
 /** 영역별 상세 진단 소섹션(6행). detail 이 없는 행은 렌더하지 않는다 — 문구를 창작하지 않는다. */
@@ -158,10 +159,15 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
 
   // 긴급도 한 줄. 라벨이 없으면(판정 실패) 줄 자체를 만들지 않는다 — 숫자만 남은 문장을 내지 않는다.
   // lowAreaCount 가 0 이면 ' · ' 뒤 절을 뗀다(템플릿은 하나로 유지하고 자르기만 한다).
-  const [urgencyHead, urgencyTail] = copy.urgencyLine.split(" · ");
+  // urgencyLine 템플릿은 항상 " · " 구분자 1개를 포함한다는 계약(위 주석) — 튜플로 단언.
+  const [urgencyHead, urgencyTail] = copy.urgencyLine.split(" · ") as [
+    string,
+    string,
+  ];
   const urgencyLine = urgency?.levelLabel
     ? urgencyHead.replace("{level}", urgency.levelLabel) +
-      (urgency.lowAreaCount > 0
+      // undefined > 0 은 기존에도 false로 평가되던 값이라 ?? 0 은 동일 동작을 명시한 것.
+      ((urgency.lowAreaCount ?? 0) > 0
         ? ` · ${urgencyTail
             .replace("{threshold}", String(urgency.areaThreshold))
             .replace("{count}", String(urgency.lowAreaCount))}`
@@ -295,7 +301,8 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
             {copy.noticeTitle}
           </h3>
           <p className="mt-4 max-w-[45rem] break-keep text-base leading-[1.6] text-[#525252]">
-            {notices.reportLimit}
+            {/* hasNotice가 true인 분기이므로 notices?.reportLimit은 항상 truthy(동작 동일). */}
+            {notices?.reportLimit}
           </p>
         </section>
       )}
