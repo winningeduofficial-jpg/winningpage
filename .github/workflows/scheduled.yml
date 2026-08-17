@@ -1,0 +1,63 @@
+# 대학모집요강 데이터 무결성 야간 감사 워크플로.
+#
+# 배경: `npm run verify` 체인(package.json)에는 스크립트 3개가 있다.
+#   1) verify-admission-doc-equivalence.mjs — DB 불필요, 커밋된 골든 fixture만 읽음
+#   2) verify-admission-doc-html-drift.mjs  — dev DB 접속 필요(구조화 JSON ↔ 원본 HTML 드리프트 감사)
+#   3) verify-admission-bulk-xlsx.mjs        — dev DB 접속 필요(xlsx 왕복 감사)
+# 이 3개는 실제 학생에게 노출되는 입시 정보 정확성 게이트인데, 지금까지 CI에
+# 연결돼 있지 않아 사람이 수동으로 `npm run verify`를 돌려야만 실행됐다.
+# 이 워크플로는 그것을 매일 자동 실행하고, 실패 시 GitHub Issue로 알린다.
+# type-check.yml(PR/push 트리거)과는 목적·트리거가 달라 별도 파일로 분리했다.
+#
+# 필요 secrets (GitHub repo Settings > Secrets and variables > Actions 에서
+# 사용자가 직접 등록해야 한다 — 이 파일은 참조만 한다):
+#   - SEED_SUPABASE_URL
+#   - SEED_SERVICE_ROLE_KEY
+# secrets가 등록돼 있지 않으면 위 두 스크립트가 DB 접속에 실패하며
+# `npm run verify` 스텝이 non-zero exit로 종료되고, 아래 실패 알림 스텝이
+# 자동으로 GitHub Issue를 생성한다.
+
+name: Nightly DB Audit
+
+on:
+  schedule:
+    # KST 04:00 = UTC 19:00(전날). 매일 1회.
+    - cron: "0 19 * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      SEED_SUPABASE_URL: ${{ secrets.SEED_SUPABASE_URL }}
+      SEED_SERVICE_ROLE_KEY: ${{ secrets.SEED_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: npm run verify
+        run: npm run verify
+
+      - name: 실패 시 GitHub Issue 생성
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const today = new Date().toISOString().slice(0, 10);
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Nightly DB Audit 실패] ${today} (run #${context.runId})`,
+              body: `\`npm run verify\` 체인이 실패했습니다.\n\n실행 로그: ${runUrl}\n\nSEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY secrets가 등록돼 있는지 먼저 확인하세요.`,
+            });
