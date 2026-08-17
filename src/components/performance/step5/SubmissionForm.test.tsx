@@ -30,10 +30,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 import * as charsModule from "../../../../api/_lib/performance/submission-chars.js";
 import * as schemaModule from "../../../../api/_lib/performance/submission-schema.js";
-import type {
-  SubmissionFieldValues,
-  SubmissionSchema,
-} from "./SubmissionForm";
+import type { SubmissionFieldValues, SubmissionSchema } from "./SubmissionForm";
 import SubmissionForm from "./SubmissionForm";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "../../../..");
@@ -261,23 +258,19 @@ describe("제출 게이트 100자 — 서버 왕복 전 차단", () => {
     },
   ];
 
-  test.each(GATE_CASES)(
-    "$label",
-    ({ values, submitLocked, saveLocked }) => {
-      const html = render({ schema: basic, value: values, topicTitle: "주제" });
-      const submit = submitButton(html);
-      const save = saveButton(html);
-      const gate = charsModule.checkFieldsMinLength(basic.fields, values);
+  test.each(GATE_CASES)("$label", ({ values, submitLocked, saveLocked }) => {
+    const html = render({ schema: basic, value: values, topicTitle: "주제" });
+    const submit = submitButton(html);
+    const save = saveButton(html);
+    const gate = charsModule.checkFieldsMinLength(basic.fields, values);
 
-      expect(
-        submit?.["aria-disabled"],
-        `서버 판정 ok=${gate.ok}`,
-      ).toBe(String(submitLocked));
-      expect(save?.["aria-disabled"]).toBe(String(saveLocked));
-      // 화면 판정과 서버 판정이 같은 결론이어야 한다(둘이 갈리면 "카운터는 통과인데 400").
-      expect(submit?.["aria-disabled"] === "true").toBe(!gate.ok);
-    },
-  );
+    expect(submit?.["aria-disabled"], `서버 판정 ok=${gate.ok}`).toBe(
+      String(submitLocked),
+    );
+    expect(save?.["aria-disabled"]).toBe(String(saveLocked));
+    // 화면 판정과 서버 판정이 같은 결론이어야 한다(둘이 갈리면 "카운터는 통과인데 400").
+    expect(submit?.["aria-disabled"] === "true").toBe(!gate.ok);
+  });
 });
 
 describe("비활성 사유 전달 — disabled 속성 금지", () => {
@@ -314,9 +307,7 @@ describe("aria-live 남용 금지", () => {
   });
 
   test("카운터는 live region이 아니다(타이핑마다 낭독 금지)", () => {
-    expect(/<p id="[^"]*-counter"[^>]*aria-live/.test(typingHtml)).toBe(
-      false,
-    );
+    expect(/<p id="[^"]*-counter"[^>]*aria-live/.test(typingHtml)).toBe(false);
   });
 
   test("polite live region은 임계값 통과 안내 1개뿐이고 미달 상태에서는 비어 있다", () => {
@@ -355,9 +346,7 @@ describe("글자 수 규칙 단일화 — 사본 금지 (§8.3 「동일 계산�
   });
 
   test("서버 스키마 모듈도 같은 잎 모듈을 쓴다", () => {
-    expect(/from ["']\.\/submission-chars\.js["']/.test(schemaText)).toBe(
-      true,
-    );
+    expect(/from ["']\.\/submission-chars\.js["']/.test(schemaText)).toBe(true);
   });
 
   // 정규화 정규식이 잎 모듈 밖에 다시 나타나면 그게 곧 사본이다.

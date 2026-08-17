@@ -65,9 +65,7 @@ describe("제출폼 슬라이스 배선 seam (src/pages/performance/PerformanceC
   );
 
   test("제출폼 슬라이스의 진입점 `handleSubmissionEvaluate`가 있다", () => {
-    expect(pageSource.includes("function handleSubmissionEvaluate")).toBe(
-      true,
-    );
+    expect(pageSource.includes("function handleSubmissionEvaluate")).toBe(true);
   });
 
   test("평가 리포트 모달·분기 3버튼이 페이지에 배선돼 있다", () => {

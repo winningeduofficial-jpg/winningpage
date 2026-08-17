@@ -126,8 +126,8 @@ describe("재평가 상한(§9.2) — 눌러서 409를 보게 하지 않고 미�
   test("상한 사유 문구가 `추가 평가 받기` 버튼의 aria-describedby로 연결된다", () => {
     const noteId = buttons[0]?.attrs.match(/aria-describedby="([^"]+)"/);
     expect(Boolean(noteId)).toBe(true);
-    expect(
-      new RegExp(`id="${noteId?.[1]}"[^>]*>상한 안내`).test(html),
-    ).toBe(true);
+    expect(new RegExp(`id="${noteId?.[1]}"[^>]*>상한 안내`).test(html)).toBe(
+      true,
+    );
   });
 });

@@ -215,10 +215,7 @@ describe("승격된 점수 카드", () => {
       />,
     );
     const html = document.body.innerHTML;
-    expect(
-      html.includes("/100"),
-      "없는 점수를 지어내면 안 된다",
-    ).toBe(false);
+    expect(html.includes("/100"), "없는 점수를 지어내면 안 된다").toBe(false);
     expect(html.includes(`${EVALUATION_SCORE_CARD_LABELS.summary}:`)).toBe(
       true,
     );
@@ -333,7 +330,11 @@ describe("라벨·본문 소유권 + 빈 상태", () => {
 
   test("open=false면 아무것도 렌더하지 않는다", () => {
     render(
-      <EvaluationReportModal open={false} report={buildReport()} onClose={noop} />,
+      <EvaluationReportModal
+        open={false}
+        report={buildReport()}
+        onClose={noop}
+      />,
     );
     expect(screen.queryByRole("dialog")).toBeNull();
   });

@@ -74,7 +74,7 @@ describe.each(CASES)("$pathname", ({ pathname, expected }) => {
     expect(anchors).toHaveLength(2);
   });
 
-  test("aria-current=\"page\"가 정확히 1개이고 기대 항목에 있다(NavLink 회귀 방지)", () => {
+  test('aria-current="page"가 정확히 1개이고 기대 항목에 있다(NavLink 회귀 방지)', () => {
     const current = anchors.filter((a) => /aria-current="page"/.test(a.attrs));
     expect(
       current.length,
