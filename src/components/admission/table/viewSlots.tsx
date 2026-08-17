@@ -10,7 +10,7 @@
 // 편집 슬롯 전용이고, 없으면 골격이 여분 <td>/<th>를 아예 만들지 않는다.
 //
 // ⚠ 여기서 나가는 마크업은 Gate B(verify-admission-doc-equivalence.mjs,
-// 실데이터 2506건)와 verify-admission-block-render.mjs(합성 25건)의 바이트
+// 실데이터 2506건)와 AdmissionSectionView.test.tsx(합성 25건)의 바이트
 // 계약을 그대로 짊어진다. 클래스 문자열·태그 중첩·텍스트 폴백 순서를
 // "정리"하지 말 것 — 리터럴 자리는 전부 `text || fallback`이며, 이 우선순위
 // 자체가 현행(예: SelectionTable.jsx:43 `{cellText || '-'}`)의 재현이다.

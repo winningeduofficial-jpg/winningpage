@@ -19,7 +19,7 @@
 // 하지 않는다. 이 파일은 React를 import하지 않으며 훅/state를 갖지 않는다.
 //
 // ⚠ 이 모듈의 출력은 Gate B(verify-admission-doc-equivalence.mjs, 실데이터
-// 2506건)와 verify-admission-block-render.mjs(합성 25건)의 바이트 계약을 그대로
+// 2506건)와 AdmissionSectionView.test.tsx(합성 25건)의 바이트 계약을 그대로
 // 짊어진다. 특히 span은 현행 계산과 1비트도 달라선 안 된다 —
 // verify-admission-doc-equivalence.mjs:511-522/534-536의 속성 비교가
 // "className='' vs 속성 부재"는 흡수하지만 `rowSpan={1}`을 찍으면 미러(속성
