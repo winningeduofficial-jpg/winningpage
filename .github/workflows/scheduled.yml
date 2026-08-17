@@ -16,13 +16,17 @@
 # secrets가 등록돼 있지 않으면 위 두 스크립트가 DB 접속에 실패하며
 # `npm run verify` 스텝이 non-zero exit로 종료되고, 아래 실패 알림 스텝이
 # 자동으로 GitHub Issue를 생성한다.
+#
+# schedule 트리거는 비활성화 상태다(2026-08-17, secrets 미등록 상태로 매일
+# 실패 알림만 쌓이는 걸 막기 위함). secrets 등록 후 위 cron 라인을 되살릴 것.
+# 그 전까지는 workflow_dispatch로만 수동 실행한다.
 
 name: Nightly DB Audit
 
 on:
-  schedule:
-    # KST 04:00 = UTC 19:00(전날). 매일 1회.
-    - cron: "0 19 * * *"
+  # schedule:
+  #   # KST 04:00 = UTC 19:00(전날). 매일 1회.
+  #   - cron: "0 19 * * *"
   workflow_dispatch: {}
 
 concurrency:
