@@ -9,13 +9,19 @@
 //
 // 사용법: node scripts/verify-admission-bulk-xlsx.mjs [--keys-file <path>]
 // 종료 코드: 전부 통과하면 0, 하나라도 실패하면 1.
+//
+// 키 조회 순서(하드코딩 금지) — scripts/load-admission-content.mjs와 동일:
+//   1) SEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY 환경변수
+//   2) --keys-file <path>
+//   3) 기본값: 저장소 루트의 .dev-keys.json (gitignore 처리됨,
+//      SEED_KEYS_FILE 로 재지정 가능)
 // =====================================================================
 
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
@@ -30,8 +36,9 @@ import { HWP_SECTION_JSON_KEYS } from "../src/lib/admissionDoc.ts";
 import { clean } from "../src/lib/admissionParsing.js";
 
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
-const DEFAULT_KEYS_FILE =
-  "/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json";
+const DEFAULT_KEYS_FILE = fileURLToPath(
+  new URL("../.dev-keys.json", import.meta.url),
+);
 const TABLE = "admission_university_resources";
 const JSON_COLUMNS = Object.values(HWP_SECTION_JSON_KEYS);
 // admissionBulkXlsx.js는 CATEGORY_KEYS를 export하지 않는다 —
