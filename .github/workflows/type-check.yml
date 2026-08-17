@@ -37,7 +37,8 @@ jobs:
       - name: biome ci
         run: npm run format:ci
 
-      # 순수 로직 회귀 테스트(goal/calc, 진단 채점 등) — 골든 픽스처 파리티가
+      # 회귀 테스트 전체(goal/calc·진단 채점 등 순수 로직 + admission/performance
+      # DOM 렌더링·에디터·모달 등 컴포넌트 테스트) — 골든 픽스처·파리티가
       # 깨지면 여기서 즉시 잡는다.
       - name: vitest run
         run: npm test
