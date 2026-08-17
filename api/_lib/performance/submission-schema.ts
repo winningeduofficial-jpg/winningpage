@@ -53,7 +53,7 @@
 //    CSS 클래스까지 갈랐다). §12.2 3행이 「`rows`(문자 단위 높이)는 폐기하고 시안 고정
 //    높이 + 내부 스크롤」이라 규정했고, §5.14 실측도 Textarea 전부 10rem(160) 고정이다.
 //    필드는 `{key,label,helper,required}` 4속성만 남는다.
-//    → `scripts/verify-performance-submission-schema.mjs`가 **`rows`가 유일한 차이임**을
+//    → `api/_lib/performance/submission-schema.test.ts`(옛 scripts/verify-performance-submission-schema.mjs)가 **`rows`가 유일한 차이임**을
 //      매번 증명한다(원본 필드에서 `rows`만 뺀 것과 완전 일치).
 //
 // ③ **`isRubricLikeQuestion`/문항 추출을 두 벌로 두지 않는다.**
@@ -536,7 +536,7 @@ export function inferSubmissionSchema(assessmentInfo = ""): SubmissionSchema {
  * 「판정이 1건도 달라지지 않는다」는 `type`/`label`/`notice`/필드 순서·라벨·헬퍼에
  * 대한 보장이고 그중 어느 것도 바뀌지 않는다. 판정 함수(`inferSubmissionSchema`)는
  * 원문 그대로 두고 정규화 단계 하나에서만 처리하므로, 원문 대조 검증
- * (`scripts/verify-performance-submission-schema.mjs` ①~⑤)도 그대로 성립한다.
+ * (`api/_lib/performance/submission-schema.test.ts`(옛 scripts/verify-performance-submission-schema.mjs) ①~⑤)도 그대로 성립한다.
  * 영속화 전에 이 함수를 반드시 통과하므로(`resolveSessionSubmissionSchema`)
  * `performance_sessions.submission_schema`에는 유일한 키만 저장된다.
  */
