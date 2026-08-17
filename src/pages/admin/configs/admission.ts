@@ -443,8 +443,9 @@ export const admissionConfigs: Record<string, AdminConfig> = {
     //
     // ⚠ 이 플래그를 다른 config 로 복사하지 마라. AdminTable 의 ✏️ 한 줄을
     // 35개 메뉴가 공유하고, settlements 는 같은 버튼을 👁 상세보기로 쓴다.
-    // (scripts/verify-admission-admin-entry.mjs 의 entry:2 가 소스 전체에서
-    //  hideRowEdit 이 정확히 1회만 등장하는지 락을 건다.)
+    // (AdminEngine.admissionEntry.test.tsx(옛 scripts/verify-admission-admin-entry.mjs)
+    //  의 entry:5 가 configs/ 전체에서 hideRowEdit 이 정확히 1회만
+    //  등장하는지 락을 건다.)
     //
     // 🔴 이 플래그로 잃는 것(사용자 고지 완료): 기존 행의 메타 9필드
     // (노출 여부·입학연도·지역·대학명·대학 키값·원문 대학명·정시 URL·메모·

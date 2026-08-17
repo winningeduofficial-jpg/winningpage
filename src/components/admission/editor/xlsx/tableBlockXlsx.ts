@@ -41,7 +41,9 @@ import type { Cell, Column, TableBlock } from "@/lib/admissionDoc";
 // 엑셀 셀 문자 수 한도(SheetJS가 XLSX.writeFile 시점에 실제로 이 값으로
 // throw한다 — 직접 재현 확인함). 사전 검사로 이 예외를 만나기 전에
 // 막는다.
-const MAX_XLSX_CELL_LENGTH = 32767;
+// export: TableBlockEditor.test.tsx(옛 verify-admission-table-editor.mjs
+// 14b/14c)가 32,767자 한도 자체를 직접 단언한다.
+export const MAX_XLSX_CELL_LENGTH = 32767;
 
 const BADGE_HAS_SUFFIX = " [최저있음]";
 const BADGE_NONE_SUFFIX = " [최저없음]";
@@ -50,7 +52,8 @@ const BADGE_NONE_SUFFIX = " [최저없음]";
 // 같은 문자열이 있어도 끝이 아니면 매칭 안 됨).
 const BADGE_SUFFIX_RE = /\s?\[최저(있음|없음)\]$/;
 
-function serializeCellForXlsx(cell: Cell): string {
+// export: TableBlockEditor.test.tsx(14a/15j/15k)가 직렬화 규칙을 직접 단언한다.
+export function serializeCellForXlsx(cell: Cell): string {
   if (cell === null || cell === undefined) return "";
   if (typeof cell === "string") return cell;
   if (typeof cell === "object") {
@@ -80,7 +83,8 @@ type OversizedCell = {
 };
 
 /** 32,767자를 초과하는 셀을 전부 찾는다(헤더 라벨 포함). 빈 배열이면 안전. */
-function findOversizedCells(block: TableBlock): OversizedCell[] {
+// export: TableBlockEditor.test.tsx(14b/14c)가 탐지 위치·길이를 직접 단언한다.
+export function findOversizedCells(block: TableBlock): OversizedCell[] {
   const oversized: OversizedCell[] = [];
   const check = (
     rawValue: unknown,
@@ -168,7 +172,8 @@ function buildHeaderRowsAndMerges(block: TableBlock): {
   return { headerRows: [row0, row1], merges };
 }
 
-function buildTableBlockWorksheet(block: TableBlock): XLSX.WorkSheet {
+// export: TableBlockEditor.test.tsx(14d/14e/14f)가 병합·헤더 배치를 직접 단언한다.
+export function buildTableBlockWorksheet(block: TableBlock): XLSX.WorkSheet {
   const { headerRows, merges } = buildHeaderRowsAndMerges(block);
   const bodyRows = block.rows.map((row) =>
     row.map((cell) => serializeCellForXlsx(cell)),
@@ -219,7 +224,8 @@ function sanitizeFileNamePart(value: unknown): string {
     .trim();
 }
 
-function buildXlsxFileName({
+// export: TableBlockEditor.test.tsx(14g)가 파일명 형식을 직접 단언한다.
+export function buildXlsxFileName({
   universityName,
   sectionLabel,
   variant,
@@ -274,7 +280,8 @@ export function exportTableBlockToXlsx(
   return { ok: true, oversized: [], fileName, workbook };
 }
 
-function buildTableBlockWorkbook(block: TableBlock): XLSX.WorkBook {
+// export: TableBlockEditor.test.tsx(15장 xlsx 왕복 케이스 전반)가 직접 조립해 쓴다.
+export function buildTableBlockWorkbook(block: TableBlock): XLSX.WorkBook {
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, buildTableBlockWorksheet(block), "표");
   XLSX.utils.book_append_sheet(workbook, buildFormatSheet(block), "형식 설명");
@@ -322,7 +329,8 @@ function triggerBrowserDownload(workbook: XLSX.WorkBook, fileName: string) {
  * 접미어 없이 들어오면 has/none 여부는 기본값 minimumNone으로 폴백 —
  * 관리자가 표 편집기에서 직접 고칠 수 있다).
  */
-function deserializeCellFromXlsx(
+// export: TableBlockEditor.test.tsx(15j/15k)가 역직렬화 폴백 규칙을 직접 단언한다.
+export function deserializeCellFromXlsx(
   rawValue: unknown,
   kind: "text" | "badge" | "chips",
 ): Cell {

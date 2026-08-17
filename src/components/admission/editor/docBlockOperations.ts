@@ -114,7 +114,9 @@ const PRIMARY_ADDABLE_KINDS_BY_SECTION: Record<string, string[]> = {
 // 새 group을 만들지는 않는다). 실측(team-lead
 // DB 집계: table 1310/heading 185/emptyBox 108/group 42/note 11/
 // plainList 9/footnote 1)의 note 11건도 전부 이 group 내부 값과 일치한다.
-const ALL_BLOCK_KINDS: string[] = [
+// export: TableBlockEditor.test.tsx(16e/16g)가 primary/advanced 분할의
+// 전체 집합 기준으로 직접 참조한다.
+export const ALL_BLOCK_KINDS: string[] = [
   "table",
   "note",
   "emptyBox",

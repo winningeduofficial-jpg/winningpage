@@ -1462,12 +1462,13 @@ export function AdminTable<T extends AdminRow = AdminRow>({
                           다른 config에서 메타 수정 경로가 사라진다.
 
                           ⚠ 이 분기는 반드시 admissionSection 분기보다 **앞**에
-                          있어야 한다. scripts/verify-admission-admin-entry.mjs 는
+                          있어야 한다. AdminEngine.admissionEntry.test.tsx(옛
+                          scripts/verify-admission-admin-entry.mjs)는
                           admissionSection 분기의 시작과 fileList 분기의 시작을
                           앵커로 그 사이를 잘라내 하네스에
                           sectionSummaries/index/column/row/onOpenSection 만
                           주입한다. 이 분기가 그 사이에 끼면 onOpenMetaEdit
-                          미주입으로 스크립트가 ReferenceError 로 죽는다.
+                          미주입으로 테스트가 ReferenceError 로 죽는다.
                           (앵커 문자열을 이 주석에 그대로 복제하지도 말 것 —
                           "정확히 1개" 조건이 깨져 슬라이스가 실패한다.) */}
                       {/* column.render(row): 같은 행의 다른 컬럼을 봐야 하는 셀
@@ -1478,7 +1479,7 @@ export function AdminTable<T extends AdminRow = AdminRow>({
 
                           ⚠ 이 분기는 반드시 admissionSection 분기보다 **앞**에
                           있어야 한다 — 아래 universityNameMeta 분기의 주석과 같은
-                          이유다(scripts/verify-admission-admin-entry.mjs 슬라이스).
+                          이유다(AdminEngine.admissionEntry.test.tsx 슬라이스).
 
                           render를 선언하지 않은 컬럼은 아래 기존 분기를 그대로
                           탄다(저장소 전체 column.render 선언 0건).

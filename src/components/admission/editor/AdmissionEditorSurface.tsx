@@ -58,8 +58,9 @@
 // (@media 는 specificity 에 영향을 주지 않는다).
 //
 // ⛔ 여기에 `.admission-table-editor` 없는 셀렉터를 추가하지 마라 —
-//    그 순간 공개 표가 함께 바뀐다. scripts/verify-admission-editor-surface.mjs
-//    의 surf:2 가 정규식 스캔으로 막는다. 길이 단위는 rem/% 만 쓴다(surf:3).
+//    그 순간 공개 표가 함께 바뀐다. AdmissionEditorSurface.test.tsx(옛
+//    scripts/verify-admission-editor-surface.mjs)의 surf:2 가 정규식 스캔으로
+//    막는다. 길이 단위는 rem/% 만 쓴다(surf:3).
 export default function AdmissionEditorSurface() {
   return (
     <style>{`
