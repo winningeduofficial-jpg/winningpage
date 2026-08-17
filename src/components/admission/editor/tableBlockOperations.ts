@@ -1,5 +1,5 @@
-// TableBlock 구조 변경(셀/행/열)을 순수 함수로 분리 — TableBlockEditor.jsx가
-// 이 함수들을 그대로 소비하고, 검증 스크립트(scripts/verify-admission-table-editor.mjs)
+// TableBlock 구조 변경(셀/행/열)을 순수 함수로 분리 — TableBlockEditor.tsx가
+// 이 함수들을 그대로 소비하고, TableBlockEditor.test.tsx(옛 scripts/verify-admission-table-editor.mjs)
 // 도 React/DOM 없이 이 함수들만 직접 import해서 로직을 단언한다(컴포넌트를
 // 렌더하지 않고도 "열 추가 시 전 행 길이가 함께 맞춰지는지" 같은 구조적
 // 불변식을 검증할 수 있다).
