@@ -22,7 +22,7 @@
 // 그래서 어드민 편집 모달의 본문 클래스는 `admission-editor-modal-body` 로
 // **이름 자체가 다르다**. 숨김 규칙이 도달할 셀렉터 경로가 문법적으로
 // 존재하지 않는다. 어드민 바디에 `admission-modal-body` 를 붙이지 마라
-// (scripts/verify-admission-modal-shell.mjs 의 소스 스캔 락이 막는다).
+// (src/pages/AdmissionGuidelines.modalShell.test.tsx 의 소스 스캔 락이 막는다).
 export default function AdmissionModalStyles() {
   return (
     <style>{`

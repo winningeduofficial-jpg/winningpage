@@ -15,7 +15,7 @@
     "2) /admission/guidelines 목록 tbody tr[rowIndex] 의 children[colIndex] 안 a/button 을 클릭한다.",
     "3) \"불러오는 중입니다\"가 사라진 뒤 900ms 대기하고 위 capturedNode 를 뜬다.",
     "4) 프록시 바가 있으면 bar.scrollLeft 를 끝까지 밀고 scroll 이벤트를 쏜 뒤 300ms 후 대상 표의 scrollLeft 를 읽어 metrics 를 채운다.",
-    "5) node scripts/verify-admission-modal-shell.mjs --browser <새캡처.json>"
+    "5) node scripts/capture-admission-modal-shell-golden.mjs --browser <새캡처.json>"
   ],
   "metricsMeaning": "movedToEnd=true 는 \"프록시 바를 우측 끝까지 밀면 표도 끝까지 간다\"는 뜻이다. 마크업 골든이 절대 못 잡는 항목 — 프록시가 무증상으로 죽는 경로를 기계로 잡는 유일한 값이다.",
   "cases": {

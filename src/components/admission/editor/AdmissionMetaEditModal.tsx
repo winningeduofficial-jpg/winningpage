@@ -38,7 +38,7 @@ export interface AdmissionMetaRow {
 // 또 만들지 않는다 — AdmissionSectionEditModal.jsx와 같은 패턴).
 // bodyClassName은 명시적으로 넘긴다: AdmissionModalShell의 기본값
 // (PUBLIC_BODY_CLASS)은 'admission-modal-body'를 포함해 공개 전용
-// 가로 스크롤바 숨김 규칙을 물려받는다(scripts/verify-admission-modal-shell.mjs
+// 가로 스크롤바 숨김 규칙을 물려받는다(src/pages/AdmissionGuidelines.modalShell.test.tsx
 // 의 lock:no-admission-modal-body-in-admin이 이 클래스명을 락으로 막는다).
 //
 // 저장 경로: Admin.jsx의 saveAdmissionMeta가 config.rowToForm/formToPayload를
