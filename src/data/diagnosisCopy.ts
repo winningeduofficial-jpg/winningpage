@@ -886,7 +886,7 @@ export const BANNED_PHRASES = [
 ];
 
 // §5.3 검사 지점 4종(정적 문구 / fill 반환값 / q19 되비추기 / buildReport 합성 문자열)은
-// verify-diagnosis-scoring.mjs 의 S12·S13 이 그대로 수행한다. 같은 범위를 데이터로 한 벌 더
+// diagnosisCopy.count.test.ts(옛 scripts/verify-diagnosis-scoring.mjs)의 S12·S13 이 그대로 수행한다. 같은 범위를 데이터로 한 벌 더
 // 적어 두면 스크립트만 고쳤을 때 조용히 갈라지므로 목록은 스크립트 헤더 주석 한 곳에만 둔다.
 
 // ─────────────────────────────────────────────────────────────

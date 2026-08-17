@@ -172,7 +172,7 @@ export default function PerformanceSidebar({
                     둘 다 현재 페이지라고 읽는다. 게다가 className이 문자열이면 활성 항목에
                     `active` 리터럴 클래스까지 덧붙는다. 활성 판정이 아래처럼 커스텀이고 두
                     항목이 상호 배타이므로, prop을 <a>로 그대로 흘리는 Link를 쓴다.
-                    (회귀 검증: scripts/verify-performance-sidebar-nav.mjs) */}
+                    (회귀 검증: PerformanceSidebar.test.tsx, 옛 scripts/verify-performance-sidebar-nav.mjs) */}
                 <Link
                   to={item.to}
                   aria-current={isActive ? "page" : undefined}

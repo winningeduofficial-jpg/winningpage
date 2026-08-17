@@ -159,7 +159,7 @@ export const GUIDE_PROMPT_VERSION = "guide-v1";
 // CROSS_SUBJECT_CONNECTION_GUIDE — 교과 연계 매트릭스 11조
 // ─────────────────────────────────────────────────────────────────────
 // 원문: `suhaengpyeong/api/_lib/config.js:60-81`(본문 61-80). **1바이트도 변경 금지**(§12.1).
-// `scripts/verify-performance-prompt-parity.mjs`가 원본 파일과 `Buffer.equals`로 대조한다.
+// `api/_lib/performance/prompts.test.ts`(옛 scripts/verify-performance-prompt-parity.mjs)가 원본 파일과 `Buffer.equals`로 대조한다.
 //
 // §12.1 「원문 유지. 10조는 스키마로 강제 불가한 의미 제약이므로 서버 후검증을 두지 않는다
 // (오탐 위험)」 — 즉 `추천 3개 중 최소 1개는 같은 과목 심화`(10조)를 코드로 재검사하지
@@ -670,7 +670,7 @@ export const NO_ASSESSMENT_INFO_TEXT = "안내문 정보 없음";
  *
  * 두 버전의 **유일한 차이**는 `CORE_PRINCIPLES` + 연결 문장 블록의 유무다. 그래야 A/B가
  * 단일 변수 비교가 된다 — `buildDesignReportSystem`은 v2 = `CORE + BRIDGE + '\n\n' + v1`을
- * 보장하고, `scripts/verify-performance-prompt-parity.mjs`가 `endsWith`로 그 관계를 검증한다.
+ * 보장하고, `api/_lib/performance/prompts.test.ts`(옛 scripts/verify-performance-prompt-parity.mjs)가 `endsWith`로 그 관계를 검증한다.
  */
 export const DESIGN_PROMPT_VERSIONS = Object.freeze({
   /** `CORE_PRINCIPLES` 미주입 — 외부 앱 동작 재현본. **A/B 검증 전용.** */
@@ -1549,7 +1549,7 @@ export const SUBMISSION_TOO_SHORT_MESSAGE =
 //    센다). 이름이 겹치는 한, 실수로 이쪽을 import해 `(schema, fields)`로 부르면 인자 2개를
 //    조용히 삼키고 **스키마 객체의 키들**을 세어 항상 100자를 넘는 total을 돌려준다 —
 //    게이트가 무력화되는데 에러는 나지 않는다(검토 P11). 유일한 호출부였던
-//    `scripts/verify-performance-prompt-parity.mjs`가 정본을 쓰도록 바꾸고 사본을 지웠다.
+//    `api/_lib/performance/prompts.test.ts`(옛 scripts/verify-performance-prompt-parity.mjs)가 정본을 쓰도록 바꾸고 사본을 지웠다.
 //    임계값 상수(`SUBMISSION_MIN_CHARS`)만 원문 `evaluate-text.js:37`의 기록으로 남는다.
 
 // ─────────────────────────────────────────────────────────────────────
@@ -1631,8 +1631,8 @@ ${EVALUATION_FORMAT_BRIDGE_RULES}
  *   `CORE_PRINCIPLES`(원문 `:63` 그대로) → 원문 앞덩어리(역할 + 출력 규칙)
  *   → **Q68 연결 블록** → 원문 뒷덩어리(평가 형식)
  *
- * 위 경계표 ⓐ~ⓔ가 이 함수의 계약이고, `scripts/verify-performance-prompt-parity.mjs`
- * [9]가 원본 파일과 직접 대조해 지킨다.
+ * 위 경계표 ⓐ~ⓔ가 이 함수의 계약이고, `api/_lib/performance/prompts.test.ts`(옛
+ * scripts/verify-performance-prompt-parity.mjs)[9]가 원본 파일과 직접 대조해 지킨다.
  *
  * @param {object} params
  * @param {string} [params.structureType] `inferGuideStructure().type` (Q68)
