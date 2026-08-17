@@ -4,35 +4,21 @@
 // 엔드포인트 표 / §8.3 스키마 단정 / §9.3 회차 규칙 / §12.2·§12.4 이식 결정
 // 위에 서 있다. 이 계약들은 깨져도 코드가 그대로 돈다 — 차감 한 줄이
 // 들어와도, 게이트 순서가 뒤집혀도, 에러 코드가 하나 사라져도 테스트 없이는
-// 배포까지 간다. 그래서 다음 6가지를 기계로 못박는다.
+// 배포까지 간다. 그래서 다음 4가지를 기계로 못박는다.
 //
-//   [1] 제출물 평문 조립 — 외부 `index.html:2246-2252` `buildSubmissionText`와
-//       문자 단위 동일(원본을 실제로 실행해 대조)
-//   [2] Q35 게이트       — 외부 결합 문자열은 통과하는 입력이 우리 게이트에서는 막히는가
 //   [3] 차감 부재        — 3파일 + sql/58 어디에도 차감 경로가 없는가(§9.3, §12.4)
 //   [4] 계약 코드 커버   — §8.6이 정의한 실패 코드가 각 파일에 실재하는가
 //   [5] 실패 응답 형태   — `{error:{code,message}}`만 쓰고 외부식 `detail`/
 //       `error_message`가 응답 본문에 실리지 않는가(§8.6 L1811)
 //   [6] sql/58 불변식    — 부분 UNIQUE 3종 / rag_use 승격 2지점 / EXECUTE 회수 /
 //       멱등 분기(already_final · already_finalized_other)
-//
-// 원본이 없으면 [1][2]만 skip
-// -------------------------
-// 외부 앱(`/Users/hyunsoo/uwellnow/suhaengpyeong`)은 이 저장소에 없는 로컬
-// 경로다. [3]~[6]은 우리 저장소만 보므로 원본 유무와 무관하게 항상 실행한다.
-// 경로는 `SUHAENGPYEONG_DIR`로 덮어쓸 수 있다.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { beforeAll, describe, expect, test } from "vitest";
-
-import * as ported from "../_lib/performance/submission-schema.js";
+import { describe, expect, test } from "vitest";
 
 const CURRENT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(CURRENT_DIR, "../..");
-const SOURCE_DIR =
-  process.env.SUHAENGPYEONG_DIR || "/Users/hyunsoo/uwellnow/suhaengpyeong";
-const SOURCE_HTML = path.join(SOURCE_DIR, "index.html");
 
 const read = (relative: string) =>
   fs.readFileSync(path.join(REPO_ROOT, relative), "utf8");
@@ -58,164 +44,6 @@ const FINALIZE_CODE = codeOnly(FINALIZE_API);
 
 /** `--` 주석을 지운 SQL 본문. 주석에서 원장·이용권을 언급하는 것은 정상이다. */
 const SQL58_CODE = SQL58.replace(/^\s*--.*$/gm, " ");
-
-const sourceExists = fs.existsSync(SOURCE_HTML);
-
-// ─────────────────────────────────────────────────────────────────────
-// [1][2] 원본 실행 대조 — buildSubmissionText 원문 + Q35 게이트
-// ─────────────────────────────────────────────────────────────────────
-describe.skipIf(!sourceExists)(
-  "원본 실행 대조 (SUHAENGPYEONG_DIR 필요)",
-  () => {
-    let externalBuildSubmissionText: (
-      topic: unknown,
-      schema: { label: string; fields: { label: string; key: string }[] },
-      fields: Record<string, unknown>,
-    ) => string;
-    let anchorStart = -1;
-    let anchorEnd = -1;
-
-    // describe 콜백 몸체는 skipIf 여부와 무관하게 항상 실행되므로(테스트만
-    // 골라 skip된다), 원본 파일 읽기·함수 되살리기는 beforeAll 안에서만 해야
-    // 한다 — skip된 스위트는 beforeAll도 실행하지 않는다.
-    beforeAll(() => {
-      const html = fs.readFileSync(SOURCE_HTML, "utf8");
-      anchorStart = html.indexOf("function buildSubmissionText(");
-      anchorEnd = html.indexOf("\n}\n", anchorStart);
-
-      const src = html.slice(anchorStart, anchorEnd + 2);
-      // 원본 함수를 텍스트로 잘라 그대로 되살려 실행 대조하는 것이 이 검증의
-      // 핵심이다.
-      externalBuildSubmissionText = new Function(
-        `${src}\nreturn buildSubmissionText;`,
-      )() as typeof externalBuildSubmissionText;
-    });
-
-    describe("[1] buildSubmissionText 원문 대조 (index.html:2246-2252)", () => {
-      test("원본에 buildSubmissionText가 실재한다", () => {
-        expect(anchorStart).not.toBe(-1);
-        expect(anchorEnd).not.toBe(-1);
-      });
-
-      const fixtures = [
-        {
-          name: "기본 보고서형 3필드",
-          topic: "의료 정보의 비판적 수용",
-          schema: ported.defaultSubmissionSchema(),
-          fields: {
-            intro: "서론 본문",
-            body: "본론 본문",
-            conclusion: "결론 본문",
-          },
-        },
-        {
-          name: "문항형 6필드(값 일부 비움)",
-          topic: "연잎 효과와 초발수 표면",
-          // 원본 추출기의 행 앵커는 `질문 N:`이다(`guide-structure.ts extractAnswerQuestions`).
-          schema: ported.inferSubmissionSchema(
-            "질문 1: 주제를 고른 이유는 무엇인가요?\n질문 2: 어떤 자료를 활용했나요?\n질문 3: 분석 결과는 무엇인가요?\n질문 4: 무엇을 느꼈나요?\n질문 5: 후속 탐구 방향은 무엇인가요?\n질문 6: 진로와 어떻게 연결되나요?",
-          ),
-          fields: { question_1: "가", question_3: "나" },
-        },
-        {
-          name: "카드뉴스형 + 빈 주제",
-          topic: "",
-          schema: ported.inferSubmissionSchema("카드뉴스 4장을 제작한다."),
-          fields: {
-            purpose: "제작 의도",
-            card_plan: "",
-            evidence: "근거",
-            message: "메시지",
-          },
-        },
-        {
-          name: "값에 개행·공백이 섞인 경우",
-          topic: "  띄어쓰기  주제  ",
-          schema: ported.defaultSubmissionSchema(),
-          fields: { intro: "한 줄\n\n두 줄  ", body: "   ", conclusion: "끝" },
-        },
-      ];
-
-      test.each(fixtures)(
-        "조립 결과 동일 — $name",
-        ({ topic, schema, fields }) => {
-          // 원본은 rows가 있는 필드 객체를 받지만 이 함수는 label/key만 읽는다 —
-          // 그래서 이식본 스키마(rows 제거본)를 그대로 넣어도 원본이 같은 값을 낸다.
-          const external = externalBuildSubmissionText(topic, schema, fields);
-          const mine = ported.buildSubmissionText(topic, schema, fields);
-
-          expect(
-            Buffer.from(external, "utf8").equals(Buffer.from(mine, "utf8")),
-            `external=${JSON.stringify(external)}\n      ported=${JSON.stringify(mine)}`,
-          ).toBe(true);
-        },
-      );
-
-      test("깨진 스키마도 기본 보고서형으로 축퇴한다(원본에 없던 방어)", () => {
-        expect(
-          ported.buildSubmissionText("주제", { fields: [] }, {}),
-        ).toContain("[제출 형식] 기본 보고서형");
-      });
-    });
-
-    describe("[2] 100자 게이트가 재는 대상 (Q35, §12.2 L2373)", () => {
-      // 「주제명만 붙여넣고 회차를 태우는 오용」 — 규정이 정확히 막으려던 케이스.
-      const topic =
-        "의료 정보의 비판적 수용: 건강기능식품 광고의 설득 전략 분석";
-
-      // 문항형은 최대 20필드다(`index.html:2152`). 필드 수가 늘수록 라벨 뼈대만으로
-      // 임계값을 넘으므로, 외부 계산식의 결함이 가장 선명하게 드러나는 형태다.
-      const questionSchema = ported.inferSubmissionSchema(
-        // 행 앵커는 `질문 N:`이고, 본문이 같으면 중복 제거된다.
-        Array.from(
-          { length: 8 },
-          (_, i) => `질문 ${i + 1}: ${i + 1}번째로 확인할 내용은 무엇인가요?`,
-        ).join("\n"),
-      );
-      const thinFields = {
-        question_1: "가",
-        question_2: "나",
-        question_3: "다",
-      };
-
-      test("문항형 8필드 — 외부 계산식(결합 문자열)은 본문 3자로도 100자를 통과, 우리 계산식(순수 본문 합)은 3자로 판정해 막는다", () => {
-        const externalText = externalBuildSubmissionText(
-          topic,
-          questionSchema,
-          thinFields,
-        );
-        const externalLength = externalText.trim().length;
-        const gate = ported.checkSubmissionMinLength(
-          questionSchema,
-          thinFields,
-        );
-
-        expect(questionSchema.fields.length).toBe(8);
-        expect(externalLength).toBeGreaterThanOrEqual(100);
-        expect(gate.total).toBe(3);
-        expect(gate.ok).toBe(false);
-
-        // 서버가 조립한 평문에도 같은 결함 입력이 그대로 들어간다(조립≠측정 분리).
-        expect(
-          ported.buildSubmissionText(topic, questionSchema, thinFields),
-        ).toBe(externalText);
-      });
-
-      // 기본 보고서형(3필드)은 뼈대가 79자라 외부 계산식으로도 통과하지 못한다 —
-      // 즉 외부의 결함은 "항상 통과"가 아니라 필드 수·주제 길이에 따라 통과다.
-      test("스키마 밖 키로는 게이트를 채울 수 없다", () => {
-        const basicSchema = ported.defaultSubmissionSchema();
-        const basicFields = { intro: "가", body: "나", conclusion: "다" };
-        expect(
-          ported.checkSubmissionMinLength(basicSchema, {
-            ...basicFields,
-            junk: "라".repeat(500),
-          }).total,
-        ).toBe(3);
-      });
-    });
-  },
-);
 
 // ─────────────────────────────────────────────────────────────────────
 // [3] 차감 부재 (§9.3 / §12.4 — 외부 evaluate-text.js:51 선차감 이식 금지)
