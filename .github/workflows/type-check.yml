@@ -26,7 +26,7 @@ jobs:
       # api/ 는 별도 tsconfig(NodeNext resolution)로 상대 import .js 확장자
       # 강제 — 2026-08-14 production 크래시(TS import 확장자 사고) 재발 방지 게이트.
       - name: tsc --noEmit (api, NodeNext)
-        run: npx tsc --noEmit -p api/tsconfig.json
+        run: npm run typecheck:api
 
       # any 비율 후퇴 방지 게이트. 임계값은 package.json의 type-coverage
       # 스크립트(--at-least)에 고정돼 있다 — 개선되면 npx type-coverage --update로
