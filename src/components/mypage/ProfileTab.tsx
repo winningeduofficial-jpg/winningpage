@@ -68,6 +68,7 @@ type ParentLink = {
   id: string;
   status: string;
   date?: string | null;
+  name?: string | null;
 };
 
 type ProfileTabProps = {
@@ -168,32 +169,29 @@ export default function ProfileTab({
     };
   }, [profileId]);
 
-  // 학부모 연동 상태 — 승인/대기 중 연결만 읽기 전용으로 조회한다. 주의: profiles RLS가
-  // 본인 행만 select 허용해(profiles_select_own) 연결된 학부모의 이름은 클라이언트에서
-  // 읽을 수 없다 — 이름을 보여주려면 서버 RPC가 하나 더 필요하다(이 작업 범위 밖, 지어내지
-  // 않음). 그래서 이름 대신 일반 라벨("학부모님")로 표시한다.
+  // 학부모 연동 상태 — 승인/대기 중 연결만 읽기 전용으로 조회한다. profiles RLS가
+  // 본인 행만 select 허용해(profiles_select_own) parent_child_links를 직접 읽어서는
+  // 연결된 학부모의 이름을 못 가져온다 — fn_student_parent(sql/77, SECURITY DEFINER)가
+  // 그 제약을 좁게 우회해 이름까지 함께 돌려준다(PaymentsTab.tsx가 이미 같은 RPC 사용 중).
   useEffect(() => {
     if (!profileId || isParent) return;
     let alive = true;
 
     (async () => {
-      const { data, error } = await supabase
-        .from("parent_child_links")
-        .select("id, status, requested_at, responded_at")
-        .eq("student_id", profileId)
-        .in("status", ["approved", "pending"]);
+      const { data, error } = await supabase.rpc("fn_student_parent");
 
       if (!alive) return;
-      if (error || !data || data.length === 0) {
+      if (error || !Array.isArray(data) || data.length === 0) {
         setParentLink(null);
         return;
       }
-      // 위 data.length===0 가드를 통과했으므로 data[0]은 항상 존재한다.
-      const row = data.find((r) => r.status === "approved") || data[0]!;
+      // RPC가 approved를 먼저 정렬해 돌려준다 — 첫 행만 쓴다.
+      const row = data[0];
       setParentLink({
-        id: row.id,
-        status: row.status,
-        date: row.status === "approved" ? row.responded_at : row.requested_at,
+        id: row.link_id,
+        status: row.link_status,
+        date: row.linked_at,
+        name: row.parent_name,
       });
     })();
 
@@ -365,7 +363,9 @@ export default function ProfileTab({
             <div className="rounded-xl border border-line bg-surface-card px-4 py-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-ink">학부모님</span>
+                  <span className="text-sm text-ink">
+                    {parentLink.name || "학부모님"}
+                  </span>
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                       parentLink.status === "approved"
