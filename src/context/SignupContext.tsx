@@ -52,7 +52,10 @@ interface SignupVerification {
     mode: string | null;
     resumed: boolean;
   };
-  pass: { verified: boolean };
+  // Under14Verify(D-1)가 본인확인 성공 시 requestId를 함께 남긴다. 가입 RPC가
+  // 이 값으로 identity_verifications 행을 찾아 검증·소비한다(sql/84_under14_signup.sql).
+  // 그때까지는 requestId를 쓰는 곳이 없어 { verified }만 선언돼 있었다.
+  pass: { verified: boolean; requestId?: string; verifiedAt?: number };
 }
 
 interface SignupState {
