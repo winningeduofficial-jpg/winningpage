@@ -2,7 +2,7 @@
 // InviteChild(E-6)에서 navigate state로 전달된 childName/inviteUrl을 표시. 가입 시 자동
 // 연결 로직은 전부 백엔드 신규(§4.2-3 GAP) — inviteUrl은 공통 가입 링크 mock 값
 // (토큰 딥링크 미사용, 2026-07-30 기획 결정).
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   AuthLayout,
@@ -23,11 +23,19 @@ export default function InviteDone() {
 
   // memberType 단독 가드는 실제 가입 완료 없이도 URL 직접 진입으로 뚫릴 수 있어
   // parentSignupCompleted(ParentForm 가입 성공 시에만 true)를 함께 요구한다.
+  // ⚠️ 마운트 시점 값으로 한 번만 판정한다 — StudentComplete와 같은 이유(2026-08-18).
+  //   화면을 떠나며 resetSignup()을 부르면 memberType과 완료 플래그가 함께 초기화된다.
+  //   가드가 그 값을 계속 지켜보고 있으면 그 순간 다시 돌아 /signup으로 되돌려,
+  //   "홈으로 가기"가 가입 화면으로 튀었다.
+  const entryAllowedRef = useRef(
+    memberType === "parent" && parentSignupCompleted,
+  );
+
   useEffect(() => {
-    if (memberType !== "parent" || !parentSignupCompleted) {
+    if (!entryAllowedRef.current) {
       navigate("/signup", { replace: true });
     }
-  }, [memberType, parentSignupCompleted, navigate]);
+  }, [navigate]);
 
   function handleGoHome() {
     resetSignup();

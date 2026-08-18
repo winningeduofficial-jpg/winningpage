@@ -77,16 +77,13 @@ export default function Under14Verify() {
         return;
       }
 
-      // requestId를 남겨둔다 — 가입 RPC가 이 인증을 소비하게 되면 필요하다.
-      // SignupContext(담당 파일 아님)의 SignupVerification['pass'] 타입이 아직
-      // { verified: boolean }만 선언해 requestId/verifiedAt을 모른다 — updateVerification
-      // 구현은 partial을 그대로 스프레드하므로 런타임엔 값이 저장되지만, 타입 상으로는
-      // 초과 프로퍼티라 여기서만 캐스트로 우회한다(동작 변경 없음, 타입 갭은 별도 보고).
+      // requestId를 남겨둔다 — D-2 제출이 이 값을 가입 RPC에 실어 보내고,
+      // 서버가 identity_verifications를 검증·소비한다(sql/84_under14_signup.sql).
       updateVerification("pass", {
         verified: true,
         requestId: result.requestId,
         verifiedAt: Date.now(),
-      } as Parameters<typeof updateVerification>[1]);
+      });
 
       navigate("/signup/student/under14");
     } finally {

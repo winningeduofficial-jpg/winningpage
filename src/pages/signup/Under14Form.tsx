@@ -29,7 +29,9 @@ import {
 } from "@/components/auth";
 import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
+import { normalizePhone } from "@/lib/phoneVerification";
 import {
+  applySignupPassword,
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
   MESSAGES,
@@ -44,8 +46,10 @@ import { REGION_OPTIONS } from "./StudentForm";
 // AS-IS 재학구분 enum(§2.2: "초·중·고·N수생·기타") 그대로 채택.
 const SCHOOL_TYPE_OPTIONS = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
 
-// 14세 미만 가입 플로우는 아직 백엔드 연동이 없는 데드엔드라 기본 off — StudentBirth.jsx/
-// Under14Verify.jsx와 동일 플래그. off인 배포에서는 URL 직접 진입도 막는다.
+// StudentBirth.jsx / Under14Verify.jsx와 동일 플래그. off인 배포에서는 URL 직접 진입도 막는다.
+// 백엔드 연동이 없던 시절의 "데드엔드라 기본 off"는 더 이상 사유가 아니다 — 제출까지
+// 배선됐다(sql/84_under14_signup.sql). 다만 켜려면 **그 마이그레이션이 먼저 적용**돼야
+// 한다. 안 된 환경에서 켜면 RPC 인자 3개가 없어 제출이 통째로 실패한다.
 const UNDER14_SIGNUP_ENABLED =
   import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === "true";
 
@@ -61,6 +65,50 @@ function isValidEmail(value: string) {
 
 function isValidPassword(value: string) {
   return /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/.test(value);
+}
+
+// complete_signup_profile이 raise 하는 코드를 사용자 문구로 옮긴다.
+// 앞 5건은 C-1과 공통이고, guardian_* / identity_* 3건은 D-2에만 해당한다
+// (sql/84_under14_signup.sql (3)).
+function getSignupRpcMessage(raw?: string) {
+  const message = String(raw || "").toLowerCase();
+
+  if (message.includes("duplicate_email")) {
+    return "이미 가입된 이메일입니다. 로그인 페이지에서 로그인해 주세요.";
+  }
+  if (message.includes("duplicate_phone")) {
+    return "이미 가입에 사용된 전화번호입니다.";
+  }
+  if (message.includes("not_authenticated")) {
+    return "로그인 세션이 만료되었습니다. 이메일 인증을 다시 진행해 주세요.";
+  }
+  if (message.includes("phone_not_verified")) {
+    return "휴대폰 인증이 확인되지 않았습니다. 인증을 마친 뒤 다시 시도해 주세요.";
+  }
+  if (message.includes("identity_required")) {
+    return "본인 인증을 위한 정보 수집 동의가 필요합니다.";
+  }
+
+  // ── D-2 전용 ──
+  // 본인확인은 30분이 지나면 소비할 수 없다. 폼을 오래 열어둔 경우가 대부분이라
+  // 처음부터가 아니라 D-1으로만 돌려보낸다.
+  if (
+    message.includes("identity_not_verified") ||
+    message.includes("identity_purpose_mismatch")
+  ) {
+    return "법정대리인 본인확인이 확인되지 않았습니다. 본인확인을 다시 진행해 주세요.";
+  }
+  if (message.includes("guardian_age")) {
+    return "법정대리인 본인확인은 만 14세 이상만 가능합니다.";
+  }
+  if (message.includes("guardian_phone_required")) {
+    return "법정대리인 전화번호를 입력해 주세요.";
+  }
+  if (message.includes("guardian_consent_required")) {
+    return "법정대리인 정보 수집 동의가 필요합니다.";
+  }
+
+  return `회원 정보 저장 중 문제가 발생했습니다: ${raw}`;
 }
 
 // StudentForm.jsx의 동명 헬퍼와 동일 — 공유 훅/유틸 추출은 StudentForm 소유권 밖이라
@@ -162,6 +210,8 @@ export default function Under14Form() {
     updateAgreements,
     updateVerification,
     setAllAgreements,
+    setLinkCode,
+    setSignupCompleted,
   } = useSignup();
   const [emailMessage, setEmailMessage] = useState<FieldMessage>({
     text: "",
@@ -239,8 +289,7 @@ export default function Under14Form() {
 
     // 비밀번호는 여기서 요구하지 않는다. 비어 있으면 임시 비밀번호로 계정이
     // 만들어지고, 실제 값은 가입을 끝내는 시점에 applySignupPassword가 채운다
-    // (src/lib/signupEmailAuth.js). ⚠️ 이 화면은 아직 제출 단계가 없으므로
-    // 다음 스텝을 붙일 때 applySignupPassword 호출을 함께 넣어야 한다.
+    // (src/lib/signupEmailAuth.js — handleNext에서 호출한다).
     const { state, mode, resumed, error } = await sendSignupEmailCode({
       email: normalizedEmail,
       password: formData.password,
@@ -368,13 +417,120 @@ export default function Under14Form() {
       (item) => agreements[item.key],
     );
 
-  const [showNextComingSoon, setShowNextComingSoon] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState("");
 
-  // TODO(다음 단계 미확정): §3.3 D-2 "U1 -> U2 다음 단계(화면 데이터 없음 — 확인 필요)".
-  // 실제 다음 라우트/제출 시퀀스가 정해지기 전까지 스텁으로 남겨두되, ParentForm의 "준비
-  // 중" 안내 패턴과 동일하게 클릭 시 사용자에게 안내 문구를 노출한다.
-  function handleNext() {
-    setShowNextComingSoon(true);
+  // 제출 시퀀스는 C-1(StudentForm)과 같다: 세션 확인 → 비밀번호 반영 →
+  // complete_signup_profile → C-2(StudentComplete). D-2만의 차이는 두 가지다.
+  //
+  //  - 법정대리인 정보(연락처·수집 동의)를 함께 보낸다.
+  //  - D-1에서 받은 본인확인 requestId를 보낸다. 서버가 이 값으로
+  //    identity_verifications를 검증하고 소비한다(sql/84_under14_signup.sql).
+  //    이게 없으면 어렵게 붙인 NICE 본인확인이 서버에서 확인되지 않는다.
+  //
+  // 학생 본인 명의 번호가 없으면(noOwnPhone) 번호를 비워 보낸다 — 서버가 그
+  // 경우에만 휴대폰 인증 강제를 면제한다. 번호를 적었다면 면제되지 않는다.
+  async function handleNext() {
+    setFormError("");
+    setLoading(true);
+
+    try {
+      const normalizedName = formData.name.trim();
+      const normalizedEmail = formData.email.trim().toLowerCase();
+      const normalizedPhone = formData.noOwnPhone
+        ? ""
+        : normalizePhone(formData.phone);
+      const normalizedSchoolName =
+        formData.schoolType === "N수생" ? "" : formData.schoolName.trim();
+
+      const { data: userData, error: getUserError } =
+        await supabase.auth.getUser();
+
+      if (getUserError) {
+        setFormError(
+          `사용자 정보를 불러오지 못했습니다: ${getUserError.message}`,
+        );
+        return;
+      }
+
+      const currentUser = userData.user;
+
+      if (!currentUser?.id) {
+        setFormError(
+          "이메일 인증 세션을 찾을 수 없습니다. 다시 인증해 주세요.",
+        );
+        return;
+      }
+
+      if ((currentUser.email || "").toLowerCase() !== normalizedEmail) {
+        setFormError(
+          "인증한 이메일과 입력한 이메일이 다릅니다. 다시 인증해 주세요.",
+        );
+        return;
+      }
+
+      // 이메일 인증 시점에는 임시 비밀번호였을 수 있다(위 requestEmailCode 주석).
+      // 빠뜨리면 방금 정한 비밀번호로 로그인할 수 없다.
+      const { error: passwordError } = await applySignupPassword(
+        formData.password,
+      );
+
+      if (passwordError) {
+        setFormError(
+          "비밀번호 설정에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+        return;
+      }
+
+      const { data: profileResult, error: profileError } = await supabase.rpc(
+        "complete_signup_profile",
+        {
+          p_name: normalizedName,
+          p_username: normalizedEmail,
+          p_phone: normalizedPhone,
+          p_email: normalizedEmail,
+          p_region: formData.region,
+          p_school_type: formData.schoolType,
+          p_school_name: normalizedSchoolName,
+          p_member_type: "student",
+          p_terms_service_agreed: agreements.service,
+          p_privacy_required_agreed: agreements.privacyRequired,
+          p_identity_required_agreed: agreements.identityRequired,
+          p_privacy_optional_agreed: agreements.privacyOptional,
+          p_marketing_agreed: agreements.marketing,
+          p_ads_agreed: agreements.ads,
+          p_guardian_phone: normalizePhone(formData.guardianPhone),
+          p_guardian_consent: formData.guardianConsent,
+          p_identity_request_id: verification.pass.requestId ?? "",
+        },
+      );
+
+      if (profileError) {
+        setFormError(getSignupRpcMessage(profileError.message));
+        return;
+      }
+
+      if (!profileResult?.ok) {
+        setFormError(
+          "회원 정보 저장 결과를 확인할 수 없습니다. 다시 시도해 주세요.",
+        );
+        return;
+      }
+
+      // 연결코드는 RPC가 발급해 응답에 담아준다. 여기서 넘기지 않으면 C-2가
+      // DB에 없는 코드를 만들어 보여준다(StudentForm과 동일한 함정).
+      if (profileResult.link_code) {
+        setLinkCode(profileResult.link_code);
+      }
+
+      setSignupCompleted(true);
+
+      // 가입 완료 후 signOut 하지 않는다 — C-2의 CTA가 로그인 상태를 요구한다
+      // (2026-08-06 정책, StudentForm과 동일).
+      navigate("/signup/student/complete");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -577,10 +733,10 @@ export default function Under14Form() {
         />
       </section>
 
-      {showNextComingSoon && (
-        <InfoCard variant="info">
-          다음 단계 준비 중입니다. 잠시 후 다시 시도해 주세요.
-        </InfoCard>
+      {formError && (
+        <p role="alert" className="w-full text-sm text-error">
+          {formError}
+        </p>
       )}
 
       {/* §3.3 D-2: "다음" 버튼 400×52px(C-1/D-1과 달리 이 버튼은 사이즈 매트릭스 불일치가
@@ -588,10 +744,10 @@ export default function Under14Form() {
       <PrimaryButton
         size="default"
         radius="default"
-        disabled={!isNextEnabled}
+        disabled={!isNextEnabled || loading}
         onClick={handleNext}
       >
-        다음
+        {loading ? "처리 중…" : "다음"}
       </PrimaryButton>
     </AuthLayout>
   );

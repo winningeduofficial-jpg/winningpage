@@ -7,7 +7,7 @@
 //   바로 보여주는데, 그대로 두면 ① 승인 전인데 연결된 것처럼 읽히고 ② 아직 볼 권한도
 //   없는 자녀 데이터를 보여주는 화면이 된다. 그래서 지표 블록을 걷어내고 대기 상태를
 //   명시한다. 지표는 승인 이후 화면(마이페이지)에 데이터 소스가 생기면 그쪽에 붙는 게 맞다.
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   AuthLayout,
@@ -26,11 +26,19 @@ export default function LinkDone() {
 
   // memberType 단독 가드는 실제 가입 완료 없이도 URL 직접 진입으로 뚫릴 수 있어
   // parentSignupCompleted(ParentForm 가입 성공 시에만 true)를 함께 요구한다.
+  // ⚠️ 마운트 시점 값으로 한 번만 판정한다 — StudentComplete와 같은 이유(2026-08-18).
+  //   화면을 떠나며 resetSignup()을 부르면 memberType과 완료 플래그가 함께 초기화된다.
+  //   가드가 그 값을 계속 지켜보고 있으면 그 순간 다시 돌아 /signup으로 되돌려,
+  //   "홈으로 가기"가 가입 화면으로 튀었다.
+  const entryAllowedRef = useRef(
+    memberType === "parent" && parentSignupCompleted,
+  );
+
   useEffect(() => {
-    if (memberType !== "parent" || !parentSignupCompleted) {
+    if (!entryAllowedRef.current) {
       navigate("/signup", { replace: true });
     }
-  }, [memberType, parentSignupCompleted, navigate]);
+  }, [navigate]);
 
   function handleGoHome() {
     resetSignup();
