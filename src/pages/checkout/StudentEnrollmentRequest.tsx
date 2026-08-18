@@ -330,15 +330,17 @@ export default function StudentEnrollmentRequest() {
     <>
       <main className="min-h-screen bg-white pt-16">
         <section className="px-5 pb-4 pt-16 text-center sm:px-8">
-          <p className="text-[1.125rem] font-medium leading-[1.4] text-ink-sub lg:text-[1.25rem]">
+          <p className="text-[1.125rem] font-medium leading-[1.4] text-ink-sub">
             나에게 맞는 서비스를 선택해주세요
           </p>
           {/* 시안(3921:7066) 원문은 "결제할 서비스를 선택해주세요"이지만 의도적으로
               "결제 요청할"로 바꿨다(사용자 승인, 2026-08-12b) — 이 화면은 결제가
               아니라 결제 "요청"만 만든다(실제 결제는 학부모가 마이페이지에서
               한다). 시안 원문 그대로 두면 학생이 자신이 바로 결제하는 것으로
-              오해할 수 있어 정정했다. 시안과 비교하다 되돌리지 말 것. */}
-          <h1 className="mt-3 text-[1.75rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#1e293b] lg:text-[3.125rem]">
+              오해할 수 있어 정정했다. 시안과 비교하다 되돌리지 말 것.
+              MyPage 헤더 위계와 통일하기 위해 반응형 확대를 의도적으로 제거함
+              (사용자 확정, 시안 그대로가 아님). */}
+          <h1 className="mt-3 text-[2rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
             결제 요청할 서비스를 선택해주세요
           </h1>
         </section>
