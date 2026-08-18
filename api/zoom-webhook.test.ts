@@ -11,7 +11,11 @@
 
 import crypto from "node:crypto";
 import { describe, expect, test } from "vitest";
-import { buildEncryptedToken, verifySignature } from "./zoom-webhook.js";
+import {
+  buildEncryptedToken,
+  isFreshTimestamp,
+  verifySignature,
+} from "./zoom-webhook.js";
 
 const SECRET = "test-secret-token";
 const TIMESTAMP = "1697040000000";
@@ -95,6 +99,38 @@ describe("verifySignature", () => {
         secret: SECRET,
       }),
     ).toBe(false);
+  });
+});
+
+describe("isFreshTimestamp", () => {
+  // 헤더는 초 단위다. 이 단위를 밀리초로 착각하면 모든 요청이 만료로 거절되고,
+  // 서명 검증에 닿지도 못한 채 Zoom의 URL validation이 실패한다(2026-08-18).
+  const NOW_MS = 1_739_923_528_000;
+  const NOW_SECONDS = "1739923528";
+
+  test("같은 시각의 초 단위 타임스탬프를 통과시킨다", () => {
+    expect(isFreshTimestamp(NOW_SECONDS, NOW_MS)).toBe(true);
+  });
+
+  test("밀리초로 착각한 값은 거부한다", () => {
+    // 헤더에 밀리초가 실려 오면 그건 규격 위반이므로 통과시키면 안 된다.
+    expect(isFreshTimestamp(String(NOW_MS), NOW_MS)).toBe(false);
+  });
+
+  test("5분 이내는 통과, 5분 초과는 거부한다", () => {
+    expect(isFreshTimestamp(NOW_SECONDS, NOW_MS + 4 * 60 * 1000)).toBe(true);
+    expect(isFreshTimestamp(NOW_SECONDS, NOW_MS + 6 * 60 * 1000)).toBe(false);
+  });
+
+  test("미래로 치우친 시각도 같은 폭으로 허용한다", () => {
+    expect(isFreshTimestamp(NOW_SECONDS, NOW_MS - 4 * 60 * 1000)).toBe(true);
+    expect(isFreshTimestamp(NOW_SECONDS, NOW_MS - 6 * 60 * 1000)).toBe(false);
+  });
+
+  test("빈 값·숫자가 아닌 값은 거부한다", () => {
+    expect(isFreshTimestamp("", NOW_MS)).toBe(false);
+    expect(isFreshTimestamp("nope", NOW_MS)).toBe(false);
+    expect(isFreshTimestamp("0", NOW_MS)).toBe(false);
   });
 });
 

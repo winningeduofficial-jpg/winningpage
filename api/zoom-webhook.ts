@@ -42,6 +42,28 @@ const SIGNATURE_PREFIX = "v0";
 // 막는다. 5분이면 재시도는 통과하고 캡처된 요청의 재사용은 걸린다.
 const MAX_TIMESTAMP_SKEW_MS = 5 * 60 * 1000;
 
+/**
+ * x-zm-request-timestamp 신선도 판정.
+ *
+ * ⚠️ 이 헤더는 **초** 단위다(`"1739923528"`). 같은 요청 안에서도 페이로드의
+ *   `event_ts`는 밀리초(`1626230691572`)라 단위가 섞여 있다. 밀리초로 착각하고
+ *   Date.now()와 그대로 빼면 차이가 수십 년으로 나와 **모든 요청이 만료로
+ *   거절된다** — 2026-08-18에 Zoom URL validation이 계속 실패한 원인이 이것이었다.
+ *
+ * 서명 대상 문자열에는 헤더 원문을 그대로 써야 하므로, 단위 보정은 신선도
+ * 판정에서만 한다.
+ */
+export function isFreshTimestamp(
+  timestampSeconds: string,
+  nowMs: number = Date.now(),
+): boolean {
+  const seconds = Number(timestampSeconds);
+
+  if (!Number.isFinite(seconds) || seconds <= 0) return false;
+
+  return Math.abs(nowMs - seconds * 1000) <= MAX_TIMESTAMP_SKEW_MS;
+}
+
 /** 본문 원문을 문자열로 읽는다. bodyParser를 껐으므로 스트림을 직접 소비한다. */
 async function readRawBody(req: VercelRequest): Promise<string> {
   const chunks: Buffer[] = [];
@@ -171,12 +193,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(401).json({ ok: false, detail: "Unsigned request" });
   }
 
-  const skew = Math.abs(Date.now() - Number(timestamp));
-
-  if (!Number.isFinite(skew) || skew > MAX_TIMESTAMP_SKEW_MS) {
+  if (!isFreshTimestamp(timestamp)) {
     console.error(
       "[zoom-webhook] 타임스탬프가 허용 범위를 벗어났습니다 —",
-      JSON.stringify({ timestamp, skew_ms: skew }),
+      JSON.stringify({
+        timestamp,
+        skew_ms: Math.abs(Date.now() - Number(timestamp) * 1000),
+      }),
     );
     return res.status(401).json({ ok: false, detail: "Stale request" });
   }
