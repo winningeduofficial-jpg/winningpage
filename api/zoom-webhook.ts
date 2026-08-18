@@ -138,12 +138,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const signature = headerValue(req.headers["x-zm-signature"]);
 
   let rawBody: string;
+  // 서명 실패 시 어느 경로로 본문을 얻었는지 알아야 원인이 갈린다.
+  let bodySource: "stream" | "parsed" = "stream";
 
   try {
     rawBody = await readRawBody(req);
   } catch (error) {
     console.error("[zoom-webhook] 본문을 읽지 못했습니다:", error);
     return res.status(400).json({ ok: false, detail: "Unreadable body" });
+  }
+
+  // ⚠️ 폴백. config.api.bodyParser=false는 Next.js API Routes의 규약이라
+  //   @vercel/node 함수에서는 무시될 수 있다. 그 경우 런타임이 본문을 이미
+  //   소비해 스트림이 비고, 서명 대상이 빈 문자열이 되어 **무조건** 불일치한다.
+  //   이때는 파싱된 req.body를 직렬화해 쓴다 — Zoom 공식 예제가 하는 방식이라
+  //   최소한 그 예제와 같은 수준으로는 맞는다(키 순서가 어긋나면 여전히 실패하니
+  //   스트림 경로가 우선이다).
+  if (!rawBody && req.body !== undefined && req.body !== null) {
+    rawBody =
+      typeof req.body === "string" ? req.body : JSON.stringify(req.body);
+    bodySource = "parsed";
   }
 
   if (!timestamp || !signature) {
@@ -172,7 +186,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Secret Token 불일치다(Verification Token을 넣었거나, 앱을 재생성한 경우).
     console.error(
       "[zoom-webhook] 서명 불일치 —",
-      JSON.stringify({ body_len: rawBody.length, timestamp }),
+      JSON.stringify({
+        body_source: bodySource,
+        body_len: rawBody.length,
+        timestamp,
+        // 어느 환경의 토큰이 들어가 있는지 값 없이 가늠하기 위한 지문.
+        secret_len: secret.length,
+        secret_fingerprint: crypto
+          .createHash("sha256")
+          .update(secret, "utf8")
+          .digest("hex")
+          .slice(0, 8),
+      }),
     );
     return res.status(401).json({ ok: false, detail: "Invalid signature" });
   }
