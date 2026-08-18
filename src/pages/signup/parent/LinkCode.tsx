@@ -148,7 +148,7 @@ export default function LinkCode() {
       return;
     }
 
-    // 여기서 끝난 건 "요청"이다. 승인은 자녀가 한다.
+    // 코드 입력 시점에 연결이 확정된다(별도 승인 단계 없음).
     navigate("/signup/parent/link/done", {
       state: {
         child: { ...child, name: result.studentName || child?.name },

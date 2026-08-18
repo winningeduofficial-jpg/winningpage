@@ -810,10 +810,15 @@ grant execute on function public.complete_signup_profile(
 -- =====================================================================
 
 -- ---------------------------------------------------------------------
--- request_parent_link(code) : 학부모가 연결코드로 연결을 요청한다
+-- request_parent_link(code) : 학부모가 연결코드를 입력하면 즉시 연결한다
+--
+-- 학생의 별도 승인 단계 없이 코드 입력 시점에 바로 approved로 확정한다
+-- (2026-08-18 결정 — respond_parent_link 승인 스텝은 프론트 진입점이 없어
+-- 실사용된 적이 없었고, to-be로 승인 절차 자체를 없애기로 함). 사후
+-- 정정은 revoke_parent_link로만 한다.
 --
 -- 승인이 불가능한 상황(학생에게 이미 승인된 학부모가 있음)은 요청 시점에
--- 막는다. 통과시켜봐야 학생이 승인할 수 없는 pending이 쌓일 뿐이다.
+-- 막는다.
 -- ---------------------------------------------------------------------
 create or replace function public.request_parent_link(p_code text)
 returns jsonb
@@ -882,14 +887,14 @@ begin
     raise exception 'link_already_requested';
   end if;
 
-  insert into public.parent_child_links (parent_id, student_id, link_code_id)
-  values (v_parent_id, v_student_id, v_code_id)
+  insert into public.parent_child_links (parent_id, student_id, link_code_id, status, responded_at)
+  values (v_parent_id, v_student_id, v_code_id, 'approved', now())
   returning id into v_link_id;
 
   return jsonb_build_object(
     'ok', true,
     'link_id', v_link_id,
-    'status', 'pending',
+    'status', 'approved',
     'student_name', (select name from public.profiles where id = v_student_id)
   );
 end;

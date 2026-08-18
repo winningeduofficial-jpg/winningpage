@@ -5,9 +5,9 @@
 //   함수(api/lookup-child.js)로 나가고, 실제 연결 요청(requestParentLink)은 DB만
 //   만지므로 RPC로 바로 간다.
 //
-// ⚠️ 연결은 "완료"가 아니라 "요청"이다
-//   request_parent_link는 status='pending'인 행을 만들 뿐이고, 자녀가 승인해야
-//   연결이 성립한다. 호출부는 이 결과를 완료로 표시하면 안 된다.
+// 연결은 코드 입력 즉시 확정된다
+//   request_parent_link는 status='approved'인 행을 바로 만든다(2026-08-18
+//   결정 — 별도 학생 승인 단계 없음). 사후 정정은 revoke만 가능하다.
 //
 // ⚠️ lookupChild는 로그인이 필요하다
 //   조회 결과에 미성년자의 이름과 학교가 들어가서 익명 호출을 막아뒀다
@@ -149,7 +149,7 @@ export async function lookupChild(code: string): Promise<LookupChildResult> {
 }
 
 /**
- * 연결을 **요청**한다. 자녀가 승인해야 실제로 연결된다.
+ * 연결코드로 자녀와 연결한다. 코드 입력 즉시 확정된다.
  */
 export async function requestParentLink(
   code: string,
@@ -170,7 +170,7 @@ export async function requestParentLink(
   return {
     ok: true,
     linkId: data?.link_id || null,
-    status: data?.status || "pending",
+    status: data?.status || "approved",
     studentName: data?.student_name || "",
   };
 }

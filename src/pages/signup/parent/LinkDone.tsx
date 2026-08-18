@@ -1,12 +1,10 @@
-// [E-4] 자녀 연결 요청 완료 — docs/login-signup-renewal-spec.md §3.3 E-4, 노드 2393-11191.
+// [E-4] 자녀 연결 완료 — docs/login-signup-renewal-spec.md §3.3 E-4, 노드 2393-11191.
 // LinkCode(E-3)에서 navigate state로 전달된 child/status를 받아 렌더한다.
 //
-// ⚠️ 시안과 갈리는 지점 — 여긴 "완료"가 아니라 "승인 대기"다
-//   request_parent_link는 status='pending'인 행을 만들 뿐이고 자녀가 승인해야 연결이
-//   성립한다(sql/40_auth_signup.sql [8]). 시안(2393-11191)은 자녀의 학습 요약 지표를
-//   바로 보여주는데, 그대로 두면 ① 승인 전인데 연결된 것처럼 읽히고 ② 아직 볼 권한도
-//   없는 자녀 데이터를 보여주는 화면이 된다. 그래서 지표 블록을 걷어내고 대기 상태를
-//   명시한다. 지표는 승인 이후 화면(마이페이지)에 데이터 소스가 생기면 그쪽에 붙는 게 맞다.
+// request_parent_link는 코드 입력 즉시 status='approved'로 연결을 확정한다
+// (sql/40_auth_signup.sql, 2026-08-18 결정 — 별도 학생 승인 단계 없음).
+// 시안(2393-11191)의 자녀 학습 요약 지표는 아직 데이터 소스가 없어 그대로
+// 붙이지 않는다 — 지표는 마이페이지 쪽에 데이터가 생기면 그쪽에 붙는 게 맞다.
 import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
@@ -50,12 +48,12 @@ export default function LinkDone() {
   return (
     <AuthLayout>
       <AuthTitle
-        line1="연결 요청을 보냈어요"
+        line1="자녀와 연결됐어요"
         line1Color="ink"
         line2={
           child?.name
-            ? `${child.name} 학생의 승인을 기다리고 있어요`
-            : "자녀의 승인을 기다리고 있어요"
+            ? `${child.name} 학생과 연결이 완료됐어요`
+            : "연결이 완료됐어요"
         }
         line2Color="ink"
       />
@@ -71,10 +69,10 @@ export default function LinkDone() {
         <div className="mx-auto my-6 w-full max-w-[20rem] border-t border-line" />
 
         <p className="text-center text-base font-medium text-primary">
-          승인 대기 중
+          연결 완료
         </p>
         <p className="mt-2 break-keep text-center text-sm text-ink-sub">
-          자녀가 마이페이지에서 요청을 승인하면 연결이 완료돼요.
+          이제 마이페이지에서 자녀 정보를 확인할 수 있어요.
         </p>
       </div>
 

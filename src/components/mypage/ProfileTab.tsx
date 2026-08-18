@@ -16,7 +16,6 @@ import ToggleRow from "./ToggleRow";
 import WithdrawModal from "./WithdrawModal";
 
 const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
-const COPY_FEEDBACK_MS = 2000;
 
 // 이용안내(chevron 링크) — PNG 라벨 그대로, 라우트는 src/App.jsx에 실제 등록된 것만
 // 사용(읽기로 확인). "마케팅 목적의 개인정보 수집 및 이용"/"광고성 정보 수신 동의"는 PNG상
@@ -129,7 +128,6 @@ export default function ProfileTab({
   // 내 연결코드.
   const [linkCode, setLinkCode] = useState("");
   const [reissuing, setReissuing] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // profile prop은 마이페이지 셸(다른 에이전트가 동시 작업 중)이 어떤 컬럼을 select 했는지에
   // 따라 형태가 달라질 수 있어, 이 탭에 필요한 컬럼(학교·수신동의 2종)을 user.id 기준으로
@@ -320,21 +318,8 @@ export default function ProfileTab({
     setParentLink(null);
   }
 
-  // 연결코드 복사 — clipboard API 는 보안 컨텍스트(https/localhost)에서만
-  // 동작하므로 실패 시 조용히 넘긴다(코드 자체는 화면에 보이므로 손으로도 옮길 수 있다).
-  async function handleCopyCode() {
-    if (!linkCode) return;
-    try {
-      await navigator.clipboard.writeText(linkCode);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), COPY_FEEDBACK_MS);
-    } catch (copyError) {
-      console.warn("연결코드 복사 실패:", copyError);
-    }
-  }
-
   // 연결코드 재발급 — sql/40_auth_signup.sql의 reissue_link_code RPC를 그대로 호출한다.
-  async function _handleReissueCode() {
+  async function handleReissueCode() {
     if (reissuing) return;
     setReissuing(true);
     const { data, error } = await supabase.rpc("reissue_link_code");
@@ -564,17 +549,13 @@ export default function ProfileTab({
             >
               {linkCode || "-"}
             </div>
-            {/* 시안(3665:5323)은 '복사'다. 재발급(reissue_link_code)은 코드를 바꿔
-              버려서 학부모가 이미 받아 둔 코드를 무효로 만든다 — 학생이 코드를
-              전달하려고 누르는 버튼의 동작으로는 맞지 않는다. 복사로 바꾸고
-              재발급은 노출하지 않는다(필요해지면 별도 진입점으로). */}
             <button
               type="button"
-              onClick={handleCopyCode}
-              disabled={!linkCode}
+              onClick={handleReissueCode}
+              disabled={!linkCode || reissuing}
               className="shrink-0 whitespace-nowrap text-sm font-semibold text-accent underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {copied ? "복사됨" : "복사"}
+              {reissuing ? "재발급 중..." : "재발급"}
             </button>
           </div>
         </div>

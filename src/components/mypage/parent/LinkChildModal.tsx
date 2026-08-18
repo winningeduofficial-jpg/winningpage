@@ -155,14 +155,12 @@ export default function LinkChildModal({
             id={titleId}
             className="text-[1.25rem] font-bold leading-[1.4] text-ink-title"
           >
-            연결 요청을 보냈어요
+            자녀와 연결됐어요
           </h2>
           <p className="mt-4 break-keep text-[0.875rem] leading-[1.6] text-ink-sub">
             {sentTo
-              ? `${sentTo} 학생에게 연결 요청이 전달됐어요.`
-              : "연결 요청이 전달됐어요."}
-            <br />
-            자녀가 수락하면 목록에 추가돼요
+              ? `${sentTo} 학생과 연결이 완료됐어요.`
+              : "연결이 완료됐어요."}
           </p>
           <button
             type="button"
