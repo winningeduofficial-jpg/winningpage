@@ -238,7 +238,7 @@ export default function LinkChildModal({
                 : "cursor-not-allowed bg-line"
             }`}
           >
-            {saving ? "요청 중..." : "연결 요청 보내기"}
+            {saving ? "연결 중..." : "연결하기"}
           </button>
         </div>
       </div>
