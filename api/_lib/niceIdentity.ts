@@ -142,19 +142,18 @@ export function isUnder14(
 /**
  * 복호화 키를 유도한다.
  *
- * PBKDF2-HMAC-SHA256으로 512bit를 뽑은 뒤 **표준 base64 문자열로 바꾸고**,
+ * PBKDF2-HMAC-SHA256으로 512bit를 뽑은 뒤 **base64url(패딩 없음) 문자열로 바꾸고**,
  * 그 문자열을 잘라서 키로 쓴다. 바이트 배열을 자르는 게 아니다 — 자른 32자
  * 문자열의 UTF-8 바이트가 그대로 AES-256 키가 된다. 규격이 그렇게 정해져 있어서
  * 직관과 어긋나지만 바꾸면 복호화가 깨진다.
  *
  * 자르는 위치도 규격이다: 대칭키 [0,32), HMAC키 [48,80).
  *
- * ⚠️ base64url이 아니라 **표준 base64**여야 한다(`+` `/`, 2026-08-18 수정).
- *   두 표기는 62·63번 문자만 다르고 위치는 같다. 그래서 잘라낸 32자 안에 `+`나
- *   `/`가 걸릴 때만 어긋나는데, 그 문자열의 UTF-8 바이트가 곧 키라서 한 글자만
- *   달라도 다이제스트가 통째로 달라진다. 문자당 2/64이니 32자 창에서 약 64%
- *   확률로 실패한다 — "가끔 되는 것 같은데 대체로 안 되는" 형태로 나타난다.
- *   NICE 가이드의 Java 예제가 Base64.encodeBase64String()(표준)을 쓴다.
+ * ⚠️ 표기를 표준 base64로 바꾸지 말 것 — 가이드가 명시적으로 base64url이다
+ *   (2026-08-18 auth-guide.niceid.co.kr 확인). "Base64 Encoding은 UrlEncoder 사용
+ *   및 withoutPadding() 적용", 그리고 "생성된 값은 Base64 디코딩하지 않고 문자열
+ *   그대로 사용합니다". 자르는 위치 [0,32)·[48,80)도 가이드 원문 그대로다.
+ *   Authorization 헤더(fetchAccessToken)와 같은 규칙이라 헷갈릴 일도 없다.
  */
 export function deriveKeys({
   ticket,
@@ -186,7 +185,7 @@ export function deriveKeys({
     "sha256",
   );
 
-  const keyString = derived.toString("base64");
+  const keyString = derived.toString("base64url");
 
   return {
     key: keyString.slice(0, 32),
@@ -195,95 +194,111 @@ export function deriveKeys({
 }
 
 /**
- * 무결성이 깨졌을 때 **규격 해석 후보를 전부 돌려 보고 어느 게 맞는지** 남긴다.
+ * 무결성이 깨졌을 때 **어떤 입력 조합이 맞는지** 찾아 로그로 남긴다.
  *
- * 가이드 문서를 직접 대조할 수 없는 상태라 표기(base64/base64url/hex)와 잘라내는
- * 위치를 추론으로 골랐다. 실패 시점에는 enc_data·integrity_value가 손에 있으므로,
- * 후보를 한 번씩 계산해 두면 **배포 한 번으로 정답이 드러난다**. 하나씩 바꿔가며
- * 재배포하는 것보다 훨씬 빠르다.
+ * 표기·자르는 위치는 가이드로 확정됐다(base64url withoutPadding, [0,32)·[48,80),
+ * HMAC 대상은 enc_data 문자열 그대로 — 2026-08-18 auth-guide.niceid.co.kr 확인).
+ * 알고리즘이 규격대로인데도 값이 어긋난다면 남은 건 **PBKDF2에 넣는 값**이다.
+ * 그래서 password·salt·반복횟수 조합만 바꿔가며 돌린다.
  *
- * 값은 인증 결과라 남기지 않는다 — 맞은 후보의 **이름만** 찍는다.
+ * 가장 의심스러운 건 `ticket_reissued`다. ticket은 접근토큰 응답에 딸려 오는데
+ * fetchAccessToken이 토큰을 캐시하므로, /auth/url 때 저장한 ticket과 /auth/result
+ * 때의 ticket이 다를 수 있다. 둘 중 어느 쪽으로 암호화됐는지가 갈린다.
+ *
+ * 값 자체는 인증 결과·비밀이라 남기지 않는다 — 맞은 후보의 **이름과 길이만** 찍는다.
  * 정답이 확정되면 이 함수와 호출부는 지운다.
  */
-const INTEGRITY_CANDIDATES: Array<{
-  name: string;
-  encoding: "base64" | "base64url" | "hex";
-  start: number;
-  end: number;
-  overBytes?: boolean;
-}> = [
-  { name: "base64[48,80)", encoding: "base64", start: 48, end: 80 },
-  { name: "base64url[48,80)", encoding: "base64url", start: 48, end: 80 },
-  { name: "base64[32,64)", encoding: "base64", start: 32, end: 64 },
-  { name: "base64url[32,64)", encoding: "base64url", start: 32, end: 64 },
-  { name: "base64[0,32)", encoding: "base64", start: 0, end: 32 },
-  { name: "hex[48,80)", encoding: "hex", start: 48, end: 80 },
-  { name: "hex[64,96)", encoding: "hex", start: 64, end: 96 },
-  // enc_data를 문자열이 아니라 디코딩한 바이트로 HMAC 하는 해석.
-  {
-    name: "base64[48,80)+bytes",
-    encoding: "base64",
-    start: 48,
-    end: 80,
-    overBytes: true,
-  },
-  {
-    name: "base64url[48,80)+bytes",
-    encoding: "base64url",
-    start: 48,
-    end: 80,
-    overBytes: true,
-  },
-];
-
 export function diagnoseIntegrity({
-  ticket,
+  storedTicket,
+  currentTicket,
   transactionId,
-  iterators,
+  webTransactionId,
+  requestNo,
+  storedIterators,
+  currentIterators,
   encData,
   received,
 }: {
-  ticket: unknown;
+  storedTicket: unknown;
+  currentTicket: unknown;
   transactionId: unknown;
-  iterators: unknown;
+  webTransactionId: unknown;
+  requestNo: unknown;
+  storedIterators: unknown;
+  currentIterators: unknown;
   encData: string;
   received: unknown;
 }): void {
-  const iterations = Number(iterators);
-  if (
-    !ticket ||
-    !transactionId ||
-    !Number.isInteger(iterations) ||
-    iterations <= 0
-  ) {
-    return;
-  }
-
-  const derived = crypto.pbkdf2Sync(
-    String(ticket),
-    Buffer.from(String(transactionId), "utf8"),
-    iterations,
-    64,
-    "sha256",
-  );
   const target = decodeBase64Any(received);
   if (target.length === 0) return;
 
+  const stored = Number(storedIterators);
+  const current = Number(currentIterators);
+
+  const candidates: Array<{
+    name: string;
+    password: string;
+    salt: string;
+    iterations: number;
+  }> = [];
+
+  const add = (
+    name: string,
+    password: unknown,
+    salt: unknown,
+    iterations: number,
+  ) => {
+    if (!password || !salt) return;
+    if (!Number.isInteger(iterations) || iterations <= 0) return;
+    candidates.push({
+      name,
+      password: String(password),
+      salt: String(salt),
+      iterations,
+    });
+  };
+
+  // 현재 구현. 여기가 맞으면 애초에 실패하지 않았을 테니 대조군이다.
+  add("stored_ticket+transaction_id", storedTicket, transactionId, stored);
+  // 토큰 캐시가 만료돼 ticket이 재발급된 경우.
+  add("current_ticket+transaction_id", currentTicket, transactionId, current);
+  // salt를 다른 식별자로 읽는 해석.
+  add(
+    "stored_ticket+web_transaction_id",
+    storedTicket,
+    webTransactionId,
+    stored,
+  );
+  add("stored_ticket+request_no", storedTicket, requestNo, stored);
+  // password와 salt를 뒤바꾼 해석.
+  add("swapped:transaction_id+ticket", transactionId, storedTicket, stored);
+  // 저장된 ticket에 현재 iterators를 쓰는 조합(둘이 어긋난 경우).
+  if (stored !== current) {
+    add(
+      "stored_ticket+transaction_id@current_iters",
+      storedTicket,
+      transactionId,
+      current,
+    );
+  }
+
   const matched: string[] = [];
 
-  for (const candidate of INTEGRITY_CANDIDATES) {
-    const hmacKey = derived
-      .toString(candidate.encoding)
-      .slice(candidate.start, candidate.end);
-    if (!hmacKey) continue;
+  for (const candidate of candidates) {
+    const hmacKey = crypto
+      .pbkdf2Sync(
+        candidate.password,
+        Buffer.from(candidate.salt, "utf8"),
+        candidate.iterations,
+        64,
+        "sha256",
+      )
+      .toString("base64url")
+      .slice(48, 80);
 
     const digest = crypto
       .createHmac("sha256", Buffer.from(hmacKey, "utf8"))
-      .update(
-        candidate.overBytes
-          ? decodeBase64Any(encData)
-          : Buffer.from(String(encData), "utf8"),
-      )
+      .update(String(encData), "utf8")
       .digest();
 
     if (
@@ -296,7 +311,17 @@ export function diagnoseIntegrity({
 
   console.error(
     "[niceIdentity] 무결성 후보 진단 —",
-    JSON.stringify({ matched, tried: INTEGRITY_CANDIDATES.length }),
+    JSON.stringify({
+      matched,
+      tried: candidates.length,
+      ticket_reissued:
+        String(storedTicket || "") !== String(currentTicket || ""),
+      stored_iterators: stored,
+      current_iterators: current,
+      ticket_len: String(storedTicket || "").length,
+      transaction_id_len: String(transactionId || "").length,
+      web_transaction_id_len: String(webTransactionId || "").length,
+    }),
   );
 }
 
@@ -595,11 +620,15 @@ export async function fetchAuthResult({
 
   // 복호화보다 무결성 검증을 먼저 한다. 변조된 데이터를 복호화 로직에 넣지 않는다.
   if (!verifyIntegrity(encData, hmacKey, integrityValue)) {
-    // 어느 규격 해석이 맞는지 이 자리에서만 알 수 있다 — 재료가 다 모여 있다.
+    // 어느 입력 조합이 맞는지 이 자리에서만 알 수 있다 — 재료가 다 모여 있다.
     diagnoseIntegrity({
-      ticket,
+      storedTicket: ticket,
+      currentTicket: token.ticket,
       transactionId,
-      iterators,
+      webTransactionId,
+      requestNo,
+      storedIterators: iterators,
+      currentIterators: token.iterators,
       encData,
       received: integrityValue,
     });
