@@ -30,6 +30,45 @@ const DEFAULT_TIMEOUT_MS = 10 * 60 * 1000;
 // 사용자가 창을 닫았는지 보는 주기. 닫힘은 이벤트로 알 수 없어 폴링뿐이다.
 const CLOSE_POLL_MS = 500;
 
+// 콜백이 결과를 한 번 더 남겨 두는 자리(api/nice-identity-callback.ts).
+// postMessage 가 유실돼도 여기서 주워 온다.
+const RESULT_STORAGE_KEY = "winning:nice-identity";
+// 이전 시도의 찌꺼기를 이번 결과로 오인하지 않도록 최근 것만 인정한다.
+const RESULT_MAX_AGE_MS = 5 * 60 * 1000;
+
+// 콜백이 실어 보내는 결과. 값은 전부 문자열로 온다.
+type CallbackPayload = {
+  ok?: boolean;
+  verify?: string;
+  rid?: string;
+  is_under14?: string;
+  age?: string | number | null;
+  reason?: string;
+};
+
+/** 보조 채널에 남은 결과를 꺼내 온다. 읽는 즉시 지운다(한 번만 소비). */
+function takeStoredResult(): CallbackPayload | null {
+  let raw: string | null;
+  try {
+    raw = localStorage.getItem(RESULT_STORAGE_KEY);
+    if (raw) localStorage.removeItem(RESULT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed?.payload) return null;
+    if (!parsed.at || Date.now() - Number(parsed.at) > RESULT_MAX_AGE_MS) {
+      return null;
+    }
+    return parsed.payload as CallbackPayload;
+  } catch {
+    return null;
+  }
+}
+
 const MESSAGES = {
   popup_blocked:
     "팝업이 차단되었습니다. 브라우저에서 팝업을 허용한 뒤 다시 시도해 주세요.",
@@ -130,25 +169,25 @@ function waitForResult(
       resolve(result);
     }
 
-    function onMessage(event: MessageEvent) {
-      // 우리 오리진에서 온 우리 메시지만 받는다.
-      if (event.origin !== window.location.origin) return;
-      if (event.data?.type !== "nice-identity") return;
-
-      const data = event.data;
-
+    // postMessage 로 오든 보조 채널에서 꺼내 오든 같은 규칙으로 해석한다.
+    function interpret(data: CallbackPayload): IdentityVerificationResult {
       if (data.ok === true || data.verify === "success") {
-        finish({
+        return {
           ok: true,
           requestId: data.rid || "",
           // 콜백은 문자열로 실어 보낸다("true"/"false"/""). 판정 불가는 null로 둔다.
           isUnder14: data.is_under14 === "" ? null : data.is_under14 === "true",
           age: data.age === "" || data.age == null ? null : Number(data.age),
-        });
-        return;
+        };
       }
+      return fail(data.reason || "unknown");
+    }
 
-      finish(fail(data.reason || "unknown"));
+    function onMessage(event: MessageEvent) {
+      // 우리 오리진에서 온 우리 메시지만 받는다.
+      if (event.origin !== window.location.origin) return;
+      if (event.data?.type !== "nice-identity") return;
+      finish(interpret(event.data));
     }
 
     window.addEventListener("message", onMessage);
@@ -156,7 +195,11 @@ function waitForResult(
     // 닫힘은 이벤트가 없어 폴링해야 한다. 콜백이 window.close()를 부른 직후에도
     // 여기서 먼저 감지될 수 있으므로, 메시지가 오면 finish가 이미 잠근다.
     const closeTimer = setInterval(() => {
-      if (popup.closed) finish(fail("closed"));
+      if (!popup.closed) return;
+      // 닫힘을 곧장 실패로 단정하지 않는다 — postMessage 가 유실됐어도 콜백이
+      // 남긴 결과가 있을 수 있다. 있으면 그게 진실이다.
+      const stored = takeStoredResult();
+      finish(stored ? interpret(stored) : fail("closed"));
     }, CLOSE_POLL_MS);
 
     const timeoutTimer = setTimeout(() => {
@@ -165,7 +208,8 @@ function waitForResult(
       } catch {
         // 이미 닫혔거나 접근할 수 없으면 무시한다.
       }
-      finish(fail("timeout"));
+      const stored = takeStoredResult();
+      finish(stored ? interpret(stored) : fail("timeout"));
     }, timeoutMs);
   });
 }
@@ -184,6 +228,13 @@ export async function runIdentityVerification({
   purpose?: string;
   timeoutMs?: number;
 } = {}): Promise<IdentityVerificationResult> {
+  // 이전 시도의 결과가 남아 있으면 이번 것으로 오인한다 — 먼저 비운다.
+  try {
+    localStorage.removeItem(RESULT_STORAGE_KEY);
+  } catch {
+    // 저장소를 못 쓰는 환경이면 보조 채널 없이 postMessage 만으로 동작한다.
+  }
+
   // 1) 빈 창을 먼저 연다(팝업 차단 회피).
   const popup = window.open("", POPUP_NAME, POPUP_FEATURES);
 
