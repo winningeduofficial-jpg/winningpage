@@ -96,6 +96,19 @@ function renderResult(
 (function () {
   var payload = ${escapeJson({ type: "nice-identity", ...payload })};
   var origin = ${escapeJson(origin)};
+
+  // 보조 채널 — postMessage 는 조용히 유실될 수 있다(오리진 불일치, COOP 로
+  // opener 단절, 전달 전 창 파괴). 그러면 부모는 "창이 닫혔다"만 보고 인증
+  // 결과를 영영 못 받는다. 콜백과 부모는 **같은 오리진**이므로 localStorage 로
+  // 한 번 더 남겨 두면 부모가 창 닫힘을 감지했을 때 그 값을 주워 갈 수 있다.
+  // 결과는 곧바로 소비되고 지워진다(identityVerification.ts).
+  try {
+    localStorage.setItem(
+      'winning:nice-identity',
+      JSON.stringify({ at: Date.now(), payload: payload })
+    );
+  } catch (e) {}
+
   try {
     if (window.opener && !window.opener.closed) {
       window.opener.postMessage(payload, origin);

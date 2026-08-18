@@ -196,7 +196,10 @@ export function deriveKeys({
 // NICE 표준창 복호화 결과는 개인정보 스키마가 요청 항목(svc_types)에 따라
 // 달라지는 벤더 페이로드라 any로 둔다.
 export function decryptPayload(encData: string, key: string): any {
-  const raw = Buffer.from(String(encData), "base64url");
+  // 표기(base64/base64url)에 관계없이 같은 바이트를 얻는다 — decodeBase64Any 주석 참고.
+  // Node 의 base64 디코더가 두 알파벳을 모두 받아 주긴 하지만, 무결성 검증과 같은
+  // 규칙으로 다루는 편이 뒤에 규격이 흔들려도 한 곳만 보면 되게 만든다.
+  const raw = decodeBase64Any(encData);
 
   const IV_LENGTH = 16;
   const TAG_LENGTH = 16;
@@ -227,6 +230,24 @@ export function decryptPayload(encData: string, key: string): any {
   return JSON.parse(plain);
 }
 
+/**
+ * base64 / base64url 어느 표기로 와도 같은 바이트로 되돌린다.
+ *
+ * NICE가 integrity_value·enc_data를 표준 base64(`+` `/` `=`)로 주는지
+ * base64url(`-` `_`, 패딩 없음)로 주는지가 가이드 문구만으로는 확정되지 않는다.
+ * **문자열끼리 비교하면 표기만 달라도 무조건 불일치**가 되므로(길이부터 어긋난다)
+ * 항상 바이트로 정규화해서 다룬다. 2026-08-11 실패 건이 정확히 이 형태였다
+ * (`무결성 검증에 실패했습니다`).
+ */
+function decodeBase64Any(value: unknown): Buffer {
+  const normalized = String(value || "")
+    .trim()
+    .replace(/-/g, "+")
+    .replace(/_/g, "/")
+    .replace(/=+$/, "");
+  return Buffer.from(normalized, "base64");
+}
+
 /** 무결성 검증값. enc_data **문자열 그대로**를 HMAC-SHA256 한 뒤 base64url(패딩 없음). */
 export function makeIntegrityValue(encData: string, hmacKey: string): string {
   return crypto
@@ -235,18 +256,40 @@ export function makeIntegrityValue(encData: string, hmacKey: string): string {
     .digest("base64url");
 }
 
-/** 위변조 확인. 길이가 달라도 예외 없이 false를 돌려준다. */
+/**
+ * 위변조 확인. 표기(base64/base64url)가 달라도 통과하도록 **바이트로 비교**한다.
+ * 길이가 달라도 예외 없이 false를 돌려준다.
+ *
+ * 실패하면 무엇이 어긋났는지 로그로 남긴다 — 값 자체는 인증 결과라 찍지 않고
+ * 길이와 앞 8자만 남긴다. 이게 없으면 "무결성 실패"라는 결과만 보이고 원인
+ * (키 유도 오류인지 표기 차이인지)을 가릴 수 없다.
+ */
 export function verifyIntegrity(
   encData: string,
   hmacKey: string,
   received: unknown,
 ): boolean {
   const expected = makeIntegrityValue(encData, hmacKey);
-  const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(String(received || ""), "utf8");
+  const a = decodeBase64Any(expected);
+  const b = decodeBase64Any(received);
 
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+  if (a.length === b.length && a.length > 0 && crypto.timingSafeEqual(a, b)) {
+    return true;
+  }
+
+  console.error(
+    "[niceIdentity] 무결성 불일치 —",
+    JSON.stringify({
+      expected_bytes: a.length,
+      received_bytes: b.length,
+      expected_head: expected.slice(0, 8),
+      received_head: String(received || "").slice(0, 8),
+      received_len: String(received || "").length,
+      enc_data_len: String(encData || "").length,
+    }),
+  );
+
+  return false;
 }
 
 // ── NICE API 호출 ────────────────────────────────────────────────────
