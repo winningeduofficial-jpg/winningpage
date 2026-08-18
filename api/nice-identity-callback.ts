@@ -167,7 +167,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: row, error: selectError } = await supabase
       .from("identity_verifications")
       .select(
-        "id, status, purpose, transaction_id, auth_ticket, auth_iterators, expires_at",
+        // auth_ticket·auth_iterators는 더 이상 읽지 않는다 — 키 재료는
+        // /auth/result 시점의 토큰에서 나온다. 컬럼은 감사 기록으로만 남는다.
+        "id, status, purpose, transaction_id, expires_at",
       )
       .eq("request_id", rid)
       .maybeSingle();
@@ -195,8 +197,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         webTransactionId,
         transactionId: row.transaction_id,
         requestNo: rid,
-        ticket: row.auth_ticket,
-        iterators: row.auth_iterators,
       });
     } catch (vendorError) {
       console.error(

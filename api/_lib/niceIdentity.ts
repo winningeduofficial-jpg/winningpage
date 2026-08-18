@@ -17,9 +17,10 @@
 //   5) POST /auth/result  → enc_data, integrity_value
 //   6) PBKDF2로 키를 유도해 AES-256-GCM 복호화
 //
-//   6)의 키는 **1)의 ticket·iterators와 2)의 transaction_id**로 유도한다. 셋 다
-//   콜백 시점까지 남아 있어야 복호화가 되므로 identity_verifications 행에 함께
-//   담아둔다. access_token을 캐시해도 ticket은 트랜잭션별로 묶어 보관해야 한다.
+//   6)의 키는 **5)를 호출한 토큰의 ticket·iterators와 2)의 transaction_id**로
+//   유도한다. 표준창을 열 때 쓴 토큰이 아니다 — NICE는 /auth/result 응답을 그
+//   요청의 Bearer 토큰에 딸린 키 재료로 암호화한다(2026-08-18 운영 로그로 확인).
+//   그래서 행에 담아 콜백까지 들고 가야 하는 값은 transaction_id 하나뿐이다.
 //
 // 발신 IP
 //   NICE도 IP 화이트리스트를 쓴다. 배포 경로와 동일하게 두려고 outbound.js를
@@ -191,138 +192,6 @@ export function deriveKeys({
     key: keyString.slice(0, 32),
     hmacKey: keyString.slice(48, 80),
   };
-}
-
-/**
- * 무결성이 깨졌을 때 **어떤 입력 조합이 맞는지** 찾아 로그로 남긴다.
- *
- * 표기·자르는 위치는 가이드로 확정됐다(base64url withoutPadding, [0,32)·[48,80),
- * HMAC 대상은 enc_data 문자열 그대로 — 2026-08-18 auth-guide.niceid.co.kr 확인).
- * 알고리즘이 규격대로인데도 값이 어긋난다면 남은 건 **PBKDF2에 넣는 값**이다.
- * 그래서 password·salt·반복횟수 조합만 바꿔가며 돌린다.
- *
- * 가장 의심스러운 건 `ticket_reissued`다. ticket은 접근토큰 응답에 딸려 오는데
- * fetchAccessToken이 토큰을 캐시하므로, /auth/url 때 저장한 ticket과 /auth/result
- * 때의 ticket이 다를 수 있다. 둘 중 어느 쪽으로 암호화됐는지가 갈린다.
- *
- * 값 자체는 인증 결과·비밀이라 남기지 않는다 — 맞은 후보의 **이름과 길이만** 찍는다.
- * 정답이 확정되면 이 함수와 호출부는 지운다.
- */
-export function diagnoseIntegrity({
-  storedTicket,
-  currentTicket,
-  transactionId,
-  webTransactionId,
-  requestNo,
-  storedIterators,
-  currentIterators,
-  encData,
-  received,
-}: {
-  storedTicket: unknown;
-  currentTicket: unknown;
-  transactionId: unknown;
-  webTransactionId: unknown;
-  requestNo: unknown;
-  storedIterators: unknown;
-  currentIterators: unknown;
-  encData: string;
-  received: unknown;
-}): void {
-  const target = decodeBase64Any(received);
-  if (target.length === 0) return;
-
-  const stored = Number(storedIterators);
-  const current = Number(currentIterators);
-
-  const candidates: Array<{
-    name: string;
-    password: string;
-    salt: string;
-    iterations: number;
-  }> = [];
-
-  const add = (
-    name: string,
-    password: unknown,
-    salt: unknown,
-    iterations: number,
-  ) => {
-    if (!password || !salt) return;
-    if (!Number.isInteger(iterations) || iterations <= 0) return;
-    candidates.push({
-      name,
-      password: String(password),
-      salt: String(salt),
-      iterations,
-    });
-  };
-
-  // 현재 구현. 여기가 맞으면 애초에 실패하지 않았을 테니 대조군이다.
-  add("stored_ticket+transaction_id", storedTicket, transactionId, stored);
-  // 토큰 캐시가 만료돼 ticket이 재발급된 경우.
-  add("current_ticket+transaction_id", currentTicket, transactionId, current);
-  // salt를 다른 식별자로 읽는 해석.
-  add(
-    "stored_ticket+web_transaction_id",
-    storedTicket,
-    webTransactionId,
-    stored,
-  );
-  add("stored_ticket+request_no", storedTicket, requestNo, stored);
-  // password와 salt를 뒤바꾼 해석.
-  add("swapped:transaction_id+ticket", transactionId, storedTicket, stored);
-  // 저장된 ticket에 현재 iterators를 쓰는 조합(둘이 어긋난 경우).
-  if (stored !== current) {
-    add(
-      "stored_ticket+transaction_id@current_iters",
-      storedTicket,
-      transactionId,
-      current,
-    );
-  }
-
-  const matched: string[] = [];
-
-  for (const candidate of candidates) {
-    const hmacKey = crypto
-      .pbkdf2Sync(
-        candidate.password,
-        Buffer.from(candidate.salt, "utf8"),
-        candidate.iterations,
-        64,
-        "sha256",
-      )
-      .toString("base64url")
-      .slice(48, 80);
-
-    const digest = crypto
-      .createHmac("sha256", Buffer.from(hmacKey, "utf8"))
-      .update(String(encData), "utf8")
-      .digest();
-
-    if (
-      digest.length === target.length &&
-      crypto.timingSafeEqual(digest, target)
-    ) {
-      matched.push(candidate.name);
-    }
-  }
-
-  console.error(
-    "[niceIdentity] 무결성 후보 진단 —",
-    JSON.stringify({
-      matched,
-      tried: candidates.length,
-      ticket_reissued:
-        String(storedTicket || "") !== String(currentTicket || ""),
-      stored_iterators: stored,
-      current_iterators: current,
-      ticket_len: String(storedTicket || "").length,
-      transaction_id_len: String(transactionId || "").length,
-      web_transaction_id_len: String(webTransactionId || "").length,
-    }),
-  );
 }
 
 /**
@@ -576,7 +445,8 @@ export async function issueAuthUrl({
     authUrl: payload.auth_url,
     transactionId: payload.transaction_id,
     requestNo: payload.request_no || requestNo,
-    // 복호화용. 트랜잭션과 함께 보관할 것.
+    // 복호화에는 쓰이지 않는다(그건 /auth/result 시점의 토큰에서 나온다).
+    // 어떤 토큰이 이 트랜잭션을 만들었는지 남겨두는 감사 기록용이다.
     ticket: token.ticket,
     iterators: token.iterators,
   };
@@ -585,15 +455,14 @@ export async function issueAuthUrl({
 /**
  * 인증 결과를 받아 복호화까지 마친다.
  *
- * ticket·iterators는 **표준창을 열 때 쓴 토큰의 것**을 넘겨야 한다. 그 사이
- * 토큰이 갱신됐으면 캐시의 현재 ticket으로는 복호화가 되지 않는다.
+ * ticket·iterators를 인자로 받지 않는다 — 키 재료는 이 함수가 방금 발급받은
+ * 토큰에서 나오기 때문이다. 자세한 근거는 아래 deriveKeys 호출부 주석에 있다.
+ * 행에서 가져와야 하는 건 transaction_id 하나뿐이다.
  */
 export type FetchAuthResultOptions = {
   webTransactionId: string;
   transactionId: string;
   requestNo: string;
-  ticket: string;
-  iterators: number;
 };
 
 // 반환값은 decryptPayload()와 동일하게 벤더 복호화 페이로드라 any.
@@ -601,8 +470,6 @@ export async function fetchAuthResult({
   webTransactionId,
   transactionId,
   requestNo,
-  ticket,
-  iterators,
 }: FetchAuthResultOptions): Promise<any> {
   const token = await fetchAccessToken();
 
@@ -616,23 +483,21 @@ export async function fetchAuthResult({
   });
 
   const { enc_data: encData, integrity_value: integrityValue } = payload;
-  const { key, hmacKey } = deriveKeys({ ticket, transactionId, iterators });
+
+  // ⚠️ 키 재료는 **이 요청에 쓴 토큰의 것**이다. 표준창을 열 때 저장해 둔 ticket이
+  //   아니다 — NICE는 /auth/result 응답을 그 요청의 Bearer 토큰에 딸린 ticket·
+  //   iterators로 암호화한다. 2026-08-18 운영 로그로 확인했다
+  //   (matched: current_ticket+transaction_id, stored_iterators 41 vs current 89).
+  //   start와 callback은 서로 다른 서버리스 함수라 토큰 캐시가 따로 돌고, 그래서
+  //   저장된 ticket은 사실상 항상 다른 발급분이었다. transaction_id만 행에서 온다.
+  const { key, hmacKey } = deriveKeys({
+    ticket: token.ticket,
+    transactionId,
+    iterators: token.iterators,
+  });
 
   // 복호화보다 무결성 검증을 먼저 한다. 변조된 데이터를 복호화 로직에 넣지 않는다.
   if (!verifyIntegrity(encData, hmacKey, integrityValue)) {
-    // 어느 입력 조합이 맞는지 이 자리에서만 알 수 있다 — 재료가 다 모여 있다.
-    diagnoseIntegrity({
-      storedTicket: ticket,
-      currentTicket: token.ticket,
-      transactionId,
-      webTransactionId,
-      requestNo,
-      storedIterators: iterators,
-      currentIterators: token.iterators,
-      encData,
-      received: integrityValue,
-    });
-
     const error: Error & { integrityFailed?: boolean } = new Error(
       "NICE 인증 결과의 무결성 검증에 실패했습니다.",
     );
