@@ -8,7 +8,7 @@
 // ⚠️ 예전에는 이 화면이 6자리 mock 코드를 직접 만들어 보여줬다. 그 코드는 DB에 없어서
 //   학부모가 입력하면 link_code_not_found가 났다 — 화면상으로는 정상이라 발견이 어렵다.
 //   여기서 코드를 "만들어내면" 안 된다. 없으면 없다고 보여줘야 한다.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import {
   AuthLayout,
@@ -30,11 +30,22 @@ export default function StudentComplete() {
 
   // StudentForm의 complete_signup_profile RPC 성공 직후에만 setSignupCompleted(true)가
   // 호출되므로, 이 화면을 거치지 않고 직접 진입(새로고침 포함)한 경우를 이 플래그로 막는다.
+  //
+  // ⚠️ 판정은 **마운트 시점 값으로 한 번만** 한다(2026-08-18).
+  //   이 화면을 떠나는 두 CTA가 모두 resetSignup()을 부르는데, 그러면 플래그가
+  //   false로 떨어진다. 가드가 플래그를 계속 지켜보고 있으면 그 순간 다시 돌아서
+  //   의도한 목적지 대신 가입 화면으로 되돌려 버렸다 — "학습 진단 시작하기"가
+  //   /signup/student로 튀던 원인이 이것이다.
+  //   컨텍스트는 sessionStorage에서 동기로 복원되므로(SignupProvider의 lazy
+  //   useState) 새로고침 직후에도 첫 렌더에 올바른 값이 들어 있다. 즉 이 가드의
+  //   목적("직접 진입 차단")에는 마운트 1회 판정으로 충분하다.
+  const entryAllowedRef = useRef(signupCompleted);
+
   useEffect(() => {
-    if (!signupCompleted) {
+    if (!entryAllowedRef.current) {
       navigate("/signup/student", { replace: true });
     }
-  }, [signupCompleted, navigate]);
+  }, [navigate]);
 
   const studentName = formData.name?.trim() || "회원";
   // 시안 호칭은 성을 뗀 이름만 사용(예: '김주원' → '주원님'). 한국식 3자 이상 이름 기준

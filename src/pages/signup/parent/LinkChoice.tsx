@@ -8,7 +8,7 @@
 // icon: Figma 일러스트 에셋 미제공(§6.2) — lucide-react 아이콘 placeholder.
 
 import { UserCheck, UserPlus } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router";
 import {
   AuthLayout,
@@ -32,11 +32,18 @@ export default function LinkChoice({ mode = "initial" }: LinkChoiceProps) {
   // memberType만으로는 가드가 뚫린다(선택만 하고 실제 가입은 완료하지 않은 채 URL 직접
   // 진입 가능) — ParentForm의 handleSubmit이 성공해야만 true가 되는 parentSignupCompleted를
   // 함께 요구해 학부모 온보딩(E-2~E-8) 진입을 실제 가입 완료 이후로 한정한다.
+  // ⚠️ 마운트 시점 값으로 한 번만 판정한다 — StudentComplete와 같은 이유(2026-08-18).
+  //   mode='add'의 건너뛰기가 resetSignup() 후 '/'로 나가는데, 가드가 플래그를 계속
+  //   지켜보고 있으면 그 순간 /signup으로 되돌려 의도한 이동을 덮어쓴다.
+  const entryAllowedRef = useRef(
+    memberType === "parent" && parentSignupCompleted,
+  );
+
   useEffect(() => {
-    if (memberType !== "parent" || !parentSignupCompleted) {
+    if (!entryAllowedRef.current) {
       navigate("/signup", { replace: true });
     }
-  }, [memberType, parentSignupCompleted, navigate]);
+  }, [navigate]);
 
   function handleSkip() {
     if (mode === "add") {
