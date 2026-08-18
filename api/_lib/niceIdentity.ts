@@ -142,12 +142,19 @@ export function isUnder14(
 /**
  * 복호화 키를 유도한다.
  *
- * PBKDF2-HMAC-SHA256으로 512bit를 뽑은 뒤 **base64url 문자열로 바꾸고**,
+ * PBKDF2-HMAC-SHA256으로 512bit를 뽑은 뒤 **표준 base64 문자열로 바꾸고**,
  * 그 문자열을 잘라서 키로 쓴다. 바이트 배열을 자르는 게 아니다 — 자른 32자
  * 문자열의 UTF-8 바이트가 그대로 AES-256 키가 된다. 규격이 그렇게 정해져 있어서
  * 직관과 어긋나지만 바꾸면 복호화가 깨진다.
  *
  * 자르는 위치도 규격이다: 대칭키 [0,32), HMAC키 [48,80).
+ *
+ * ⚠️ base64url이 아니라 **표준 base64**여야 한다(`+` `/`, 2026-08-18 수정).
+ *   두 표기는 62·63번 문자만 다르고 위치는 같다. 그래서 잘라낸 32자 안에 `+`나
+ *   `/`가 걸릴 때만 어긋나는데, 그 문자열의 UTF-8 바이트가 곧 키라서 한 글자만
+ *   달라도 다이제스트가 통째로 달라진다. 문자당 2/64이니 32자 창에서 약 64%
+ *   확률로 실패한다 — "가끔 되는 것 같은데 대체로 안 되는" 형태로 나타난다.
+ *   NICE 가이드의 Java 예제가 Base64.encodeBase64String()(표준)을 쓴다.
  */
 export function deriveKeys({
   ticket,
@@ -179,12 +186,118 @@ export function deriveKeys({
     "sha256",
   );
 
-  const keyString = derived.toString("base64url");
+  const keyString = derived.toString("base64");
 
   return {
     key: keyString.slice(0, 32),
     hmacKey: keyString.slice(48, 80),
   };
+}
+
+/**
+ * 무결성이 깨졌을 때 **규격 해석 후보를 전부 돌려 보고 어느 게 맞는지** 남긴다.
+ *
+ * 가이드 문서를 직접 대조할 수 없는 상태라 표기(base64/base64url/hex)와 잘라내는
+ * 위치를 추론으로 골랐다. 실패 시점에는 enc_data·integrity_value가 손에 있으므로,
+ * 후보를 한 번씩 계산해 두면 **배포 한 번으로 정답이 드러난다**. 하나씩 바꿔가며
+ * 재배포하는 것보다 훨씬 빠르다.
+ *
+ * 값은 인증 결과라 남기지 않는다 — 맞은 후보의 **이름만** 찍는다.
+ * 정답이 확정되면 이 함수와 호출부는 지운다.
+ */
+const INTEGRITY_CANDIDATES: Array<{
+  name: string;
+  encoding: "base64" | "base64url" | "hex";
+  start: number;
+  end: number;
+  overBytes?: boolean;
+}> = [
+  { name: "base64[48,80)", encoding: "base64", start: 48, end: 80 },
+  { name: "base64url[48,80)", encoding: "base64url", start: 48, end: 80 },
+  { name: "base64[32,64)", encoding: "base64", start: 32, end: 64 },
+  { name: "base64url[32,64)", encoding: "base64url", start: 32, end: 64 },
+  { name: "base64[0,32)", encoding: "base64", start: 0, end: 32 },
+  { name: "hex[48,80)", encoding: "hex", start: 48, end: 80 },
+  { name: "hex[64,96)", encoding: "hex", start: 64, end: 96 },
+  // enc_data를 문자열이 아니라 디코딩한 바이트로 HMAC 하는 해석.
+  {
+    name: "base64[48,80)+bytes",
+    encoding: "base64",
+    start: 48,
+    end: 80,
+    overBytes: true,
+  },
+  {
+    name: "base64url[48,80)+bytes",
+    encoding: "base64url",
+    start: 48,
+    end: 80,
+    overBytes: true,
+  },
+];
+
+export function diagnoseIntegrity({
+  ticket,
+  transactionId,
+  iterators,
+  encData,
+  received,
+}: {
+  ticket: unknown;
+  transactionId: unknown;
+  iterators: unknown;
+  encData: string;
+  received: unknown;
+}): void {
+  const iterations = Number(iterators);
+  if (
+    !ticket ||
+    !transactionId ||
+    !Number.isInteger(iterations) ||
+    iterations <= 0
+  ) {
+    return;
+  }
+
+  const derived = crypto.pbkdf2Sync(
+    String(ticket),
+    Buffer.from(String(transactionId), "utf8"),
+    iterations,
+    64,
+    "sha256",
+  );
+  const target = decodeBase64Any(received);
+  if (target.length === 0) return;
+
+  const matched: string[] = [];
+
+  for (const candidate of INTEGRITY_CANDIDATES) {
+    const hmacKey = derived
+      .toString(candidate.encoding)
+      .slice(candidate.start, candidate.end);
+    if (!hmacKey) continue;
+
+    const digest = crypto
+      .createHmac("sha256", Buffer.from(hmacKey, "utf8"))
+      .update(
+        candidate.overBytes
+          ? decodeBase64Any(encData)
+          : Buffer.from(String(encData), "utf8"),
+      )
+      .digest();
+
+    if (
+      digest.length === target.length &&
+      crypto.timingSafeEqual(digest, target)
+    ) {
+      matched.push(candidate.name);
+    }
+  }
+
+  console.error(
+    "[niceIdentity] 무결성 후보 진단 —",
+    JSON.stringify({ matched, tried: INTEGRITY_CANDIDATES.length }),
+  );
 }
 
 /**
@@ -482,6 +595,15 @@ export async function fetchAuthResult({
 
   // 복호화보다 무결성 검증을 먼저 한다. 변조된 데이터를 복호화 로직에 넣지 않는다.
   if (!verifyIntegrity(encData, hmacKey, integrityValue)) {
+    // 어느 규격 해석이 맞는지 이 자리에서만 알 수 있다 — 재료가 다 모여 있다.
+    diagnoseIntegrity({
+      ticket,
+      transactionId,
+      iterators,
+      encData,
+      received: integrityValue,
+    });
+
     const error: Error & { integrityFailed?: boolean } = new Error(
       "NICE 인증 결과의 무결성 검증에 실패했습니다.",
     );
