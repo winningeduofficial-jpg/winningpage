@@ -210,8 +210,10 @@ export default function PricingSelling() {
               1920(3408:4832 / 텍스트 3408:4872 높이 28 로 lh 교차확인) 20px w600 lh28 #0b84fd.
               rem: 16px = 1rem / lh22 = 1.375rem / 20px = 1.25rem / lh28 = 1.75rem.
               ls 는 두 밴드 모두 -0.02em 이다(-0.32/16 = -0.02, 1920 은 -0.4/20 = -0.02) →
-              한 클래스로 통일. 기존 14px w900 은 시안에 없는 값이었다(시안 최대 무게 w700). */}
-          <p className="text-[1rem] font-semibold leading-[1.375rem] tracking-[-0.02em] text-accent sm:text-[1.25rem] sm:leading-[1.75rem]">
+              한 클래스로 통일. 기존 14px w900 은 시안에 없는 값이었다(시안 최대 무게 w700).
+              MyPage 헤더 위계와 통일하기 위해 반응형 확대를 의도적으로 제거함
+              (사용자 확정, 시안 그대로가 아님). */}
+          <p className="text-[1rem] font-semibold leading-[1.375rem] tracking-[-0.02em] text-accent">
             나에게 맞는 서비스를 선택해 주세요
           </p>
           {/* H1 — 390 24px w600 lh34 #525252 ls-0.48 / 1920 50px w600 lh70 #525252 ls-1
@@ -220,8 +222,10 @@ export default function PricingSelling() {
               rem: 24px = 1.5rem / lh34 = 2.125rem / 50px = 3.125rem / lh70 = 4.375rem.
               색은 ink(#525252) — 시안 본문 기본색이다. ink-title(#181d24)은 시안이 실제로
               그 색을 쓰는 로그인 H1 전용이라 여기서는 쓰지 않는다.
-              기존 40px w900 lh36(0.9배)은 "작고 무겁고 타이트"해서 시안 위계와 반대였다. */}
-          <h1 className="mt-3 text-[1.5rem] font-semibold leading-[2.125rem] tracking-[-0.02em] text-ink sm:text-[3.125rem] sm:leading-[4.375rem]">
+              기존 40px w900 lh36(0.9배)은 "작고 무겁고 타이트"해서 시안 위계와 반대였다.
+              MyPage 헤더 위계와 통일하기 위해 반응형 확대를 의도적으로 제거함
+              (사용자 확정, 시안 그대로가 아님). */}
+          <h1 className="mt-3 text-[2rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
             결제할 서비스를 선택해 주세요
           </h1>
         </section>

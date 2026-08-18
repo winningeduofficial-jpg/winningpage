@@ -94,8 +94,9 @@ export default function ParentPaymentsTab({
     null,
   );
 
-  // 결제 대기 주문은 상위(MyPage)가 내려주는 orders 에 없다 — 그쪽은
-  // paid/waiting_deposit 만 읽는다. 이 탭에서만 필요하므로 여기서 직접 읽는다.
+  // 결제 대기 주문은 상위(MyPage)가 내려주는 orders 에도 포함되어 있지만
+  // (학생 화면이 필요로 함), 이 섹션은 여기서 직접 최신 상태로 다시 읽는다.
+  // historyOrders(아래)는 이 pending 주문과 안 겹치도록 필터링한다.
   const reloadPending = useCallback(async () => {
     const { data: session } = await supabase.auth.getSession();
     const uid = session?.session?.user?.id;
@@ -133,7 +134,7 @@ export default function ParentPaymentsTab({
     (r) => r.approval_status === "requested",
   );
 
-  const historyOrders = orders;
+  const historyOrders = orders.filter((o) => o.status !== "pending");
 
   function handleRequestRefund() {
     const target = detailOrder;
