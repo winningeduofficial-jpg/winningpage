@@ -318,6 +318,10 @@ begin
     -- 줄이고 amount 를 늘려 원복한다(위 30분 lazy 정리 절과 동일한 원복
     -- 등식). requested 건은 쿠폰이 확정되기 전이라 이 CTE 가 0행을
     -- 갱신하므로 v_reject_void_amount 가 0으로 남아 자연히 no-op 이다.
+    -- ⚠ 이 함수는 RETURNS TABLE 의 out-param 으로 discount_amount/amount 라는
+    --   PL/pgSQL 변수를 갖는다 — 아래 SQL 에서 같은 이름을 무한정으로 쓰면
+    --   42702(ambiguous column reference)가 난다. CTE 결과와 orders 갱신식
+    --   양쪽 모두 반드시 별칭으로 한정한다(첫 적용에서 실제로 터진 버그).
     with voided as (
       update public.coupon_redemptions cr
          set voided_at   = v_now,
@@ -326,7 +330,9 @@ begin
          and cr.voided_at is null
       returning cr.discount_amount
     )
-    select coalesce(sum(discount_amount), 0) into v_reject_void_amount from voided;
+    select coalesce(sum(v.discount_amount), 0)
+      into v_reject_void_amount
+      from voided v;
 
     -- 제약 정합(코드로 검증 불가 — 근거만 남긴다):
     --  · orders_reject_reason_pairing_check(sql/68 114-116행, (approval_
@@ -353,15 +359,15 @@ begin
     --    줄이고 amount 를 그만큼 늘리는 대칭 갱신이라 list_amount 가
     --    불변인 한 등식이 그대로 유지된다(위 30분 lazy 정리 절, sql/71
     --    152-190행과 동일한 원복 등식).
-    update public.orders
+    update public.orders o
        set approval_status  = 'rejected',
            responded_at     = now(),
            reject_reason    = p_reject_reason,
            status           = 'canceled',
-           discount_amount  = discount_amount - v_reject_void_amount,
-           amount           = amount + v_reject_void_amount,
+           discount_amount  = o.discount_amount - v_reject_void_amount,
+           amount           = o.amount + v_reject_void_amount,
            coupon_id        = null
-     where id = p_order_id
+     where o.id = p_order_id
     returning * into v_order;
   end if;
 
@@ -462,8 +468,10 @@ grant execute on function public.fn_respond_enrollment(text, boolean, text, uuid
 -- =====================================================================
 -- 적용 이력
 -- =====================================================================
--- 미적용 — 이 파일은 작성만 완료했다(2026-08-19). 적용·검증은 팀 리드가
--- 별도로 수행한다. 클라이언트 배선(EnrollmentRequestModal.tsx 3버튼
--- 개편)은 같은 작업에서 이미 완료됐지만 이 sql 이 적용되기 전까지는
--- approved 건 반려 버튼이 서버에서 계속 WC023 으로 거부된다.
+-- 2026-08-19 dev(gjowqdiopinhixfivnkx)·prod(ykrpjcsubmbenfcnwlzd) 적용
+-- 완료(Management API database/query). 첫 적용본은 반려 절의 무한정
+-- discount_amount/amount 참조가 RETURNS TABLE out-param 과 충돌해
+-- 42702 로 실패했다 — 별칭 한정으로 수정한 본 판본을 양쪽에 재적용했고,
+-- dev 에서 approved 건 실반려 E2E(orders 가 rejected/canceled/사유 기록
+-- 으로 전이)까지 확인했다.
 -- =====================================================================
