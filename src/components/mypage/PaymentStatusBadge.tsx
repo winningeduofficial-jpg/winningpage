@@ -57,6 +57,14 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
 
   refund_completed: { label: "환불 완료", cls: "bg-[#e3f3e8] text-[#2e7d4f]" },
   refund_rejected: { label: "환불 반려", cls: "bg-[#f7dad8] text-error" },
+
+  // 자녀가 보낸 결제 요청에 학부모가 아직 승인/거절을 안 함
+  // (approval_status='requested'). refund_approval_pending과 같은 대기 톤(노랑).
+  enrollment_requested: { label: "승인 필요", cls: "bg-[#fff3d1] text-gold" },
+
+  // 학부모 승인은 끝났고 결제만 남음(approval_status='approved') — 행을 누르면
+  // 바로 /checkout 으로 이동한다.
+  enrollment_approved: { label: "결제 대기", cls: "bg-[#e9f4ff] text-accent" },
 };
 
 // 시안에 없는 상태(향후 DB에 새 status 값이 추가되는 경우)를 위한 중립 폴백.

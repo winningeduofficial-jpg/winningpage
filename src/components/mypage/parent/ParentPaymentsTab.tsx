@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
+import { useNavigate } from "react-router";
 import PaymentDetailModal from "@/components/mypage/PaymentDetailModal";
 import PaymentStatusBadge from "@/components/mypage/PaymentStatusBadge";
 import PaymentTable from "@/components/mypage/PaymentTable";
@@ -24,10 +24,10 @@ import RefundApprovalModal from "./RefundApprovalModal";
 //   1) 환불요청      자녀가 보낸 환불 요청(approval_status='requested').
 //                    행을 누르면 확인 모달이 열리고 거기서 금액을 본다
 //                    (RefundApprovalModal — 학생 화면엔 금액이 없다).
-//   2) 결제 신청하기  자녀가 보낸 결제 요청(status='pending'). 상태 칩이 곧
-//                    액션이라 /checkout 으로 보낸다. approval_status 가
-//                    approved 인 건은 수락까지 끝나고 결제창만 닫힌 경우로,
-//                    ParentCheckout 이 재개 모드로 받는다.
+//   2) 결제 신청하기  자녀가 보낸 결제 요청(status='pending'). row 전체 클릭이
+//                    유일한 트리거다 — approval_status 가 approved 면(수락까지
+//                    끝나고 결제창만 닫힌 경우) 바로 /checkout 으로, requested 면
+//                    승인/거절 확인 모달(EnrollmentRequestModal)을 연다.
 //   3) 지난 결제내역  결제가 끝난 주문(paid/waiting_deposit). 주문번호를 누르면
 //                    기존 결제 상세 → 영수증/환불 신청 체인으로 이어진다.
 //
@@ -82,6 +82,7 @@ export default function ParentPaymentsTab({
   refunds = [],
   onRefundSubmitted,
 }: ParentPaymentsTabProps) {
+  const navigate = useNavigate();
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [nameById, setNameById] = useState<Record<string, string>>({});
 
@@ -171,14 +172,8 @@ export default function ParentPaymentsTab({
             raw: r,
           }))}
           onSelect={(row) => setApprovalRequest(row.raw as Refund)}
-          renderStatus={(row) => (
-            <button
-              type="button"
-              onClick={() => setApprovalRequest(row.raw as Refund)}
-              className="transition hover:brightness-95"
-            >
-              <PaymentStatusBadge status="refund_approval_pending" />
-            </button>
+          renderStatus={() => (
+            <PaymentStatusBadge status="refund_approval_pending" />
           )}
         />
       </section>
@@ -209,16 +204,22 @@ export default function ParentPaymentsTab({
               raw: o,
             };
           })}
-          // 상태 칩은 시안대로 결제 진입 링크다. 거절 경로는 시안에 없어
-          // 주문번호 클릭 → 확인 모달로 열어 뒀다(EnrollmentRequestModal).
-          onSelect={(row) => setEnrollmentRequest(row.raw as Order)}
+          onSelect={(row) => {
+            const target = row.raw as Order;
+            if (target.approval_status === "approved") {
+              navigate(`/checkout?order=${encodeURIComponent(target.id)}`);
+            } else {
+              setEnrollmentRequest(target);
+            }
+          }}
           renderStatus={(row) => (
-            <Link
-              to={`/checkout?order=${encodeURIComponent((row.raw as Order).id)}`}
-              className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg bg-[#f5ebcb] px-3 text-sm font-medium text-gold transition hover:brightness-95"
-            >
-              결제 진행하기
-            </Link>
+            <PaymentStatusBadge
+              status={
+                (row.raw as Order).approval_status === "approved"
+                  ? "enrollment_approved"
+                  : "enrollment_requested"
+              }
+            />
           )}
         />
       </section>

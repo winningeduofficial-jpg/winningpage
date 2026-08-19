@@ -1,5 +1,4 @@
-import type { ReactNode } from "react";
-import { Fragment } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
 // 마이페이지 결제/신청 목록 표 — 확정 디자인의 세 섹션(환불요청 / 결제 신청하기 /
 // 지난 결제내역, 3967:3944)과 학생 신청 내역(3967:3016)이 **같은 5열 표**를 쓴다.
@@ -69,35 +68,51 @@ export default function PaymentTable({
         </div>
 
         <div className={`${GRID} gap-y-5 pt-[1.25rem]`}>
-          {rows.map((row) => (
-            <Fragment key={row.key}>
-              <button
-                type="button"
+          {rows.map((row) => {
+            const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onSelect?.(row);
+              }
+            };
+            return (
+              <div
+                key={row.key}
+                role="button"
+                tabIndex={0}
                 onClick={() => onSelect?.(row)}
-                title={row.idFull || row.idText}
-                className="h-8 truncate self-center text-left text-accent underline underline-offset-2"
+                onKeyDown={handleKeyDown}
+                className="group contents cursor-pointer"
               >
-                {row.idText}
-              </button>
-              <span className="flex h-8 items-center truncate text-ink-sub">
-                {row.dateText}
-              </span>
-              <span className="flex h-8 items-center truncate text-ink-strong">
-                {row.productText}
-                {row.note && (
-                  <span className="ml-1.5 shrink-0 text-xs text-ink-sub">
-                    {row.note}
-                  </span>
-                )}
-              </span>
-              <span className="flex h-8 items-center justify-end truncate text-ink-strong">
-                {row.amountText}
-              </span>
-              <span className="flex h-8 items-center justify-end">
-                {renderStatus(row)}
-              </span>
-            </Fragment>
-          ))}
+                <span
+                  title={row.idFull || row.idText}
+                  className="flex h-8 items-center truncate self-center text-left text-accent underline underline-offset-2 group-hover:bg-surface-04"
+                >
+                  {row.idText}
+                </span>
+                <span className="flex h-8 items-center truncate text-ink-sub group-hover:bg-surface-04">
+                  {row.dateText}
+                </span>
+                <span className="flex h-8 items-center truncate text-ink-strong group-hover:bg-surface-04">
+                  {row.productText}
+                  {row.note && (
+                    <span className="ml-1.5 shrink-0 text-xs text-ink-sub">
+                      {row.note}
+                    </span>
+                  )}
+                </span>
+                <span className="flex h-8 items-center justify-end truncate text-ink-strong group-hover:bg-surface-04">
+                  {row.amountText}
+                </span>
+                <span
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex h-8 items-center justify-end group-hover:bg-surface-04"
+                >
+                  {renderStatus(row)}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
