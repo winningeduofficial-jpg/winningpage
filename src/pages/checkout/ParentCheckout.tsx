@@ -1,5 +1,6 @@
 import { Check, ChevronDown } from "lucide-react";
 import {
+  type KeyboardEvent,
   type ReactNode,
   useCallback,
   useEffect,
@@ -7,13 +8,21 @@ import {
   useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import checkboxUnselected from "@/assets/checkout/checkbox-24.svg";
+import checkboxSelected from "@/assets/checkout/checkbox-24-selected.svg";
+import sectionArrow from "@/assets/checkout/section-arrow-38.svg";
 import ConfirmModal from "@/components/checkout/ConfirmModal";
 import { CHECKOUT_AGREEMENTS } from "@/data/legalDocs";
 import { formatKRW } from "@/data/pricingCatalog";
+import { type ServiceProduct, useProducts } from "@/lib/products";
 import { supabase } from "@/lib/supabase";
 import { ANONYMOUS, getTossPayments } from "@/lib/toss";
 import { useEnrollmentOrder } from "./useEnrollmentOrder";
 import { usePaymentAgreementHistory } from "./usePaymentAgreementHistory";
+
+// StudentEnrollmentRequest.tsx 와 동일 필터(목표관리/콜멘토/수행평가만 결제
+// 카탈로그에 노출) — 정본 근거는 그 파일 상단 주석 참고, 여기서 반복하지 않는다.
+const ALLOWED_SERVICE_KEYS = ["goal", "mentor", "suhaeng"];
 
 interface CouponRow {
   id: string;
@@ -31,6 +40,15 @@ interface CouponRow {
 type CodeFeedback =
   | { type: "not_found" }
   | { type: "ineligible"; reason: string | null };
+
+interface SelectedItem {
+  id: string;
+  serviceKey: string;
+  serviceName: string;
+  name: string;
+  listPrice: number;
+  price: number;
+}
 
 // 학부모 — 결제 요청 수락 + 결제 화면. 두 진입 모드를 하나의 라우트에서 갈라 받는다
 // (?order=<id> 유무). 학생이 fn_request_enrollment 로 만든 요청(StudentEnrollmentRequest.jsx
@@ -78,6 +96,8 @@ const AMOUNT_MISMATCH_TEXT =
 
 // 신규 문구(이 화면 전용, 사용자 승인 대기) — new_copy 배열 참고.
 const LOAD_FAILED_TEXT = "결제 요청 정보를 불러오지 못했습니다.";
+const MISSING_ORDER_ITEM_TEXT =
+  "일부 신청 상품 정보를 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.";
 const ALREADY_PROCESSED_TEXT = "이미 처리된 결제 요청입니다.";
 const NOT_PARENT_TEXT = "학부모 본인만 진행할 수 있는 결제 요청이에요.";
 // 고정 계약 상수 목록의 승인된 재사용 문구 — 신규 아님.
@@ -134,6 +154,15 @@ function mergeStackable(
   }));
 }
 
+// 상품 변경 경로(hasChanged)의 토스 주문명 — api/request-enrollment.ts 의
+// buildOrderName 과 동일 규칙(첫 상품명 + 2개 이상이면 " 외 N건"). 원 주문의
+// order_name 을 그대로 쓰면 실제로 결제하는 상품과 결제창 표기가 달라진다.
+function buildOrderNameFromItems(items: SelectedItem[]) {
+  if (items.length === 0) return "위닝에듀 서비스";
+  const first = items[0]!.name || "위닝에듀 서비스";
+  return items.length === 1 ? first : `${first} 외 ${items.length - 1}건`;
+}
+
 // fn_respond_enrollment 가 raise 하는 문구 키워드로 매핑한다 — SQLSTATE(WCxxx)는
 // 보조로만 쓰고 원문(err.message)을 화면에 그대로 노출하지 않는다.
 function mapRespondError(err: { message?: string } | null | undefined) {
@@ -143,6 +172,20 @@ function mapRespondError(err: { message?: string } | null | undefined) {
     msg.includes("order_not_pending") ||
     msg.includes("enrollment_not_pending")
   ) {
+    return ALREADY_PROCESSED_TEXT;
+  }
+  if (msg.includes("order_not_found")) return LOAD_FAILED_TEXT;
+  return GENERIC_FAIL_TEXT;
+}
+
+// fn_parent_create_enrollment(상품 변경 결제 경로) 가 raise 하는 문구 키워드
+// 매핑 — mapRespondError 와 같은 스타일. no_items_selected/pair_not_linked/
+// invalid_products/invalid_amount 는 사용자가 원인을 구분해도 대응 행동이
+// 없어(다시 선택하는 것뿐) 기존 GENERIC_FAIL_TEXT 로 뭉뚱그린다.
+function mapCreateEnrollmentError(err: { message?: string } | null | undefined) {
+  const msg = err?.message || "";
+  if (msg.includes("not_order_parent")) return NOT_PARENT_TEXT;
+  if (msg.includes("order_not_pending_for_override")) {
     return ALREADY_PROCESSED_TEXT;
   }
   if (msg.includes("order_not_found")) return LOAD_FAILED_TEXT;
@@ -289,6 +332,164 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   const [loading, setLoading] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
+  // 카탈로그 — 학생이 이미 고른 상품을 학부모가 바꿀 수 있게(StudentEnrollmentRequest.tsx
+  // 와 동일 패턴). productsLoading/productsError 로 이름을 바꿔 위 결제 loading
+  // state 와 충돌하지 않게 한다.
+  const {
+    services,
+    loading: productsLoading,
+    error: productsError,
+  } = useProducts();
+  const filteredServices = useMemo(
+    () => services.filter((s) => ALLOWED_SERVICE_KEYS.includes(s.key)),
+    [services],
+  );
+  const hasNoServices = Boolean(productsError) || filteredServices.length === 0;
+
+  // 서비스별 단일 선택: { [serviceKey]: productId }. 초기값은 orderItems(학생이
+  // 이미 요청한 항목)에서 딱 한 번만 채운다 — orderItems 재조회로 이후 사용자
+  // 선택을 덮어쓰면 안 된다.
+  const [selected, setSelected] = useState<Record<string, string>>({});
+  const [initialized, setInitialized] = useState(false);
+  useEffect(() => {
+    if (initialized || orderItems.length === 0) return;
+    const init: Record<string, string> = {};
+    orderItems.forEach((item) => {
+      if (item.service_key && item.product_id)
+        init[item.service_key] = item.product_id;
+    });
+    setSelected(init);
+    setInitialized(true);
+  }, [initialized, orderItems]);
+
+  function toggle(serviceKey: string, productId: string) {
+    // 결제 승인(approvedOrder) 이후에는 실제 청구가 이미 고정됐으므로 화면
+    // 표시도 더 이상 바뀌면 안 된다(BLOCK 1) — 표시와 청구 불일치 방지.
+    if (approvedOrder) return;
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[serviceKey] === productId) delete next[serviceKey];
+      else next[serviceKey] = productId;
+      return next;
+    });
+  }
+
+  // Escape = 그룹 선택 해제, 화살표 = 이동+선택 — StudentEnrollmentRequest.tsx
+  // handleRadioKeyDown 과 동일 규약(그쪽 주석 참고, 반복 설명하지 않는다).
+  function handleRadioKeyDown(
+    e: KeyboardEvent<HTMLButtonElement>,
+    serviceKey: string,
+    products: ServiceProduct[],
+    currentIndex: number,
+  ) {
+    // toggle 과 동일하게 승인 후에는 카탈로그를 잠근다(BLOCK 1).
+    if (approvedOrder) return;
+    if (e.key === "Escape") {
+      if (!(serviceKey in selected)) return;
+      e.preventDefault();
+      setSelected((prev) => {
+        const next = { ...prev };
+        delete next[serviceKey];
+        return next;
+      });
+      return;
+    }
+
+    let delta = 0;
+    if (e.key === "ArrowDown" || e.key === "ArrowRight") delta = 1;
+    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") delta = -1;
+    else return;
+    e.preventDefault();
+
+    const nextIndex =
+      (currentIndex + delta + products.length) % products.length;
+    const nextProduct = products[nextIndex];
+    if (!nextProduct) return;
+    setSelected((prev) => ({ ...prev, [serviceKey]: nextProduct.id }));
+
+    const group = e.currentTarget.closest('[role="radiogroup"]');
+    const nextEl =
+      group?.querySelectorAll<HTMLElement>('[role="radio"]')[nextIndex];
+    nextEl?.focus();
+  }
+
+  const selectedItems = useMemo(() => {
+    const items: SelectedItem[] = [];
+    filteredServices.forEach((service) => {
+      const pid = selected[service.key];
+      if (!pid) return;
+      const product = service.products.find((p) => p.id === pid);
+      if (!product) return;
+      items.push({
+        id: product.id,
+        serviceKey: service.key,
+        serviceName: service.name,
+        name: product.name,
+        listPrice: product.listPrice ?? 0,
+        price: product.price ?? 0,
+      });
+    });
+    return items;
+  }, [filteredServices, selected]);
+
+  // 상품 변경 여부 — 원래 orderItems 의 product_id 집합과 현재 선택이 다르면
+  // fn_parent_create_enrollment(신규 주문 생성) 경로로 보낸다(handlePay 참고).
+  const originalProductIds = useMemo(
+    () => new Set(orderItems.map((i) => i.product_id).filter(Boolean)),
+    [orderItems],
+  );
+  const currentProductIds = useMemo(
+    () => new Set(selectedItems.map((i) => i.id)),
+    [selectedItems],
+  );
+  const hasChanged = useMemo(() => {
+    // selected 초기화가 끝나기 전엔 orderItems 와 카탈로그 로딩 타이밍이 어긋나
+    // currentProductIds 가 일시적으로 비어 오탐(true)이 난다(WARN 6) — 초기화
+    // 전에는 무조건 false.
+    if (!initialized) return false;
+    if (originalProductIds.size !== currentProductIds.size) return true;
+    for (const id of currentProductIds)
+      if (!originalProductIds.has(id)) return true;
+    return false;
+  }, [initialized, originalProductIds, currentProductIds]);
+
+  // 상품이 바뀌면 새 주문은 쿠폰을 쓰지 않으므로(handlePay 분기) 이전에 골라둔
+  // 쿠폰이 화면 금액 계산에 남아있으면 안 된다.
+  useEffect(() => {
+    if (hasChanged) setSelectedCouponIds(new Set());
+  }, [hasChanged]);
+
+  // 원 주문 상품이 그 사이 비활성화되거나 사라졌는지 확인한다(BLOCK 3) —
+  // selected 초기화는 orderItems 의 product_id 를 그대로 넣지만, 라이브
+  // 카탈로그(filteredServices, is_active=true 만)에서 찾지 못하면 selectedItems
+  // 에서 조용히 빠져 학부모가 모르는 사이 일부 상품만 결제될 수 있다.
+  const missingOrderItem = useMemo(() => {
+    if (
+      isResume ||
+      productsLoading ||
+      orderItems.length === 0 ||
+      filteredServices.length === 0
+    )
+      return false;
+    return orderItems.some(
+      (item) =>
+        !filteredServices.some((s) =>
+          s.products.some((p) => p.id === item.product_id),
+        ),
+    );
+  }, [isResume, productsLoading, orderItems, filteredServices]);
+
+  const selectedListTotal = useMemo(
+    () =>
+      selectedItems.reduce((s, i) => s + Number(i.listPrice || i.price || 0), 0),
+    [selectedItems],
+  );
+  const selectedSubtotal = useMemo(
+    () => selectedItems.reduce((s, i) => s + Number(i.price || 0), 0),
+    [selectedItems],
+  );
+  const selectedDiscount = Math.max(0, selectedListTotal - selectedSubtotal);
+
   // 쿠폰 목록 — subtotal 은 요청 시점 amount(쿠폰 미적용, Baseline fn_respond_enrollment
   // 주석 "v_subtotal := v_order.amount"). p_student_profile_id 를 반드시 넘겨야
   // granted 쿠폰(학생/학부모 발급분)이 잡힌다(Baseline pg_proc 실측 인자).
@@ -356,10 +557,20 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
     return Math.min(sum, order.amount);
   }, [coupons, selectedCouponIds, order]);
 
-  // 표시가는 항상 미리보기다 — 실제 청구액은 fn_respond_enrollment 반환값(승인 이후엔
-  // approvedOrder.amount)을 쓴다.
-  const previewAmount = order ? Math.max(0, order.amount - couponDiscount) : 0;
+  // 표시가는 항상 미리보기다 — 실제 청구액은 fn_respond_enrollment/
+  // fn_parent_create_enrollment 반환값(승인 이후엔 approvedOrder.amount)을 쓴다.
+  // 상품을 바꾼 경로(hasChanged)는 새 주문이 쿠폰을 쓰지 않으므로 쿠폰 할인을
+  // 반영하지 않는다(위 selectedCouponIds 리셋 effect 와 짝).
+  const previewAmount = hasChanged
+    ? selectedSubtotal
+    : Math.max(0, (order?.amount ?? 0) - couponDiscount);
   const displayAmount = approvedOrder ? approvedOrder.amount : previewAmount;
+  const displayListAmount = hasChanged
+    ? selectedListTotal
+    : (order?.list_amount ?? 0);
+  const displayDiscountAmount = hasChanged
+    ? selectedDiscount
+    : (order?.discount_amount ?? 0);
 
   function toggleCoupon(id: string) {
     setAmountMismatch(false);
@@ -435,12 +646,20 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   // 통과시킨다 — 재구매 화면에서는 체크박스 자체를 렌더하지 않는다(아래 JSX).
   const paymentTermsReady =
     paymentAgreed === true || (checkedRefund && checkedPayment);
+  // 재개 모드(isResume)는 카탈로그 UI 자체를 렌더하지 않고 이미 승인이 끝난
+  // 주문의 결제만 남았으므로, 라이브 카탈로그 파생값인 selectedItems 대신
+  // orderItems 존재 여부로 판단한다(BLOCK 2) — 그래야 원 주문 상품이 그 사이
+  // 비활성화되거나 카탈로그 조회가 실패해도 결제가 막히지 않는다.
+  const hasSelection = isResume
+    ? orderItems.length > 0
+    : selectedItems.length > 0;
   const canPay =
     Boolean(order) &&
     !orderError &&
-    orderItems.length > 0 &&
+    hasSelection &&
     !loading &&
-    paymentTermsReady;
+    paymentTermsReady &&
+    !missingOrderItem;
 
   async function handlePay() {
     if (!canPay) return;
@@ -467,31 +686,58 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
       let result = approvedOrder;
 
       if (!result) {
-        // 클라이언트 rpc(학부모 JWT) — service_role 경유 금지(Baseline fn_respond_enrollment
-        // 는 auth.uid() = parent_profile_id 를 직접 검사한다).
-        const { data, error } = await supabase.rpc("fn_respond_enrollment", {
-          p_order_id: orderId,
-          p_approve: true,
-          p_reject_reason: null,
-          p_coupon_ids: Array.from(selectedCouponIds),
-        });
-        if (error) {
-          console.error("결제 요청 수락 실패:", error.message);
-          setPayError(mapRespondError(error));
-          setLoading(false);
-          return;
-        }
+        if (hasChanged) {
+          // 상품을 바꾼 경로 — 원 주문을 그대로 승인하지 않고 새 주문을 만든다
+          // (서버가 즉시 approved 로 확정, 원 주문은 자동 대체된다). 새 주문은
+          // 쿠폰을 쓰지 않으므로 skipped_coupon_ids/amountMismatch 처리가 없다.
+          const { data, error } = await supabase.rpc(
+            "fn_parent_create_enrollment",
+            {
+              p_original_order_id: orderId,
+              p_items: selectedItems.map((i) => ({ product_id: i.id })),
+            },
+          );
+          if (error) {
+            console.error("상품 변경 결제 요청 실패:", error.message);
+            setPayError(mapCreateEnrollmentError(error));
+            setLoading(false);
+            return;
+          }
 
-        result = Array.isArray(data) ? data[0] : data;
-        if (!result?.amount) {
-          setPayError(GENERIC_FAIL_TEXT);
-          setLoading(false);
-          return;
-        }
-        setApprovedOrder(result);
+          result = Array.isArray(data) ? data[0] : data;
+          if (!result?.amount) {
+            setPayError(GENERIC_FAIL_TEXT);
+            setLoading(false);
+            return;
+          }
+          setApprovedOrder(result);
+        } else {
+          // 클라이언트 rpc(학부모 JWT) — service_role 경유 금지(Baseline fn_respond_enrollment
+          // 는 auth.uid() = parent_profile_id 를 직접 검사한다).
+          const { data, error } = await supabase.rpc("fn_respond_enrollment", {
+            p_order_id: orderId,
+            p_approve: true,
+            p_reject_reason: null,
+            p_coupon_ids: Array.from(selectedCouponIds),
+          });
+          if (error) {
+            console.error("결제 요청 수락 실패:", error.message);
+            setPayError(mapRespondError(error));
+            setLoading(false);
+            return;
+          }
 
-        if ((result.skipped_coupon_ids || []).length > 0) {
-          setAmountMismatch(true);
+          result = Array.isArray(data) ? data[0] : data;
+          if (!result?.amount) {
+            setPayError(GENERIC_FAIL_TEXT);
+            setLoading(false);
+            return;
+          }
+          setApprovedOrder(result);
+
+          if ((result.skipped_coupon_ids || []).length > 0) {
+            setAmountMismatch(true);
+          }
         }
       }
 
@@ -509,7 +755,9 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
       const commonPaymentParams = {
         amount: { currency: "KRW" as const, value: Number(result.amount) },
         orderId: result.order_id || orderId,
-        orderName: order.order_name || "위닝에듀 서비스",
+        orderName: hasChanged
+          ? buildOrderNameFromItems(selectedItems)
+          : order.order_name || "위닝에듀 서비스",
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
         customerEmail: user?.email ?? null,
@@ -577,39 +825,182 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
         </h1>
 
         <div className="grid grid-cols-1 gap-12 desktop:grid-cols-[minmax(0,1fr)_25rem]">
-          {/* 좌측: 주문 상품 — 읽기 전용(학생이 이미 확정한 요청이라 항목 선택/삭제가 없다). */}
+          {/* 좌측: 주문 상품 — 재개 모드(isResume)는 이미 승인이 끝난 주문이라
+              읽기 전용 카드만 보여준다(fn_parent_create_enrollment 는 애초에
+              approval_status='requested' 인 주문만 받는다). 그 외에는 학생 화면
+              (StudentEnrollmentRequest.tsx)과 동일한 카탈로그 선택 UI를 보여주고
+              초기 선택을 학생이 요청한 상품으로 프리체크한다(위 selected 초기화
+              effect). */}
           <section>
-            <h2 className={`mb-5 ${SECTION_HEADING}`}>
-              주문 상품 {orderItems.length}
-            </h2>
-            <div className="space-y-3">
-              {orderItems.map((item) => {
-                const hasDiscount =
-                  Number(item.list_price) > Number(item.price);
-                return (
-                  <div
-                    key={item.id}
-                    className="rounded-2xl border border-line p-5"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink">
-                        {item.name}
-                      </p>
-                      <div className="flex shrink-0 flex-col items-end">
-                        {hasDiscount && (
-                          <span className="text-[0.75rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-line line-through">
-                            {formatKRW(item.list_price)}
-                          </span>
-                        )}
-                        <span className="text-[0.8125rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-ink">
-                          {formatKRW(item.price)}
-                        </span>
+            {isResume ? (
+              <>
+                <h2 className={`mb-5 ${SECTION_HEADING}`}>
+                  주문 상품 {orderItems.length}
+                </h2>
+                <div className="space-y-3">
+                  {orderItems.map((item) => {
+                    const hasDiscount =
+                      Number(item.list_price) > Number(item.price);
+                    return (
+                      <div
+                        key={item.id}
+                        className="rounded-2xl border border-line p-5"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink">
+                            {item.name}
+                          </p>
+                          <div className="flex shrink-0 flex-col items-end">
+                            {hasDiscount && (
+                              <span className="text-[0.75rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-line line-through">
+                                {formatKRW(item.list_price)}
+                              </span>
+                            )}
+                            <span className="text-[0.8125rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-ink">
+                              {formatKRW(item.price)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className={`mb-5 ${SECTION_HEADING}`}>주문 상품</h2>
+
+                {productsLoading && (
+                  <div className="rounded-2xl border border-line bg-white p-10 text-center text-sm font-bold text-ink-sub">
+                    요금 정보를 불러오는 중입니다.
+                  </div>
+                )}
+
+                {!productsLoading && hasNoServices && (
+                  <div className="rounded-2xl border border-error/30 bg-white p-10 text-center">
+                    <p className="text-sm font-bold text-error">
+                      요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+                    </p>
+                  </div>
+                )}
+
+                {!productsLoading &&
+                  !productsError &&
+                  filteredServices.map((service) => (
+                    <div key={service.key} className="mb-10 last:mb-0">
+                      <div className="flex items-center gap-3">
+                        <h3
+                          id={`plan-group-label-${service.key}`}
+                          className="text-[1.375rem] font-semibold leading-[1.25rem] tracking-[-0.02em] text-ink"
+                        >
+                          {service.name}
+                        </h3>
+                        <img
+                          src={sectionArrow}
+                          alt=""
+                          aria-hidden="true"
+                          className="h-6 w-[1.4375rem]"
+                        />
+                      </div>
+                      {service.desc && (
+                        <p className="mt-1 w-full text-[0.875rem] font-medium leading-[1.4] text-ink-sub">
+                          {service.desc}
+                        </p>
+                      )}
+
+                      <div
+                        role="radiogroup"
+                        aria-labelledby={`plan-group-label-${service.key}`}
+                        className="mt-6 space-y-2"
+                      >
+                        {service.products.map((product, index) => {
+                          const isSelected = selected[service.key] === product.id;
+                          const hasDiscount =
+                            Number(product.listPrice) > Number(product.price);
+                          const hasSelectionInGroup = Boolean(
+                            selected[service.key],
+                          );
+                          const isRovingTabStop = hasSelectionInGroup
+                            ? isSelected
+                            : index === 0;
+                          const discountPct = hasDiscount
+                            ? Math.round(
+                                (1 -
+                                  Number(product.price) /
+                                    Number(product.listPrice)) *
+                                  100,
+                              )
+                            : 0;
+
+                          return (
+                            // biome-ignore lint/a11y/useSemanticElements: handleRadioKeyDown이 구현한 roving tabindex + 방향키 이동 라디오그룹이다(StudentEnrollmentRequest.tsx와 동일 규약).
+                            <button
+                              type="button"
+                              key={product.id}
+                              role="radio"
+                              aria-checked={isSelected}
+                              tabIndex={isRovingTabStop ? 0 : -1}
+                              onClick={() => toggle(service.key, product.id)}
+                              onKeyDown={(e) =>
+                                handleRadioKeyDown(
+                                  e,
+                                  service.key,
+                                  service.products,
+                                  index,
+                                )
+                              }
+                              className="flex w-full items-center justify-between gap-4 rounded-2xl border border-line bg-white px-4 py-4 text-left transition hover:border-ink-sub"
+                            >
+                              <span className="flex min-w-0 flex-1 items-center gap-3">
+                                <img
+                                  src={
+                                    isSelected
+                                      ? checkboxSelected
+                                      : checkboxUnselected
+                                  }
+                                  alt=""
+                                  aria-hidden="true"
+                                  className="size-6 shrink-0"
+                                />
+                                <span className="break-keep text-[1rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink">
+                                  {product.name}
+                                </span>
+                                {product.recommended && (
+                                  <span className="flex h-[1.375rem] shrink-0 items-center justify-center rounded-md bg-primary px-2 text-[0.75rem] font-medium text-white">
+                                    추천
+                                  </span>
+                                )}
+                              </span>
+
+                              <span className="flex shrink-0 flex-col items-end gap-1">
+                                {hasDiscount ? (
+                                  <>
+                                    <span className="whitespace-nowrap text-[0.875rem] font-normal tracking-[-0.02em] text-line">
+                                      {formatKRW(product.listPrice)}
+                                    </span>
+                                    <span className="flex items-center gap-2">
+                                      <span className="whitespace-nowrap text-[0.75rem] font-medium text-error">
+                                        {discountPct}% 할인
+                                      </span>
+                                      <span className="whitespace-nowrap text-[1rem] font-medium tracking-[-0.02em] text-ink">
+                                        {formatKRW(product.price)}
+                                      </span>
+                                    </span>
+                                  </>
+                                ) : (
+                                  <span className="whitespace-nowrap text-[1rem] font-medium tracking-[-0.02em] text-ink">
+                                    {formatKRW(product.price)}
+                                  </span>
+                                )}
+                              </span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  ))}
+              </>
+            )}
           </section>
 
           {/* 우측: 결제수단/쿠폰/금액 — Checkout.jsx 아래쪽 aside 와 같은 골격. */}
@@ -667,8 +1058,10 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
               )}
             </div>
 
-            {/* 쿠폰 선택 — 재개 모드에서는 감춘다(위 isResume 주석). */}
-            {!isResume && (
+            {/* 쿠폰 선택 — 재개 모드에서는 감춘다(위 isResume 주석). 상품을 바꾼
+                경로(hasChanged)는 새 주문이 쿠폰을 쓰지 않으므로(handlePay
+                fn_parent_create_enrollment 분기) 섹션 자체를 감춘다. */}
+            {!isResume && !hasChanged && (
               <div>
                 <h3 className={`mb-4 ${SECTION_HEADING}`}>쿠폰 선택</h3>
                 <div className="flex gap-2">
@@ -822,13 +1215,13 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
               <dl className="space-y-3 text-[0.875rem] font-medium leading-[1.25rem] text-ink">
                 <div className="flex justify-between">
                   <dt>판매가</dt>
-                  <dd>{formatKRW(order.list_amount)}</dd>
+                  <dd>{formatKRW(displayListAmount)}</dd>
                 </div>
                 <div className="flex justify-between">
                   <dt>할인 금액</dt>
                   <dd className="text-primary">
-                    {order.discount_amount > 0
-                      ? `-${formatKRW(order.discount_amount)}`
+                    {displayDiscountAmount > 0
+                      ? `-${formatKRW(displayDiscountAmount)}`
                       : formatKRW(0)}
                   </dd>
                 </div>
@@ -845,6 +1238,15 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                   <dd>{formatKRW(displayAmount)}</dd>
                 </div>
               </dl>
+
+              {missingOrderItem && (
+                <p
+                  aria-live="polite"
+                  className="mt-4 text-[0.75rem] font-medium leading-[1.4] text-error"
+                >
+                  {MISSING_ORDER_ITEM_TEXT}
+                </p>
+              )}
 
               {amountMismatch && (
                 <p

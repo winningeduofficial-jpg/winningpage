@@ -5,6 +5,7 @@
 type OrderStatusInput = {
   id?: string;
   status?: string | null;
+  approval_status?: string | null;
 };
 
 type RefundStatusInput = {
@@ -45,6 +46,12 @@ export function resolveOrderStatus(
   order: OrderStatusInput,
   refunds: RefundStatusInput[],
 ) {
+  // 학부모가 다른 상품 구성으로 새로 결제해 이 주문을 대체함
+  // (fn_parent_create_enrollment). 반려가 아니라 대체라 환불 대상이 아니고,
+  // waiting_deposit 체크보다도 먼저 봐야 한다 — 그래야 어떤 경우에도 환불
+  // 매칭이나 다른 상태로 오분류되지 않는다.
+  if (order.approval_status === "superseded") return "superseded";
+
   // 가상계좌 미입금(waiting_deposit)은 환불 대상이 아니므로 refunds 매칭보다 먼저
   // 본다 — 돈이 안 들어온 주문이라 refund_requests 행이 있을 수 없다.
   if (order.status === "waiting_deposit") return "pending";

@@ -22,6 +22,7 @@ const STATUS_TEXT: Record<string, string> = {
   refund_processing: "환불 진행 중",
   refund_completed: "환불 완료",
   refund_rejected: "환불 반려",
+  superseded: "다른 상품으로 결제됨",
 };
 
 function formatApprovedAtDetail(
@@ -102,6 +103,10 @@ export default function PaymentDetailModal({
   const canRequestRefund =
     status === "paid" || status === "refund_parent_rejected";
 
+  // 영수증은 결제가 실제로 이뤄진 건에만 있다 — superseded(대체됨) 주문은
+  // 결제된 적이 없어 영수증을 보여주면 안 된다.
+  const canViewReceipt = status !== "superseded";
+
   return (
     <MyPageModalShell
       open={open}
@@ -154,13 +159,15 @@ export default function PaymentDetailModal({
             환불 신청
           </button>
         )}
-        <button
-          type="button"
-          onClick={onViewReceipt}
-          className="h-[2.5rem] w-[8.25rem] rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
-        >
-          영수증 보기
-        </button>
+        {canViewReceipt && (
+          <button
+            type="button"
+            onClick={onViewReceipt}
+            className="h-[2.5rem] w-[8.25rem] rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
+          >
+            영수증 보기
+          </button>
+        )}
       </div>
     </MyPageModalShell>
   );

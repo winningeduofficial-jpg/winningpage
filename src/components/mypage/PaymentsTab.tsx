@@ -42,6 +42,7 @@ type Order = {
   created_at?: string;
   paid_at?: string;
   status?: string;
+  approval_status?: string;
   is_fake_entitlement?: boolean;
 };
 
@@ -64,6 +65,9 @@ function resolveStudentStatus(
   refunds: Refund[],
   finishedByOrder: Record<string, boolean> = {},
 ) {
+  // 학부모가 다른 상품 구성으로 새로 결제하며 이 주문을 대체한 경우다.
+  // status 는 canceled 로 같이 떨어지므로 아래 신청 취소 분기보다 먼저 걸러야 한다.
+  if (order.approval_status === "superseded") return "student_superseded";
   if (order.status === "pending") return "student_waiting_parent";
   if (order.status === "canceled" || order.status === "failed")
     return "student_canceled";
