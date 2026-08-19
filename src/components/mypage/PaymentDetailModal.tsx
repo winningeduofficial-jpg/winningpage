@@ -1,4 +1,5 @@
 import { useId } from "react";
+import { computeDiscountBreakdown } from "@/components/mypage/paymentRows";
 import { formatKRW } from "@/data/pricingCatalog";
 import MyPageModalShell from "./MyPageModalShell";
 
@@ -46,8 +47,22 @@ type PaymentOrder = {
   paid_at?: string;
   vat?: number | string | null;
   amount: number;
+  order_items?: {
+    name: string;
+    list_price?: number;
+    price?: number;
+    quantity?: number;
+  }[];
+  list_amount?: number;
   discount_amount?: number;
-  coupon_redemptions?: { discount_amount: number; voided_at?: string | null }[];
+  coupon_redemptions?: {
+    discount_amount: number;
+    voided_at?: string | null;
+    coupons?:
+      | { title?: string | null }
+      | { title?: string | null }[]
+      | null;
+  }[];
 };
 
 type PaymentDetailModalProps = {
@@ -79,25 +94,21 @@ export default function PaymentDetailModal({
       ? null
       : Number(order.vat);
 
-  // 쿠폰 할인 정본은 coupon_redemptions(voided_at is null 행의 합) — sql/87 정책
-  // 적용 전이면 학생 소유/auto 쿠폰의 redemption이 일부/0행으로 와 쿠폰 행이 덜
-  // 보이는 것으로 자연 폴백한다. 상품 할인은 discount_amount(상품+쿠폰 합,
-  // sql/55 불변식)에서 쿠폰 합을 뺀 나머지다(EnrollmentRequestModal과 동일 계산).
-  const couponSum = (order.coupon_redemptions ?? [])
-    .filter((r) => !r.voided_at)
-    .reduce((sum, r) => sum + r.discount_amount, 0);
-  const productDiscount = Math.max(0, (order.discount_amount ?? 0) - couponSum);
+  // 원금/할인 사유별/쿠폰명 분해는 EnrollmentRequestModal과 공유하는
+  // computeDiscountBreakdown(paymentRows.ts)에 정본으로 몰아뒀다 — 두 화면이
+  // 각자 계산하면 같은 주문이 서로 다른 할인 내역으로 보일 수 있다.
+  const { listAmount, discountRows, couponRows } =
+    computeDiscountBreakdown(order);
 
   const rows = [
     { label: "주문번호", value: order.id },
     { label: "결제 수단", value: order.method || "-" },
     { label: "결제 상품", value: order.order_name || "-" },
-    ...(productDiscount > 0
-      ? [{ label: "할인 금액", value: `-${formatKRW(productDiscount)}` }]
+    ...(listAmount > 0
+      ? [{ label: "원금", value: formatKRW(listAmount) }]
       : []),
-    ...(couponSum > 0
-      ? [{ label: "쿠폰", value: `-${formatKRW(couponSum)}` }]
-      : []),
+    ...discountRows.map((row) => ({ label: row.label, value: row.amountText })),
+    ...couponRows.map((row) => ({ label: row.label, value: row.amountText })),
     { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
     { label: "부가 가치", value: Number.isFinite(vat) ? formatKRW(vat) : "-" },
     { label: "결제 금액", value: formatKRW(order.amount) },
@@ -140,9 +151,9 @@ export default function PaymentDetailModal({
         </h2>
 
         <dl className="mt-7.5 flex flex-col pb-7.5">
-          {rows.map((row) => (
+          {rows.map((row, i) => (
             <div
-              key={row.label}
+              key={`${row.label}-${i}`}
               className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
             >
               <dt className="shrink-0 text-[0.875rem] text-ink-sub">

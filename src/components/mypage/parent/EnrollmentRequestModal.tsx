@@ -1,6 +1,7 @@
 import { useCallback, useId, useState } from "react";
 import { useNavigate } from "react-router";
 import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import { computeDiscountBreakdown } from "@/components/mypage/paymentRows";
 import { formatKRW } from "@/data/pricingCatalog";
 import { supabase } from "@/lib/supabase";
 
@@ -34,8 +35,22 @@ type EnrollmentOrder = {
   amount: number;
   approval_status?: string;
   student_profile_id?: string;
+  order_items?: {
+    name: string;
+    list_price?: number;
+    price?: number;
+    quantity?: number;
+  }[];
+  list_amount?: number;
   discount_amount?: number;
-  coupon_redemptions?: { discount_amount: number; voided_at?: string | null }[];
+  coupon_redemptions?: {
+    discount_amount: number;
+    voided_at?: string | null;
+    coupons?:
+      | { title?: string | null }
+      | { title?: string | null }[]
+      | null;
+  }[];
 };
 
 type EnrollmentRequestModalProps = {
@@ -94,14 +109,50 @@ export default function EnrollmentRequestModal({
 
   if (!open || !order) return null;
 
-  // 쿠폰 할인 정본은 coupon_redemptions(voided_at is null 행의 합) — sql/87 정책이
-  // 적용 전이면 학생 소유/auto 쿠폰의 redemption이 일부/0행으로 와 쿠폰 행이 덜
-  // 보이는 것으로 자연 폴백한다. 상품 할인은 discount_amount(상품+쿠폰 합,
-  // sql/55 불변식)에서 쿠폰 합을 뺀 나머지다.
-  const couponSum = (order.coupon_redemptions ?? [])
-    .filter((r) => !r.voided_at)
-    .reduce((sum, r) => sum + r.discount_amount, 0);
-  const productDiscount = Math.max(0, (order.discount_amount ?? 0) - couponSum);
+  // 원금/할인 사유별/쿠폰명 분해는 EnrollmentRequestModal·PaymentDetailModal이
+  // 공유하는 computeDiscountBreakdown(paymentRows.ts)에 정본으로 몰아뒀다 —
+  // 두 화면이 각자 계산하면 같은 주문이 서로 다른 할인 내역으로 보일 수 있다.
+  const { listAmount, discountRows, couponRows } =
+    computeDiscountBreakdown(order);
+  // 원금 → 할인 사유 행들 → 쿠폰 행들 → 결제 금액 순서로 렌더한다. 목록의
+  // 첫 행만 상품명과 구분선(border-t)을 긋고, 나머지는 mt-3만 준다. 원금·결제
+  // 금액은 일반 색(text-ink-strong), 할인·쿠폰 값만 음수 강조색(text-primary).
+  const extraRows: {
+    key: string;
+    label: string;
+    value: string;
+    emphasize: boolean;
+  }[] = [];
+  if (listAmount > 0) {
+    extraRows.push({
+      key: "list-amount",
+      label: "원금",
+      value: formatKRW(listAmount),
+      emphasize: false,
+    });
+  }
+  for (const [i, row] of discountRows.entries()) {
+    extraRows.push({
+      key: `discount-${i}`,
+      label: row.label,
+      value: row.amountText,
+      emphasize: true,
+    });
+  }
+  for (const [i, row] of couponRows.entries()) {
+    extraRows.push({
+      key: `coupon-${i}`,
+      label: row.label,
+      value: row.amountText,
+      emphasize: true,
+    });
+  }
+  extraRows.push({
+    key: "amount",
+    label: "결제 금액",
+    value: formatKRW(order.amount),
+    emphasize: false,
+  });
 
   return (
     <MyPageModalShell
@@ -131,32 +182,19 @@ export default function EnrollmentRequestModal({
           >
             {order.order_name}
           </p>
-          {productDiscount > 0 && (
-            <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[0.9375rem] font-semibold">
-              <span className="text-ink">할인 금액</span>
-              <span className="text-primary">
-                -{formatKRW(productDiscount)}
+          {extraRows.map((row, i) => (
+            <div
+              key={row.key}
+              className={`flex items-center justify-between text-[0.9375rem] font-semibold ${
+                i === 0 ? "mt-3 border-t border-line pt-3" : "mt-3"
+              }`}
+            >
+              <span className="text-ink">{row.label}</span>
+              <span className={row.emphasize ? "text-primary" : "text-ink-strong"}>
+                {row.value}
               </span>
             </div>
-          )}
-          {couponSum > 0 && (
-            <div
-              className={`flex items-center justify-between text-[0.9375rem] font-semibold ${productDiscount > 0 ? "mt-3" : "mt-3 border-t border-line pt-3"}`}
-            >
-              <span className="text-ink">쿠폰</span>
-              <span className="text-primary">-{formatKRW(couponSum)}</span>
-            </div>
-          )}
-          <div
-            className={`flex items-center justify-between text-[0.9375rem] font-semibold ${
-              productDiscount > 0 || couponSum > 0
-                ? "mt-3"
-                : "mt-3 border-t border-line pt-3"
-            }`}
-          >
-            <span className="text-ink">결제 금액</span>
-            <span className="text-ink-strong">{formatKRW(order.amount)}</span>
-          </div>
+          ))}
         </div>
 
         {rejecting && (

@@ -13,10 +13,22 @@ export type Order = {
   method?: string;
   vat?: number | string | null;
   is_fake_entitlement?: boolean;
-  order_items?: { name: string }[];
+  order_items?: {
+    name: string;
+    list_price?: number;
+    price?: number;
+    quantity?: number;
+  }[];
   list_amount?: number;
   discount_amount?: number;
-  coupon_redemptions?: { discount_amount: number; voided_at?: string | null }[];
+  coupon_redemptions?: {
+    discount_amount: number;
+    voided_at?: string | null;
+    coupons?:
+      | { title?: string | null }
+      | { title?: string | null }[]
+      | null;
+  }[];
 };
 
 export type Refund = {
@@ -72,10 +84,13 @@ export function useMyPageOrders(user: SessionUser | null) {
           // (orders.raw.vat)을 그대로 읽는다 — raw 전체는 행당 수 KB라 목록 조회에
           // 얹으면 무겁기 때문에 PostgREST JSON 경로로 필요한 한 값만 뽑는다.
           // list_amount/discount_amount/coupon_redemptions 는 결제 상세 모달
-          // (PaymentDetailModal)의 "할인 금액"/"쿠폰" 행 분해용 — redemption 은
-          // 주문당 몇 개 안 되는 얕은 임베드라 목록 조회에 얹어도 가볍다.
+          // (PaymentDetailModal)의 "원금"/"할인 금액"/"쿠폰" 행 분해용 — redemption 은
+          // 주문당 몇 개 안 되는 얕은 임베드라 목록 조회에 얹어도 가볍다. order_items의
+          // list_price/price/quantity는 항목별 할인 사유 분해용, coupons(title)은
+          // 쿠폰명 노출용 — coupons는 public read가 is_active=true 행만 통과시키므로
+          // 비활성 쿠폰이면 embed가 null로 온다(코드에서 폴백 처리).
           .select(
-            "id, order_name, amount, paid_at, status, approval_status, method, vat:raw->>vat, order_items(name), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at)",
+            "id, order_name, amount, paid_at, status, approval_status, method, vat:raw->>vat, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
           )
           // 쌍 구조(sql/68) — orders.user_id 는 **결제한 사람(학부모)** 축이다.
           // 학생은 student_profile_id 에만 박히므로 user_id 로만 조회하면 학생

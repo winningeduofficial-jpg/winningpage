@@ -2,6 +2,8 @@
 // 학부모 결제 내역(parent/ParentPaymentsTab)이 같은 규칙을 써야 한다.
 // 두 화면이 각자 구현하면 같은 주문이 서로 다른 배지·다른 주문번호로 보인다.
 
+import { formatKRW } from "@/data/pricingCatalog";
+
 type OrderStatusInput = {
   id?: string;
   status?: string | null;
@@ -78,4 +80,112 @@ export function resolveOrderStatus(
   if (refund.approval_status === "rejected") return "refund_parent_rejected";
 
   return "refund_requested";
+}
+
+type DiscountOrderInput = {
+  list_amount?: number | null;
+  discount_amount?: number | null;
+  order_items?:
+    | {
+        name: string;
+        list_price?: number | null;
+        price?: number | null;
+        quantity?: number | null;
+      }[]
+    | null;
+  coupon_redemptions?:
+    | {
+        discount_amount: number;
+        voided_at?: string | null;
+        // PostgREST embed는 to-one 관계(coupon_redemptions.coupon_id -> coupons.id)를
+        // 단일 객체로 반환한다(dev 실측: {"coupons":{"title":"..."}}). FK 메타데이터를
+        // 못 읽는 환경이 배열로 줄 가능성까지 흡수하도록 유니온으로 받고, 접근은
+        // couponTitle()이 양쪽을 처리한다.
+        coupons?:
+          | { title?: string | null }
+          | { title?: string | null }[]
+          | null;
+      }[]
+    | null;
+};
+
+export type DiscountBreakdownRow = { label: string; amountText: string };
+
+function couponTitle(
+  rel:
+    | { title?: string | null }
+    | { title?: string | null }[]
+    | null
+    | undefined,
+) {
+  return (Array.isArray(rel) ? rel[0]?.title : rel?.title) ?? null;
+}
+
+// 결제요청 확인 모달(EnrollmentRequestModal)과 결제 상세 내역 모달
+// (PaymentDetailModal)이 공유하는 "원금 → 할인 사유 → 쿠폰" 분해 로직.
+// 두 화면이 각자 계산하면 같은 주문이 서로 다른 할인 내역으로 보일 수 있다.
+//
+// 서버 불변식(sql/55): list_amount - discount_amount = amount. discount_amount는
+// "상품 할인 + 쿠폰 할인"의 합이라, 쿠폰 합(couponSum)을 뺀 나머지가 상품
+// 할인(productDiscount)이다. order_items의 (list_price-price)*quantity 합이
+// productDiscount와 정확히 맞아떨어지면 항목별로 쪼개 보여주고, 항목 합이 더
+// 크면(비정상 — 스냅샷과 discount_amount 산정이 어긋난 경우) 항목 분해를 버리고
+// 통합 한 줄로 폴백한다. 이렇게 하면 화면에 보이는 할인 행의 합은 항상
+// discount_amount(서버 정본)와 일치한다.
+export function computeDiscountBreakdown(order: DiscountOrderInput) {
+  const activeRedemptions = (order.coupon_redemptions ?? []).filter(
+    (r) => !r.voided_at,
+  );
+  const couponSum = activeRedemptions.reduce(
+    (sum, r) => sum + r.discount_amount,
+    0,
+  );
+  const productDiscount = Math.max(0, (order.discount_amount ?? 0) - couponSum);
+
+  const itemDiscounts = (order.order_items ?? [])
+    .map((item) => ({
+      name: item.name,
+      amount:
+        ((item.list_price ?? 0) - (item.price ?? 0)) * (item.quantity ?? 1),
+    }))
+    .filter((d) => d.amount > 0);
+  const itemDiscountSum = itemDiscounts.reduce((sum, d) => sum + d.amount, 0);
+  const residual = productDiscount - itemDiscountSum;
+
+  const discountRows: DiscountBreakdownRow[] = [];
+  if (residual >= 0) {
+    for (const d of itemDiscounts) {
+      discountRows.push({
+        label: `${d.name} 할인`,
+        amountText: `-${formatKRW(d.amount)}`,
+      });
+    }
+    if (residual > 0) {
+      discountRows.push({
+        label: "할인 금액",
+        amountText: `-${formatKRW(residual)}`,
+      });
+    }
+  } else if (productDiscount > 0) {
+    // 항목 합(itemDiscountSum) > discount_amount 기반 productDiscount 인
+    // 비정상 케이스 — 정합 우선으로 통합 한 줄 폴백.
+    discountRows.push({
+      label: "할인 금액",
+      amountText: `-${formatKRW(productDiscount)}`,
+    });
+  }
+
+  const couponRows: DiscountBreakdownRow[] = activeRedemptions.map((r) => {
+    const title = couponTitle(r.coupons);
+    return {
+      label: title ? `쿠폰 · ${title}` : "쿠폰",
+      amountText: `-${formatKRW(r.discount_amount)}`,
+    };
+  });
+
+  return {
+    listAmount: order.list_amount ?? 0,
+    discountRows,
+    couponRows,
+  };
 }

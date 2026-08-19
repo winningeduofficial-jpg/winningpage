@@ -62,10 +62,22 @@ type Order = {
   method?: string;
   vat?: number | string | null;
   is_fake_entitlement?: boolean;
-  order_items?: { name: string }[];
+  order_items?: {
+    name: string;
+    list_price?: number;
+    price?: number;
+    quantity?: number;
+  }[];
   list_amount?: number;
   discount_amount?: number;
-  coupon_redemptions?: { discount_amount: number; voided_at?: string | null }[];
+  coupon_redemptions?: {
+    discount_amount: number;
+    voided_at?: string | null;
+    coupons?:
+      | { title?: string | null }
+      | { title?: string | null }[]
+      | null;
+  }[];
 };
 
 type Refund = {
@@ -116,9 +128,9 @@ export default function ParentPaymentsTab({
       supabase
         .from("orders")
         // list_amount/discount_amount/coupon_redemptions — EnrollmentRequestModal의
-        // "할인 금액"/"쿠폰" 행 분해용(useMyPageOrders.ts와 동일 이유).
+        // "원금"/"할인 금액"/"쿠폰" 행 분해용(useMyPageOrders.ts와 동일 이유).
         .select(
-          "id, order_name, amount, status, approval_status, student_profile_id, created_at, order_items(name), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at)",
+          "id, order_name, amount, status, approval_status, student_profile_id, created_at, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
         )
         .eq("parent_profile_id", uid)
         .eq("status", "pending")
