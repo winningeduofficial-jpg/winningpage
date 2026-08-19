@@ -16,10 +16,7 @@ type RankingRailProps = {
 
 export default function RankingRail({ ranking }: RankingRailProps) {
   return (
-    <GoalCard
-      tone="cream"
-      className="flex flex-col gap-3 px-[1.25rem] py-[1.25rem]"
-    >
+    <GoalCard tone="cream" className="flex flex-col gap-3 px-5 py-5">
       <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
         오늘의 학습 순위
       </h3>
@@ -35,7 +32,7 @@ export default function RankingRail({ ranking }: RankingRailProps) {
               // 포함돼 같은 rank가 두 번 나올 수 있다(RankingRail 호출부 주석 참고).
               // biome-ignore lint/suspicious/noArrayIndexKey: rank 동률 엣지케이스를 index로 구분한다(위 주석) — 학생 고유 id가 이 목록에 없다.
               key={`${row.rank}-${index}`}
-              className={`flex h-[2.375rem] items-center justify-between rounded-lg bg-white px-4 text-[0.875rem] leading-[1.4] ${
+              className={`flex h-9.5 items-center justify-between rounded-lg bg-white px-4 text-[0.875rem] leading-[1.4] ${
                 row.isSelf ? "font-bold text-[#E27A2F]" : "text-ink"
               }`}
             >

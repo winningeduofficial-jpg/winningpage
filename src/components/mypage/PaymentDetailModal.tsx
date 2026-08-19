@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { formatKRW } from "@/data/pricingCatalog";
+import OrderAmountBreakdown from "@/components/mypage/OrderAmountBreakdown";
 import MyPageModalShell from "./MyPageModalShell";
 
 // 결제 상세 내역 모달 (Figma 3665:6278).
@@ -46,6 +46,22 @@ type PaymentOrder = {
   paid_at?: string;
   vat?: number | string | null;
   amount: number;
+  order_items?: {
+    name: string;
+    list_price?: number;
+    price?: number;
+    quantity?: number;
+  }[];
+  list_amount?: number;
+  discount_amount?: number;
+  coupon_redemptions?: {
+    discount_amount: number;
+    voided_at?: string | null;
+    coupons?:
+      | { title?: string | null }
+      | { title?: string | null }[]
+      | null;
+  }[];
 };
 
 type PaymentDetailModalProps = {
@@ -69,21 +85,14 @@ export default function PaymentDetailModal({
 
   if (!open || !order) return null;
 
-  // 부가세는 토스 승인 응답 원본(orders.raw.vat)이 정본이다 — 우리가 금액에서
-  // 역산하지 않는다(면세/과세 판정과 반올림 규칙을 우리가 알 수 없다).
-  // MyPage.jsx 가 `vat:raw->>vat` 로 뽑아 내려준다. 값이 없으면 대시로 둔다.
-  const vat =
-    order.vat === null || order.vat === undefined || order.vat === ""
-      ? null
-      : Number(order.vat);
-
-  const rows = [
+  // 주문 메타(주문번호/결제 수단/승인 일시/결제 상태)를 위에 몰고, 금액 분해
+  // (OrderAmountBreakdown — 항목/할인/합계 영수증형 섹션)는 맨 아래에 둔다
+  // (사용자 확정). 금액 분해는 EnrollmentRequestModal과 공유해 두 화면이 같은
+  // 주문을 다르게 보여주지 않게 한다.
+  const metaRows = [
     { label: "주문번호", value: order.id },
     { label: "결제 수단", value: order.method || "-" },
-    { label: "결제 상품", value: order.order_name || "-" },
     { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
-    { label: "부가 가치", value: Number.isFinite(vat) ? formatKRW(vat) : "-" },
-    { label: "결제 금액", value: formatKRW(order.amount) },
     { label: "결제 상태", value: STATUS_TEXT[status || ""] || "-" },
   ];
 
@@ -91,17 +100,13 @@ export default function PaymentDetailModal({
   // 아직 들어온 돈이 없고, 이미 환불이 걸린 건은 중복 신청이 서버에서 거부된다
   // (WC007) — 누를 수 있게 두면 실패만 보게 된다.
   //
-  // 학부모 반려 건은 예외로 다시 열어준다. 반려는 종결이 아니라 "이번엔 안
-  // 된다"이고, 같은 주문으로 재신청하는 것이 설계 확정 사항이다(sql/68 —
-  // 미종결 판정에서 approval_status='rejected' 를 빼둔 이유가 이것이다).
+  // 학부모 반려(refund_parent_rejected) 건은 종결이다 — 재신청 버튼을 열지
+  // 않는다(사용자 확정 2026-08-19, sql/88 WC057 이 서버에서도 거부).
+  // "반려 후 재신청 허용"이던 이전 결정(sql/68·75)을 뒤집은 것.
   //
   // 학생·학부모 둘 다 신청할 수 있다. 학생이 신청하면 학부모 확인 단계를
-  // 거친다(확정 디자인 3967:3561 "환불을 요청할게요" — "결제는 OOO
-  // 학부모님이 하셨어요. 환불 요청을 보내면 학부모님이 확인 후 환불을
-  // 진행합니다"). 2026-08-13 잠시 결제자 전용으로 좁혔다가 그 디자인을
-  // 확인하고 되돌렸다(sql/75).
-  const canRequestRefund =
-    status === "paid" || status === "refund_parent_rejected";
+  // 거친다(확정 디자인 3967:3561 "환불을 요청할게요").
+  const canRequestRefund = status === "paid";
 
   // 영수증은 결제가 실제로 이뤄진 건에만 있다 — superseded(대체됨) 주문은
   // 결제된 적이 없어 영수증을 보여주면 안 된다.
@@ -112,9 +117,9 @@ export default function PaymentDetailModal({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
-      className="w-[33.75rem]"
+      className="w-135"
     >
-      <div className="flex-1 overflow-y-auto px-[2.1875rem] pt-[2.5rem]">
+      <div className="flex-1 overflow-y-auto px-8.75 pt-10">
         <h2
           id={titleId}
           className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong"
@@ -122,11 +127,11 @@ export default function PaymentDetailModal({
           결제 상세 내역
         </h2>
 
-        <dl className="mt-[1.875rem] flex flex-col pb-[1.875rem]">
-          {rows.map((row) => (
+        <dl className="mt-7.5 flex flex-col pb-7.5">
+          {metaRows.map((row, i) => (
             <div
-              key={row.label}
-              className="flex items-center justify-between gap-4 border-b border-line/60 py-[0.9375rem]"
+              key={`${row.label}-${i}`}
+              className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
             >
               <dt className="shrink-0 text-[0.875rem] text-ink-sub">
                 {row.label}
@@ -139,14 +144,21 @@ export default function PaymentDetailModal({
               </dd>
             </div>
           ))}
+          <div className="py-3.75">
+            <OrderAmountBreakdown
+              order={order}
+              amount={order.amount}
+              fallbackName={order.order_name}
+            />
+          </div>
         </dl>
       </div>
 
-      <div className="flex justify-center gap-[0.75rem] border-t border-[#F0F0F0] px-[2.1875rem] py-[1.5625rem]">
+      <div className="flex justify-center gap-3 border-t border-[#F0F0F0] px-8.75 py-6.25">
         <button
           type="button"
           onClick={onClose}
-          className="h-[2.5rem] w-[8.25rem] rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
+          className="h-10 w-33 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
         >
           닫기
         </button>
@@ -154,7 +166,7 @@ export default function PaymentDetailModal({
           <button
             type="button"
             onClick={onRequestRefund}
-            className="h-[2.5rem] w-[8.25rem] rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-error transition-colors hover:bg-surface-04"
+            className="h-10 w-33 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-error transition-colors hover:bg-surface-04"
           >
             환불 신청
           </button>
@@ -163,7 +175,7 @@ export default function PaymentDetailModal({
           <button
             type="button"
             onClick={onViewReceipt}
-            className="h-[2.5rem] w-[8.25rem] rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
+            className="h-10 w-33 rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
           >
             영수증 보기
           </button>

@@ -27,11 +27,11 @@ export default function PaymentFail() {
   return (
     <main className="min-h-screen bg-white pt-16">
       <div className="flex min-h-[60vh] flex-col items-center justify-center px-5 py-12 text-center sm:px-6 sm:py-16">
-        <div className="mx-auto w-full max-w-[40.625rem]">
+        <div className="mx-auto w-full max-w-162.5">
           <h1 className="text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink sm:text-[2rem]">
             결제 실패
           </h1>
-          <p className="mt-3 break-keep text-[0.875rem] font-normal leading-[1.375rem] text-ink sm:text-[1rem]">
+          <p className="mt-3 break-keep text-[0.875rem] font-normal leading-5.5 text-ink sm:text-[1rem]">
             {message ?? "결제가 취소되었거나 실패했습니다."}
           </p>
           {code && (
@@ -42,7 +42,7 @@ export default function PaymentFail() {
 
           <Link
             to="/pricing"
-            className="mt-8 inline-block rounded-xl bg-primary px-6 py-3 text-[0.875rem] font-semibold leading-[1.25rem] text-white transition hover:brightness-125 sm:text-[1.25rem] sm:leading-[1.75rem]"
+            className="mt-8 inline-block rounded-xl bg-primary px-6 py-3 text-[0.875rem] font-semibold leading-5 text-white transition hover:brightness-125 sm:text-[1.25rem] sm:leading-7"
           >
             다시 시도하기
           </Link>

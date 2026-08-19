@@ -17,12 +17,12 @@ export default function WizardActions({
   prevLabel = "이전",
 }: WizardActionsProps) {
   return (
-    <div className="flex items-center justify-center gap-[1.25rem]">
+    <div className="flex items-center justify-center gap-5">
       {onPrev && (
         <button
           type="button"
           onClick={onPrev}
-          className="h-[3.75rem] w-[25rem] rounded-full bg-surface-03 text-[1rem] font-semibold text-primary transition-colors hover:brightness-95"
+          className="h-perf-inset w-100 rounded-full bg-surface-03 text-[1rem] font-semibold text-primary transition-colors hover:brightness-95"
         >
           {prevLabel}
         </button>
@@ -32,7 +32,7 @@ export default function WizardActions({
         type="button"
         onClick={onNext}
         disabled={nextDisabled}
-        className={`h-[3.75rem] w-[25rem] rounded-full text-[1rem] font-semibold transition-colors ${
+        className={`h-perf-inset w-100 rounded-full text-[1rem] font-semibold transition-colors ${
           nextDisabled
             ? "cursor-not-allowed bg-surface-01 text-ink-sub"
             : "bg-primary text-white hover:bg-[#012347]"

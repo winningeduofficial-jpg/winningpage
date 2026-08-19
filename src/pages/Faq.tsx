@@ -140,23 +140,23 @@ export default function Faq() {
     <main className="min-h-screen bg-white pt-16">
       {/* 헤더 하단 → 제목 상단 여백: 시안 149px × 0.766(스케일 팩터) ≈ 114px = 7.125rem.
           모바일은 pt-16(64px)을 유지해 데스크톱보다 좁게 둔다. */}
-      <section className="pb-20 pt-16 sm:pb-24 sm:pt-[7.125rem]">
+      <section className="pb-20 pt-16 sm:pb-24 sm:pt-28.5">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           {/* 시안 실측: 제목과 검색창은 같은 행이 아니라 제목 아래에 검색창이
               우측 정렬로 놓인다(제목 하단→검색창 상단 12px × 0.766 ≈ 9px).
               모바일은 세로 스택 + 검색창 w-full 을 그대로 유지한다. */}
-          <div className="flex flex-col gap-6 sm:gap-[0.5625rem]">
-            <h1 className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252] sm:text-[2.75rem]">
+          <div className="flex flex-col gap-6 sm:gap-2.25">
+            <h1 className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2.75rem]">
               FAQ
             </h1>
 
-            <div className="relative h-11 w-full rounded-[0.625rem] border border-[#D7D7D7] bg-white sm:w-[23.625rem] sm:self-end">
+            <div className="relative h-11 w-full rounded-[0.625rem] border border-line bg-white sm:w-94.5 sm:self-end">
               <input
                 value={keyword}
                 onChange={handleKeywordChange}
                 placeholder="키워드 검색"
                 aria-label="FAQ 키워드 검색"
-                className="h-full w-full bg-transparent pl-5 pr-12 text-base font-semibold text-[#525252] outline-none placeholder:text-[#D7D7D7]"
+                className="h-full w-full bg-transparent pl-5 pr-12 text-base font-semibold text-ink outline-hidden placeholder:text-line"
               />
               <Search
                 aria-hidden="true"
@@ -172,21 +172,21 @@ export default function Faq() {
             // 위반) 검색 모드는 tab/tabpanel 롤을 아예 벗기고 aria-live 영역으로 분기한다.
             // aria-live는 "검색 결과 N건" 문구에만 건다 — section 전체에 걸면 검색은
             // 디바운스가 없어 키 입력마다 스크린리더가 결과 목록 전체를 재낭독한다.
-            <section className="mt-8 lg:mt-[5.375rem]">
+            <section className="mt-8 lg:mt-21.5">
               <p
                 aria-live="polite"
-                className="text-base font-semibold leading-5 tracking-[-0.02em] text-[#525252]"
+                className="text-base font-semibold leading-5 tracking-[-0.02em] text-ink"
               >
                 검색 결과{" "}
-                <span className="text-[#013262]">{visibleFaqs.length}건</span>
+                <span className="text-primary">{visibleFaqs.length}건</span>
               </p>
-              <div className="mt-3 border-t border-[#D7D7D7]">
+              <div className="mt-3 border-t border-line">
                 {renderList(`'${keyword.trim()}'에 대한 검색 결과가 없습니다.`)}
               </div>
             </section>
           ) : (
             <>
-              <div className="mt-8 lg:mt-[5.375rem]">
+              <div className="mt-8 lg:mt-21.5">
                 <FaqCategoryTabs
                   tabs={visibleTabs}
                   active={activeTab}

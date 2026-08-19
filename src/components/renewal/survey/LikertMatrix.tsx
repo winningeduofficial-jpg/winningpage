@@ -79,10 +79,10 @@ function RadioDot({ checked }: { checked: boolean }) {
     <span
       aria-hidden="true"
       className={`flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-150 ${
-        checked ? "border-[#013262]" : "border-[#D7D7D7] bg-white"
+        checked ? "border-primary" : "border-line bg-white"
       }`}
     >
-      {checked && <span className="size-3 rounded-full bg-[#013262]" />}
+      {checked && <span className="size-3 rounded-full bg-primary" />}
     </span>
   );
 }
@@ -130,7 +130,7 @@ export default function LikertMatrix({
   }
 
   return (
-    <div className="w-full max-w-[62rem]">
+    <div className="w-full max-w-248">
       {/* Desktop: 992 균등 grid, 문장 행마다 radiogroup 1개.
           게이트가 md(768) 였을 때 척도 컬럼이 56.9px 까지 눌려 `별로 그렇지 않다`가 3줄로 접혔다
           (상단 주석의 하한 92 는 물론 fr 배분의 전제 자체가 무너지는 폭이다).
@@ -145,7 +145,7 @@ export default function LikertMatrix({
           {scale.map((label) => (
             <span
               key={label}
-              className="break-keep px-1 text-center text-sm font-medium leading-5 text-[#525252]"
+              className="break-keep px-1 text-center text-sm font-medium leading-5 text-ink"
             >
               {label}
             </span>
@@ -167,7 +167,7 @@ export default function LikertMatrix({
                 className={`grid h-10 items-center rounded-lg transition-colors duration-700 ${rowHighlightClass(row.key)}`}
                 style={{ gridTemplateColumns: GRID_TEMPLATE }}
               >
-                <p className="break-keep pr-8 text-sm font-normal leading-5 text-[#525252]">
+                <p className="break-keep pr-8 text-sm font-normal leading-5 text-ink">
                   {row.text}
                 </p>
                 {scale.map((label, columnIndex) => {
@@ -191,7 +191,7 @@ export default function LikertMatrix({
                         aria-label={`${row.text} - ${label}`}
                         className="sr-only peer"
                       />
-                      <span className="rounded-full peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent">
+                      <span className="rounded-full peer-focus-visible:outline-solid peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent">
                         <RadioDot checked={checked} />
                       </span>
                     </label>
@@ -204,7 +204,7 @@ export default function LikertMatrix({
               {rowIndex < rows.length - 1 && (
                 <div
                   aria-hidden="true"
-                  className="mt-3 h-3 w-full border-t border-[#D7D7D7]"
+                  className="mt-3 h-3 w-full border-t border-line"
                 />
               )}
             </div>
@@ -230,7 +230,7 @@ export default function LikertMatrix({
                 : "bg-white"
             }`}
           >
-            <p className="mb-3 break-keep text-base leading-6 text-[#525252]">
+            <p className="mb-3 break-keep text-base leading-6 text-ink">
               {row.text}
             </p>
             {/* items-stretch: 라벨 줄 수(375 기준 1~3줄)가 달라도 5칸 버튼 높이가 최장 라벨로 통일된다.
@@ -246,7 +246,7 @@ export default function LikertMatrix({
                 return (
                   <label
                     key={label}
-                    className="flex min-h-[2.75rem] flex-1 cursor-pointer flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center"
+                    className="flex min-h-11 flex-1 cursor-pointer flex-col items-center gap-1.5 rounded-xl px-1 py-2 text-center"
                   >
                     <input
                       type="radio"
@@ -254,13 +254,13 @@ export default function LikertMatrix({
                       onChange={() => handleSelect(row.key, columnIndex)}
                       className="sr-only peer"
                     />
-                    <span className="rounded-full peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-accent">
+                    <span className="rounded-full peer-focus-visible:outline-solid peer-focus-visible:outline-2 peer-focus-visible:outline-accent">
                       <RadioDot checked={checked} />
                     </span>
                     <span
                       className={`break-keep text-[0.625rem] leading-tight sm:text-[0.6875rem] md:text-sm ${
                         checked
-                          ? "font-semibold text-[#013262]"
+                          ? "font-semibold text-primary"
                           : "text-[#808080]"
                       }`}
                     >

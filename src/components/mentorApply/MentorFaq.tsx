@@ -121,13 +121,13 @@ export default function MentorFaq() {
   return (
     // 폼 → FAQ 간격 88(5.5rem)은 앞 섹션이 아니라 이 섹션의 pt 가 흡수한다(ServiceSection 규약:
     // "경계 갭은 뒤 섹션 pt 로 계산한다"). 하단은 푸터 직전 경계라 서비스 4종과 같은 리듬으로 둔다.
-    <ServiceSection className="pb-20 sm:pb-24 lg:pb-[7.5rem] lg:pt-[5.5rem]">
+    <ServiceSection className="pb-20 sm:pb-24 lg:pb-30 lg:pt-22">
       {/* 헤더 ↔ 리스트 gap 72(4.5rem). ServiceFaq 가 자체적으로 lg:mt-[2.875rem](46)을 갖고 있어
           여기서는 부족분 26(1.625rem)만 flex gap 으로 더한다 — margin 으로 더하면 인접 마진이
           상쇄(collapse)돼 46 그대로 남는다. flex 컨테이너 안에서는 상쇄가 일어나지 않는다. */}
-      <div className="flex flex-col lg:gap-[1.625rem]">
+      <div className="flex flex-col lg:gap-6.5">
         {/* 시안 헤더는 925폭 중앙정렬. 아이라인 ↔ 타이틀 gap 8(0.5rem). */}
-        <div className="mx-auto flex w-full max-w-[57.8125rem] flex-col gap-2 text-center">
+        <div className="mx-auto flex w-full max-w-231.25 flex-col gap-2 text-center">
           <p className="text-sm font-medium leading-[1.4] text-ink">
             {copy.eyebrow}
           </p>

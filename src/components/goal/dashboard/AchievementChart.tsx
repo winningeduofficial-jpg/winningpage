@@ -73,7 +73,7 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
 
   return (
     <div
-      className="rounded-[0.375rem] px-3 py-2 text-[0.75rem] leading-[1.5]"
+      className="rounded-md px-3 py-2 text-[0.75rem] leading-normal"
       style={{
         backgroundColor: CHART_COLORS.tooltipBg,
         color: CHART_COLORS.tooltipText,
@@ -127,7 +127,7 @@ export default function AchievementChart({ data }: AchievementChartProps) {
   return (
     <GoalCard
       tone="neutral"
-      className="flex h-[25.5rem] w-full flex-col gap-4 px-[2rem] py-[1.75rem]"
+      className="flex h-102 w-full flex-col gap-4 px-8 py-7"
     >
       <div className="flex items-center justify-between">
         <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">

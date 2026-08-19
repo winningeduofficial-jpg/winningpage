@@ -456,7 +456,7 @@ function AdmissionActiveYearSummary({ rows }) {
   }
 
   return (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-white p-4 text-sm shadow">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-3 bg-white p-4 text-sm shadow-sm">
       <div className="font-black">
         {loadingActiveYear ? (
           "공개 연도 확인 중…"
@@ -477,7 +477,7 @@ function AdmissionActiveYearSummary({ rows }) {
           min={2000}
           max={2100}
           disabled={loadingActiveYear || saving}
-          className="h-9 w-24 border border-[#9ca3af] px-2 text-sm outline-none disabled:bg-gray-100"
+          className="h-9 w-24 border border-[#9ca3af] px-2 text-sm outline-hidden disabled:bg-gray-100"
           aria-label="새 공개 연도"
         />
         <button
@@ -688,7 +688,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
     : 0;
 
   return (
-    <div className="mb-6 bg-white p-4 text-sm shadow">
+    <div className="mb-6 bg-white p-4 text-sm shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="font-black">엑셀 일괄 관리</div>
         <div className="flex items-center gap-2">
@@ -718,7 +718,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
       </div>
 
       {exportTruncatedCells.length > 0 && (
-        <div className="mt-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+        <div className="mt-3 rounded-sm border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
           <p>
             {exportTruncatedCells.length}개 셀이 문자 수 한도(32,767자)를 넘어
             잘린 채로 다운로드됐습니다. 이 파일을 그대로 재업로드하면 해당
@@ -728,7 +728,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
       )}
 
       {parseErrors.length > 0 && (
-        <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+        <div className="mt-3 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           {withDedupedKeys(parseErrors).map(({ item: msg, key }) => (
             <p key={key}>{msg}</p>
           ))}
@@ -736,7 +736,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
       )}
 
       {parseResult && (
-        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+        <div className="mt-3 rounded-sm border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
           {/* truncatedCellSkipCount 같은 개별 집계 필드는 여기서 안 쓰고
               warningCounts만 쓴다(team-lead 지시) — type별 건수를 lib이
               그대로 주므로 문자열 매칭·직접 재계산을 안 한다. 경고
@@ -756,14 +756,14 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
           </p>
 
           {parseResult.summary.newYears.length > 0 && (
-            <p className="mt-2 rounded border border-blue-300 bg-blue-50 px-2 py-1.5 font-bold text-blue-700">
+            <p className="mt-2 rounded-sm border border-blue-300 bg-blue-50 px-2 py-1.5 font-bold text-blue-700">
               신규 연도: {parseResult.summary.newYears.join(", ")}학년도 — 이
               파일에 새 연도 데이터가 포함돼 있습니다.
             </p>
           )}
 
           {parseResult.errors.length > 0 && (
-            <div className="mt-3 rounded border border-red-300 bg-red-50 p-2">
+            <div className="mt-3 rounded-sm border border-red-300 bg-red-50 p-2">
               <p className="font-black text-red-600">
                 거부된 행 {parseResult.errors.length}건(적용 대상에서 완전히
                 제외됩니다)
@@ -799,7 +799,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
             return (
               <div
                 key={group.key}
-                className={`mt-3 rounded border p-2 ${BULK_XLSX_TONE_CLASS[group.tone]}`}
+                className={`mt-3 rounded-sm border p-2 ${BULK_XLSX_TONE_CLASS[group.tone]}`}
               >
                 <button
                   type="button"
@@ -830,7 +830,7 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
             );
           })}
 
-          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+          <p className="mt-3 rounded-sm border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
             되돌릴 수 없는 작업입니다 — 최대 {affectedCount}행이 일괄
             반영됩니다.
           </p>
@@ -1162,7 +1162,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
     : 0;
 
   return (
-    <div className="mb-6 bg-white p-4 text-sm shadow">
+    <div className="mb-6 bg-white p-4 text-sm shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="font-black">엑셀 일괄 관리</div>
         <div className="flex items-center gap-2">
@@ -1198,7 +1198,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
       </div>
 
       {exportTruncatedCells.length > 0 && (
-        <div className="mt-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+        <div className="mt-3 rounded-sm border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
           <p>
             {exportTruncatedCells.length}개 셀이 문자 수 한도(32,767자)를 넘어
             잘린 채로 다운로드됐습니다. 이 파일을 그대로 재업로드하면 해당 행은
@@ -1208,7 +1208,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
       )}
 
       {parseErrors.length > 0 && (
-        <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+        <div className="mt-3 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           {withDedupedKeys(parseErrors).map(({ item: msg, key }) => (
             <p key={key}>{msg}</p>
           ))}
@@ -1216,7 +1216,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
       )}
 
       {parseResult && (
-        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+        <div className="mt-3 rounded-sm border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
           <p className="font-black text-[#2348ff]">
             신규 {parseResult.summary.willInsert}건 · 수정{" "}
             {parseResult.summary.willUpdate}건 · 거부{" "}
@@ -1229,7 +1229,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
           </p>
 
           {parseResult.errors.length > 0 && (
-            <div className="mt-3 rounded border border-red-300 bg-red-50 p-2">
+            <div className="mt-3 rounded-sm border border-red-300 bg-red-50 p-2">
               <p className="font-black text-red-600">
                 거부된 행 {parseResult.errors.length}건(적용 대상에서 완전히
                 제외됩니다)
@@ -1265,7 +1265,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
             return (
               <div
                 key={group.key}
-                className={`mt-3 rounded border p-2 ${BULK_XLSX_TONE_CLASS[group.tone]}`}
+                className={`mt-3 rounded-sm border p-2 ${BULK_XLSX_TONE_CLASS[group.tone]}`}
               >
                 <button
                   type="button"
@@ -1298,7 +1298,7 @@ function AdmissionResultsBulkXlsxPanel({ onReload }) {
             );
           })}
 
-          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+          <p className="mt-3 rounded-sm border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
             되돌릴 수 없는 작업입니다 — 최대 {affectedCount.toLocaleString()}
             행이 일괄 반영됩니다.
           </p>
@@ -1669,7 +1669,7 @@ function GoalCutsOverviewBlock({ refreshToken, mutationSeq }) {
 
   if (loading && !summary) {
     return (
-      <div className="bg-white p-4 text-sm shadow">
+      <div className="bg-white p-4 text-sm shadow-sm">
         <div className="font-black">현황 요약</div>
         <p className="mt-2 text-xs text-gray-500">불러오는 중…</p>
       </div>
@@ -1677,7 +1677,7 @@ function GoalCutsOverviewBlock({ refreshToken, mutationSeq }) {
   }
   if (!summary) {
     return (
-      <div className="bg-white p-4 text-sm shadow">
+      <div className="bg-white p-4 text-sm shadow-sm">
         <div className="font-black">현황 요약</div>
         <p className="mt-2 text-xs text-gray-500">
           현황을 불러오지 못했습니다(목록 사용에는 영향 없습니다).
@@ -1688,7 +1688,7 @@ function GoalCutsOverviewBlock({ refreshToken, mutationSeq }) {
 
   const n = (v) => v.toLocaleString();
   return (
-    <div className="bg-white p-4 text-sm shadow">
+    <div className="bg-white p-4 text-sm shadow-sm">
       <div className="font-black">현황 요약</div>
       <p className="mt-2 text-xs font-bold text-gray-700">
         전체 {n(summary.total)}건 · 노출 {n(summary.active)}건 · 수시 일반{" "}
@@ -1699,7 +1699,7 @@ function GoalCutsOverviewBlock({ refreshToken, mutationSeq }) {
           온보딩 목록에 뜨고 학생은 고를 수 있다. 다만 그 학생의 정시 확률
           2종이 계속 미산출로 남고, 나중에 컷을 채워도 재계산되지 않는다
           (base_* 는 온보딩 이후 불변). */}
-      <p className="mt-2 rounded border border-amber-400 bg-amber-50 px-2 py-1.5 text-xs font-bold text-amber-700">
+      <p className="mt-2 rounded-sm border border-amber-400 bg-amber-50 px-2 py-1.5 text-xs font-bold text-amber-700">
         🟠 정시 컷 없는 (대학, 학과) 조합: {n(summary.comboNoJungsi)}건 / 전체{" "}
         {n(summary.comboTotal)}조합 — 이 조합을 고른 학생은 정시 확률 2종이 계속
         미산출입니다.
@@ -1869,7 +1869,7 @@ function GoalCutsBackfillPanel({ onReload }) {
     (orphanMode === "deactivate" ? (analysis?.orphanIds.length ?? 0) : 0);
 
   return (
-    <div className="bg-white p-4 text-sm shadow">
+    <div className="bg-white p-4 text-sm shadow-sm">
       <div className="font-black">입결정보에서 수시 컷 일괄 생성</div>
       <p className="mt-2 text-xs leading-5 text-gray-600">
         입결정보(admission_results)의 70% 컷 등급에서 수시 컷을 유도해 이 표에
@@ -1877,7 +1877,7 @@ function GoalCutsBackfillPanel({ onReload }) {
         엑셀로 입력해 주세요.
       </p>
 
-      <div className="mt-3 space-y-2 rounded border border-gray-200 bg-[#fafafa] p-3 text-xs">
+      <div className="mt-3 space-y-2 rounded-sm border border-gray-200 bg-[#fafafa] p-3 text-xs">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="w-32 shrink-0 font-black">기준 연도</span>
           {GOAL_BACKFILL_YEAR_MODES.map((mode) => (
@@ -1974,7 +1974,7 @@ function GoalCutsBackfillPanel({ onReload }) {
           const stats = preview.stats;
           const analysis = preview.analysis;
           return (
-            <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+            <div className="mt-3 rounded-sm border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
               <p className="font-black text-[#2348ff]">
                 생성 대상: 대학 {stats.universityCount.toLocaleString()}개 ·
                 학과 조합 {stats.pairCount.toLocaleString()}개 · 총{" "}
@@ -2006,7 +2006,7 @@ function GoalCutsBackfillPanel({ onReload }) {
                 합니다)
               </p>
 
-              <div className="mt-2 rounded border border-gray-300 bg-white p-2">
+              <div className="mt-2 rounded-sm border border-gray-300 bg-white p-2">
                 <p className="font-black">
                   기존 행과 겹침: {analysis.overlapCount.toLocaleString()}행
                 </p>
@@ -2039,7 +2039,7 @@ function GoalCutsBackfillPanel({ onReload }) {
               </div>
 
               {analysis.nameAxisKeys.size > 0 && (
-                <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+                <p className="mt-2 rounded-sm border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
                   🔴 {analysis.nameAxisKeys.size.toLocaleString()}행이 기존 활성
                   행과 (컷 종류, 대학명, 학과명)은 같은데 key 컬럼이 달라 유일성
                   인덱스 goal_university_cuts_name_key 와 충돌합니다. 그대로
@@ -2049,7 +2049,7 @@ function GoalCutsBackfillPanel({ onReload }) {
               )}
 
               {preserveMode === "overwrite" && (
-                <p className="mt-2 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+                <p className="mt-2 rounded-sm border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
                   노출이 꺼진 {analysis.inactiveCount.toLocaleString()}행이 다시
                   켜지지는 않지만, 컷 값·출처·기준 연도는 전부 덮어써집니다.
                 </p>
@@ -2060,7 +2060,7 @@ function GoalCutsBackfillPanel({ onReload }) {
                   <p className="font-black">
                     상위 {stats.samples.length}행 샘플
                   </p>
-                  <table className="mt-1 w-full min-w-[37.5rem] border-collapse text-left">
+                  <table className="mt-1 w-full min-w-150 border-collapse text-left">
                     <thead>
                       <tr className="border-b border-gray-300 font-black">
                         <th className="py-1 pr-2">대학</th>
@@ -2092,7 +2092,7 @@ function GoalCutsBackfillPanel({ onReload }) {
                 </div>
               )}
 
-              <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+              <p className="mt-3 rounded-sm border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
                 ⚠ 되돌릴 수 없는 작업입니다 — {affectedCount.toLocaleString()}
                 행이 생성·갱신됩니다.
               </p>
@@ -2341,7 +2341,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
     : 0;
 
   return (
-    <div className="bg-white p-4 text-sm shadow">
+    <div className="bg-white p-4 text-sm shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="font-black">엑셀 일괄 관리</div>
         <div className="flex items-center gap-2">
@@ -2401,7 +2401,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
       </div>
 
       {exportTruncatedCells.length > 0 && (
-        <div className="mt-3 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+        <div className="mt-3 rounded-sm border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
           <p>
             {exportTruncatedCells.length}개 셀이 문자 수 한도(32,767자)를 넘어
             잘린 채로 다운로드됐습니다. 이 파일을 그대로 재업로드하면 해당 행은
@@ -2411,7 +2411,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
       )}
 
       {parseErrors.length > 0 && (
-        <div className="mt-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+        <div className="mt-3 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           {withDedupedKeys(parseErrors).map(({ item: message, key }) => (
             <p key={key}>{message}</p>
           ))}
@@ -2419,7 +2419,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
       )}
 
       {parseResult && (
-        <div className="mt-3 rounded border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
+        <div className="mt-3 rounded-sm border border-[#2348ff] bg-[#eef2ff] p-4 text-xs">
           <p className="font-black text-[#2348ff]">
             신규 {parseResult.summary.willInsert}건 · 수정{" "}
             {parseResult.summary.willUpdate}건 · 거부{" "}
@@ -2432,7 +2432,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
           </p>
 
           {parseResult.errors.length > 0 && (
-            <div className="mt-3 rounded border border-red-300 bg-red-50 p-2">
+            <div className="mt-3 rounded-sm border border-red-300 bg-red-50 p-2">
               <p className="font-black text-red-600">
                 거부된 행 {parseResult.errors.length}건(적용 대상에서 완전히
                 제외됩니다)
@@ -2469,7 +2469,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
             return (
               <div
                 key={group.key}
-                className={`mt-3 rounded border p-2 ${GOAL_CUTS_TONE_CLASS[group.tone]}`}
+                className={`mt-3 rounded-sm border p-2 ${GOAL_CUTS_TONE_CLASS[group.tone]}`}
               >
                 <button
                   type="button"
@@ -2501,7 +2501,7 @@ function GoalCutsBulkXlsxPanel({ onReload }) {
             );
           })}
 
-          <p className="mt-3 rounded border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
+          <p className="mt-3 rounded-sm border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">
             되돌릴 수 없는 작업입니다 — 최대 {affectedCount}행이 일괄
             반영됩니다.
           </p>
@@ -2581,7 +2581,7 @@ function AcceptanceRateSummary({ rows }) {
     active.reduce((sum, row) => sum + Number(row.rate || 0), 0) / active.length;
 
   return (
-    <div className="mb-6 grid grid-cols-2 bg-white text-center text-sm shadow">
+    <div className="mb-6 grid grid-cols-2 bg-white text-center text-sm shadow-sm">
       <div className="border p-4">
         <div className="font-black">노출 연도 수</div>
         <div className="mt-2 font-bold">{active.length}개년</div>
@@ -2624,7 +2624,7 @@ function MoneySummary({ activeKey, rows }) {
   );
 
   return (
-    <div className="mb-6 grid grid-cols-4 bg-white text-center text-sm shadow">
+    <div className="mb-6 grid grid-cols-4 bg-white text-center text-sm shadow-sm">
       <div className="border p-4">
         <div className="font-black">판매금액 합계</div>
         <div className="mt-2 font-bold">{sale.toLocaleString()}원</div>
@@ -3197,14 +3197,14 @@ export function AdminSectionRoute({ section }: { section: string }) {
         })()
       ) : mode === "list" ? (
         config.comingSoon ? (
-          <div className="bg-white p-10 shadow">
+          <div className="bg-white p-10 shadow-sm">
             <h1 className="text-2xl font-black text-[#111827]">
               {config.title}
             </h1>
             <p className="mt-3 text-sm font-bold text-gray-500">
               {config.description}
             </p>
-            <div className="mt-6 rounded border border-[#B88737]/30 bg-[#FFF8E8] px-5 py-4 text-sm font-bold text-[#7A4A12]">
+            <div className="mt-6 rounded-sm border border-[#B88737]/30 bg-[#FFF8E8] px-5 py-4 text-sm font-bold text-[#7A4A12]">
               이 메뉴는 추후 별도 Supabase 연결 후 활성화됩니다.
             </div>
           </div>
@@ -3229,7 +3229,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
               </div>
             )}
 
-            <div className="mb-6 bg-white px-6 py-5 shadow">
+            <div className="mb-6 bg-white px-6 py-5 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2">
                   <button
@@ -3268,7 +3268,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
                     placeholder={config.searchPlaceholder}
-                    className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-none"
+                    className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-hidden"
                   />
                   <button
                     type="button"
@@ -3320,7 +3320,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
                       PAGE_SIZE행만 받고 전체 건수를 count로 따로 받으므로 상한 자체에
                       닿지 않는다. */}
               {config.rowCapWarning && rows.length >= 1000 && (
-                <p className="mt-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
+                <p className="mt-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
                   조회된 건수가 1,000건에 도달했습니다 — Supabase 기본 조회
                   상한으로 오래된 신청 건이 목록에서 빠졌을 수 있습니다. 전체
                   건수가 아닙니다.
@@ -3328,7 +3328,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
               )}
 
               {exporting && (
-                <p className="mt-4 rounded border border-[#c7d2fe] bg-[#eef2ff] px-4 py-3 text-sm font-black leading-6 text-[#2348ff]">
+                <p className="mt-4 rounded-sm border border-[#c7d2fe] bg-[#eef2ff] px-4 py-3 text-sm font-black leading-6 text-[#2348ff]">
                   CSV 내보내는 중 — {exporting.done.toLocaleString()} /{" "}
                   {exporting.total.toLocaleString()}건. 완료될 때까지 이 화면을
                   닫지 마세요.
@@ -3352,7 +3352,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
             )}
 
             {loading ? (
-              <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+              <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
                 데이터를 불러오는 중입니다.
               </div>
             ) : (

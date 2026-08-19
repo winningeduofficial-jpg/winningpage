@@ -225,7 +225,7 @@ export function MentorCardFormPreview({
   );
 
   return (
-    <section className="bg-white p-5 shadow">
+    <section className="bg-white p-5 shadow-sm">
       <h2 className="text-sm font-black">라이브 프리뷰</h2>
       <p className="mt-1 text-xs font-bold leading-5 text-gray-500">
         메인 &apos;멘토&apos; 영역과 동일한 컴포넌트로 렌더됩니다.
@@ -238,7 +238,7 @@ export function MentorCardFormPreview({
             type="button"
             title={preset.help}
             onClick={() => onPatch(preset.patch)}
-            className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
+            className="rounded-sm border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#B88737] hover:bg-[#FFF8E8] hover:text-[#B88737]"
           >
             {preset.label}
           </button>
@@ -246,13 +246,13 @@ export function MentorCardFormPreview({
       </div>
 
       {isMissingRequiredFields && (
-        <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
+        <p className="mt-3 rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
           필수 항목(배지·소개 문구·인물 사진·사진 배치)이 비어 있어 랜딩에
           카드가 노출되지 않습니다.
         </p>
       )}
 
-      <div className="mt-3 overflow-x-auto rounded bg-[#0D1B2A] p-5">
+      <div className="mt-3 overflow-x-auto rounded-sm bg-[#0D1B2A] p-5">
         {isMissingRequiredFields ? (
           <p className="p-5 text-center text-xs font-bold leading-5 text-white/60">
             필수 항목을 모두 입력하면 카드 미리보기가 표시됩니다.

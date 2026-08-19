@@ -32,7 +32,7 @@ export default function Step2UpperUniversity({
           value={upperUniversity}
           onChange={setUpperUniversity}
         />
-        <p className="mt-[0.75rem] text-[0.875rem] text-ink-sub">
+        <p className="mt-3 text-[0.875rem] text-ink-sub">
           대학명과 과를 선택하셔야 다음 단계로 넘어갈 수 있습니다.
         </p>
       </QuestionCard>

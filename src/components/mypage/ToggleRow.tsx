@@ -27,7 +27,7 @@ export default function ToggleRow({
 }: ToggleRowProps) {
   return (
     <div
-      className={`flex h-[3.25rem] items-center justify-between gap-4 rounded-xl border border-line px-5 ${className}`}
+      className={`flex h-13 items-center justify-between gap-4 rounded-xl border border-line px-5 ${className}`}
     >
       <div className="min-w-0">
         <p className="text-sm text-ink">{label}</p>
@@ -58,7 +58,7 @@ export default function ToggleRow({
         <span
           aria-hidden="true"
           className={`absolute left-0 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
-            checked ? "translate-x-[1.125rem]" : "translate-x-0.5"
+            checked ? "translate-x-4.5" : "translate-x-0.5"
           }`}
         />
       </button>

@@ -18,7 +18,7 @@ export default function ExpectedEffectCard({
   return (
     <GoalCard
       tone="cream"
-      className="flex min-h-[22.4375rem] flex-col gap-4 px-6 py-6"
+      className="flex min-h-89.75 flex-col gap-4 px-6 py-6"
     >
       <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
         {title}
@@ -33,7 +33,7 @@ export default function ExpectedEffectCard({
           </span>
         ))}
       </div>
-      <p className="mt-auto text-[0.75rem] leading-[1.5] text-ink-sub">
+      <p className="mt-auto text-[0.75rem] leading-normal text-ink-sub">
         {caption}
       </p>
     </GoalCard>

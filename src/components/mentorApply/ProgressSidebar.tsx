@@ -13,7 +13,7 @@
 //    고칠 일이지 이 컴포넌트를 고칠 일이 아니다.
 //
 // 미확정 사항(확인 항목 34)에 대한 구현 판단 2가지 — 둘 다 아래 해당 위치에 근거를 적어 두었다.
-//   ① sticky 상단 오프셋: `wide:top-[6.5rem]`
+//   ① sticky 상단 오프셋: `wide:top-26`
 //   ② 단계 배지 클릭 시 앵커 이동: **구현함**
 import { PROGRESS_SIDEBAR } from "@/data/mentorApply";
 
@@ -26,7 +26,7 @@ const STICKY_OFFSET_REM = 6.5;
 
 // 배지 원형 스타일 — 28×28, radius 6(0.375rem), bg Surface/02(surface.badge), 숫자 14 Medium accent.
 const BADGE_CLASS =
-  "flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.375rem] bg-surface-badge text-sm font-medium leading-none text-accent";
+  "flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-surface-badge text-sm font-medium leading-none text-accent";
 
 // 폼 상태는 필드 타입이 섞여 있다 — 텍스트(string) / 칩 복수선택(string[]) / 약관(boolean) /
 // 첨부(File). isFieldFilled 가 이 유니온을 전부 받아 한 곳에서 빈 값 여부를 판정한다.
@@ -175,7 +175,7 @@ export default function ProgressSidebar({
     // 데스크톱 전환점을 lg 가 아니라 wide 로 잡은 근거는 tailwind.config.js screens.wide 주석 참고.
     <aside
       aria-labelledby="mentor-progress-heading"
-      className="rounded-2xl bg-white px-5 py-6 wide:sticky wide:top-[6.5rem] wide:px-[1.8125rem] wide:pb-8 wide:pt-[1.8125rem]"
+      className="rounded-2xl bg-white px-5 py-6 wide:sticky wide:top-26 wide:px-7.25 wide:pb-8 wide:pt-7.25"
     >
       {/* 사이드바 제목 — 14 Medium ink.sub. 폼 섹션 카드의 h3 위계를 침범하지 않도록 h2 로 두고
           시각적 크기만 작게 간다(구조상 폼 전체와 동렬인 보조 패널). */}
@@ -198,7 +198,7 @@ export default function ProgressSidebar({
             <button
               type="button"
               onClick={() => handleStepClick(step.id)}
-              className="flex items-center gap-1.5 rounded-lg py-1 pl-0 pr-1.5 text-left transition-colors hover:bg-surface-footer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none wide:w-full wide:justify-between wide:pr-0 wide:hover:bg-transparent"
+              className="flex items-center gap-1.5 rounded-lg py-1 pl-0 pr-1.5 text-left transition-colors hover:bg-surface-footer focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none wide:w-full wide:justify-between wide:pr-0 wide:hover:bg-transparent"
             >
               <span className="flex items-center wide:gap-3">
                 {/* 배지 숫자는 라벨 앞 순번을 그림으로 반복할 뿐이라 스크린리더에서 뺀다

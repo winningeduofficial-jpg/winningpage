@@ -17,10 +17,7 @@ export default function StudyTimeBarChartCard({
   unit,
 }: StudyTimeBarChartCardProps) {
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex min-h-[12.5rem] flex-col gap-6 px-6 py-6"
-    >
+    <GoalCard tone="neutral" className="flex min-h-50 flex-col gap-6 px-6 py-6">
       <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
         {title}
       </h3>

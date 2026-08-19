@@ -71,7 +71,7 @@ export default function ProfileField({
             onBlur={onBlur}
             placeholder={placeholder}
             readOnly={readOnly}
-            className={`h-[3.25rem] w-full rounded-xl border border-line px-5 text-base text-ink outline-none transition placeholder:text-ink-sub focus:border-primary ${
+            className={`h-13 w-full rounded-xl border border-line px-5 text-base text-ink outline-hidden transition placeholder:text-ink-sub focus:border-primary ${
               readOnly ? "bg-surface-footer text-ink-sub" : ""
             }`}
           />
@@ -83,7 +83,7 @@ export default function ProfileField({
               type="button"
               onClick={onAction}
               disabled={actionDisabled}
-              className="h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl border border-line px-4 text-sm text-ink transition hover:bg-surface-card disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-13 shrink-0 whitespace-nowrap rounded-xl border border-line px-4 text-sm text-ink transition hover:bg-surface-card disabled:cursor-not-allowed disabled:opacity-50"
             >
               {actionLabel}
             </button>

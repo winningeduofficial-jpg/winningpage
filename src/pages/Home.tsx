@@ -181,7 +181,7 @@ function HomePopupLayer({
   if (!popups.length) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-black/50 px-4 py-6">
+    <div className="fixed inset-0 z-9999 overflow-y-auto bg-black/50 px-4 py-6">
       <div className="mx-auto flex min-h-full w-full max-w-[1480px] items-center justify-center gap-5">
         <div className="flex w-full flex-wrap items-center justify-center gap-5">
           {popups.slice(0, 3).map((popup) => {
@@ -203,7 +203,7 @@ function HomePopupLayer({
                 <Wrapper
                   // biome-ignore lint/suspicious/noExplicitAny: Wrapper는 'a' | 'div' 중 런타임에 결정되는 태그명이라 각 태그 전용 props(href/target/rel)를 하나의 정적 타입으로 표현할 수 없다.
                   {...(wrapperProps as any)}
-                  className="block aspect-[3/4] w-full overflow-hidden bg-white"
+                  className="block aspect-3/4 w-full overflow-hidden bg-white"
                 >
                   <picture>
                     {popup.mobile_image_url && (

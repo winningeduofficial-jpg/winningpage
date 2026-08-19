@@ -278,7 +278,7 @@ export default function AdmissionResults() {
             <Suspense
               fallback={
                 <section
-                  className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-[6.25rem]`}
+                  className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-25`}
                 >
                   <LoadingBlock />
                 </section>

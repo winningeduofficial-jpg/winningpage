@@ -148,7 +148,7 @@ export default function LinkChildModal({
         open={open}
         onClose={onClose}
         labelledBy={titleId}
-        className="w-[26rem]"
+        className="w-104"
       >
         <div className="flex flex-col items-center px-6 py-10 text-center">
           <h2
@@ -165,7 +165,7 @@ export default function LinkChildModal({
           <button
             type="button"
             onClick={onClose}
-            className="mt-7 h-[2.5rem] w-[9.375rem] rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
+            className="mt-7 h-10 w-37.5 rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
           >
             확인
           </button>
@@ -180,7 +180,7 @@ export default function LinkChildModal({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
-      className="w-[26rem]"
+      className="w-104"
     >
       <div className="flex flex-col items-center px-6 py-8 text-center">
         <h2
@@ -211,7 +211,7 @@ export default function LinkChildModal({
               aria-label={`연결코드 ${index + 1}번째 자리`}
               onChange={(e) => writeChar(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
-              className="h-12 w-10 rounded-lg border border-line text-center text-[1rem] font-semibold uppercase text-ink outline-none focus:border-accent"
+              className="h-12 w-10 rounded-lg border border-line text-center text-[1rem] font-semibold uppercase text-ink outline-hidden focus:border-accent"
             />
           ))}
         </div>

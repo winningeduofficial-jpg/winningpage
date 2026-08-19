@@ -46,15 +46,15 @@ const CODE_PLACEHOLDER = "인증번호 입력";
 // 인풋 h52(3.25rem) / radius 12(0.75rem) / padding 20(1.25rem) / border 1px — §6-5.
 // 시안 보더·placeholder 색은 #D9D9D9 지만 토큰에 없어 가장 가까운 line(#d7d7d7)을 쓴다.
 const FIELD_BOX_CLASS =
-  "flex h-[3.25rem] w-full items-center gap-2 rounded-[0.75rem] border bg-white px-[1.25rem] transition-colors focus-within:border-accent";
+  "flex h-13 w-full items-center gap-2 rounded-xl border bg-white px-5 transition-colors focus-within:border-accent";
 const INPUT_CLASS =
-  "min-w-0 flex-1 bg-transparent text-[1rem] leading-[1.4] text-ink outline-none placeholder:text-line disabled:cursor-not-allowed disabled:text-ink-sub";
+  "min-w-0 flex-1 bg-transparent text-[1rem] leading-[1.4] text-ink outline-hidden placeholder:text-line disabled:cursor-not-allowed disabled:text-ink-sub";
 // 액션 버튼 94×34(5.875rem × 2.125rem), radius 8(0.5rem), padding 8/6, SemiBold 14 accent.
 // 폭은 `w-` 가 아니라 `min-w-` 로 뒀다 — `인증번호 확인`(6자 × 14px ≈ 84px) + 좌우 패딩
 // 16px 이 94px 를 넘겨 고정폭이면 글자가 버튼 밖으로 삐져나온다. 쿨다운 라벨(`60초`)처럼
 // 짧은 문구에서는 시안 94px 를 그대로 유지한다.
 const ACTION_BUTTON_CLASS =
-  "flex h-[2.125rem] min-w-[5.875rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.5rem] border border-accent bg-transparent px-[0.5rem] py-[0.375rem] text-[0.875rem] font-semibold leading-[1.4] text-accent transition-opacity hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:border-line disabled:text-ink-sub disabled:hover:opacity-100";
+  "flex h-8.5 min-w-23.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg border border-accent bg-transparent px-2 py-1.5 text-[0.875rem] font-semibold leading-[1.4] text-accent transition-opacity hover:opacity-80 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:cursor-not-allowed disabled:border-line disabled:text-ink-sub disabled:hover:opacity-100";
 
 const MESSAGE_TEXT_CLASS: Record<string, string> = {
   default: "text-ink-sub",

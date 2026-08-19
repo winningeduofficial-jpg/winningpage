@@ -44,7 +44,7 @@ export default function VerticalBarChart({
             <div className="flex w-full flex-1 items-end justify-center">
               <div
                 aria-hidden="true"
-                className={`w-[1.4375rem] rounded-t-md ${isZero ? "bg-surface-01" : "bg-accent/35"}`}
+                className={`w-5.75 rounded-t-md ${isZero ? "bg-surface-01" : "bg-accent/35"}`}
                 style={{ height: isZero ? "0.25rem" : `${Math.max(pct, 6)}%` }}
               />
             </div>

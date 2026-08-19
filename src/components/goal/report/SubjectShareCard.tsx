@@ -31,14 +31,14 @@ export default function SubjectShareCard({
   return (
     <GoalCard
       tone="neutral"
-      className="flex min-h-[27.5625rem] flex-col gap-5 px-6 py-6"
+      className="flex min-h-110.25 flex-col gap-5 px-6 py-6"
     >
       <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
         {title}
       </h3>
 
       {empty ? (
-        <div className="flex flex-1 items-center justify-center px-2 text-center text-[0.875rem] leading-[1.5] text-ink-sub">
+        <div className="flex flex-1 items-center justify-center px-2 text-center text-[0.875rem] leading-normal text-ink-sub">
           {emptyMessage}
         </div>
       ) : (

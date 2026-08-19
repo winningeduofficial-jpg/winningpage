@@ -21,7 +21,7 @@ export default function ReportSheetA4({
 
   return (
     <section
-      className="fd-report-sheet w-full min-w-0 shrink-0 rounded-2xl bg-white p-6 shadow-[0_0_1.25rem_rgba(0,0,0,0.06)] lg:w-[70rem] lg:min-h-[99.0588rem] lg:rounded-none lg:p-[3.75rem]"
+      className="fd-report-sheet w-full min-w-0 shrink-0 rounded-2xl bg-white p-6 shadow-[0_0_1.25rem_rgba(0,0,0,0.06)] lg:w-280 lg:min-h-[99.0588rem] lg:rounded-none lg:p-perf-inset"
       aria-label={pageLabel}
       // G-3(NIT 5) — 워터마크 문구의 정의처는 SAMPLE_REPORT_COPY.WATERMARK 하나다. 이 속성은
       // report-print.css 의 `.fd-report-sample .fd-report-sheet::after { content: attr(data-watermark) }`
@@ -31,7 +31,7 @@ export default function ReportSheetA4({
     >
       {/* fd-page-label — 인쇄에서 report-print.css 가 이 훅으로 lg: 값(1rem/#808080)을
           강제 복원한다(인쇄는 항상 데스크톱 레이아웃). */}
-      <p className="fd-page-label text-sm font-normal leading-[1.3] text-[#525252] lg:text-base lg:text-[#808080]">
+      <p className="fd-page-label text-sm font-normal leading-[1.3] text-ink lg:text-base lg:text-[#808080]">
         {pageLabel}
       </p>
       {children}

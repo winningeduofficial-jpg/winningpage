@@ -324,7 +324,7 @@ export default function BasicInfoForm({
               <p className="text-[0.875rem] font-medium text-ink">
                 {item.label}
               </p>
-              <p className="mt-1 text-[0.875rem] leading-[1.25rem] text-ink-sub">
+              <p className="mt-1 text-[0.875rem] leading-5 text-ink-sub">
                 {item.body}
               </p>
             </li>

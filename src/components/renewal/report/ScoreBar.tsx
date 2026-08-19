@@ -37,7 +37,7 @@ export default function ScoreBar({
 }: ScoreBarProps) {
   const percent = Math.max(0, Math.min(100, (score / max) * 100));
   const widthClass =
-    trackClass ?? (responsive ? "w-full lg:w-[14.4375rem]" : "w-[14.4375rem]");
+    trackClass ?? (responsive ? "w-full lg:w-57.75" : "w-57.75");
   const a11yProps: Record<string, string> = decorative
     ? { "aria-hidden": "true" }
     : { role: "img", "aria-label": `${score}점` };
@@ -45,10 +45,10 @@ export default function ScoreBar({
   return (
     <div
       {...a11yProps}
-      className={`h-[0.625rem] overflow-hidden rounded-[0.25rem] bg-[#e5e5e5] ${widthClass} ${className}`}
+      className={`h-2.5 overflow-hidden rounded-sm bg-[#e5e5e5] ${widthClass} ${className}`}
     >
       <div
-        className="h-full rounded-[0.25rem]"
+        className="h-full rounded-sm"
         style={{
           width: `${percent}%`,
           backgroundColor: FILL_COLORS[tone] ?? FILL_COLORS.blue,

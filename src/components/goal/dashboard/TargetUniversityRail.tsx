@@ -31,7 +31,7 @@ function RateRow({
         aria-hidden="true"
         className={`h-2 w-2 shrink-0 rounded-full ${available ? dotClassName : "bg-line"}`}
       />
-      <span className="w-[5rem] shrink-0 text-[0.8125rem] leading-[1.4] text-ink">
+      <span className="w-20 shrink-0 text-[0.8125rem] leading-[1.4] text-ink">
         {label}
       </span>
       <GoalProgressBar
@@ -42,11 +42,11 @@ function RateRow({
         className="flex-1"
       />
       {available ? (
-        <span className="w-[2.5rem] shrink-0 text-right text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">
+        <span className="w-10 shrink-0 text-right text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">
           {value}%
         </span>
       ) : (
-        <span className="min-w-[2.5rem] shrink-0 whitespace-nowrap text-right text-[0.75rem] font-medium leading-[1.4] text-ink-sub">
+        <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-[0.75rem] font-medium leading-[1.4] text-ink-sub">
           미산출
         </span>
       )}
@@ -72,10 +72,7 @@ function UniversityCard({
   jungsiAvailable,
 }: UniversityCardProps) {
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex flex-col gap-4 px-[1.25rem] py-[1.25rem]"
-    >
+    <GoalCard tone="neutral" className="flex flex-col gap-4 px-5 py-5">
       <div>
         <p className="text-[0.8125rem] leading-[1.4] text-ink-sub">{label}</p>
         <p className="mt-1 text-[1.0625rem] font-bold leading-[1.4] text-ink-strong">

@@ -37,7 +37,7 @@ export default function ColumnRoleEditor({
         value={selectValue}
         onChange={handleSelectChange}
         aria-label="컬럼 role"
-        className="border border-[#d7d7d7] px-1 py-1 text-[11px]"
+        className="border border-line px-1 py-1 text-[11px]"
       >
         {options.map((opt) => (
           <option key={opt} value={opt}>

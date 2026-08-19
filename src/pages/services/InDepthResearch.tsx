@@ -47,14 +47,14 @@ import { alertServiceNotReady } from "@/lib/paidServiceAccess";
 // 계산했다. 배경이 히어로~FAQ 전 구간 #FFFFFF로 동일하므로 전 경계 ×0.67을 적용하고 그 값을
 // 뒤 섹션 pt에 몰아준다(pb는 마지막 FAQ만 갖는다). FAQ→푸터만 유일한 배경 전환 경계라 ×0.67
 // 미적용 — 시안 217px 그대로 lg:pb-[13.5625rem].
-//   Hero→Process        120×0.67 = 80   → lg:pt-[5rem]
-//   Process→Audience   (120+119)×0.67 = 160 → lg:pt-[10rem]
-//   Audience→FiveSteps (182+120)×0.67 = 202 → lg:pt-[12.625rem]
-//   FiveSteps→Outcomes (137+120)×0.67 = 172 → lg:pt-[10.75rem]
-//   Outcomes→Testi     (120+119)×0.67 = 160 → lg:pt-[10rem]
-//   Testi→Faq          (168+100)×0.67 = 180 → lg:pt-[11.25rem]
-//   Faq→Footer          217 (배경 전환, 축소 없음) → lg:pb-[13.5625rem]
-// 이전 구현은 전 섹션 lg:pt-[6.25rem] 단일값이었다 — 정책 계산값이 아니라 임시 균일값이었으므로
+//   Hero→Process        120×0.67 = 80   → lg:pt-20
+//   Process→Audience   (120+119)×0.67 = 160 → lg:pt-40
+//   Audience→FiveSteps (182+120)×0.67 = 202 → lg:pt-50.5
+//   FiveSteps→Outcomes (137+120)×0.67 = 172 → lg:pt-43
+//   Outcomes→Testi     (120+119)×0.67 = 160 → lg:pt-40
+//   Testi→Faq          (168+100)×0.67 = 180 → lg:pt-45
+//   Faq→Footer          217 (배경 전환, 축소 없음) → lg:pb-54.25
+// 이전 구현은 전 섹션 lg:pt-25 단일값이었다 — 정책 계산값이 아니라 임시 균일값이었으므로
 // 위 표대로 경계별 차등으로 교체했다. 이 값들만 ServiceSection 의 className 으로 넘긴다.
 //
 // 섹션 마크업은 전부 components/services/ 공통 컴포넌트로 수렴했다(2026-08-05). 이 페이지가
@@ -227,7 +227,7 @@ function HeroSection() {
     // 섹션 패딩(md:pb-0 md:pt-[2.25rem])은 목표관리・수행평가・자기평가 히어로와 동일 규격
     // (4페이지 공통 규격). 이전 구현의 pb-14 pt-10 sm:pb-16 sm:pt-14 단독 조합은 md 이상에서
     // 목업 음수 마진과 충돌해 다음 섹션 pt 계산이 어긋난다.
-    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
+    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-9">
       {/* 오라 애니메이션 — 이전 구현의 CSS 방사형 그라디언트 2겹(마젠타 0.32를 강하게 섞은 것)을
           폐기하고 시안 정본 벡터(hero-aura.svg = 3248:2356 Eclipse + 3248:2357 Rectangle 29)로
           교체했다. 회전 4프레임(2716:3097/3162/3168/3174)이 0°/90°/180°/270° 등간격 Smart
@@ -250,7 +250,7 @@ function HeroSection() {
           가운데 정렬이 깨진다 — 반드시 2단으로 분리한다. */}
       <div
         ref={auraRef}
-        className="pointer-events-none absolute left-1/2 top-0 aspect-[4/3] w-[100rem] max-w-none -translate-x-1/2 select-none"
+        className="pointer-events-none absolute left-1/2 top-0 aspect-4/3 w-[100rem] max-w-none -translate-x-1/2 select-none"
       >
         <style>{`
           @keyframes idr-aura-spin {
@@ -285,7 +285,7 @@ function HeroSection() {
       <div
         aria-hidden="true"
         style={{ backgroundImage: `url(${heroGrain})` }}
-        className="pointer-events-none absolute inset-0 select-none bg-[length:8.375rem_8.375rem] bg-repeat opacity-40 mix-blend-overlay"
+        className="pointer-events-none absolute inset-0 select-none bg-size-[8.375rem_8.375rem] bg-repeat opacity-40 mix-blend-overlay"
       />
 
       <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
@@ -297,13 +297,13 @@ function HeroSection() {
           탐구 설계 프로그램
         </p>
 
-        {/* max-w-[40rem] 제거 — 시안 H1은 1443px 폭에 강제 개행 없는 1줄인데 40rem(640px)로
+        {/* max-w-160 제거 — 시안 H1은 1443px 폭에 강제 개행 없는 1줄인데 40rem(640px)로
             묶으면 데스크톱에서도 억지로 2줄이 된다. */}
         <h1 className="mt-6 break-keep text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem]">
           주제 추천부터 탐구 설계까지, 심화탐구를 끝까지
         </h1>
 
-        <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
+        <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-ink sm:text-[1.25rem] md:text-[1.5rem]">
           탐구의 방향이 막막한 순간, 위닝 심화탐구가 구체적인 길을 제시해 학생이
           스스로 완성하도록 돕습니다
         </p>
@@ -315,7 +315,7 @@ function HeroSection() {
         <button
           type="button"
           onClick={handleHeroCta}
-          className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
+          className="mt-6 inline-flex h-14 w-full max-w-75 items-center justify-center rounded-[1.875rem] bg-primary px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:h-17 sm:text-[1.25rem]"
         >
           지금 시작하기
         </button>
@@ -331,7 +331,7 @@ function HeroSection() {
             공통 규격 우선. */}
         <ServiceHeroBrowserFrame>
           <div
-            className="aspect-[1280/553] w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
+            className="aspect-1280/553 w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
             aria-hidden="true"
           />
         </ServiceHeroBrowserFrame>
@@ -348,10 +348,7 @@ export default function InDepthResearch() {
       {/* 프로세스 — 시안 원문은 쉼표 뒤 스페이스 2개(U+0020 ×2)지만 HTML은 연속 공백을
           접으므로 렌더 결과가 같다 → 1스페이스 유지(디자인 파일 오타로 판단).
           4열 폭 검산: (1100 − 30×3) / 4 = 252.5px, 시안 331×0.766 = 253.5px ✓ */}
-      <ServiceSection
-        className="lg:pt-[5rem]"
-        heading="심화탐구, 이렇게 완성돼요"
-      >
+      <ServiceSection className="lg:pt-20" heading="심화탐구, 이렇게 완성돼요">
         <ServiceProcessCards items={PROCESS_STEPS} />
       </ServiceSection>
 
@@ -360,11 +357,11 @@ export default function InDepthResearch() {
           넣는다(자기평가 선례와 동일 — accent #0B84FD가 아니라 #013262). 카드 이미지는
           일러스트 PNG라 잘림 없는 imageFit 기본값(contain)을 쓴다. */}
       <ServiceSection
-        className="lg:pt-[10rem]"
+        className="lg:pt-40"
         heading={
           <>
             이런 학생에게{" "}
-            <span className="text-[#013262]">심화 탐구 서비스를 추천해요</span>
+            <span className="text-primary">심화 탐구 서비스를 추천해요</span>
           </>
         }
       >
@@ -375,27 +372,21 @@ export default function InDepthResearch() {
           3열 폭 검산: (1100 − 30×2) / 3 = 346.7px, 시안 453×0.7644 = 346.3px ✓
           (섹션 C의 실 콘텐츠 박스는 프레임 1520이 아니라 카드 행 1439 = 453×3 + 40×2 이다.
            1520은 1920 안에서 좌240/우160 비대칭이라 오토레이아웃 잔재로 판정) */}
-      <ServiceSection
-        className="lg:pt-[12.625rem]"
-        heading="다섯 단계로 차근차근"
-      >
+      <ServiceSection className="lg:pt-50.5" heading="다섯 단계로 차근차근">
         <ServiceStepCards items={FIVE_STEPS} splitLastRow />
       </ServiceSection>
 
       {/* 성과 — 시안은 헤더 좌단(x=82823)이 카드 좌단(x=82972.5)보다 149.5px 왼쪽에 매달려
           있으나, 바로 앞 섹션은 헤더/카드 좌단이 정확히 일치하므로 시안 결함으로 판단하고
           헤더 = 카드 = max-w-content 좌단 일치 + 패널 full-width 로 정규화했다. */}
-      <ServiceSection
-        className="lg:pt-[10.75rem]"
-        heading="심화탐구로 달라지는 것들"
-      >
+      <ServiceSection className="lg:pt-43" heading="심화탐구로 달라지는 것들">
         <ServiceOutcomesPanel items={OUTCOME_ITEMS} />
       </ServiceSection>
 
       {/* 후기 — 시안 헤딩 색은 #525252지만 페이지 전 섹션이 공유하는 헤딩 정본(#0F172A)을
           유지한다. 3열 폭 검산: (1100 − 46×2) / 3 = 336px, 시안 440×0.766 = 337px ✓ */}
       <ServiceSection
-        className="lg:pt-[10rem]"
+        className="lg:pt-40"
         heading="심화탐구 서비스를 받아본 학생들의 후기"
       >
         <ServiceTestimonials items={TESTIMONIALS} />
@@ -405,7 +396,7 @@ export default function InDepthResearch() {
           헤딩 정본(32px)을 그대로 쓴다. FAQ→푸터는 페이지에서 유일한 배경 전환 경계라 시안
           하단 여백 217px를 ×0.67 축소 없이 그대로 쓴다(lg:pb-[13.5625rem]). */}
       <ServiceSection
-        className="pb-20 sm:pb-24 lg:pb-[13.5625rem] lg:pt-[11.25rem]"
+        className="pb-20 sm:pb-24 lg:pb-54.25 lg:pt-45"
         heading="자주 묻는 질문"
       >
         <ServiceFaq items={FAQ_ITEMS} />

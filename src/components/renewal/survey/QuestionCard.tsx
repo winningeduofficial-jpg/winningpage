@@ -57,7 +57,7 @@ export default function QuestionCard({
     // 리커트 척도 컬럼이 77.0px 까지 눌린다(→ 80.7px). ≥1184 는 60 그대로라 시안 정합 불변.
     <div
       id={questionId != null ? `q-${questionId}` : undefined}
-      className={`flex w-full scroll-mt-20 flex-col items-start gap-3 rounded-[1.75rem] bg-white px-6 py-8 ring-4 ring-offset-4 transition-shadow duration-700 sm:rounded-[2.5rem] sm:px-10 sm:py-10 wide:px-[3.75rem] ${
+      className={`flex w-full scroll-mt-20 flex-col items-start gap-3 rounded-[1.75rem] bg-white px-6 py-8 ring-4 ring-offset-4 transition-shadow duration-700 sm:rounded-[2.5rem] sm:px-10 sm:py-10 wide:px-perf-inset ${
         highlighted
           ? "ring-[#FDB022] ring-offset-[#FBFAFA]"
           : "ring-transparent ring-offset-transparent"
@@ -68,12 +68,12 @@ export default function QuestionCard({
           <div className="flex w-full items-center justify-between gap-5">
             <div className="flex items-center gap-5">
               {number != null && (
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[#D7D7D7] text-xl font-medium leading-5 text-[#808080]">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-line text-xl font-medium leading-5 text-[#808080]">
                   {number}
                 </span>
               )}
               {category && (
-                <p className="text-base font-medium leading-5 text-[#D7D7D7]">
+                <p className="text-base font-medium leading-5 text-line">
                   {category}
                 </p>
               )}
@@ -83,7 +83,7 @@ export default function QuestionCard({
               <p
                 aria-live="polite"
                 className={`shrink-0 text-sm font-medium leading-5 ${
-                  counterReached ? "text-[#013262]" : "text-[#808080]"
+                  counterReached ? "text-primary" : "text-[#808080]"
                 }`}
               >
                 {selectedCount} / {maxSelect}
@@ -92,11 +92,11 @@ export default function QuestionCard({
           </div>
 
           <div className="flex flex-col gap-0">
-            <h3 className="break-keep text-xl font-medium leading-[1.4] text-[#525252] sm:text-2xl">
+            <h3 className="break-keep text-xl font-medium leading-[1.4] text-ink sm:text-2xl">
               {title}
             </h3>
             {helper && (
-              <p className="break-keep text-base font-medium leading-5 text-[#D7D7D7]">
+              <p className="break-keep text-base font-medium leading-5 text-line">
                 {helper}
               </p>
             )}

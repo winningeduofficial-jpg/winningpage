@@ -37,8 +37,8 @@ export const MENTOR_HEADING_MD =
 // 표준 카드 타이포의 단일 정의처. 각 컴포넌트 마크업에는 가독성을 위해 리터럴로 적혀 있으므로
 // 이 상수들은 신규 섹션 작성 시 참조 기준으로 쓴다.
 export const CARD_TITLE_CLASS =
-  "text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252]";
+  "text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink";
 export const CARD_DESC_CLASS =
-  "break-keep text-[1rem] font-medium leading-[1.4] text-[#525252]";
+  "break-keep text-[1rem] font-medium leading-[1.4] text-ink";
 export const CARD_DESC_MUTED_CLASS =
   "break-keep text-[1rem] font-medium leading-[1.4] text-[#767676]";

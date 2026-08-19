@@ -31,7 +31,7 @@ export default function PhotoThumb({
   onRemove,
 }: PhotoThumbProps) {
   return (
-    <div className="relative h-[6.25rem] w-[5.625rem] shrink-0 overflow-hidden rounded-lg border border-performance-line bg-performance-bubble">
+    <div className="relative h-25 w-22.5 shrink-0 overflow-hidden rounded-lg border border-performance-line bg-performance-bubble">
       <img src={src} alt={alt} className="h-full w-full object-cover" />
 
       {onRemove && (

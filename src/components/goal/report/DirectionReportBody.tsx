@@ -53,7 +53,7 @@ export default function DirectionReportBody({
   return (
     <>
       <GoalPageHeader title={report.heading} meta={report.meta} />
-      <div className="max-w-goal-content flex flex-col gap-7 px-[3rem] pb-24">
+      <div className="max-w-goal-content flex flex-col gap-7 px-12 pb-24">
         <GoalTabs
           tabs={TAB_OPTIONS}
           value={tab}
@@ -75,7 +75,7 @@ export default function DirectionReportBody({
           typeLabel={report.summary.typeLabel ?? ""}
           body={report.summary.body ?? ""}
         />
-        <div className="grid grid-cols-1 gap-x-[1.3125rem] gap-y-[2.5rem] xl:grid-cols-2">
+        <div className="grid grid-cols-1 gap-x-5.25 gap-y-10 xl:grid-cols-2">
           {report.subjects.map((subject) => (
             <SubjectDirectionCard key={subject.name} {...subject} />
           ))}

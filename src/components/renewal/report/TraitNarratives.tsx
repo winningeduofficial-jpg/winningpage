@@ -20,7 +20,7 @@ export default function TraitNarratives({
     >
       {items.map((item) => (
         <div key={item.title} className="flex flex-col gap-3">
-          <p className="text-base font-semibold leading-[1.4] text-[#525252]">
+          <p className="text-base font-semibold leading-[1.4] text-ink">
             {item.title}
           </p>
           <p className="text-base font-normal leading-[1.4] text-[#808080]">

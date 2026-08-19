@@ -38,7 +38,7 @@ export default function EmbeddedField({
 
   return (
     <div className="flex w-full flex-col items-start gap-3">
-      <p className="text-base font-medium leading-5 text-[#525252]">
+      <p className="text-base font-medium leading-5 text-ink">
         {question.title}
       </p>
       {/* cascadeLevels/constraint는 이 문항 타입에서 쓰이지 않아 애초에 생략(undefined 전달 대신). */}

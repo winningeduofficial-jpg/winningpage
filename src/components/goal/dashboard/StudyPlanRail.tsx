@@ -147,10 +147,7 @@ export default function StudyPlanRail() {
   }
 
   return (
-    <GoalCard
-      tone="mint"
-      className="flex flex-col gap-4 px-[1.25rem] py-[1.25rem]"
-    >
+    <GoalCard tone="mint" className="flex flex-col gap-4 px-5 py-5">
       <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
         {getTodayWeekdayLabel()} 나의 학습 계획하기
       </h3>
@@ -198,7 +195,7 @@ export default function StudyPlanRail() {
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="h-[2.375rem] w-full rounded-lg bg-[#4CAF6D] text-[0.875rem] font-semibold leading-[1.4] text-white"
+                className="h-9.5 w-full rounded-lg bg-[#4CAF6D] text-[0.875rem] font-semibold leading-[1.4] text-white"
               >
                 오늘 학습 계획 저장하기
               </button>

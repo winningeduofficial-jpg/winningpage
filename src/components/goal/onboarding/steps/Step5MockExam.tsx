@@ -61,16 +61,16 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
           '목표 대학과의 격차를 계산하는 기준 데이터입니다. 아직 시험을 보지 않았다면 "없음"을 선택하세요.'
         }
       >
-        <div className="flex flex-col gap-[2.5rem]">
+        <div className="flex flex-col gap-10">
           {MOCK_EXAM_ROUNDS.map(({ key: roundKey, label: roundLabel }) => {
             // mockExam은 MOCK_EXAM_ROUNDS로부터 빌드되어 모든 key가 항상 존재한다.
             const round = mockExam[roundKey]!;
             return (
               <div key={roundKey}>
-                <p className="mb-[0.75rem] text-[0.9375rem] font-semibold text-ink-strong">
+                <p className="mb-3 text-[0.9375rem] font-semibold text-ink-strong">
                   {roundLabel}
                 </p>
-                <div className="flex flex-wrap gap-[1rem]">
+                <div className="flex flex-wrap gap-4">
                   {MOCK_EXAM_SUBJECTS.map(
                     ({ key: subjectKey, label: subjectLabel }) => (
                       <GradeNumberField
@@ -111,7 +111,7 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
         </div>
 
         {allNone && (
-          <p className="mt-[2rem] rounded-[0.75rem] bg-surface-03 px-[1.25rem] py-[1rem] text-[0.875rem] leading-[1.5] text-ink-sub">
+          <p className="mt-8 rounded-xl bg-surface-03 px-5 py-4 text-[0.875rem] leading-normal text-ink-sub">
             모의고사 성적이 없어 정시 합격 확률은 0%에서 시작합니다. 지금은
             내신(수시) 기준으로 계산하고, 모의고사를 보고 성적을 입력하면 정시가
             반영돼요.

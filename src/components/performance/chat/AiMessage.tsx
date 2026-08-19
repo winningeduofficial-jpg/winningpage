@@ -43,7 +43,7 @@ type AiMessageProps = {
  *   로딩 표현 전용으로 쓰고 싶으면 `AiLoadingBubble`을 대신 쓸 것.
  * @param {import('react').ReactNode} [children] 말풍선 뒤에 이어 붙는 인라인 카드.
  * @param {string} [bubbleMaxWidthClassName] 말풍선 max-width 클래스. 기본
- *   `max-w-perf-bubble`(596px). `3754:3035` 노드에서만 `"max-w-[27.625rem]"`(442px)로
+ *   `max-w-perf-bubble`(596px). `3754:3035` 노드에서만 `"max-w-110.5"`(442px)로
  *   완전히 교체해 쓴다.
  * @param {string} [className] 루트(아바타+컬럼 행)에 추가할 클래스.
  */
@@ -59,7 +59,7 @@ export default function AiMessage({
       <AiAvatar />
       <div className="flex min-w-0 flex-1 flex-col items-start gap-4">
         {/* 실측: 14px/18 w600 #525252(=`ink`). */}
-        <span className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">
+        <span className="text-[0.875rem] font-semibold leading-4.5 text-ink">
           {label}
         </span>
         {body != null && (
@@ -70,7 +70,7 @@ export default function AiMessage({
             ].join(" ")}
           >
             {/* 실측: 16px/21 w500 #525252(=`ink`). */}
-            <p className="whitespace-pre-line text-[1rem] font-medium leading-[1.3125rem] text-ink">
+            <p className="whitespace-pre-line text-[1rem] font-medium leading-5.25 text-ink">
               {body}
             </p>
           </div>

@@ -58,8 +58,8 @@ import { describe, expect, test } from "vitest";
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const PUBLIC_REL = "src/pages/AdmissionGuidelines.tsx";
 const ADMIN_REL = "src/pages/admin/shared/AdminEngine.tsx";
-const META_MODAL_REL =
-  "src/components/admission/editor/AdmissionMetaEditModal.tsx";
+// META_MODAL_REL(AdmissionMetaEditModal 경로 상수)은 meta:13이
+// AdmissionGuidelines.universityLink.metaModal.test.tsx로 옮겨가며 함께 옮겼다.
 const VIEW_SQL_GLOB_SUFFIX = "_admission_resource_index_official_url.sql";
 const BASE_VIEW_SQL = "sql/48_admission_resource_index_json_flags.sql";
 
@@ -87,38 +87,10 @@ async function bakeHarness(harness: string, tag: string) {
   }
 }
 
-// 실제 .tsx 모듈을 번들해 import.
-async function loadModule(entry: string, exportName?: string) {
-  const result = await esbuild.build({
-    entryPoints: [path.join(REPO_ROOT, entry)],
-    bundle: true,
-    format: "esm",
-    jsx: "automatic",
-    jsxImportSource: "react",
-    platform: "node",
-    mainFields: ["module", "main"],
-    alias: { "@": path.join(REPO_ROOT, "src") },
-    external: [
-      "react",
-      "react-dom",
-      "react/jsx-runtime",
-      "react-dom/server",
-      "lucide-react",
-    ],
-    write: false,
-  });
-  const tmpFile = path.join(
-    REPO_ROOT,
-    `.tmp-univ-link-module-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
-  );
-  fs.writeFileSync(tmpFile, result.outputFiles[0]!.text);
-  try {
-    const mod = await import(`file://${tmpFile}`);
-    return exportName ? mod[exportName] : mod.default;
-  } finally {
-    fs.rmSync(tmpFile, { force: true });
-  }
-}
+// loadModule(esbuild.build 기반 실제 .tsx 모듈 번들+import)은 meta:13이
+// AdmissionGuidelines.universityLink.metaModal.test.tsx로 옮겨가며 유일한
+// 호출부를 잃어 함께 옮겼다 — 이 파일에 남은 나머지 테스트는 전부
+// bakeHarness(문자열 슬라이스 하네스)만 쓴다.
 
 // 소스에서 `start` 로 시작해 `end` 직전까지를 잘라낸다. start 는 정확히 1개여야 한다.
 function sliceExactlyOnce(
@@ -621,28 +593,12 @@ describe("대학명 → official_source_url 배선 검증", () => {
     expect(pass, detail).toBe(true);
   });
 
-  test('meta:13. 메타 수정 다이얼로그에 "대학명 링크 URL"·"정시모집요강 URL" 두 라벨이 모두 있고(서로 다른 컬럼), 기존 official_source_url 값이 입력칸에 실려 나온다', async () => {
-    const AdmissionMetaEditModal = await loadModule(META_MODAL_REL);
-    const row = {
-      id: "fixture",
-      university_name: "가톨릭관동대학교",
-      official_source_url: "https://ex.ac.kr/adm",
-      jungsi_guideline_url: "https://ex.ac.kr/jungsi",
-      is_active: true,
-    };
-    const html = renderToStaticMarkup(
-      React.createElement(AdmissionMetaEditModal, {
-        row,
-        onClose: () => {},
-        onSave: async () => true,
-      }),
-    );
-    const hasOfficial = html.includes("대학명 링크 URL");
-    const hasJungsi = html.includes("정시모집요강 URL");
-    const hasValue = html.includes("https://ex.ac.kr/adm");
-    const pass = hasOfficial && hasJungsi && hasValue;
-    expect(pass, JSON.stringify({ hasOfficial, hasJungsi, hasValue })).toBe(
-      true,
-    );
-  });
+  // meta:13(AdmissionMetaEditModal 렌더 검증)은
+  // AdmissionGuidelines.universityLink.metaModal.test.tsx로 옮겼다 —
+  // AdmissionMetaEditModal이 AdmissionModalShell을 통해 Portal로 렌더하는
+  // shadcn/ui Dialog(Base UI)로 바뀌면서(task: AdmissionModalShell Base UI
+  // 전환) 이 파일의 `@vitest-environment node` + renderToStaticMarkup
+  // 조합으로는 더 이상 렌더할 수 없다(포털 미지원, 선례:
+  // EvaluationReportModal.test.tsx). 그 새 파일의 헤더 주석에 이전 배경이
+  // 있다.
 });

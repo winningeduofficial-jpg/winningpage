@@ -30,7 +30,7 @@ export default function TimerSummaryBar({
   return (
     <GoalCard
       tone="neutral"
-      className="flex flex-wrap items-center justify-between gap-4 px-[2rem] py-[1.5rem]"
+      className="flex flex-wrap items-center justify-between gap-4 px-8 py-6"
     >
       <div className="flex items-baseline gap-3">
         <span className="text-[1rem] font-semibold leading-[1.4] text-ink-strong">
@@ -44,7 +44,7 @@ export default function TimerSummaryBar({
         type="button"
         onClick={handleFinish}
         disabled={finishing}
-        className="flex h-[2.4375rem] shrink-0 items-center justify-center rounded-full bg-ink-strong px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white disabled:opacity-60"
+        className="flex h-9.75 shrink-0 items-center justify-center rounded-full bg-ink-strong px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white disabled:opacity-60"
       >
         전체 종료 후 기록
       </button>

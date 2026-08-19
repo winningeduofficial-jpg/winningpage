@@ -12,7 +12,7 @@ import {
 } from "./columnData";
 
 const SECTION_TITLE =
-  "break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]";
+  "break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink";
 
 export default function ColumnHome() {
   const [rows, setRows] = useState<ColumnRow[]>([]);
@@ -62,7 +62,7 @@ export default function ColumnHome() {
         </div>
       ) : (
         <>
-          <section className="pt-16 sm:pt-20 md:pt-[8.5rem]">
+          <section className="pt-16 sm:pt-20 md:pt-34">
             <div className="mx-auto w-full max-w-content px-5 sm:px-8">
               <h2 className={SECTION_TITLE}>이번주 가장 인기 있는 칼럼</h2>
 
@@ -76,7 +76,7 @@ export default function ColumnHome() {
                     <ColumnCard column={heroLarge} variant="heroLarge" />
 
                     {heroSmalls.length > 0 && (
-                      <div className="flex flex-col gap-6 wide:w-[29rem] wide:shrink-0">
+                      <div className="flex flex-col gap-6 wide:w-116 wide:shrink-0">
                         {heroSmalls.map((row) => (
                           <ColumnCard
                             key={row.id}
@@ -93,13 +93,13 @@ export default function ColumnHome() {
           </section>
 
           {!loading && (
-            <section className="mt-24 pb-20 sm:pb-24 md:mt-[8.75rem] md:pb-[7.5rem]">
+            <section className="mt-24 pb-20 sm:pb-24 md:mt-35 md:pb-30">
               <div className="mx-auto w-full max-w-content px-5 sm:px-8">
                 <div className="flex items-center justify-between">
                   <h2 className={SECTION_TITLE}>카테고리별 보기</h2>
                   <Link
                     to="/info/column/list"
-                    className="inline-flex shrink-0 items-center gap-1 text-base font-medium text-[#013262]"
+                    className="inline-flex shrink-0 items-center gap-1 text-base font-medium text-primary"
                   >
                     더보기
                     <ChevronRight size={16} />

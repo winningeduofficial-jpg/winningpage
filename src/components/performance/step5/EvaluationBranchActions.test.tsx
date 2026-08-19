@@ -60,8 +60,10 @@ describe("§5.17 분기 3버튼 — 순서·위계·치수", () => {
   test.each(buttons.map((b, i) => [i, b] as const))(
     "버튼 %s이 §5.17 실측 16.25rem×3.25rem이다",
     (_i, button) => {
-      expect(button.attrs).toMatch(/h-\[3\.25rem\]/);
-      expect(button.attrs).toMatch(/w-\[16\.25rem\]/);
+      // Tailwind v4 전환(4612754b)에서 codemod가 임의값을 스페이싱 스케일 축약형으로
+      // 바꿨다 — h-13(=3.25rem)/w-65(=16.25rem), 렌더 결과 치수는 동일하다.
+      expect(button.attrs).toMatch(/\bh-13\b/);
+      expect(button.attrs).toMatch(/\bw-65\b/);
     },
   );
 

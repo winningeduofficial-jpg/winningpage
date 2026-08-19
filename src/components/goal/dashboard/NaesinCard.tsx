@@ -55,10 +55,7 @@ export default function NaesinCard({ data }: NaesinCardProps) {
   }
 
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex h-full flex-col gap-5 px-[2rem] py-[1.75rem]"
-    >
+    <GoalCard tone="neutral" className="flex h-full flex-col gap-5 px-8 py-7">
       <GoalCardHeader
         title="내신"
         action={
@@ -83,7 +80,7 @@ export default function NaesinCard({ data }: NaesinCardProps) {
         <p className="text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
           학습 조언
         </p>
-        <p className="text-[0.875rem] leading-[1.5] text-ink">{data.advice}</p>
+        <p className="text-[0.875rem] leading-normal text-ink">{data.advice}</p>
       </div>
 
       <AddNaesinGradeModal

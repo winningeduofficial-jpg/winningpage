@@ -50,12 +50,12 @@ export default function RemoveChildModal({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
-      className="w-[26rem]"
+      className="w-104"
     >
       <div className="flex flex-col items-center px-6 py-8 text-center">
         <h2
           id={titleId}
-          className="break-keep text-[1.125rem] font-bold leading-[1.5] text-ink-title"
+          className="break-keep text-[1.125rem] font-bold leading-normal text-ink-title"
         >
           {child.student_name} 학생을 자녀 목록에서
           <br />

@@ -34,10 +34,8 @@ export default function SliderRow({
   }
 
   return (
-    <div className="flex items-center gap-[1.25rem]">
-      <span className="w-[2.75rem] shrink-0 text-[0.875rem] text-ink">
-        {label}
-      </span>
+    <div className="flex items-center gap-5">
+      <span className="w-11 shrink-0 text-[0.875rem] text-ink">{label}</span>
 
       <input
         type="range"
@@ -47,7 +45,7 @@ export default function SliderRow({
         value={value}
         onChange={(event) => onChange(Number(event.target.value))}
         aria-label={`${label} 자습 시간`}
-        className="h-[0.625rem] w-[50rem] max-w-full flex-1 cursor-pointer appearance-none rounded-full accent-accent"
+        className="h-2.5 w-200 max-w-full flex-1 cursor-pointer appearance-none rounded-full accent-accent"
         style={{
           background: `linear-gradient(to right, #0B84FD ${pct}%, #D9D9D9 ${pct}%)`,
         }}
@@ -61,7 +59,7 @@ export default function SliderRow({
       >
         −
       </button>
-      <span className="w-[2.25rem] shrink-0 text-center text-[0.875rem] font-medium text-ink">
+      <span className="w-9 shrink-0 text-center text-[0.875rem] font-medium text-ink">
         {value}h
       </span>
       <button

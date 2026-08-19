@@ -31,7 +31,7 @@ export default function ArtifactChip({
       className={[
         "flex h-8 items-center rounded-lg px-3 text-[0.875rem] font-semibold leading-5 transition",
         available
-          ? "bg-performance-chip text-[#1b5da0] hover:bg-performance-chip/70"
+          ? "bg-performance-chip text-performance-reportHeading hover:bg-performance-chip/70"
           : "cursor-not-allowed bg-surface-04 text-ink-sub",
       ].join(" ")}
     >

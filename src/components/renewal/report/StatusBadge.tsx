@@ -23,10 +23,10 @@ export default function StatusBadge({
 
   return (
     <span
-      className={`inline-flex items-center justify-center rounded-[0.75rem] px-2 py-1 text-base font-normal leading-[1.25rem] ${className}`}
+      className={`inline-flex items-center justify-center rounded-xl px-2 py-1 text-base font-normal leading-5 ${className}`}
       style={{ backgroundColor: bg, color: text }}
     >
-      <span className="min-w-[2.5rem] text-center">{children}</span>
+      <span className="min-w-10 text-center">{children}</span>
     </span>
   );
 }

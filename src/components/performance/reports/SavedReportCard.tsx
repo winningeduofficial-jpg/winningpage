@@ -57,15 +57,15 @@ export default function SavedReportCard({
   onArtifactClick,
 }: SavedReportCardProps) {
   return (
-    <div className="flex h-[11.25rem] w-[50rem] flex-col justify-between rounded-[1.25rem] border border-performance-line bg-white p-8">
+    <div className="flex h-45 w-200 flex-col justify-between rounded-perf-modal border border-performance-line bg-white p-8">
       <div className="min-w-0">
         <Link
           to={`/app/performance/reports/${sessionId}`}
-          className="block truncate text-[1.25rem] font-semibold leading-[1.625rem] tracking-[-0.025rem] text-ink hover:underline"
+          className="block truncate text-[1.25rem] font-semibold leading-6.5 tracking-[-0.025rem] text-ink hover:underline"
         >
           {title || "제목 없는 수행평가"}
         </Link>
-        <p className="mt-2 truncate text-[0.875rem] font-normal leading-[1.125rem] tracking-[-0.0175rem] text-ink-sub">
+        <p className="mt-2 truncate text-[0.875rem] font-normal leading-4.5 tracking-[-0.0175rem] text-ink-sub">
           {[meta, formatSavedAt(savedAt)].filter(Boolean).join(" · ")}
         </p>
       </div>

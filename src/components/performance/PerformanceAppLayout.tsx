@@ -61,7 +61,7 @@ function PerformanceShellContent() {
       {/* 캔버스. 좌 인셋만 지정해 좌기준선 384px(사이드바 324 + 60)을 맞추고, 우측은
           콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」 규칙).
           pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전 여백일 뿐이다. */}
-      <main className="min-w-0 flex-1 pb-[6.25rem] pl-perf-inset pr-perf-inset pt-[6.25rem]">
+      <main className="min-w-0 flex-1 pb-25 pl-perf-inset pr-perf-inset pt-25">
         <div className="max-w-perf-content">
           {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
               조건 판정은 이 컴포넌트가 하지 않는다 — 채팅 페이지(Outlet 자식)가
@@ -74,7 +74,7 @@ function PerformanceShellContent() {
           {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
               TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
               §11 Q7 미결이라 아직 만들지 않는다. */}
-          <h1 className="text-[2rem] font-semibold leading-[2.625rem] tracking-[-0.04rem] text-ink-strong">
+          <h1 className="text-[2rem] font-semibold leading-10.5 tracking-[-0.04rem] text-ink-strong">
             위닝 수행평가 서비스
           </h1>
 

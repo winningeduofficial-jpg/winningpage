@@ -24,7 +24,7 @@ import { useId } from "react";
 // 시안 §6-6 의 placeholder 색이 `Surface/01 #D9D9D9` 이고, 신규 hex 하드코딩 금지 원칙상
 // 가장 가까운 기존 토큰이 `line`(#d7d7d7)이다(명세 확인 항목 ㊼ — #D9D9D9 vs #D7D7D7 정본 미확정).
 export const MENTOR_CONTROL_CLASS =
-  "w-full rounded-xl border border-line bg-white px-5 text-base text-ink outline-none transition placeholder:text-line focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer";
+  "w-full rounded-xl border border-line bg-white px-5 text-base text-ink outline-hidden transition placeholder:text-line focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer";
 
 // aria-describedby 는 도움말/에러 두 슬롯을 함께 가리켜야 한다.
 // 에러 슬롯은 항상 렌더되지만 비어 있을 때 가리키면 스크린리더가 빈 노드를 읽으므로 error 가 있을 때만 연결한다.
@@ -123,7 +123,7 @@ export function MentorFieldShell({
           MentorApplyForm.jsx 의 요약 문단 한 곳에서만 assertive 로 발화한다. */}
       <p
         id={`${fieldId}-error`}
-        className={`mt-2 min-h-[1.125rem] break-keep text-xs leading-[1.125rem] text-error ${
+        className={`mt-2 min-h-4.5 break-keep text-xs leading-4.5 text-error ${
           error ? "auth-message-enter" : ""
         }`}
       >
@@ -203,7 +203,7 @@ export default function MentorTextField({
         helperText,
         error,
       })}
-      className={`h-[3.25rem] ${MENTOR_CONTROL_CLASS} ${error ? "border-error" : ""}`}
+      className={`h-13 ${MENTOR_CONTROL_CLASS} ${error ? "border-error" : ""}`}
     />
   );
 

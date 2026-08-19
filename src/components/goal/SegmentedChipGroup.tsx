@@ -55,7 +55,7 @@ export default function SegmentedChipGroup({
     <div
       role="radiogroup"
       aria-label={ariaLabel}
-      className="flex flex-wrap gap-[0.375rem]"
+      className="flex flex-wrap gap-1.5"
     >
       {options.map((option, index) => {
         const selected = option.value === value;
@@ -73,7 +73,7 @@ export default function SegmentedChipGroup({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`h-[2.4375rem] min-w-[4rem] flex-1 rounded-lg border px-3 text-[0.8125rem] font-medium leading-[1.4] transition-colors ${
+            className={`h-9.75 min-w-16 flex-1 rounded-lg border px-3 text-[0.8125rem] font-medium leading-[1.4] transition-colors ${
               selected
                 ? "border-accent bg-surface-03 font-bold text-accent" // (추정) 선택 상태
                 : "border-[#E3E3E3] bg-white text-ink-sub"

@@ -28,7 +28,7 @@ function FaqItem({ item, index, isOpen, onToggle }: FaqItemProps) {
 
   // 구분선은 마지막 항목 뒤에 없다(last:border-b-0). stroke #D9D9D9 → 토큰 #D7D7D7.
   return (
-    <div className="border-b border-[#D7D7D7] py-6 last:border-b-0">
+    <div className="border-b border-line py-6 last:border-b-0">
       <button
         type="button"
         onClick={onToggle}
@@ -36,12 +36,12 @@ function FaqItem({ item, index, isOpen, onToggle }: FaqItemProps) {
         aria-controls={answerId}
         className="flex w-full items-center justify-between gap-4 text-left"
       >
-        <span className="break-keep text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-[#525252]">
+        <span className="break-keep text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-ink">
           {item.q}
         </span>
         {/* chevron 24 × 0.766 = 18.4px. 색 #808080 → #767676 상향. */}
         <ChevronDown
-          className={`h-[1.125rem] w-[1.125rem] shrink-0 text-[#767676] transition-transform ${
+          className={`h-4.5 w-4.5 shrink-0 text-[#767676] transition-transform ${
             isOpen ? "rotate-180" : ""
           }`}
         />
@@ -71,7 +71,7 @@ export default function ServiceFaq({ items }: ServiceFaqProps) {
 
   return (
     // 헤딩→목록 60 × 0.766 = 46px = 2.875rem.
-    <div className="mt-8 sm:mt-10 lg:mt-[2.875rem]">
+    <div className="mt-8 sm:mt-10 lg:mt-11.5">
       {items.map((item, index) => (
         <FaqItem
           key={item.q}

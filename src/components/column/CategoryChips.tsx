@@ -27,10 +27,8 @@ export default function CategoryChips({
             key={option}
             type="button"
             onClick={() => onChange?.(option)}
-            className={`shrink-0 rounded-full px-[1.125rem] py-2.5 text-base font-medium leading-[1.4] tracking-[-0.02em] transition-colors ${
-              isActive
-                ? "bg-[#013262] text-white"
-                : "bg-[#F9FAFB] text-[#525252]"
+            className={`shrink-0 rounded-full px-4.5 py-2.5 text-base font-medium leading-[1.4] tracking-[-0.02em] transition-colors ${
+              isActive ? "bg-primary text-white" : "bg-surface-footer text-ink"
             }`}
           >
             {option}

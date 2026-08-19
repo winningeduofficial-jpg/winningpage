@@ -58,12 +58,12 @@ export default function AdmissionCaseDetail() {
     return (
       <main className="bg-white pt-16">
         <div className="mx-auto w-full max-w-content px-5 py-24 text-center sm:px-8">
-          <h1 className="text-xl font-bold text-[#525252]">
+          <h1 className="text-xl font-bold text-ink">
             게시글을 찾을 수 없습니다.
           </h1>
           <Link
             to={listPath}
-            className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-[#013262] px-6 text-sm font-semibold text-white"
+            className="mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-primary px-6 text-sm font-semibold text-white"
           >
             합격 사례 목록으로
           </Link>
@@ -74,7 +74,7 @@ export default function AdmissionCaseDetail() {
 
   return (
     <main className="bg-white pt-16">
-      <section className="pt-16 md:pt-[7.5rem]">
+      <section className="pt-16 md:pt-30">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <Link
             to={listPath}
@@ -83,15 +83,15 @@ export default function AdmissionCaseDetail() {
             수시정시 합격 후기
           </Link>
 
-          <h1 className="mt-2 break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]">
+          <h1 className="mt-2 break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
             {post.title}
           </h1>
         </div>
       </section>
 
-      <section className="pb-20 sm:pb-24 md:pb-[8.25rem]">
+      <section className="pb-20 sm:pb-24 md:pb-33">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <ColumnBody post={post} className="mt-16 md:mt-[8rem]" />
+          <ColumnBody post={post} className="mt-16 md:mt-32" />
 
           {!hasBlocks && fallbackImages.length > 0 && (
             <div className="mt-10 space-y-5">

@@ -213,7 +213,7 @@ export default function PricingSelling() {
               한 클래스로 통일. 기존 14px w900 은 시안에 없는 값이었다(시안 최대 무게 w700).
               MyPage 헤더 위계와 통일하기 위해 반응형 확대를 의도적으로 제거함
               (사용자 확정, 시안 그대로가 아님). */}
-          <p className="text-[1rem] font-semibold leading-[1.375rem] tracking-[-0.02em] text-accent">
+          <p className="text-[1rem] font-semibold leading-5.5 tracking-[-0.02em] text-accent">
             나에게 맞는 서비스를 선택해 주세요
           </p>
           {/* H1 — 390 24px w600 lh34 #525252 ls-0.48 / 1920 50px w600 lh70 #525252 ls-1
@@ -298,7 +298,7 @@ export default function PricingSelling() {
                     않아도 스크린리더가 "N개 중 M번째, [서비스명] 라디오 버튼"으로 읽는다. */}
                   <h2
                     id={`plan-group-label-${service.key}`}
-                    className="text-[1.125rem] font-semibold leading-[1.25rem] tracking-[-0.02em] text-ink sm:text-[2.375rem] sm:font-bold sm:leading-[3.0625rem]"
+                    className="text-[1.125rem] font-semibold leading-5 tracking-[-0.02em] text-ink sm:text-[2.375rem] sm:font-bold sm:leading-12.25"
                   >
                     {service.name}
                   </h2>
@@ -355,7 +355,7 @@ export default function PricingSelling() {
                         없어 기존 표현을 유지한다(이번 작업 범위는 타이포·색·간격).
                         셰브론(sm 이상) 색도 시안 본문 기본색 ink(#525252)로 내렸다 — 같은 행의
                         서비스명이 #525252 이고, 시안에 ink-title(#181d24)을 쓰는 근거가 없다. */}
-                      <span className="text-[0.75rem] font-medium leading-[1.0625rem] text-ink-sub underline underline-offset-2 sm:hidden">
+                      <span className="text-[0.75rem] font-medium leading-4.25 text-ink-sub underline underline-offset-2 sm:hidden">
                         자세히보기
                       </span>
                       <ChevronRight
@@ -386,7 +386,7 @@ export default function PricingSelling() {
                   `relative` 는 위 '자세히보기' 44×44 오버레이와의 히트테스트 순서용이다
                   (위 주석의 390 4px 넘침 항목 참고 — 시각·레이아웃 영향 없음). */}
                 {service.desc && (
-                  <p className="relative mb-6 text-[0.75rem] font-medium leading-[1.0625rem] text-ink-sub sm:text-[1.25rem] sm:leading-[1.75rem]">
+                  <p className="relative mb-6 text-[0.75rem] font-medium leading-4.25 text-ink-sub sm:text-[1.25rem] sm:leading-7">
                     {service.desc}
                   </p>
                 )}
@@ -466,9 +466,9 @@ export default function PricingSelling() {
                     // 근거 있는 두 값(390 / 1280)만 쓰고 18px 같은 중간 단계는 발명하지 않는다.
                     // 함께 옮긴 클래스(이 button 하위 전부, 같은 전환점을 쓰던 항목들):
                     //   행 박스 min-h-0 · gap-4 · p-5 / 좌측 그룹 gap-3 / 체크박스 h-6 w-6 +
-                    //   체크 아이콘 0.9375rem / 라벨 text-[1.5rem] leading-[1.9375rem] +
+                    //   체크 아이콘 0.9375rem / 라벨 text-[1.5rem] leading-7.75 +
                     //   라벨 표현 전환(shortLabel↔상품명 전문) / '추천' 배지 inline-block /
-                    //   금액 블록 w-auto + leading-[1.9375rem] / 정가 취소선 20px w400 lh28 /
+                    //   금액 블록 w-auto + leading-7.75 / 정가 취소선 20px w400 lh28 /
                     //   금액 한 줄 표현(hidden)↔배지·금액 분리 표현(flex).
                     // 라벨만 옮기고 금액을 sm 에 두면 같은 행에서 폭을 나눠 쓰는 두 블록의 크기가
                     // 640~1023 에서 어긋나므로 반드시 한 세트로 움직여야 한다.
@@ -503,7 +503,7 @@ export default function PricingSelling() {
                             index,
                           )
                         }
-                        className={`flex min-h-[4rem] w-full items-center justify-between gap-5 rounded-2xl border p-[0.6875rem] text-left transition lg:min-h-0 lg:gap-4 lg:p-5 ${
+                        className={`flex min-h-16 w-full items-center justify-between gap-5 rounded-2xl border p-2.75 text-left transition lg:min-h-0 lg:gap-4 lg:p-5 ${
                           isSelected
                             ? "border-accent bg-surface-info ring-1 ring-accent/30"
                             : "border-line bg-white hover:border-ink-sub"
@@ -562,7 +562,7 @@ export default function PricingSelling() {
                             단일 클래스. 390 은 ls 가 붙어 글자폭이 오히려 줄어드므로 확정
                             예산(라벨 몫 156px, 최장 라벨 112.8px)에 여유가 더 생긴다.
                             색은 양쪽 시안 모두 #525252 = ink 다(기존 ink-title 은 근거 없음). */}
-                          <span className="break-keep text-[0.8125rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-ink lg:text-[1.5rem] lg:leading-[1.9375rem]">
+                          <span className="break-keep text-[0.8125rem] font-medium leading-5 tracking-[-0.02em] text-ink lg:text-[1.5rem] lg:leading-7.75">
                             <span className="lg:hidden">{shortLabel}</span>
                             <span className="hidden lg:inline">
                               {product.name}
@@ -604,18 +604,18 @@ export default function PricingSelling() {
                           전환점이 sm → lg 로 옮겨진 이유는 위 button 주석의 ★ 항목 참고. 126px
                           고정폭이 1023 까지 유지되지만, 그 구간은 아래 '한 줄' 표현(13px)을 쓰고
                           최장 문구 '40%할인 180,000원' 이 122.6px 이라 126 예산 안에 들어온다. */}
-                        <span className="flex w-[7.875rem] shrink-0 flex-col items-end leading-[1.25rem] lg:w-auto lg:leading-[1.9375rem]">
+                        <span className="flex w-31.5 shrink-0 flex-col items-end leading-5 lg:w-auto lg:leading-7.75">
                           {/* 정가 취소선 — 390 12px w500 lh20 #d7d7d7 ls-0.24 /
                             1920 20px w400 lh28 #d9d9d9 ls-0.4.
                             #d9d9d9 는 토큰이 없어 가장 가까운 line(#d7d7d7, 차이 2)로 쓴다 —
                             390 시안이 이미 정확히 #d7d7d7 이라 두 밴드가 한 토큰으로 수렴한다.
-                            390 lh20 은 부모의 leading-[1.25rem] 상속으로 이미 맞다.
+                            390 lh20 은 부모의 leading-5 상속으로 이미 맞다.
                             rem: 12px = 0.75rem / 20px = 1.25rem / lh28 = 1.75rem.
                             ls 는 양쪽 -0.02em(-0.24/12, -0.4/20).
                             기존 12px w400 #808080(ink-sub) 은 취소선인데도 본문 보조색과 같아
                             '비활성' 위계가 드러나지 않았다. */}
                           {hasDiscount && (
-                            <span className="text-[0.75rem] font-medium tracking-[-0.02em] text-line line-through lg:text-[1.25rem] lg:font-normal lg:leading-[1.75rem]">
+                            <span className="text-[0.75rem] font-medium tracking-[-0.02em] text-line line-through lg:text-[1.25rem] lg:font-normal lg:leading-7">
                               {formatKRW(product.listPrice)}
                             </span>
                           )}
@@ -678,7 +678,7 @@ export default function PricingSelling() {
                   일관되게 처리된다(학습진단만 안내문이 없는 건 예외 분기가 아니라 이
                   조건의 자연스러운 결과다 — 별도 정리가 필요한 비일관성이 아니다). */}
                 {service.products.length > 1 && (
-                  <p className="mt-4 text-[0.75rem] font-medium leading-[1.0625rem] text-ink sm:text-[1.125rem] sm:leading-[1.5625rem] sm:tracking-[-0.02em]">
+                  <p className="mt-4 text-[0.75rem] font-medium leading-4.25 text-ink sm:text-[1.125rem] sm:leading-6.25 sm:tracking-[-0.02em]">
                     {SINGLE_SELECT_NOTICE}
                   </p>
                 )}
@@ -777,22 +777,22 @@ export default function PricingSelling() {
                   (py-5 = 20+20 을 뺀 나머지)라 라벨과 값이 겹치지 않는다.
                   결과 바 높이 = 40 + 57 = 97px (CTA 쪽은 py-3.5×2 + lh28 = 56px 로 더 낮다). */}
               <div className="text-center">
-                <p className="text-[1rem] font-medium leading-[1.375rem] text-ink">
+                <p className="text-[1rem] font-medium leading-5.5 text-ink">
                   총 판매가
                 </p>
-                <p className="mt-1 text-[1.5rem] font-medium leading-[1.9375rem] text-ink">
+                <p className="mt-1 text-[1.5rem] font-medium leading-7.75 text-ink">
                   {formatKRW(listTotal)}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-[1rem] font-medium leading-[1.375rem] text-ink">
+                <p className="text-[1rem] font-medium leading-5.5 text-ink">
                   총 할인 금액
                 </p>
                 {/* 총 할인금액 값 색 — 1280 시안(1882:15190) 실측 #013262 = primary 다.
                     직전 라운드의 accent(#0B84FD, 옛 blue-600 승계값)는 실측 근거가 없던 잔존값이라
                     정정했다. 이제 390 밴드(:520, 390 시안 실측색이 네이비)와 sm+ 가 같은 토큰을
                     쓴다 — 같은 정보가 폭에 따라 다른 색이던 문제가 해소된다. */}
-                <p className="mt-1 text-[1.5rem] font-medium leading-[1.9375rem] text-primary">
+                <p className="mt-1 text-[1.5rem] font-medium leading-7.75 text-primary">
                   {formatKRW(discountTotal)}
                 </p>
               </div>
@@ -803,7 +803,7 @@ export default function PricingSelling() {
             <button
               type="button"
               onClick={goCheckout}
-              className="shrink-0 rounded-lg bg-accent px-8 py-3.5 text-[1.25rem] font-medium leading-[1.75rem] tracking-[-0.02em] text-white shadow-[0_0.625rem_1.625rem_rgba(11,132,253,0.28)] transition hover:brightness-95"
+              className="shrink-0 rounded-lg bg-accent px-8 py-3.5 text-[1.25rem] font-medium leading-7 tracking-[-0.02em] text-white shadow-[0_0.625rem_1.625rem_rgba(11,132,253,0.28)] transition hover:brightness-95"
             >
               {formatKRW(totalPrice)} 결제하기
             </button>

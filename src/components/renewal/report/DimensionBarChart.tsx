@@ -29,13 +29,13 @@ const DimensionBarChart = ({ areas }: DimensionBarChartProps) => {
       {areas.map((area) => (
         <div
           key={area.name}
-          className="fd-dim-row flex h-auto items-center gap-3 lg:h-5 lg:gap-[3.75rem]"
+          className="fd-dim-row flex h-auto items-center gap-3 lg:h-5 lg:gap-perf-inset"
         >
           {/* text-base(16px) 유지 — 본문 최소 크기. 폭만 데스크톱(4.625rem)보다 좁혀 4~5자
               영역명이 필요하면 자연스럽게 2줄로 접히게 한다(줄바꿈 허용, nowrap 금지).
               break-keep — PriorityTable/AdmissionSection 과 동일한 사유로 좁은 칸에서
               "교과 관리" 가 "관/리" 처럼 음절 단위로 쪼개지는 것을 막는다. */}
-          <span className="fd-dim-label w-14 shrink-0 break-keep text-base text-[#525252] lg:w-[4.625rem]">
+          <span className="fd-dim-label w-14 shrink-0 break-keep text-base text-ink lg:w-18.5">
             {area.name}
           </span>
           <ScoreBar
@@ -45,7 +45,7 @@ const DimensionBarChart = ({ areas }: DimensionBarChartProps) => {
             responsive
             className="fd-dim-bar flex-1 lg:flex-none"
           />
-          <span className="fd-dim-status w-16 shrink-0 text-right text-base text-[#525252] lg:w-[3.75rem] lg:text-left lg:whitespace-nowrap">
+          <span className="fd-dim-status w-16 shrink-0 text-right text-base text-ink lg:w-perf-inset lg:text-left lg:whitespace-nowrap">
             {area.status}
           </span>
         </div>

@@ -255,7 +255,7 @@ export default function FormSectionDocuments({
         {...(onSubmit !== undefined && { onClick: onSubmit })}
         disabled={submitDisabled}
         loading={submitting}
-        className={`min-h-[5.0625rem] !rounded-[1.25rem] ${
+        className={`min-h-20.25 rounded-perf-modal! ${
           submitting ? "" : "disabled:bg-surface-muted disabled:text-ink-sub"
         }`}
       >

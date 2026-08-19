@@ -23,31 +23,31 @@ export default function PerformanceSkeleton() {
       className="flex min-h-screen animate-pulse bg-white motion-reduce:animate-none"
     >
       {/* 사이드바 골격 — 프로필 자리 + 메뉴 2자리 + 진행단계 5자리. */}
-      <aside className="flex min-h-screen w-perf-sidebar flex-shrink-0 flex-col bg-performance-sidebar">
-        <div className="min-h-[9.4375rem] px-perf-inset pt-[6.25rem]">
-          <Block className="h-[1.625rem] w-36" />
-          <Block className="mt-[0.25rem] h-[1.3125rem] w-24" />
+      <aside className="flex min-h-screen w-perf-sidebar shrink-0 flex-col bg-performance-sidebar">
+        <div className="min-h-37.75 px-perf-inset pt-25">
+          <Block className="h-6.5 w-36" />
+          <Block className="mt-1 h-5.25 w-24" />
         </div>
 
-        <div className="mt-[8.75rem]">
-          <Block className="mx-perf-inset h-[1.3125rem] w-12" />
-          <div className="mx-[0.625rem] mt-[0.6875rem] flex flex-col gap-[0.375rem]">
+        <div className="mt-35">
+          <Block className="mx-perf-inset h-5.25 w-12" />
+          <div className="mx-2.5 mt-2.75 flex flex-col gap-1.5">
             <Block className="h-9 w-perf-pill" />
             <Block className="h-9 w-perf-pill" />
           </div>
         </div>
 
-        <div className="mt-[3.4375rem]">
-          <Block className="mx-perf-inset h-[1.3125rem] w-16" />
-          <div className="mx-[0.625rem] mt-[0.5625rem] flex flex-col gap-[0.0625rem]">
+        <div className="mt-13.75">
+          <Block className="mx-perf-inset h-5.25 w-16" />
+          <div className="mx-2.5 mt-2.25 flex flex-col gap-0.25">
             {Array.from({ length: 5 }).map((_, index) => (
               <div
                 // biome-ignore lint/suspicious/noArrayIndexKey: 실데이터 없는 로딩 스켈레톤 placeholder — index 외에 다른 값이 없다.
                 key={index}
-                className="flex h-9 w-perf-pill items-center gap-4 pl-[3.125rem]"
+                className="flex h-9 w-perf-pill items-center gap-4 pl-12.5"
               >
-                <Block className="h-5 w-5 flex-shrink-0 rounded-full" />
-                <Block className="h-[1.3125rem] w-20" />
+                <Block className="h-5 w-5 shrink-0 rounded-full" />
+                <Block className="h-5.25 w-20" />
               </div>
             ))}
           </div>
@@ -55,9 +55,9 @@ export default function PerformanceSkeleton() {
       </aside>
 
       {/* 캔버스 골격 — 페이지 타이틀 + 콘텐츠 자리. */}
-      <main className="min-w-0 flex-1 pb-[6.25rem] pl-perf-inset pr-perf-inset pt-[6.25rem]">
+      <main className="min-w-0 flex-1 pb-25 pl-perf-inset pr-perf-inset pt-25">
         <div className="max-w-perf-content">
-          <Block className="h-[2.625rem] w-80" />
+          <Block className="h-10.5 w-80" />
           <Block className="mt-8 h-24 w-full max-w-perf-bubble" />
           <Block className="mt-4 h-24 w-full max-w-perf-bubble" />
         </div>

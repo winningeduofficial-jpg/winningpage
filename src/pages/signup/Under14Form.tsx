@@ -182,7 +182,7 @@ function InlineCheckbox({
     <button
       type="button"
       onClick={onToggle}
-      className="flex min-h-[2.75rem] items-center gap-2 text-left"
+      className="flex min-h-11 items-center gap-2 text-left"
     >
       <span
         className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${

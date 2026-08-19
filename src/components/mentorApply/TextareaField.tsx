@@ -91,7 +91,7 @@ export default function TextareaField({
         // 읽어 방해가 되므로 aria-hidden 으로 두고, 상한 초과는 error 메시지가 담당한다.
         <p
           aria-hidden="true"
-          className="mt-2 text-right text-xs leading-[1.125rem] text-ink-sub"
+          className="mt-2 text-right text-xs leading-4.5 text-ink-sub"
         >
           {length} / {maxLength}
         </p>

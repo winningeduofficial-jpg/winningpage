@@ -19,7 +19,7 @@ export default function SelectChip({
 }: SelectChipProps) {
   return (
     <label
-      className={`flex h-[3.25rem] w-fit shrink-0 cursor-pointer items-center justify-center rounded-full border px-5 text-[0.9375rem] font-medium leading-[1.2] transition-colors ${
+      className={`flex h-13 w-fit shrink-0 cursor-pointer items-center justify-center rounded-full border px-5 text-[0.9375rem] font-medium leading-[1.2] transition-colors ${
         selected
           ? "border-accent bg-surface-03 font-bold text-accent"
           : "border-line bg-white text-ink"

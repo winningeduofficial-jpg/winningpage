@@ -21,7 +21,7 @@ export default function SessionRecordPanel({
   return (
     <GoalCard
       tone="neutral"
-      className="flex h-full flex-col gap-4 px-[1.875rem] py-[1.875rem]"
+      className="flex h-full flex-col gap-4 px-7.5 py-7.5"
     >
       <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
         오늘 세션 기록
@@ -37,7 +37,7 @@ export default function SessionRecordPanel({
           return (
             <li
               key={subject.id}
-              className="flex h-[3.75rem] items-center gap-3 rounded-lg bg-surface-04 px-4"
+              className="flex h-perf-inset items-center gap-3 rounded-lg bg-surface-04 px-4"
             >
               <span
                 aria-hidden="true"
@@ -49,7 +49,7 @@ export default function SessionRecordPanel({
               <span className="shrink-0 text-[0.8125rem] leading-[1.4] text-ink-sub">
                 {status}
               </span>
-              <span className="w-[3rem] shrink-0 text-right text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
+              <span className="w-12 shrink-0 text-right text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
                 {minutes}분
               </span>
             </li>

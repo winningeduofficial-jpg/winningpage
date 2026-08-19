@@ -36,7 +36,7 @@ const PARENT_GUIDE_LINKS = [
 ];
 
 const ROW_BOX_CLASS =
-  "flex h-[3.25rem] items-center rounded-xl border border-line px-5 text-base text-ink";
+  "flex h-13 items-center rounded-xl border border-line px-5 text-base text-ink";
 
 function cleanText(value) {
   return String(value || "").trim();
@@ -414,7 +414,7 @@ export default function ProfileTab({
                       school_type: e.target.value,
                     }))
                   }
-                  className="h-[3.25rem] w-full rounded-xl border border-line px-4 text-base text-ink outline-none focus:border-primary"
+                  className="h-13 w-full rounded-xl border border-line px-4 text-base text-ink outline-hidden focus:border-primary"
                 >
                   <option value="">선택</option>
                   {SCHOOL_TYPES.map((item) => (
@@ -433,7 +433,7 @@ export default function ProfileTab({
                     }))
                   }
                   placeholder="학교명 입력"
-                  className="h-[3.25rem] w-full rounded-xl border border-line px-4 text-base text-ink outline-none focus:border-primary"
+                  className="h-13 w-full rounded-xl border border-line px-4 text-base text-ink outline-hidden focus:border-primary"
                 />
               </div>
               <div className="flex justify-end gap-2">
@@ -464,7 +464,7 @@ export default function ProfileTab({
               <button
                 type="button"
                 onClick={startEditSchool}
-                className="h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl border border-line px-4 text-sm text-ink transition hover:bg-surface-card"
+                className="h-13 shrink-0 whitespace-nowrap rounded-xl border border-line px-4 text-sm text-ink transition hover:bg-surface-card"
               >
                 변경
               </button>

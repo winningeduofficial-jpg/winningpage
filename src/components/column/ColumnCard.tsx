@@ -52,7 +52,7 @@ function MetaRow({
     >
       <span>{formatDate(getDisplayDate(column))}</span>
       {viewCount !== null && (
-        <span className="inline-flex items-center gap-[0.3125rem]">
+        <span className="inline-flex items-center gap-1.25">
           <Eye size={16} className="shrink-0" />
           {viewCount}
         </span>
@@ -81,17 +81,17 @@ export default function ColumnCard({
           <Thumbnail
             url={thumbnail}
             title={column.title}
-            className="aspect-[10/7] h-auto w-full"
+            className="aspect-10/7 h-auto w-full"
           />
           {hasCategory && (
-            <span className="absolute right-6 top-[1.625rem] rounded-full bg-[#013262] px-4 py-2 text-base font-medium leading-[1.4] tracking-[-0.02em] text-white">
+            <span className="absolute right-6 top-6.5 rounded-full bg-primary px-4 py-2 text-base font-medium leading-[1.4] tracking-[-0.02em] text-white">
               {categoryLabel}
             </span>
           )}
         </div>
 
-        <div className="mt-8 max-w-[32rem]">
-          <h3 className="text-2xl sm:text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]">
+        <div className="mt-8 max-w-lg">
+          <h3 className="text-2xl sm:text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
             {column.title}
           </h3>
           <MetaRow column={column} className="mt-2" />
@@ -109,16 +109,16 @@ export default function ColumnCard({
         <Thumbnail
           url={thumbnail}
           title={column.title}
-          className="aspect-[10/7] w-24 shrink-0 rounded-[0.5625rem] sm:w-[10.5rem]"
+          className="aspect-10/7 w-24 shrink-0 rounded-[0.5625rem] sm:w-42"
         />
 
         <div className="flex min-w-0 flex-1 flex-col gap-3.5">
           {hasCategory && (
-            <span className="w-fit rounded-full border border-[#D7D7D7] bg-white px-3.5 py-1 text-sm font-medium leading-[1.4] tracking-[-0.02em] text-[#525252]">
+            <span className="w-fit rounded-full border border-line bg-white px-3.5 py-1 text-sm font-medium leading-[1.4] tracking-[-0.02em] text-ink">
               {categoryLabel}
             </span>
           )}
-          <h3 className="line-clamp-2 break-keep text-xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]">
+          <h3 className="line-clamp-2 break-keep text-xl font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
             {column.title}
           </h3>
           <MetaRow column={column} />
@@ -132,11 +132,11 @@ export default function ColumnCard({
       <Thumbnail
         url={thumbnail}
         title={column.title}
-        className="aspect-[10/7] w-full rounded-xl"
+        className="aspect-10/7 w-full rounded-xl"
       />
 
       <div className="mt-5">
-        <h3 className="line-clamp-2 break-keep text-lg font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]">
+        <h3 className="line-clamp-2 break-keep text-lg font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
           {column.title}
         </h3>
         <MetaRow column={column} className="mt-2" />

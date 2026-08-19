@@ -9,9 +9,9 @@ export default function OnboardingCalculatingOverlay() {
     <div
       role="alert"
       aria-live="assertive"
-      className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-[1rem] bg-[#191D23]/45 backdrop-blur-[1px]"
+      className="fixed inset-0 z-60 flex flex-col items-center justify-center gap-4 bg-ink-strong/45 backdrop-blur-[1px]"
     >
-      <div className="h-[2.5rem] w-[2.5rem] animate-spin rounded-full border-[0.25rem] border-white/40 border-t-white" />
+      <div className="h-10 w-10 animate-spin rounded-full border-[0.25rem] border-white/40 border-t-white" />
       <p className="text-[1.125rem] font-semibold text-white">
         학습량을 계산하고 있어요
       </p>

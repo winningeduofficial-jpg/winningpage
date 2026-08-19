@@ -13,8 +13,8 @@ export default function ReportHeroCard({
   kpis,
 }: ReportHeroCardProps) {
   return (
-    <div className="flex min-h-[14.375rem] flex-col justify-center gap-6 rounded-2xl bg-surface-04 px-8 py-7">
-      <p className="max-w-[50rem] text-[0.9375rem] leading-[1.7] text-ink-strong">
+    <div className="flex min-h-57.5 flex-col justify-center gap-6 rounded-2xl bg-surface-04 px-8 py-7">
+      <p className="max-w-200 text-[0.9375rem] leading-[1.7] text-ink-strong">
         {narrative}
       </p>
 

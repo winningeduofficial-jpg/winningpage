@@ -17,10 +17,7 @@ type TomorrowPlanCardProps = {
 
 export default function TomorrowPlanCard({ plan }: TomorrowPlanCardProps) {
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex h-full flex-col gap-4 px-[2rem] py-[1.75rem]"
-    >
+    <GoalCard tone="neutral" className="flex h-full flex-col gap-4 px-8 py-7">
       <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
         내일 계획 제시
       </h3>

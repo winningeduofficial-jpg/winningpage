@@ -50,7 +50,7 @@ export default function AdmissionCaseCard({ row }: AdmissionCaseCardProps) {
     >
       <Thumbnail url={thumbnail} title={row.title} />
 
-      <h3 className="mt-5 line-clamp-2 break-keep text-lg font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252]">
+      <h3 className="mt-5 line-clamp-2 break-keep text-lg font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
         {row.title}
       </h3>
       <p className="mt-2 text-sm font-normal leading-[1.3] tracking-[-0.02em] text-[#7A7A7A]">

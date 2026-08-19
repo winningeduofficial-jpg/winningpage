@@ -29,7 +29,7 @@ import { MENTOR_ASSETS } from "@/data/mentorApplyAssets";
 // 원본 PNG 는 카드마다 실제 비율이 다르므로(132×102 / 124×91 / 134×102) object-contain 으로
 // 슬롯 안에 레터박스 처리한다. w/h 를 모두 명시해 원본 크기로 튀는 것을 막는다.
 const BENEFIT_ICON_CLASS =
-  "h-[7.5rem] w-[7.5rem] shrink-0 object-contain lg:h-[9.375rem] lg:w-[9.375rem]";
+  "h-30 w-30 shrink-0 object-contain lg:h-37.5 lg:w-37.5";
 
 // 카드 제목 24 SemiBold / lh 1.4 / ls -0.02em / #181D24(ink.title).
 // 본문 16 Regular / lh 1.4 / #525252(ink). 두 값 모두 서비스 랜딩 공통 카드 타이포
@@ -58,10 +58,10 @@ export default function BenefitSection({
         (ServiceStepCards / ServiceAudienceCards 모두 sm:grid-cols-2 로 홀수 잔여를 허용).
         카드 높이 322 고정은 해제하고 grid 의 stretch 로 3장 높이를 맞춘다.
       */}
-      <ul className="mt-8 grid grid-cols-1 gap-[1.4375rem] sm:grid-cols-2 lg:grid-cols-3">
+      <ul className="mt-8 grid grid-cols-1 gap-5.75 sm:grid-cols-2 lg:grid-cols-3">
         {BENEFITS.map((item) => (
           <li key={item.key} className="flex">
-            <article className="flex w-full flex-col items-center justify-center gap-[0.6875rem] rounded-[1.25rem] bg-surface-footer px-[1.4375rem] py-[1.75rem] text-center">
+            <article className="flex w-full flex-col items-center justify-center gap-2.75 rounded-perf-modal bg-surface-footer px-5.75 py-7 text-center">
               {/* 일러스트는 바로 옆 제목이 뜻을 그대로 전달하는 장식 요소라 접근성 트리에서 뺀다. */}
               <img
                 src={MENTOR_ASSETS.benefits[item.key]}
@@ -69,7 +69,7 @@ export default function BenefitSection({
                 aria-hidden="true"
                 className={BENEFIT_ICON_CLASS}
               />
-              <div className="flex flex-col gap-[1.25rem]">
+              <div className="flex flex-col gap-5">
                 <h3 className={BENEFIT_TITLE_CLASS}>{item.title}</h3>
                 {/* desc 의 `\n` 은 시안 강제 개행이라 whitespace-pre-line 으로 보존한다. */}
                 <p className={BENEFIT_DESC_CLASS}>{item.desc}</p>

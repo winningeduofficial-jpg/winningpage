@@ -8,7 +8,7 @@ type StepBadgeProps = {
 // 스텝 번호("1" / "1-2" / "2" ... "7")를 채운다.
 export default function StepBadge({ step }: StepBadgeProps) {
   return (
-    <span className="flex h-[2.5rem] w-[2.5rem] shrink-0 items-center justify-center rounded-[0.75rem] bg-surface-01 text-[0.875rem] font-semibold text-ink-sub">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-surface-01 text-[0.875rem] font-semibold text-ink-sub">
       {step}
     </span>
   );

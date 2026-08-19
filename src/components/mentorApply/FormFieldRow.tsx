@@ -17,7 +17,7 @@ const COLUMN_CLASSES: Record<number, string> = {
   1: "flex flex-col",
   // <md(768) 에서는 1컬럼 스택(명세 § 반응형 전략 §6 행). 스택 시 세로 간격은 카드의
   // 필드군 gap 과 같은 26 을 써서 1컬럼 행과 리듬이 어긋나지 않게 한다.
-  2: "grid grid-cols-1 gap-y-[1.625rem] md:grid-cols-2 md:gap-x-[1.0625rem] md:gap-y-0",
+  2: "grid grid-cols-1 gap-y-6.5 md:grid-cols-2 md:gap-x-4.25 md:gap-y-0",
 };
 
 type FormFieldRowProps = {

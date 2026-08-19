@@ -1,6 +1,130 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+/*
+  ---break---
+*/
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --container-content: 72.75rem;
+  --container-goal-content: 83.75rem;
+  --container-goal-dashboard: 93rem;
+  --container-perf-content: 82.5rem;
+  --container-perf-bubble: 37.25rem;
+
+  --spacing-perf-sidebar: 20.25rem;
+  --spacing-perf-inset: 3.75rem;
+  --spacing-perf-canvas: 24rem;
+  --spacing-perf-pill: 19rem;
+
+  --radius-perf-modal: 1.25rem;
+
+  /* primary/accent는 이제 shadcn 쪽(:root --primary/--accent, 아래 @theme
+     inline 블록의 매핑)이 정본이다 — 여기서 다시 정의하지 않는다. */
+  --color-action: #3799ff;
+  --color-gold: #af9364;
+
+  --color-ink: #525252;
+  --color-ink-header: #4d4d4d;
+  --color-ink-sub: #6b6b6b;
+  --color-ink-title: #181d24;
+  --color-ink-strong: #191d23;
+
+  --color-line: #d7d7d7;
+  --color-error: #eb2626;
+  --color-warning: #fde68a;
+
+  --color-surface-card: #f9fafc;
+  --color-surface-footer: #f9fafb;
+  --color-surface-info: #e9f4ff;
+  --color-surface-warning: #fffbeb;
+  --color-surface-01: #d9d9d9;
+  --color-surface-02: #d1e8ff;
+  --color-surface-03: #e9f4ff;
+  --color-surface-04: #f5f5f7;
+  --color-surface-badge: #d1e8ff;
+  --color-surface-muted: #f5f5f7;
+
+  --color-goal-sidebar: #f9f8f7;
+  --color-goal-card: #fbfbfa;
+  --color-goal-activePill: #eaecef;
+
+  --color-goal-cardTone-neutral: #fbfbfa;
+  --color-goal-cardTone-mint: #eaf1ec;
+  --color-goal-cardTone-blue: #f8fbfe;
+  --color-goal-cardTone-cream: #fef6ed;
+
+  --color-goal-insight-info: #e9f4ff;
+  --color-goal-insight-warn: #fbe8d2;
+  --color-goal-insight-success: #e3f3e6;
+  --color-goal-insight-time: #eaf4ff;
+
+  --color-goal-subject-korean: #fce4ec;
+  --color-goal-subject-math: #e3f2fd;
+  --color-goal-subject-english: #fff8e1;
+  --color-goal-subject-science: #e8f5e9;
+  --color-goal-subject-etc: #f1ede7;
+
+  --color-goal-subjectStrong-korean: #f48fb1;
+  --color-goal-subjectStrong-math: #64b5f6;
+  --color-goal-subjectStrong-english: #ffd54f;
+  --color-goal-subjectStrong-science: #81c784;
+  --color-goal-subjectStrong-etc: #bcafa0;
+
+  --color-goal-weekday-mon: #fce7ee;
+  --color-goal-weekday-tue: #fdebdd;
+  --color-goal-weekday-wed: #fdf6d8;
+  --color-goal-weekday-thu: #e6f4e9;
+  --color-goal-weekday-fri: #e7f0fd;
+  --color-goal-weekday-sat: #ededed;
+  --color-goal-weekday-sun: #ededed;
+
+  --color-performance-sidebar: #f9f8f7;
+  --color-performance-activePill: #eaecef;
+  --color-performance-bubble: #f8f7f5;
+  --color-performance-userBubble: #37352f;
+  --color-performance-reportHeading: #1b5da0;
+  --color-performance-required: #991e1e;
+  --color-performance-chip: #e7f2fb;
+  --color-performance-tag: #fff3d1;
+  --color-performance-line: #d9d9d9;
+  --color-performance-dim: #00000066;
+
+  --breakpoint-desktop: 90rem;
+  --breakpoint-wide: 74rem;
+
+  --font-grace:
+    GraceSerif, "Noto Serif KR", "Nanum Myeongjo", Batang, AppleMyungjo, serif;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
 
 * {
   box-sizing: border-box;
@@ -21,6 +145,44 @@
   --duration-base: 240ms;
   --duration-slow: 320ms;
   --duration-celebrate: 640ms;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  /* primary/accent는 shadcn 기본값(oklch 중립톤) 대신 이 저장소의 브랜드 토큰
+     값을 그대로 물려 쓴다 — bg-primary/text-accent 등은 이미 700곳 넘게
+     프로젝트 전역에서 브랜드 네이비(#013262)·브랜드 블루(#0b84fd) 뜻으로
+     쓰이고 있어서, shadcn 시맨틱 이름(primary/accent)과 이 저장소의 브랜드
+     토큰 이름이 우연히 겹친다. 두 체계를 병행하는 대신 shadcn 변수 쪽으로
+     단일화하고 값만 브랜드색으로 맞춘다. */
+  --primary: #013262;
+  --primary-foreground: #ffffff;
+  --accent: #0b84fd;
+  --accent-foreground: #ffffff;
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 html {
@@ -627,4 +789,78 @@ select {
 
 .admission-table-wrap::-webkit-scrollbar-thumb:hover {
   background: #0d1b2a;
+}
+/*
+  ---break---
+*/
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: "Geist Variable", sans-serif;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+}
+/*
+  ---break---
+*/
+.dark {
+  --background: oklch(0.145 0 0);
+  --foreground: oklch(0.985 0 0);
+  --card: oklch(0.205 0 0);
+  --card-foreground: oklch(0.985 0 0);
+  --popover: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.985 0 0);
+  --primary: oklch(0.922 0 0);
+  --primary-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.269 0 0);
+  --secondary-foreground: oklch(0.985 0 0);
+  --muted: oklch(0.269 0 0);
+  --muted-foreground: oklch(0.708 0 0);
+  --accent: oklch(0.269 0 0);
+  --accent-foreground: oklch(0.985 0 0);
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.556 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --sidebar: oklch(0.205 0 0);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.269 0 0);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.556 0 0);
 }

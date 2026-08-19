@@ -182,7 +182,9 @@ function mapRespondError(err: { message?: string } | null | undefined) {
 // 매핑 — mapRespondError 와 같은 스타일. no_items_selected/pair_not_linked/
 // invalid_products/invalid_amount 는 사용자가 원인을 구분해도 대응 행동이
 // 없어(다시 선택하는 것뿐) 기존 GENERIC_FAIL_TEXT 로 뭉뚱그린다.
-function mapCreateEnrollmentError(err: { message?: string } | null | undefined) {
+function mapCreateEnrollmentError(
+  err: { message?: string } | null | undefined,
+) {
   const msg = err?.message || "";
   if (msg.includes("not_order_parent")) return NOT_PARENT_TEXT;
   if (msg.includes("order_not_pending_for_override")) {
@@ -241,7 +243,7 @@ function AgreementCheckRow({
           type="button"
           aria-label={`${label} 본문 ${expanded ? "접기" : "펼치기"}`}
           onClick={onToggleExpand}
-          className="shrink-0 rounded p-1 text-ink-sub transition hover:bg-surface-04"
+          className="shrink-0 rounded-sm p-1 text-ink-sub transition hover:bg-surface-04"
         >
           <ChevronDown
             size={18}
@@ -250,7 +252,7 @@ function AgreementCheckRow({
         </button>
       </div>
       {expanded && (
-        <div className="max-h-[15rem] overflow-y-auto whitespace-pre-line break-keep border-t border-line px-4 py-3 text-[0.75rem] leading-relaxed text-ink-sub">
+        <div className="max-h-60 overflow-y-auto whitespace-pre-line break-keep border-t border-line px-4 py-3 text-[0.75rem] leading-relaxed text-ink-sub">
           {body}
         </div>
       )}
@@ -289,7 +291,7 @@ function OrderNotActionable({ text }: { text: ReactNode }) {
       <button
         type="button"
         onClick={() => navigate("/mypage")}
-        className="mt-8 rounded-xl bg-primary px-8 py-3.5 text-[0.875rem] font-semibold leading-[1.25rem] text-white transition hover:brightness-125"
+        className="mt-8 rounded-xl bg-primary px-8 py-3.5 text-[0.875rem] font-semibold leading-5 text-white transition hover:brightness-125"
       >
         마이페이지로 이동
       </button>
@@ -481,7 +483,10 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
 
   const selectedListTotal = useMemo(
     () =>
-      selectedItems.reduce((s, i) => s + Number(i.listPrice || i.price || 0), 0),
+      selectedItems.reduce(
+        (s, i) => s + Number(i.listPrice || i.price || 0),
+        0,
+      ),
     [selectedItems],
   );
   const selectedSubtotal = useMemo(
@@ -852,11 +857,11 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                           </p>
                           <div className="flex shrink-0 flex-col items-end">
                             {hasDiscount && (
-                              <span className="text-[0.75rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-line line-through">
+                              <span className="text-[0.75rem] font-medium leading-5 tracking-[-0.02em] text-line line-through">
                                 {formatKRW(item.list_price)}
                               </span>
                             )}
-                            <span className="text-[0.8125rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-ink">
+                            <span className="text-[0.8125rem] font-medium leading-5 tracking-[-0.02em] text-ink">
                               {formatKRW(item.price)}
                             </span>
                           </div>
@@ -879,7 +884,8 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                 {!productsLoading && hasNoServices && (
                   <div className="rounded-2xl border border-error/30 bg-white p-10 text-center">
                     <p className="text-sm font-bold text-error">
-                      요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+                      요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해
+                      주세요.
                     </p>
                   </div>
                 )}
@@ -891,7 +897,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                       <div className="flex items-center gap-3">
                         <h3
                           id={`plan-group-label-${service.key}`}
-                          className="text-[1.375rem] font-semibold leading-[1.25rem] tracking-[-0.02em] text-ink"
+                          className="text-[1.375rem] font-semibold leading-5 tracking-[-0.02em] text-ink"
                         >
                           {service.name}
                         </h3>
@@ -899,7 +905,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                           src={sectionArrow}
                           alt=""
                           aria-hidden="true"
-                          className="h-6 w-[1.4375rem]"
+                          className="h-6 w-5.75"
                         />
                       </div>
                       {service.desc && (
@@ -914,7 +920,8 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                         className="mt-6 space-y-2"
                       >
                         {service.products.map((product, index) => {
-                          const isSelected = selected[service.key] === product.id;
+                          const isSelected =
+                            selected[service.key] === product.id;
                           const hasDiscount =
                             Number(product.listPrice) > Number(product.price);
                           const hasSelectionInGroup = Boolean(
@@ -966,7 +973,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                                   {product.name}
                                 </span>
                                 {product.recommended && (
-                                  <span className="flex h-[1.375rem] shrink-0 items-center justify-center rounded-md bg-primary px-2 text-[0.75rem] font-medium text-white">
+                                  <span className="flex h-5.5 shrink-0 items-center justify-center rounded-md bg-primary px-2 text-[0.75rem] font-medium text-white">
                                     추천
                                   </span>
                                 )}
@@ -1004,7 +1011,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
           </section>
 
           {/* 우측: 결제수단/쿠폰/금액 — Checkout.jsx 아래쪽 aside 와 같은 골격. */}
-          <aside className="mx-auto w-full max-w-[35.625rem] space-y-10">
+          <aside className="mx-auto w-full max-w-142.5 space-y-10">
             {/* 구매 전 확인사항(환불 규정) — sql/78 refund_notice. 이미 동의
                 이력이 있으면(재구매 등) 섹션 자체를 감춘다. */}
             {paymentAgreed === false && (
@@ -1023,13 +1030,13 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
 
             <div>
               <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 수단 선택</h3>
-              <div className="mx-auto grid max-w-[10rem] grid-cols-1 gap-2 sm:max-w-none sm:grid-cols-3">
+              <div className="mx-auto grid max-w-40 grid-cols-1 gap-2 sm:max-w-none sm:grid-cols-3">
                 {PAY_METHODS.map((m) => (
                   <button
                     type="button"
                     key={m.key}
                     onClick={() => setPayMethod(m.key)}
-                    className={`h-11 rounded-lg border text-[0.875rem] font-medium leading-[1.25rem] transition ${
+                    className={`h-11 rounded-lg border text-[0.875rem] font-medium leading-5 transition ${
                       payMethod === m.key
                         ? "border-primary bg-surface-info text-primary"
                         : "border-line text-ink-sub hover:bg-surface-card"
@@ -1073,12 +1080,12 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                     }}
                     onKeyDown={(e) => e.key === "Enter" && applyCouponCode()}
                     placeholder="쿠폰 코드 입력"
-                    className="h-11 flex-1 rounded-lg border border-line px-3.5 text-[0.875rem] font-medium leading-[1.25rem] text-ink placeholder:font-medium placeholder:text-line focus:border-primary"
+                    className="h-11 flex-1 rounded-lg border border-line px-3.5 text-[0.875rem] font-medium leading-5 text-ink placeholder:font-medium placeholder:text-line focus:border-primary"
                   />
                   <button
                     type="button"
                     onClick={applyCouponCode}
-                    className="h-11 shrink-0 rounded-lg border border-line px-5 text-[0.875rem] font-medium leading-[1.25rem] text-ink transition hover:bg-surface-card"
+                    className="h-11 shrink-0 rounded-lg border border-line px-5 text-[0.875rem] font-medium leading-5 text-ink transition hover:bg-surface-card"
                   >
                     적용
                   </button>
@@ -1102,14 +1109,14 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                 )}
 
                 {hasNoVisibleCoupons && (
-                  <p className="mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink-sub">
+                  <p className="mt-5 text-[0.875rem] font-normal leading-5 text-ink-sub">
                     보유한 쿠폰이 없습니다.
                   </p>
                 )}
 
                 {visibleCoupons.length > 0 && (
                   <>
-                    <p className="mb-2 mt-5 text-[0.875rem] font-normal leading-[1.25rem] text-ink">
+                    <p className="mb-2 mt-5 text-[0.875rem] font-normal leading-5 text-ink">
                       보유 쿠폰 {visibleCoupons.length}장
                     </p>
                     <div className="space-y-2">
@@ -1157,11 +1164,11 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                             </span>
                             <span className="min-w-0 flex-1">
                               <span className="flex items-center gap-1.5">
-                                <span className="block truncate text-[0.75rem] font-medium leading-[1.25rem] text-ink sm:text-[0.875rem]">
+                                <span className="block truncate text-[0.75rem] font-medium leading-5 text-ink sm:text-[0.875rem]">
                                   {c.title}
                                 </span>
                                 {ownerLabel && (
-                                  <span className="shrink-0 rounded-full bg-surface-card px-1.5 py-0.5 text-[0.625rem] font-medium leading-[1] text-ink-sub">
+                                  <span className="shrink-0 rounded-full bg-surface-card px-1.5 py-0.5 text-[0.625rem] font-medium leading-none text-ink-sub">
                                     {ownerLabel}
                                   </span>
                                 )}
@@ -1177,7 +1184,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                                 </span>
                               )}
                             </span>
-                            <span className="shrink-0 text-[0.75rem] font-medium leading-[1.25rem] text-primary sm:text-[0.875rem]">
+                            <span className="shrink-0 text-[0.75rem] font-medium leading-5 text-primary sm:text-[0.875rem]">
                               -{formatKRW(c.discount)}
                             </span>
                           </button>
@@ -1191,7 +1198,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                           setAmountMismatch(false);
                           setSelectedCouponIds(new Set());
                         }}
-                        className="text-[0.875rem] font-normal leading-[1.25rem] text-ink underline underline-offset-4 transition hover:brightness-90"
+                        className="text-[0.875rem] font-normal leading-5 text-ink underline underline-offset-4 transition hover:brightness-90"
                       >
                         쿠폰 사용 안함
                       </button>
@@ -1212,7 +1219,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
 
             <div>
               <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 금액</h3>
-              <dl className="space-y-3 text-[0.875rem] font-medium leading-[1.25rem] text-ink">
+              <dl className="space-y-3 text-[0.875rem] font-medium leading-5 text-ink">
                 <div className="flex justify-between">
                   <dt>판매가</dt>
                   <dd>{formatKRW(displayListAmount)}</dd>
@@ -1270,7 +1277,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                 type="button"
                 onClick={handlePay}
                 disabled={!canPay}
-                className={`mt-6 w-full rounded-xl py-4 text-[0.875rem] font-semibold leading-[1.25rem] transition ${
+                className={`mt-6 w-full rounded-xl py-4 text-[0.875rem] font-semibold leading-5 transition ${
                   canPay
                     ? "bg-primary text-white hover:brightness-125"
                     : "cursor-not-allowed border border-line bg-surface-card text-ink"

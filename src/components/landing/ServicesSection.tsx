@@ -67,16 +67,16 @@ const serviceIconMap: Record<string, typeof Target> = {
    그림자 알파 0.125(현행 유지 — 시안 셸 opacity 40%의 유효값 근사, 의도적 불일치).
    hover는 시안에 없는 구현측 인터랙션 — 동작은 유지하되 그림자 색만 기본과 동계열로 통일. */
 const CARD_CLASS =
-  "group relative block h-[11.5625rem] w-full overflow-hidden rounded-[1.875rem] bg-white " +
+  "group relative block h-46.25 w-full overflow-hidden rounded-[1.875rem] bg-white " +
   "shadow-[0_0.2063rem_0.4188rem_0.2063rem_rgba(128,128,128,0.125)] transition-[background-color,box-shadow] duration-200 " +
   "[@media(hover:hover)]:hover:bg-[#f6fbff] [@media(hover:hover)]:hover:shadow-[0_0.375rem_1rem_0.25rem_rgba(128,128,128,0.4)] " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 " +
-  "lg:h-[11.1875rem] lg:rounded-[1.5625rem]";
+  "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 " +
+  "lg:h-44.75 lg:rounded-[1.5625rem]";
 
 // 카드 일러스트 hover/focus 리프트 — 터치 기기에는 hover 없이 :active만 적용
 const ILLUSTRATION_LIFT_CLASS =
-  "service-illustration [@media(hover:hover)]:group-hover:-translate-y-[0.1875rem] " +
-  "group-focus-visible:-translate-y-[0.1875rem] active:translate-y-[0.0625rem]";
+  "service-illustration [@media(hover:hover)]:group-hover:-translate-y-0.75 " +
+  "group-focus-visible:-translate-y-0.75 active:translate-y-0.25";
 
 type IllustrationLayout = {
   boxW: string;
@@ -198,14 +198,14 @@ function ServiceCard({
           lg 3열(열폭 352px)은 0729 시안 실측(px÷16=rem): pl 40.7px(2.54rem),
           pt 48.8px(3.05rem), 이름→설명 gap 16.3px(1.02rem).
           pr(10.44rem)은 시안 미제공 — 기존 값 유지. */}
-      <span className="flex h-full flex-col gap-[1.25rem] pl-8 pr-[6rem] pt-[2.75rem] sm:pl-[2.75rem] sm:pr-[12.5rem] lg:gap-[1.02rem] lg:pl-[2.54rem] lg:pr-[10.44rem] lg:pt-[3.05rem]">
+      <span className="flex h-full flex-col gap-5 pl-8 pr-24 pt-11 sm:pl-11 sm:pr-50 lg:gap-[1.02rem] lg:pl-[2.54rem] lg:pr-[10.44rem] lg:pt-[3.05rem]">
         {/* 이름 24→20px(1.25rem, lg, 시안 원값 유지) — 자간은 시안 -0.48/24 = -0.02em, em 단위라 축소 시 비율 유지 */}
-        <span className="block break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252] lg:text-[1.25rem]">
+        <span className="block break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink lg:text-[1.25rem]">
           {service.name}
         </span>
         {/* 설명 lg 13.1px(0.82rem) — 시안 문자값 충실(사용자 확정, 가독성 클램프 폐기) */}
         {service.description && (
-          <span className="block whitespace-pre-line break-keep text-[1rem] font-medium leading-[1.4] text-[#525252] lg:text-[0.82rem]">
+          <span className="block whitespace-pre-line break-keep text-[1rem] font-medium leading-[1.4] text-ink lg:text-[0.82rem]">
             {service.description}
           </span>
         )}
@@ -230,31 +230,31 @@ function ServiceCard({
               "--illo-shadow-bottom": layout.shadowBottom,
             } as React.CSSProperties
           }
-          className={`pointer-events-none absolute inset-y-0 right-4 flex w-36 origin-right scale-[0.45] flex-col items-center justify-center sm:right-10 sm:scale-100 lg:right-[var(--illo-right)] lg:w-[var(--illo-box-w)] lg:justify-start ${ILLUSTRATION_LIFT_CLASS}`}
+          className={`pointer-events-none absolute inset-y-0 right-4 flex w-36 origin-right scale-[0.45] flex-col items-center justify-center sm:right-10 sm:scale-100 lg:right-(--illo-right) lg:w-(--illo-box-w) lg:justify-start ${ILLUSTRATION_LIFT_CLASS}`}
         >
           <img
             src={service.icon_image_url}
             alt=""
             loading="lazy"
-            className="relative z-10 h-[9.5rem] w-28 object-contain lg:mt-[var(--illo-top)] lg:h-[var(--illo-h)] lg:w-[var(--illo-w)] lg:rotate-[var(--illo-rotate)]"
+            className="relative z-10 h-38 w-28 object-contain lg:mt-(--illo-top) lg:h-(--illo-h) lg:w-(--illo-w) lg:rotate-(--illo-rotate)"
           />
           <img
             src={ICON_SHADOW_SRC}
             alt=""
             loading="lazy"
-            className="-mt-6 h-[1.8125rem] w-[8.5rem] object-contain opacity-90 lg:absolute lg:bottom-[var(--illo-shadow-bottom)] lg:left-1/2 lg:mt-0 lg:h-[var(--illo-shadow-h)] lg:w-[var(--illo-shadow-w)] lg:-translate-x-1/2"
+            className="-mt-6 h-7.25 w-34 object-contain opacity-90 lg:absolute lg:bottom-(--illo-shadow-bottom) lg:left-1/2 lg:mt-0 lg:h-(--illo-shadow-h) lg:w-(--illo-shadow-w) lg:-translate-x-1/2"
           />
         </span>
       ) : (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-y-0 right-4 flex w-[6rem] scale-[0.45] items-center sm:right-[3.125rem] sm:scale-100"
+          className="pointer-events-none absolute inset-y-0 right-4 flex w-24 scale-[0.45] items-center sm:right-12.5 sm:scale-100"
         >
           {/* 별도 span에서만 translate 적용 — 부모의 세로 중앙 정렬과 transform 충돌 방지 */}
           <span
-            className={`flex h-[6rem] w-[6rem] items-center justify-center rounded-full bg-[#F8F7F3] ${ILLUSTRATION_LIFT_CLASS}`}
+            className={`flex h-24 w-24 items-center justify-center rounded-full bg-[#F8F7F3] ${ILLUSTRATION_LIFT_CLASS}`}
           >
-            <FallbackIcon className="h-10 w-10 text-[#013262]" />
+            <FallbackIcon className="h-10 w-10 text-primary" />
           </span>
         </span>
       )}
@@ -315,16 +315,16 @@ export default function ServicesSection({
   return (
     <section aria-label="핵심 서비스" className="bg-white">
       {/* 섹션 상하 여백 — pt: 합격선배→서비스 갭 100px(6.25rem, lg), pb: 0(lg, 다음 섹션이 여백 담당) */}
-      <div className="mx-auto w-full max-w-content px-5 pb-10 pt-10 sm:px-8 lg:pb-0 lg:pt-[6.25rem]">
+      <div className="mx-auto w-full max-w-content px-5 pb-10 pt-10 sm:px-8 lg:pb-0 lg:pt-25">
         {/* 헤더 — 0729 시안 실측(px÷16=rem): 아이브로우 20px(1.25rem, accent, Regular),
             대제목 32px(2rem, lg). 대제목 자간 -0.04rem은 lg 폰트 2rem 기준 -0.02em과 동일 비율 */}
         <p className="text-[1.25rem] font-normal leading-[1.3] text-accent">
           핵심 서비스
         </p>
         {/* 대제목 2톤 — 시안: 1행 #525252, 2행 #013262. 모바일/sm은 lg 축소 비율(32/36.64≈0.8734)로 비례 축소 */}
-        <h2 className="mt-[0.375rem] text-[1.53rem] font-semibold leading-[1.4] tracking-[-0.04rem] sm:text-[1.97rem] lg:text-[2rem]">
-          <span className="block text-[#525252]">진학의 순간들을</span>
-          <span className="block text-[#013262]">
+        <h2 className="mt-1.5 text-[1.53rem] font-semibold leading-[1.4] tracking-[-0.04rem] sm:text-[1.97rem] lg:text-[2rem]">
+          <span className="block text-ink">진학의 순간들을</span>
+          <span className="block text-primary">
             막막하지 않도록. 필요한 만큼만.
           </span>
         </h2>
@@ -334,7 +334,7 @@ export default function ServicesSection({
             768~1023 구간은 1열로 유지해 모바일과 같은 넉넉한 카드 폭(텍스트 공간)을 확보한다.
             lg 3열: 콘텐츠 1100px 기준 열폭 (1100 − 2×20)/3 = 352px(grid 1fr로 자동).
             열 gap 20px(1.25rem) / 행 gap 29px(1.8125rem), 대제목→그리드 39px(2.4375rem). */}
-        <ul className="mt-10 grid grid-cols-1 justify-items-center gap-8 lg:mt-[2.4375rem] lg:grid-cols-3 lg:gap-x-[1.25rem] lg:gap-y-[1.8125rem]">
+        <ul className="mt-10 grid grid-cols-1 justify-items-center gap-8 lg:mt-9.75 lg:grid-cols-3 lg:gap-x-5 lg:gap-y-7.25">
           {visibleServices.map((service, index) => (
             <li key={service.id} className="w-full max-w-[28.0938rem]">
               <ServiceCard

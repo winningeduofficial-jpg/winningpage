@@ -37,7 +37,7 @@ export default function InsightBox({
       <span aria-hidden="true" className="shrink-0 text-[1rem] leading-[1.4]">
         {icon}
       </span>
-      <p className="min-w-0 flex-1 text-[0.8125rem] leading-[1.5] text-ink-strong">
+      <p className="min-w-0 flex-1 text-[0.8125rem] leading-normal text-ink-strong">
         {children}
       </p>
     </div>

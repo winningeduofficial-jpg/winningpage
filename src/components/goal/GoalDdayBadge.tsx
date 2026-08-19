@@ -15,7 +15,7 @@ function tierOf(dday: unknown) {
 const TONE_CLASS: Record<string, string> = {
   red: "bg-[#FCE4E4] text-[#D14343]",
   amber: "bg-[#FDECD2] text-[#B9740D]",
-  gray: "bg-[#EDEDED] text-[#6B6B6B]",
+  gray: "bg-[#EDEDED] text-ink-sub",
 };
 
 type GoalDdayBadgeProps = {
@@ -26,7 +26,7 @@ export default function GoalDdayBadge({ dday }: GoalDdayBadgeProps) {
   const toneClass = TONE_CLASS[tierOf(dday)];
   return (
     <span
-      className={`inline-flex h-[2rem] w-fit shrink-0 items-center justify-center rounded-full px-3 text-[0.8125rem] font-semibold leading-[1.2] ${toneClass}`}
+      className={`inline-flex h-8 w-fit shrink-0 items-center justify-center rounded-full px-3 text-[0.8125rem] font-semibold leading-[1.2] ${toneClass}`}
     >
       {dday}
     </span>

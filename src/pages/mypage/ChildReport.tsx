@@ -87,7 +87,7 @@ export default function ChildReport() {
         </p>
         <Link
           to="/mypage?tab=children"
-          className="inline-flex h-[2.5rem] items-center justify-center rounded-lg bg-primary px-5 text-[0.875rem] font-semibold text-white transition hover:opacity-90"
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-[0.875rem] font-semibold text-white transition hover:opacity-90"
         >
           자녀 목록으로
         </Link>

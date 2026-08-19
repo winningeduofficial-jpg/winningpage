@@ -41,23 +41,23 @@ export default function SearchView({
 
   return (
     <>
-      <section className={`${CONTAINER} pt-16 sm:pt-20 lg:pt-[6.25rem]`}>
+      <section className={`${CONTAINER} pt-16 sm:pt-20 lg:pt-25`}>
         <div className="flex flex-col gap-3">
-          <p className="text-base font-medium leading-[1.3] tracking-[-0.02em] text-[#013262]">
+          <p className="text-base font-medium leading-[1.3] tracking-[-0.02em] text-primary">
             {HERO_EYEBROW}
           </p>
           <div className="flex flex-col gap-6">
-            <h1 className="break-keep text-[2rem] font-semibold leading-tight tracking-[-0.03em] text-[#525252] md:text-[2.75rem]">
+            <h1 className="break-keep text-[2rem] font-semibold leading-tight tracking-[-0.03em] text-ink md:text-[2.75rem]">
               {HERO_TITLE}
             </h1>
-            <p className="max-w-[46rem] break-keep text-base font-medium leading-[1.6] text-[#7a7a7a]">
+            <p className="max-w-184 break-keep text-base font-medium leading-[1.6] text-[#7a7a7a]">
               {HERO_DESCRIPTION}
             </p>
           </div>
         </div>
       </section>
 
-      <section className={`${CONTAINER} pt-12 sm:pt-14 lg:pt-[6.25rem]`}>
+      <section className={`${CONTAINER} pt-12 sm:pt-14 lg:pt-25`}>
         <SelectorBar {...selector} />
 
         {universityUnavailable ? (
@@ -70,7 +70,7 @@ export default function SearchView({
 
       {trending.length ? (
         <section
-          className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-[6.25rem]`}
+          className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-25`}
         >
           {/* TrendingChips(수정 범위 밖)는 이름만 같은 자기 로컬 TrendingItem을 쓴다
               (구조는 동일 — 위 타입 주석 참고) — 두 로컬 타입이 "unrelated"로

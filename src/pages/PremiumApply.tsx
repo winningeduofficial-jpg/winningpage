@@ -156,7 +156,7 @@ function FormField({
 }
 
 const inputClass =
-  "h-12 w-full rounded-[0.625rem] border border-[#d7d7d7] bg-white px-5 py-4 text-sm font-medium text-[#1e293b] placeholder:text-[#767676] focus:border-[#013262] focus:outline-none";
+  "h-12 w-full rounded-[0.625rem] border border-line bg-white px-5 py-4 text-sm font-medium text-[#1e293b] placeholder:text-[#767676] focus:border-primary focus:outline-hidden";
 
 const inputErrorClass = "border-red-400 focus:border-red-500";
 
@@ -244,7 +244,7 @@ export default function PremiumApply() {
         <p className="text-base font-semibold leading-7 text-accent">
           프리미엄 이용
         </p>
-        <h1 className="mx-auto mt-2 max-w-[56.25rem] text-3xl font-semibold leading-tight text-[#525252] md:text-[3.125rem] md:leading-[4.375rem]">
+        <h1 className="mx-auto mt-2 max-w-225 text-3xl font-semibold leading-tight text-ink md:text-[3.125rem] md:leading-17.5">
           위닝에듀만의 프리미엄 서비스를 확인해보세요
         </h1>
       </section>
@@ -260,20 +260,20 @@ export default function PremiumApply() {
       {/* 상담 신청 섹션 */}
       <section className="bg-[#f7f7f7] py-20">
         <div className="mx-auto flex max-w-content flex-col gap-10 px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-16">
-          <div className="max-w-[32.5rem] shrink-0 lg:pt-4">
-            <p className="text-sm font-medium leading-5 text-[#013262]">문의</p>
-            <h2 className="mt-2 text-2xl font-semibold leading-[2.5625rem] text-[#525252] md:text-[2rem]">
+          <div className="max-w-130 shrink-0 lg:pt-4">
+            <p className="text-sm font-medium leading-5 text-primary">문의</p>
+            <h2 className="mt-2 text-2xl font-semibold leading-10.25 text-ink md:text-[2rem]">
               프리미엄 서비스 상담 신청하기
             </h2>
-            <p className="mt-2 text-base font-normal leading-[1.625rem] text-[#525252]">
+            <p className="mt-2 text-base font-normal leading-6.5 text-ink">
               문의사항을 남겨주시면 위닝에듀 팀이 확인 후 연락드립니다.
             </p>
           </div>
 
-          <div className="w-full max-w-[49.9375rem] rounded-[2rem] bg-white p-6 shadow-[0_0.25rem_2rem_rgba(0,0,0,0.16)] md:p-10">
+          <div className="w-full max-w-199.75 rounded-4xl bg-white p-6 shadow-[0_0.25rem_2rem_rgba(0,0,0,0.16)] md:p-10">
             {submitted ? (
-              <div className="flex min-h-[20rem] flex-col items-center justify-center gap-3 text-center">
-                <p className="text-xl font-semibold text-[#525252]">
+              <div className="flex min-h-80 flex-col items-center justify-center gap-3 text-center">
+                <p className="text-xl font-semibold text-ink">
                   상담 신청이 접수되었습니다.
                 </p>
                 <p className="text-sm font-normal text-[#767676]">
@@ -288,10 +288,10 @@ export default function PremiumApply() {
                 className="flex flex-col gap-9"
               >
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-xl font-medium leading-[2.0625rem] text-[#525252]">
+                  <p className="text-xl font-medium leading-8.25 text-ink">
                     문의사항을 남겨주세요
                   </p>
-                  <p className="text-sm font-normal leading-[1.375rem] text-[#525252]">
+                  <p className="text-sm font-normal leading-5.5 text-ink">
                     이용하고 싶으신 서비스와 문의사항을 남기면 상담을 시작할 수
                     있습니다.
                   </p>
@@ -379,7 +379,7 @@ export default function PremiumApply() {
                       value={form.message}
                       onChange={(e) => updateField("message", e.target.value)}
                       rows={5}
-                      className={`w-full resize-none rounded-[0.625rem] border border-[#d7d7d7] bg-white px-5 py-4 text-sm font-medium text-[#1e293b] focus:border-[#013262] focus:outline-none ${
+                      className={`w-full resize-none rounded-[0.625rem] border border-line bg-white px-5 py-4 text-sm font-medium text-[#1e293b] focus:border-primary focus:outline-hidden ${
                         errors.message ? inputErrorClass : ""
                       }`}
                     />
@@ -387,7 +387,7 @@ export default function PremiumApply() {
 
                   <div className="flex flex-col gap-1.5">
                     {/* 동의 문구에 수집 항목·이용 목적·보유 기간을 모두 명시 — legalDocs.js 「4. 보유 및 이용기간」과 표현 일치 */}
-                    <label className="flex items-start gap-2 text-sm font-normal leading-5 text-[#525252]">
+                    <label className="flex items-start gap-2 text-sm font-normal leading-5 text-ink">
                       <input
                         ref={
                           fieldRefs.agree as React.RefObject<HTMLInputElement>
@@ -395,7 +395,7 @@ export default function PremiumApply() {
                         type="checkbox"
                         checked={form.agree}
                         onChange={(e) => updateField("agree", e.target.checked)}
-                        className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#d7d7d7] text-[#013262] focus:ring-[#013262]"
+                        className="mt-0.5 h-4 w-4 shrink-0 rounded-sm border-line text-primary focus:ring-primary"
                       />
                       <span>
                         이름, 연락처, 이메일, 문의 내용을 상담 진행 및 안내를
@@ -407,7 +407,7 @@ export default function PremiumApply() {
                           target="_blank"
                           rel="noopener noreferrer"
                           onClick={(e) => e.stopPropagation()}
-                          className="font-medium text-[#013262] underline"
+                          className="font-medium text-primary underline"
                         >
                           내용 보기
                         </a>
@@ -430,7 +430,7 @@ export default function PremiumApply() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="flex h-[3.25rem] w-full items-center justify-center rounded-[0.625rem] bg-[#013262] text-sm font-semibold text-white transition hover:bg-[#012347] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="flex h-13 w-full items-center justify-center rounded-[0.625rem] bg-primary text-sm font-semibold text-white transition hover:bg-[#012347] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {submitting ? "접수 중…" : "상담 신청하기"}
                 </button>

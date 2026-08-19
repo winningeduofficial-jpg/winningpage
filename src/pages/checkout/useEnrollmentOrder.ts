@@ -86,7 +86,9 @@ export function useEnrollmentOrder(orderId: string) {
 
       const { data: items, error: itemsError } = await supabase
         .from("order_items")
-        .select("id, name, list_price, price, quantity, product_id, service_key")
+        .select(
+          "id, name, list_price, price, quantity, product_id, service_key",
+        )
         .eq("order_id", orderId);
       if (!alive) return;
 

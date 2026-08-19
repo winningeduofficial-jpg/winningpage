@@ -43,7 +43,7 @@ export default function TrendingChips({
       <div className="flex items-center gap-1.5">
         <h2
           id="admission-results-trending-heading"
-          className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252] sm:text-[1.75rem] lg:text-[2rem]"
+          className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[1.75rem] lg:text-[2rem]"
         >
           {TRENDING_HEADING}
         </h2>
@@ -62,10 +62,10 @@ export default function TrendingChips({
                 title={linkable ? undefined : "상세 연결 정보가 아직 없습니다."}
                 // 375에서 시안 치수(h 62 / px 24 / 16px)를 그대로 쓰면 칩이 한 줄에 하나씩만
                 // 들어가 세로로 8줄이 된다. 모바일만 한 단계 줄여 2열이 되게 한다.
-                className={`flex h-[3.25rem] items-center gap-2.5 rounded-full px-4 text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0b84fd] sm:h-[3.875rem] sm:px-6 sm:text-base ${
+                className={`flex h-13 items-center gap-2.5 rounded-full px-4 text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] transition-colors duration-200 ease-(--ease-out-quart) focus:outline-hidden focus-visible:ring-2 focus-visible:ring-accent sm:h-15.5 sm:px-6 sm:text-base ${
                   linkable
-                    ? "cursor-pointer bg-[#f9fafb] text-[#525252] hover:bg-[#013262] hover:text-white"
-                    : "cursor-not-allowed bg-[#f9fafb] text-[#d7d7d7]"
+                    ? "cursor-pointer bg-surface-footer text-ink hover:bg-primary hover:text-white"
+                    : "cursor-not-allowed bg-surface-footer text-line"
                 }`}
               >
                 {item.logoUrl ? (

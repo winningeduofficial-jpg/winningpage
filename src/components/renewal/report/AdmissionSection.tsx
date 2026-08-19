@@ -3,7 +3,7 @@
 // props: { admission } — data.admission. 5키(probabilityLabel/probabilityValue/summary/caption/rows)는
 // §7.4.3 불변식이라 무조건 존재하고, 그 아래 확장 키는 값이 없으면 null 이라 자리째 빠진다.
 // R3(2026-08-11) — 표 라벨 열("50% 컷(합격자 중위)" 류)은 고정 10rem 에서 모바일 320px대에
-// 줄바꿈되면 h-[1.3125rem] 고정 행 높이가 텍스트를 잘라낸다. 라벨 열을 auto, 행 높이를
+// 줄바꿈되면 h-5.25 고정 행 높이가 텍스트를 잘라낸다. 라벨 열을 auto, 행 높이를
 // min-h + items-start 로 바꿔 실제 줄 수만큼 늘어나게 한다(가로 스크롤 없이 세로로 흡수).
 import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
 
@@ -71,8 +71,8 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
   // fd-screen-only 가 붙은 요소는 인쇄에서 통째로 display:none 이라 그 안의 lg: 값에는
   // 별도 인쇄 훅을 만들지 않는다(§7.5 예외 — report-print.css 주석에 근거 있음).
   return (
-    <section className="fd-admission-section mt-10 lg:mt-[4.0625rem]">
-      <h2 className="text-[1.25rem] font-semibold leading-[1.25rem] text-[#0b84fd]">
+    <section className="fd-admission-section mt-10 lg:mt-16.25">
+      <h2 className="text-[1.25rem] font-semibold leading-5 text-accent">
         목표 대학 입결 비교
       </h2>
 
@@ -85,15 +85,15 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
       */}
       {/* items-center 유지 — 시안 승인 정렬이다. 배지를 붙이려고 baseline 으로 바꾸면
           라벨·값 두 줄의 세로 위치가 함께 움직여 1440 데스크톱 렌더가 회귀한다. */}
-      <div className="mt-[0.875rem] flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="text-[1.1875rem] font-medium text-[#525252]">
+      <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="text-[1.1875rem] font-medium text-ink">
           {probabilityLabel}
         </span>
-        <span className="text-[1.25rem] font-medium text-[#013262]">
+        <span className="text-[1.25rem] font-medium text-primary">
           {probabilityValue}
         </span>
         {probabilityBadge && (
-          <span className="text-sm leading-[1.4] text-[#6b6b6b]">
+          <span className="text-sm leading-[1.4] text-ink-sub">
             {probabilityBadge}
           </span>
         )}
@@ -105,8 +105,8 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
       */}
       {probabilityRange && (
         <p className="fd-screen-only mt-2 flex flex-wrap items-baseline gap-x-3 text-base leading-[1.4]">
-          <span className="text-[#6b6b6b]">{probabilityRangeLabel}</span>
-          <span className="font-medium tabular-nums text-[#013262]">
+          <span className="text-ink-sub">{probabilityRangeLabel}</span>
+          <span className="font-medium tabular-nums text-primary">
             {probabilityRange}
           </span>
         </p>
@@ -120,29 +120,27 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
       {/* G-3(NIT 3) — 화면 전용 문단은 인쇄에서 통째로 display:none 이라 14px 를 유지할 이유가
           없다. 모바일 390px 는 text-base(16px), 데스크톱만 기존 text-sm(14px) 유지. */}
       {probNote && (
-        <p className="fd-screen-only mt-2 w-full break-keep text-base leading-[1.45] text-[#6b6b6b] lg:w-[30.625rem] lg:text-sm">
+        <p className="fd-screen-only mt-2 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-122.5 lg:text-sm">
           {probNote}
         </p>
       )}
 
-      <p className="fd-admission-summary mt-[0.875rem] w-full text-base leading-[1.3] text-[#0f172a] lg:w-[30.625rem]">
+      <p className="fd-admission-summary mt-3.5 w-full text-base leading-[1.3] text-[#0f172a] lg:w-122.5">
         {summary}
       </p>
 
-      <p className="mt-[0.875rem] text-base leading-[1.3] text-[#808080]">
-        {caption}
-      </p>
+      <p className="mt-3.5 text-base leading-[1.3] text-[#808080]">{caption}</p>
 
       {/* G-3(NIT 2) — admissionEmptyTableMode='NOTICE_ROW' 일 때만 hasRows=false 여도 박스를 그린다
           (기본 'HIDE' 에서는 showEmptyNotice 가 항상 false 라 이 줄이 종전 hasRows 단독 조건과 동일하다). */}
       {(hasRows || showEmptyNotice) && (
-        <div className="fd-admission-box mt-[0.875rem] w-full rounded-[0.75rem] border border-[#d9d9d9] px-[0.8125rem] py-[0.6875rem] lg:w-[31.875rem]">
+        <div className="fd-admission-box mt-3.5 w-full rounded-xl border border-[#d9d9d9] px-3.25 py-2.75 lg:w-127.5">
           {showEmptyNotice ? (
             <p className="text-base leading-[1.3] text-[#808080]">
               {emptyNotice}
             </p>
           ) : (
-            <div className="fd-admission-rows flex flex-col gap-3 lg:gap-[0.9375rem]">
+            <div className="fd-admission-rows flex flex-col gap-3 lg:gap-3.75">
               <div className="fd-admission-grid grid grid-cols-[auto_1fr_1fr] items-center gap-x-2 break-keep text-base font-medium leading-[1.3] text-[#808080] lg:grid-cols-[10rem_1fr_1fr]">
                 <span>구분</span>
                 <span className="text-right">등급</span>
@@ -157,7 +155,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
                   // 줄바꿈이 나지 않던 자리라 시각적 차이가 없다.
                   className={`fd-admission-grid grid grid-cols-[auto_1fr_1fr] items-start gap-x-2 break-keep text-base leading-[1.3] lg:grid-cols-[10rem_1fr_1fr] lg:items-center ${
                     row.emphasis
-                      ? "font-semibold text-[#0b84fd]"
+                      ? "font-semibold text-accent"
                       : "font-medium text-[#808080]"
                   }`}
                 >
@@ -178,7 +176,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
         표 바로 아래에 붙인다(F-10 의 빈 표 오인과 같은 계열의 위험이라 거리가 멀면 기능하지 않는다).
       */}
       {finalAvgNote && (
-        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-[#6b6b6b] lg:w-[31.875rem] lg:text-sm">
+        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-127.5 lg:text-sm">
           {finalAvgNote}
         </p>
       )}
@@ -189,7 +187,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
         엔진이 `!== caption` 중복 가드를 이미 걸어 null 로 내려 준다(같은 문장 2회 방지).
       */}
       {tableNote && (
-        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-[#6b6b6b] lg:w-[31.875rem] lg:text-sm">
+        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-127.5 lg:text-sm">
           {tableNote}
         </p>
       )}

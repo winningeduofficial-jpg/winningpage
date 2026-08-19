@@ -129,7 +129,7 @@ export default function AddTaskModal({
       submitDisabled={!canSubmit}
     >
       <div>
-        <p className="mb-[1.6875rem] text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+        <p className="mb-6.75 text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
           과목<span className="ml-1 text-error">*</span>
         </p>
         <SegmentedChipGroup
@@ -149,7 +149,7 @@ export default function AddTaskModal({
         required
       />
 
-      <div className="grid grid-cols-2 gap-[0.5rem]">
+      <div className="grid grid-cols-2 gap-2">
         <ModalField
           label="예상 소요 시간"
           variant="select"

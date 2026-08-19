@@ -2,6 +2,8 @@
 // 학부모 결제 내역(parent/ParentPaymentsTab)이 같은 규칙을 써야 한다.
 // 두 화면이 각자 구현하면 같은 주문이 서로 다른 배지·다른 주문번호로 보인다.
 
+import { formatKRW } from "@/data/pricingCatalog";
+
 type OrderStatusInput = {
   id?: string;
   status?: string | null;
@@ -25,15 +27,25 @@ export function formatApprovedAt(
   return `${y}/${m}/${d}`;
 }
 
-// 표시용 주문번호 축약. 시안(9자리 숫자, 예: 123283945)은 그대로 두고, 실데이터의
-// 토스 orderId(order_1785898468780_adf9e6aa, sql/10_pricing_orders.sql)처럼 긴 값만
-// order_ 접두어를 떼고 뒤쪽 10자만 남겨 220px 컬럼을 넘지 않게 한다. 원본은 표의
-// title 속성에 남아 hover 로 확인할 수 있다.
+// 표시용 주문번호. 실데이터의 토스 orderId(order_1785898468780_adf9e6aa,
+// sql/10_pricing_orders.sql)에서 order_ 접두어만 뗀 전체 값을 그대로 보여준다
+// (축약·말줄임 없음 — 주문번호 칼럼은 전체가 보이도록 폭을 맞춘다).
 export function formatOrderId(id: string | number | null | undefined) {
   const raw = String(id || "");
-  const stripped = raw.startsWith("order_") ? raw.slice("order_".length) : raw;
-  if (stripped.length <= 12) return stripped;
-  return `…${stripped.slice(-10)}`;
+  return raw.startsWith("order_") ? raw.slice("order_".length) : raw;
+}
+
+// 표시용 상품명 — 여러 상품이 담긴 주문도 order_name(대표 상품명 + "외 N건" 요약)
+// 대신 order_items 전체를 ", "로 나열한다. order_items 조인이 없는 호출부(옛
+// 쿼리, 아직 안 옮긴 화면)를 위해 order_name 폴백을 남겨 둔다.
+export function formatProductNames(order: {
+  order_name?: string | null;
+  order_items?: { name: string }[] | null;
+}) {
+  if (order.order_items && order.order_items.length > 0) {
+    return order.order_items.map((item) => item.name).join(", ");
+  }
+  return order.order_name || "";
 }
 
 // order + 매칭되는 refund_requests 최신 행으로 상태 배지 키를 계산한다.
@@ -68,4 +80,134 @@ export function resolveOrderStatus(
   if (refund.approval_status === "rejected") return "refund_parent_rejected";
 
   return "refund_requested";
+}
+
+export type DiscountOrderInput = {
+  list_amount?: number | null;
+  discount_amount?: number | null;
+  order_items?:
+    | {
+        name: string;
+        list_price?: number | null;
+        price?: number | null;
+        quantity?: number | null;
+      }[]
+    | null;
+  coupon_redemptions?:
+    | {
+        discount_amount: number;
+        voided_at?: string | null;
+        // PostgREST embed는 to-one 관계(coupon_redemptions.coupon_id -> coupons.id)를
+        // 단일 객체로 반환한다(dev 실측: {"coupons":{"title":"..."}}). FK 메타데이터를
+        // 못 읽는 환경이 배열로 줄 가능성까지 흡수하도록 유니온으로 받고, 접근은
+        // couponTitle()이 양쪽을 처리한다.
+        coupons?:
+          | { title?: string | null }
+          | { title?: string | null }[]
+          | null;
+      }[]
+    | null;
+};
+
+export type DiscountBreakdownRow = { label: string; amountText: string };
+
+function couponTitle(
+  rel:
+    | { title?: string | null }
+    | { title?: string | null }[]
+    | null
+    | undefined,
+) {
+  return (Array.isArray(rel) ? rel[0]?.title : rel?.title) ?? null;
+}
+
+// 결제요청 확인 모달(EnrollmentRequestModal)과 결제 상세 내역 모달
+// (PaymentDetailModal)이 공유하는 "원금 → 할인 사유 → 쿠폰" 분해 로직.
+// 두 화면이 각자 계산하면 같은 주문이 서로 다른 할인 내역으로 보일 수 있다.
+//
+// 서버 불변식(sql/55): list_amount - discount_amount = amount. discount_amount는
+// "상품 할인 + 쿠폰 할인"의 합이라, 쿠폰 합(couponSum)을 뺀 나머지가 상품
+// 할인(productDiscount)이다. order_items의 (list_price-price)*quantity 합이
+// productDiscount와 정확히 맞아떨어지면 항목별로 쪼개 보여주고, 항목 합이 더
+// 크면(비정상 — 스냅샷과 discount_amount 산정이 어긋난 경우) 항목 분해를 버리고
+// 통합 한 줄로 폴백한다. 이렇게 하면 화면에 보이는 할인 행의 합은 항상
+// discount_amount(서버 정본)와 일치한다.
+export function computeDiscountBreakdown(order: DiscountOrderInput) {
+  const activeRedemptions = (order.coupon_redemptions ?? []).filter(
+    (r) => !r.voided_at,
+  );
+  const couponSum = activeRedemptions.reduce(
+    (sum, r) => sum + r.discount_amount,
+    0,
+  );
+  const productDiscount = Math.max(0, (order.discount_amount ?? 0) - couponSum);
+
+  const itemDiscounts = (order.order_items ?? [])
+    .map((item) => ({
+      name: item.name,
+      amount:
+        ((item.list_price ?? 0) - (item.price ?? 0)) * (item.quantity ?? 1),
+    }))
+    .filter((d) => d.amount > 0);
+  const itemDiscountSum = itemDiscounts.reduce((sum, d) => sum + d.amount, 0);
+  const residual = productDiscount - itemDiscountSum;
+
+  const discountRows: DiscountBreakdownRow[] = [];
+  if (residual >= 0) {
+    for (const d of itemDiscounts) {
+      discountRows.push({
+        label: `${d.name} 할인`,
+        amountText: `-${formatKRW(d.amount)}`,
+      });
+    }
+    if (residual > 0) {
+      discountRows.push({
+        label: "할인 금액",
+        amountText: `-${formatKRW(residual)}`,
+      });
+    }
+  } else if (productDiscount > 0) {
+    // 항목 합(itemDiscountSum) > discount_amount 기반 productDiscount 인
+    // 비정상 케이스 — 정합 우선으로 통합 한 줄 폴백.
+    discountRows.push({
+      label: "할인 금액",
+      amountText: `-${formatKRW(productDiscount)}`,
+    });
+  }
+
+  const couponRows: DiscountBreakdownRow[] = activeRedemptions.map((r) => {
+    const title = couponTitle(r.coupons);
+    return {
+      label: title ? `쿠폰 · ${title}` : "쿠폰",
+      amountText: `-${formatKRW(r.discount_amount)}`,
+    };
+  });
+
+  // 결제 상품 나열 — "XXX 외 N건"(order_name) 대신 항목별로 이름과 가격을
+  // 보여준다. 가격은 정가(list_price×수량)다 — 항목 행의 합이 바로 아래
+  // 원금(list_amount)과 일치하고, 거기서 할인·쿠폰 행을 빼면 결제 금액에
+  // 닿는 원장 구조를 유지하기 위해서다(판매가를 쓰면 항목 합과 원금이
+  // 어긋나고 할인 행이 이중 차감으로 읽힌다). list_price가 없는 레거시
+  // 스냅샷은 판매가로 폴백한다.
+  const itemRows: DiscountBreakdownRow[] = (order.order_items ?? []).map(
+    (item) => {
+      const qty = item.quantity ?? 1;
+      const unit = item.list_price || item.price || 0;
+      return {
+        label: qty > 1 ? `${item.name} ×${qty}` : item.name,
+        amountText: formatKRW(unit * qty),
+      };
+    },
+  );
+
+  return {
+    listAmount: order.list_amount ?? 0,
+    itemRows,
+    discountRows,
+    couponRows,
+    // discountRows+couponRows 금액의 합 — 표시 행들과 항상 정합한다(문자열
+    // amountText 파싱 대신 couponSum+productDiscount 원본 숫자로 계산).
+    // OrderAmountBreakdown의 "할인액 총합" 행이 이 값을 그대로 쓴다.
+    discountTotal: couponSum + productDiscount,
+  };
 }

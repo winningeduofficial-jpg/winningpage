@@ -14,7 +14,7 @@ import ServiceProcessCards from "@/components/services/ServiceProcessCards";
 import { useInView } from "@/hooks/useInView";
 
 const CTA_LINK_CLASS =
-  "inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] px-8 text-base font-semibold text-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]";
+  "inline-flex h-14 w-full max-w-75 items-center justify-center rounded-[1.875rem] px-8 text-base font-semibold text-white transition focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2 sm:h-17 sm:text-[1.25rem]";
 
 // STEP 라벨은 데이터에 두지 않는다 — ServiceProcessCards 가 index 로 생성한다.
 const STEPS = [
@@ -34,7 +34,7 @@ const STEPS = [
 const AUDIENCE = [
   {
     image: illustrationStrength,
-    imageClass: "wide:mt-0 wide:h-[16.8125rem]",
+    imageClass: "wide:mt-0 wide:h-67.25",
     titleLines: ["내 강점이 뭔지", "아직 정리가 안된 학생"],
     descLines: [
       "목표는 있는데 지금 무엇을 준비해야",
@@ -43,13 +43,13 @@ const AUDIENCE = [
   },
   {
     image: illustrationWeakness,
-    imageClass: "wide:mt-[2.125rem] wide:h-[14.6875rem]",
+    imageClass: "wide:mt-8.5 wide:h-58.75",
     titleLines: ["어떤 학습부분에서 약한지", "확인하고 싶은 학생"],
     descLines: ["해야 할 건 많은데 우선순위가", "서지 않아 시작이 어려운 경우"],
   },
   {
     image: illustrationTrial,
-    imageClass: "wide:mt-[2.125rem] wide:h-[14.6875rem]",
+    imageClass: "wide:mt-8.5 wide:h-58.75",
     titleLines: ["유료 서비스 전에 무료로", "서비스를 경험해보고 싶은 분"],
     descLines: ["내 위치를 데이터로 확인하고", "맞는 서비스를 찾고 있는 경우"],
   },
@@ -115,7 +115,7 @@ const MACBOOK_IMG_STYLE = {
 
 // 시안 칩 폰트 굵기가 하나만 600, 둘은 500 → 시안 실수로 보고 셋 다 500으로 통일.
 const BADGE_BASE_CLASS =
-  "inline-flex items-center whitespace-nowrap rounded-[1.875rem] bg-[#F5FAFF] font-medium leading-[1.4] text-[#013262]";
+  "inline-flex items-center whitespace-nowrap rounded-[1.875rem] bg-[#F5FAFF] font-medium leading-[1.4] text-primary";
 
 const SECTION_HEADING_CLASS =
   "break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] sm:text-[1.75rem] md:text-[2rem]";
@@ -124,15 +124,15 @@ const SECTION_HEADING_CLASS =
 const HERO_EYEBROW_CLASS =
   "text-[1.25rem] font-normal leading-[1.6] text-accent sm:text-[1.375rem] md:text-[1.5rem]";
 const HERO_HEADLINE_CLASS =
-  "break-keep max-w-[56rem] text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem] lg:max-w-none lg:whitespace-nowrap";
+  "break-keep max-w-4xl text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem] lg:max-w-none lg:whitespace-nowrap";
 const HERO_SUBTEXT_CLASS =
-  "text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]";
+  "text-[1.125rem] font-medium leading-[1.6] text-ink sm:text-[1.25rem] md:text-[1.5rem]";
 
 // Figma TILE fill(scalingFactor 0.609 → 134px/8.375rem 타일) + blendMode OVERLAY 재현.
 // 글로우 프레임 내부 1겹 + 히어로 프레임 전체 1겹, 총 2겹으로 원본과 동일하게 겹친다.
 const HERO_GRAIN_STYLE = { backgroundImage: `url(${heroGrain})` };
 const HERO_GRAIN_CLASS =
-  "pointer-events-none absolute select-none bg-[length:8.375rem_8.375rem] bg-repeat mix-blend-overlay";
+  "pointer-events-none absolute select-none bg-size-[8.375rem_8.375rem] bg-repeat mix-blend-overlay";
 
 function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
@@ -144,7 +144,7 @@ function HeroSection() {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-white pb-14 sm:pb-16 md:pb-0 md:pt-[2.25rem]">
+    <section className="relative overflow-hidden bg-white pb-14 sm:pb-16 md:pb-0 md:pt-9">
       {/* 시안(2716:2804→2873→2882→2891)은 히어로 글로우가 360° 등속 회전하는 프로토타입의
           키프레임 4장이다(Smart Animate 3000ms LINEAR × 4프레임 = 12s 재생). 실제 구현
           주기는 12s가 아닌 30s로 완화했다 — 회전은 전정계 자극 등급이 높은 모션이라
@@ -196,7 +196,7 @@ function HeroSection() {
           유지한다 — 두 장 다 정지 상태이며 회전하는 것은 Eclipse/Planet 블롭뿐이다. */}
       <div
         ref={glowRef}
-        className="pointer-events-none absolute left-1/2 top-[-1.09%] aspect-[4/3] w-[83.34%] max-w-none -translate-x-1/2 select-none"
+        className="pointer-events-none absolute left-1/2 top-[-1.09%] aspect-4/3 w-[83.34%] max-w-none -translate-x-1/2 select-none"
       >
         <style>{`
           @keyframes fd-hero-spin {
@@ -226,7 +226,7 @@ function HeroSection() {
       <div
         aria-hidden="true"
         style={HERO_GRAIN_STYLE}
-        className={`${HERO_GRAIN_CLASS} left-1/2 top-[-1.09%] aspect-[4/3] w-[83.34%] -translate-x-1/2`}
+        className={`${HERO_GRAIN_CLASS} left-1/2 top-[-1.09%] aspect-4/3 w-[83.34%] -translate-x-1/2`}
       />
       <div
         aria-hidden="true"
@@ -247,12 +247,12 @@ function HeroSection() {
 
         <Link
           to="/app/learning-diagnosis/survey"
-          className={`${CTA_LINK_CLASS} mt-6 bg-[#013262] shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] hover:bg-[#01498F] focus-visible:ring-[#013262]`}
+          className={`${CTA_LINK_CLASS} mt-6 bg-primary shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] hover:bg-[#01498F] focus-visible:ring-primary`}
         >
           지금 시작하기
         </Link>
 
-        <div className="relative z-10 mx-auto mt-8 w-full max-w-[66.75rem] sm:mt-10 md:mt-[3.0625rem] lg:mb-[-7.89375rem]">
+        <div className="relative z-10 mx-auto mt-8 w-full max-w-267 sm:mt-10 md:mt-12.25 lg:mb-[-7.89375rem]">
           <div className="overflow-hidden rounded-[0.3125rem] shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)]">
             <img
               src={heroBrowserV2}
@@ -270,9 +270,9 @@ function HeroSection() {
 
 function StepsSection() {
   return (
-    <section className="bg-white pt-20 pb-10 md:pt-[8.75rem] md:pb-0">
+    <section className="bg-white pt-20 pb-10 md:pt-35 md:pb-0">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>
+        <h2 className={`${SECTION_HEADING_CLASS} text-ink-title`}>
           학생부 업로드 없이,
           <br />
           20분이면 완성하는 학습진단
@@ -288,9 +288,9 @@ function StepsSection() {
 
 function AudienceSection() {
   return (
-    <section className="bg-white pt-20 pb-10 md:pt-[15.625rem] md:pb-0">
+    <section className="bg-white pt-20 pb-10 md:pt-62.5 md:pb-0">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={`${SECTION_HEADING_CLASS} text-[#181D24]`}>
+        <h2 className={`${SECTION_HEADING_CLASS} text-ink-title`}>
           이런 학생에게 학습 진단을 추천해요
         </h2>
 
@@ -300,7 +300,7 @@ function AudienceSection() {
             ('서비스를 경험해보고 싶은 분' ≈250 / '목표는 있는데 지금 무엇을 준비해야' ≈252)이
             한 줄에 안 들어가 2줄 구조가 3~4줄로 붕괴한다. 그래서 640~1183은 2열을 유지하고,
             3장 중 마지막 1장이 좌측에 고아로 남는 문제만 아래 last: 규칙으로 해소한다. */}
-        <div className="mt-10 grid grid-cols-1 justify-center gap-6 sm:grid-cols-2 md:mt-[3.75rem] wide:grid-cols-[repeat(3,22.0625rem)] wide:gap-[1.25rem]">
+        <div className="mt-10 grid grid-cols-1 justify-center gap-6 sm:grid-cols-2 md:mt-perf-inset wide:grid-cols-[repeat(3,22.0625rem)] wide:gap-5">
           {AUDIENCE.map((item) => (
             <article
               key={item.titleLines.join("")}
@@ -311,15 +311,15 @@ function AudienceSection() {
                  screens가 px(기본) + rem(wide·desktop) 혼용이라 Tailwind가 max- 계열 변형 생성을
                  거부한다("mixed units" 경고) — 조용히 무효 클래스가 되므로 max- 변형은 쓰면 안 된다.
                  대신 wide: 로 되돌린다(생성 순서상 wide 규칙이 sm 규칙 뒤라 ≥1184에서 이긴다). */
-              className="flex flex-col overflow-hidden rounded-[1.875rem] bg-[#FBFAFA] transition hover:-translate-y-1 hover:shadow-[0_1.25rem_2.5rem_rgba(82,82,82,0.14)] sm:last:col-span-2 sm:last:mx-auto sm:last:w-[calc(50%_-_0.75rem)] wide:h-[31.125rem] wide:last:col-auto wide:last:mx-0 wide:last:w-auto"
+              className="flex flex-col overflow-hidden rounded-[1.875rem] bg-[#FBFAFA] transition hover:-translate-y-1 hover:shadow-[0_1.25rem_2.5rem_rgba(82,82,82,0.14)] sm:last:col-span-2 sm:last:mx-auto sm:last:w-[calc(50%-0.75rem)] wide:h-124.5 wide:last:col-auto wide:last:mx-0 wide:last:w-auto"
             >
               <img
                 src={item.image}
                 alt={item.titleLines.join(" ")}
-                className={`aspect-[353/269] w-full shrink-0 object-contain object-bottom wide:aspect-auto wide:w-[22.0625rem] ${item.imageClass}`}
+                className={`aspect-353/269 w-full shrink-0 object-contain object-bottom wide:aspect-auto wide:w-88.25 ${item.imageClass}`}
               />
-              <div className="flex flex-col gap-3 px-7 py-8 sm:px-9 wide:ml-[1.9375rem] wide:mt-[2.75rem] wide:w-[17.6875rem] wide:gap-5 wide:p-0">
-                <p className="break-keep text-lg font-semibold leading-[1.3] tracking-[-0.025rem] text-[#525252] sm:text-xl md:text-[1.25rem]">
+              <div className="flex flex-col gap-3 px-7 py-8 sm:px-9 wide:ml-7.75 wide:mt-11 wide:w-70.75 wide:gap-5 wide:p-0">
+                <p className="break-keep text-lg font-semibold leading-[1.3] tracking-[-0.025rem] text-ink sm:text-xl md:text-[1.25rem]">
                   {item.titleLines[0]}
                   <br />
                   {item.titleLines[1]}
@@ -340,13 +340,13 @@ function AudienceSection() {
 
 function BenefitsSection() {
   return (
-    <section className="bg-white pb-10 pt-20 md:pt-[15rem] md:pb-0">
-      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 sm:px-8 md:gap-[3.75rem]">
-        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#4D4D4D]`}>
+    <section className="bg-white pb-10 pt-20 md:pt-60 md:pb-0">
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 sm:px-8 md:gap-perf-inset">
+        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-ink-header`}>
           학습진단으로 얻을 수 있는 것
         </h2>
 
-        <div className="w-full max-w-[60.625rem] rounded-[0.75rem] border border-[#D7D7D7] bg-[#FBFAFA] px-6 py-10 sm:px-10 md:py-12">
+        <div className="w-full max-w-242.5 rounded-xl border border-line bg-[#FBFAFA] px-6 py-10 sm:px-10 md:py-12">
           <div className="grid grid-cols-1 divide-y divide-[#E2E2E2] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {BENEFITS.map((item) => (
               <div
@@ -354,7 +354,7 @@ function BenefitsSection() {
                 className="flex flex-col items-center gap-4 py-6 first:pt-0 last:pb-0 sm:px-6 sm:py-0"
               >
                 {/* @3x(300×300) 원본을 시안 표시 크기 100×100(6.25rem)으로 고정. 컨테이너가 크기를 소유하고 img는 100%로 채운다. */}
-                <div className="h-[5rem] w-[5rem] shrink-0 sm:h-[6.25rem] sm:w-[6.25rem]">
+                <div className="h-20 w-20 shrink-0 sm:h-25 sm:w-25">
                   <img
                     src={item.icon}
                     alt=""
@@ -363,7 +363,7 @@ function BenefitsSection() {
                     className="block h-full w-full"
                   />
                 </div>
-                <p className="text-lg font-semibold tracking-[-0.02em] text-[#525252] sm:text-xl md:text-[1.5rem]">
+                <p className="text-lg font-semibold tracking-[-0.02em] text-ink sm:text-xl md:text-[1.5rem]">
                   {item.label}
                 </p>
               </div>
@@ -389,7 +389,7 @@ function MacbookMockup() {
   ];
 
   return (
-    <div className="relative mx-auto aspect-[1008/591] w-full max-w-[63rem]">
+    <div className="relative mx-auto aspect-1008/591 w-full max-w-252">
       {/* 부유 모션 — src/index.css를 건드릴 수 없어 컴포넌트 로컬 <style>로 정의한다
           (AdmissionGuidelines.jsx에 동일 관행 존재).
           prefers-reduced-motion: no-preference **opt-in**이라 쿼리 미지원 브라우저에서는 정지가 기본값.
@@ -481,10 +481,10 @@ function MacbookMockup() {
                     animationDelay: badge.y.delay,
                   }}
                 >
-                  {/* 회전 요소 = 실제 칩. drop-shadow → box-shadow: 시각 결과는 같고
+                  {/* 회전 요소 = 실제 칩. drop-shadow-sm → box-shadow: 시각 결과는 같고
                       애니메이션 중 필터 래스터화 비용이 사라진다. */}
                   <span
-                    className={`fd-chip-rot h-[4.25rem] px-[1.25rem] text-[1.25rem] shadow-[0_0.25rem_0.625rem_rgba(11,132,253,0.4)] ${BADGE_BASE_CLASS}`}
+                    className={`fd-chip-rot h-17 px-5 text-[1.25rem] shadow-[0_0.25rem_0.625rem_rgba(11,132,253,0.4)] ${BADGE_BASE_CLASS}`}
                     data-float={floatState}
                     style={{
                       animationDuration: badge.rot.duration,
@@ -514,18 +514,18 @@ function MacbookMockup() {
 // 칩은 xl(1280+)에서만 뜨고 그 폭에서는 뷰포트 안에 들어온다.
 function MacbookShowcase() {
   return (
-    <section className="relative overflow-x-clip bg-white pt-16 pb-16 sm:pt-20 sm:pb-20 md:pt-[12.125rem] md:pb-0">
+    <section className="relative overflow-x-clip bg-white pt-16 pb-16 sm:pt-20 sm:pb-20 md:pt-48.5 md:pb-0">
       <div className="relative mx-auto w-full max-w-content px-5 sm:px-8">
-        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-[#525252]`}>
+        <h2 className={`text-center ${SECTION_HEADING_CLASS} text-ink`}>
           지금 내 입시 좌표를 확인 해보세요
         </h2>
 
-        <div className="relative mx-auto mt-16 flex flex-col items-center sm:mt-20 md:mt-[4.3125rem]">
+        <div className="relative mx-auto mt-16 flex flex-col items-center sm:mt-20 md:mt-17.25">
           <MacbookMockup />
 
           {/* 칩 목록 — <768 세로 스택 / ≥768 가로 1행 중앙정렬(칩 3개 합 약 590px) / ≥1280 숨김.
               위 데스크톱 칩 레이어가 hidden xl:block + aria-hidden이라 노출 구간이 xl 경계에서 상보다. */}
-          <div className="mt-8 flex w-full max-w-[26rem] flex-col gap-3 md:max-w-none md:flex-row md:flex-wrap md:justify-center md:gap-4 xl:hidden">
+          <div className="mt-8 flex w-full max-w-104 flex-col gap-3 md:max-w-none md:flex-row md:flex-wrap md:justify-center md:gap-4 xl:hidden">
             {FLOATING_BADGES.map((badge) => (
               <span
                 key={badge.label}
@@ -543,15 +543,15 @@ function MacbookShowcase() {
 
 function BottomCta() {
   return (
-    <section className="bg-[#172437] py-14 md:mt-[14.75rem] md:pt-[8.8125rem] md:pb-[8.875rem]">
-      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-8 px-5 text-center sm:gap-10 sm:px-8 md:gap-[3.75rem]">
+    <section className="bg-[#172437] py-14 md:mt-59 md:pt-35.25 md:pb-35.5">
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-8 px-5 text-center sm:gap-10 sm:px-8 md:gap-perf-inset">
         <h2 className="break-keep text-[1.5rem] font-bold leading-[1.4] tracking-[-0.02em] text-white sm:text-[1.75rem] md:text-[2.75rem]">
           어서 학습진단을 경험해보세요
         </h2>
 
         <Link
           to="/app/learning-diagnosis/survey"
-          className={`${CTA_LINK_CLASS} bg-[#013262] shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] hover:bg-[#01498F] focus-visible:ring-white`}
+          className={`${CTA_LINK_CLASS} bg-primary shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] hover:bg-[#01498F] focus-visible:ring-white`}
         >
           학습진단 시작하기 →
         </Link>

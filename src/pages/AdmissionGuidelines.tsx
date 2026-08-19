@@ -293,7 +293,7 @@ function buildInfoSelectColumns(section) {
 function InfoButton({ section, row, onOpen, label = "보기" }) {
   // 1882:681/1882:1291 실측: 데이터 셀은 버튼(배경/보더)이 아니라 언더라인 텍스트.
   const linkClass =
-    "admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]";
+    "admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-accent";
 
   if (!sectionHasContent(row, section)) {
     return (
@@ -337,7 +337,7 @@ function externalUrl(value) {
 function LinkButton({ section, row }) {
   const url = externalUrl(getFirstUrl(row, section.keys));
   const linkClass =
-    "admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-[#0b84fd]";
+    "admission-directory-cell-link inline-flex items-center justify-center whitespace-nowrap underline decoration-solid underline-offset-2 transition hover:text-accent";
 
   if (!url) {
     return (
@@ -1591,11 +1591,11 @@ export default function AdmissionGuidelines() {
   } as ComponentPropsWithoutRef<"div">;
 
   return (
-    <div className="min-h-screen bg-[#f9fafb] text-[#013262]">
+    <div className="min-h-screen bg-surface-footer text-primary">
       <main className="pt-16">
         <div className="mx-auto max-w-content px-6 py-8 md:px-8">
           <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <h1 className="break-keep text-[32px] font-semibold leading-tight tracking-[-0.03em] text-[#525252] md:text-[44px]">
+            <h1 className="break-keep text-[32px] font-semibold leading-tight tracking-[-0.03em] text-ink md:text-[44px]">
               대학모집요강
             </h1>
 
@@ -1605,7 +1605,7 @@ export default function AdmissionGuidelines() {
                   value={keyword}
                   onChange={(event) => handleKeywordChange(event.target.value)}
                   placeholder="대학 이름을 입력해보세요!"
-                  className="h-14 w-full rounded-full border border-[#e5e7eb] bg-white pl-6 pr-14 text-[15px] font-semibold text-[#525252] outline-none transition placeholder:font-semibold placeholder:text-[#d7d7d7] focus:border-[#0b84fd] focus:ring-4 focus:ring-[#0b84fd]/15"
+                  className="h-14 w-full rounded-full border border-[#e5e7eb] bg-white pl-6 pr-14 text-[15px] font-semibold text-ink outline-hidden transition placeholder:font-semibold placeholder:text-line focus:border-accent focus:ring-4 focus:ring-accent/15"
                 />
                 {keyword ? (
                   <button
@@ -1627,7 +1627,7 @@ export default function AdmissionGuidelines() {
                   바꾼다 — 지금은 없는 기능을 있는 것처럼 보이면 안 된다. */}
               <span
                 title="학년도 선택은 준비 중입니다."
-                className="flex h-14 w-full shrink-0 cursor-not-allowed items-center justify-between gap-3 rounded-full border border-[#e5e7eb] bg-[#f9fafb] px-6 text-[15px] font-semibold text-[#8f8f8f] sm:w-[13.5rem]"
+                className="flex h-14 w-full shrink-0 cursor-not-allowed items-center justify-between gap-3 rounded-full border border-[#e5e7eb] bg-surface-footer px-6 text-[15px] font-semibold text-[#8f8f8f] sm:w-54"
               >
                 {activeAdmissionYear}학년도
                 <ChevronDown className="h-4 w-4 shrink-0 text-[#c8ccd2]" />
@@ -1645,7 +1645,7 @@ export default function AdmissionGuidelines() {
               lg(1024px)에서 컨테이너 내부 폭이 960px로 줄어드는 함정(tailwind.config.js
               참고) 구간을 표가 자체 가로 스크롤로 흡수한다(아래 <style> 74rem 미디어쿼리 참고). */}
           <section className="grid gap-6 lg:grid-cols-[26%_1fr] lg:items-start lg:gap-8">
-            <aside className="relative rounded-2xl border border-[#d7d7d7] bg-white shadow-[0_10px_28px_rgba(13,27,42,0.05)] lg:sticky lg:top-[104px]">
+            <aside className="relative rounded-2xl border border-line bg-white shadow-[0_10px_28px_rgba(13,27,42,0.05)] lg:sticky lg:top-[104px]">
               <div className="relative">
                 {/* biome-ignore lint/a11y/useSemanticElements: fieldset은 브라우저 기본 border/padding/margin이 있어 리셋 없이 바꾸면 시각 회귀가 생긴다. role="group" + aria-label로 이미 접근성 요건은 충족한다. */}
                 <div
@@ -1682,14 +1682,14 @@ export default function AdmissionGuidelines() {
 
               <div className="border-t border-[#e5e7eb] px-5 pb-5 pt-4">
                 <div className="mb-3">
-                  <h3 className="text-lg font-semibold tracking-[-0.02em] text-[#525252]">
+                  <h3 className="text-lg font-semibold tracking-[-0.02em] text-ink">
                     별도 분류 대학
                   </h3>
                 </div>
 
                 <div className="grid gap-2">
                   {universitiesLoading ? (
-                    <div className="rounded-xl border border-[#d7d7d7] bg-white px-4 py-3 text-sm font-medium text-[#8f8f8f]">
+                    <div className="rounded-xl border border-line bg-white px-4 py-3 text-sm font-medium text-[#8f8f8f]">
                       불러오는 중입니다.
                     </div>
                   ) : (
@@ -1700,8 +1700,8 @@ export default function AdmissionGuidelines() {
                         onClick={() => selectSpecialGroup(group.key)}
                         className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
                           selectedSpecialGroupKey === group.key
-                            ? "border-[#013262] bg-[#013262] text-white shadow-sm"
-                            : "border-[#d7d7d7] bg-white text-[#525252] hover:border-[#0b84fd] hover:bg-[#e9f4ff]"
+                            ? "border-primary bg-primary text-white shadow-xs"
+                            : "border-line bg-white text-ink hover:border-accent hover:bg-[#e9f4ff]"
                         }`}
                       >
                         <span>
@@ -1715,7 +1715,7 @@ export default function AdmissionGuidelines() {
                           </span>
                         </span>
                         <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selectedSpecialGroupKey === group.key ? "bg-white/15 text-white" : "bg-[#f9fafb] text-[#667085]"}`}
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${selectedSpecialGroupKey === group.key ? "bg-white/15 text-white" : "bg-surface-footer text-[#667085]"}`}
                         >
                           보기
                         </span>
@@ -1728,19 +1728,19 @@ export default function AdmissionGuidelines() {
 
             <section
               ref={listSectionRef}
-              className="min-w-0 scroll-mt-24 rounded-2xl border border-[#d7d7d7] bg-white p-5 shadow-[0_10px_28px_rgba(13,27,42,0.04)] md:p-8 wide:rounded-none wide:border-0 wide:bg-transparent wide:p-0 wide:shadow-none"
+              className="min-w-0 scroll-mt-24 rounded-2xl border border-line bg-white p-5 shadow-[0_10px_28px_rgba(13,27,42,0.04)] md:p-8 wide:rounded-none wide:border-0 wide:bg-transparent wide:p-0 wide:shadow-none"
             >
               <div className="mb-6 border-b border-[#e5e7eb] pb-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                   <h2 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 break-keep">
-                    <span className="whitespace-nowrap text-2xl font-semibold leading-none tracking-[-0.03em] text-[#525252] md:text-[32px]">
+                    <span className="whitespace-nowrap text-2xl font-semibold leading-none tracking-[-0.03em] text-ink md:text-[32px]">
                       {currentListTitle}
                     </span>
                     <span className="whitespace-nowrap text-2xl font-semibold leading-none tracking-[-0.03em] md:text-[32px]">
-                      <span className="text-[#0b84fd]">
+                      <span className="text-accent">
                         {universitiesLoading ? "-" : visibleUniversities.length}
                       </span>
-                      <span className="text-[#525252]">개교</span>
+                      <span className="text-ink">개교</span>
                     </span>
                   </h2>
 
@@ -1748,7 +1748,7 @@ export default function AdmissionGuidelines() {
                     <button
                       type="button"
                       onClick={clearSelection}
-                      className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-[#667085] transition hover:bg-[#e9f4ff] hover:text-[#0b84fd]"
+                      className="flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-sm font-semibold text-[#667085] transition hover:bg-[#e9f4ff] hover:text-accent"
                     >
                       <RotateCcw className="h-3.5 w-3.5" />
                       초기화
@@ -1760,8 +1760,8 @@ export default function AdmissionGuidelines() {
               {(() => {
                 if (universitiesLoading)
                   return (
-                    <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
-                      <p className="text-lg font-semibold text-[#525252]">
+                    <div className="rounded-2xl border border-[#e5e7eb] bg-surface-footer py-16 text-center">
+                      <p className="text-lg font-semibold text-ink">
                         대학 목록을 불러오는 중입니다.
                       </p>
                     </div>
@@ -1786,8 +1786,8 @@ export default function AdmissionGuidelines() {
                   );
                 if (visibleUniversities.length === 0)
                   return (
-                    <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
-                      <p className="text-lg font-semibold text-[#525252]">
+                    <div className="rounded-2xl border border-[#e5e7eb] bg-surface-footer py-16 text-center">
+                      <p className="text-lg font-semibold text-ink">
                         검색 결과가 없습니다.
                       </p>
                       <p className="mt-2 text-sm font-medium text-[#808080]">
@@ -1830,7 +1830,7 @@ export default function AdmissionGuidelines() {
                             type="button"
                             onClick={() => goToPage(1)}
                             disabled={safeCurrentPage === 1}
-                            className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                            className="flex h-4 w-4 items-center justify-center text-ink transition hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label="처음 페이지"
                           >
                             <ChevronsLeft className="h-4 w-4" />
@@ -1841,7 +1841,7 @@ export default function AdmissionGuidelines() {
                               goToPage(Math.max(1, safeCurrentPage - 1))
                             }
                             disabled={safeCurrentPage === 1}
-                            className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                            className="flex h-4 w-4 items-center justify-center text-ink transition hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label="이전 페이지"
                           >
                             <ChevronLeft className="h-4 w-4" />
@@ -1856,8 +1856,8 @@ export default function AdmissionGuidelines() {
                               onClick={() => goToPage(pageNumber)}
                               className={`flex h-8 w-8 items-center justify-center rounded-full text-base tracking-[-0.02em] transition ${
                                 pageNumber === safeCurrentPage
-                                  ? "bg-[#013262] font-medium text-white"
-                                  : "font-normal text-[#525252] hover:text-[#013262]"
+                                  ? "bg-primary font-medium text-white"
+                                  : "font-normal text-ink hover:text-primary"
                               }`}
                             >
                               {pageNumber}
@@ -1874,7 +1874,7 @@ export default function AdmissionGuidelines() {
                               )
                             }
                             disabled={safeCurrentPage === totalPages}
-                            className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                            className="flex h-4 w-4 items-center justify-center text-ink transition hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label="다음 페이지"
                           >
                             <ChevronRight className="h-4 w-4" />
@@ -1883,7 +1883,7 @@ export default function AdmissionGuidelines() {
                             type="button"
                             onClick={() => goToPage(totalPages)}
                             disabled={safeCurrentPage === totalPages}
-                            className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+                            className="flex h-4 w-4 items-center justify-center text-ink transition hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
                             aria-label="마지막 페이지"
                           >
                             <ChevronsRight className="h-4 w-4" />
@@ -1901,7 +1901,7 @@ export default function AdmissionGuidelines() {
 
       {tooltip.visible ? (
         <div
-          className="pointer-events-none fixed z-[9999] rounded-xl bg-black px-3 py-2 text-sm font-medium text-white shadow-lg"
+          className="pointer-events-none fixed z-9999 rounded-xl bg-black px-3 py-2 text-sm font-medium text-white shadow-lg"
           style={{
             left: tooltip.x + 12,
             top: tooltip.y,
@@ -2008,7 +2008,7 @@ export default function AdmissionGuidelines() {
             <button
               type="button"
               onClick={() => setSelectedInfo(null)}
-              className="inline-flex h-12 min-w-[6.25rem] items-center justify-center rounded-xl bg-[#0b84fd] px-8 text-base font-semibold text-white transition hover:bg-[#0a6fd6] md:h-14 md:text-xl"
+              className="inline-flex h-12 min-w-25 items-center justify-center rounded-xl bg-accent px-8 text-base font-semibold text-white transition hover:bg-[#0a6fd6] md:h-14 md:text-xl"
             >
               닫기
             </button>
@@ -2030,7 +2030,7 @@ export default function AdmissionGuidelines() {
                   role="status"
                   aria-live="polite"
                 >
-                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bcdcff] border-t-[#0b84fd]" />
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-[#bcdcff] border-t-accent" />
                   불러오는 중입니다...
                 </div>
               );
@@ -2041,7 +2041,7 @@ export default function AdmissionGuidelines() {
                   <button
                     type="button"
                     onClick={handleRetryInfo}
-                    className="inline-flex h-10 items-center justify-center rounded-lg bg-[#0b84fd] px-5 text-sm font-semibold text-white transition hover:bg-[#0a6fd6]"
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-accent px-5 text-sm font-semibold text-white transition hover:bg-[#0a6fd6]"
                   >
                     다시 시도
                   </button>

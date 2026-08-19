@@ -55,14 +55,14 @@ export default function GoalTable({
   const isLowerBetter = lowerIsBetter ?? inferLowerIsBetter(title);
 
   return (
-    <div className="w-full max-w-[63.625rem] rounded-2xl bg-goal-cardTone-neutral px-6 py-6">
+    <div className="w-full max-w-254.5 rounded-2xl bg-goal-cardTone-neutral px-6 py-6">
       <GoalCardHeader
         title={title}
         action={
           <button
             type="button"
             onClick={onAddRound}
-            className="flex h-[2.875rem] items-center rounded-lg border border-line bg-white px-4 text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong transition-colors hover:bg-surface-04"
+            className="flex h-11.5 items-center rounded-lg border border-line bg-white px-4 text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong transition-colors hover:bg-surface-04"
           >
             + 회차 추가
           </button>
@@ -79,7 +79,7 @@ export default function GoalTable({
         </div>
       ) : (
         <div className="mt-5 overflow-x-auto">
-          <table className="w-full min-w-[45rem] border-collapse text-left text-[0.8125rem] leading-[1.4]">
+          <table className="w-full min-w-180 border-collapse text-left text-[0.8125rem] leading-[1.4]">
             <thead>
               <tr className="border-b border-[#EDEDED] text-ink-sub">
                 {COLUMNS.map((column) => (

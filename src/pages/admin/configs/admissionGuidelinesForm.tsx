@@ -242,7 +242,7 @@ export function AdmissionParsingPreview({
   }
 
   return (
-    <section className="admission-parsing-preview bg-white p-5 shadow">
+    <section className="admission-parsing-preview bg-white p-5 shadow-sm">
       <h2 className="text-sm font-black">HWP 원문 파싱 · 미리보기</h2>
       <p className="mt-1 text-xs font-bold leading-5 text-gray-500">
         모집요강 원문 전체(번호 &quot;1.~6.&quot; 포함)를 붙여넣고 파싱을
@@ -256,7 +256,7 @@ export function AdmissionParsingPreview({
         onChange={(e) => setHwpSource(e.target.value)}
         rows={12}
         placeholder="HWP에서 복사한 모집요강 원문 전체를 붙여넣으세요"
-        className="mt-3 w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 font-mono text-xs leading-5 outline-none"
+        className="mt-3 w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 font-mono text-xs leading-5 outline-hidden"
       />
 
       <div className="mt-2 flex flex-wrap gap-2">
@@ -264,7 +264,7 @@ export function AdmissionParsingPreview({
           type="button"
           onClick={runAutoParse}
           disabled={locked}
-          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-300 disabled:hover:border-gray-200 disabled:hover:bg-gray-50 disabled:hover:text-gray-300"
+          className="rounded-sm border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-300 disabled:hover:border-gray-200 disabled:hover:bg-gray-50 disabled:hover:text-gray-300"
         >
           파싱 실행(자동 분할)
         </button>
@@ -272,14 +272,14 @@ export function AdmissionParsingPreview({
           type="button"
           onClick={refreshPreview}
           disabled={locked}
-          className="rounded border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-300 disabled:hover:border-gray-200 disabled:hover:bg-gray-50 disabled:hover:text-gray-300"
+          className="rounded-sm border border-gray-400 bg-white px-3 py-1.5 text-xs font-black transition hover:border-[#2348ff] hover:bg-[#eef2ff] hover:text-[#2348ff] disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-300 disabled:hover:border-gray-200 disabled:hover:bg-gray-50 disabled:hover:text-gray-300"
         >
           미리보기 새로고침(좌측 원문 기준)
         </button>
       </div>
 
       {locked && (
-        <p className="mt-2 rounded border border-[#c7d2fe] bg-[#eef2ff] px-3 py-2 text-xs font-black leading-5 text-[#2348ff]">
+        <p className="mt-2 rounded-sm border border-[#c7d2fe] bg-[#eef2ff] px-3 py-2 text-xs font-black leading-5 text-[#2348ff]">
           카테고리 편집 창이 열려 있는 동안에는 파싱을 실행할 수 없습니다.
           파싱은 6개 카테고리를 한 번에 덮어쓰므로 편집 중인 내용이 사라질 수
           있습니다.
@@ -287,7 +287,7 @@ export function AdmissionParsingPreview({
       )}
 
       {splitStatus === "fallback" && (
-        <p className="mt-3 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
+        <p className="mt-3 rounded-sm border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-black leading-5 text-amber-700">
           자동 분할 실패 — 좌측 각 카테고리 원문(raw) 입력란에 카테고리별로 직접
           붙여넣은 뒤 &quot;미리보기 새로고침&quot;을 눌러주세요.
         </p>
@@ -315,7 +315,7 @@ export function AdmissionParsingPreview({
           return (
             <div key={key} className="admission-surface" data-section={key}>
               <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                <h3 className="text-xs font-black text-[#013262]">
+                <h3 className="text-xs font-black text-primary">
                   {HWP_SECTION_LABELS[key]}
                 </h3>
                 {hasExisting && (

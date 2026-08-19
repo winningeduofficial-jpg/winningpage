@@ -16,7 +16,7 @@ type ConditionTileProps = {
 // 4로 늘렸다(판단 지점, 시안 결함 정정과 별개의 실배선 요구사항 반영).
 function ConditionTile({ emoji, label, value, avg }: ConditionTileProps) {
   return (
-    <div className="flex h-[8.25rem] w-full flex-col items-center justify-center gap-1 rounded-xl bg-white px-2 text-center">
+    <div className="flex h-33 w-full flex-col items-center justify-center gap-1 rounded-xl bg-white px-2 text-center">
       <span className="text-[1.5rem] leading-none" aria-hidden="true">
         {emoji}
       </span>
@@ -45,7 +45,7 @@ export default function ConditionTileCard({
   return (
     <GoalCard
       tone="neutral"
-      className="flex min-h-[22.4375rem] flex-col gap-5 px-6 py-6"
+      className="flex min-h-89.75 flex-col gap-5 px-6 py-6"
     >
       <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
         {title}

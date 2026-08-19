@@ -331,16 +331,16 @@ export default function Dashboard() {
 
   // 좌우 패딩(px-[3rem], 양쪽 합 6rem)을 바깥 래퍼로 옮긴다 — 기존엔 패딩이 max-w-goal-dashboard와
   // 같은 요소에 있어 그리드가 쓸 수 있는 가용 폭이 93rem - 6rem = 87rem으로 줄었는데, 자식 그리드는
-  // `grid-cols-[67.25rem_23.25rem] gap-x-[2.5rem]` = 93rem 고정이라 6rem이 컨테이너를 넘쳤다
+  // `grid-cols-[67.25rem_23.25rem] gap-x-10` = 93rem 고정이라 6rem이 컨테이너를 넘쳤다
   // (결함2). 이제 max-w-goal-dashboard는 패딩의 영향을 받지 않는 안쪽 컨테이너에 붙어 93rem을
   // 온전히 쓴다. `max-w-goal-dashboard` 토큰 값(93rem) 자체는 그대로 둔다.
-  const outerClassName = "px-[3rem] pb-24 pt-[6.25rem]";
+  const outerClassName = "px-12 pb-24 pt-25";
 
   if (result === null) {
     return (
       <div className={outerClassName}>
         <div className="max-w-goal-dashboard">
-          <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
+          <GoalCard tone="neutral" className="px-8 py-7">
             <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
               대시보드를 불러오는 중입니다…
             </p>
@@ -362,7 +362,7 @@ export default function Dashboard() {
     return (
       <div className={outerClassName}>
         <div className="max-w-goal-dashboard">
-          <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
+          <GoalCard tone="neutral" className="px-8 py-7">
             <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
               {message}
             </p>
@@ -381,7 +381,7 @@ export default function Dashboard() {
   return (
     <div className={outerClassName}>
       <div className="max-w-goal-dashboard">
-        <div className="grid grid-cols-[67.25rem_23.25rem] gap-x-[2.5rem] gap-y-[4.875rem]">
+        <div className="grid grid-cols-[67.25rem_23.25rem] gap-x-10 gap-y-19.5">
           <DashboardPageHeader
             adviceType="ai"
             dateLabel={mockDailyGoalEmpty.dateLabel}
@@ -389,28 +389,28 @@ export default function Dashboard() {
             className="col-start-1 row-start-1"
           />
 
-          <div className="col-start-1 row-start-2 flex min-w-0 flex-col gap-[1.25rem]">
+          <div className="col-start-1 row-start-2 flex min-w-0 flex-col gap-5">
             {/* 오늘의 목표: GET /api/goal/daily-record(studyHours) + student.weeklySchedule(오늘
                 목표 시간)을 합쳐 mapTodayGoal()이 만든 실데이터. 저장 성공 시
                 reloadDailyRecord로 이 카드와 게이지를 함께 최신화한다. */}
             <TodayGoalCard data={todayGoalData} onSaved={reloadDailyRecord} />
 
-            <div className="flex gap-[1rem]">
-              <div className="w-[33.125rem]">
+            <div className="flex gap-4">
+              <div className="w-132.5">
                 {/* AdviceCard: AI 조언 생성 로직 미이식(docs/figma-goal/calc-port-status.md §9.2) — mock 유지. */}
                 <AdviceCard data={advice} />
               </div>
-              <div className="w-[33.125rem]">
+              <div className="w-132.5">
                 {/* TomorrowPlanCard: 내일 학습 계획 산출 로직 미이식 — mock 유지. */}
                 <TomorrowPlanCard plan={mockDailyGoalEmpty.tomorrowPlan} />
               </div>
             </div>
 
-            <div className="flex gap-[1rem]">
-              <div className="w-[33.125rem]">
+            <div className="flex gap-4">
+              <div className="w-132.5">
                 <MockExamCard data={mockExamData} />
               </div>
-              <div className="w-[33.125rem]">
+              <div className="w-132.5">
                 <NaesinCard data={naesinData} />
               </div>
             </div>
@@ -420,7 +420,7 @@ export default function Dashboard() {
             <AchievementChart data={student.probabilityHistory} />
           </div>
 
-          <div className="col-start-2 row-start-2 flex min-w-0 flex-col gap-[1.25rem]">
+          <div className="col-start-2 row-start-2 flex min-w-0 flex-col gap-5">
             <TargetUniversityRail data={targetUniversities} />
             {/* StudyPlanRail: 오늘 과제 조회(GET /api/goal/plan-tasks)를 위젯이 직접 한다
                 (StudyPlanRail.jsx 참고). Dashboard는 tasks를 내려주지 않는다. */}

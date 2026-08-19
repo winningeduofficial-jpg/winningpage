@@ -74,7 +74,7 @@ export function TextInput({
       value={value || ""}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className={`h-10 w-full border border-gray-300 px-3 text-sm font-bold outline-none focus:border-[#B88737] ${className}`}
+      className={`h-10 w-full border border-gray-300 px-3 text-sm font-bold outline-hidden focus:border-[#B88737] ${className}`}
     />
   );
 }
@@ -98,7 +98,7 @@ export function Textarea({
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
       rows={rows}
-      className="w-full resize-y border border-gray-300 px-3 py-2 text-sm font-bold leading-6 outline-none focus:border-[#B88737]"
+      className="w-full resize-y border border-gray-300 px-3 py-2 text-sm font-bold leading-6 outline-hidden focus:border-[#B88737]"
     />
   );
 }
@@ -114,7 +114,7 @@ export function Select({ value, onChange, children }: SelectProps) {
     <select
       value={value || ""}
       onChange={(event) => onChange(event.target.value)}
-      className="h-10 w-full border border-gray-300 px-3 text-sm font-bold outline-none focus:border-[#B88737]"
+      className="h-10 w-full border border-gray-300 px-3 text-sm font-bold outline-hidden focus:border-[#B88737]"
     >
       {children}
     </select>
@@ -219,7 +219,7 @@ export function ProgramSelector({
 
   if (programs.length === 0) {
     return (
-      <div className="rounded border border-dashed border-gray-300 px-3 py-2 text-xs font-bold text-gray-500">
+      <div className="rounded-sm border border-dashed border-gray-300 px-3 py-2 text-xs font-bold text-gray-500">
         먼저 추천 프로그램을 등록하세요.
       </div>
     );

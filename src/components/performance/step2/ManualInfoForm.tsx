@@ -79,7 +79,7 @@ export default function ManualInfoForm({
             시안 원문이 `정보*`로 붙여 쓰므로 사이에 공백을 넣지 않는다. */}
         <label
           htmlFor={FIELD_ID}
-          className="block text-[0.875rem] font-medium leading-[1.125rem] text-performance-required"
+          className="block text-[0.875rem] font-medium leading-4.5 text-performance-required"
         >
           {LABEL}
           <span aria-hidden="true">*</span>
@@ -95,7 +95,7 @@ export default function ManualInfoForm({
           disabled={submitting}
           required
           aria-invalid={submitError ? true : undefined}
-          className="h-44 w-full resize-none rounded-lg border border-performance-line bg-performance-bubble p-3 text-[0.875rem] font-medium leading-[1.125rem] text-ink outline-none transition placeholder:text-performance-line focus:border-primary disabled:cursor-not-allowed"
+          className="h-44 w-full resize-none rounded-lg border border-performance-line bg-performance-bubble p-3 text-[0.875rem] font-medium leading-4.5 text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary disabled:cursor-not-allowed"
         />
 
         {/* 에러 표시 UI는 시안에 없다(§11.3 Q39 — 시안에 토스트 컴포넌트 자체가 없다).
@@ -103,7 +103,7 @@ export default function ManualInfoForm({
         {submitError && (
           <p
             role="alert"
-            className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
+            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
           >
             {submitError}
           </p>

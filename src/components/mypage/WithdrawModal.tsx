@@ -78,7 +78,7 @@ export default function WithdrawModal({ open, onClose }: WithdrawModalProps) {
     // biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 이미 장식 레이어임을 명시했다. Escape는 document keydown 리스너(위)가 처리한다.
     <div
       role="presentation"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-black/40 px-4"
       onClick={resetAndClose}
     >
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: onClick은 배경 클릭이 대화상자 안까지 닫지 않도록 막는 stopPropagation 가드일 뿐, 키보드로 도달할 사용자 동작이 없다. */}
@@ -86,7 +86,7 @@ export default function WithdrawModal({ open, onClose }: WithdrawModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="withdraw-modal-title"
-        className="w-full max-w-[26rem] rounded-[1.25rem] bg-white p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
+        className="w-full max-w-104 rounded-perf-modal bg-white p-6 shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
         onClick={(e) => e.stopPropagation()}
       >
         <h2
@@ -102,7 +102,7 @@ export default function WithdrawModal({ open, onClose }: WithdrawModalProps) {
             return (
               <label
                 key={item}
-                className={`flex h-[3.25rem] cursor-pointer items-center gap-3 rounded-xl border px-4 transition ${
+                className={`flex h-13 cursor-pointer items-center gap-3 rounded-xl border px-4 transition ${
                   selected ? "border-accent bg-surface-info" : "border-line"
                 }`}
               >
@@ -135,7 +135,7 @@ export default function WithdrawModal({ open, onClose }: WithdrawModalProps) {
               value={etcText}
               onChange={(e) => setEtcText(e.target.value)}
               placeholder="탈퇴 사유를 직접 입력해주세요"
-              className="h-[3.25rem] w-full rounded-xl border border-line px-4 text-sm text-ink outline-none focus:border-accent"
+              className="h-13 w-full rounded-xl border border-line px-4 text-sm text-ink outline-hidden focus:border-accent"
             />
           )}
         </div>

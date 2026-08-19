@@ -22,7 +22,7 @@
 import { Link } from "react-router";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
-  approved: { label: "연결됨", cls: "bg-[#e7f2fb] text-accent" },
+  approved: { label: "연결됨", cls: "bg-performance-chip text-accent" },
   pending: { label: "수락대기", cls: "bg-[#ffd9d9] text-error" },
 };
 
@@ -91,7 +91,7 @@ export default function ChildCard({ child, onRemove }: ChildCardProps) {
   const services = Array.isArray(child.services) ? child.services : [];
 
   return (
-    <div className="flex w-full flex-col rounded-2xl border border-line bg-white p-[2.0625rem]">
+    <div className="flex w-full flex-col rounded-2xl border border-line bg-white p-8.25">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <span className="text-[1.0625rem] font-semibold text-ink">

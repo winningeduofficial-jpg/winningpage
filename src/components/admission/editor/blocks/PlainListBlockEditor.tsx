@@ -70,7 +70,7 @@ export default function PlainListBlockEditor({
               value={item.type ?? "text"}
               onChange={(e) => updateItem(idx, { type: e.target.value })}
               aria-label={`항목 ${idx + 1} 종류`}
-              className="border border-[#d7d7d7] px-1 py-1 text-[11px]"
+              className="border border-line px-1 py-1 text-[11px]"
             >
               <option value="bullet">bullet</option>
               <option value="subtitle">subtitle</option>
@@ -81,7 +81,7 @@ export default function PlainListBlockEditor({
               value={item.text ?? ""}
               onCommit={(text) => updateItem(idx, { text })}
               aria-label={`항목 ${idx + 1} 텍스트`}
-              className="admission-cell-editor-input w-full border border-[#d7d7d7] px-2 py-1 text-xs"
+              className="admission-cell-editor-input w-full border border-line px-2 py-1 text-xs"
             />
             <button
               type="button"

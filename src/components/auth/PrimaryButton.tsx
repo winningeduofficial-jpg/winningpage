@@ -13,8 +13,8 @@ import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 const SIZE_CLASSES: Record<string, string> = {
-  default: "h-[3.25rem] text-base", // 52px, 16px
-  lg: "h-[3.75rem] text-xl", // 60px, 20px
+  default: "h-13 text-base", // 52px, 16px
+  lg: "h-perf-inset text-xl", // 60px, 20px
 };
 
 const RADIUS_CLASSES: Record<string, string> = {
