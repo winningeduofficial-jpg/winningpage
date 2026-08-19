@@ -1,7 +1,13 @@
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
 import type { ReactNode } from "react";
-import { useId, useRef } from "react";
-import { useModalBehavior } from "@/hooks/useModalBehavior";
+import { useId } from "react";
+import {
+  Dialog,
+  DialogClose,
+  DialogOverlay,
+  DialogPortal,
+} from "@/components/ui/dialog";
 
 type AppModalProps = {
   open: boolean;
@@ -23,14 +29,18 @@ type AppModalProps = {
 // 그대로 재사용 가능하게 title/subtitle/children/footer 전부 caller가 채우는 구조로 설계했다.
 //
 // 시안 6종 전부 X 닫기 버튼이 없지만, 접근성을 위해 X 버튼을 추가한다(사용자 확정 사항).
-// role="dialog" + aria-modal + aria-labelledby, focus trap, ESC 닫기, 배경 스크롤 잠금,
-// 열릴 때 첫 포커서블로 포커스 이동, 닫힐 때 트리거로 포커스 복귀까지 전부 이 셸이 담당한다
-// (시안엔 전혀 표현되지 않은 접근성 요구사항 — 00-INDEX.md §8-4 마지막 줄 근거).
 //
-// **동작 로직(위 4가지)은 `useModalBehavior`(src/hooks/useModalBehavior.js)로 옮겼다.** 그
-// 훅이 "열린 채 언마운트되는 경우에도 포커스 복귀"(스크롤 잠금과 같은 cleanup에 묶은 이유)를
-// 포함해 아래 동작 전부를 그대로 담당한다 — 수행평가 앱 주제 상세 모달(§5.11)이 프레젠테이션
-// 없이 이 동작만 재사용하기 때문에 분리했다. 이 파일은 이제 프레젠테이션(마크업·스타일)만 갖는다.
+// **동작(ESC 닫기 / Tab focus trap / 배경 스크롤 잠금 / 딤 클릭 닫기 / 포커스 이동·복귀)은
+// shadcn/ui Dialog(Base UI 기반, src/components/ui/dialog.tsx)가 기본 제공한다.** 예전엔
+// `useModalBehavior`(src/hooks/useModalBehavior.ts)가 이 동작을 담당했지만, 이 파일은 더 이상
+// 그 훅을 쓰지 않는다 — 수행평가 앱의 주제 상세 모달(§5.11)이 여전히 그 훅을 쓰므로 훅 파일
+// 자체는 남아 있다.
+//
+// DialogContent(components/ui/dialog.tsx)를 그대로 쓰지 않고 Popup을 직접 조립하는 이유는
+// MyPageModalShell(src/components/mypage/MyPageModalShell.tsx)과 동일하다 — 기본 클래스(폭·
+// 패딩·오버레이 색)가 이 셸의 실측 규격과 충돌해서, Dialog/DialogOverlay/DialogPortal/
+// DialogClose만 shadcn 프리미티브를 쓰고 Popup은 Base UI 원본을 그대로 써서 기존 패널
+// 마크업을 1:1로 재현한다.
 //
 // 높이는 모달마다 다르다(468/574/574, part-06/07/08). 고정 height를 주지 않고 내용에 따라
 // 자라게 두고, max-h + overflow-y-auto로 뷰포트 초과만 방지한다.
@@ -48,84 +58,74 @@ export default function AppModal({
   submitDisabled = false,
   className = "",
 }: AppModalProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
-  // ESC 닫기 + Tab focus trap + 배경 스크롤 잠금 + 포커스 이동/복귀 — 전부
-  // `useModalBehavior`(src/hooks/useModalBehavior.js)가 담당한다. 동작은 이전과 완전히
-  // 동일하다(그대로 옮긴 것이라 여기 다시 설명하지 않는다 — 근거는 그 훅 파일 참고).
-  useModalBehavior({ open, onClose, panelRef });
-
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-      {/* 스크림 — 클릭 시 닫기 */}
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={title ? titleId : undefined}
-        className={`relative flex max-h-[90vh] w-132.5 flex-col overflow-hidden rounded-xl bg-white shadow-[0_24px_60px_rgba(0,0,0,0.24)] ${className}`}
-      >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="닫기"
-          className="absolute right-4.5 top-4.5 flex h-6 w-6 items-center justify-center rounded-full text-ink-sub transition-colors hover:bg-surface-04 hover:text-ink-strong"
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+    >
+      <DialogPortal>
+        <DialogOverlay className="z-100 bg-black/40" />
+        {/* Base UI가 aria-modal을 자동 배선하지 않아 리터럴로 보강 — 이 셸은 항상 모달 전용. */}
+        <DialogPrimitive.Popup
+          aria-modal="true"
+          aria-labelledby={title ? titleId : undefined}
+          className={`fixed top-1/2 left-1/2 z-100 flex max-h-[90vh] w-132.5 max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-white shadow-[0_24px_60px_rgba(0,0,0,0.24)] outline-none ${className}`}
         >
-          <X size={16} />
-        </button>
-
-        <div className="flex-1 overflow-y-auto px-7.5 pt-7.5">
-          {(title || subtitle) && (
-            <div className="mb-6.75 pr-6">
-              {title && (
-                <h2
-                  id={titleId}
-                  className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong"
-                >
-                  {title}
-                </h2>
-              )}
-              {subtitle && (
-                <p className="mt-1 text-[0.8125rem] leading-[1.4] text-ink-sub">
-                  {subtitle}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* 블록 pitch(93px = 5.8125rem)는 라벨(21)+간격(27)+컨트롤(39) 합(87)에 근접한 값이라,
-              필드 블록 사이는 별도 큰 gap 없이 살짝만(0.5rem) 띄운다 — ModalField가 라벨→컨트롤
-              간격(1.6875rem)을 자체 보유하므로 여기서는 블록 간 최소 여백만 추가. */}
-          <div className="flex flex-col gap-2 pb-7.5">{children}</div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 border-t border-[#F0F0F0] px-7.5 py-5">
-          <button
-            type="button"
-            onClick={onCancel ?? onClose}
-            className="h-9.75 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
+          <DialogClose
+            aria-label="닫기"
+            className="absolute right-4.5 top-4.5 flex h-6 w-6 items-center justify-center rounded-full text-ink-sub transition-colors hover:bg-surface-04 hover:text-ink-strong"
           >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            onClick={onSubmit}
-            disabled={submitDisabled}
-            className="h-9.75 rounded-lg bg-[#2E2A26] text-[0.875rem] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-surface-01 disabled:text-ink-sub"
-          >
-            {submitLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+            <X size={16} />
+          </DialogClose>
+
+          <div className="flex-1 overflow-y-auto px-7.5 pt-7.5">
+            {(title || subtitle) && (
+              <div className="mb-6.75 pr-6">
+                {title && (
+                  <h2
+                    id={titleId}
+                    className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong"
+                  >
+                    {title}
+                  </h2>
+                )}
+                {subtitle && (
+                  <p className="mt-1 text-[0.8125rem] leading-[1.4] text-ink-sub">
+                    {subtitle}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 블록 pitch(93px = 5.8125rem)는 라벨(21)+간격(27)+컨트롤(39) 합(87)에 근접한 값이라,
+                필드 블록 사이는 별도 큰 gap 없이 살짝만(0.5rem) 띄운다 — ModalField가 라벨→컨트롤
+                간격(1.6875rem)을 자체 보유하므로 여기서는 블록 간 최소 여백만 추가. */}
+            <div className="flex flex-col gap-2 pb-7.5">{children}</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 border-t border-[#F0F0F0] px-7.5 py-5">
+            <button
+              type="button"
+              onClick={onCancel ?? onClose}
+              className="h-9.75 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
+            >
+              {cancelLabel}
+            </button>
+            <button
+              type="button"
+              onClick={onSubmit}
+              disabled={submitDisabled}
+              className="h-9.75 rounded-lg bg-[#2E2A26] text-[0.875rem] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-surface-01 disabled:text-ink-sub"
+            >
+              {submitLabel}
+            </button>
+          </div>
+        </DialogPrimitive.Popup>
+      </DialogPortal>
+    </Dialog>
   );
 }
