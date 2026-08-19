@@ -29,10 +29,7 @@ export default function GoalAchievementCard({
   const ROW_FILL = ["bg-accent", "bg-[#ABDFBA]"];
 
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex min-h-[12.5rem] flex-col gap-5 px-6 py-6"
-    >
+    <GoalCard tone="neutral" className="flex min-h-50 flex-col gap-5 px-6 py-6">
       <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
         {title}
       </h3>
@@ -67,7 +64,7 @@ export default function GoalAchievementCard({
                 <span className="w-10 shrink-0 font-semibold text-ink-strong">
                   {week.label}
                 </span>
-                <div className="flex min-w-[8rem] flex-1 items-center gap-2">
+                <div className="flex min-w-32 flex-1 items-center gap-2">
                   <span className="w-8 shrink-0 text-ink-sub">최소</span>
                   <GoalProgressBar
                     value={week.min}
@@ -79,7 +76,7 @@ export default function GoalAchievementCard({
                     {week.min}%
                   </span>
                 </div>
-                <div className="flex min-w-[8rem] flex-1 items-center gap-2">
+                <div className="flex min-w-32 flex-1 items-center gap-2">
                   <span className="w-8 shrink-0 text-ink-sub">이상</span>
                   <GoalProgressBar
                     value={week.upper}

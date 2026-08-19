@@ -55,7 +55,7 @@ export default function MemberType() {
           size="lg"
           icon={
             <GraduationCap
-              className="h-[3.5rem] w-[3.5rem] text-primary"
+              className="h-14 w-14 text-primary"
               strokeWidth={1.5}
             />
           }
@@ -66,12 +66,7 @@ export default function MemberType() {
 
         <ChoiceCard
           size="lg"
-          icon={
-            <Users
-              className="h-[3.5rem] w-[3.5rem] text-primary"
-              strokeWidth={1.5}
-            />
-          }
+          icon={<Users className="h-14 w-14 text-primary" strokeWidth={1.5} />}
           title="학부모회원"
           description="학생 회원의 자녀가 있다면"
           onClick={() => handleSelect("parent")}

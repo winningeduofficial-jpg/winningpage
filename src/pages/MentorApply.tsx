@@ -46,13 +46,13 @@ export default function MentorApply() {
       <BenefitSection className="lg:pt-6" />
 
       {/* §4 상담 분야 — 풀블리드 가로 스크롤 트랙. §3↔§4 간격 140 을 기본 className 으로 갖고
-          있으므로 그대로 둔다(CounselFieldSection 기본값 = 'lg:pt-[8.75rem]'). */}
+          있으므로 그대로 둔다(CounselFieldSection 기본값 = 'lg:pt-35'). */}
       <CounselFieldSection />
 
       {/* §5 선발 절차 — 흰 배경(명세 §5 에 배경색 지정 없음 = 페이지 기본).
           SelectionTimeline 이 h2 를 직접 렌더하므로 ServiceSection 에 heading 을 넘기면
           h2 가 둘이 된다 — 넘기지 않는다. */}
-      <ServiceSection className="pb-16 sm:pb-20 lg:pb-[10.625rem] lg:pt-[9.375rem]">
+      <ServiceSection className="pb-16 sm:pb-20 lg:pb-42.5 lg:pt-37.5">
         <SelectionTimeline />
       </ServiceSection>
 

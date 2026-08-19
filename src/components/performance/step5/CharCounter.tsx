@@ -43,7 +43,7 @@ export default function CharCounter({
     <p
       id={id}
       className={[
-        "text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub",
+        "text-[0.875rem] font-normal leading-4.5 text-ink-sub",
         className,
       ].join(" ")}
     >

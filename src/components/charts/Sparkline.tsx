@@ -62,7 +62,7 @@ type SparkPoint = {
 // viewBox 시절과 같은 종횡비(400:112)를 유지해 시각 크기가 크게 달라지지 않게 한다.
 // 이 면적은 3개년 이상 꺾은선 기준이다 — 2점짜리 그림에 쓰면 데이터-잉크 비율이 최악이라
 // 2개년 축에서는 아예 이 컴포넌트를 부르지 않는다(파일 상단 주석 참고).
-const ASPECT_CLASS = "aspect-[400/112]";
+const ASPECT_CLASS = "aspect-400/112";
 
 // 축 최소 길이 가드. 2개년(=2점)은 GradeDelta 몫이라 여기서는 그리지 않는다.
 const MIN_SERIES_YEARS = 3;

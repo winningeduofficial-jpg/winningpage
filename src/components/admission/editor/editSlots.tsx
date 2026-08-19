@@ -113,7 +113,7 @@ export default function createEditSlots({
             value={column?.label ?? ""}
             onCommit={(next) => onUpdateColumnField(colIdx, "label", next)}
             aria-label={`컬럼 ${colIdx + 1} 라벨`}
-            className="admission-cell-editor-input w-full border border-transparent bg-transparent px-1.5 py-1 text-xs font-bold outline-none transition-colors hover:border-[#d7d7d7] hover:bg-white focus:border-[#2348ff] focus:bg-white"
+            className="admission-cell-editor-input w-full border border-transparent bg-transparent px-1.5 py-1 text-xs font-bold outline-hidden transition-colors hover:border-line hover:bg-white focus:border-[#2348ff] focus:bg-white"
           />
           {showColumnSettings && (
             <>
@@ -134,7 +134,7 @@ export default function createEditSlots({
                   )
                 }
                 aria-label={`컬럼 ${colIdx + 1} 정렬`}
-                className="border border-[#d7d7d7] px-1 py-1 text-[11px]"
+                className="border border-line px-1 py-1 text-[11px]"
               >
                 <option value="">(기본 정렬)</option>
                 <option value="left">left</option>

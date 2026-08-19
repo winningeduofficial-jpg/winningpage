@@ -338,17 +338,17 @@ export default function ComboField({
   return (
     <div ref={wrapperRef} className={`relative ${className}`}>
       <div
-        className={`flex h-[4.5rem] w-full flex-col justify-center gap-1 px-5 transition-colors wide:h-[6.1875rem] wide:px-8 ${
+        className={`flex h-18 w-full flex-col justify-center gap-1 px-5 transition-colors wide:h-24.75 wide:px-8 ${
           disabled
             ? ""
-            : "focus-within:ring-2 focus-within:ring-inset focus-within:ring-[#0b84fd]"
+            : "focus-within:ring-2 focus-within:ring-inset focus-within:ring-accent"
         }`}
       >
         <label
           id={labelId}
           htmlFor={inputId}
           className={`text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] ${
-            disabled ? "text-[#8f8f8f]" : "text-[#525252]"
+            disabled ? "text-[#8f8f8f]" : "text-ink"
           }`}
         >
           {label}
@@ -381,10 +381,10 @@ export default function ComboField({
             onChange={handleChange}
             onClick={handleClick}
             onKeyDown={handleKeyDown}
-            className={`min-w-0 flex-1 border-0 bg-transparent p-0 text-[1.125rem] font-medium leading-[1.3] tracking-[-0.02em] text-[#0f172a] outline-none wide:text-[1.5rem] ${
+            className={`min-w-0 flex-1 border-0 bg-transparent p-0 text-[1.125rem] font-medium leading-[1.3] tracking-[-0.02em] text-[#0f172a] outline-hidden wide:text-[1.5rem] ${
               disabled
                 ? "cursor-not-allowed placeholder:text-[#8f8f8f]"
-                : "placeholder:text-[#d7d7d7]"
+                : "placeholder:text-line"
             }`}
           />
 
@@ -397,7 +397,7 @@ export default function ComboField({
               aria-label={`${label} 입력 지우기`}
               onMouseDown={(event) => event.preventDefault()}
               onClick={handleClear}
-              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#8f8f8f] transition-colors hover:bg-[#f0f1f3] hover:text-[#525252]"
+              className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[#8f8f8f] transition-colors hover:bg-[#f0f1f3] hover:text-ink"
             >
               <svg
                 viewBox="0 0 16 16"
@@ -417,9 +417,9 @@ export default function ComboField({
       </div>
 
       {open ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-[1.25rem] border border-[#d7d7d7] bg-white shadow-[0_0.625rem_1.75rem_rgba(13,27,42,0.12)]">
+        <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 overflow-hidden rounded-perf-modal border border-line bg-white shadow-[0_0.625rem_1.75rem_rgba(13,27,42,0.12)]">
           {/* iOS 키보드가 올라오면 vh는 줄지 않아 목록 하단이 화면 밖으로 밀린다 → dvh. */}
-          <div className="ar-popover-scroll max-h-[60dvh] overflow-y-auto wide:max-h-[28rem]">
+          <div className="ar-popover-scroll max-h-[60dvh] overflow-y-auto wide:max-h-112">
             {loading ? (
               <PopoverStatus title="목록을 불러오는 중입니다." />
             ) : null}
@@ -474,15 +474,15 @@ export default function ComboField({
                       // 옵션을 누를 때 입력에서 포커스가 빠지지 않게 기본 동작을 막는다.
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => choose(index)}
-                      className={`flex h-[3.625rem] cursor-pointer items-center justify-between gap-4 border-b border-[#d7d7d7] px-6 last:border-b-0 ${
-                        isActive ? "bg-[#f9fafb]" : "bg-white"
+                      className={`flex h-14.5 cursor-pointer items-center justify-between gap-4 border-b border-line px-6 last:border-b-0 ${
+                        isActive ? "bg-surface-footer" : "bg-white"
                       }`}
                     >
                       <span
                         className={`min-w-0 truncate text-base leading-[1.3] tracking-[-0.02em] wide:text-xl ${
                           isSelected
-                            ? "font-semibold text-[#013262]"
-                            : "font-medium text-[#525252]"
+                            ? "font-semibold text-primary"
+                            : "font-medium text-ink"
                         }`}
                       >
                         {option.label}

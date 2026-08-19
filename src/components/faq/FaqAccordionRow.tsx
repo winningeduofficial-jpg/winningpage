@@ -40,20 +40,20 @@ export default function FaqAccordionRow({
   }, [isOpen]);
 
   return (
-    <div className="border-b border-[#D7D7D7]">
+    <div className="border-b border-line">
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={isOpen}
         aria-controls={answerId}
-        className="flex w-full items-center justify-between gap-4 px-[1.375rem] py-[1.75rem] text-left transition-colors hover:bg-[#F9FAFB] focus-visible:bg-[#F9FAFB] focus-visible:outline-none"
+        className="flex w-full items-center justify-between gap-4 px-5.5 py-7 text-left transition-colors hover:bg-surface-footer focus-visible:bg-surface-footer focus-visible:outline-hidden"
       >
-        <span className="break-keep text-base font-normal leading-[1.3] tracking-[-0.02em] text-[#525252]">
+        <span className="break-keep text-base font-normal leading-[1.3] tracking-[-0.02em] text-ink">
           {faq.question}
         </span>
         <ChevronDown
           aria-hidden="true"
-          className={`h-[1.125rem] w-[1.125rem] shrink-0 text-[#1F1F1F] transition-transform ${
+          className={`h-4.5 w-4.5 shrink-0 text-[#1F1F1F] transition-transform ${
             isOpen ? "rotate-180" : ""
           }`}
         />
@@ -67,7 +67,7 @@ export default function FaqAccordionRow({
       <div
         id={answerId}
         hidden={!isOpen}
-        className="faq-answer-body bg-[#F9FAFB] px-[1.375rem] py-[1.5rem] sm:px-[2.25rem] sm:py-[1.875rem]"
+        className="faq-answer-body bg-surface-footer px-5.5 py-6 sm:px-9 sm:py-7.5"
       >
         {/* ColumnBody에는 className을 넘기지 않는다 — 여백(padding)은 이 래퍼 div가
             담당하고, ColumnBody는 기본 타이포(RICH_BASE/PLAIN_BASE)만 그대로 쓴다. */}

@@ -200,7 +200,7 @@ function OnboardingWizard() {
       {submitError && (
         <div
           role="alert"
-          className={`fixed inset-x-0 bottom-[2rem] z-[55] mx-auto w-[calc(100%-2.5rem)] max-w-[28rem] rounded-[0.75rem] border px-[1.25rem] py-[1rem] text-center text-[0.875rem] font-semibold shadow-[0_18px_45px_rgba(13,27,42,0.15)] ${
+          className={`fixed inset-x-0 bottom-8 z-55 mx-auto w-[calc(100%-2.5rem)] max-w-md rounded-xl border px-5 py-4 text-center text-[0.875rem] font-semibold shadow-[0_18px_45px_rgba(13,27,42,0.15)] ${
             submitError.tone === "error"
               ? "border-red-200 bg-red-50 text-red-600"
               : "border-blue-200 bg-blue-50 text-blue-700"

@@ -243,14 +243,14 @@ export default function HeroSection({
       {/* lg 가로 배치: gap 18px(1101x480 시안 원값)→1.125rem
           좌 73.89%(813.28/1100.6) + 우 24.47%(269.32/1100.6)
           lg 상단 패딩: 헤더 하단→배너 120px→7.5rem. pb는 0 — 다음 섹션 pt에서 갭 처리(섹션 수직 리듬 규칙) */}
-      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 py-8 sm:px-8 lg:flex-row lg:items-start lg:justify-center lg:gap-[1.125rem] lg:pb-0 lg:pt-[7.5rem]">
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 py-8 sm:px-8 lg:flex-row lg:items-start lg:justify-center lg:gap-4.5 lg:pb-0 lg:pt-30">
         {/* 좌측 캐러셀 969×429 + 카드 바깥 하단 인디케이터 */}
         {leftSlideCount > 0 && (
           <div className="flex w-full flex-col items-center lg:basis-[73.89%] lg:grow lg:shrink-0">
             <section
               aria-roledescription="carousel"
               aria-label="메인 배너"
-              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-[#050D2B] aspect-[969/429] hero-reveal-left"
+              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-[#050D2B] aspect-969/429 hero-reveal-left"
               onMouseEnter={leftCarousel.onMouseEnter}
               onMouseLeave={leftCarousel.onMouseLeave}
               onFocusCapture={leftCarousel.onFocusCapture}
@@ -334,7 +334,7 @@ export default function HeroSection({
             {/* 페이지네이션 인디케이터 — 카드 바깥 아래, 카드 기준 가로 중앙 (2건 이상일 때만)
                 lg 배너→인디케이터 간격: 시안 35px×0.8347=29.21→1.83rem */}
             {leftSlideCount > 1 && (
-              <div className="mt-3 flex items-center gap-[0.625rem] hero-reveal-indicator lg:mt-[1.83rem]">
+              <div className="mt-3 flex items-center gap-2.5 hero-reveal-indicator lg:mt-[1.83rem]">
                 {leftSlides.map((banner, index) => (
                   <button
                     key={banner.id ?? index}
@@ -344,7 +344,7 @@ export default function HeroSection({
                     onClick={() => leftCarousel.goTo(index)}
                     className={`relative h-3 w-3 rounded-full transition-colors duration-300 after:absolute after:-inset-4 after:content-[''] ${
                       index === leftCarousel.activeIndex
-                        ? "bg-[#013262]"
+                        ? "bg-primary"
                         : "bg-[#D9D9D9]"
                     }`}
                   />
@@ -356,11 +356,11 @@ export default function HeroSection({
 
         {/* 우측 캐러셀 321×429 + 카드 바깥 하단 인디케이터 */}
         {rightSlideCount > 0 && (
-          <div className="flex w-full max-w-[20.0625rem] flex-col items-center md:max-w-[26rem] lg:max-w-none lg:basis-[24.47%] lg:grow lg:shrink-0">
+          <div className="flex w-full max-w-80.25 flex-col items-center md:max-w-104 lg:max-w-none lg:basis-[24.47%] lg:grow lg:shrink-0">
             <section
               aria-roledescription="carousel"
               aria-label="이벤트 배너"
-              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-gradient-to-b from-[#0039B6] to-[#001950] aspect-[321/429] hero-reveal-right"
+              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-linear-to-b from-[#0039B6] to-[#001950] aspect-321/429 hero-reveal-right"
               onMouseEnter={rightCarousel.onMouseEnter}
               onMouseLeave={rightCarousel.onMouseLeave}
               onFocusCapture={rightCarousel.onFocusCapture}
@@ -434,7 +434,7 @@ export default function HeroSection({
             {/* 페이지네이션 인디케이터 — 카드 바깥 아래, 카드 기준 가로 중앙 (2건 이상일 때만)
                 lg 배너→인디케이터 간격: 시안 35px×0.8347=29.21→1.83rem */}
             {rightSlideCount > 1 && (
-              <div className="mt-3 flex items-center gap-[0.625rem] hero-reveal-indicator lg:mt-[1.83rem]">
+              <div className="mt-3 flex items-center gap-2.5 hero-reveal-indicator lg:mt-[1.83rem]">
                 {rightSlides.map((slide, index) => (
                   <button
                     key={slide.id ?? index}
@@ -444,7 +444,7 @@ export default function HeroSection({
                     onClick={() => rightCarousel.goTo(index)}
                     className={`relative h-3 w-3 rounded-full transition-colors duration-300 after:absolute after:-inset-4 after:content-[''] ${
                       index === rightCarousel.activeIndex
-                        ? "bg-[#013262]"
+                        ? "bg-primary"
                         : "bg-[#D9D9D9]"
                     }`}
                   />

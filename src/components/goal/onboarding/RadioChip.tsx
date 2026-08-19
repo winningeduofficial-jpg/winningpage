@@ -17,7 +17,7 @@ export default function RadioChip({
 }: RadioChipProps) {
   return (
     <label
-      className={`flex h-[4.25rem] shrink-0 cursor-pointer items-center gap-[1.5rem] rounded-full border px-[1.25rem] text-[1rem] font-medium leading-[1.4] transition-colors ${
+      className={`flex h-17 shrink-0 cursor-pointer items-center gap-6 rounded-full border px-5 text-[1rem] font-medium leading-[1.4] transition-colors ${
         selected
           ? "border-accent bg-surface-03 text-accent"
           : "border-line bg-white text-ink hover:border-accent/50"

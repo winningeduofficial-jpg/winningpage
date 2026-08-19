@@ -69,9 +69,9 @@ export default function SelectorBar({
   const canSubmit = Boolean(university && department);
 
   return (
-    <div className="grid grid-cols-1 rounded-[1.25rem] border border-[#d7d7d7] bg-white sm:grid-cols-2 wide:grid-cols-[1fr_1fr_7.75rem]">
+    <div className="grid grid-cols-1 rounded-perf-modal border border-line bg-white sm:grid-cols-2 wide:grid-cols-[1fr_1fr_7.75rem]">
       <ComboField
-        className="border-b border-[#d7d7d7] sm:border-b-0 sm:border-r"
+        className="border-b border-line sm:border-b-0 sm:border-r"
         label={UNIVERSITY_LABEL}
         placeholder={UNIVERSITY_PLACEHOLDER}
         value={university}
@@ -94,7 +94,7 @@ export default function SelectorBar({
       />
 
       <ComboField
-        className="border-b border-[#d7d7d7] wide:border-b-0 wide:border-r"
+        className="border-b border-line wide:border-b-0 wide:border-r"
         label={DEPARTMENT_LABEL}
         placeholder={DEPARTMENT_PLACEHOLDER}
         value={department}
@@ -122,9 +122,9 @@ export default function SelectorBar({
         type="button"
         onClick={onSubmit}
         disabled={!canSubmit}
-        className={`flex h-14 items-center justify-center rounded-b-[1.25rem] text-base font-semibold tracking-[-0.02em] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white sm:col-span-2 wide:col-span-1 wide:h-auto wide:rounded-b-none wide:rounded-r-[1.25rem] ${
+        className={`flex h-14 items-center justify-center rounded-b-perf-modal text-base font-semibold tracking-[-0.02em] transition-colors duration-200 ease-(--ease-out-quart) focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white sm:col-span-2 wide:col-span-1 wide:h-auto wide:rounded-b-none wide:rounded-r-perf-modal ${
           canSubmit
-            ? "cursor-pointer bg-[#013262] text-white hover:bg-[#012649]"
+            ? "cursor-pointer bg-primary text-white hover:bg-[#012649]"
             : // 비활성은 시안의 네이비 대신 회색. 흰 글자를 #d7d7d7 위에 얹으면 대비 1.6:1로
               // 글자가 사실상 사라지므로 배경을 더 밝게, 글자를 더 어둡게 잡는다.
               "cursor-not-allowed bg-[#f0f1f3] text-[#a3a8ae]"

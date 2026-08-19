@@ -778,7 +778,7 @@ export default function MentorApplyForm() {
     <section
       id={MENTOR_FORM_ANCHOR_ID}
       aria-labelledby="mentor-apply-form-heading"
-      className="scroll-mt-[6.5rem] bg-surface-footer pb-16 pt-16 sm:pb-20 sm:pt-20 lg:pb-[8.875rem] lg:pt-[8.875rem]"
+      className="scroll-mt-26 bg-surface-footer pb-16 pt-16 sm:pb-20 sm:pt-20 lg:pb-35.5 lg:pt-35.5"
     >
       {/* 컨테이너 — 시안은 1155 폭이지만 전역 컨테이너(max-w-content)를 쓴다.
           §2·§3·§5·§7 과 좌우 기준선이 정확히 맞는 쪽이, 이 밴드만 55px 넓은 것보다

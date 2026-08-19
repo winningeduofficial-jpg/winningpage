@@ -2,7 +2,7 @@ import { CARD_DESC_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
 // cardSurface: 리터럴 lookup — 클래스 문자열 템플릿 조립 금지 규약(SECTION_SURFACE 와 동일).
 const AUDIENCE_CARD_SURFACE: Record<string, string> = {
-  muted: "bg-[#F9FAFB]",
+  muted: "bg-surface-footer",
   white: "bg-white",
 };
 
@@ -28,7 +28,7 @@ type ServiceAudienceCardsProps = {
 //       문자 동일. 회색 밴드 위에 얹히는 콜멘토 §4 전용으로 'white' 를 넘기면 밴드와
 //       카드가 구분된다 — #F4F4F6 밴드 위 #F9FAFB 카드는 명도차가 육안 한계라 묻힌다.
 //
-// 이미지 영역은 고정 높이 h-[10.5rem] 하나로 통일한다 — 시안 인셋이 카드마다 6~36px 로
+// 이미지 영역은 고정 높이 h-42 하나로 통일한다 — 시안 인셋이 카드마다 6~36px 로
 // 제각각인 것은 원본 일러스트 여백 차이를 눈대중으로 얹은 것이라 재현하지 않는다.
 // 레터박스 여백은 카드 배경이 그대로 채운다.
 export default function ServiceAudienceCards({
@@ -37,7 +37,7 @@ export default function ServiceAudienceCards({
   cardSurface = "muted",
 }: ServiceAudienceCardsProps) {
   return (
-    <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] lg:grid-cols-4">
+    <div className="mt-10 grid grid-cols-1 gap-4 sm:mt-12 sm:grid-cols-2 lg:mt-perf-inset lg:grid-cols-4">
       {items.map((item) => (
         <article
           key={item.title}
@@ -46,10 +46,10 @@ export default function ServiceAudienceCards({
           <img
             src={item.image}
             alt={item.title}
-            className={`h-[10.5rem] w-full ${imageFit === "cover" ? "object-cover" : "object-contain"}`}
+            className={`h-42 w-full ${imageFit === "cover" ? "object-cover" : "object-contain"}`}
           />
           {/* 제목↔본문 간격 23px, 하단 패딩 39px, 상단 28px, 좌우 26px ≈ px-6. */}
-          <div className="flex flex-1 flex-col gap-[1.4375rem] px-6 pb-[2.4375rem] pt-[1.75rem]">
+          <div className="flex flex-1 flex-col gap-5.75 px-6 pb-9.75 pt-7">
             <p className={CARD_TITLE_CLASS}>{item.title}</p>
             <p className={CARD_DESC_CLASS}>{item.desc}</p>
           </div>

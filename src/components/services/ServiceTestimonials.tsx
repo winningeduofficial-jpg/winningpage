@@ -36,23 +36,23 @@ export default function ServiceTestimonials({
 }: ServiceTestimonialsProps) {
   return (
     <div
-      className={`mt-10 grid grid-cols-1 gap-5 sm:mt-12 lg:mt-[3.75rem] ${TESTIMONIAL_COLS[columns]} lg:gap-[2.875rem]`}
+      className={`mt-10 grid grid-cols-1 gap-5 sm:mt-12 lg:mt-perf-inset ${TESTIMONIAL_COLS[columns]} lg:gap-11.5`}
     >
       {items.map((item) => (
         // radius 40 → 30.6px = rounded-[2rem], padding 40 → 30.6px = p-[1.875rem],
         // 그림자 offset(0,2)/blur 4/rgba(213,213,213,0.25)는 시안 실측 그대로.
         <figure
           key={item.quote}
-          className="flex h-full flex-col justify-between rounded-[2rem] bg-[#F9FAFB] p-[1.875rem] text-left shadow-[0_0.125rem_0.25rem_rgba(213,213,213,0.25)]"
+          className="flex h-full flex-col justify-between rounded-4xl bg-surface-footer p-7.5 text-left shadow-[0_0.125rem_0.25rem_rgba(213,213,213,0.25)]"
         >
-          <blockquote className="break-keep text-[1.0625rem] font-normal leading-[1.5] text-[#525252]">
+          <blockquote className="break-keep text-[1.0625rem] font-normal leading-normal text-ink">
             “{item.quote}”
           </blockquote>
           {/* 이름 색 #808080은 가독성 하한 미달 → #767676. 이모지는 #F1F1F1 원형 칩. */}
-          <figcaption className="mt-[0.9375rem] flex items-center gap-3">
+          <figcaption className="mt-3.75 flex items-center gap-3">
             <span
               aria-hidden="true"
-              className="flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full bg-[#F1F1F1] text-[1.75rem]"
+              className="flex h-13 w-13 items-center justify-center rounded-full bg-[#F1F1F1] text-[1.75rem]"
             >
               {item.emoji ?? "😉"}
             </span>

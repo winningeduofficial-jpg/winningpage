@@ -24,12 +24,12 @@ export default function ChipSelectSection({
   return (
     <GoalCard
       tone="neutral"
-      className={`flex h-full flex-col gap-5 px-[2rem] py-[1.875rem] ${className}`}
+      className={`flex h-full flex-col gap-5 px-8 py-7.5 ${className}`}
     >
       <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
         {title}
       </h3>
-      <div className="flex flex-wrap gap-[0.625rem]">
+      <div className="flex flex-wrap gap-2.5">
         {options.map((option) => (
           <SelectChip
             key={option.value}

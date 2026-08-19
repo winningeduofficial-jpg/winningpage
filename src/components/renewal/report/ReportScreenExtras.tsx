@@ -46,7 +46,7 @@ function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
 
   return (
     <section className="mt-8">
-      <h4 className="text-base font-semibold leading-[1.5] text-[#525252]">
+      <h4 className="text-base font-semibold leading-normal text-ink">
         {title}
       </h4>
 
@@ -68,18 +68,18 @@ function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
             className="border-t border-[#e5e5e5] py-3 lg:grid lg:grid-cols-[7rem_7.5rem_1fr] lg:items-baseline lg:gap-x-4"
           >
             <div className="flex items-baseline gap-2 lg:contents">
-              <span className="break-keep text-base font-medium leading-[1.5] text-[#525252]">
+              <span className="break-keep text-base font-medium leading-normal text-ink">
                 {row.name}
               </span>
               {/*
                 F-21 가드 — 점수·상태 라벨이 문장보다 **먼저** 읽히도록 왼쪽에 고정한다.
                 낙관적인 문구가 나와도 '38점 · 취약'이 먼저 눈에 들어와 학생이 상충을 인지한다.
               */}
-              <span className="ml-auto shrink-0 whitespace-nowrap text-base leading-[1.5] text-[#6b6b6b] tabular-nums lg:ml-0">
+              <span className="ml-auto shrink-0 whitespace-nowrap text-base leading-normal text-ink-sub tabular-nums lg:ml-0">
                 {row.score}점 · {row.status}
               </span>
             </div>
-            <p className="mt-1 break-keep text-base leading-[1.5] text-[#525252] lg:mt-0">
+            <p className="mt-1 break-keep text-base leading-normal text-ink lg:mt-0">
               {row.detail}
             </p>
           </div>
@@ -99,10 +99,10 @@ type StrategyGroupItem = {
 function StrategyGroup({ group }: { group: StrategyGroupItem }) {
   return (
     <div>
-      <h4 className="break-keep text-base font-semibold leading-[1.5] text-[#525252]">
+      <h4 className="break-keep text-base font-semibold leading-normal text-ink">
         {group.name}
       </h4>
-      <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-base leading-[1.5] text-[#525252]">
+      <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-base leading-normal text-ink">
         {group.items.map((item) => (
           <li key={item} className="break-keep">
             {item}
@@ -198,20 +198,20 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
 
   return (
     <section
-      className="fd-screen-only w-full max-w-[70rem] px-4 lg:px-0"
+      className="fd-screen-only w-full max-w-280 px-4 lg:px-0"
       aria-label={copy.sectionTitle}
     >
-      <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-[#013262]">
+      <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-primary">
         {copy.sectionTitle}
       </h2>
-      <p className="mt-4 text-base leading-[1.5] text-[#6b6b6b]">
+      <p className="mt-4 text-base leading-normal text-ink-sub">
         {copy.screenOnlyNote}
       </p>
 
       {/* ── 블록 A — 영역별 상세 진단 12행(AREA_COPY.levels) ── */}
       {hasAreaDetails && (
         <section>
-          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-[#0b84fd] lg:mt-16">
+          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
             {copy.areaDetailTitle.section}
           </h3>
           {/*
@@ -220,7 +220,7 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
             기본 픽스처에서는 보이지 않으니 '배선 누락'으로 오판하지 마라.
           */}
           {notices?.skipNote && (
-            <p className="mt-4 text-base leading-[1.5] text-[#6b6b6b]">
+            <p className="mt-4 text-base leading-normal text-ink-sub">
               {notices.skipNote}
             </p>
           )}
@@ -235,11 +235,11 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
       {/* ── 블록 B — 긴급도 한 줄 + 맞춤 전략(AREA_COPY.strategies) ── */}
       {(strategyLead || hasStrategies || hasTodos) && (
         <section>
-          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-[#0b84fd] lg:mt-16">
+          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
             {copy.strategyTitle}
           </h3>
           {strategyLead && (
-            <p className="mt-4 text-base leading-[1.5] text-[#6b6b6b]">
+            <p className="mt-4 text-base leading-normal text-ink-sub">
               {strategyLead}
             </p>
           )}
@@ -251,10 +251,10 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
           */}
           {hasTodos && (
             <div className="mt-6">
-              <h4 className="break-keep text-base font-semibold leading-[1.5] text-[#525252]">
+              <h4 className="break-keep text-base font-semibold leading-normal text-ink">
                 {copy.strategyTodosTitle}
               </h4>
-              <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-base leading-[1.5] text-[#525252]">
+              <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-base leading-normal text-ink">
                 {typeTodos.map((item) => (
                   <li key={item} className="break-keep">
                     {item}
@@ -274,7 +274,7 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
 
           {restGroups.length > 0 && (
             <details className="mt-10">
-              <summary className="cursor-pointer py-2 text-base font-medium text-[#1b5da0] underline underline-offset-4 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+              <summary className="cursor-pointer py-2 text-base font-medium text-performance-reportHeading underline underline-offset-4 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
                 {copy.strategyMoreLabel}
               </summary>
               {/* 접혀 있어도 DOM 에는 존재한다 — Ctrl+F 검색과 스크린리더 탐색이 그대로 된다. */}
@@ -297,10 +297,10 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
             연달아 읽혀 쌍이 유지되면서, 인쇄 여유(2p 52.6px)를 1px 도 쓰지 않는다.
             새 고지가 생기면 먼저 의미상 소속 섹션을 찾아라 — 여기에 몰아넣지 않는다.
           */}
-          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-[#0b84fd] lg:mt-16">
+          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
             {copy.noticeTitle}
           </h3>
-          <p className="mt-4 max-w-[45rem] break-keep text-base leading-[1.6] text-[#525252]">
+          <p className="mt-4 max-w-180 break-keep text-base leading-[1.6] text-ink">
             {/* hasNotice가 true인 분기이므로 notices?.reportLimit은 항상 truthy(동작 동일). */}
             {notices?.reportLimit}
           </p>

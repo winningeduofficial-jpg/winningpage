@@ -84,7 +84,7 @@ export default function DocBlocksEditor({
   return (
     <div className="admission-doc-blocks-editor">
       {!validation.ok && (
-        <div className="mb-3 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+        <div className="mb-3 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           <p>문서 구조 검증 실패 — 저장하기 전에 고쳐야 합니다:</p>
           <ul className="mt-1 list-disc pl-4">
             {withDedupedKeys(validation.errors).map(({ item: error, key }) => (
@@ -137,7 +137,7 @@ export default function DocBlocksEditor({
           return (
             // biome-ignore lint/suspicious/noArrayIndexKey: blocks는 이 편집기에서 순서 이동·삭제가 가능하지만 doc 스키마에 block id가 없다. 스키마 확장 없이는 못 고치는 기존 제약 — 새 이슈로 별도 추적한다.
             <div key={idx} className="group relative mb-4">
-              <div className="pointer-events-none absolute right-1 top-1 z-10 flex items-center gap-1 rounded border border-[#e5e7eb] bg-white/95 px-1.5 py-1 opacity-0 shadow-sm transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
+              <div className="pointer-events-none absolute right-1 top-1 z-10 flex items-center gap-1 rounded-sm border border-[#e5e7eb] bg-white/95 px-1.5 py-1 opacity-0 shadow-xs transition-opacity group-hover:pointer-events-auto group-hover:opacity-100">
                 {blockControls}
               </div>
               <AdmissionBlockEditor
@@ -163,8 +163,8 @@ export default function DocBlocksEditor({
 
         return (
           // biome-ignore lint/suspicious/noArrayIndexKey: 위와 동일 — blocks에 id가 없는 기존 스키마 제약.
-          <div key={idx} className="mb-4 rounded border border-[#e5e7eb]">
-            <div className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-[#f9fafb] px-2 py-1">
+          <div key={idx} className="mb-4 rounded-sm border border-[#e5e7eb]">
+            <div className="flex items-center justify-between gap-2 border-b border-[#e5e7eb] bg-surface-footer px-2 py-1">
               <span className="text-[11px] font-bold text-gray-500">
                 {BLOCK_KIND_LABELS[block.kind] || block.kind} {idx + 1}
               </span>
@@ -190,7 +190,7 @@ export default function DocBlocksEditor({
             value={addKind}
             onChange={(e) => setAddKind(e.target.value)}
             aria-label="추가할 내용 종류"
-            className="border border-[#d7d7d7] px-1 py-1 text-[11px] font-normal text-gray-700"
+            className="border border-line px-1 py-1 text-[11px] font-normal text-gray-700"
           >
             {visibleKinds.map((kind) => (
               <option key={kind} value={kind}>

@@ -42,14 +42,14 @@ export default function BoardSearchBar({
     // 하나로 수렴')와 일치한다.
     // 시안에 붙어 있던 '대학' 드롭다운은 제거 확정(다른 화면 복붙 잔재) — 폭 근거도 그만큼 약하다.
     <div
-      className={`relative h-11 w-full rounded-[0.625rem] border border-[#D7D7D7] bg-white sm:w-[23.625rem] sm:self-end ${className}`}
+      className={`relative h-11 w-full rounded-[0.625rem] border border-line bg-white sm:w-94.5 sm:self-end ${className}`}
     >
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         aria-label={ariaLabel}
-        className="h-full w-full bg-transparent pl-5 pr-12 text-base font-semibold text-[#525252] outline-none placeholder:text-[#D7D7D7]"
+        className="h-full w-full bg-transparent pl-5 pr-12 text-base font-semibold text-ink outline-hidden placeholder:text-line"
       />
       {/* 시안은 돋보기를 36×36 버튼으로 그렸지만 장식 아이콘으로 둔다.
           검색이 입력 즉시 클라이언트 필터링이라 제출 트리거가 없고, 아무 동작도 없는

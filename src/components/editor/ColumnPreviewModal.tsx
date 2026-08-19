@@ -1,9 +1,15 @@
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { X } from "lucide-react";
-import { useEffect } from "react";
 import ColumnBody, {
   type ColumnBodyPost,
   getContentBlocks,
 } from "@/components/column/ColumnBody";
+import {
+  Dialog,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { getCoverUrl } from "@/pages/column/columnData";
 import { isEmptyDocument } from "./BlockEditor";
 
@@ -17,38 +23,17 @@ type ColumnPreviewModalProps = {
 // 온디맨드 스냅샷 렌더러 — 에디터 state를 구독하지 않는다.
 // post는 "미리보기" 버튼을 눌렀을 때 editorRef.getBlocks()를 1회 호출해 만든 스냅샷이며,
 // 여기서 에디터로 되돌아가는 데이터 경로는 없다(읽기 전용).
+//
+// 스크롤 잠금·ESC 닫기·포커스 트랩은 shadcn Dialog(Base UI) 내장 동작으로 처리한다 —
+// 별도 useEffect 없음. 헤더의 X 버튼은 기존 마크업을 그대로 유지한다(shadcn 기본
+// 닫기 버튼은 쓰지 않는다 — 이 파일은 DialogContent가 아니라 Dialog 하위 요소를
+// 직접 조합해 쓴다).
 export default function ColumnPreviewModal({
   open,
   onClose,
   post,
   label = "교육칼럼",
 }: ColumnPreviewModalProps) {
-  useEffect(() => {
-    if (!open) return undefined;
-
-    const { style } = document.body;
-    const previousOverflow = style.overflow;
-    style.overflow = "hidden";
-
-    return () => {
-      style.overflow = previousOverflow;
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
-
   if (!open) return null;
 
   const coverUrl = post ? getCoverUrl(post) : "";
@@ -61,62 +46,63 @@ export default function ColumnPreviewModal({
     !String(post?.content ?? "").trim();
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8"
-      role="dialog"
-      aria-modal="true"
-      aria-label={`${label} 미리보기`}
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 장식 레이어임을 명시했다. Escape는 위 document keydown 리스너가 처리한다. */}
-      <div
-        role="presentation"
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-      />
-
-      <div className="relative flex h-[90vh] w-full max-w-[64rem] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-        <div className="flex shrink-0 items-center justify-between border-b border-[#edf0f4] px-6 py-4">
-          <h2 className="text-sm font-black text-[#111827]">
-            미리보기 — 공개 페이지에서 이렇게 보입니다
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="미리보기 닫기"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#525252] hover:bg-[#F4F4F4]"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto bg-white">
-          {coverUrl && (
-            <img
-              src={coverUrl}
-              alt={(post?.title as string) || ""}
-              className="h-[16rem] w-full object-cover sm:h-[20rem]"
-            />
-          )}
-
-          {/* 45rem 캡은 ColumnBody 자신의 루트 div가 이미 가지고 있다(공개 페이지와 동일 클래스).
-              여기서 또 max-w-[45rem]을 씌우면 좌우 padding만큼 줄어든 폭이 되어 720px를 못 채운다 —
-              바깥은 넉넉한 폭만 주고 실제 캡은 ColumnBody에 맡긴다. */}
-          <div className="mx-auto w-full max-w-[52rem] px-5 py-10 sm:px-8">
-            <p className="mb-2 text-base font-semibold leading-[1.4] tracking-[-0.02em] text-accent">
-              {label}
-            </p>
-            <h1 className="mb-8 break-keep text-3xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252] sm:text-[2.25rem]">
-              {(post?.title as string) || "(제목 없음)"}
-            </h1>
-
-            {isEmpty ? (
-              <p className="text-sm text-gray-400">본문이 비어 있습니다.</p>
-            ) : (
-              <ColumnBody post={post} />
-            )}
+      <DialogPortal>
+        <DialogOverlay className="bg-black/50" />
+        <DialogPrimitive.Popup
+          data-slot="dialog-content"
+          // Base UI Popup은 aria-modal을 자동 배선하지 않는다 — 리터럴로 명시.
+          aria-modal="true"
+          className="fixed top-1/2 left-1/2 z-100 flex h-[90vh] w-[calc(100%-2rem)] max-w-5xl -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl bg-white shadow-2xl outline-none sm:w-[calc(100%-4rem)]"
+        >
+          <div className="flex shrink-0 items-center justify-between border-b border-[#edf0f4] px-6 py-4">
+            <DialogTitle className="text-sm font-black text-[#111827]">
+              미리보기 — 공개 페이지에서 이렇게 보입니다
+            </DialogTitle>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="미리보기 닫기"
+              className="flex h-9 w-9 items-center justify-center rounded-full text-ink hover:bg-[#F4F4F4]"
+            >
+              <X size={20} />
+            </button>
           </div>
-        </div>
-      </div>
-    </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto bg-white">
+            {coverUrl && (
+              <img
+                src={coverUrl}
+                alt={(post?.title as string) || ""}
+                className="h-64 w-full object-cover sm:h-80"
+              />
+            )}
+
+            {/* 45rem 캡은 ColumnBody 자신의 루트 div가 이미 가지고 있다(공개 페이지와 동일 클래스).
+                여기서 또 max-w-[45rem]을 씌우면 좌우 padding만큼 줄어든 폭이 되어 720px를 못 채운다 —
+                바깥은 넉넉한 폭만 주고 실제 캡은 ColumnBody에 맡긴다. */}
+            <div className="mx-auto w-full max-w-208 px-5 py-10 sm:px-8">
+              <p className="mb-2 text-base font-semibold leading-[1.4] tracking-[-0.02em] text-accent">
+                {label}
+              </p>
+              <h1 className="mb-8 break-keep text-3xl font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2.25rem]">
+                {(post?.title as string) || "(제목 없음)"}
+              </h1>
+
+              {isEmpty ? (
+                <p className="text-sm text-gray-400">본문이 비어 있습니다.</p>
+              ) : (
+                <ColumnBody post={post} />
+              )}
+            </div>
+          </div>
+        </DialogPrimitive.Popup>
+      </DialogPortal>
+    </Dialog>
   );
 }

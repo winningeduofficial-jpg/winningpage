@@ -27,7 +27,7 @@ export default function NoteBlockEditor({
         type="text"
         value={block.text ?? ""}
         onCommit={(text) => onChange({ ...block, text })}
-        className="admission-cell-editor-input w-full border border-[#d7d7d7] px-2 py-1 text-xs"
+        className="admission-cell-editor-input w-full border border-line px-2 py-1 text-xs"
       />
     </div>
   );

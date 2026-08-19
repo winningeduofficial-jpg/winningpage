@@ -105,7 +105,7 @@ export default function RefundApprovalModal({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
-      className="w-[26rem]"
+      className="w-104"
     >
       <div className="flex-1 overflow-y-auto px-6 pt-8">
         <h2
@@ -167,7 +167,7 @@ export default function RefundApprovalModal({
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder="반려 사유를 입력해 주세요."
-            className="mt-4 w-full resize-none rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink outline-none focus:border-accent"
+            className="mt-4 w-full resize-none rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink outline-hidden focus:border-accent"
           />
         )}
 

@@ -37,14 +37,14 @@ export default function QuotaExhaustedBanner() {
   return (
     <div
       role="status"
-      className="mb-6 flex min-h-[3rem] w-full flex-wrap items-center justify-between gap-3 rounded-xl bg-performance-tag px-6 py-3"
+      className="mb-6 flex min-h-12 w-full flex-wrap items-center justify-between gap-3 rounded-xl bg-performance-tag px-6 py-3"
     >
-      <p className="text-[0.9375rem] font-medium leading-[1.375rem] text-ink">
+      <p className="text-[0.9375rem] font-medium leading-5.5 text-ink">
         {MESSAGE}
       </p>
       <Link
         to={PURCHASE_TO}
-        className="shrink-0 rounded-lg bg-primary px-4 py-2 text-[0.875rem] font-semibold leading-[1.125rem] text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100"
+        className="shrink-0 rounded-lg bg-primary px-4 py-2 text-[0.875rem] font-semibold leading-4.5 text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100"
       >
         {CTA_LABEL}
       </Link>

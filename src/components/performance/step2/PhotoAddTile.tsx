@@ -31,18 +31,18 @@ export default function PhotoAddTile({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex h-[6.25rem] w-[5.625rem] shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-performance-line bg-white transition ${
+      className={`flex h-25 w-22.5 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-performance-line bg-white transition ${
         disabled
           ? "cursor-not-allowed opacity-50"
           : "hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100"
       }`}
     >
       <Plus
-        className="h-[0.8125rem] w-[0.8125rem] text-performance-line"
+        className="h-3.25 w-3.25 text-performance-line"
         strokeWidth={2}
         aria-hidden="true"
       />
-      <span className="text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
+      <span className="text-[0.875rem] font-medium leading-4.5 text-ink-sub">
         사진 추가
       </span>
     </button>

@@ -1,11 +1,10 @@
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { ChevronDown, LogOut, Settings, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
 import type { useNavGroups } from "@/hooks/useNavGroups";
 import { buildMyMenu } from "./myMenuItems";
-
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 type NavGroups = ReturnType<typeof useNavGroups>;
 
@@ -26,6 +25,15 @@ type MobileNavDrawerProps = {
 
 // 헤더 nav(desktop:flex 미만)를 대체하는 전체화면 드로어.
 // 5개 nav 그룹 + 로그인 상태의 마이페이지/관리자/로그아웃(또는 로그인/회원가입)을 아코디언으로 노출한다.
+//
+// ESC 닫기·포커스 트랩·배경 스크롤 잠금은 shadcn Dialog(Base UI) 내장 동작이 처리한다.
+// 트리거(헤더 햄버거 버튼)가 Dialog.Trigger가 아니라 별도 ref로 넘어오므로, 닫힐 때
+// 포커스 복귀 대상은 Popup의 finalFocus로 명시한다.
+//
+// **닫힘 애니메이션이 계약이다.** Base UI Popup은 CSS 트랜지션이 걸린 요소를 감지하면
+// 닫힘 시에도 트랜지션이 끝날 때까지 DOM에서 내리지 않는다 — data-open/data-closed
+// 셀렉터로 translate-x 트랜지션을 걸어주면 기존의 "DOM 유지 + translate-x-full +
+// pointer-events-none" 수동 구현과 동일한 슬라이드 아웃이 재현된다.
 export default function MobileNavDrawer({
   open,
   onClose,
@@ -40,65 +48,7 @@ export default function MobileNavDrawer({
   onLogout,
   triggerRef,
 }: MobileNavDrawerProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    const { style } = document.body;
-    const previousOverflow = style.overflow;
-    style.overflow = "hidden";
-
-    return () => {
-      style.overflow = previousOverflow;
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    closeButtonRef.current?.focus();
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (event.key !== "Tab") return;
-
-      const panel = panelRef.current;
-      if (!panel) return;
-
-      const focusable = Array.from(
-        panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR),
-      ).filter((el) => !el.hasAttribute("disabled"));
-
-      if (focusable.length === 0) return;
-
-      // 위에서 focusable.length === 0을 return했으므로 0번/마지막 인덱스는 항상 존재.
-      const first = focusable[0]!;
-      const last = focusable[focusable.length - 1]!;
-
-      if (event.shiftKey && document.activeElement === first) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && document.activeElement === last) {
-        event.preventDefault();
-        first.focus();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      triggerRef?.current?.focus();
-    };
-  }, [open, onClose, triggerRef]);
 
   useEffect(() => {
     if (!open) {
@@ -111,189 +61,185 @@ export default function MobileNavDrawer({
   }
 
   return (
-    <div
-      className={`fixed inset-0 z-[60] desktop:hidden ${open ? "" : "pointer-events-none"}`}
-      aria-hidden={!open}
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 장식 레이어임을 명시했다. Escape는 document keydown 리스너(위)가 처리한다. */}
-      <div
-        role="presentation"
-        className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 ${
-          open ? "opacity-100" : "opacity-0"
-        }`}
-        onClick={onClose}
-      />
+      <DialogPortal>
+        <DialogOverlay className="bg-black/40 desktop:hidden" />
+        <DialogPrimitive.Popup
+          // Header의 햄버거 버튼이 aria-controls="mobile-nav-drawer"로 이 패널을
+          // 가리킨다 — Base UI가 자동 부여하는 useId 대신 이 고정 id를 유지해야 한다.
+          id="mobile-nav-drawer"
+          data-slot="dialog-content"
+          finalFocus={triggerRef}
+          // Base UI Popup은 aria-modal을 자동 배선하지 않는다 — 리터럴로 명시.
+          aria-modal="true"
+          aria-label="전체 메뉴"
+          className="fixed inset-y-0 right-0 z-60 flex h-full w-[85vw] max-w-88 flex-col overflow-y-auto bg-white shadow-[-18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-closed:translate-x-full data-open:translate-x-0 desktop:hidden"
+        >
+          <div className="flex items-center justify-between border-b border-[#eeeeee] px-6 py-5">
+            {shouldShowLoggedInHeader ? (
+              <div className="flex items-center gap-2 whitespace-nowrap">
+                <span className="rounded-sm bg-primary px-2.5 py-1 text-xs text-white">
+                  {csatDDay}
+                </span>
+                <span className="text-sm font-medium text-[#1e293b]">
+                  {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
+                </span>
+              </div>
+            ) : (
+              <span className="text-lg font-semibold text-primary">메뉴</span>
+            )}
 
-      <div
-        id="mobile-nav-drawer"
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-label="전체 메뉴"
-        className={`absolute right-0 top-0 flex h-full w-[85vw] max-w-[22rem] flex-col overflow-y-auto bg-white shadow-[-18px_0_45px_rgba(13,27,42,0.14)] transition-transform duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 ${
-          open ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        <div className="flex items-center justify-between border-b border-[#eeeeee] px-6 py-5">
-          {shouldShowLoggedInHeader ? (
-            <div className="flex items-center gap-2 whitespace-nowrap">
-              <span className="rounded bg-[#013262] px-2.5 py-1 text-xs text-white">
-                {csatDDay}
-              </span>
-              <span className="text-sm font-medium text-[#1e293b]">
-                {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
-              </span>
-            </div>
-          ) : (
-            <span className="text-lg font-semibold text-[#013262]">메뉴</span>
-          )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="메뉴 닫기"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[#1e293b] transition hover:bg-[#f5f8fb]"
+            >
+              <X size={22} />
+            </button>
+          </div>
 
-          <button
-            ref={closeButtonRef}
-            type="button"
-            onClick={onClose}
-            aria-label="메뉴 닫기"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-[#1e293b] transition hover:bg-[#f5f8fb]"
-          >
-            <X size={22} />
-          </button>
-        </div>
+          <nav className="flex-1 px-2 py-2">
+            {navGroups.map((group) => {
+              const hasDropdown =
+                Array.isArray(group.items) && group.items.length > 0;
+              const isOpen = openGroup === group.title;
 
-        <nav className="flex-1 px-2 py-2">
-          {navGroups.map((group) => {
-            const hasDropdown =
-              Array.isArray(group.items) && group.items.length > 0;
-            const isOpen = openGroup === group.title;
+              return (
+                <div key={group.title} className="border-b border-[#eeeeee]">
+                  <div className="flex items-center">
+                    <Link
+                      to={group.to}
+                      onClick={onClose}
+                      className="flex-1 whitespace-nowrap px-4 py-4 text-lg font-medium text-[#1e293b]"
+                    >
+                      {group.title}
+                    </Link>
 
-            return (
-              <div key={group.title} className="border-b border-[#eeeeee]">
-                <div className="flex items-center">
-                  <Link
-                    to={group.to}
-                    onClick={onClose}
-                    className="flex-1 whitespace-nowrap px-4 py-4 text-lg font-medium text-[#1e293b]"
-                  >
-                    {group.title}
-                  </Link>
+                    {hasDropdown && (
+                      <button
+                        type="button"
+                        onClick={() => toggleGroup(group.title)}
+                        aria-expanded={isOpen}
+                        aria-controls={`mobile-nav-group-${group.title}`}
+                        aria-label={`${group.title} 하위 메뉴 ${isOpen ? "닫기" : "열기"}`}
+                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-ink-header"
+                      >
+                        <ChevronDown
+                          size={18}
+                          strokeWidth={2.2}
+                          className={`transition ${isOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
+                    )}
+                  </div>
 
                   {hasDropdown && (
-                    <button
-                      type="button"
-                      onClick={() => toggleGroup(group.title)}
-                      aria-expanded={isOpen}
-                      aria-controls={`mobile-nav-group-${group.title}`}
-                      aria-label={`${group.title} 하위 메뉴 ${isOpen ? "닫기" : "열기"}`}
-                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[#4d4d4d]"
+                    <div
+                      id={`mobile-nav-group-${group.title}`}
+                      className={`overflow-hidden transition-[grid-template-rows] duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 grid ${
+                        isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                      }`}
                     >
-                      <ChevronDown
-                        size={18}
-                        strokeWidth={2.2}
-                        className={`transition ${isOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
+                      <div className="min-h-0">
+                        {group.items.map((item) => (
+                          <Link
+                            key={`${group.title}-${item.to}-${item.label}`}
+                            to={item.to}
+                            onClick={onClose}
+                            className="block whitespace-nowrap px-8 py-3 text-base text-ink transition hover:text-primary"
+                          >
+                            {item.label}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
+              );
+            })}
+          </nav>
 
-                {hasDropdown && (
-                  <div
-                    id={`mobile-nav-group-${group.title}`}
-                    className={`overflow-hidden transition-[grid-template-rows] duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 grid ${
-                      isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                    }`}
-                  >
-                    <div className="min-h-0">
-                      {group.items.map((item) => (
-                        <Link
-                          key={`${group.title}-${item.to}-${item.label}`}
-                          to={item.to}
-                          onClick={onClose}
-                          className="block whitespace-nowrap px-8 py-3 text-base text-[#525252] transition hover:text-[#013262]"
-                        >
-                          {item.label}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
+          <div className="border-t border-[#eeeeee] px-4 py-4">
+            {shouldShowLoggedInHeader ? (
+              <>
+                {buildMyMenu(isParentMember).map((item) => {
+                  const Icon = item.icon;
 
-        <div className="border-t border-[#eeeeee] px-4 py-4">
-          {shouldShowLoggedInHeader ? (
-            <>
-              {buildMyMenu(isParentMember).map((item) => {
-                const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.label}
+                      to={item.to}
+                      onClick={onClose}
+                      className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
+                    >
+                      <Icon size={18} />
+                      {item.label}
+                    </Link>
+                  );
+                })}
 
-                return (
+                {isAdmin && (
                   <Link
-                    key={item.label}
-                    to={item.to}
+                    to="/admin"
                     onClick={onClose}
-                    className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-[#4d4d4d] transition hover:text-[#013262]"
+                    className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
                   >
-                    <Icon size={18} />
-                    {item.label}
+                    <Settings size={18} />
+                    관리자
                   </Link>
-                );
-              })}
+                )}
 
-              {isAdmin && (
-                <Link
-                  to="/admin"
-                  onClick={onClose}
-                  className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-[#4d4d4d] transition hover:text-[#013262]"
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onLogout();
+                  }}
+                  className="mt-2 flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] transition hover:bg-[#012347]"
                 >
-                  <Settings size={18} />
-                  관리자
-                </Link>
-              )}
-
+                  <LogOut size={16} />
+                  로그아웃
+                </button>
+              </>
+            ) : isLoggedIn ? (
               <button
                 type="button"
                 onClick={() => {
                   onClose();
                   onLogout();
                 }}
-                className="mt-2 flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#013262] px-6 py-3 text-base font-medium text-[#f5f5f5] transition hover:bg-[#012347]"
+                className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-line px-6 py-3 text-base font-medium text-[#1e293b] transition hover:border-primary hover:text-primary"
               >
-                <LogOut size={16} />
                 로그아웃
               </button>
-            </>
-          ) : isLoggedIn ? (
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onLogout();
-              }}
-              className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[#d7d7d7] px-6 py-3 text-base font-medium text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
-            >
-              로그아웃
-            </button>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <Link
-                to="/login"
-                onClick={onClose}
-                className="flex items-center justify-center whitespace-nowrap rounded-lg border border-[#d7d7d7] px-6 py-3 text-base font-medium text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
-              >
-                로그인
-              </Link>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <Link
+                  to="/login"
+                  onClick={onClose}
+                  className="flex items-center justify-center whitespace-nowrap rounded-lg border border-line px-6 py-3 text-base font-medium text-[#1e293b] transition hover:border-primary hover:text-primary"
+                >
+                  로그인
+                </Link>
 
-              <Link
-                to="/signup"
-                onClick={onClose}
-                className="flex items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-6 py-3 text-base font-medium text-[#f5f5f5] transition hover:bg-[#012347]"
-              >
-                회원가입
-              </Link>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+                <Link
+                  to="/signup"
+                  onClick={onClose}
+                  className="flex items-center justify-center whitespace-nowrap rounded-lg bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] transition hover:bg-[#012347]"
+                >
+                  회원가입
+                </Link>
+              </div>
+            )}
+          </div>
+        </DialogPrimitive.Popup>
+      </DialogPortal>
+    </Dialog>
   );
 }

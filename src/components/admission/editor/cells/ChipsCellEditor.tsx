@@ -47,14 +47,14 @@ export default function ChipsCellEditor({
             value={chip.label ?? ""}
             onCommit={(next) => updateChip(idx, { label: next })}
             placeholder="라벨"
-            className="admission-cell-editor-input w-20 border border-[#d7d7d7] px-1.5 py-1 text-[11px]"
+            className="admission-cell-editor-input w-20 border border-line px-1.5 py-1 text-[11px]"
           />
           <ImeSafeInput
             type="text"
             value={chip.value ?? ""}
             onCommit={(next) => updateChip(idx, { value: next })}
             placeholder="값"
-            className="admission-cell-editor-input w-16 border border-[#d7d7d7] px-1.5 py-1 text-[11px]"
+            className="admission-cell-editor-input w-16 border border-line px-1.5 py-1 text-[11px]"
           />
           <button
             type="button"

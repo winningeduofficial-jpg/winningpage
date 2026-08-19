@@ -11,17 +11,17 @@
 import type { ReactNode } from "react";
 
 const WIDTH_CLASSES: Record<string, string> = {
-  default: "max-w-[25rem]", // 400px 콘텐츠 컬럼. 약관 안내 타이틀(1064px) 등 예외 화면은 'wide'.
+  default: "max-w-100", // 400px 콘텐츠 컬럼. 약관 안내 타이틀(1064px) 등 예외 화면은 'wide'.
   // 결제 플로우 시안(1882-9058 계열)의 로그인 화면 콘텐츠 컬럼 실측 460px ÷16 = 28.75rem
   // (1920·1280 동일). default(400px)를 바꾸면 이 컴포넌트를 공유하는 회원가입·약관 화면
   // 전체가 함께 넓어지므로 로그인 전용 키로 분리했다 — Login.jsx 에서 width="login" 으로 옵트인.
-  login: "max-w-[28.75rem]",
-  wide: "max-w-[66.5rem]", // D-1 등 예외 화면.
+  login: "max-w-115",
+  wide: "max-w-266", // D-1 등 예외 화면.
 };
 
 const SPACING_CLASSES: Record<string, string> = {
-  default: "py-12 md:py-[6.25rem]", // 48px → md 100px
-  tall: "py-16 md:py-[12.5rem]", // 64px → md 200px. E-6(자녀 초대)처럼 py 200px가 필요하면 'tall' 전달.
+  default: "py-12 md:py-25", // 48px → md 100px
+  tall: "py-16 md:py-50", // 64px → md 200px. E-6(자녀 초대)처럼 py 200px가 필요하면 'tall' 전달.
 };
 
 const GAP_CLASSES: Record<string, string> = {

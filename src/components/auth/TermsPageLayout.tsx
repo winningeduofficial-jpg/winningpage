@@ -28,7 +28,7 @@ export default function TermsPageLayout({
   return (
     <main className="min-h-screen w-full bg-white pt-16">
       <div
-        className={`auth-step-enter mx-auto flex w-full max-w-[68.75rem] flex-col items-start gap-8 px-6 py-12 md:gap-10 md:py-[6.25rem] lg:px-0 ${className}`}
+        className={`auth-step-enter mx-auto flex w-full max-w-275 flex-col items-start gap-8 px-6 py-12 md:gap-10 md:py-25 lg:px-0 ${className}`}
       >
         <header
           className={`flex flex-col ${pageTitle ? "gap-8 md:gap-10" : "gap-2"}`}

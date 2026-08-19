@@ -13,27 +13,27 @@ import { useNavGroups } from "@/hooks/useNavGroups";
 // 검산: 89+50+132+50+120+50+120+50+120 = 781px.
 
 const FOOTER_COLUMN_WIDTH_CLASS: Record<string, string> = {
-  서비스: "w-[5.5625rem]",
-  프리미엄: "w-[8.25rem]",
-  입시정보: "w-[7.5rem]",
-  이용신청: "w-[7.5rem]",
-  고객안내: "w-[7.5rem]",
+  서비스: "w-22.25",
+  프리미엄: "w-33",
+  입시정보: "w-30",
+  이용신청: "w-30",
+  고객안내: "w-30",
 };
-const FOOTER_COLUMN_WIDTH_DEFAULT = "w-[7.5rem]";
+const FOOTER_COLUMN_WIDTH_DEFAULT = "w-30";
 
 export default function SiteFooter() {
   const navGroups = useNavGroups();
 
   return (
-    <footer className="bg-[#f9fafb]">
-      <div className="relative py-[6.25rem]">
+    <footer className="bg-surface-footer">
+      <div className="relative py-25">
         {/* 모바일/태블릿(<lg): 로고 + 메뉴 흐름 배치 (현행 유지) */}
         <div className="mx-auto flex max-w-content flex-col gap-10 px-6 lg:hidden">
           <Link to="/" className="inline-flex shrink-0 items-center">
             <img
               src="/images/winning-logo.png"
               alt="위닝에듀"
-              className="h-[6.25rem] w-auto object-contain"
+              className="h-25 w-auto object-contain"
             />
           </Link>
 
@@ -48,7 +48,7 @@ export default function SiteFooter() {
                     <li key={`${group.title}-${item.label}`}>
                       <Link
                         to={item.to}
-                        className="inline-block break-keep py-1 text-sm font-medium text-[#525252] transition hover:text-[#013262]"
+                        className="inline-block break-keep py-1 text-sm font-medium text-ink transition hover:text-primary"
                       >
                         {item.label}
                       </Link>
@@ -68,11 +68,11 @@ export default function SiteFooter() {
             <img
               src="/images/winning-logo-stacked.svg"
               alt="위닝에듀"
-              className="h-auto w-[11.5625rem]"
+              className="h-auto w-46.25"
             />
           </Link>
 
-          <div className="flex gap-[3.125rem]">
+          <div className="flex gap-12.5">
             {navGroups.map((group) => (
               <nav
                 key={group.title}
@@ -81,7 +81,7 @@ export default function SiteFooter() {
                 {/* 시안 2207:13215은 "고객안내" 컬럼만 타이틀↔리스트 gap이 10px(나머지는
                     20px)인데, 5컬럼 중 1개만 다른 것은 시안 결함으로 판단해 전 컬럼
                     20px(1.25rem)로 통일한다. */}
-                <p className="mb-[1.25rem] text-sm font-medium text-[#808080]">
+                <p className="mb-5 text-sm font-medium text-[#808080]">
                   {group.title}
                 </p>
                 <ul className="space-y-3">
@@ -89,7 +89,7 @@ export default function SiteFooter() {
                     <li key={`${group.title}-${item.label}`}>
                       <Link
                         to={item.to}
-                        className="inline-block break-keep text-sm font-medium text-[#525252] transition hover:text-[#013262]"
+                        className="inline-block break-keep text-sm font-medium text-ink transition hover:text-primary"
                       >
                         {item.label}
                       </Link>
@@ -111,7 +111,7 @@ export default function SiteFooter() {
           {/* 시안 2207:13215의 사업자 문구 텍스트에는 "10-2024-0048889| 사업자"(파이프 앞
               공백 누락), "신고번호:  제2026"(이중 공백) 오타가 있다. COMPANY 데이터가
               정상이므로 시안 텍스트를 따르지 않고 현행 그대로 유지한다. */}
-          <div className="space-y-1 break-keep py-3 text-sm leading-[1.4] text-[#525252]">
+          <div className="space-y-1 break-keep py-3 text-sm leading-[1.4] text-ink">
             <p>
               상호명: {COMPANY.name} | 대표: {COMPANY.ceo} | 법인등록번호:{" "}
               {COMPANY.corpRegNo} | 특허출원: {COMPANY.patentNo} | 사업자
@@ -125,23 +125,23 @@ export default function SiteFooter() {
           </div>
 
           <div className="flex flex-col items-start gap-2 py-3 lg:items-end">
-            <div className="flex items-center gap-8 text-sm font-semibold text-[#525252]">
+            <div className="flex items-center gap-8 text-sm font-semibold text-ink">
               <Link
                 to="/terms"
-                className="whitespace-nowrap py-1 transition hover:text-[#013262] lg:py-0"
+                className="whitespace-nowrap py-1 transition hover:text-primary lg:py-0"
               >
                 이용약관
               </Link>
               <Link
                 to="/privacy"
-                className="whitespace-nowrap py-1 transition hover:text-[#013262] lg:py-0"
+                className="whitespace-nowrap py-1 transition hover:text-primary lg:py-0"
               >
                 개인정보처리방침
               </Link>
             </div>
             {/* 시안 2207:13215 텍스트는 "@ All rights reserved."인데 "©"의 오타로
                 판단해 현행 저작권 기호를 유지한다. */}
-            <p className="text-sm text-[#525252]">© All rights reserved.</p>
+            <p className="text-sm text-ink">© All rights reserved.</p>
           </div>
         </div>
       </div>

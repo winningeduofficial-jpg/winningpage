@@ -51,7 +51,7 @@ export default function DashboardPageHeader({
   const badgeLabel = BADGE_LABEL[adviceType] ?? BADGE_LABEL.ai;
 
   return (
-    <header className={`flex flex-col gap-[1.1875rem] ${className}`.trim()}>
+    <header className={`flex flex-col gap-4.75 ${className}`.trim()}>
       <div className="flex flex-wrap items-center gap-3">
         <span className="inline-flex h-8 w-fit shrink-0 items-center rounded-full bg-action px-4 text-[0.8125rem] font-semibold leading-[1.2] text-white">
           {badgeLabel}

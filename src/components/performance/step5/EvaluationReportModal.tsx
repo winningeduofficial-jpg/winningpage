@@ -109,11 +109,11 @@ export default function EvaluationReportModal({
       {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="평가 리포트 본문"
       onClose={onClose}
-      footer={
+      footer={({ print }) => (
         <>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={print}
             disabled={!hasContent}
             className={REPORT_MODAL_FOOTER_BUTTON.secondary}
           >
@@ -127,7 +127,7 @@ export default function EvaluationReportModal({
             {NEXT_LABEL}
           </button>
         </>
-      }
+      )}
     >
       {hasContent ? (
         // 섹션 간 gap 2.5rem(§5.16 「본문 … 섹션 간 gap 2.5rem(40)」)은 `SectionedReportView`가
@@ -140,7 +140,7 @@ export default function EvaluationReportModal({
       ) : (
         // 서버가 계약 위반 응답을 502로 막으므로(`evaluate.js validateEvaluationPayload`)
         // 정상 경로에서는 도달하지 않는다. 저장된 옛 리포트를 복원하는 경로를 위한 방어선이다.
-        <p className="text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+        <p className="text-[1rem] font-medium leading-5.25 text-ink-sub">
           평가 리포트 내용을 불러오지 못했어요. 창을 닫고 다시 시도해 주세요.
         </p>
       )}
@@ -176,18 +176,18 @@ function ScoreCard({
     <section aria-labelledby={headingId} className="flex flex-col gap-2">
       <h3
         id={headingId}
-        className="text-[1rem] font-semibold leading-[1.3125rem] text-performance-reportHeading"
+        className="text-[1rem] font-semibold leading-5.25 text-performance-reportHeading"
       >
         {SCORE_SECTION_LABEL}
       </h3>
 
       {score !== null ? (
-        <p className="text-[1.5rem] font-semibold leading-[1.9375rem] text-ink-strong">
+        <p className="text-[1.5rem] font-semibold leading-7.75 text-ink-strong">
           {/* `86/100`을 그대로 낭독하면 "86 슬래시 100"처럼 읽히거나 스크린리더·언어 설정에
               따라 분수로 읽힌다. 보이는 글자는 시안 그대로 두고 낭독만 문장으로 바꾼다. */}
           <span aria-hidden="true">
             {score}
-            <span className="text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+            <span className="text-[1rem] font-medium leading-5.25 text-ink-sub">
               /{MAX_SCORE}
             </span>
           </span>
@@ -199,7 +199,7 @@ function ScoreCard({
         // `PerformanceReportSurface`의 `.admission-text-line b::after`(콜론 자동 부착)는
         // 블록 뷰가 낸 마크업 전용이다. 여기는 손으로 쓴 마크업이라 콜론도 손으로 쓴다 —
         // 표시 결과는 §5.16 실측 `총평:`과 같다.
-        <p className="whitespace-pre-wrap break-words text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+        <p className="whitespace-pre-wrap wrap-break-word text-[1rem] font-medium leading-5.25 text-ink-sub">
           <b className="font-semibold">{SUMMARY_ROW_LABEL}:</b> {summary}
         </p>
       ) : null}

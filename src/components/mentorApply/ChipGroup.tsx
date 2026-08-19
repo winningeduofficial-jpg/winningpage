@@ -27,7 +27,7 @@ function normalizeOptions(options?: ChipOption[] | null) {
 // 칩 공통 — h 40 / padding 8·16 / radius 9999 / border 1px / bg #FFFFFF / 텍스트 16 Regular #191D23.
 // 높이가 h-10 으로 고정이라 세로 패딩은 시각적으로 무의미해 px-4 만 남겼다.
 const CHIP_BASE_CLASS =
-  "inline-flex h-10 shrink-0 items-center justify-center rounded-full border px-4 text-base leading-[1.4] text-ink-strong transition-colors outline-none focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50";
+  "inline-flex h-10 shrink-0 items-center justify-center rounded-full border px-4 text-base leading-[1.4] text-ink-strong transition-colors outline-hidden focus-visible:ring-2 focus-visible:ring-accent/40 disabled:cursor-not-allowed disabled:opacity-50";
 
 const UNSELECTED_CLASS = "border-line bg-white";
 

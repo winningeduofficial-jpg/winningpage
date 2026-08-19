@@ -41,7 +41,7 @@ function PercentileField({
     <div className="flex items-center gap-3">
       <label
         htmlFor={fieldId}
-        className="w-[3.5rem] shrink-0 text-[0.875rem] font-semibold leading-[1.4] text-ink-strong"
+        className="w-14 shrink-0 text-[0.875rem] font-semibold leading-[1.4] text-ink-strong"
       >
         {label}
       </label>
@@ -54,9 +54,9 @@ function PercentileField({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className="h-[2.4375rem] w-full rounded-lg border border-[#E3E3E3] bg-white px-[0.875rem] pr-14 text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          className="h-9.75 w-full rounded-lg border border-[#E3E3E3] bg-white px-3.5 pr-14 text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent"
         />
-        <span className="pointer-events-none absolute right-[0.875rem] top-1/2 -translate-y-1/2 text-[0.8125rem] text-ink-sub">
+        <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[0.8125rem] text-ink-sub">
           백분위
         </span>
       </div>
@@ -140,12 +140,12 @@ export default function AddMockExamGradeModal({
       submitDisabled={!canSubmit}
     >
       {error && (
-        <p className="rounded-lg bg-[#FCE4E4] px-3 py-2 text-[0.8125rem] leading-[1.5] text-[#D14343]">
+        <p className="rounded-lg bg-[#FCE4E4] px-3 py-2 text-[0.8125rem] leading-normal text-[#D14343]">
           {error}
         </p>
       )}
 
-      <div className="grid grid-cols-2 gap-[0.5rem]">
+      <div className="grid grid-cols-2 gap-2">
         <ModalField
           label="회차"
           variant="select"
@@ -163,7 +163,7 @@ export default function AddMockExamGradeModal({
       </div>
 
       <div>
-        <p className="mb-[1.6875rem] text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+        <p className="mb-6.75 text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
           과목별 백분위<span className="ml-1 text-error">*</span>
         </p>
         <div className="flex flex-col gap-3">
@@ -181,7 +181,7 @@ export default function AddMockExamGradeModal({
         </div>
       </div>
 
-      <p className="rounded-lg bg-goal-insight-info px-3 py-2 text-[0.8125rem] leading-[1.5] text-ink">
+      <p className="rounded-lg bg-goal-insight-info px-3 py-2 text-[0.8125rem] leading-normal text-ink">
         {/* 원문 카피(4022:5216)는 "학업 성취도 변화 추이와 합격률 예측에 반영"이지만, 이번 범위는
             기록·표시만 한다(팀장 지시 — 합격률 재계산·그래프 반영 없음). 구현되지 않은 기능을
             약속하는 문구를 그대로 두면 사용자를 오도하므로 실제 동작에 맞게 정정한다. */}

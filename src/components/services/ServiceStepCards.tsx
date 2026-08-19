@@ -8,7 +8,7 @@
 // (b) 페이지별 차이 흡수:
 //     - columns      : 3(기본) | 4 — lg 열 수. 5개(3+2) / 6개(3열 2행)는 3, 4개 1행은 4.
 //     - splitLastRow : true 면 앞 columns 개를 1행, 나머지를 2행으로 중앙 배치한다.
-//                      2행의 lg:max-w-[45.25rem] 이 '카드 2장' 기준 실측값이라
+//                      2행의 lg:max-w-181 이 '카드 2장' 기준 실측값이라
 //                      columns=3 + items 5개 조합에서만 지원한다.
 //
 import { CARD_DESC_MUTED_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
@@ -27,14 +27,13 @@ type StepItem = { title: string; desc: string };
 
 // 패딩은 시안 실효 pt 44 / pb 40 / px 30.5 → ×0.766 = 34 / 30 / 23.
 // radius 12는 스케일 미적용(rounded-xl 유지). 설명 색 #808080 → #767676 상향(회색 하한).
-const STEP_CARD_CLASS =
-  "rounded-xl bg-[#F5F5F7] px-6 pb-[1.875rem] pt-[2.125rem]";
+const STEP_CARD_CLASS = "rounded-xl bg-[#F5F5F7] px-6 pb-7.5 pt-8.5";
 
 function StepCard({ item }: { item: StepItem }) {
   return (
     <div className={STEP_CARD_CLASS}>
       <p className={CARD_TITLE_CLASS}>{item.title}</p>
-      <p className={`mt-[0.9375rem] ${CARD_DESC_MUTED_CLASS}`}>{item.desc}</p>
+      <p className={`mt-3.75 ${CARD_DESC_MUTED_CLASS}`}>{item.desc}</p>
     </div>
   );
 }
@@ -56,7 +55,7 @@ export default function ServiceStepCards({
   return (
     <>
       <div
-        className={`mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] ${STEP_COLS[columns]} lg:gap-[1.875rem]`}
+        className={`mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-perf-inset ${STEP_COLS[columns]} lg:gap-7.5`}
       >
         {firstRow.map((item) => (
           <StepCard key={item.title} item={item} />
@@ -65,7 +64,7 @@ export default function ServiceStepCards({
       {secondRow.length > 0 && (
         // 2행 — 946 × 0.7644 = 723px = 45.25rem 로 1행 안에서 정중앙.
         // 폭 검산: (724 − 30) / 2 = 347px ✓ (1행 카드폭 346.7과 일치)
-        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:mx-auto lg:mt-[1.875rem] lg:max-w-[45.25rem] lg:gap-[1.875rem]">
+        <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:mx-auto lg:mt-7.5 lg:max-w-181 lg:gap-7.5">
           {secondRow.map((item) => (
             <StepCard key={item.title} item={item} />
           ))}

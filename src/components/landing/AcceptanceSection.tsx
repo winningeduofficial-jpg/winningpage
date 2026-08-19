@@ -80,12 +80,12 @@ export default function AcceptanceSection({
 
   return (
     <section aria-label="합격생" className="overflow-hidden bg-white">
-      <div className="pb-0 pt-10 sm:pt-16 lg:pt-[7.5rem]">
+      <div className="pb-0 pt-10 sm:pt-16 lg:pt-30">
         {/* 헤더 + 탭 */}
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <h2 className="break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.03rem] sm:text-[1.75rem] lg:text-[2rem] lg:tracking-[-0.04rem]">
-            <span className="block text-[#013262]">인서울부터 과기원까지</span>
-            <span className="block text-[#525252]">
+            <span className="block text-primary">인서울부터 과기원까지</span>
+            <span className="block text-ink">
               합격생 선배님들의 압도적 선택
             </span>
           </h2>
@@ -105,10 +105,7 @@ export default function AcceptanceSection({
                   className="flex items-center gap-6 sm:gap-10"
                 >
                   {tabIndex > 0 && (
-                    <span
-                      aria-hidden="true"
-                      className="h-[1.875rem] w-px bg-[#d7d7d7]"
-                    />
+                    <span aria-hidden="true" className="h-7.5 w-px bg-line" />
                   )}
                   <button
                     type="button"
@@ -118,10 +115,10 @@ export default function AcceptanceSection({
                     aria-controls="acceptance-panel"
                     disabled={isEmpty}
                     onClick={() => setSelectedTrack(tab.key)}
-                    className={`relative text-[1.5rem] leading-[1.3] tracking-[-0.03rem] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] max-lg:after:absolute max-lg:after:-top-2.5 max-lg:after:-bottom-2.5 max-lg:after:inset-x-0 max-lg:after:content-[''] ${
+                    className={`relative text-[1.5rem] leading-[1.3] tracking-[-0.03rem] transition-colors duration-200 ease-(--ease-out-quart) max-lg:after:absolute max-lg:after:-top-2.5 max-lg:after:-bottom-2.5 max-lg:after:inset-x-0 max-lg:after:content-[''] ${
                       isActive
-                        ? "font-semibold text-[#525252]"
-                        : "font-medium text-[#d7d7d7]"
+                        ? "font-semibold text-ink"
+                        : "font-medium text-line"
                     } ${
                       isEmpty
                         ? "cursor-not-allowed opacity-60"
@@ -146,7 +143,7 @@ export default function AcceptanceSection({
         >
           <div
             ref={scrollRef as React.RefObject<HTMLDivElement>}
-            className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
+            className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] scrollbar-none active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
             <ul
               key={activeTrack}
@@ -168,10 +165,10 @@ export default function AcceptanceSection({
                     // biome-ignore lint/suspicious/noArrayIndexKey: 무한 마퀴 클론이라 같은 university.id가 여러 번 반복된다 — renderIndex로 각 클론 사본을 구분한다.
                     key={`${university.id}-${renderIndex}`}
                     aria-hidden={isClone || undefined}
-                    className={`flex h-[18.75rem] w-[12.5rem] shrink-0 flex-col items-center gap-6 rounded-[2rem] pt-[3.25rem] ${
+                    className={`flex h-75 w-50 shrink-0 flex-col items-center gap-6 rounded-4xl pt-13 ${
                       activeTrack === "medical_special"
                         ? "bg-[#e9f4ff]"
-                        : "bg-[#f9fafb]"
+                        : "bg-surface-footer"
                     }`}
                   >
                     {university.emblem_url ? (
@@ -181,18 +178,18 @@ export default function AcceptanceSection({
                         width="120"
                         height="120"
                         loading="lazy"
-                        className="h-[7.5rem] w-[7.5rem] object-contain"
+                        className="h-30 w-30 object-contain"
                       />
                     ) : (
                       <span
                         aria-hidden="true"
-                        className="h-[7.5rem] w-[7.5rem] rounded-full bg-[#eef0f3]"
+                        className="h-30 w-30 rounded-full bg-[#eef0f3]"
                       />
                     )}
-                    <p className="w-full px-2 text-center text-[1.25rem] font-medium leading-[1.3] text-[#525252]">
+                    <p className="w-full px-2 text-center text-[1.25rem] font-medium leading-[1.3] text-ink">
                       {university.name}
                     </p>
-                    <p className="text-center text-[1rem] font-normal leading-[1.3] text-[#525252]">
+                    <p className="text-center text-[1rem] font-normal leading-[1.3] text-ink">
                       {university.subtitle ??
                         (university.count != null
                           ? `${university.count}명 합격`

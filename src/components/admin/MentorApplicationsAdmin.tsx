@@ -272,7 +272,7 @@ export default function MentorApplicationsAdmin({
           </ActionButton>
         </div>
 
-        <div className="mb-6 flex flex-wrap items-end gap-3 bg-white p-6 shadow">
+        <div className="mb-6 flex flex-wrap items-end gap-3 bg-white p-6 shadow-sm">
           <Field label="상태">
             <Select value={statusDraft} onChange={setStatusDraft}>
               {MENTOR_APPLICATION_STATUS_OPTIONS.map((option) => (
@@ -294,7 +294,7 @@ export default function MentorApplicationsAdmin({
         </div>
 
         {MENTOR_APPLICATION_DETAIL_SECTIONS.map((section) => (
-          <div key={section.title} className="mb-6 bg-white shadow">
+          <div key={section.title} className="mb-6 bg-white shadow-sm">
             <div className="border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3 text-sm font-black">
               {section.title}
             </div>
@@ -315,7 +315,7 @@ export default function MentorApplicationsAdmin({
           </div>
         ))}
 
-        <div className="mb-6 bg-white shadow">
+        <div className="mb-6 bg-white shadow-sm">
           <div className="border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3 text-sm font-black">
             제출 메타
           </div>
@@ -351,7 +351,7 @@ export default function MentorApplicationsAdmin({
 
   return (
     <div>
-      <div className="mb-6 bg-white px-6 py-5 shadow">
+      <div className="mb-6 bg-white px-6 py-5 shadow-sm">
         <div className="flex items-center justify-between gap-4">
           <button
             type="button"
@@ -367,7 +367,7 @@ export default function MentorApplicationsAdmin({
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder={config.searchPlaceholder}
-              className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-none"
+              className="h-9 w-[320px] border border-gray-400 px-3 text-sm outline-hidden"
             />
             <button
               type="button"
@@ -383,7 +383,7 @@ export default function MentorApplicationsAdmin({
       </div>
 
       {loading ? (
-        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
           데이터를 불러오는 중입니다.
         </div>
       ) : (

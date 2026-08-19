@@ -61,7 +61,7 @@ type ParsedOrder = {
 };
 
 type ServiceCardAction = {
-  kind: "link" | "outline" | "solid";
+  kind: "link" | "outline-solid" | "solid";
   label: string;
   href: string;
 };
@@ -251,7 +251,7 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
     actions = [{ kind: "link", label, href }];
   } else if (category === "diagnosis") {
     actions = [
-      { kind: "outline", label: "결과 리포트 보기", href },
+      { kind: "outline-solid", label: "결과 리포트 보기", href },
       {
         kind: "solid",
         label: "다시 검사하기",
@@ -260,13 +260,13 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
     ];
   } else if (category === "session") {
     actions = [
-      { kind: "outline", label: "상담 기록 보기", href },
+      { kind: "outline-solid", label: "상담 기록 보기", href },
       { kind: "solid", label: "다시 이용하기", href: "/pricing" },
     ];
   } else {
     // 기간형 서비스의 완료 카드는 시안 예시가 없어 무료진단/콜멘토 패턴을 참고한 추정 문구다.
     actions = [
-      { kind: "outline", label: "이용 내역 보기", href },
+      { kind: "outline-solid", label: "이용 내역 보기", href },
       { kind: "solid", label: "다시 신청하기", href: "/pricing" },
     ];
   }
@@ -286,13 +286,13 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
 // 빈 상태(3762:20041) — 결제한 서비스가 없을 때. 문구·버튼 라벨은 시안 스크린샷 실측.
 function EmptyState() {
   return (
-    <div className="flex min-h-[20rem] flex-col items-center justify-center gap-[1.5rem] rounded-[1.25rem] bg-surface-04 px-[2rem] py-[4rem] text-center">
-      <p className="text-[1rem] leading-[1.5] text-ink-sub">
+    <div className="flex min-h-80 flex-col items-center justify-center gap-6 rounded-perf-modal bg-surface-04 px-8 py-16 text-center">
+      <p className="text-[1rem] leading-normal text-ink-sub">
         아직 결제한 서비스가 없어요
       </p>
       <Link
         to="/pricing"
-        className="inline-flex h-[3rem] items-center justify-center rounded-[0.75rem] bg-primary px-[2rem] text-[0.9375rem] font-semibold text-white transition hover:bg-primary/90"
+        className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-primary/90"
       >
         서비스 이용하러 가기
       </Link>
@@ -311,11 +311,11 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-[2.5rem]">
+    <section className="flex flex-col gap-10">
       <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
         {title} <span className="text-accent">{count}</span>
       </h2>
-      <div className="grid grid-cols-1 gap-[1.25rem] sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {children}
       </div>
     </section>
@@ -345,7 +345,7 @@ export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
   const completed = cards.filter((card) => !card.isOngoing);
 
   return (
-    <div className="flex flex-col gap-[6.25rem]">
+    <div className="flex flex-col gap-25">
       {ongoing.length > 0 && (
         <Section title="이용 중인 서비스" count={ongoing.length}>
           {ongoing.map((card) => (

@@ -21,14 +21,14 @@ const SECTION_SURFACE: Record<string, string> = {
 //     4페이지의 전 섹션이 이 컴포넌트를 통해서만 렌더된다.
 //
 // (b) 페이지별 차이 흡수:
-//     - className        : 경계별로 다른 lg pt/pb 만 받는다(예: 'lg:pt-[10rem]').
+//     - className        : 경계별로 다른 lg pt/pb 만 받는다(예: 'lg:pt-40').
 //                          섹션 간 갭은 앞 섹션 pb + 뒤 섹션 pt 로 계산된 경계별 실측값이라
 //                          공통값을 잡지 않고 페이지가 리터럴로 넘긴다.
 //                          배경색・컨테이너는 여기서 바꾸지 않는다.
 //     - containerClassName: 컨테이너 추가 클래스. 실사용은 ServicePricingSection 의
 //                          'text-center' 1건뿐이다.
 //     - heading          : 2-tone 강조가 필요하면 JSX 조각을 넘긴다
-//                          (예: <>이런 학생에게 <span className="text-[#013262]">…</span></>).
+//                          (예: <>이런 학생에게 <span className="text-primary">…</span></>).
 //                          생략하면 h2 자체를 렌더하지 않는다.
 //     - surface          : 섹션 배경 톤. 기본 'white'(bg-white)는 4페이지 기준과 문자 동일.
 //                          'gray'(bg-[#F4F4F6])는 콜멘토 §4 회색 밴드 전용 확장,

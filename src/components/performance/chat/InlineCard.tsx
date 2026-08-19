@@ -10,7 +10,7 @@
 //   동일 반경).
 //   내부 인셋: 좌우 30px(1.875rem) 동일, 상단 20px(1.25rem) — `AiMessage`/`AiLoadingBubble`이
 //   이미 쓰는 `p-5`(1.25rem)와 세로값이 맞아떨어지므로 `py-5`로 얹고, 가로만 실측대로
-//   `px-[1.875rem]`로 따로 준다(좌우 30px은 Tailwind 표준 스케일에 없는 임의값).
+//   `px-7.5`로 따로 준다(좌우 30px은 Tailwind 표준 스케일에 없는 임의값).
 //   하단 인셋은 두 노드에서 23~28px로 갈려 정본이 없다 — 내부 마지막 요소(버튼 등)의 자체
 //   여백이 섞인 값으로 보고, 상단과 동일한 `py-5`로 통일했다(P6+ 실제 내용이 들어가면
 //   재실측해 조정).
@@ -35,7 +35,7 @@ export default function InlineCard({
   return (
     <div
       className={[
-        "w-full max-w-perf-bubble rounded-2xl border border-performance-line bg-white px-[1.875rem] py-5",
+        "w-full max-w-perf-bubble rounded-2xl border border-performance-line bg-white px-7.5 py-5",
         className,
       ].join(" ")}
     >

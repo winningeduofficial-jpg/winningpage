@@ -312,7 +312,7 @@ function HeroSection() {
   return (
     // 섹션 패딩(md:pb-0 md:pt-[2.25rem])은 목표관리・수행평가 히어로와 동일 규격으로
     // 통일했다(3페이지 공통 규격, 사용자 지시).
-    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
+    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-9">
       {/* 오라 애니메이션 — hero-aura.svg(노드 3248:2343 정본, 회전 4프레임 2716:3011→3076→
           3082→3088을 단일 rotate(0→360deg) 루프로 무손실 대체)를 위치/회전 레이어 2단 구조로
           렌더한다(PerformanceAssessment.jsx HeroSection 선례 그대로 이식 — 같은 요소에 위치용
@@ -332,7 +332,7 @@ function HeroSection() {
           230px 끌어올려 정합시킨다. */}
       <div
         ref={auraRef}
-        className="pointer-events-none absolute left-1/2 top-[-14.375rem] aspect-[4/3] w-[100rem] max-w-none -translate-x-1/2 select-none"
+        className="pointer-events-none absolute left-1/2 -top-57.5 aspect-4/3 w-[100rem] max-w-none -translate-x-1/2 select-none"
       >
         <style>{`
           @keyframes sa-aura-spin {
@@ -365,7 +365,7 @@ function HeroSection() {
       <div
         aria-hidden="true"
         style={{ backgroundImage: `url(${heroGrain})` }}
-        className="pointer-events-none absolute inset-0 select-none bg-[length:8.375rem_8.375rem] bg-repeat opacity-40 mix-blend-overlay"
+        className="pointer-events-none absolute inset-0 select-none bg-size-[8.375rem_8.375rem] bg-repeat opacity-40 mix-blend-overlay"
       />
 
       <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
@@ -379,7 +379,7 @@ function HeroSection() {
           문항 해석부터 구조 설계까지, 자기평가서를 더 설득력 있게
         </h1>
 
-        <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
+        <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-ink sm:text-[1.25rem] md:text-[1.5rem]">
           문항 핵심을 파악하고 나만의 강점을 구조화해, 학생이 스스로 완성하도록
           돕습니다
         </p>
@@ -387,7 +387,7 @@ function HeroSection() {
         <button
           type="button"
           onClick={handleHeroCta}
-          className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
+          className="mt-6 inline-flex h-14 w-full max-w-75 items-center justify-center rounded-[1.875rem] bg-primary px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:h-17 sm:text-[1.25rem]"
         >
           지금 시작하기
         </button>
@@ -398,7 +398,7 @@ function HeroSection() {
             배경으로 둔다(실 캡처 자산 없음, 디자인 재량). */}
         <ServiceHeroBrowserFrame>
           <div
-            className="aspect-[1280/553] w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
+            className="aspect-1280/553 w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
             aria-hidden="true"
           />
         </ServiceHeroBrowserFrame>
@@ -417,12 +417,12 @@ export default function SelfAssessment() {
           2행 "4단계 핵심 프로세스"만 네이비 강조(시안 상태 변형 노드 2181:1533/1574/8233
           실측, 스펙 §2-2 신규). */}
       <ServiceSection
-        className="lg:pt-[5rem]"
+        className="lg:pt-20"
         heading={
           <>
             위닝 자기평가서의
             <br />
-            <span className="text-[#013262]">4단계 핵심 프로세스</span>
+            <span className="text-primary">4단계 핵심 프로세스</span>
           </>
         }
       >
@@ -436,7 +436,7 @@ export default function SelfAssessment() {
           감겨 25px 더 높음). 최소값으로 고정하면 2줄 설명이 잘리므로 최대값을 채택해 탭 전환
           시 아래 섹션이 밀렸다 당겨지는 레이아웃 점프를 막는다. */}
       <ServiceSection
-        className="lg:pt-[8.375rem]"
+        className="lg:pt-33.5"
         heading="단계별로, 자기평가서를 완성합니다"
       >
         <ServiceTabsPanel
@@ -444,7 +444,7 @@ export default function SelfAssessment() {
           content={STAGE_CONTENT}
           ariaLabel="자기평가서 작성 단계"
           idPrefix="stage"
-          panelHeightClass="lg:h-[16.1875rem]"
+          panelHeightClass="lg:h-64.75"
         />
       </ServiceSection>
 
@@ -452,44 +452,38 @@ export default function SelfAssessment() {
           추천해요" 전체를 네이비(#013262)로(accent #0B84FD 아님, 스펙 §12 Q3 (a)).
           카드 이미지는 일러스트가 아니라 학생 사진 JPG라 imageFit="cover". */}
       <ServiceSection
-        className="lg:pt-[8.375rem]"
+        className="lg:pt-33.5"
         heading={
           <>
             이런 학생에게{" "}
-            <span className="text-[#013262]">자기 평가 서비스를 추천해요</span>
+            <span className="text-primary">자기 평가 서비스를 추천해요</span>
           </>
         }
       >
         <ServiceAudienceCards items={AUDIENCE_CARDS} imageFit="cover" />
       </ServiceSection>
 
-      <ServiceSection
-        className="lg:pt-[8.375rem]"
-        heading="다섯 단계로 차근차근"
-      >
+      <ServiceSection className="lg:pt-33.5" heading="다섯 단계로 차근차근">
         <ServiceStepCards items={FIVE_STEPS} splitLastRow />
       </ServiceSection>
 
       {/* 성과 — 아이콘 매핑은 시안 절대배치 x좌표로 재계산해 확정했다(자식 배열 순서로 읽으면
           1↔2가 뒤바뀐다, 스펙 §11-4). */}
-      <ServiceSection
-        className="lg:pt-[8.375rem]"
-        heading="자기평가로 정리되는 것들"
-      >
+      <ServiceSection className="lg:pt-33.5" heading="자기평가로 정리되는 것들">
         <ServiceOutcomesPanel items={OUTCOME_ITEMS} />
       </ServiceSection>
 
       {/* 후기 — 타이틀 시안 원문은 "목표관리 서비스를 받아본 학생들의 후기"로 다른 서비스
           카피가 복사돼 있던 것을 정정했다(스펙 §11-2 D1). */}
       <ServiceSection
-        className="lg:pt-[8.375rem]"
+        className="lg:pt-33.5"
         heading="자기평가 서비스를 받아본 학생들의 후기"
       >
         <ServiceTestimonials items={TESTIMONIALS} />
       </ServiceSection>
 
       <ServiceSection
-        className="pb-20 sm:pb-24 lg:pb-[7.0625rem] lg:pt-[8.375rem]"
+        className="pb-20 sm:pb-24 lg:pb-28.25 lg:pt-33.5"
         heading="자주 묻는 질문"
       >
         <ServiceFaq items={FAQ_ITEMS} />

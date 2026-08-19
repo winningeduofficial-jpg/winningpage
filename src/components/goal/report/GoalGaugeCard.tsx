@@ -71,7 +71,7 @@ export default function GoalGaugeCard({
   return (
     <GoalCard
       tone="neutral"
-      className="flex min-h-[12.9375rem] w-full flex-col gap-5 px-8 py-7"
+      className="flex min-h-51.75 w-full flex-col gap-5 px-8 py-7"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -104,7 +104,7 @@ export default function GoalGaugeCard({
         {targetPct != null && (
           <span
             aria-hidden="true"
-            className="absolute top-0 h-[1.25rem] w-px -translate-x-1/2 bg-ink-strong"
+            className="absolute top-0 h-5 w-px -translate-x-1/2 bg-ink-strong"
             style={{ left: `${targetPct}%` }}
           />
         )}

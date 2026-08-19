@@ -152,14 +152,14 @@ export default function Efforts() {
         maxWidthClassName="max-w-goal-dashboard"
       />
 
-      <div className="max-w-goal-dashboard px-[3rem] pb-24">
+      <div className="max-w-goal-dashboard px-12 pb-24">
         {loadError && (
           <p className="mb-4 text-[0.875rem] text-ink-sub">
             문제집 목록을 불러오지 못했습니다. 새로고침해 주세요.
           </p>
         )}
 
-        <div className="grid grid-cols-4 gap-[2.5rem]">
+        <div className="grid grid-cols-4 gap-10">
           {SUBJECT_CARDS.map(({ id, label }) => {
             const subjectBooks = workbooks.filter(
               (book) => book.subject === id,
@@ -203,7 +203,7 @@ export default function Efforts() {
 // part-10 §219 "연보라 필 + 보라 텍스트(추정)")을 로컬 상수로 둔다.
 function CountBadge({ count }: { count: number }) {
   return (
-    <span className="inline-flex h-[2rem] items-center justify-center rounded-full bg-[#EFE9F6] px-3 text-[0.8125rem] font-semibold text-[#6B4FA0]">
+    <span className="inline-flex h-8 items-center justify-center rounded-full bg-[#EFE9F6] px-3 text-[0.8125rem] font-semibold text-[#6B4FA0]">
       총 {count}권 완독
     </span>
   );

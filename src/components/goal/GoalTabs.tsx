@@ -72,7 +72,7 @@ export default function GoalTabs({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(tab.value)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`h-[1.9375rem] w-fit shrink-0 text-[0.9375rem] leading-[1.3] transition-colors ${
+            className={`h-7.75 w-fit shrink-0 text-[0.9375rem] leading-[1.3] transition-colors ${
               selected
                 ? "font-bold text-ink-strong"
                 : "font-normal text-ink-sub"

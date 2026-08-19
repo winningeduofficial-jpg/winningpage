@@ -336,7 +336,7 @@ function formatGpa(gradeSystem, raw) {
 }
 
 /**
- * 성적 흐름 표기(§7.2 · F-14). q8 원문 라벨은 StudentInfoBlock 의 w-[12.5rem] 안에서 2줄로 접혀
+ * 성적 흐름 표기(§7.2 · F-14). q8 원문 라벨은 StudentInfoBlock 의 w-50 안에서 2줄로 접혀
  * 행 높이를 밀어낸다(최장 236.9px 실측) → 축약 라벨을 쓰되 **표시 전용**이다.
  * 채점은 optionCodes 로만 하므로 라벨 교체가 점수에 영향을 줄 수 없다.
  * 매핑에 없는 코드는 q8 원문 라벨로 되돌린다 — 선택지가 늘어나도 빈 칸이 되지 않는다.
@@ -980,7 +980,7 @@ export function buildReport(input: any, ctx: BuildReportCtx = {}) {
       schoolType: orMissing(optionLabelOf("q2", safeInput.profile?.schoolType)),
       desiredMajor: orMissing(safeInput.goal?.targetMajor),
       gpa: formatGpa(safeInput.gradeSystem, safeInput.scores?.naesinOverall),
-      // F-14 확정(2026-08-11) — 축약 라벨을 쓴다. 원문 라벨은 w-[12.5rem] 안에서 2줄로 접힌다.
+      // F-14 확정(2026-08-11) — 축약 라벨을 쓴다. 원문 라벨은 w-50 안에서 2줄로 접힌다.
       gradeTrend: orMissing(formatGradeTrend(safeInput.gradeTrend)),
       diagnosedAt: orMissing(formatDiagnosedAt(safeInput.meta?.diagnosedAt)),
     },

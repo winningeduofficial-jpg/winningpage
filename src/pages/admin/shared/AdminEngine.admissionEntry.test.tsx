@@ -69,8 +69,8 @@ const ADMISSION_CONFIG_REL = "src/pages/admin/configs/admission.ts";
 const CONFIGS_DIR_REL = "src/pages/admin/configs";
 const FORM_PREVIEW_DEF_REL =
   "src/pages/admin/configs/admissionGuidelinesForm.tsx";
-const META_MODAL_REL =
-  "src/components/admission/editor/AdmissionMetaEditModal.tsx";
+// META_MODAL_REL(AdmissionMetaEditModal 경로 상수)은 entry:12가
+// AdminEngine.admissionEntry.metaModal.test.tsx로 옮겨가며 함께 옮겼다.
 
 const CELL_SLICE_START = 'column.type === "admissionSection" ? (';
 const CELL_SLICE_END = ') : column.type === "fileList" ? (';
@@ -107,37 +107,10 @@ async function bakeHarness(harness: string, tag: string) {
   }
 }
 
-async function loadModule(entry: string, exportName?: string) {
-  const result = await esbuild.build({
-    entryPoints: [path.join(REPO_ROOT, entry)],
-    bundle: true,
-    format: "esm",
-    jsx: "automatic",
-    jsxImportSource: "react",
-    platform: "node",
-    mainFields: ["module", "main"],
-    alias: { "@": path.join(REPO_ROOT, "src") },
-    external: [
-      "react",
-      "react-dom",
-      "react/jsx-runtime",
-      "react-dom/server",
-      "lucide-react",
-    ],
-    write: false,
-  });
-  const tmpFile = path.join(
-    REPO_ROOT,
-    `.tmp-admin-entry-module-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,
-  );
-  fs.writeFileSync(tmpFile, result.outputFiles[0]!.text);
-  try {
-    const mod = await import(`file://${tmpFile}`);
-    return exportName ? mod[exportName] : mod.default;
-  } finally {
-    fs.rmSync(tmpFile, { force: true });
-  }
-}
+// loadModule(esbuild.build 기반 실제 .tsx 모듈 번들+import)은 entry:12가
+// AdminEngine.admissionEntry.metaModal.test.tsx로 옮겨가며 유일한 호출부를
+// 잃어 함께 옮겼다 — 이 파일에 남은 나머지 테스트는 전부 bakeHarness(문자열
+// 슬라이스 하네스)만 쓴다.
 
 // ── 셀 분기 기계 슬라이스 ──────────────────────────────────────────────
 function sliceSectionCell(source: string) {
@@ -532,68 +505,13 @@ describe("어드민 대학모집요강 편집 진입 경로 검증", () => {
     expect(pass, JSON.stringify({ withFlag, withoutFlag })).toBe(true);
   });
 
-  test("entry:12. AdmissionMetaEditModal — 메타 9필드 라벨이 전부 렌더되고, 표 편집기·HWP 파싱 패널 마커는 없다", async () => {
-    const AdmissionMetaEditModal = await loadModule(META_MODAL_REL);
-    const row = {
-      id: "fixture",
-      university_name: "검증대학교",
-      matched_hwp_name: "검증대學校",
-      university_key: "geomjeung",
-      region: "서울",
-      admission_year: 2027,
-      jungsi_guideline_url: "https://example.com/jungsi.pdf",
-      memo: "검증용 메모",
-      is_active: true,
-      detail_status: "상세입력완료",
-    };
-    let html = "";
-    let threw = false;
-    try {
-      html = renderToStaticMarkup(
-        React.createElement(AdmissionMetaEditModal, {
-          row,
-          onClose: () => {},
-          onSave: async () => true,
-        }),
-      );
-    } catch (err) {
-      threw = true;
-      html = String(err instanceof Error ? err.stack : err);
-    }
-    const requiredLabels = [
-      "대학명",
-      "원문 대학명",
-      "대학 키값",
-      "지역",
-      "입학연도",
-      "정시모집요강 URL",
-      "메모",
-      "노출 여부",
-      "상태",
-    ];
-    const missingLabels = requiredLabels.filter(
-      (label) => !html.includes(label),
-    );
-    const htmlWithoutStyleTags = html.replace(
-      /<style[^>]*>[\s\S]*?<\/style>/g,
-      "",
-    );
-    const forbiddenMarkers = [
-      "admission-scroll-table",
-      "admission-data-table",
-      "HWP 원문 파싱",
-      "열 추가",
-      "행 추가",
-    ].filter((marker) => htmlWithoutStyleTags.includes(marker));
-    const pass =
-      !threw && missingLabels.length === 0 && forbiddenMarkers.length === 0;
-    expect(
-      pass,
-      threw
-        ? html
-        : JSON.stringify({ missingLabels, forbiddenMarkers, len: html.length }),
-    ).toBe(true);
-  });
+  // entry:12(AdmissionMetaEditModal 렌더 검증)는
+  // AdminEngine.admissionEntry.metaModal.test.tsx로 옮겼다 — AdmissionMetaEditModal이
+  // AdmissionModalShell을 통해 Portal로 렌더하는 shadcn/ui Dialog(Base UI)로
+  // 바뀌면서(task: AdmissionModalShell Base UI 전환) 이 파일의
+  // `@vitest-environment node` + renderToStaticMarkup 조합으로는 더 이상 렌더할
+  // 수 없다(포털 미지원, 선례: EvaluationReportModal.test.tsx). 그 새 파일의
+  // 헤더 주석에 이전 배경이 있다.
 
   // ===================================================================
   // entry:13~14 — 카테고리 편집 다이얼로그: 원문(raw)/HTML 미러 접힘 패널 제거

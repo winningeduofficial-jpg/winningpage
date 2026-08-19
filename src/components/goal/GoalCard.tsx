@@ -25,8 +25,6 @@ export default function GoalCard({
 }: GoalCardProps) {
   const toneClass = TONE_CLASS[tone] ?? TONE_CLASS.neutral;
   return (
-    <div className={`rounded-[0.75rem] ${toneClass} ${className}`}>
-      {children}
-    </div>
+    <div className={`rounded-xl ${toneClass} ${className}`}>{children}</div>
   );
 }

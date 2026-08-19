@@ -104,7 +104,7 @@ export default function CascadingSelect({
       ref={containerRef}
       // B-1(2026-08-11) — 5단째(반영교과/영역)는 후보 2개 이상일 때만 meta 에 추가되므로 wide 트랙도
       // meta.length 에 맞춰 5열로 좁혀 그린다(4열 972 규격과 같은 산식: 11rem×5+1.25rem×4=60rem≈960px).
-      className={`grid w-full max-w-[62rem] grid-cols-1 gap-4 sm:grid-cols-[repeat(2,minmax(0,22rem))] wide:gap-5 ${
+      className={`grid w-full max-w-248 grid-cols-1 gap-4 sm:grid-cols-[repeat(2,minmax(0,22rem))] wide:gap-5 ${
         meta.length >= 5
           ? "wide:grid-cols-[repeat(5,11rem)]"
           : "wide:grid-cols-[repeat(4,14.25rem)]"
@@ -119,18 +119,18 @@ export default function CascadingSelect({
         const isOpen = openIndex === index;
         const buttonToneClassName = (() => {
           if (!enabled)
-            return "cursor-not-allowed border-[#D7D7D7] bg-[#F5F5F5] text-[#D7D7D7]";
-          if (isOpen) return "border-[#013262] bg-white text-[#181D24]";
+            return "cursor-not-allowed border-line bg-[#F5F5F5] text-line";
+          if (isOpen) return "border-primary bg-white text-ink-title";
           if (selected)
-            return "border-[#013262] bg-white text-[#181D24] hover:border-[#B0B0B0]";
-          return "border-[#D7D7D7] bg-white text-[#D7D7D7] hover:border-[#B0B0B0]";
+            return "border-primary bg-white text-ink-title hover:border-[#B0B0B0]";
+          return "border-line bg-white text-line hover:border-[#B0B0B0]";
         })();
 
         return (
           <div key={level.key} className="relative flex min-w-0 flex-col gap-2">
             <p
               className={`text-base font-medium leading-5 ${
-                enabled ? "text-[#525252]" : "text-[#D7D7D7]"
+                enabled ? "text-ink" : "text-line"
               }`}
             >
               {level.label}
@@ -142,18 +142,18 @@ export default function CascadingSelect({
               aria-haspopup="listbox"
               aria-expanded={isOpen}
               onClick={() => enabled && setOpenIndex(isOpen ? null : index)}
-              className={`flex h-[4.25rem] w-full items-center justify-between gap-6 rounded-[1.25rem] border px-5 text-left text-xl font-normal leading-5 transition-[background-color,border-color,color] duration-150 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent/30 ${buttonToneClassName}`}
+              className={`flex h-17 w-full items-center justify-between gap-6 rounded-perf-modal border px-5 text-left text-xl font-normal leading-5 transition-[background-color,border-color,color] duration-150 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent/30 ${buttonToneClassName}`}
             >
               <span className="truncate">{selected || level.placeholder}</span>
               {/* chevron: lucide-react ChevronDown 24 유지 (§7 C-7 — 별도 SVG 추출 안 함) */}
               <ChevronDown
                 size={24}
-                className={`shrink-0 transition-transform duration-150 ${isOpen ? "rotate-180 text-[#013262]" : ""} ${
+                className={`shrink-0 transition-transform duration-150 ${isOpen ? "rotate-180 text-primary" : ""} ${
                   !enabled
-                    ? "text-[#D7D7D7]"
+                    ? "text-line"
                     : selected
-                      ? "text-[#013262]"
-                      : "text-[#D7D7D7]"
+                      ? "text-primary"
+                      : "text-line"
                 }`}
               />
             </button>
@@ -183,7 +183,7 @@ export default function CascadingSelect({
                           <button
                             type="button"
                             onClick={() => level.onRetry?.()}
-                            className="inline-flex min-h-[2.75rem] w-fit items-center rounded-xl border border-[#013262] px-4 py-2 text-base font-medium text-[#013262] transition hover:bg-[#F1F8FF] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent/30"
+                            className="inline-flex min-h-11 w-fit items-center rounded-xl border border-primary px-4 py-2 text-base font-medium text-primary transition hover:bg-[#F1F8FF] focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-accent/30"
                           >
                             다시 시도
                           </button>
@@ -205,18 +205,15 @@ export default function CascadingSelect({
                         role="option"
                         aria-selected={isSelected}
                         onClick={() => handleSelect(index, option)}
-                        className={`flex min-h-[2.75rem] w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-base transition hover:bg-[#F1F8FF] ${
+                        className={`flex min-h-11 w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-base transition hover:bg-[#F1F8FF] ${
                           isSelected
-                            ? "bg-[#F1F8FF] font-medium text-[#013262]"
-                            : "text-[#525252]"
+                            ? "bg-[#F1F8FF] font-medium text-primary"
+                            : "text-ink"
                         }`}
                       >
                         <span className="truncate">{option}</span>
                         {isSelected && (
-                          <Check
-                            size={18}
-                            className="shrink-0 text-[#013262]"
-                          />
+                          <Check size={18} className="shrink-0 text-primary" />
                         )}
                       </button>
                     );

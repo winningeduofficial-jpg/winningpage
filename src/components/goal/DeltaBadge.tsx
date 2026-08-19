@@ -20,7 +20,7 @@ const DIRECTION_GLYPH: Record<string, string> = {
 };
 
 const TONE_CLASS: Record<string, string> = {
-  positive: "bg-[#E3F3E6] text-[#2E9E4C]", // (추정) 연초록 — insight.success와 동일 계열
+  positive: "bg-goal-insight-success text-[#2E9E4C]", // (추정) 연초록 — insight.success와 동일 계열
   negative: "bg-[#FCE4E4] text-[#D14343]", // (추정) 연빨강 — GoalDdayBadge red 톤 재사용
   neutral: "bg-[#F0F0F0] text-ink-sub", // (추정) 회색
 };
@@ -41,7 +41,7 @@ export default function DeltaBadge({
 
   return (
     <span
-      className={`inline-flex h-[1.9375rem] w-fit shrink-0 items-center justify-center gap-1 rounded-lg px-2.5 text-[0.8125rem] font-semibold leading-[1.2] ${toneClass}`}
+      className={`inline-flex h-7.75 w-fit shrink-0 items-center justify-center gap-1 rounded-lg px-2.5 text-[0.8125rem] font-semibold leading-[1.2] ${toneClass}`}
     >
       <span aria-hidden="true" className="text-[0.625rem] leading-none">
         {glyph}

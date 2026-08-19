@@ -233,7 +233,7 @@ function AdminInput({
   disabled?: boolean | undefined;
 }) {
   const base =
-    "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100";
+    "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-hidden disabled:bg-gray-100";
   // field.readOnly: 폼 전체 disabled와 별개로 "이 필드 하나만" 편집 불가로
   // 만든다(예: *_html 미러 — doc이 정본이고 이 필드는 자동 생성값이라
   // 직접 고치면 안 됨). HTML readOnly 속성은 disabled와 달리 값 선택·복사는
@@ -248,7 +248,7 @@ function AdminInput({
         disabled={disabled}
         readOnly={readOnly}
         rows={field.rows || 5}
-        className={`w-full resize-y border border-[#9ca3af] px-3 py-2 font-mono text-xs leading-5 outline-none disabled:bg-gray-100 ${readOnly ? "bg-gray-50 text-gray-500" : "bg-white"}`}
+        className={`w-full resize-y border border-[#9ca3af] px-3 py-2 font-mono text-xs leading-5 outline-hidden disabled:bg-gray-100 ${readOnly ? "bg-gray-50 text-gray-500" : "bg-white"}`}
       />
     );
   }
@@ -565,7 +565,7 @@ function CategorySectionButton({
       <span className="text-sm font-black">{item.label}</span>
       <span className="flex items-center gap-3">
         <span className="text-xs font-bold text-gray-500">{item.summary}</span>
-        <span className="rounded border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff]">
+        <span className="rounded-sm border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff]">
           수정
         </span>
       </span>
@@ -857,13 +857,13 @@ export function AdminForm<T extends AdminRow = AdminRow>({
         </h1>
 
         {config.homepage && (
-          <p className="mb-4 rounded border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+          <p className="mb-4 rounded-sm border border-red-100 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
             이 메뉴에서 저장한 내용은 실제 홈페이지에 반영됩니다.
           </p>
         )}
 
         {config.guideText && (
-          <p className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
+          <p className="mb-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm font-black leading-6 text-red-600">
             {config.guideText}
           </p>
         )}
@@ -880,7 +880,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
         )}
 
         <div className="flex flex-col gap-6 xl:flex-row xl:items-start">
-          <div className="min-w-0 flex-1 bg-white shadow">
+          <div className="min-w-0 flex-1 bg-white shadow-sm">
             {buildFieldRenderItems(
               (config.fields || config.columns).filter(
                 (field) => !field.showIf || field.showIf(form),
@@ -1031,15 +1031,15 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                               <img
                                 src={form[field.key]}
                                 alt=""
-                                className="h-20 w-32 rounded border object-cover"
+                                className="h-20 w-32 rounded-sm border object-cover"
                               />
                             ) : (
-                              <div className="flex h-20 w-32 items-center justify-center rounded border bg-gray-50 text-xs font-bold text-gray-400">
+                              <div className="flex h-20 w-32 items-center justify-center rounded-sm border bg-gray-50 text-xs font-bold text-gray-400">
                                 이미지 없음
                               </div>
                             )}
 
-                            <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
                               <UploadCloud size={16} />
                               이미지 업로드
                               <input
@@ -1066,19 +1066,19 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                 href={form[field.key]}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="inline-flex h-10 items-center rounded border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
+                                className="inline-flex h-10 items-center rounded-sm border border-blue-200 bg-blue-50 px-4 text-sm font-bold text-blue-700 hover:bg-blue-100"
                               >
                                 {(field.nameKey
                                   ? form[field.nameKey]
                                   : undefined) || "첨부파일 보기"}
                               </a>
                             ) : (
-                              <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
+                              <div className="flex h-10 items-center rounded-sm border bg-gray-50 px-4 text-xs font-bold text-gray-400">
                                 첨부파일 없음
                               </div>
                             )}
 
-                            <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
                               <UploadCloud size={16} />
                               파일 등록
                               <input
@@ -1106,7 +1106,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                   change(field.key, "");
                                   if (field.nameKey) change(field.nameKey, "");
                                 }}
-                                className="h-10 rounded border border-red-200 bg-red-50 px-4 text-sm font-black text-red-600 hover:bg-red-100"
+                                className="h-10 rounded-sm border border-red-200 bg-red-50 px-4 text-sm font-black text-red-600 hover:bg-red-100"
                               >
                                 삭제
                               </button>
@@ -1125,27 +1125,27 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                     <img
                                       src={url}
                                       alt=""
-                                      className="h-28 w-40 rounded border object-cover"
+                                      className="h-28 w-40 rounded-sm border object-cover"
                                     />
                                     <button
                                       type="button"
                                       onClick={() =>
                                         removeListItem(field.key, index)
                                       }
-                                      className="absolute right-1 top-1 rounded bg-black/70 px-2 py-1 text-xs font-black text-white"
+                                      className="absolute right-1 top-1 rounded-sm bg-black/70 px-2 py-1 text-xs font-black text-white"
                                     >
                                       삭제
                                     </button>
                                   </div>
                                 ))
                               ) : (
-                                <div className="flex h-20 w-32 items-center justify-center rounded border bg-gray-50 text-xs font-bold text-gray-400">
+                                <div className="flex h-20 w-32 items-center justify-center rounded-sm border bg-gray-50 text-xs font-bold text-gray-400">
                                   이미지 없음
                                 </div>
                               )}
                             </div>
 
-                            <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
                               <UploadCloud size={16} />
                               이미지 여러 개 업로드
                               <input
@@ -1181,7 +1181,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                   return (
                                     <div
                                       key={key}
-                                      className="flex items-center justify-between rounded border bg-gray-50 px-4 py-2"
+                                      className="flex items-center justify-between rounded-sm border bg-gray-50 px-4 py-2"
                                     >
                                       <a
                                         href={fileUrl}
@@ -1197,7 +1197,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                         onClick={() =>
                                           removeListItem(field.key, index)
                                         }
-                                        className="rounded border border-red-200 bg-red-50 px-3 py-1 text-xs font-black text-red-600 hover:bg-red-100"
+                                        className="rounded-sm border border-red-200 bg-red-50 px-3 py-1 text-xs font-black text-red-600 hover:bg-red-100"
                                       >
                                         삭제
                                       </button>
@@ -1205,13 +1205,13 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                   );
                                 })
                               ) : (
-                                <div className="flex h-10 items-center rounded border bg-gray-50 px-4 text-xs font-bold text-gray-400">
+                                <div className="flex h-10 items-center rounded-sm border bg-gray-50 px-4 text-xs font-bold text-gray-400">
                                   첨부파일 없음
                                 </div>
                               )}
                             </div>
 
-                            <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
                               <UploadCloud size={16} />
                               파일 여러 개 등록
                               <input
@@ -1235,7 +1235,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
           </div>
 
           {config.FormPreview && (
-            <div className="w-full xl:sticky xl:top-[4.5rem] xl:w-[23.75rem] xl:shrink-0">
+            <div className="w-full xl:sticky xl:top-18 xl:w-95 xl:shrink-0">
               <config.FormPreview
                 form={form}
                 onPatch={patch}
@@ -1416,7 +1416,7 @@ export function AdminTable<T extends AdminRow = AdminRow>({
   }, [pageRows, config.columns]);
 
   return (
-    <div className="bg-white p-6 shadow">
+    <div className="bg-white p-6 shadow-sm">
       <div className="mb-4 text-sm font-bold text-gray-500">
         전체 <span className="text-blue-600">{total.toLocaleString()}</span>건
       </div>
@@ -1498,7 +1498,7 @@ export function AdminTable<T extends AdminRow = AdminRow>({
                           type="button"
                           onClick={() => onOpenMetaEdit(row)}
                           title="대학 정보 수정 창 열기"
-                          className="text-left font-bold text-[#013262] underline underline-offset-2 transition hover:text-[#0b84fd]"
+                          className="text-left font-bold text-primary underline underline-offset-2 transition hover:text-accent"
                         >
                           {formatValue(
                             row[column.key],
@@ -1513,10 +1513,10 @@ export function AdminTable<T extends AdminRow = AdminRow>({
                               <img
                                 src={row[column.key]}
                                 alt=""
-                                className="h-12 w-20 rounded object-cover"
+                                className="h-12 w-20 rounded-sm object-cover"
                               />
                               <span
-                                className="max-w-[10rem] truncate text-xs font-bold text-gray-500"
+                                className="max-w-40 truncate text-xs font-bold text-gray-500"
                                 title={fileNameFromUrl(row[column.key])}
                               >
                                 {fileNameFromUrl(row[column.key])}
@@ -1526,7 +1526,7 @@ export function AdminTable<T extends AdminRow = AdminRow>({
                             <img
                               src={row[column.key]}
                               alt=""
-                              className="h-12 w-20 rounded object-cover"
+                              className="h-12 w-20 rounded-sm object-cover"
                             />
                           )
                         ) : (
@@ -1538,7 +1538,7 @@ export function AdminTable<T extends AdminRow = AdminRow>({
                             <img
                               src={normalizeArray(row[column.key])[0] as string}
                               alt=""
-                              className="h-12 w-20 rounded object-cover"
+                              className="h-12 w-20 rounded-sm object-cover"
                             />
                             <span className="text-xs font-bold text-gray-500">
                               {normalizeArray(row[column.key]).length > 1
@@ -1596,8 +1596,8 @@ export function AdminTable<T extends AdminRow = AdminRow>({
                               }
                               className={
                                 empty
-                                  ? "rounded border border-dashed border-gray-300 bg-white px-2.5 py-1 text-xs font-black text-gray-400 transition hover:border-[#2348ff] hover:text-[#2348ff]"
-                                  : "rounded border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff] transition hover:border-[#2348ff] hover:bg-[#2348ff] hover:text-white"
+                                  ? "rounded-sm border border-dashed border-gray-300 bg-white px-2.5 py-1 text-xs font-black text-gray-400 transition hover:border-[#2348ff] hover:text-[#2348ff]"
+                                  : "rounded-sm border border-[#c7d2fe] bg-[#eef2ff] px-2.5 py-1 text-xs font-black text-[#2348ff] transition hover:border-[#2348ff] hover:bg-[#2348ff] hover:text-white"
                               }
                             >
                               {empty ? "추가" : "수정"}

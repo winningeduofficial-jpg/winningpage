@@ -22,7 +22,7 @@ export default function OnboardingProgress({
       aria-valuemin={1}
       aria-valuemax={total}
       aria-label={`온보딩 진행률 ${current} / ${total}단계`}
-      className={`h-[0.625rem] w-full rounded-full bg-surface-01 ${className}`}
+      className={`h-2.5 w-full rounded-full bg-surface-01 ${className}`}
     >
       <div
         className="h-full rounded-full bg-surface-02 transition-[width] duration-300"

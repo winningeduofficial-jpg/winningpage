@@ -40,7 +40,7 @@ export default function ChildPreviewCard({
       type={type}
       onClick={onClick}
       aria-pressed={selected}
-      className={`flex h-[3.75rem] w-full items-center gap-3 rounded-xl border bg-surface-info px-4 text-left transition active:scale-[0.98] motion-reduce:active:scale-100 ${
+      className={`flex h-perf-inset w-full items-center gap-3 rounded-xl border bg-surface-info px-4 text-left transition active:scale-[0.98] motion-reduce:active:scale-100 ${
         selected ? "border-primary" : "border-transparent"
       } ${className}`}
     >

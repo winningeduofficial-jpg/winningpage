@@ -2,12 +2,12 @@
 import { ChevronDown } from "lucide-react";
 
 const SIZE_CLASSES: Record<string, string> = {
-  default: "h-[3.25rem] rounded-xl border-line bg-white px-5 pr-12 text-base", // 52px
-  lg: "h-[3.75rem] rounded-xl border-line bg-white px-5 pr-12 text-base", // 60px
+  default: "h-13 rounded-xl border-line bg-white px-5 pr-12 text-base", // 52px
+  lg: "h-perf-inset rounded-xl border-line bg-white px-5 pr-12 text-base", // 60px
   // 인앱(수행평가) 폼 전용 — docs/수행평가-상세-명세.md §5.5/§7.3 실측(3754:3206).
   // 높이 2.5rem(40)·radius 0.5rem(8)·텍스트 0.875rem(14)·보더 performance-line(#d9d9d9)·
   // 배경 performance-bubble(#f8f7f5). default/lg(52·60px, radius 12px, bg-white)와 별개 계열.
-  perf: "h-[2.5rem] rounded-lg border-performance-line bg-performance-bubble px-4 pr-9 text-sm",
+  perf: "h-10 rounded-lg border-performance-line bg-performance-bubble px-4 pr-9 text-sm",
 };
 
 // 셰브론 아이콘 치수·위치·색 — 사이즈별로 다르다(perf는 시안 실측 VECTOR 11×7 `#808080`,
@@ -109,7 +109,7 @@ export default function SelectField({
           required={required}
           aria-describedby={helperText ? `${fieldId}-helper` : undefined}
           aria-invalid={status === "error"}
-          className={`w-full appearance-none border outline-none transition focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${value ? "text-ink" : "text-ink-sub"}`}
+          className={`w-full appearance-none border outline-hidden transition focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${value ? "text-ink" : "text-ink-sub"}`}
         >
           <option value="" disabled hidden>
             {placeholder}

@@ -42,11 +42,11 @@ import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
 // 카드 폭은 시안 292(18.25rem)를 전 구간 고정한다. 375 뷰포트에서도 우측에 다음 카드가 43px
 // 걸쳐 보여 "옆으로 더 있다"는 스크롤 어포던스가 자연히 생긴다.
 const COUNSEL_CARD_CLASS =
-  "flex h-full w-[18.25rem] shrink-0 flex-col items-center rounded-[1.25rem] bg-white px-[1.4375rem] py-[1.75rem] text-center shadow-[0_0.25rem_0.5rem_rgba(0,0,0,0.1)]";
+  "flex h-full w-73 shrink-0 flex-col items-center rounded-perf-modal bg-white px-5.75 py-7 text-center shadow-[0_0.25rem_0.5rem_rgba(0,0,0,0.1)]";
 
 // 아이콘 슬롯 150×150. 원본 PNG 는 카드마다 실제 비율이 달라(110×124 ~ 126×126) object-contain
 // 으로 슬롯 안에 레터박스 처리하고, w/h 를 모두 명시해 원본 크기로 튀는 것을 막는다.
-const COUNSEL_ICON_CLASS = "h-[9.375rem] w-[9.375rem] shrink-0 object-contain";
+const COUNSEL_ICON_CLASS = "h-37.5 w-37.5 shrink-0 object-contain";
 
 // 카드 제목 24 SemiBold / lh 1.3 / #191D23(ink.strong) — §3 혜택 카드(#181D24, lh 1.4)와 다르다.
 // 설명 16 Regular / lh 1.3 / #525252(ink).
@@ -64,7 +64,7 @@ type CounselFieldSectionProps = {
 };
 
 export default function CounselFieldSection({
-  className = "lg:pt-[8.75rem]",
+  className = "lg:pt-35",
 }: CounselFieldSectionProps) {
   // 탭 전환이 없는 정적 7건 섹션이라 recenter 는 구조분해에서 뺀다
   // (AcceptanceSection 과 달리 콘텐츠가 바뀌어 재중앙 배치할 일이 없다).
@@ -74,7 +74,7 @@ export default function CounselFieldSection({
 
   return (
     // 껍데기(bg-white pt-16 sm:pt-20)는 ServiceSection 과 문자 동일. 기본 className 의
-    // lg:pt-[8.75rem] 은 시안의 §3 블록 ↔ §4 블록 세로 간격 140px 이다(페이지에서 덮어쓸 수 있다).
+    // lg:pt-35 은 시안의 §3 블록 ↔ §4 블록 세로 간격 140px 이다(페이지에서 덮어쓸 수 있다).
     <section className={`bg-white pt-16 sm:pt-20 ${className}`}>
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         {/* 시안상 이 타이틀만 뷰포트 정중앙 정렬이다(타이틀 프레임 중심 x=960.5 = 1920/2). */}
@@ -95,15 +95,15 @@ export default function CounselFieldSection({
           동작한다(래퍼 중첩 금지). mx-auto 는 제거 — 마퀴 좌표계에서 무의미하다.
           py-2 는 카드 그림자(y+4, blur 8) 세로 클리핑 방지로 그대로 남긴다.
       */}
-      <div className="mt-8 sm:mt-10 lg:mt-[3.25rem]" {...containerHandlers}>
+      <div className="mt-8 sm:mt-10 lg:mt-13" {...containerHandlers}>
         <section
           ref={scrollRef}
           aria-label={COUNSEL_FIELD_SECTION.title}
           // biome-ignore lint/a11y/noNoninteractiveTabindex: APG Scrollable Regions 패턴 — 가로 스크롤 영역을 키보드로도 스크롤할 수 있게 한다.
           tabIndex={0}
-          className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] scrollbar-none active:cursor-grabbing [&::-webkit-scrollbar]:hidden focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent"
         >
-          <ul className="flex w-max min-w-full items-stretch gap-[1.4375rem] px-5 py-2 sm:px-8">
+          <ul className="flex w-max min-w-full items-stretch gap-5.75 px-5 py-2 sm:px-8">
             {repeatIndices.map((fieldIndex, position) => {
               const item = COUNSEL_FIELDS[fieldIndex]!; // fieldIndex는 useInfiniteMarquee가 COUNSEL_FIELDS 길이 기준으로 생성해 항상 범위 내
 
@@ -127,7 +127,7 @@ export default function CounselFieldSection({
                       aria-hidden="true"
                       className={COUNSEL_ICON_CLASS}
                     />
-                    <div className="mt-[0.6875rem] flex flex-col gap-[1.25rem]">
+                    <div className="mt-2.75 flex flex-col gap-5">
                       <h3 className={COUNSEL_TITLE_CLASS}>{item.title}</h3>
                       {/* desc 의 `\n` 은 시안 강제 개행이라 whitespace-pre-line 으로 보존한다. */}
                       <p className={COUNSEL_DESC_CLASS}>{item.desc}</p>

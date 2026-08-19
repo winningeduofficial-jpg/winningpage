@@ -20,7 +20,7 @@ export default function StrategyListCard({
   return (
     <GoalCard
       tone="neutral"
-      className="flex min-h-[22.4375rem] flex-col gap-4 px-6 py-6"
+      className="flex min-h-89.75 flex-col gap-4 px-6 py-6"
     >
       <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
         {title}

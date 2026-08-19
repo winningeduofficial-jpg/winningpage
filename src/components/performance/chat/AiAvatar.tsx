@@ -16,7 +16,7 @@ export default function AiAvatar({ className = "" }: AiAvatarProps) {
     <div
       aria-hidden="true"
       className={[
-        "flex h-[3.25rem] w-[3.25rem] flex-shrink-0 items-center justify-center rounded-xl",
+        "flex h-13 w-13 shrink-0 items-center justify-center rounded-xl",
         "bg-performance-userBubble",
         className,
       ].join(" ")}
@@ -31,7 +31,7 @@ export default function AiAvatar({ className = "" }: AiAvatarProps) {
           색·배경 자체는 안 바꿨으므로 원래도 동일). 폭은 "위닝" 두 글자가 16px
           font-semibold 기준 약 32~34px로 52px 박스에 여유 있게 들어가 줄바꿈·잘림이
           없다 — 별도 크기 조정 불필요. */}
-      <span className="text-[1rem] font-semibold leading-[1.25rem] text-white">
+      <span className="text-[1rem] font-semibold leading-5 text-white">
         위닝
       </span>
     </div>

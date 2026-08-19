@@ -10,7 +10,7 @@ import { Link } from "react-router";
  *
  */
 type ServiceCardAction = {
-  kind: "link" | "outline" | "solid";
+  kind: "link" | "outline-solid" | "solid";
   label: string;
   href: string;
 };
@@ -46,30 +46,30 @@ export default function ServiceCard({ card }: ServiceCardProps) {
   } = card;
 
   const statusPillClass = isOngoing
-    ? "bg-[#e7f2fb] text-accent"
+    ? "bg-performance-chip text-accent"
     : "bg-[#d9d9d9] text-ink-sub";
 
   return (
-    <div className="flex flex-col gap-[1.1875rem] rounded-[1.25rem] border border-[#d9d9d9] bg-white p-[2rem]">
-      <div className="flex items-center justify-between gap-[0.75rem]">
+    <div className="flex flex-col gap-4.75 rounded-perf-modal border border-[#d9d9d9] bg-white p-8">
+      <div className="flex items-center justify-between gap-3">
         <h3 className="text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.025rem] text-ink">
           {serviceName}
         </h3>
         <span
-          className={`inline-flex h-[2rem] shrink-0 items-center justify-center whitespace-nowrap rounded-[0.5rem] px-[0.75rem] text-[0.875rem] font-semibold leading-[1.4] ${statusPillClass}`}
+          className={`inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 text-[0.875rem] font-semibold leading-[1.4] ${statusPillClass}`}
         >
           {statusLabel}
         </span>
       </div>
 
-      <div className="h-[0.375rem] w-full rounded-[0.75rem] bg-[#d9d9d9]">
+      <div className="h-1.5 w-full rounded-xl bg-[#d9d9d9]">
         <div
-          className="h-full rounded-[0.75rem] bg-primary"
+          className="h-full rounded-xl bg-primary"
           style={{ width: `${Math.round(progressPercent)}%` }}
         />
       </div>
 
-      <div className="flex items-center justify-between gap-[0.5rem] text-[0.875rem] leading-[1.4] tracking-[-0.0175rem] text-ink-sub">
+      <div className="flex items-center justify-between gap-2 text-[0.875rem] leading-[1.4] tracking-[-0.0175rem] text-ink-sub">
         <span>{metaLeft}</span>
         <span>{metaRight}</span>
       </div>
@@ -84,15 +84,15 @@ export default function ServiceCard({ card }: ServiceCardProps) {
           {actions[0]!.label} →
         </Link>
       ) : (
-        <div className="flex items-center gap-[0.5rem]">
+        <div className="flex items-center gap-2">
           {actions.map((action) => (
             <Link
               key={action.kind}
               to={action.href}
               className={
-                action.kind === "outline"
-                  ? "inline-flex h-[2rem] w-[8.25rem] items-center justify-center rounded-[0.5rem] border border-[#d9d9d9] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-ink-sub transition hover:bg-surface-04"
-                  : "inline-flex h-[2rem] w-[8.25rem] items-center justify-center rounded-[0.5rem] bg-[#e9f4ff] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-accent transition hover:bg-[#d9edff]"
+                action.kind === "outline-solid"
+                  ? "inline-flex h-8 w-33 items-center justify-center rounded-lg border border-[#d9d9d9] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-ink-sub transition hover:bg-surface-04"
+                  : "inline-flex h-8 w-33 items-center justify-center rounded-lg bg-[#e9f4ff] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-accent transition hover:bg-[#d9edff]"
               }
             >
               {action.label}

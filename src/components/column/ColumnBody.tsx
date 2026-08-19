@@ -8,9 +8,9 @@ const ColumnBodyBlockNote = lazy(() => import("./ColumnBodyBlockNote"));
 // bn-doc = blockNoteContent.css의 스코프 클래스. 에디터도 같은 클래스를 감싸므로(BlockEditor.jsx)
 // 이 한 글자가 "에디터와 공개 페이지가 같은 본문 스타일을 쓴다"는 계약 그 자체다 — 빼면 안 된다.
 const RICH_BASE =
-  "bn-doc max-w-[45rem] break-keep text-base font-normal leading-8 text-[#525252]";
+  "bn-doc max-w-180 break-keep text-base font-normal leading-8 text-ink";
 const PLAIN_BASE =
-  "max-w-[45rem] whitespace-pre-wrap break-keep text-base font-normal leading-8 text-[#525252]";
+  "max-w-180 whitespace-pre-wrap break-keep text-base font-normal leading-8 text-ink";
 
 // post는 소비처마다(galleries 행 / admission_cases 행 / faqs 어댑터) 모양이 조금씩 다르다 —
 // 이 컴포넌트가 실제로 읽는 필드(id/content_json/content)만 좁혀서 두고, 그 외는

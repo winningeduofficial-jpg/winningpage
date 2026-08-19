@@ -17,7 +17,7 @@ export default function DirectionSummaryBanner({
       <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
         {typeLabel}
       </h3>
-      <p className="max-w-[67.375rem] text-[0.875rem] leading-[1.6] text-ink">
+      <p className="max-w-269.5 text-[0.875rem] leading-[1.6] text-ink">
         {body}
       </p>
     </div>

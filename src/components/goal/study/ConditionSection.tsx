@@ -47,17 +47,14 @@ export default function ConditionSection({
   };
 
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex h-full flex-col gap-5 px-[2rem] py-[1.875rem]"
-    >
+    <GoalCard tone="neutral" className="flex h-full flex-col gap-5 px-8 py-7.5">
       <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
         오늘의 컨디션
       </h3>
       <div
         role="radiogroup"
         aria-label="오늘의 컨디션"
-        className="flex flex-wrap gap-[0.625rem]"
+        className="flex flex-wrap gap-2.5"
       >
         {options.map((option, index) => {
           const selected = option.value === value;
@@ -74,7 +71,7 @@ export default function ConditionSection({
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(option.value)}
               onKeyDown={(event) => handleKeyDown(event, index)}
-              className={`flex h-[8.9375rem] w-[8.6875rem] flex-1 flex-col items-center justify-center gap-2 rounded-xl border transition-colors ${
+              className={`flex h-35.75 w-34.75 flex-1 flex-col items-center justify-center gap-2 rounded-xl border transition-colors ${
                 selected
                   ? "border-accent bg-surface-03 font-bold text-accent"
                   : "border-line bg-white text-ink"

@@ -99,7 +99,7 @@ export default function FreeDiagnosisReport() {
 
   return (
     <main className="fd-print-area min-h-screen w-full bg-[#FBFAFA] pt-16">
-      <div className="fd-sheet-stack flex flex-col items-center gap-10 px-4 pt-10 pb-10 lg:gap-[6.25rem] lg:px-0 lg:pt-[6.25rem] lg:pb-[6.25rem]">
+      <div className="fd-sheet-stack flex flex-col items-center gap-10 px-4 pt-10 pb-10 lg:gap-25 lg:px-0 lg:pt-25 lg:pb-25">
         {/* 불성실 응답 경고는 시트 **위**에 둔다 — '결과가 다를 수 있다'는 안내가 리포트 2장을
             다 읽은 뒤에 나오면 기능을 못 한다. 시트 밖인 이유는 승인된 A4 레이아웃의 첫 요소를
             밀어내지 않기 위해서다. */}
@@ -119,13 +119,13 @@ export default function FreeDiagnosisReport() {
         <ReportScreenExtras data={data} />
 
         {/* PdfDownloadButton.jsx 미배정 — 결정9 스펙(253×60, r30, bg #013262)을 인라인 구현.
-            모바일에서도 살아 있어야 한다(A4 출력은 이 경로로만 얻는다) — 터치 타깃 h-[3.75rem]
+            모바일에서도 살아 있어야 한다(A4 출력은 이 경로로만 얻는다) — 터치 타깃 h-perf-inset
             (60px) 는 이미 2.75rem(44px) 최소 기준을 넘는다. */}
         <div className="fd-no-print">
           <button
             type="button"
             onClick={() => window.print()}
-            className="flex h-[3.75rem] w-[15.8125rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-10 py-5 text-[1.25rem] font-semibold text-white transition-colors duration-150 hover:bg-[#01427e] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="flex h-perf-inset w-63.25 items-center justify-center rounded-[1.875rem] bg-primary px-10 py-5 text-[1.25rem] font-semibold text-white transition-colors duration-150 hover:bg-[#01427e] focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             PDF 파일로 다운 받기
           </button>

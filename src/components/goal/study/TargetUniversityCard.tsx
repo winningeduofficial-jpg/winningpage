@@ -22,7 +22,7 @@ function RateRow({ label, value, dotClassName, fillClassName }: RateRowProps) {
         aria-hidden="true"
         className={`h-2 w-2 shrink-0 rounded-full ${dotClassName}`}
       />
-      <span className="w-[6rem] shrink-0 text-[0.9375rem] leading-[1.4] text-ink">
+      <span className="w-24 shrink-0 text-[0.9375rem] leading-[1.4] text-ink">
         {label}
       </span>
       <GoalProgressBar
@@ -32,7 +32,7 @@ function RateRow({ label, value, dotClassName, fillClassName }: RateRowProps) {
         fillClassName={fillClassName}
         className="flex-1"
       />
-      <span className="w-[3rem] shrink-0 text-right text-[1rem] font-bold leading-[1.4] text-ink-strong">
+      <span className="w-12 shrink-0 text-right text-[1rem] font-bold leading-[1.4] text-ink-strong">
         {value}%
       </span>
     </div>
@@ -55,10 +55,7 @@ export default function TargetUniversityCard({
   jeongsiRate,
 }: TargetUniversityCardProps) {
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex flex-col gap-8 px-[2rem] py-[1.875rem]"
-    >
+    <GoalCard tone="neutral" className="flex flex-col gap-8 px-8 py-7.5">
       <div>
         <p className="text-[0.875rem] leading-[1.4] text-ink-sub">{label}</p>
         <p className="mt-2 text-[1.75rem] font-bold leading-[1.4] text-ink-strong">

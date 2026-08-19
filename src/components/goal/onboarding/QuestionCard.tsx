@@ -20,24 +20,24 @@ export default function QuestionCard({
   children,
 }: QuestionCardProps) {
   return (
-    <div className="w-full rounded-[1.5rem] bg-white px-[3.75rem] py-[2.5rem]">
-      <div className="flex items-center gap-[0.75rem]">
+    <div className="w-full rounded-3xl bg-white px-perf-inset py-10">
+      <div className="flex items-center gap-3">
         <StepBadge step={step} />
         <span className="text-[0.875rem] text-ink-sub">{label}</span>
       </div>
 
-      <h2 className="mt-[1.5rem] text-[1.5rem] font-bold leading-[1.4] text-ink-strong">
+      <h2 className="mt-6 text-[1.5rem] font-bold leading-[1.4] text-ink-strong">
         {title}
       </h2>
 
       {/* 설명문은 옵셔널 슬롯 — part-01 #2(카드 B)처럼 없는 스텝도 있다(part-01 구현 노트). */}
       {description && (
-        <p className="mt-[0.5rem] text-[0.875rem] leading-[1.5] text-ink-sub">
+        <p className="mt-2 text-[0.875rem] leading-normal text-ink-sub">
           {description}
         </p>
       )}
 
-      <div className="mt-[2rem]">{children}</div>
+      <div className="mt-8">{children}</div>
     </div>
   );
 }

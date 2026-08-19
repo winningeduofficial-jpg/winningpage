@@ -64,21 +64,21 @@ const AiLoadingBubble = forwardRef<HTMLDivElement, AiLoadingBubbleProps>(
       >
         <AiAvatar />
         <div className="flex min-w-0 flex-1 flex-col items-start gap-4">
-          <span className="text-[0.875rem] font-semibold leading-[1.125rem] text-ink">
+          <span className="text-[0.875rem] font-semibold leading-4.5 text-ink">
             {label}
           </span>
-          <div className="flex w-full max-w-perf-bubble items-center gap-[1.125rem] rounded-2xl bg-performance-bubble py-5 pl-[1.125rem] pr-5">
+          <div className="flex w-full max-w-perf-bubble items-center gap-4.5 rounded-2xl bg-performance-bubble py-5 pl-4.5 pr-5">
             <span
               aria-hidden="true"
-              className="flex h-6 w-6 flex-shrink-0 animate-pulse items-center justify-center motion-reduce:animate-none"
+              className="flex h-6 w-6 shrink-0 animate-pulse items-center justify-center motion-reduce:animate-none"
             >
               <LoadingSparkle />
             </span>
             <span className="flex min-w-0 flex-col gap-1">
-              <span className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">
+              <span className="text-[1rem] font-semibold leading-5.25 text-ink">
                 {title}
               </span>
-              <span className="text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
+              <span className="text-[0.875rem] font-medium leading-4.5 text-ink-sub">
                 {subtitle}
               </span>
             </span>
@@ -96,7 +96,7 @@ function LoadingSparkle() {
     <svg
       aria-hidden="true"
       viewBox="0 0 24 24"
-      className="h-[1.1875rem] w-[1.1875rem] text-[#1f1f1f]"
+      className="h-4.75 w-4.75 text-[#1f1f1f]"
     >
       <path
         d="M12 2c.5 4.2 1.5 6.9 3 8.4 1.5 1.5 4.2 2.5 8.4 3-4.2.5-6.9 1.5-8.4 3-1.5 1.5-2.5 4.2-3 8.4-.5-4.2-1.5-6.9-3-8.4-1.5-1.5-4.2-2.5-8.4-3 4.2-.5 6.9-1.5 8.4-3 1.5-1.5 2.5-4.2 3-8.4Z"

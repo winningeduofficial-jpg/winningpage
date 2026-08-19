@@ -18,10 +18,7 @@ export default function ConditionListCard({
   rows,
 }: ConditionListCardProps) {
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex min-h-[12.5rem] flex-col gap-4 px-5 py-6"
-    >
+    <GoalCard tone="neutral" className="flex min-h-50 flex-col gap-4 px-5 py-6">
       <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
         {title}
       </h3>

@@ -119,7 +119,7 @@ export default function PerformanceSidebar({
   return (
     <aside
       aria-label="수행평가 사이드바"
-      className="flex min-h-screen w-perf-sidebar flex-shrink-0 flex-col bg-performance-sidebar"
+      className="flex min-h-screen w-perf-sidebar shrink-0 flex-col bg-performance-sidebar"
     >
       {/* 프로필 — 이름 @60,100 (1.25rem/1.625rem w600 #808080), 부제 @60,130 (1rem/1.3125rem
           w400 #808080). 시안이 이름 줄까지 보조색(#808080)을 쓴다 — ink-strong이 아니다.
@@ -128,20 +128,20 @@ export default function PerformanceSidebar({
           포함한 총높이**여야 한다. 100(pt) + 26(이름) + 4(gap) + 21(부제) = 151px = 9.4375rem.
           텍스트 높이 51px만 넣으면 padding 100px에 잠겨 무효가 되고, 프로필 값이 비는
           현재 배선(P5 이전)에서 아래 블록 전체가 51px 위로 밀린다. */}
-      <div className="min-h-[9.4375rem] px-perf-inset pt-[6.25rem]">
+      <div className="min-h-37.75 px-perf-inset pt-25">
         {/* §11 Q79 확정: 이 화면은 수행평가 앱(/app/performance)이고 목표관리는 별개
             제품이다. 시안 원문 `목표관리`는 목표관리 시안에서 셸을 가져온 흔적으로 보이며,
             사용자가 지금 어느 제품에 있는지 오인하게 만드는 문구는 시안 충실도보다
             우선순위가 낮다고 판단해 `수행평가`로 확정한다. */}
         {profileName && (
-          <p className="text-[1.25rem] font-semibold leading-[1.625rem] text-ink-sub">
+          <p className="text-[1.25rem] font-semibold leading-6.5 text-ink-sub">
             {profileName}의 수행평가
           </p>
         )}
         {/* ink-sub(#6b6b6b)는 16px on performance-sidebar(#f9f8f7)에서 5.02:1로 WCAG AA를
             충족한다(과거 TODO(P19, §11.3 Q30) 해소). */}
         {subtitle && (
-          <p className="mt-[0.25rem] text-[1rem] leading-[1.3125rem] text-ink-sub">
+          <p className="mt-1 text-[1rem] leading-5.25 text-ink-sub">
             {subtitle}
           </p>
         )}
@@ -150,14 +150,14 @@ export default function PerformanceSidebar({
       {/* 메뉴 — 섹션 라벨 @60,291(프로필 부제 하단 151에서 140px), 항목 pill 피치 42
           (pill 36 + gap 6). 활성/비활성 텍스트 색이 같고 배경 pill 하나로만 구분하는 것이
           시안 정본이다(§3.2 단정). */}
-      <nav aria-labelledby="perf-nav-heading" className="mt-[8.75rem]">
+      <nav aria-labelledby="perf-nav-heading" className="mt-35">
         <p
           id="perf-nav-heading"
-          className="px-perf-inset text-[1rem] font-semibold leading-[1.3125rem] text-ink-sub"
+          className="px-perf-inset text-[1rem] font-semibold leading-5.25 text-ink-sub"
         >
           메뉴
         </p>
-        <ul className="mt-[0.6875rem] flex flex-col gap-[0.375rem]">
+        <ul className="mt-2.75 flex flex-col gap-1.5">
           {MENU_ITEMS.map((item) => {
             const isActive =
               item.to === "/app/performance" ? !isReports : isReports;
@@ -178,8 +178,8 @@ export default function PerformanceSidebar({
                   aria-current={isActive ? "page" : undefined}
                   className={[
                     // pill 304×36 @x=10 r6 → mx 0.625rem + 폭 19rem, 텍스트 x=60 → pl 3.125rem.
-                    "mx-[0.625rem] flex h-9 w-perf-pill items-center rounded-md pl-[3.125rem]",
-                    "text-[1.25rem] font-medium leading-[1.625rem] text-ink transition-colors",
+                    "mx-2.5 flex h-9 w-perf-pill items-center rounded-md pl-12.5",
+                    "text-[1.25rem] font-medium leading-6.5 text-ink transition-colors",
                     isActive
                       ? "bg-performance-activePill"
                       : "hover:bg-performance-activePill/60",
@@ -198,14 +198,14 @@ export default function PerformanceSidebar({
       {/* 이름 없는 <section>은 region 랜드마크가 아니라 generic으로 매핑돼, 5스텝이
           「진행단계」와 아무 관계 없는 <ol>로만 노출된다. 이미 보이는 라벨을 id로 묶어
           이름을 준다 — 픽셀 변화 0. id는 목표관리 셸과 동시 렌더될 경우를 대비해 perf- 접두. */}
-      <section aria-labelledby="perf-steps-heading" className="mt-[3.4375rem]">
+      <section aria-labelledby="perf-steps-heading" className="mt-13.75">
         <p
           id="perf-steps-heading"
-          className="px-perf-inset text-[1rem] font-semibold leading-[1.3125rem] text-ink-sub"
+          className="px-perf-inset text-[1rem] font-semibold leading-5.25 text-ink-sub"
         >
           진행단계
         </p>
-        <ol className="mt-[0.5625rem] flex flex-col gap-[0.0625rem]">
+        <ol className="mt-2.25 flex flex-col gap-0.25">
           {PERFORMANCE_STEPS.map(({ step, label }, index) => {
             const stepState = stepStates[index];
             const state =
@@ -218,14 +218,14 @@ export default function PerformanceSidebar({
                 aria-current={state === "current" ? "step" : undefined}
                 className={[
                   // 배지 x=60 → pl 3.125rem, 배지 20×20 r10, 배지↔라벨 gap 16 → 라벨 x=96.
-                  "mx-[0.625rem] flex h-9 w-perf-pill items-center gap-4 rounded-md pl-[3.125rem]",
+                  "mx-2.5 flex h-9 w-perf-pill items-center gap-4 rounded-md pl-12.5",
                   style.pill ? "bg-performance-activePill" : "",
                 ].join(" ")}
               >
                 <span
                   className={[
-                    "flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full",
-                    "text-[0.875rem] font-medium leading-[1.125rem]",
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                    "text-[0.875rem] font-medium leading-4.5",
                     style.badge,
                   ].join(" ")}
                 >
@@ -233,10 +233,9 @@ export default function PerformanceSidebar({
                   {state === "done" ? <CheckIcon /> : step}
                 </span>
                 <span
-                  className={[
-                    "text-[1rem] leading-[1.3125rem]",
-                    style.label,
-                  ].join(" ")}
+                  className={["text-[1rem] leading-5.25", style.label].join(
+                    " ",
+                  )}
                 >
                   {label}
                 </span>

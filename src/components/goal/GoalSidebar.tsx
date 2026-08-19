@@ -55,22 +55,22 @@ export default function GoalSidebar() {
   const navBadgeData = { scheduleCount, dailyRecordDone: false, timerRunning };
 
   return (
-    <aside className="flex min-h-screen w-[20.25rem] flex-shrink-0 flex-col bg-goal-sidebar">
+    <aside className="flex min-h-screen w-perf-sidebar shrink-0 flex-col bg-goal-sidebar">
       {/* 사용자 블록 — x=60(3.75rem) / y=100(6.25rem) 이름, y=130 학년·학교유형 */}
-      <div className="px-[3.75rem] pt-[6.25rem]">
+      <div className="px-perf-inset pt-25">
         <p className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
           {mockStudent.name}의 목표관리
         </p>
-        <p className="mt-[0.5rem] text-[0.875rem] leading-[1.4] text-ink-sub">
+        <p className="mt-2 text-[0.875rem] leading-[1.4] text-ink-sub">
           {mockStudent.grade}・{mockStudent.schoolType}
         </p>
       </div>
 
       {/* 내비 4그룹 10항목 — 시안 내비 시작 y=271(사용자 블록과 120px 간격)을 근사한 여백 */}
-      <nav className="mt-[7.5rem] flex flex-col gap-10">
+      <nav className="mt-30 flex flex-col gap-10">
         {GOAL_NAV_GROUPS.map(({ group, items }) => (
           <div key={group}>
-            <p className="px-[3.75rem] pb-3 text-[0.8125rem] font-medium leading-[1.4] text-ink-sub">
+            <p className="px-perf-inset pb-3 text-[0.8125rem] font-medium leading-[1.4] text-ink-sub">
               {group}
             </p>
             <ul className="flex flex-col gap-1">
@@ -83,7 +83,7 @@ export default function GoalSidebar() {
                       end={item.to === "/app/goal"}
                       className={({ isActive }) =>
                         [
-                          "mx-[0.625rem] flex h-[2.25rem] items-center justify-between rounded-lg pl-[3.125rem] pr-4 text-[0.875rem] leading-[1.4] transition-colors",
+                          "mx-2.5 flex h-9 items-center justify-between rounded-lg pl-12.5 pr-4 text-[0.875rem] leading-[1.4] transition-colors",
                           isActive
                             ? "bg-goal-activePill font-semibold text-ink-strong"
                             : "text-ink hover:bg-goal-activePill/60",
@@ -106,10 +106,10 @@ export default function GoalSidebar() {
       </nav>
 
       {/* 하단 유틸 — 내 정보 수정 */}
-      <div className="mt-auto px-[0.625rem] pb-[2rem] pt-[2rem]">
+      <div className="mt-auto px-2.5 pb-8 pt-8">
         <NavLink
           to={GOAL_NAV_FOOTER.to}
-          className="block pl-[3.125rem] text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
+          className="block pl-12.5 text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
         >
           {GOAL_NAV_FOOTER.label}
         </NavLink>

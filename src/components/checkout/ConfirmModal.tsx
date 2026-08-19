@@ -1,5 +1,11 @@
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import {
+  Dialog,
+  DialogOverlay,
+  DialogPortal,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type ConfirmModalProps = {
   title?: ReactNode;
@@ -18,6 +24,10 @@ type ConfirmModalProps = {
 //
 // 버튼 동작(그냥 닫기 vs 페이지 이동)은 onConfirm 으로 호출부가 정한다 —
 // 생략하면 onClose 와 동일하게 닫기만 한다.
+//
+// open prop이 없다 — 마운트 자체가 열림이다(조건부 렌더는 호출부 소유). Dialog는
+// 항상 open으로 두고, ESC·배경 클릭으로 닫히려는 요청(Base UI 내장 처리)만 onClose로
+// 흘려보낸다. ESC/포커스 트랩/스크롤 잠금은 shadcn Dialog(Base UI)가 내장 제공한다.
 export default function ConfirmModal({
   title,
   children,
@@ -25,46 +35,38 @@ export default function ConfirmModal({
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-5"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="confirm-modal-title"
+    <Dialog
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-      <div className="relative flex w-full max-w-[34.125rem] flex-col items-center rounded-[1.25rem] bg-white px-6 py-10 shadow-2xl lg:h-[21.1875rem] lg:justify-center lg:px-0 lg:py-0">
-        <div className="mx-auto flex w-full max-w-[22.625rem] flex-col items-center gap-9 text-center">
-          <h2
-            id="confirm-modal-title"
-            className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink"
-          >
-            {title}
-          </h2>
-          <p className="text-[1rem] font-normal leading-[1.3] tracking-[-0.02rem] text-ink-sub">
-            {children}
-          </p>
-          <button
-            type="button"
-            onClick={onConfirm || onClose}
-            className="flex h-[2.5rem] w-[11.1875rem] shrink-0 items-center justify-center rounded-lg bg-primary text-[1rem] font-semibold text-white transition hover:brightness-125"
-          >
-            {buttonLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+      <DialogPortal>
+        <DialogOverlay className="bg-black/40" />
+        <DialogPrimitive.Popup
+          data-slot="dialog-content"
+          // Base UI Popup은 aria-modal을 자동 배선하지 않는다 — 리터럴로 명시.
+          aria-modal="true"
+          className="fixed top-1/2 left-1/2 z-100 flex w-[min(calc(100%-2.5rem),34.125rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-perf-modal bg-white px-6 py-10 shadow-2xl outline-none lg:h-84.75 lg:justify-center lg:px-0 lg:py-0"
+        >
+          <div className="mx-auto flex w-full max-w-90.5 flex-col items-center gap-9 text-center">
+            <DialogTitle className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
+              {title}
+            </DialogTitle>
+            <p className="text-[1rem] font-normal leading-[1.3] tracking-[-0.02rem] text-ink-sub">
+              {children}
+            </p>
+            <button
+              type="button"
+              onClick={onConfirm || onClose}
+              className="flex h-10 w-44.75 shrink-0 items-center justify-center rounded-lg bg-primary text-[1rem] font-semibold text-white transition hover:brightness-125"
+            >
+              {buttonLabel}
+            </button>
+          </div>
+        </DialogPrimitive.Popup>
+      </DialogPortal>
+    </Dialog>
   );
 }

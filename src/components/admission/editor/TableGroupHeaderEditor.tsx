@@ -43,7 +43,7 @@ export default function TableGroupHeaderEditor({
   if (!groups) {
     if (!expanded) return null;
     return (
-      <div className="mb-2 rounded border border-dashed border-[#d7d7d7] p-2">
+      <div className="mb-2 rounded-sm border border-dashed border-line p-2">
         <button
           type="button"
           onClick={onEnableGroups}
@@ -69,7 +69,7 @@ export default function TableGroupHeaderEditor({
   }
 
   return (
-    <div className="mb-2 rounded border border-[#d7d7d7] p-2">
+    <div className="mb-2 rounded-sm border border-line p-2">
       <p className="mb-1 text-[11px] font-bold text-gray-500">
         2단 헤더(그룹) — 합계 {total} / 컬럼 수 {columnsLength}
         {total !== columnsLength ? " (아래 배너의 검증 오류 참고)" : " (일치)"}
@@ -84,7 +84,7 @@ export default function TableGroupHeaderEditor({
           onChange={(e) =>
             onUpdateFixedColumnCount(Number(e.target.value) || 0)
           }
-          className="w-16 border border-[#d7d7d7] px-1 py-1 text-[11px]"
+          className="w-16 border border-line px-1 py-1 text-[11px]"
         />
       </label>
 
@@ -97,7 +97,7 @@ export default function TableGroupHeaderEditor({
               value={group.name ?? ""}
               onCommit={(next) => onUpdateGroupField(idx, "name", next)}
               aria-label={`그룹 ${idx + 1} 이름`}
-              className="admission-cell-editor-input w-32 border border-[#d7d7d7] px-1.5 py-1 text-[11px]"
+              className="admission-cell-editor-input w-32 border border-line px-1.5 py-1 text-[11px]"
             />
             <input
               type="number"
@@ -107,7 +107,7 @@ export default function TableGroupHeaderEditor({
                 onUpdateGroupField(idx, "count", Number(e.target.value) || 0)
               }
               aria-label={`그룹 ${idx + 1} 컬럼 수`}
-              className="w-14 border border-[#d7d7d7] px-1 py-1 text-[11px]"
+              className="w-14 border border-line px-1 py-1 text-[11px]"
             />
             <button
               type="button"

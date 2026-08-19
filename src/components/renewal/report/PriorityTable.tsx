@@ -31,13 +31,13 @@ type PriorityTableProps = {
 
 export default function PriorityTable({ rows }: PriorityTableProps) {
   return (
-    <div className="w-full lg:w-[62.5rem]">
+    <div className="w-full lg:w-250">
       {/* 데스크톱 전용 — 5열 그리드 표.
           fd-wide-only — 인쇄(뷰포트 794px, lg: 미적용)에서도 report-print.css 가 이 훅으로
           강제 표시한다(인쇄는 항상 데스크톱 레이아웃). */}
       <div className="hidden lg:block fd-wide-only">
         <div
-          className={`grid h-5 ${GRID_COLS} text-base font-semibold leading-[1.25rem] text-[#525252]`}
+          className={`grid h-5 ${GRID_COLS} text-base font-semibold leading-5 text-ink`}
         >
           <span>우선순위</span>
           <span>영역</span>
@@ -46,7 +46,7 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
           <span>필요한 것</span>
         </div>
 
-        <div className="mt-[0.9375rem] flex flex-col gap-4">
+        <div className="mt-3.75 flex flex-col gap-4">
           {rows.map((row, index) => {
             const area = row.area ?? row.name;
             return (
@@ -62,7 +62,7 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
                 >
                   {row.badge}
                 </StatusBadge>
-                <span className="text-base font-normal leading-[1.25rem] text-[#525252]">
+                <span className="text-base font-normal leading-5 text-ink">
                   {area}
                 </span>
                 {/*
@@ -81,17 +81,17 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
                   <ScoreBar
                     score={row.score}
                     {...(row.tone !== undefined ? { tone: row.tone } : {})}
-                    trackClass="w-[10.625rem]"
+                    trackClass="w-42.5"
                     decorative
                   />
-                  <span className="w-[2.875rem] shrink-0 text-right text-base font-normal leading-[1.25rem] text-[#525252] tabular-nums">
+                  <span className="w-11.5 shrink-0 text-right text-base font-normal leading-5 text-ink tabular-nums">
                     {row.score}점
                   </span>
                 </div>
-                <span className="text-base font-normal leading-[1.25rem] text-[#525252]">
+                <span className="text-base font-normal leading-5 text-ink">
                   {row.status}
                 </span>
-                <span className="text-base font-normal leading-[1.25rem] text-[#525252]">
+                <span className="text-base font-normal leading-5 text-ink">
                   {row.need}
                 </span>
               </div>
@@ -117,11 +117,11 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
                 >
                   {row.badge}
                 </StatusBadge>
-                <span className="text-base font-medium leading-[1.25rem] text-[#525252]">
+                <span className="text-base font-medium leading-5 text-ink">
                   {area}
                 </span>
                 {/* F-20 — 모바일 카드는 폭이 유동이라 막대 옆이 아니라 영역명 줄 오른쪽 끝에 붙인다. */}
-                <span className="ml-auto shrink-0 text-base leading-[1.25rem] text-[#525252] tabular-nums">
+                <span className="ml-auto shrink-0 text-base leading-5 text-ink tabular-nums">
                   {row.score}점
                 </span>
               </div>
@@ -132,7 +132,7 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
                 decorative
               />
               {/* text-base(16px) — 본문 최소 크기. 데스크톱 그리드와 동일 폰트 크기를 유지한다. */}
-              <dl className="flex flex-col gap-1 text-base leading-[1.4] text-[#525252]">
+              <dl className="flex flex-col gap-1 text-base leading-[1.4] text-ink">
                 <div className="flex gap-1.5">
                   <dt className="shrink-0 font-medium">현재 상태</dt>
                   <dd>{row.status}</dd>

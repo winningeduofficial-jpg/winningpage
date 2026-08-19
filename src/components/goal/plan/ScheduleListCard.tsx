@@ -22,14 +22,14 @@ export default function ScheduleListCard({
   onEdit,
 }: ScheduleListCardProps) {
   return (
-    <div className="flex min-h-[7.5rem] items-center justify-between gap-6 rounded-2xl border border-line/60 bg-white px-6 py-5">
-      <div className="flex min-w-0 items-center gap-[1.875rem]">
+    <div className="flex min-h-30 items-center justify-between gap-6 rounded-2xl border border-line/60 bg-white px-6 py-5">
+      <div className="flex min-w-0 items-center gap-7.5">
         {/* GoalDdayBadgeProps.dday는 undefined를 명시적으로 받지 않는다(exactOptionalPropertyTypes) —
             null도 동일하게 "없음"으로 처리되므로 값만 치환한다. */}
         <GoalDdayBadge dday={schedule.dday ?? null} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-[1.375rem] shrink-0 items-center rounded-full bg-surface-04 px-2 text-[0.75rem] font-medium leading-[1.2] text-ink-sub">
+            <span className="inline-flex h-5.5 shrink-0 items-center rounded-full bg-surface-04 px-2 text-[0.75rem] font-medium leading-[1.2] text-ink-sub">
               {/* category 미정 시 CODE_TO_LABEL 조회가 실패해 "기타" 폴백은 동일하게 유지된다. */}
               {scheduleCategoryLabel(schedule.category ?? "")}
             </span>
@@ -45,7 +45,7 @@ export default function ScheduleListCard({
       <button
         type="button"
         onClick={onEdit}
-        className="h-[2.4375rem] shrink-0 rounded-lg border border-line px-4 text-[0.875rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
+        className="h-9.75 shrink-0 rounded-lg border border-line px-4 text-[0.875rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
       >
         수정
       </button>

@@ -12,9 +12,9 @@ export function LoadingBlock({
     <div
       role="status"
       aria-live="polite"
-      className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center"
+      className="rounded-2xl border border-[#e5e7eb] bg-surface-footer py-16 text-center"
     >
-      <p className="text-lg font-semibold text-[#525252]">{title}</p>
+      <p className="text-lg font-semibold text-ink">{title}</p>
     </div>
   );
 }
@@ -61,7 +61,7 @@ export function PopoverStatus({
   onRetry,
   tone = "default",
 }: PopoverStatusProps) {
-  const titleClass = tone === "error" ? "text-red-600" : "text-[#525252]";
+  const titleClass = tone === "error" ? "text-red-600" : "text-ink";
 
   return (
     <div className="px-6 py-10 text-center">

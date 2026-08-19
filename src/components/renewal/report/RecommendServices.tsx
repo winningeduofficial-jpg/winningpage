@@ -28,8 +28,8 @@ const RecommendServices = ({
   return (
     // fd-recommend-* — 인쇄 훅(BLOCK 수정). report-print.css 가 기존 lg: 리터럴과 동일한
     // 값으로 강제한다.
-    <section className="fd-recommend-section mt-12 lg:mt-[5.3125rem]">
-      <h2 className="text-[1.25rem] font-semibold leading-[1.25rem] text-[#0b84fd]">
+    <section className="fd-recommend-section mt-12 lg:mt-21.25">
+      <h2 className="text-[1.25rem] font-semibold leading-5 text-accent">
         추천 지원 서비스
       </h2>
 
@@ -38,32 +38,32 @@ const RecommendServices = ({
       {/* G-3(NIT 3) — 인쇄에서 display:none 인 화면 전용 문단이라 모바일 14px 를 유지할 이유가
           없다. 모바일 text-base(16px), 데스크톱만 기존 text-sm(14px) 유지. */}
       {leadNote && (
-        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-[#6b6b6b] lg:w-[62.5rem] lg:text-sm">
+        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-250 lg:text-sm">
           {leadNote}
         </p>
       )}
 
-      <div className="fd-recommend-grid mt-4 grid grid-cols-1 gap-4 lg:mt-[0.9375rem] lg:grid-cols-2 lg:gap-5">
+      <div className="fd-recommend-grid mt-4 grid grid-cols-1 gap-4 lg:mt-3.75 lg:grid-cols-2 lg:gap-5">
         {cards.map((card) => (
           <div
             key={card.rank}
-            className="fd-recommend-card w-full rounded-[0.75rem] border border-[#d1e8ff] px-[0.8125rem] py-4 lg:h-[12.5625rem] lg:w-[30.625rem] lg:pl-[0.8125rem] lg:pr-0 lg:pt-4 lg:pb-0"
+            className="fd-recommend-card w-full rounded-xl border border-[#d1e8ff] px-3.25 py-4 lg:h-50.25 lg:w-122.5 lg:pl-3.25 lg:pr-0 lg:pt-4 lg:pb-0"
           >
             {/* 적합도 50 미만이라 추천 서비스가 하나도 없을 때(SVC_NONE 안내 카드)는 rank·name 이 비어
                 제목 줄이 공백 한 칸만 렌더된다 — 빈 줄을 그리지 않고 안내 본문만 남긴다. */}
             {(card.rank || card.name) && (
-              <h3 className="text-[1.1875rem] font-medium text-[#525252]">
+              <h3 className="text-[1.1875rem] font-medium text-ink">
                 {[card.rank, card.name].filter(Boolean).join(" ")}
               </h3>
             )}
-            <p className="fd-recommend-desc mt-2 w-full text-base font-normal leading-[1.3] text-[#808080] lg:w-[28.8125rem]">
+            <p className="fd-recommend-desc mt-2 w-full text-base font-normal leading-[1.3] text-[#808080] lg:w-115.25">
               {card.desc}
             </p>
-            <div className="mt-[0.6875rem] flex flex-wrap gap-x-[1.375rem] gap-y-2">
+            <div className="mt-2.75 flex flex-wrap gap-x-5.5 gap-y-2">
               {withDedupedKeys(card.chips).map(({ item: chip, key }) => (
                 <span
                   key={key}
-                  className="inline-flex h-7 items-center justify-center rounded-[0.75rem] bg-[#f1f8ff] px-2 py-1 text-[0.875rem] font-normal text-[#1b5da0]"
+                  className="inline-flex h-7 items-center justify-center rounded-xl bg-[#f1f8ff] px-2 py-1 text-[0.875rem] font-normal text-performance-reportHeading"
                 >
                   {chip}
                 </span>

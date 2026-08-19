@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router";
 import PaymentDetailModal from "@/components/mypage/PaymentDetailModal";
 import PaymentStatusBadge from "@/components/mypage/PaymentStatusBadge";
 import PaymentTable from "@/components/mypage/PaymentTable";
 import {
   formatApprovedAt,
   formatOrderId,
+  formatProductNames,
   resolveOrderStatus,
 } from "@/components/mypage/paymentRows";
 import ReceiptModal from "@/components/mypage/ReceiptModal";
@@ -24,10 +24,12 @@ import RefundApprovalModal from "./RefundApprovalModal";
 //   1) 환불요청      자녀가 보낸 환불 요청(approval_status='requested').
 //                    행을 누르면 확인 모달이 열리고 거기서 금액을 본다
 //                    (RefundApprovalModal — 학생 화면엔 금액이 없다).
-//   2) 결제 신청하기  자녀가 보낸 결제 요청(status='pending'). 상태 칩이 곧
-//                    액션이라 /checkout 으로 보낸다. approval_status 가
-//                    approved 인 건은 수락까지 끝나고 결제창만 닫힌 경우로,
-//                    ParentCheckout 이 재개 모드로 받는다.
+//   2) 결제 신청하기  자녀가 보낸 결제 요청(status='pending'). row 전체 클릭이
+//                    유일한 트리거이고, approval_status 와 무관하게 항상
+//                    승인/거절 확인 모달(EnrollmentRequestModal)을 먼저 연다 —
+//                    거기서 "결제 진행하기"를 눌러야 /checkout 으로 간다.
+//                    approved 인 건(수락까지 끝나고 결제창만 닫힌 경우)은 모달의
+//                    거절 버튼이 "닫기"로 바뀔 뿐, 모달을 거치는 건 동일하다.
 //   3) 지난 결제내역  결제가 끝난 주문(paid/waiting_deposit). 주문번호를 누르면
 //                    기존 결제 상세 → 영수증/환불 신청 체인으로 이어진다.
 //
@@ -41,6 +43,10 @@ const TABLE_HEADERS = {
   amount: "결제 금액",
   status: "상태",
 };
+
+// "환불요청"·"결제 신청하기" 섹션은 아직 학부모 응답 전(또는 응답만 끝나고
+// 결제 전) 건이라 "승인 일시"가 아니라 자녀가 요청을 보낸 시점을 보여준다.
+const PENDING_TABLE_HEADERS = { ...TABLE_HEADERS, date: "요청 일시" };
 
 const EMPTY_TEXT = "요청 사항이 없습니다.";
 
@@ -56,6 +62,22 @@ type Order = {
   method?: string;
   vat?: number | string | null;
   is_fake_entitlement?: boolean;
+  order_items?: {
+    name: string;
+    list_price?: number;
+    price?: number;
+    quantity?: number;
+  }[];
+  list_amount?: number;
+  discount_amount?: number;
+  coupon_redemptions?: {
+    discount_amount: number;
+    voided_at?: string | null;
+    coupons?:
+      | { title?: string | null }
+      | { title?: string | null }[]
+      | null;
+  }[];
 };
 
 type Refund = {
@@ -105,8 +127,10 @@ export default function ParentPaymentsTab({
     const [pend, children] = await Promise.all([
       supabase
         .from("orders")
+        // list_amount/discount_amount/coupon_redemptions — EnrollmentRequestModal의
+        // "원금"/"할인 금액"/"쿠폰" 행 분해용(useMyPageOrders.ts와 동일 이유).
         .select(
-          "id, order_name, amount, status, approval_status, student_profile_id, created_at",
+          "id, order_name, amount, status, approval_status, student_profile_id, created_at, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
         )
         .eq("parent_profile_id", uid)
         .eq("status", "pending")
@@ -150,14 +174,14 @@ export default function ParentPaymentsTab({
   }
 
   return (
-    <div className="flex flex-col gap-[4.5rem]">
+    <div className="flex flex-col gap-18">
       {/* 1) 환불요청 */}
       <section>
         <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
           자녀의 환불요청
         </h2>
         <PaymentTable
-          headers={TABLE_HEADERS}
+          headers={PENDING_TABLE_HEADERS}
           emptyText={EMPTY_TEXT}
           rows={refundRequests.map((r) => ({
             key: `refund-${r.id}`,
@@ -171,14 +195,8 @@ export default function ParentPaymentsTab({
             raw: r,
           }))}
           onSelect={(row) => setApprovalRequest(row.raw as Refund)}
-          renderStatus={(row) => (
-            <button
-              type="button"
-              onClick={() => setApprovalRequest(row.raw as Refund)}
-              className="transition hover:brightness-95"
-            >
-              <PaymentStatusBadge status="refund_approval_pending" />
-            </button>
+          renderStatus={() => (
+            <PaymentStatusBadge status="refund_approval_pending" />
           )}
         />
       </section>
@@ -189,7 +207,7 @@ export default function ParentPaymentsTab({
           결제 신청하기
         </h2>
         <PaymentTable
-          headers={TABLE_HEADERS}
+          headers={PENDING_TABLE_HEADERS}
           emptyText={EMPTY_TEXT}
           rows={pendingOrders.map((o) => {
             // student_profile_id가 없으면 nameById 조회를 건너뛴다(PaymentTableRow는
@@ -203,22 +221,21 @@ export default function ParentPaymentsTab({
               idText: formatOrderId(o.id),
               dateText: formatApprovedAt(o.created_at),
               productText: childName
-                ? `${childName} · ${o.order_name}`
-                : o.order_name || "",
+                ? `${childName} · ${formatProductNames(o)}`
+                : formatProductNames(o),
               amountText: formatKRW(o.amount),
               raw: o,
             };
           })}
-          // 상태 칩은 시안대로 결제 진입 링크다. 거절 경로는 시안에 없어
-          // 주문번호 클릭 → 확인 모달로 열어 뒀다(EnrollmentRequestModal).
           onSelect={(row) => setEnrollmentRequest(row.raw as Order)}
           renderStatus={(row) => (
-            <Link
-              to={`/checkout?order=${encodeURIComponent((row.raw as Order).id)}`}
-              className="inline-flex h-8 items-center justify-center whitespace-nowrap rounded-lg bg-[#f5ebcb] px-3 text-sm font-medium text-gold transition hover:brightness-95"
-            >
-              결제 진행하기
-            </Link>
+            <PaymentStatusBadge
+              status={
+                (row.raw as Order).approval_status === "approved"
+                  ? "enrollment_approved"
+                  : "enrollment_requested"
+              }
+            />
           )}
         />
       </section>
@@ -236,7 +253,7 @@ export default function ParentPaymentsTab({
             idFull: o.id,
             idText: formatOrderId(o.id),
             dateText: formatApprovedAt(o.paid_at),
-            productText: o.order_name || "",
+            productText: formatProductNames(o),
             amountText: formatKRW(o.amount),
             ...(o.is_fake_entitlement && { note: "(개발용)" }),
             raw: o,

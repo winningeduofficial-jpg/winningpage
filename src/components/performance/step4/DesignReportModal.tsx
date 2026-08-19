@@ -76,7 +76,7 @@ export default function DesignReportModal({
       {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="설계 리포트 본문"
       onClose={onClose}
-      footer={
+      footer={({ print }) => (
         <>
           <button
             type="button"
@@ -87,17 +87,17 @@ export default function DesignReportModal({
           </button>
           <button
             type="button"
-            // 브라우저 인쇄 다이얼로그를 그대로 쓴다 — "PDF로 저장"도 그 다이얼로그의 대상
-            // 선택이라 별도 PDF 생성 라이브러리가 필요 없다(§10.2 P10이 요구한 것은
-            // `@media print`다). 본문이 비면 인쇄할 것이 없으므로 비활성.
-            onClick={() => window.print()}
+            // react-to-print(iframe 격리)를 쓴다 — "PDF로 저장"도 그 인쇄 다이얼로그의 대상
+            // 선택이라 별도 PDF 생성 라이브러리가 필요 없다(`ReportModalShell`이 소유).
+            // 본문이 비면 인쇄할 것이 없으므로 비활성.
+            onClick={print}
             disabled={!hasContent}
             className={REPORT_MODAL_FOOTER_BUTTON.primary}
           >
             {PRINT_LABEL}
           </button>
         </>
-      }
+      )}
     >
       {hasContent ? (
         <PerformanceReportSurface>
@@ -107,7 +107,7 @@ export default function DesignReportModal({
         // 서버가 빈 섹션을 걸러 내려주므로(`buildSections`의 마지막 filter) 정상 경로에서는
         // 도달하지 않는다. 저장된 옛 리포트를 복원하는 경로(`toClientReport`가 `sections`를
         // 그대로 통과시킨다)를 위한 방어선이다 — 이때 인쇄 버튼도 비활성이다.
-        <p className="text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+        <p className="text-[1rem] font-medium leading-5.25 text-ink-sub">
           설계 리포트 내용을 불러오지 못했어요. 창을 닫고 다시 시도해 주세요.
         </p>
       )}

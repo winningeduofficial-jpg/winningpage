@@ -453,7 +453,7 @@ export default function PremiumBookAdmin({
       )}
 
       {/* bespoke 패널 — PDF 1개 업로드 → 변환 → 미리보기 → 적용 */}
-      <div className="mb-6 bg-white p-6 shadow">
+      <div className="mb-6 bg-white p-6 shadow-sm">
         <h2 className="mb-1 text-lg font-black">PDF 일괄 변환·적용</h2>
         <p className="mb-4 text-sm font-bold text-gray-500">
           운영자는 PDF 파일 하나만 올리면 됩니다. 변환·미리보기까지는 저장되지
@@ -461,7 +461,7 @@ export default function PremiumBookAdmin({
         </p>
 
         <div className="flex flex-wrap items-center gap-3">
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-sm border border-gray-400 bg-white px-4 py-2 text-sm font-black hover:bg-gray-50">
             <UploadCloud size={16} />
             PDF 선택
             <input
@@ -523,7 +523,7 @@ export default function PremiumBookAdmin({
       {mode === "list" ? (
         <>
           {duplicateSortOrders.length > 0 && (
-            <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
+            <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-600">
               페이지 번호(sort_order) 중복: {duplicateSortOrders.join(", ")} —
               정렬·표시 순서가 어긋날 수 있습니다. 아래 목록에서 먼저
               정리하세요.
@@ -551,7 +551,7 @@ export default function PremiumBookAdmin({
           </div>
 
           {rowsLoading ? (
-            <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+            <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
               데이터를 불러오는 중입니다.
             </div>
           ) : (

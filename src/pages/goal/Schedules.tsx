@@ -146,14 +146,14 @@ export default function Schedules() {
           <button
             type="button"
             onClick={openCreate}
-            className="h-[2.4375rem] rounded-lg bg-[#2E2A26] px-4 text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
+            className="h-9.75 rounded-lg bg-[#2E2A26] px-4 text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
           >
             일정 등록
           </button>
         }
       />
 
-      <div className="max-w-goal-content px-[3rem] pb-24">
+      <div className="max-w-goal-content px-12 pb-24">
         {loadError && (
           <p className="mb-4 text-[0.8125rem] leading-[1.4] text-error">
             {loadError}
@@ -168,7 +168,7 @@ export default function Schedules() {
             불러오는 중입니다…
           </p>
         ) : hasSchedules ? (
-          <ul className="flex max-w-[69.75rem] flex-col gap-[1.25rem]">
+          <ul className="flex max-w-279 flex-col gap-5">
             {displaySchedules.map((schedule) => (
               <li key={schedule.id}>
                 <ScheduleListCard

@@ -243,7 +243,7 @@ export default function Callmentor() {
       {/* 섹션 1 — Hero. 공통 컴포넌트 변경 0건(ServiceHeroBrowserFrame은 대체 불가 — 위 JSDoc 참고).
           lg:pb-0 으로 낮춰 "경계 갭은 뒤 섹션 pt 가 흡수한다"는 4페이지 규약에 편입한다. */}
       <section
-        className="relative overflow-hidden bg-white py-20 lg:pb-0 lg:pt-[8rem]"
+        className="relative overflow-hidden bg-white py-20 lg:pb-0 lg:pt-32"
         style={{
           backgroundImage:
             "linear-gradient(180deg, rgba(161,147,125,0.8) 0%, rgba(171,158,138,0.8) 10.577%, rgba(185,174,158,0.8) 30.769%, rgba(222,217,209,0.8) 58.173%, #FFFFFF 100%)",
@@ -256,12 +256,12 @@ export default function Callmentor() {
         <div
           className={`${CONTAINER} flex flex-col items-start gap-12 lg:flex-row lg:items-center lg:justify-between`}
         >
-          <div className="flex w-full max-w-[36.5rem] flex-col gap-8">
+          <div className="flex w-full max-w-146 flex-col gap-8">
             <h1 className="break-keep text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem]">
               막막한 입시 고민, <br className="hidden sm:inline" />
               30분 통화 한 번으로 끝냅니다
             </h1>
-            <p className="max-w-[35.75rem] break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
+            <p className="max-w-143 break-keep text-[1.125rem] font-medium leading-[1.6] text-ink sm:text-[1.25rem] md:text-[1.5rem]">
               내 학습 데이터를 먼저 분석하고, 검증된 대학생 멘토가 전화로{" "}
               <br className="hidden sm:inline" />
               핵심 문제 하나와 실행 계획을 정리해 드립니다.
@@ -297,7 +297,7 @@ export default function Callmentor() {
             src={heroCallMockup}
             alt="콜멘토 전화 상담 통화 화면을 보여주는 손에 든 아이폰"
             fetchPriority="high"
-            className="w-full max-w-[29.625rem] shrink-0 aspect-[1509/1838] rounded-[2rem] object-cover"
+            className="w-full max-w-118.5 shrink-0 aspect-1509/1838 rounded-4xl object-cover"
           />
         </div>
       </section>
@@ -306,35 +306,33 @@ export default function Callmentor() {
           공통 톤으로 사라지는 것을 막기 위함). pt 산출: (히어로 lg pb 128 + 현행 pt 120) × 0.67
           ≈ 166px = lg:pt-[10.375rem]. */}
       <ServiceSection
-        className="lg:pt-[10.375rem]"
+        className="lg:pt-41.5"
         heading={
           <>
             <span className="block">상담을 통해</span>
-            <span className="block text-[#AF9364]">
-              문제를 확인할 수 있어요
-            </span>
+            <span className="block text-gold">문제를 확인할 수 있어요</span>
           </>
         }
       >
-        <div className="mt-10 grid grid-cols-1 gap-8 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] lg:grid-cols-3 lg:gap-[4.75rem]">
+        <div className="mt-10 grid grid-cols-1 gap-8 sm:mt-12 sm:grid-cols-2 lg:mt-perf-inset lg:grid-cols-3 lg:gap-19">
           {VALUE_CARDS.map((card) => (
             <div
               key={card.title}
-              className="flex flex-col items-center gap-6 rounded-[1.875rem] border border-[#D7D7D7] p-[1.75rem] text-center"
+              className="flex flex-col items-center gap-6 rounded-[1.875rem] border border-line p-7 text-center"
             >
               <img
                 src={card.icon}
                 alt=""
                 aria-hidden="true"
-                className="h-[1.875rem] w-[1.875rem]"
+                className="h-7.5 w-7.5"
               />
               {/* 크기・굵기・leading・tracking 은 CARD_TITLE_CLASS 와 동일, 색만 골드로 유지
                   (공통 토큰을 그대로 import 하면 #525252 로 골드가 사라진다 — 위 JSDoc 참고). */}
-              <h3 className="text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#AF9364]">
+              <h3 className="text-[1.25rem] font-semibold leading-[1.4] tracking-[-0.02em] text-gold">
                 {card.title}
               </h3>
               {/* 크기・굵기・leading・break-keep 은 CARD_DESC_CLASS 와 동일, 색만 골드로 유지. */}
-              <p className="break-keep text-[1rem] font-medium leading-[1.4] text-[#AF9364]">
+              <p className="break-keep text-[1rem] font-medium leading-[1.4] text-gold">
                 {card.desc}
               </p>
             </div>
@@ -348,13 +346,13 @@ export default function Callmentor() {
           시작)이라 ×0.67 미적용 — §3 pb 120 + §4 pt 120 = 240px 를 절반씩 나눠 갖는다. */}
       <ServiceSection
         id="callmentor-steps"
-        className="pb-16 sm:pb-20 lg:pb-[7.5rem] lg:pt-[10rem]"
+        className="pb-16 sm:pb-20 lg:pb-30 lg:pt-40"
         heading="무엇을 물어야 할지 몰라도 괜찮아요"
       >
-        <p className="mt-3 break-keep text-[1.25rem] font-semibold leading-[1.3] text-[#525252]">
+        <p className="mt-3 break-keep text-[1.25rem] font-semibold leading-[1.3] text-ink">
           위닝의 4단계의 꼼꼼한 상담 진행 순서
         </p>
-        <div className="mt-10 grid grid-cols-1 gap-6 sm:mt-12 sm:grid-cols-2 lg:mt-[3.75rem] lg:grid-cols-4 lg:gap-[2.25rem]">
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:mt-12 sm:grid-cols-2 lg:mt-perf-inset lg:grid-cols-4 lg:gap-9">
           {STEP_CARDS.map((step) => (
             <div
               key={step.caption}
@@ -362,7 +360,7 @@ export default function Callmentor() {
               // (1100 − 3×36) ÷ 4 ≈ 248px 로 줄어든다. 이때 높이가 247 그대로면 정사각(비 1.00)
               // 으로 뭉개지므로 248 × 0.764 ≈ 190 으로 낮춰 시안 비율(248:190 = 1.31)을 회복한다.
               // 모바일은 1열 전폭이라 247 을 유지한다.
-              className="relative flex h-[15.4375rem] items-end overflow-hidden rounded-[1.875rem] lg:h-[11.875rem]"
+              className="relative flex h-61.75 items-end overflow-hidden rounded-[1.875rem] lg:h-47.5"
             >
               <img
                 src={step.image}
@@ -393,7 +391,7 @@ export default function Callmentor() {
           경계)이 되기 때문 — pb 가 없으면 그 경우 카드 바로 밑에서 밴드가 잘린다. */}
       <ServiceSection
         surface="gray"
-        className="pb-16 sm:pb-20 lg:pb-[7.5rem] lg:pt-[7.5rem]"
+        className="pb-16 sm:pb-20 lg:pb-30 lg:pt-30"
         heading={
           <>
             이런 학생에게
@@ -418,7 +416,7 @@ export default function Callmentor() {
       {/* 섹션 6 — 후기. ServiceTestimonials 전면 대체(공통 컴포넌트 변경 0건). pt/pb 120px 은
           각각 §5(#F4F4F6)→§6(white), §6(white)→§7(black) 배경 전환 경계라 ×0.67 미적용. */}
       <ServiceSection
-        className="pb-16 sm:pb-20 lg:pb-[7.5rem] lg:pt-[7.5rem]"
+        className="pb-16 sm:pb-20 lg:pb-30 lg:pt-30"
         heading="콜멘토 서비스를 받아본 학생들의 후기"
       >
         <ServiceTestimonials items={REVIEW_CARDS} />
@@ -428,7 +426,7 @@ export default function Callmentor() {
           항목 + 흰 헤딩용 prop 을 새로 열어야 하는데 호출부가 영구히 1곳이라 로컬 <section>
           8줄이 더 단순하다(KISS — 위 JSDoc 참고). lg pt 120px 은 배경 전환 경계라 ×0.67
           미적용(§6 pb 120 과 합쳐 240px). */}
-      <section className="bg-black pt-16 pb-20 sm:pt-20 sm:pb-24 lg:pb-[7.0625rem] lg:pt-[7.5rem]">
+      <section className="bg-black pt-16 pb-20 sm:pt-20 sm:pb-24 lg:pb-28.25 lg:pt-30">
         <div className={`${CONTAINER} text-center`}>
           <h2 className="break-keep text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-white sm:text-[1.75rem] lg:text-[2rem]">
             아직도 고민이신가요?
@@ -439,7 +437,7 @@ export default function Callmentor() {
           <CmButton
             variant="white"
             to="/pricing"
-            className="mt-10 sm:mt-12 lg:mt-[5rem] font-semibold"
+            className="mt-10 sm:mt-12 lg:mt-20 font-semibold"
           >
             콜멘토 서비스 신청하기 →
           </CmButton>

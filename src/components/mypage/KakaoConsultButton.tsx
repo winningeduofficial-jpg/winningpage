@@ -24,7 +24,7 @@ export default function KakaoConsultButton() {
   if (!url) return null;
 
   return (
-    <div className="fixed bottom-[3.75rem] right-[6.25rem] z-40 hidden flex-col items-end gap-3 lg:flex">
+    <div className="fixed bottom-perf-inset right-25 z-40 hidden flex-col items-end gap-3 lg:flex">
       <div className="rounded-2xl bg-white px-5 py-3 text-[0.875rem] font-medium leading-5 text-ink-title shadow-[0_8px_24px_rgba(13,27,42,0.16)]">
         궁금한 점은 카카오톡으로 바로 물어보세요
       </div>
@@ -33,7 +33,7 @@ export default function KakaoConsultButton() {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex h-[3.125rem] items-center gap-2 rounded-[1.5rem] bg-[#fbe300] pl-5 pr-6 text-base font-semibold text-ink-title shadow-[0_8px_24px_rgba(13,27,42,0.16)] transition hover:brightness-95"
+        className="flex h-12.5 items-center gap-2 rounded-3xl bg-[#fbe300] pl-5 pr-6 text-base font-semibold text-ink-title shadow-[0_8px_24px_rgba(13,27,42,0.16)] transition hover:brightness-95"
       >
         <svg
           width="28"

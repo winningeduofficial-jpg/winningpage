@@ -103,14 +103,14 @@ export default function QuotaExhaustedCard({
       {/* 시안 없는 표면이라 내부 리듬은 §5.20 표의 항목 순서를 그대로 세로 스택으로 편다.
           제목↔설명 0.5rem, 설명↔버튼 줄 1.25rem — STEP2 카드(§5.6)와 같은 리듬이다. */}
       <div className="flex flex-col gap-2">
-        <p className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">
+        <p className="text-[1rem] font-semibold leading-5.25 text-ink">
           {TITLE}
         </p>
-        <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
+        <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
           {DESCRIPTION}
         </p>
         {endsAtText && (
-          <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
+          <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
             현재 이용권은 {endsAtText}까지 유효해요.
           </p>
         )}
@@ -125,14 +125,14 @@ export default function QuotaExhaustedCard({
           target="_blank"
           rel="noopener noreferrer"
           aria-label={PURCHASE_ARIA_LABEL}
-          className="flex h-[3.25rem] flex-1 items-center justify-center rounded-xl bg-primary text-base font-semibold text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100"
+          className="flex h-13 flex-1 items-center justify-center rounded-xl bg-primary text-base font-semibold text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100"
         >
           {PURCHASE_LABEL}
         </a>
         <button
           type="button"
           onClick={onDismiss}
-          className="flex h-[3.25rem] flex-1 items-center justify-center rounded-xl border border-performance-line bg-white text-base font-medium text-ink transition hover:border-ink-sub active:scale-[0.97] motion-reduce:active:scale-100"
+          className="flex h-13 flex-1 items-center justify-center rounded-xl border border-performance-line bg-white text-base font-medium text-ink transition hover:border-ink-sub active:scale-[0.97] motion-reduce:active:scale-100"
         >
           {LATER_LABEL}
         </button>

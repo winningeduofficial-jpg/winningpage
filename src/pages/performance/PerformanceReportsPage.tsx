@@ -175,11 +175,11 @@ function FinalReportModal({
       {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="최종 제출본 본문"
       onClose={onClose}
-      footer={
+      footer={({ print }) => (
         <>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={print}
             disabled={!hasContent}
             className={REPORT_MODAL_FOOTER_BUTTON.secondary}
           >
@@ -193,14 +193,14 @@ function FinalReportModal({
             닫기
           </button>
         </>
-      }
+      )}
     >
       {hasContent ? (
         <PerformanceReportSurface>
           <SectionedReportView sections={visibleSections} />
         </PerformanceReportSurface>
       ) : (
-        <p className="text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+        <p className="text-[1rem] font-medium leading-5.25 text-ink-sub">
           최종 제출본 내용을 불러오지 못했어요. 창을 닫고 다시 시도해 주세요.
         </p>
       )}
@@ -226,7 +226,7 @@ function ViewerStatusOverlay({
     // biome-ignore lint/a11y/noStaticElementInteractions: 배경 클릭은 에러일 때만 켜지는 보조 닫기 경로다 — 실제 키보드 접근 경로는 안쪽 "닫기" button이 맡는다.
     // biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일.
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-performance-dim"
+      className="fixed inset-0 z-100 flex items-center justify-center bg-performance-dim"
       onClick={error ? onDismiss : undefined}
       role={error ? "alert" : "status"}
       aria-live="polite"
@@ -234,7 +234,7 @@ function ViewerStatusOverlay({
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 배경 클릭이 안쪽까지 닫지 않도록 막는 stopPropagation 가드일 뿐, 키보드로 도달할 사용자 동작이 없다. */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일. */}
       <div
-        className="max-w-sm rounded-xl bg-white px-6 py-5 text-center text-[1rem] font-medium leading-[1.3125rem] text-ink shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
+        className="max-w-sm rounded-xl bg-white px-6 py-5 text-center text-[1rem] font-medium leading-5.25 text-ink shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
         onClick={(event) => event.stopPropagation()}
       >
         {loading ? "리포트를 불러오는 중…" : error}
@@ -456,13 +456,13 @@ export default function PerformanceReportsPage() {
       <div className="mt-10">
         <Link
           to="/app/performance/reports"
-          className="text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub hover:underline"
+          className="text-[0.875rem] font-medium leading-4.5 text-ink-sub hover:underline"
         >
           ← 저장 리포트 목록으로
         </Link>
 
         {detailLoading && (
-          <p className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+          <p className="mt-6 text-[1rem] font-medium leading-5.25 text-ink-sub">
             불러오는 중…
           </p>
         )}
@@ -470,18 +470,18 @@ export default function PerformanceReportsPage() {
         {!detailLoading && detailError && (
           <p
             role="alert"
-            className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-[#d01c1c]"
+            className="mt-6 text-[1rem] font-medium leading-5.25 text-[#d01c1c]"
           >
             {detailError}
           </p>
         )}
 
         {!detailLoading && !detailError && detail?.session && (
-          <div className="mt-6 max-w-[50rem] rounded-[1.25rem] border border-performance-line bg-white p-8">
-            <h2 className="text-[1.25rem] font-semibold leading-[1.625rem] tracking-[-0.025rem] text-ink">
+          <div className="mt-6 max-w-200 rounded-perf-modal border border-performance-line bg-white p-8">
+            <h2 className="text-[1.25rem] font-semibold leading-6.5 tracking-[-0.025rem] text-ink">
               {detail.session.topicTitle || "제목 없는 수행평가"}
             </h2>
-            <p className="mt-2 text-[0.875rem] font-normal leading-[1.125rem] tracking-[-0.0175rem] text-ink-sub">
+            <p className="mt-2 text-[0.875rem] font-normal leading-4.5 tracking-[-0.0175rem] text-ink-sub">
               {[
                 buildMeta(detail.session),
                 formatSavedAt(detail.session.updatedAt),
@@ -588,14 +588,14 @@ export default function PerformanceReportsPage() {
     <div className="mt-10">
       {!isTrulyEmpty && (
         <div className="flex items-center justify-between">
-          <h2 className="text-[1.5rem] font-semibold leading-[1.9375rem] tracking-[-0.03rem] text-ink">
+          <h2 className="text-[1.5rem] font-semibold leading-7.75 tracking-[-0.03rem] text-ink">
             저장 리포트 {items.length}
           </h2>
 
           {subjectGroups.length > 0 && (
             <SelectField
               size="perf"
-              className="w-[10rem]"
+              className="w-40"
               id="performance-reports-subject-filter"
               value={subjectGroupFilter}
               onChange={setSubjectGroupFilter}
@@ -613,7 +613,7 @@ export default function PerformanceReportsPage() {
       )}
 
       {listLoading && (
-        <p className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+        <p className="mt-6 text-[1rem] font-medium leading-5.25 text-ink-sub">
           불러오는 중…
         </p>
       )}
@@ -621,7 +621,7 @@ export default function PerformanceReportsPage() {
       {!listLoading && listError && (
         <p
           role="alert"
-          className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-[#d01c1c]"
+          className="mt-6 text-[1rem] font-medium leading-5.25 text-[#d01c1c]"
         >
           {listError}
         </p>
@@ -629,13 +629,13 @@ export default function PerformanceReportsPage() {
 
       {isTrulyEmpty && (
         // §5.19 실측 — 68.75rem×22.5rem r1.25rem `fill #f9fafb`, 내부 문구+CTA VERTICAL gap 2rem.
-        <div className="mt-10 flex h-[22.5rem] w-full max-w-[68.75rem] flex-col items-center justify-center gap-8 rounded-[1.25rem] bg-surface-footer">
-          <p className="text-center text-[1.5rem] font-medium leading-[1.9375rem] tracking-[-0.03rem] text-ink">
+        <div className="mt-10 flex h-90 w-full max-w-275 flex-col items-center justify-center gap-8 rounded-perf-modal bg-surface-footer">
+          <p className="text-center text-[1.5rem] font-medium leading-7.75 tracking-[-0.03rem] text-ink">
             아직 저장된 리포트가 없어요
           </p>
           <Link
             to="/app/performance"
-            className="flex h-11 w-[12.5rem] items-center justify-center rounded-lg bg-primary px-5 py-3 text-[1rem] font-medium leading-5 text-white transition hover:bg-primary/90"
+            className="flex h-11 w-50 items-center justify-center rounded-lg bg-primary px-5 py-3 text-[1rem] font-medium leading-5 text-white transition hover:bg-primary/90"
           >
             채팅으로 돌아가 시작하기
           </Link>
@@ -645,7 +645,7 @@ export default function PerformanceReportsPage() {
       {showListContent && (
         <>
           {filteredItems.length === 0 ? (
-            <p className="mt-6 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+            <p className="mt-6 text-[1rem] font-medium leading-5.25 text-ink-sub">
               이 교과군의 저장 리포트가 없어요.
             </p>
           ) : (
@@ -680,7 +680,7 @@ export default function PerformanceReportsPage() {
               type="button"
               onClick={loadMore}
               disabled={listLoadingMore}
-              className="mt-6 flex h-11 items-center justify-center rounded-lg border border-performance-line px-6 text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub transition hover:bg-performance-bubble disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-6 flex h-11 items-center justify-center rounded-lg border border-performance-line px-6 text-[0.875rem] font-medium leading-4.5 text-ink-sub transition hover:bg-performance-bubble disabled:cursor-not-allowed disabled:opacity-60"
             >
               {listLoadingMore ? "불러오는 중…" : "더 보기"}
             </button>

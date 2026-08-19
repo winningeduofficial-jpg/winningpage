@@ -78,16 +78,16 @@ export default function MyPage() {
 
   return (
     <main className="min-h-screen bg-white pt-16">
-      <div className="mx-auto w-full max-w-content px-5 py-[7.5rem] sm:px-8">
+      <div className="mx-auto w-full max-w-content px-5 py-30 sm:px-8">
         <h1 className="text-[2rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
           MY 페이지
         </h1>
 
-        <div className="-mt-[1.0625rem]">
+        <div className="-mt-4.25">
           <MyPageTabs tabs={tabs} activeTab={activeTab} />
         </div>
 
-        <div className="mt-[6.25rem]">
+        <div className="mt-25">
           {activeTab === "services" && <MyServicesTab orders={orders} />}
 
           {activeTab === "children" && <ChildrenTab />}

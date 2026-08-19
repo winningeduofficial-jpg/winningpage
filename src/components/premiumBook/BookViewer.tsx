@@ -576,7 +576,7 @@ export default function BookViewer({
             // 높이를 잡고 있으므로 상태가 바뀌어도 아래 상담 섹션이 밀리지 않는다(CLS 0, §5.1).
             <div className="pbv-state" role="status">
               {status === "loading" ? (
-                <p className="text-base font-semibold text-[#525252]">
+                <p className="text-base font-semibold text-ink">
                   안내 책자를 불러오는 중입니다.
                 </p>
               ) : null}
@@ -598,7 +598,7 @@ export default function BookViewer({
                 </>
               ) : null}
               {status === "empty" ? (
-                <p className="text-base font-semibold text-[#525252]">
+                <p className="text-base font-semibold text-ink">
                   안내 책자를 준비 중입니다.
                 </p>
               ) : null}

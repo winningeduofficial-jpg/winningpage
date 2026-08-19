@@ -24,11 +24,11 @@ export default function SurveyProgress({
   onClick,
 }: SurveyProgressProps) {
   const bannerClass =
-    "flex h-[3.75rem] w-full items-center justify-center rounded-xl px-6 py-4 text-center text-xl font-semibold leading-5 text-white transition-colors duration-150 sm:px-[4.6875rem] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+    "flex h-perf-inset w-full items-center justify-center rounded-xl px-6 py-4 text-center text-xl font-semibold leading-5 text-white transition-colors duration-150 sm:px-18.75 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
   const stateClass = complete
-    ? "bg-[#013262] hover:bg-[#01274D] active:scale-[0.99] active:bg-[#001C38]"
-    : "bg-[#D7D7D7] hover:bg-[#C4C4C4] active:bg-[#B8B8B8]";
+    ? "bg-primary hover:bg-[#01274D] active:scale-[0.99] active:bg-[#001C38]"
+    : "bg-line hover:bg-[#C4C4C4] active:bg-[#B8B8B8]";
 
   return (
     <button

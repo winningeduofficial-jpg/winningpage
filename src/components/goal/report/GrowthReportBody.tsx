@@ -142,7 +142,7 @@ export default function GrowthReportBody({
     report;
 
   return (
-    <div className="max-w-goal-content px-[3rem] pb-24 pt-[3.75rem]">
+    <div className="max-w-goal-content px-12 pb-24 pt-perf-inset">
       <GoalTabs
         tabs={PERIOD_TABS}
         value={period}

@@ -5,7 +5,7 @@ import { Check } from "lucide-react";
 //     기준 페이지(InDepthResearch)에 가격 섹션이 없으므로 **수행평가 쪽을 기준으로 삼았다** —
 //     행 폭/높이/패딩/배지 크기/할인 블록 gap 이 전부 실측 근거를 가진 단일 규격이고,
 //     추천 배지가 고정 크기이며(목표관리는 px-3 py-1.5 임의값), 안내문·CTA 간격이 명시돼 있다.
-//     목표관리의 rounded-2xl 행 / md:h-[6.625rem] / bg-accent 배지 / rounded-[1.25rem] CTA 는 폐기.
+//     목표관리의 rounded-2xl 행 / md:h-26.5 / bg-accent 배지 / rounded-perf-modal CTA 는 폐기.
 //     섹션 껍데기는 ServiceSection 을 재사용한다.
 //
 // (b) 페이지별 차이 흡수:
@@ -28,7 +28,7 @@ import { Check } from "lucide-react";
 // 브레이크포인트 md: → lg: 통일. 텍스트의 3단 반응형 확대
 // (text-[1.0625rem] sm:text-[1.375rem] md:text-[1.125rem] 형태 = 폰트에 배율을 적용한 흔적,
 // 3원칙 1번 위반)는 전부 단일값 text-[1.125rem] 로 정리했다.
-// CTA 는 인라인 style={{ backgroundColor: BRAND_NAVY }} 대신 클래스 리터럴 bg-[#013262] 를 쓴다.
+// CTA 는 인라인 style={{ backgroundColor: BRAND_NAVY }} 대신 클래스 리터럴 bg-primary 를 쓴다.
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 import { formatKRW } from "@/data/pricingCatalog";
@@ -70,7 +70,7 @@ export default function ServicePricingSection({
         containerClassName="text-center"
         heading={heading}
       >
-        <p className="mt-10 text-[1rem] font-medium text-[#767676] sm:mt-12 lg:mt-[5.625rem]">
+        <p className="mt-10 text-[1rem] font-medium text-[#767676] sm:mt-12 lg:mt-22.5">
           이용권 정보를 불러오는 중입니다.
         </p>
       </ServiceSection>
@@ -85,13 +85,13 @@ export default function ServicePricingSection({
         containerClassName="text-center"
         heading={heading}
       >
-        <p className="mt-10 text-[1rem] font-medium text-red-600 sm:mt-12 lg:mt-[5.625rem]">
+        <p className="mt-10 text-[1rem] font-medium text-red-600 sm:mt-12 lg:mt-22.5">
           요금 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
         </p>
         <button
           type="button"
           onClick={refetch}
-          className="mt-6 inline-flex h-11 items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] px-6 text-[0.9375rem] font-semibold text-[#013262] transition hover:bg-[#F1F8FF]"
+          className="mt-6 inline-flex h-11 items-center justify-center rounded-[0.9375rem] border border-accent px-6 text-[0.9375rem] font-semibold text-primary transition hover:bg-[#F1F8FF]"
         >
           다시 시도
         </button>
@@ -101,7 +101,7 @@ export default function ServicePricingSection({
 
   // 안내문→CTA gap 64 × 0.766 ≈ 49px(lg:mt-[3.0625rem]). 300×68 × 0.766 → 230×52.
   const ctaClass =
-    "mt-8 inline-flex h-14 w-full max-w-[14.375rem] items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] bg-[#013262] px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F] lg:mt-[3.0625rem] lg:h-[3.25rem] lg:w-[14.375rem] lg:px-0";
+    "mt-8 inline-flex h-14 w-full max-w-57.5 items-center justify-center rounded-[0.9375rem] border border-accent bg-primary px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F] lg:mt-12.25 lg:h-13 lg:w-57.5 lg:px-0";
 
   return (
     <ServiceSection
@@ -111,7 +111,7 @@ export default function ServicePricingSection({
       heading={heading}
     >
       {/* 헤딩→리스트 gap 117 × 0.766 ≈ 90px(lg:mt-[5.625rem]). */}
-      <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 lg:mt-[5.625rem] lg:gap-[0.5625rem]">
+      <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 lg:mt-22.5 lg:gap-2.25">
         {products.map((product) => {
           // null/undefined일 때 이전에도 비교식이 항상 false였던 것과 동일한 결과.
           const hasDiscount =
@@ -123,25 +123,22 @@ export default function ServicePricingSection({
                행 높이 119 × 0.766 ≈ 91px, 패딩 상하 21px / 좌우 25px, radius 12 = rounded-xl. */
             <div
               key={product.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#D7D7D7] bg-white px-6 py-6 sm:px-8 lg:mx-auto lg:h-[5.6875rem] lg:w-full lg:max-w-[57.875rem] lg:px-[1.5625rem] lg:py-[1.3125rem]"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white px-6 py-6 sm:px-8 lg:mx-auto lg:h-22.75 lg:w-full lg:max-w-231.5 lg:px-6.25 lg:py-5.25"
             >
-              <span className="flex items-center gap-[0.9375rem]">
+              <span className="flex items-center gap-3.75">
                 {/* 체크박스 24 × 0.766 ≈ 18px, radius 5px, 내부 흰색 체크도 동일 배율. */}
                 <span
                   aria-hidden="true"
-                  className="flex h-[1.125rem] w-[1.125rem] shrink-0 items-center justify-center rounded-[0.3125rem] bg-[#D7D7D7]"
+                  className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-[0.3125rem] bg-line"
                 >
-                  <Check
-                    className="h-[0.6875rem] w-[0.6875rem] text-white"
-                    strokeWidth={3}
-                  />
+                  <Check className="h-2.75 w-2.75 text-white" strokeWidth={3} />
                 </span>
-                <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-[#525252]">
+                <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-ink">
                   {product.name}
                 </span>
                 {product.recommended && (
                   /* 추천 배지 — 52×32 × 0.766 → 40×25, radius 9px, 텍스트 13px. */
-                  <span className="flex h-[1.5625rem] w-[2.5rem] shrink-0 items-center justify-center rounded-[0.5625rem] bg-[#0B84FD] text-[0.8125rem] font-medium text-white">
+                  <span className="flex h-6.25 w-10 shrink-0 items-center justify-center rounded-[0.5625rem] bg-accent text-[0.8125rem] font-medium text-white">
                     추천
                   </span>
                 )}
@@ -149,24 +146,24 @@ export default function ServicePricingSection({
               <span className="flex flex-col items-end">
                 {hasDiscount ? (
                   /* 정가(취소선)↔할인 블록 gap 4 × 0.766 ≈ 3px. */
-                  <span className="flex flex-col items-end gap-[0.1875rem]">
-                    <span className="text-[0.9375rem] font-normal leading-[1.4] tracking-[-0.02em] text-[#D7D7D7] line-through">
+                  <span className="flex flex-col items-end gap-0.75">
+                    <span className="text-[0.9375rem] font-normal leading-[1.4] tracking-[-0.02em] text-line line-through">
                       {formatKRW(product.listPrice)}
                     </span>
                     <span className="flex items-center gap-4">
                       {product.badge && (
-                        <span className="text-[1.125rem] font-medium tracking-[-0.02em] text-[#013262]">
+                        <span className="text-[1.125rem] font-medium tracking-[-0.02em] text-primary">
                           {product.badge}
                         </span>
                       )}
-                      <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-[#525252]">
+                      <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-ink">
                         {formatKRW(product.price)}
                       </span>
                     </span>
                   </span>
                 ) : (
                   /* 할인 없는 상품 — 가격만, 라벨과 동일 타이포 */
-                  <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-[#525252]">
+                  <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-ink">
                     {formatKRW(product.price)}
                   </span>
                 )}
@@ -177,14 +174,14 @@ export default function ServicePricingSection({
       </div>
 
       {serviceKey === "suhaeng" && (
-        <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-[#525252] lg:mt-[0.5625rem]">
+        <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-ink lg:mt-2.25">
           1회 = 수행평가 1건 (주제 추천 → 설계 리포트 → 평가 리포트 전 과정)
         </p>
       )}
 
       {/* 리스트 하단→안내문 gap 12 × 0.766 ≈ 9px. 부모 컨테이너 text-center 상속을
           text-left 로 해제한다. */}
-      <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-[#525252] lg:mt-[0.5625rem]">
+      <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-ink lg:mt-2.25">
         한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택
         가능합니다.
       </p>
