@@ -46,6 +46,8 @@ type PaymentOrder = {
   paid_at?: string;
   vat?: number | string | null;
   amount: number;
+  discount_amount?: number;
+  coupon_redemptions?: { discount_amount: number; voided_at?: string | null }[];
 };
 
 type PaymentDetailModalProps = {
@@ -77,10 +79,25 @@ export default function PaymentDetailModal({
       ? null
       : Number(order.vat);
 
+  // 쿠폰 할인 정본은 coupon_redemptions(voided_at is null 행의 합) — sql/87 정책
+  // 적용 전이면 학생 소유/auto 쿠폰의 redemption이 일부/0행으로 와 쿠폰 행이 덜
+  // 보이는 것으로 자연 폴백한다. 상품 할인은 discount_amount(상품+쿠폰 합,
+  // sql/55 불변식)에서 쿠폰 합을 뺀 나머지다(EnrollmentRequestModal과 동일 계산).
+  const couponSum = (order.coupon_redemptions ?? [])
+    .filter((r) => !r.voided_at)
+    .reduce((sum, r) => sum + r.discount_amount, 0);
+  const productDiscount = Math.max(0, (order.discount_amount ?? 0) - couponSum);
+
   const rows = [
     { label: "주문번호", value: order.id },
     { label: "결제 수단", value: order.method || "-" },
     { label: "결제 상품", value: order.order_name || "-" },
+    ...(productDiscount > 0
+      ? [{ label: "할인 금액", value: `-${formatKRW(productDiscount)}` }]
+      : []),
+    ...(couponSum > 0
+      ? [{ label: "쿠폰", value: `-${formatKRW(couponSum)}` }]
+      : []),
     { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
     { label: "부가 가치", value: Number.isFinite(vat) ? formatKRW(vat) : "-" },
     { label: "결제 금액", value: formatKRW(order.amount) },

@@ -34,6 +34,8 @@ type EnrollmentOrder = {
   amount: number;
   approval_status?: string;
   student_profile_id?: string;
+  discount_amount?: number;
+  coupon_redemptions?: { discount_amount: number; voided_at?: string | null }[];
 };
 
 type EnrollmentRequestModalProps = {
@@ -92,6 +94,15 @@ export default function EnrollmentRequestModal({
 
   if (!open || !order) return null;
 
+  // 쿠폰 할인 정본은 coupon_redemptions(voided_at is null 행의 합) — sql/87 정책이
+  // 적용 전이면 학생 소유/auto 쿠폰의 redemption이 일부/0행으로 와 쿠폰 행이 덜
+  // 보이는 것으로 자연 폴백한다. 상품 할인은 discount_amount(상품+쿠폰 합,
+  // sql/55 불변식)에서 쿠폰 합을 뺀 나머지다.
+  const couponSum = (order.coupon_redemptions ?? [])
+    .filter((r) => !r.voided_at)
+    .reduce((sum, r) => sum + r.discount_amount, 0);
+  const productDiscount = Math.max(0, (order.discount_amount ?? 0) - couponSum);
+
   return (
     <MyPageModalShell
       open={open}
@@ -120,7 +131,29 @@ export default function EnrollmentRequestModal({
           >
             {order.order_name}
           </p>
-          <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[0.9375rem] font-semibold">
+          {productDiscount > 0 && (
+            <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[0.9375rem] font-semibold">
+              <span className="text-ink">할인 금액</span>
+              <span className="text-primary">
+                -{formatKRW(productDiscount)}
+              </span>
+            </div>
+          )}
+          {couponSum > 0 && (
+            <div
+              className={`flex items-center justify-between text-[0.9375rem] font-semibold ${productDiscount > 0 ? "mt-3" : "mt-3 border-t border-line pt-3"}`}
+            >
+              <span className="text-ink">쿠폰</span>
+              <span className="text-primary">-{formatKRW(couponSum)}</span>
+            </div>
+          )}
+          <div
+            className={`flex items-center justify-between text-[0.9375rem] font-semibold ${
+              productDiscount > 0 || couponSum > 0
+                ? "mt-3"
+                : "mt-3 border-t border-line pt-3"
+            }`}
+          >
             <span className="text-ink">결제 금액</span>
             <span className="text-ink-strong">{formatKRW(order.amount)}</span>
           </div>
