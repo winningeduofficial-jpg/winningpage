@@ -18,6 +18,8 @@ export interface OrderItem {
   list_price: number;
   price: number;
   quantity: number;
+  product_id: string;
+  service_key: string;
 }
 
 export interface ApprovedOrder {
@@ -84,7 +86,7 @@ export function useEnrollmentOrder(orderId: string) {
 
       const { data: items, error: itemsError } = await supabase
         .from("order_items")
-        .select("id, name, list_price, price, quantity")
+        .select("id, name, list_price, price, quantity, product_id, service_key")
         .eq("order_id", orderId);
       if (!alive) return;
 
