@@ -85,14 +85,13 @@ export default function PaymentDetailModal({
 
   if (!open || !order) return null;
 
-  // 주문번호/결제 수단(위) → 금액 분해(OrderAmountBreakdown, 항목/할인/합계를
-  // 영수증형 섹션으로 렌더) → 승인 일시/결제 상태(아래) 순서. 금액 분해는
-  // EnrollmentRequestModal과 공유해 두 화면이 같은 주문을 다르게 보여주지 않게 한다.
-  const topRows = [
+  // 주문 메타(주문번호/결제 수단/승인 일시/결제 상태)를 위에 몰고, 금액 분해
+  // (OrderAmountBreakdown — 항목/할인/합계 영수증형 섹션)는 맨 아래에 둔다
+  // (사용자 확정). 금액 분해는 EnrollmentRequestModal과 공유해 두 화면이 같은
+  // 주문을 다르게 보여주지 않게 한다.
+  const metaRows = [
     { label: "주문번호", value: order.id },
     { label: "결제 수단", value: order.method || "-" },
-  ];
-  const bottomRows = [
     { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
     { label: "결제 상태", value: STATUS_TEXT[status || ""] || "-" },
   ];
@@ -133,7 +132,7 @@ export default function PaymentDetailModal({
         </h2>
 
         <dl className="mt-7.5 flex flex-col pb-7.5">
-          {topRows.map((row, i) => (
+          {metaRows.map((row, i) => (
             <div
               key={`${row.label}-${i}`}
               className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
@@ -149,29 +148,13 @@ export default function PaymentDetailModal({
               </dd>
             </div>
           ))}
-          <div className="border-b border-line/60 py-3.75">
+          <div className="py-3.75">
             <OrderAmountBreakdown
               order={order}
               amount={order.amount}
               fallbackName={order.order_name}
             />
           </div>
-          {bottomRows.map((row, i) => (
-            <div
-              key={`${row.label}-${i}`}
-              className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
-            >
-              <dt className="shrink-0 text-[0.875rem] text-ink-sub">
-                {row.label}
-              </dt>
-              <dd
-                className="truncate text-right text-[0.875rem] text-ink-strong"
-                title={row.value}
-              >
-                {row.value}
-              </dd>
-            </div>
-          ))}
         </dl>
       </div>
 
