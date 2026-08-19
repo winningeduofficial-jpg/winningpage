@@ -1,6 +1,5 @@
 import { useId } from "react";
-import { computeDiscountBreakdown } from "@/components/mypage/paymentRows";
-import { formatKRW } from "@/data/pricingCatalog";
+import OrderAmountBreakdown from "@/components/mypage/OrderAmountBreakdown";
 import MyPageModalShell from "./MyPageModalShell";
 
 // 결제 상세 내역 모달 (Figma 3665:6278).
@@ -86,28 +85,15 @@ export default function PaymentDetailModal({
 
   if (!open || !order) return null;
 
-  // 원금/할인 사유별/쿠폰명 분해는 EnrollmentRequestModal과 공유하는
-  // computeDiscountBreakdown(paymentRows.ts)에 정본으로 몰아뒀다 — 두 화면이
-  // 각자 계산하면 같은 주문이 서로 다른 할인 내역으로 보일 수 있다.
-  const { listAmount, itemRows, discountRows, couponRows } =
-    computeDiscountBreakdown(order);
-
-  const rows = [
+  // 주문번호/결제 수단(위) → 금액 분해(OrderAmountBreakdown, 항목/할인/합계를
+  // 영수증형 섹션으로 렌더) → 승인 일시/결제 상태(아래) 순서. 금액 분해는
+  // EnrollmentRequestModal과 공유해 두 화면이 같은 주문을 다르게 보여주지 않게 한다.
+  const topRows = [
     { label: "주문번호", value: order.id },
     { label: "결제 수단", value: order.method || "-" },
-    // 상품은 "XXX 외 N건"(order_name) 요약 대신 항목별 이름·정가로 나열한다 —
-    // 항목 합이 아래 원금과 일치하는 원장 구조. order_items가 안 내려온
-    // 호출부(구 계약)만 order_name 요약으로 폴백한다.
-    ...(itemRows.length > 0
-      ? itemRows.map((row) => ({ label: row.label, value: row.amountText }))
-      : [{ label: "결제 상품", value: order.order_name || "-" }]),
-    ...(listAmount > 0
-      ? [{ label: "원금", value: formatKRW(listAmount) }]
-      : []),
-    ...discountRows.map((row) => ({ label: row.label, value: row.amountText })),
-    ...couponRows.map((row) => ({ label: row.label, value: row.amountText })),
+  ];
+  const bottomRows = [
     { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
-    { label: "결제 금액", value: formatKRW(order.amount) },
     { label: "결제 상태", value: STATUS_TEXT[status || ""] || "-" },
   ];
 
@@ -147,7 +133,30 @@ export default function PaymentDetailModal({
         </h2>
 
         <dl className="mt-7.5 flex flex-col pb-7.5">
-          {rows.map((row, i) => (
+          {topRows.map((row, i) => (
+            <div
+              key={`${row.label}-${i}`}
+              className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
+            >
+              <dt className="shrink-0 text-[0.875rem] text-ink-sub">
+                {row.label}
+              </dt>
+              <dd
+                className="truncate text-right text-[0.875rem] text-ink-strong"
+                title={row.value}
+              >
+                {row.value}
+              </dd>
+            </div>
+          ))}
+          <div className="border-b border-line/60 py-3.75">
+            <OrderAmountBreakdown
+              order={order}
+              amount={order.amount}
+              fallbackName={order.order_name}
+            />
+          </div>
+          {bottomRows.map((row, i) => (
             <div
               key={`${row.label}-${i}`}
               className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"

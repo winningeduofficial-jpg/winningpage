@@ -82,7 +82,7 @@ export function resolveOrderStatus(
   return "refund_requested";
 }
 
-type DiscountOrderInput = {
+export type DiscountOrderInput = {
   list_amount?: number | null;
   discount_amount?: number | null;
   order_items?:
@@ -205,5 +205,9 @@ export function computeDiscountBreakdown(order: DiscountOrderInput) {
     itemRows,
     discountRows,
     couponRows,
+    // discountRows+couponRows 금액의 합 — 표시 행들과 항상 정합한다(문자열
+    // amountText 파싱 대신 couponSum+productDiscount 원본 숫자로 계산).
+    // OrderAmountBreakdown의 "할인액 총합" 행이 이 값을 그대로 쓴다.
+    discountTotal: couponSum + productDiscount,
   };
 }

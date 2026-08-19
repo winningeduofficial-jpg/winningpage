@@ -1,8 +1,7 @@
 import { useCallback, useId, useState } from "react";
 import { useNavigate } from "react-router";
 import MyPageModalShell from "@/components/mypage/MyPageModalShell";
-import { computeDiscountBreakdown } from "@/components/mypage/paymentRows";
-import { formatKRW } from "@/data/pricingCatalog";
+import OrderAmountBreakdown from "@/components/mypage/OrderAmountBreakdown";
 import { supabase } from "@/lib/supabase";
 
 // 학부모 결제요청 확인 모달 — 자녀가 올린 결제 요청을 결제하거나 반려한다.
@@ -109,51 +108,6 @@ export default function EnrollmentRequestModal({
 
   if (!open || !order) return null;
 
-  // 원금/할인 사유별/쿠폰명 분해는 EnrollmentRequestModal·PaymentDetailModal이
-  // 공유하는 computeDiscountBreakdown(paymentRows.ts)에 정본으로 몰아뒀다 —
-  // 두 화면이 각자 계산하면 같은 주문이 서로 다른 할인 내역으로 보일 수 있다.
-  const { listAmount, itemRows, discountRows, couponRows } =
-    computeDiscountBreakdown(order);
-  // 원금 → 할인 사유 행들 → 쿠폰 행들 → 결제 금액 순서로 렌더한다. 목록의
-  // 첫 행만 상품명과 구분선(border-t)을 긋고, 나머지는 mt-3만 준다. 원금·결제
-  // 금액은 일반 색(text-ink-strong), 할인·쿠폰 값만 음수 강조색(text-primary).
-  const extraRows: {
-    key: string;
-    label: string;
-    value: string;
-    emphasize: boolean;
-  }[] = [];
-  if (listAmount > 0) {
-    extraRows.push({
-      key: "list-amount",
-      label: "원금",
-      value: formatKRW(listAmount),
-      emphasize: false,
-    });
-  }
-  for (const [i, row] of discountRows.entries()) {
-    extraRows.push({
-      key: `discount-${i}`,
-      label: row.label,
-      value: row.amountText,
-      emphasize: true,
-    });
-  }
-  for (const [i, row] of couponRows.entries()) {
-    extraRows.push({
-      key: `coupon-${i}`,
-      label: row.label,
-      value: row.amountText,
-      emphasize: true,
-    });
-  }
-  extraRows.push({
-    key: "amount",
-    label: "결제 금액",
-    value: formatKRW(order.amount),
-    emphasize: false,
-  });
-
   return (
     <MyPageModalShell
       open={open}
@@ -176,44 +130,11 @@ export default function EnrollmentRequestModal({
         </p>
 
         <div className="mt-6">
-          {/* 상품은 "XXX 외 N건"(order_name) 요약 대신 항목별로 이름·정가를
-              나열한다 — 항목 합이 아래 원금과 일치하는 원장 구조. order_items가
-              안 내려온 호출부(구 계약)만 order_name 요약으로 폴백한다. */}
-          {itemRows.length > 0 ? (
-            itemRows.map((row, i) => (
-              <div
-                key={`item-${row.label}-${i}`}
-                className={`flex items-center justify-between gap-3 text-[0.9375rem] font-semibold ${i === 0 ? "" : "mt-3"}`}
-              >
-                <span className="truncate text-ink" title={row.label}>
-                  {row.label}
-                </span>
-                <span className="shrink-0 text-ink-strong">
-                  {row.amountText}
-                </span>
-              </div>
-            ))
-          ) : (
-            <p
-              className="truncate text-[0.9375rem] font-semibold text-ink"
-              title={order.order_name}
-            >
-              {order.order_name}
-            </p>
-          )}
-          {extraRows.map((row, i) => (
-            <div
-              key={row.key}
-              className={`flex items-center justify-between text-[0.9375rem] font-semibold ${
-                i === 0 ? "mt-3 border-t border-line pt-3" : "mt-3"
-              }`}
-            >
-              <span className="text-ink">{row.label}</span>
-              <span className={row.emphasize ? "text-primary" : "text-ink-strong"}>
-                {row.value}
-              </span>
-            </div>
-          ))}
+          <OrderAmountBreakdown
+            order={order}
+            amount={order.amount}
+            fallbackName={order.order_name}
+          />
         </div>
 
         {rejecting && (
