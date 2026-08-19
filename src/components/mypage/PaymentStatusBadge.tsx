@@ -68,9 +68,13 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
     cls: "bg-performance-tag text-gold",
   },
 
-  // 학부모 승인은 끝났고 결제만 남음(approval_status='approved') — 행을 누르면
-  // 바로 /checkout 으로 이동한다.
-  enrollment_approved: { label: "결제 대기", cls: "bg-[#e9f4ff] text-accent" },
+  // 학부모 승인은 끝났고 결제만 남음(approval_status='approved') — 아직
+  // 결제 전이라는 뜻에서 상단 탭 배지("결제 요청 N")·enrollment_requested와
+  // 같은 대기 톤(노랑)으로 맞춘다.
+  enrollment_approved: {
+    label: "결제 대기",
+    cls: "bg-performance-tag text-gold",
+  },
 };
 
 // 시안에 없는 상태(향후 DB에 새 status 값이 추가되는 경우)를 위한 중립 폴백.
