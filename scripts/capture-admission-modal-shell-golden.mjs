@@ -5,13 +5,12 @@
 // 연결하지 않는다. 리팩터 착수 **전** 사람이 손으로 한 번 돌려 골든을
 // 뜨는 도구다. 자동 검증(읽기 전용)은
 // src/pages/AdmissionGuidelines.modalShell.test.tsx가 맡는다 — 그 파일의
-// 헤더 주석에 이 분리의 배경이 있다(task 10.5, scripts/verify-admission-modal-shell.mjs
-// 이식).
+// 헤더 주석에 이 분리의 배경이 있다.
 //
 // 두 모드:
 //   node scripts/capture-admission-modal-shell-golden.mjs --capture [--from-rev <rev>]
-//     AdmissionGuidelines.tsx의 모달 JSX 영역을 기계적으로 잘라 SSR 바이트
-//     골든(scripts/__fixtures__/admission-modal-shell.ssr.json)을 다시 쓴다.
+//     AdmissionGuidelines.tsx의 모달 JSX 영역을 기계적으로 잘라 DOM 구조
+//     골든(scripts/__fixtures__/admission-modal-shell.dom.json)을 다시 쓴다.
 //     --from-rev를 주면 그 커밋 시점의 소스에서 뜬다(리팩터 직전 커밋에서
 //     "정답"을 고정할 때 쓴다). 생략하면 현재 작업트리 소스에서 뜬다.
 //
@@ -21,25 +20,36 @@
 //     diff한다. 읽기 전용 — 아무 파일도 쓰지 않는다. 새 캡처를 뜨는 과정
 //     자체(dev 서버 + 브라우저 자동화)는 이 스크립트 밖의 일이다.
 //
-// 제약은 원본 verify-admission-modal-shell.mjs와 동일: esbuild(번들 모드) +
-// react-dom/server만 쓴다. react/react-dom은 external로 남겨 React 인스턴스
-// 중복을 피한다. AdmissionGuidelines.tsx가 "@/" 절대경로 import를 쓰므로
-// (task 8) esbuild alias 옵션으로 vite.config.js의 별칭을 그대로 물린다.
+// AdmissionModalShell의 shadcn/ui Dialog(Base UI) 전환 이후 --capture는
+// renderToStaticMarkup 대신 테스트 파일과 **동일한 파이프라인**(esbuild
+// 번들 → jsdom 마운트 → 동적 id 정규화)으로 렌더한다 — 그래야 "테스트가
+// 실제로 보는 것"과 "골든이 고정한 것"이 같은 경로에서 나온다(자기증명
+// 순환 회피 원칙, 캡처가 원본 소스 컴포넌트를 직접 렌더하는 독립 경로라는
+// 점 자체는 그대로 유지 — 여기서 렌더 방식만 테스트와 맞춘 것이다). 세부
+// 배경은 src/pages/AdmissionGuidelines.modalShell.test.tsx 헤더 주석
+// "새 파이프라인의 두 가지 제약과 해법" 절 참고:
+//   1. esbuild는 jsdom 전역과 충돌해 jsdom이 이미 설치된 프로세스에서
+//      import조차 못 한다. 그래서 이 스크립트는 순서를 지킨다 —
+//      **esbuild 번들링을 먼저 끝내고**, 그 다음에야 jsdom 전역을 설치한다.
+//      (테스트 파일은 반대로 "vitest가 이미 jsdom인 프로세스"라 번들링을
+//      자식 프로세스로 격리해야 했다 — 이 스크립트는 자기 프로세스 하나뿐이라
+//      순서만 맞추면 격리가 필요 없다.)
+//   2. jsdom 전역은 손으로 흉내내지 않는다 — vitest가 테스트에서 실제로
+//      쓰는 것과 동일한 jsdom 환경 어댑터(vitest/runtime의
+//      builtinEnvironments.jsdom)를 그대로 가져와 쓴다. 손으로 흉내낸
+//      전역은 테스트가 보는 조건과 조용히 갈라질 위험이 있다.
 // =====================================================================
 
 import { execFileSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import * as esbuild from "esbuild";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 
 const REPO_ROOT = path.resolve(new URL(".", import.meta.url).pathname, "..");
 const PAGE_REL = "src/pages/AdmissionGuidelines.tsx";
 const PAGE_PATH = path.join(REPO_ROOT, PAGE_REL);
 const FIXTURE_DIR = path.join(REPO_ROOT, "scripts/__fixtures__");
-const SSR_FIXTURE = path.join(FIXTURE_DIR, "admission-modal-shell.ssr.json");
+const DOM_FIXTURE = path.join(FIXTURE_DIR, "admission-modal-shell.dom.json");
 const BROWSER_FIXTURE = path.join(
   FIXTURE_DIR,
   "admission-modal-shell.browser.json",
@@ -156,8 +166,7 @@ export default function __ModalRegionHarness({ selectedInfo, modalXScroll }) {
   const handleRetryInfo = () => {};
   // ${PAGE_REL}:1589-1591 그대로 — 슬라이스 앵커(SLICE_START) 앞에서 선언되는
   // 변수라 기계 슬라이스에 포함되지 않는다. AdmissionModalShell#bodyProps로
-  // 넘어가 "ref → data-section → className" 순서로 스프레드되므로 바이트가
-  // 어긋나지 않게 여기서도 동일하게 계산한다.
+  // 넘어가는 값을 여기서도 동일하게 계산한다.
   const modalBodyDataProps = { "data-section": selectedInfo?.section?.key || "" };
   return (
     <>
@@ -169,9 +178,17 @@ ${slice}
   return { source, startLine, endLine, importCount: imports.length };
 }
 
-// ── 2. 번들 + 로드 ─────────────────────────────────────────────────────
-
-async function loadHarness(harnessSource) {
+// ── 2. 번들 (esbuild는 jsdom 설치 전에 끝낸다 — 단, import()는 나중에) ──
+//
+// ⚠ 번들 파일을 **언제 import() 하는지**가 esbuild 실행 순서 못지않게
+// 중요하다(실측으로 발견). @base-ui/react(정확히는 그 내부 floating-ui-react
+// 유틸)는 모듈이 처음 평가되는 시점에 DOM 가용성을 판단해 두는 코드가 있어,
+// jsdom 전역이 설치되기 **전에** import() 해 버리면 그 뒤 jsdom을 설치해도
+// "브라우저 아님" 모드로 고정돼 Dialog가 아무것도 마운트하지 않는다(콘솔
+// 에러 없이 body가 빈 채로 조용히 끝난다 — 가장 잡기 어려운 실패 형태다).
+// 그래서 이 함수는 **번들(파일 쓰기)까지만** 하고 import()는 하지 않는다 —
+// 실제 import()는 호출부(renderAllCases)가 jsdom 설치 **후**에 한다.
+async function buildHarnessBundle(harnessSource) {
   const stamp = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const harnessPath = path.join(
     path.dirname(PAGE_PATH),
@@ -183,6 +200,9 @@ async function loadHarness(harnessSource) {
   );
   fs.writeFileSync(harnessPath, harnessSource);
   try {
+    // 이 시점엔 아직 jsdom 전역이 설치되지 않았다(파일 하단 capture()에서
+    // renderAllCases보다 먼저 이 함수를 호출한다) — esbuild가 정상 동작한다.
+    const esbuild = await import("esbuild");
     const result = await esbuild.build({
       entryPoints: [harnessPath],
       bundle: true,
@@ -197,19 +217,30 @@ async function loadHarness(harnessSource) {
       mainFields: ["module", "main"],
       // vite.config.js의 resolve.alias("@" -> src/)와 동일하게 맞춘다.
       alias: { "@": path.join(REPO_ROOT, "src") },
-      external: ["react", "react-dom", "react/jsx-runtime", "react-dom/server"],
+      // react-dom도 external로 남긴다 — 아래서 jsdom 설치 후 이 프로세스가
+      // 로드하는 react-dom(및 react-dom/client)과 같은 인스턴스여야 Base UI
+      // Dialog의 createPortal이 올바르게 붙는다.
+      external: ["react", "react-dom", "react-dom/client", "react/jsx-runtime"],
+      // @base-ui/react의 전이 의존성 use-sync-external-store는 ESM 진입점이
+      // 없는 순수 CJS 패키지라 mainFields 트릭이 안 통한다 — 번들 안에서
+      // `require("react")`(external)를 그대로 호출하는데, format:'esm'
+      // 산출물엔 esbuild가 넣는 자체 `__require` 스텁이 있고 이건 external
+      // 대상엔 "Dynamic require of ... is not supported"로 던지기만 한다
+      // (실측 확인). banner로 Node의 진짜 createRequire를 심어 이 스텁을
+      // 가려 실제 동작하는 require로 바꾼다.
+      banner: {
+        js: "import { createRequire } from 'module'; const require = createRequire(import.meta.url);",
+      },
       write: false,
     });
     fs.writeFileSync(bundlePath, result.outputFiles[0].text);
-    const mod = await import(`file://${bundlePath}`);
-    return mod.default;
+    return bundlePath;
   } finally {
     fs.rmSync(harnessPath, { force: true });
-    fs.rmSync(bundlePath, { force: true });
   }
 }
 
-// ── 3. 렌더 케이스 ─────────────────────────────────────────────────────
+// ── 3. 렌더 케이스 (esbuild 번들 이후 jsdom 설치) ───────────────────────
 //
 // AdmissionSurface 는 표면 CSS 전량을 <style> 하나로 뱉는다. 그 본문까지
 // 골든에 박으면 (a) 픽스처가 수십 KB로 불고 (b) 이 게이트가 "표면 CSS
@@ -225,6 +256,14 @@ function foldStyleBodies(html) {
       .slice(0, 16);
     return `<style>[folded len=${body.length} sha256=${sha}]</style>`;
   });
+}
+
+// Base UI Dialog Portal/Popup의 React useId 기반 순번 id(`_r_0_`, `_r_1_`, ...
+// 실측 확인)를 플레이스홀더로 접는다 — 렌더 호출 누적 횟수와 무관하게
+// 비교되도록. src/pages/AdmissionGuidelines.modalShell.test.tsx의
+// normalizeDynamicIds와 반드시 동일하게 유지한다.
+function normalizeDynamicIds(html) {
+  return html.replace(/id="_r_\d+_"/g, 'id="[id]"');
 }
 
 const SECTION = { key: "selection_method", label: "전형방법" };
@@ -349,19 +388,46 @@ const CASES = {
 async function renderAllCases(sourceText) {
   const { source, startLine, endLine, importCount } =
     buildHarnessSource(sourceText);
-  const Harness = await loadHarness(source);
-  // 골든은 "DOMParser 없는 순수 Node SSR" 조건에서 뜬다 — 이 스크립트는
-  // 플레인 node로 실행되므로(테스트 파일과 달리 jsdom 환경이 아니다) 전역
-  // DOMParser가 애초에 없다. SafeHtml.tsx의 defaultParseDocument가
-  // `typeof DOMParser === 'undefined'` 분기를 타 html 케이스는 항상
-  // null/래퍼만 남는 축약 경로를 재현한다.
-  const rendered = {};
-  for (const [name, props] of Object.entries(CASES)) {
-    rendered[name] = foldStyleBodies(
-      renderToStaticMarkup(React.createElement(Harness, props)),
-    );
+  // esbuild 번들링을 먼저 끝낸다(§ 2 주석) — 그 다음에야 jsdom 전역을 설치한다.
+  const bundlePath = await buildHarnessBundle(source);
+
+  // vitest가 테스트에서 실제로 쓰는 것과 동일한 jsdom 환경 어댑터를 그대로
+  // 가져와 설치한다(손으로 흉내낸 전역은 테스트가 보는 조건과 갈라질 위험이
+  // 있다 — 파일 상단 헤더 주석 §2 참고).
+  const { builtinEnvironments } = await import("vitest/runtime");
+  const env = await builtinEnvironments.jsdom.setup(globalThis, {});
+  // @testing-library/react의 act()가 "이건 테스트 환경이다"로 인식하도록.
+  // 이게 없으면 Base UI 내부 상태 전이가 act() 경고 없이도 불완전하게 남을
+  // 수 있다(실측 확인 — 이 플래그 없이도 렌더 자체는 되지만, 안전하게 켠다).
+  globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  try {
+    // 번들 import()는 반드시 jsdom 설치 **후** — 위 buildHarnessBundle 주석
+    // "⚠" 참고.
+    const mod = await import(`file://${bundlePath}`);
+    const Harness = mod.default;
+    const { render, cleanup, act } = await import("@testing-library/react");
+    const React = (await import("react")).default;
+
+    const rendered = {};
+    for (const [name, props] of Object.entries(CASES)) {
+      render(React.createElement(Harness, props));
+      rendered[name] = normalizeDynamicIds(
+        foldStyleBodies(document.body.innerHTML),
+      );
+      // Base UI의 초기 포커스 이동(enqueueFocus)은 requestAnimationFrame으로
+      // 지연 예약된다. cleanup()/teardown() 전에 흘려보내지 않으면 이 콜백이
+      // jsdom 전역이 걷힌 뒤에 실행돼 "cancelAnimationFrame is not defined"로
+      // 죽는다(실측 확인) — 골든 값 자체엔 영향 없다(위에서 이미 캡처 끝).
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      });
+      cleanup();
+    }
+    return { rendered, startLine, endLine, importCount };
+  } finally {
+    fs.rmSync(bundlePath, { force: true });
+    await env.teardown(globalThis);
   }
-  return { rendered, startLine, endLine, importCount };
 }
 
 // ── 4. 모드별 진입점 ───────────────────────────────────────────────────
@@ -388,23 +454,29 @@ async function capture(rev) {
   fs.mkdirSync(FIXTURE_DIR, { recursive: true });
   const payload = {
     __why: [
-      "공개 대학모집요강 모달 껍데기의 SSR 바이트 골든.",
-      '이 값들은 "보기 좋아서 고른 값"이 아니라, 아래 sourceRev 커밋의',
-      `${PAGE_REL} 소스에서 모달 JSX 영역을 기계적으로 잘라내 그대로`,
-      "renderToStaticMarkup 한 출력이다. 재생성 명령이 재현성을 보장한다.",
-      "골든을 새 컴포넌트 출력으로 다시 뜨면 자기증명 순환이 된다 — 하지 말 것.",
+      "공개 대학모집요강 모달 껍데기의 DOM 구조 골든(jsdom + @testing-library/react",
+      "render() 기준). Base UI Dialog가 Portal로 렌더하는 탓에 renderToStaticMarkup",
+      "은 못 쓴다(선례: EvaluationReportModal.test.tsx). 이 값들은 아래 sourceRev",
+      `커밋의 ${PAGE_REL} 소스에서 모달 JSX 영역을 기계적으로 잘라내 그대로`,
+      "마운트한 document.body.innerHTML이다(Base UI의 동적 id는 정규화됨).",
+      "재생성 명령이 재현성을 보장한다. 골든을 새 컴포넌트 출력으로 다시 뜨면",
+      "자기증명 순환이 된다 — 하지 말 것.",
     ].join(" "),
     sourceRev: resolved,
     sourceRevMeansPreRefactor: rev
       ? `명시된 rev(${rev}) 소스에서 캡처`
       : "작업트리 소스에서 캡처",
     sourceSlice: `${PAGE_REL}:${startLine}-${endLine}`,
+    renderMethod:
+      "jsdom(vitest/runtime builtinEnvironments.jsdom) + @testing-library/react render(), document.body.innerHTML",
+    idNormalization:
+      'Base UI Portal/Popup의 React useId 순번 id(id="_r_N_")는 id="[id]"로 접혀 있다.',
     regenerate: `node scripts/capture-admission-modal-shell-golden.mjs --capture --from-rev ${resolved.slice(0, 7)}`,
     note: "<style> 본문은 sha256 로 접혀 있다(껍데기 게이트의 관심사가 아니므로). 접기 규칙은 이 스크립트의 foldStyleBodies 참고.",
     cases: rendered,
   };
-  fs.writeFileSync(SSR_FIXTURE, `${JSON.stringify(payload, null, 2)}\n`);
-  console.log(`골든 기록: ${path.relative(REPO_ROOT, SSR_FIXTURE)}`);
+  fs.writeFileSync(DOM_FIXTURE, `${JSON.stringify(payload, null, 2)}\n`);
+  console.log(`골든 기록: ${path.relative(REPO_ROOT, DOM_FIXTURE)}`);
   console.log(`  sourceRev = ${resolved}`);
   console.log(`  slice     = ${PAGE_REL}:${startLine}-${endLine}`);
   for (const [name, html] of Object.entries(rendered)) {
