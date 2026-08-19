@@ -109,11 +109,11 @@ export default function EvaluationReportModal({
       {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="평가 리포트 본문"
       onClose={onClose}
-      footer={
+      footer={({ print }) => (
         <>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={print}
             disabled={!hasContent}
             className={REPORT_MODAL_FOOTER_BUTTON.secondary}
           >
@@ -127,7 +127,7 @@ export default function EvaluationReportModal({
             {NEXT_LABEL}
           </button>
         </>
-      }
+      )}
     >
       {hasContent ? (
         // 섹션 간 gap 2.5rem(§5.16 「본문 … 섹션 간 gap 2.5rem(40)」)은 `SectionedReportView`가

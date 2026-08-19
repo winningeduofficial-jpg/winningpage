@@ -76,7 +76,7 @@ export default function DesignReportModal({
       {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="설계 리포트 본문"
       onClose={onClose}
-      footer={
+      footer={({ print }) => (
         <>
           <button
             type="button"
@@ -87,17 +87,17 @@ export default function DesignReportModal({
           </button>
           <button
             type="button"
-            // 브라우저 인쇄 다이얼로그를 그대로 쓴다 — "PDF로 저장"도 그 다이얼로그의 대상
-            // 선택이라 별도 PDF 생성 라이브러리가 필요 없다(§10.2 P10이 요구한 것은
-            // `@media print`다). 본문이 비면 인쇄할 것이 없으므로 비활성.
-            onClick={() => window.print()}
+            // react-to-print(iframe 격리)를 쓴다 — "PDF로 저장"도 그 인쇄 다이얼로그의 대상
+            // 선택이라 별도 PDF 생성 라이브러리가 필요 없다(`ReportModalShell`이 소유).
+            // 본문이 비면 인쇄할 것이 없으므로 비활성.
+            onClick={print}
             disabled={!hasContent}
             className={REPORT_MODAL_FOOTER_BUTTON.primary}
           >
             {PRINT_LABEL}
           </button>
         </>
-      }
+      )}
     >
       {hasContent ? (
         <PerformanceReportSurface>

@@ -175,11 +175,11 @@ function FinalReportModal({
       {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
       scrollLabel="최종 제출본 본문"
       onClose={onClose}
-      footer={
+      footer={({ print }) => (
         <>
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={print}
             disabled={!hasContent}
             className={REPORT_MODAL_FOOTER_BUTTON.secondary}
           >
@@ -193,7 +193,7 @@ function FinalReportModal({
             닫기
           </button>
         </>
-      }
+      )}
     >
       {hasContent ? (
         <PerformanceReportSurface>
