@@ -85,11 +85,8 @@ create policy "coupon_redemptions select pair" on public.coupon_redemptions
 -- =====================================================================
 -- 적용 이력
 -- =====================================================================
--- 미적용 — 이 파일은 작성만 완료했다(2026-08-19). 적용·검증은 팀 리드가
--- 별도로 수행한다. 클라이언트(useMyPageOrders.ts / ParentPaymentsTab.tsx
--- 의 select, EnrollmentRequestModal.tsx / PaymentDetailModal.tsx 의 조건부
--- 행)는 같은 작업에서 이미 완료됐지만, 이 sql 이 적용되기 전까지는 학생
--- 소유·auto 쿠폰이 걸린 주문에서 학부모 화면의 "쿠폰" 행이 own 정책만으로
--- 읽히는 일부/0 행에 맞춰 자연 폴백(덜 보이거나 안 보임)한다 — 별도 에러
--- 처리 불필요.
+-- 2026-08-19 dev(gjowqdiopinhixfivnkx)·prod(ykrpjcsubmbenfcnwlzd) 적용
+-- 완료(Management API database/query). 양쪽 모두 pg_policy 에
+-- "coupon_redemptions select pair" 생성 확인, 기존 3개 정책(own/admin
+-- select/admin update)은 그대로다.
 -- =====================================================================
