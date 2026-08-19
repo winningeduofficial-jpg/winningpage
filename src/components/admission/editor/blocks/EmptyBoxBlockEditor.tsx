@@ -27,7 +27,7 @@ export default function EmptyBoxBlockEditor({
         type="text"
         value={block.message ?? ""}
         onCommit={(message) => onChange({ ...block, message })}
-        className="admission-cell-editor-input w-full border border-[#d7d7d7] px-2 py-1 text-xs"
+        className="admission-cell-editor-input w-full border border-line px-2 py-1 text-xs"
       />
     </div>
   );

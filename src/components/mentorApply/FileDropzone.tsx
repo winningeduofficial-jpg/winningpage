@@ -201,11 +201,11 @@ export default function FileDropzone({
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={handleDrop}
-        className={`flex h-[11.375rem] w-full items-center justify-center rounded-[0.75rem] border bg-surface-footer px-[1.25rem] py-[2.5rem] transition-colors peer-focus-visible:border-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent/30 ${dropzoneBorderClassName}`}
+        className={`flex h-45.5 w-full items-center justify-center rounded-xl border bg-surface-footer px-5 py-10 transition-colors peer-focus-visible:border-accent peer-focus-visible:ring-2 peer-focus-visible:ring-accent/30 ${dropzoneBorderClassName}`}
       >
         {value ? (
           // [시안 부재 — 파생 추정] 선택 완료 뷰.
-          <div className="flex w-full max-w-[16.25rem] flex-col items-center gap-2">
+          <div className="flex w-full max-w-65 flex-col items-center gap-2">
             <FileText
               className="h-8 w-8 text-accent"
               aria-hidden="true"
@@ -249,7 +249,7 @@ export default function FileDropzone({
               type="button"
               onClick={handleRemove}
               disabled={uploading}
-              className={`flex items-center gap-1 rounded-[0.5rem] px-2 py-1 text-[0.875rem] font-medium leading-[1.4] text-ink-sub underline underline-offset-2 transition-colors hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+              className={`flex items-center gap-1 rounded-lg px-2 py-1 text-[0.875rem] font-medium leading-[1.4] text-ink-sub underline underline-offset-2 transition-colors hover:text-ink focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                 uploading ? "cursor-not-allowed opacity-50" : ""
               }`}
             >
@@ -263,7 +263,7 @@ export default function FileDropzone({
           // 드롭존 내부는 260px(16.25rem) 폭 중앙정렬 — 시안 §폼 명세 5-1.
           <label
             htmlFor={id}
-            className="flex w-full max-w-[16.25rem] cursor-pointer flex-col items-center gap-5"
+            className="flex w-full max-w-65 cursor-pointer flex-col items-center gap-5"
           >
             <Upload
               className="h-8 w-8 text-ink-sub"

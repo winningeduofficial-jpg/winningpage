@@ -38,7 +38,7 @@ export default function Step1School({ goNext }: Step1SchoolProps) {
         <div
           role="radiogroup"
           aria-label="학교 유형"
-          className="flex flex-wrap gap-[0.75rem]"
+          className="flex flex-wrap gap-3"
         >
           {SCHOOL_TYPE_OPTIONS.map((option) => (
             <RadioChip
@@ -61,7 +61,7 @@ export default function Step1School({ goNext }: Step1SchoolProps) {
           <div
             role="radiogroup"
             aria-label="학년"
-            className="flex flex-wrap gap-[0.75rem]"
+            className="flex flex-wrap gap-3"
           >
             {HIGH_SCHOOL_GRADE_OPTIONS.map((option) => (
               <RadioChip

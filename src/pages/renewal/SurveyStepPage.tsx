@@ -27,7 +27,7 @@ import {
 /**
  * 설문 한 스텝. 셸(SurveyStepShell)의 자식 라우트이므로 <main>/타이틀 블록은 셸이 소유하고,
  * 여기서는 fragment 로 **카드 스택 + 하단 배너 2형제**만 반환한다.
- * 래퍼 div 를 추가하면 셸의 gap-[3.75rem] 리듬이 무너진다.
+ * 래퍼 div 를 추가하면 셸의 gap-perf-inset 리듬이 무너진다.
  * (하단 배너는 "이전" 링크와 한 블록으로 묶여 있지만 형제 수는 그대로 2개다.)
  *
  * 하단 CTA(사용자 확정 사양, 2026-08-03):
@@ -134,7 +134,7 @@ export default function SurveyStepPage() {
           <button
             type="button"
             onClick={() => navigate(getStepPath(step - 1))}
-            className="rounded text-base font-medium leading-5 text-[#808080] underline underline-offset-4 transition-colors duration-150 hover:text-[#525252] focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+            className="rounded-sm text-base font-medium leading-5 text-[#808080] underline underline-offset-4 transition-colors duration-150 hover:text-ink focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             이전 단계로
           </button>

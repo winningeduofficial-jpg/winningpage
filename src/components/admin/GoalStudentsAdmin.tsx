@@ -469,7 +469,7 @@ function GoalCard({
   children: ReactNode;
 }) {
   return (
-    <div className="mb-5 bg-white shadow">
+    <div className="mb-5 bg-white shadow-sm">
       <div className="flex items-center justify-between gap-3 border-b border-[#edf0f4] bg-[#fafafa] px-5 py-3">
         <span className="text-sm font-black">{title}</span>
         {right}
@@ -703,7 +703,7 @@ export default function GoalStudentsAdmin({
 
   return (
     <div>
-      <div className="mb-5 bg-white px-6 py-5 shadow">
+      <div className="mb-5 bg-white px-6 py-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex flex-wrap items-center gap-2">
             {GOAL_STUDENT_FILTERS.map((item) => (
@@ -730,7 +730,7 @@ export default function GoalStudentsAdmin({
               value={keyword}
               onChange={(event) => setKeyword(event.target.value)}
               placeholder={config.searchPlaceholder}
-              className="h-9 w-[20rem] border border-gray-400 px-3 text-sm outline-none"
+              className="h-9 w-[20rem] border border-gray-400 px-3 text-sm outline-hidden"
             />
             <span className="inline-flex h-9 items-center gap-1 border border-l-0 border-gray-500 bg-white px-4 text-sm font-bold text-gray-500">
               <Search size={14} />
@@ -772,11 +772,11 @@ export default function GoalStudentsAdmin({
       )}
 
       {loading ? (
-        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
           데이터를 불러오는 중입니다.
         </div>
       ) : (
-        <div className="bg-white p-6 shadow">
+        <div className="bg-white p-6 shadow-sm">
           <div className="mb-4 text-sm font-bold text-gray-500">
             전체{" "}
             <span className="text-[#2348ff]">
@@ -786,7 +786,7 @@ export default function GoalStudentsAdmin({
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[81.25rem] border-collapse text-sm">
+            <table className="w-full min-w-325 border-collapse text-sm">
               <thead>
                 {/* 표 폭이 컨테이너보다 넓으면 가로 스크롤로 처리한다(§4-1 관행).
                     머리글이 줄바꿈되면 "상한 수 / 시" 처럼 끊겨 읽히므로 nowrap 을 건다. */}
@@ -1299,7 +1299,7 @@ function GoalStudentDetail({
             목록으로
           </ActionButton>
         </div>
-        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
           데이터를 불러오는 중입니다.
         </div>
       </div>
@@ -1315,7 +1315,7 @@ function GoalStudentDetail({
             목록으로
           </ActionButton>
         </div>
-        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
           학생 행을 찾을 수 없습니다.
         </div>
       </div>
@@ -1539,7 +1539,7 @@ function GoalStudentDetail({
               {student.week_min ?? "-"} 시간
             </GoalDetailRow>
             <div className="overflow-x-auto px-4 py-3">
-              <table className="w-full min-w-[25rem] border-collapse text-xs">
+              <table className="w-full min-w-100 border-collapse text-xs">
                 <thead>
                   <tr className="border-y border-gray-200 text-left">
                     <th className="px-2 py-2">요일</th>
@@ -1618,7 +1618,7 @@ function GoalStudentDetail({
         <div>
           <GoalCard title="확률 분해 (base + Σdelta = 현재)">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[30rem] border-collapse text-sm">
+              <table className="w-full min-w-120 border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-left">
                     <th className="px-4 py-2.5 text-xs font-black text-gray-500">
@@ -1686,7 +1686,7 @@ function GoalStudentDetail({
           {/* ── C-3 컷 스냅샷 vs 현재 컷 diff ────────────────────────── */}
           <GoalCard title="컷 스냅샷 vs 현재 컷">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[34rem] border-collapse text-sm">
+              <table className="w-full min-w-136 border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-left">
                     <th className="px-4 py-2.5 text-xs font-black text-gray-500">
@@ -1795,7 +1795,7 @@ function GoalStudentDetail({
             {logs.length > 0 && <GoalProbabilityChart logs={logs} />}
 
             <div className="overflow-x-auto border-t border-[#edf0f4]">
-              <table className="w-full min-w-[34rem] border-collapse text-xs">
+              <table className="w-full min-w-136 border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-gray-200 text-left">
                     <th className="px-4 py-2">기록 시각</th>
@@ -1864,7 +1864,7 @@ function GoalStudentDetail({
         }
       >
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[62.5rem] border-collapse text-xs">
+          <table className="w-full min-w-250 border-collapse text-xs">
             <thead>
               <tr className="border-b border-gray-200 text-left">
                 <th className="px-3 py-2">#</th>

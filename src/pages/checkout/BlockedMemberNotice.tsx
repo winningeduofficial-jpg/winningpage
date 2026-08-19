@@ -44,7 +44,7 @@ export default function BlockedMemberNotice({
       <h1 className="text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink sm:text-[2rem]">
         {copy.title}
       </h1>
-      <p className="mt-3 text-[0.875rem] font-normal leading-[1.375rem] text-ink-sub sm:text-[1rem]">
+      <p className="mt-3 text-[0.875rem] font-normal leading-5.5 text-ink-sub sm:text-[1rem]">
         {copy.body}
       </p>
       {/* 버튼은 두 케이스 모두 기존 홈 링크를 유지한다(팀 리드 지시).
@@ -54,7 +54,7 @@ export default function BlockedMemberNotice({
           바꿀 자리다(2026-08-12c). mentor 케이스는 그대로 홈 링크가 맞다. */}
       <Link
         to="/"
-        className="mt-8 rounded-xl bg-primary px-8 py-3.5 text-[0.875rem] font-semibold leading-[1.25rem] text-white transition hover:brightness-125"
+        className="mt-8 rounded-xl bg-primary px-8 py-3.5 text-[0.875rem] font-semibold leading-5 text-white transition hover:brightness-125"
       >
         홈으로 이동
       </Link>

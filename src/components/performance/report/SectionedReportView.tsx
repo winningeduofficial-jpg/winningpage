@@ -105,7 +105,7 @@ export default function SectionedReportView({
           >
             <h3
               id={headingId}
-              className="text-[1rem] font-semibold leading-[1.3125rem] text-performance-reportHeading"
+              className="text-[1rem] font-semibold leading-5.25 text-performance-reportHeading"
             >
               {section.label}
             </h3>
@@ -127,10 +127,10 @@ export default function SectionedReportView({
                 )}
               </div>
             ) : (
-              /* `break-words`(overflow-wrap: break-word) — 없으면 긴 무공백 문자열(URL 등)이
+              /* `wrap-break-word`(overflow-wrap: break-word) — 없으면 긴 무공백 문자열(URL 등)이
                  왔을 때 `overflow-y-auto` 컨테이너가 `overflow-x: auto`로도 계산돼 본문 안에
                  가로 스크롤바가 생긴다(검토 D-4). */
-              <p className="whitespace-pre-wrap break-words text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+              <p className="whitespace-pre-wrap wrap-break-word text-[1rem] font-medium leading-5.25 text-ink-sub">
                 {section.text}
               </p>
             )}

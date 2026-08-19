@@ -35,10 +35,10 @@ type Attachment = string | { name?: string; url?: string };
 //
 // 섹션 간 상단 여백(1920 시안 → ×0.766, 배경 전환 없는 경계만 ×0.67 추가 축소):
 //   Hero(다크)→Mission(사진)     배경 전환, 축소 없음 — 히어로 자체 높이로 자연 경계
-//   Mission(사진)→Business(흰)   배경 전환, 축소 없음 — Business lg:pt-[10rem]
-//   Business(흰)→Location(회색)  배경 전환 — Business lg:pb-[10.4375rem] / Location lg:pt-[7.25rem]
-//   Location(회색)→News(흰)      배경 전환 — Location lg:pb-[7.5625rem] / News lg:pt-[4.6875rem]
-//   News(흰)→Footer(#f9fafb)     배경 전환, 시안 249px 그대로 — News lg:pb-[11.9375rem]
+//   Mission(사진)→Business(흰)   배경 전환, 축소 없음 — Business lg:pt-40
+//   Business(흰)→Location(회색)  배경 전환 — Business lg:pb-41.75 / Location lg:pt-29
+//   Location(회색)→News(흰)      배경 전환 — Location lg:pb-30.25 / News lg:pt-18.75
+//   News(흰)→Footer(#f9fafb)     배경 전환, 시안 249px 그대로 — News lg:pb-47.75
 //
 // 히어로 카드 타이틀 6개는 시안 서체 "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배,
 // SIL OFL 1.1)를 tailwind.config.js의 font-grace 토큰으로 셀프호스팅 적용한다(src/styles/fonts.css).
@@ -209,7 +209,7 @@ const PARTNER_CARDS = [
     brand: "정상어학원",
     links: [{ label: "화명캠퍼스", href: "https://naver.me/FY3j5eyl" }],
     logo: partnerJungsangLanguage,
-    logoWidth: "w-[13rem]",
+    logoWidth: "w-52",
   },
   {
     key: "jungsang-math",
@@ -218,7 +218,7 @@ const PARTNER_CARDS = [
     brand: "정상수학학원",
     links: [{ label: "부산캠퍼스", href: "https://naver.me/GkRHGKeZ" }],
     logo: partnerJungsangMath,
-    logoWidth: "w-[13rem]",
+    logoWidth: "w-52",
   },
 ];
 // "바로가기" 5개 링크는 네이버 지도 단축링크(naver.me)를 실제 목적지로 받았다 — 전부 외부 새 탭
@@ -297,21 +297,21 @@ function HeroSection({ page }: { page: IntroPage }) {
   const heroImageAlt = "위닝에듀 강원석 원장";
 
   return (
-    <section className="relative overflow-hidden bg-[#202f3f] pt-[7.25rem] pb-16 sm:pb-0 lg:min-h-[41.875rem] lg:pt-0 lg:pb-0">
+    <section className="relative overflow-hidden bg-[#202f3f] pt-29 pb-16 sm:pb-0 lg:min-h-167.5 lg:pt-0 lg:pb-0">
       <div className="mx-auto flex w-full max-w-content flex-col gap-10 px-5 sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:gap-0">
         {/* lg 이상: pt/pb를 섹션이 아닌 이 컬럼에만 걸어 사진(아래 래퍼)만 섹션 상하단에
             flush되게 한다 — items-end 정렬로 이 컬럼 하단이 사진 하단과 맞춰지고, 컬럼 자체
             높이(pt+콘텐츠+pb)가 사진 높이에 못 미치는 만큼의 여백이 컬럼 상단에 남는 방식으로
             "아이브로우 top ≈ 섹션 top + 116px" "카드 하단 → 섹션 하단 103px"를 근사한다. */}
-        <div className="flex flex-col lg:max-w-[35.625rem] lg:flex-1 lg:pt-[7.25rem] lg:pb-[6.4375rem]">
+        <div className="flex flex-col lg:max-w-142.5 lg:flex-1 lg:pt-29 lg:pb-25.75">
           <p className="text-[0.9375rem] leading-[1.3] text-white/60">
             {eyebrow}
           </p>
-          <h1 className="mt-[0.6875rem] break-keep text-[1.75rem] font-semibold leading-[1.3] text-white sm:text-[2.125rem]">
+          <h1 className="mt-2.75 break-keep text-[1.75rem] font-semibold leading-[1.3] text-white sm:text-[2.125rem]">
             {headline}
           </h1>
           {body && (
-            <p className="mt-4 max-w-[28rem] whitespace-pre-line break-keep text-[0.9375rem] leading-[1.5] text-white/70">
+            <p className="mt-4 max-w-md whitespace-pre-line break-keep text-[0.9375rem] leading-normal text-white/70">
               {body}
             </p>
           )}
@@ -319,12 +319,12 @@ function HeroSection({ page }: { page: IntroPage }) {
           {/* 카드 그리드 검산: 데스크톱 3열 × 2행, gap 0(맞닿는 타일이 시안 핵심 구성).
               모바일은 2열 × 3행, 768~1023 구간은 3열 × 2행으로 미리 전환해 타일이
               과도하게 부풀지 않게 한다. */}
-          <div className="mt-[1.625rem] grid grid-cols-2 sm:grid-cols-3 lg:grid-rows-2">
+          <div className="mt-6.5 grid grid-cols-2 sm:grid-cols-3 lg:grid-rows-2">
             {HERO_CARDS.map((card) => {
               const content = (
                 <>
                   {card.best && (
-                    <span className="absolute left-0 top-0 flex h-[1.25rem] w-[2.125rem] items-center justify-center bg-[#ff8e00] text-[0.625rem] font-medium leading-[1.3] text-white sm:h-[1.5rem] sm:w-[2.5rem] sm:text-[0.6875rem]">
+                    <span className="absolute left-0 top-0 flex h-5 w-8.5 items-center justify-center bg-[#ff8e00] text-[0.625rem] font-medium leading-[1.3] text-white sm:h-6 sm:w-10 sm:text-[0.6875rem]">
                       BEST
                     </span>
                   )}
@@ -345,7 +345,7 @@ function HeroSection({ page }: { page: IntroPage }) {
                 </>
               );
               const className =
-                "relative flex aspect-[248/229] flex-col items-center justify-center gap-1 px-2 transition hover:brightness-110 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-0.125rem] focus-visible:outline-white";
+                "relative flex aspect-248/229 flex-col items-center justify-center gap-1 px-2 transition hover:brightness-110 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-[-0.125rem] focus-visible:outline-white";
 
               return card.route ? (
                 <Link
@@ -371,7 +371,7 @@ function HeroSection({ page }: { page: IntroPage }) {
           </div>
         </div>
 
-        <div className="mx-auto w-[16rem] shrink-0 sm:w-[20rem] lg:mx-0 lg:mb-0 lg:w-[24rem] lg:self-end xl:w-[28.125rem]">
+        <div className="mx-auto w-[16rem] shrink-0 sm:w-[20rem] lg:mx-0 lg:mb-0 lg:w-[24rem] lg:self-end xl:w-112.5">
           <img
             src={heroImage}
             alt={heroImageAlt}
@@ -423,7 +423,7 @@ const MISSION_BLOCKS = [
 
 function MissionSection() {
   return (
-    <section className="relative isolate overflow-hidden bg-[#111418] pt-14 pb-14 sm:pt-20 sm:pb-20 lg:pt-[6.9375rem] lg:pb-[7.875rem]">
+    <section className="relative isolate overflow-hidden bg-[#111418] pt-14 pb-14 sm:pt-20 sm:pb-20 lg:pt-27.75 lg:pb-31.5">
       <img
         src={missionBg}
         alt=""
@@ -467,20 +467,20 @@ function MissionSection() {
         {MISSION_BLOCKS.map((block, index) => (
           <div
             key={block.key}
-            className={index === 0 ? "" : "mt-5 sm:mt-7 lg:mt-[2.5rem]"}
+            className={index === 0 ? "" : "mt-5 sm:mt-7 lg:mt-10"}
           >
             {/* 구분선 — 첫 블록 위에는 없다. */}
             {index > 0 && (
               <span
                 aria-hidden="true"
-                className="mb-5 ml-0 block h-9 w-0.5 bg-[#D8D8D8] sm:ml-3 sm:mb-7 sm:h-12 lg:ml-4 lg:mb-[2.5rem] lg:h-16"
+                className="mb-5 ml-0 block h-9 w-0.5 bg-[#D8D8D8] sm:ml-3 sm:mb-7 sm:h-12 lg:ml-4 lg:mb-10 lg:h-16"
               />
             )}
             <p className="text-[0.75rem] font-medium leading-[1.3] text-white sm:text-[0.8125rem] lg:text-[0.875rem]">
               {block.label}
             </p>
             <p
-              className="mt-4 max-w-[36.4375rem] whitespace-pre-line break-keep text-[1.0625rem] font-semibold leading-[1.45] text-white sm:text-[1.125rem] lg:text-[1.25rem] lg:leading-[1.3]"
+              className="mt-4 max-w-145.75 whitespace-pre-line break-keep text-[1.0625rem] font-semibold leading-[1.45] text-white sm:text-[1.125rem] lg:text-[1.25rem] lg:leading-[1.3]"
               style={{ textShadow: "0 0.1875rem 0.9375rem rgba(0,0,0,0.4)" }}
             >
               {block.lines.join("\n")}
@@ -497,12 +497,12 @@ function MissionSection() {
 // -------------------------------------------------------------------------
 function BusinessSection() {
   return (
-    <section className="bg-white pt-16 pb-16 sm:pt-20 lg:pt-[10rem] lg:pb-[10.4375rem]">
+    <section className="bg-white pt-16 pb-16 sm:pt-20 lg:pt-40 lg:pb-41.75">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <p className="text-center text-[0.875rem] font-medium leading-[1.3] text-[#013262] sm:text-[1rem]">
+        <p className="text-center text-[0.875rem] font-medium leading-[1.3] text-primary sm:text-[1rem]">
           사업영역
         </p>
-        <h2 className="mx-auto mt-5 max-w-[36rem] break-keep text-center text-[1.5rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.75rem] lg:text-[2rem]">
+        <h2 className="mx-auto mt-5 max-w-xl break-keep text-center text-[1.5rem] font-semibold leading-[1.3] text-ink sm:text-[1.75rem] lg:text-[2rem]">
           위닝에듀는 기술을 기반으로 <br className="hidden lg:inline" />
           경계없는 입시지원을 제공합니다
         </h2>
@@ -511,11 +511,11 @@ function BusinessSection() {
             (폰트를 시안 1:1로 유지하려면 컨테이너를 max-w-content로 정규화하고 카드 내부는
             카드폭 비율 0.937로 환산해야 한다). 768~1023 구간은 sm:grid-cols-2로
             채워 카드 한 장이 컨테이너 전폭을 차지해 여백만 남는 것을 막는다. */}
-        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-[4.1875rem] lg:grid-cols-3 lg:gap-[1.875rem]">
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-16.75 lg:grid-cols-3 lg:gap-7.5">
           {BUSINESS_CARDS.map((card) => (
             <div
               key={card.key}
-              className="flex flex-col rounded-[1.25rem] bg-white px-6 pb-8 pt-7 shadow-[0_0.125rem_0.25rem_0.125rem_rgba(215,215,215,0.25)] lg:rounded-[1.5rem] lg:px-10 lg:pb-12 lg:pt-[2.625rem]"
+              className="flex flex-col rounded-perf-modal bg-white px-6 pb-8 pt-7 shadow-[0_0.125rem_0.25rem_0.125rem_rgba(215,215,215,0.25)] lg:rounded-3xl lg:px-10 lg:pb-12 lg:pt-10.5"
             >
               <img
                 src={card.image}
@@ -523,12 +523,12 @@ function BusinessSection() {
                 aria-hidden="true"
                 loading="lazy"
                 decoding="async"
-                className="h-[9.5rem] w-[7.75rem] object-contain lg:h-[12.625rem] lg:w-[10.3125rem]"
+                className="h-38 w-31 object-contain lg:h-50.5 lg:w-41.25"
               />
-              <p className="mt-4 text-[1.125rem] font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252] lg:text-[1.5rem]">
+              <p className="mt-4 text-[1.125rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink lg:text-[1.5rem]">
                 {card.title}
               </p>
-              <p className="mt-[1.75rem] whitespace-pre-line break-keep text-[0.9375rem] font-medium leading-[1.4] text-[#525252] lg:text-[1.25rem]">
+              <p className="mt-7 whitespace-pre-line break-keep text-[0.9375rem] font-medium leading-[1.4] text-ink lg:text-[1.25rem]">
                 {card.desc}
               </p>
             </div>
@@ -560,10 +560,10 @@ function CampusCard({ campus }: { campus: CampusCardData }) {
   const content = (
     <>
       <span className="block">
-        <span className="block text-[0.75rem] leading-[1.3] text-[#013262]">
+        <span className="block text-[0.75rem] leading-[1.3] text-primary">
           분점
         </span>
-        <span className="mt-[0.375rem] block break-keep text-[1.125rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.25rem] lg:text-[1.5rem]">
+        <span className="mt-1.5 block break-keep text-[1.125rem] font-semibold leading-[1.3] text-ink sm:text-[1.25rem] lg:text-[1.5rem]">
           {campus.name}
         </span>
       </span>
@@ -575,15 +575,15 @@ function CampusCard({ campus }: { campus: CampusCardData }) {
           두 상태를 나란히 놓았을 때 "옅은 원 = 아직 누를 단계가 아님"이 한눈에
           구분된다. */}
       <span className="mt-3 flex items-end justify-between gap-3">
-        <span className="block min-h-[2.4rem] break-keep text-[0.8125rem] leading-[1.3] text-[#525252] sm:text-[0.875rem]">
+        <span className="block min-h-[2.4rem] break-keep text-[0.8125rem] leading-[1.3] text-ink sm:text-[0.875rem]">
           {campus.comingSoon ? "오픈예정" : campus.address.join(", ")}
         </span>
         <span
           aria-hidden="true"
           className={
             hasLink
-              ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#323232] text-white transition group-hover:bg-[#013262] sm:h-[2.125rem] sm:w-[2.125rem]"
-              : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EDEDED] text-[#767676] transition sm:h-[2.125rem] sm:w-[2.125rem]"
+              ? "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#323232] text-white transition group-hover:bg-primary sm:h-8.5 sm:w-8.5"
+              : "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#EDEDED] text-[#767676] transition sm:h-8.5 sm:w-8.5"
           }
         >
           <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
@@ -600,7 +600,7 @@ function CampusCard({ campus }: { campus: CampusCardData }) {
       <button
         type="button"
         onClick={alertComingSoon}
-        className="group flex min-h-[10.25rem] w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition sm:px-6 sm:py-6 lg:px-[2.125rem] lg:py-[1.5rem]"
+        className="group flex min-h-41 w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition sm:px-6 sm:py-6 lg:px-8.5 lg:py-6"
       >
         {content}
       </button>
@@ -612,7 +612,7 @@ function CampusCard({ campus }: { campus: CampusCardData }) {
       href={campus.href}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex min-h-[10.25rem] w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition hover:border-[#013262] hover:bg-[rgba(233,247,255,0.4)] sm:px-6 sm:py-6 lg:px-[2.125rem] lg:py-[1.5rem]"
+      className="group flex min-h-41 w-full flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-5 py-5 text-left transition hover:border-primary hover:bg-[rgba(233,247,255,0.4)] sm:px-6 sm:py-6 lg:px-8.5 lg:py-6"
     >
       {content}
       <span className="sr-only"> (새 창에서 열림)</span>
@@ -624,31 +624,28 @@ type PartnerCardData = (typeof PARTNER_CARDS)[number];
 
 function PartnerCard({ partner }: { partner: PartnerCardData }) {
   return (
-    <div className="flex min-h-[19rem] flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-6 pb-6 pt-[1.8125rem] lg:min-h-[23.25rem] lg:px-[1.4375rem] lg:pb-[1.5625rem]">
+    <div className="flex min-h-perf-pill flex-col justify-between rounded-xl border border-[#D9D9D9] bg-white px-6 pb-6 pt-7.25 lg:min-h-93 lg:px-5.75 lg:pb-6.25">
       <div>
-        <p className="whitespace-pre-line break-keep text-[1.25rem] font-semibold leading-[1.3] text-[#525252] lg:text-[1.5rem]">
+        <p className="whitespace-pre-line break-keep text-[1.25rem] font-semibold leading-[1.3] text-ink lg:text-[1.5rem]">
           {partner.title}
         </p>
-        <p className="mt-2 text-[0.8125rem] leading-[1.3] text-[#525252] sm:text-[0.875rem]">
+        <p className="mt-2 text-[0.8125rem] leading-[1.3] text-ink sm:text-[0.875rem]">
           {partner.subtitle}
         </p>
         <span
           aria-hidden="true"
-          className="mt-[1.0625rem] block h-[0.0625rem] w-full bg-[#D7D7D7]"
+          className="mt-4.25 block h-0.25 w-full bg-line"
         />
-        <div className="mt-[1.125rem] flex flex-col gap-3">
+        <div className="mt-4.5 flex flex-col gap-3">
           {partner.links.map((link) => {
             const linkClassName =
-              "flex items-center justify-between text-left text-[0.8125rem] font-medium leading-[1.3] text-[#525252] hover:text-[#013262] sm:text-[0.875rem]";
+              "flex items-center justify-between text-left text-[0.8125rem] font-medium leading-[1.3] text-ink hover:text-primary sm:text-[0.875rem]";
             const linkContent = (
               <>
                 <span>{link.label}</span>
-                <span className="inline-flex items-center gap-1 border-b border-[#525252]">
+                <span className="inline-flex items-center gap-1 border-b border-ink">
                   바로가기
-                  <ArrowUpRight
-                    className="h-[0.875rem] w-[0.875rem]"
-                    aria-hidden="true"
-                  />
+                  <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
                 </span>
               </>
             );
@@ -697,30 +694,30 @@ function PartnerCard({ partner }: { partner: PartnerCardData }) {
 
 function LocationSection() {
   return (
-    <section className="bg-[#F6F7FB] pt-14 pb-14 sm:pt-20 sm:pb-20 lg:pt-[7.25rem] lg:pb-[7.5625rem]">
+    <section className="bg-[#F6F7FB] pt-14 pb-14 sm:pt-20 sm:pb-20 lg:pt-29 lg:pb-30.25">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         {/* [A] Location 블록 */}
-        <p className="text-[1rem] font-medium leading-[1.3] text-[#013262] sm:text-[1.125rem]">
+        <p className="text-[1rem] font-medium leading-[1.3] text-primary sm:text-[1.125rem]">
           Location
         </p>
-        <h2 className="mt-4 max-w-[40rem] break-keep text-[1.375rem] font-semibold leading-[1.3] text-[#525252] sm:text-[1.5rem]">
+        <h2 className="mt-4 max-w-160 break-keep text-[1.375rem] font-semibold leading-[1.3] text-ink sm:text-[1.5rem]">
           전국 어디서든, 필요한 입시 관리를 한곳에서{" "}
           <br className="hidden sm:inline" />
           여러 지점의 센터와 전문 연계기관을 통해 입시의 전 영역을 지원합니다.
         </h2>
 
         {/* 캠퍼스 카드 그리드 — 375: 1열 / 768: 2열 / 1024↑: 3열 */}
-        <div className="mt-8 grid grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-[0.875rem] lg:mt-[2.6875rem] lg:grid-cols-3 lg:gap-4">
+        <div className="mt-8 grid grid-cols-1 gap-3 sm:mt-10 sm:grid-cols-2 sm:gap-3.5 lg:mt-10.75 lg:grid-cols-3 lg:gap-4">
           {CAMPUS_CARDS.map((campus) => (
             <CampusCard key={campus.key} campus={campus} />
           ))}
         </div>
 
         {/* [B] 연계 협력기관 블록 */}
-        <h2 className="mt-16 text-[1.375rem] font-semibold leading-[1.3] text-[#525252] sm:mt-20 sm:text-[1.5rem] lg:mt-[5.75rem]">
+        <h2 className="mt-16 text-[1.375rem] font-semibold leading-[1.3] text-ink sm:mt-20 sm:text-[1.5rem] lg:mt-23">
           연계 협력기관
         </h2>
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:mt-[1.75rem] lg:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:mt-7 lg:grid-cols-3">
           {PARTNER_CARDS.map((partner) => (
             <PartnerCard key={partner.key} partner={partner} />
           ))}
@@ -755,14 +752,14 @@ function NewsDetail({ row, onBack }: { row: BoardRow; onBack: () => void }) {
   const attachments = normalizeArray(row.attachments) as Attachment[];
 
   return (
-    <section className="bg-white pt-14 pb-16 sm:pt-20 lg:pt-[4.6875rem] lg:pb-[11.9375rem]">
+    <section className="bg-white pt-14 pb-16 sm:pt-20 lg:pt-18.75 lg:pb-47.75">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <button
           type="button"
           onClick={onBack}
-          className="mb-8 inline-flex items-center gap-2 text-[0.9375rem] font-semibold text-[#525252] hover:text-[#013262] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#013262]"
+          className="mb-8 inline-flex items-center gap-2 text-[0.9375rem] font-semibold text-ink hover:text-primary focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          <ArrowLeft className="h-[1.125rem] w-[1.125rem]" aria-hidden="true" />
+          <ArrowLeft className="h-4.5 w-4.5" aria-hidden="true" />
           회사소식 목록으로
         </button>
 
@@ -774,14 +771,14 @@ function NewsDetail({ row, onBack }: { row: BoardRow; onBack: () => void }) {
             <p className="mb-3 text-sm font-medium text-[#767676]">
               {formatBoardDate(row.created_at)}
             </p>
-            <h1 className="break-keep text-[1.5rem] font-bold leading-[1.35] text-[#525252] sm:text-[1.75rem]">
+            <h1 className="break-keep text-[1.5rem] font-bold leading-[1.35] text-ink sm:text-[1.75rem]">
               {row.title}
             </h1>
           </header>
 
-          <div className="min-h-[20rem] px-1 py-12">
+          <div className="min-h-80 px-1 py-12">
             {finalImages.length > 0 && (
-              <div className="mx-auto mb-10 max-w-[57.5rem] space-y-4">
+              <div className="mx-auto mb-10 max-w-230 space-y-4">
                 {withDedupedKeys(finalImages).map(
                   ({ item: url, key }, index) => (
                     <img
@@ -798,10 +795,8 @@ function NewsDetail({ row, onBack }: { row: BoardRow; onBack: () => void }) {
             {renderContent(row.content as string | null | undefined)}
 
             {(attachments.length > 0 || Boolean(row.file_url)) && (
-              <div className="mt-12 rounded-xl border border-[#D9D9D9] bg-[#F9FAFB] p-5">
-                <p className="mb-3 text-sm font-bold text-[#525252]">
-                  첨부파일
-                </p>
+              <div className="mt-12 rounded-xl border border-[#D9D9D9] bg-surface-footer p-5">
+                <p className="mb-3 text-sm font-bold text-ink">첨부파일</p>
                 <div className="space-y-2">
                   {withDedupedKeys(
                     attachments.filter((file) => getAttachmentUrl(file)),
@@ -812,7 +807,7 @@ function NewsDetail({ row, onBack }: { row: BoardRow; onBack: () => void }) {
                       href={getAttachmentUrl(file)}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
+                      className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-ink hover:border-primary"
                     >
                       <Download className="h-4 w-4" aria-hidden="true" />
                       {getAttachmentName(file)}
@@ -824,7 +819,7 @@ function NewsDetail({ row, onBack }: { row: BoardRow; onBack: () => void }) {
                       href={row.file_url as string}
                       target="_blank"
                       rel="noreferrer"
-                      className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-[#525252] hover:border-[#013262]"
+                      className="flex items-center gap-2 rounded-lg border border-[#D9D9D9] bg-white px-4 py-3 text-sm font-semibold text-ink hover:border-primary"
                     >
                       <Download className="h-4 w-4" aria-hidden="true" />
                       {(row.file_name as string) || "첨부파일 다운로드"}
@@ -852,12 +847,12 @@ function NewsRow({ row, onSelect }: { row: BoardRow; onSelect: () => void }) {
     <button
       type="button"
       onClick={onSelect}
-      className="flex w-full flex-col items-stretch gap-1 py-3 text-left transition hover:text-[#013262] sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-0"
+      className="flex w-full flex-col items-stretch gap-1 py-3 text-left transition hover:text-primary sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-0"
     >
-      <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.4] text-[#525252] sm:text-[1rem]">
+      <span className="min-w-0 flex-1 truncate text-[0.9375rem] leading-[1.4] text-ink sm:text-[1rem]">
         {row.title}
       </span>
-      <span className="shrink-0 text-[0.75rem] leading-[1.4] text-[#767676] sm:text-[1rem] sm:text-[#525252]">
+      <span className="shrink-0 text-[0.75rem] leading-[1.4] text-[#767676] sm:text-[1rem] sm:text-ink">
         {formatBoardDate(row.created_at)}
       </span>
     </button>
@@ -876,10 +871,10 @@ function NewsSection({
   const visibleRows = rows.slice(0, NEWS_PREVIEW_COUNT);
 
   return (
-    <section className="bg-white pt-14 pb-16 sm:pt-20 lg:pt-[4.6875rem] lg:pb-[11.9375rem]">
+    <section className="bg-white pt-14 pb-16 sm:pt-20 lg:pt-18.75 lg:pb-47.75">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <div className="flex items-end justify-between">
-          <h2 className="text-[1.5rem] font-bold leading-[1.4] text-[#525252] sm:text-[1.75rem] lg:text-[2rem]">
+          <h2 className="text-[1.5rem] font-bold leading-[1.4] text-ink sm:text-[1.75rem] lg:text-[2rem]">
             회사소식
           </h2>
           {/* "더보기" — 전체 목록 페이지로 보낸다(색·크기·밑줄은 이관 전 버튼 그대로. 근거는
@@ -887,7 +882,7 @@ function NewsSection({
           {rows.length > 0 && (
             <Link
               to="/company-news/list"
-              className="text-[0.8125rem] font-normal leading-[1.3] text-[#A0A0A0] underline hover:text-[#525252] sm:text-[0.9375rem]"
+              className="text-[0.8125rem] font-normal leading-[1.3] text-[#A0A0A0] underline hover:text-ink sm:text-[0.9375rem]"
             >
               더보기
             </Link>
@@ -895,10 +890,10 @@ function NewsSection({
         </div>
         <span
           aria-hidden="true"
-          className="mt-[1.125rem] block h-[0.0625rem] w-full bg-[#525252]"
+          className="mt-4.5 block h-0.25 w-full bg-ink"
         />
 
-        <div className="mt-[2.25rem] flex flex-col gap-3 sm:gap-[1.125rem]">
+        <div className="mt-9 flex flex-col gap-3 sm:gap-4.5">
           {loading ? (
             <div className="py-16 text-center text-sm font-medium text-[#767676]">
               회사소식을 불러오는 중입니다.

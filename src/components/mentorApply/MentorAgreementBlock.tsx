@@ -145,7 +145,7 @@ export default function MentorAgreementBlock({
                 <Link
                   to={item.to}
                   aria-label={`${item.label} ${AGREEMENT_COPY.detailLinkLabel}`}
-                  className="shrink-0 text-right text-sm font-medium leading-[1.4] text-ink-sub underline md:w-[8.75rem]"
+                  className="shrink-0 text-right text-sm font-medium leading-[1.4] text-ink-sub underline md:w-35"
                 >
                   {AGREEMENT_COPY.detailLinkLabel}
                 </Link>

@@ -29,7 +29,7 @@ const MS_PER_DAY = 86400000;
 //   로고는 밴드 좌측 끝, 계정 그룹은 밴드 우측 끝.
 // 좌표계 2 (nav 5개 + 메가 컬럼): max-w-content(72.75rem) 컨텐츠 영역, px-8(2rem) 패딩.
 //   nav 기준점은 로고가 아니라 "컨텐츠 영역 시작"(뷰포트 중앙정렬 기준)이며, 좌표계 1과 완전히 독립이다.
-// LOGO_W: 세로형 로고(SVG, h-[2.1875rem]=35px 고정, viewBox 96:52) 실렌더 폭 4.0385rem(64.6px)
+// LOGO_W: 세로형 로고(SVG, h-8.75=35px 고정, viewBox 96:52) 실렌더 폭 4.0385rem(64.6px)
 //   → 4.04rem로 반올림(0729 시안, 기존 40px/74px에서 축소 — 프리헤더 로고도 동일 크기로 축소).
 // NAV_GUARD·MEGA_GUARD·NAV_CELL_W·NAV_CELL_GAP·MEGA_COL_W·MEGA_COL_GAP: 헤더 nav·메가 컬럼이
 // 공유하는 컨텐츠 격자 상수. 산정 근거 및 상세 주석은 src/data/navigation.js에 있다.
@@ -614,7 +614,7 @@ export default function Header() {
       {/* 좌표계 1(1920 밴드): 로고(좌측 끝) + 계정 그룹(우측 끝). 랜딩 마퀴 밴드(max-w-[120rem])와
           동일 기준의 px-8 패딩으로 로고/계정 그룹을 뷰포트 1920 캡 좌우 끝에 고정한다.
           nav는 이 flex 라인에 속하지 않는다(좌표계 2, 아래 별도 overlay). */}
-      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between px-8 2xl:px-[7.5rem]">
+      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between px-8 2xl:px-30">
         <Link
           to="/"
           className="flex shrink-0 items-center"
@@ -624,7 +624,7 @@ export default function Header() {
           <img
             src="/images/winning-logo-stacked.svg"
             alt="위닝에듀"
-            className="h-[2.1875rem] w-auto object-contain"
+            className="h-8.75 w-auto object-contain"
           />
         </Link>
 
@@ -635,7 +635,7 @@ export default function Header() {
           aria-expanded={mobileNavOpen}
           aria-controls="mobile-nav-drawer"
           aria-label="전체 메뉴 열기"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#d7d7d7] bg-white text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262] desktop:hidden"
+          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-[#1e293b] transition hover:border-primary hover:text-primary desktop:hidden"
         >
           <Menu size={22} />
         </button>
@@ -643,11 +643,11 @@ export default function Header() {
         <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
           {(() => {
             if (!isAuthReady)
-              return <div className="h-[2rem] w-[16rem]" aria-hidden="true" />;
+              return <div className="h-8 w-[16rem]" aria-hidden="true" />;
             if (shouldShowLoggedInHeader)
               return (
                 <>
-                  <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-[#013262] whitespace-nowrap">
+                  <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-primary whitespace-nowrap">
                     {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
                   </div>
 
@@ -660,7 +660,7 @@ export default function Header() {
                     <button
                       type="button"
                       onClick={() => setMyOpen((prev) => !prev)}
-                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
                     >
                       마이페이지
                       <ChevronDown
@@ -671,7 +671,7 @@ export default function Header() {
 
                     {myOpen && (
                       <div className="absolute right-0 top-full z-50 w-[16rem]">
-                        <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                        <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
                           {myMenu.map((item) => {
                             const Icon = item.icon;
 
@@ -680,7 +680,7 @@ export default function Header() {
                                 key={item.label}
                                 to={item.to}
                                 onClick={() => setMyOpen(false)}
-                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
+                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
                               >
                                 <Icon size={18} />
                                 {item.label}
@@ -695,7 +695,7 @@ export default function Header() {
                   {isAdmin && (
                     <Link
                       to="/admin"
-                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#d7d7d7] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-line bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-primary hover:text-primary"
                     >
                       <Settings size={14} />
                       관리자
@@ -705,7 +705,7 @@ export default function Header() {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-[#013262] px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                    className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
                   >
                     로그아웃
                   </button>
@@ -723,7 +723,7 @@ export default function Header() {
                     <button
                       type="button"
                       onClick={() => setMyOpen((prev) => !prev)}
-                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-[#013262] bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
                     >
                       마이페이지
                       <ChevronDown
@@ -734,7 +734,7 @@ export default function Header() {
 
                     {myOpen && (
                       <div className="absolute right-0 top-full z-50 w-[16rem]">
-                        <div className="overflow-hidden rounded-lg border border-[#d7d7d7] bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                        <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
                           {myMenu.map((item) => {
                             const Icon = item.icon;
 
@@ -743,7 +743,7 @@ export default function Header() {
                                 key={item.label}
                                 to={item.to}
                                 onClick={() => setMyOpen(false)}
-                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-[#4d4d4d] transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-[#013262]"
+                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
                               >
                                 <Icon size={18} />
                                 {item.label}
@@ -758,7 +758,7 @@ export default function Header() {
                   <button
                     type="button"
                     onClick={handleLogout}
-                    className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                    className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
                   >
                     로그아웃
                   </button>
@@ -768,14 +768,14 @@ export default function Header() {
               <>
                 <Link
                   to="/login"
-                  className="inline-flex h-8 w-[5.625rem] shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-[#013262] transition hover:bg-[#f5f8fb]"
+                  className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
                 >
                   로그인
                 </Link>
 
                 <Link
                   to="/signup"
-                  className="inline-flex h-8 w-[5.625rem] shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                  className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
                 >
                   회원가입
                 </Link>
@@ -844,10 +844,10 @@ export default function Header() {
                     }}
                     className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-base leading-[1.4] tracking-[-0.02em] transition ${
                       isPathActive
-                        ? "font-semibold text-[#013262]"
+                        ? "font-semibold text-primary"
                         : activeMega === group.title
-                          ? "font-medium text-[#013262]"
-                          : "font-medium text-[#4d4d4d] hover:text-[#013262]"
+                          ? "font-medium text-primary"
+                          : "font-medium text-ink-header hover:text-primary"
                     }`}
                   >
                     {group.title}
@@ -868,13 +868,13 @@ export default function Header() {
       {/* 헤더+메가패널 아래 전체를 어둡게 dim 처리. 패널(z-50, 불투명)이 위에 그려져
             패널이 차지하는 영역만 자연히 dim이 가려지므로 패널 높이를 따로 측정할 필요가 없다.
             오픈 200ms / 클로즈 120ms 모두 opacity만(이동 없음), ease-out-quart(프로젝트 표준
-            이징 — MobileNavDrawer의 ease-[var(--ease-out-quart)] 관례를 그대로 따른다). */}
+            이징 — MobileNavDrawer의 ease-(--ease-out-quart) 관례를 그대로 따른다). */}
       <div
         className={`fixed inset-x-0 top-16 bottom-0 z-40 hidden bg-black/30 desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
           isMegaPanelOpen
-            ? "visible opacity-100 pointer-events-auto transition-opacity duration-[200ms] ease-[var(--ease-out-quart)]"
+            ? "visible opacity-100 pointer-events-auto transition-opacity duration-200 ease-(--ease-out-quart)"
             : isMegaPanelClosing
-              ? "visible opacity-0 pointer-events-none transition-opacity ease-[var(--ease-out-quart)]"
+              ? "visible opacity-0 pointer-events-none transition-opacity ease-(--ease-out-quart)"
               : "invisible opacity-0 pointer-events-none"
         }`}
         style={
@@ -889,9 +889,9 @@ export default function Header() {
       <div
         className={`fixed left-0 top-16 z-50 hidden w-full border-b border-black/5 bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)] desktop:block motion-reduce:transition-none motion-reduce:duration-0 ${
           isMegaPanelOpen
-            ? "visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-[180ms] ease-[var(--ease-out-quart)]"
+            ? "visible opacity-100 translate-y-0 pointer-events-auto transition-all duration-180 ease-(--ease-out-quart)"
             : isMegaPanelClosing
-              ? "visible opacity-0 translate-y-0 pointer-events-none transition-all ease-[var(--ease-out-quart)]"
+              ? "visible opacity-0 translate-y-0 pointer-events-none transition-all ease-(--ease-out-quart)"
               : "invisible opacity-0 -translate-y-2 pointer-events-none"
         }`}
         style={
@@ -944,7 +944,7 @@ export default function Header() {
                       key={`mega-${group.title}-${item.to}-${item.label}`}
                       to={item.to}
                       onClick={() => setActiveMega(null)}
-                      className="break-keep text-sm font-medium leading-5 text-[#525252] transition hover:text-[#013262]"
+                      className="break-keep text-sm font-medium leading-5 text-ink transition hover:text-primary"
                     >
                       {item.label}
                     </Link>
@@ -971,7 +971,7 @@ export default function Header() {
                     옮겨(밴드 우측 끝을 8px 넘어서도록) 카드 우측 끝을 계정 그룹 축에 정확히
                     맞춘다 — 레이아웃(grid/폭)에는 영향 없는 순수 시각 보정. */}
             <div
-              className="pointer-events-none ml-auto w-fit bg-[#f9fafb] p-10"
+              className="pointer-events-none ml-auto w-fit bg-surface-footer p-10"
               style={{ transform: "translateX(0.5rem)" }}
             >
               {/* 프로모 카드: 콘텐츠 하드코딩(로그인 상태별 분기, megaPromo). 추후 admin에서
@@ -997,20 +997,20 @@ export default function Header() {
                 <p className="text-xl font-bold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
                   {megaPromo.title}
                 </p>
-                <p className="mt-2 break-keep text-sm leading-[1.4] text-[#525252]">
+                <p className="mt-2 break-keep text-sm leading-[1.4] text-ink">
                   {megaPromo.subtitle}
                 </p>
 
                 <img
                   src={megaPromo.image}
                   alt=""
-                  className="mx-auto mt-6 h-[9.5rem] w-auto object-contain"
+                  className="mx-auto mt-6 h-38 w-auto object-contain"
                 />
 
                 <Link
                   to={megaPromo.ctaTo}
                   onClick={() => setActiveMega(null)}
-                  className="mt-6 flex h-14 items-center justify-center rounded-xl bg-[#013262] text-base font-semibold text-white transition hover:bg-[#012347]"
+                  className="mt-6 flex h-14 items-center justify-center rounded-xl bg-primary text-base font-semibold text-white transition hover:bg-[#012347]"
                 >
                   {megaPromo.ctaLabel}
                 </Link>

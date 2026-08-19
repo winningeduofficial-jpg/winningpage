@@ -33,12 +33,12 @@ import BoardTable from "./BoardTable";
  * 세로 리듬 — 시안 실측 재검산 (Figma 1920 기준 ×0.766)
  *
  *   시안 y 좌표: 제목 297 / 검색바 366 / 표 474.
- *     제목 하단(354) → 검색바 상단(366) = 12px  → ×0.766 = 9.19 → `gap-[0.5625rem]`
- *     검색바 하단(434) → 표 상단(474)   = 40px  → ×0.766 = 30.6 → `mt-[1.9375rem]`
- *     헤더 하단(148) → 제목 상단(297)   = 149px → ×0.766 = 114  → `sm:pt-[7.125rem]`
+ *     제목 하단(354) → 검색바 상단(366) = 12px  → ×0.766 = 9.19 → `gap-2.25`
+ *     검색바 하단(434) → 표 상단(474)   = 40px  → ×0.766 = 30.6 → `mt-7.75`
+ *     헤더 하단(148) → 제목 상단(297)   = 149px → ×0.766 = 114  → `sm:pt-28.5`
  *
- *   앞의 두 값 중 제목→검색바 9px 는 `Faq.jsx:127` 의 `sm:gap-[0.5625rem]` 과, 헤더→제목 114px 는
- *   `Faq.jsx:120-122` 의 `sm:pt-[7.125rem]` 과 **정확히 같다**(같은 시안 계열이므로 당연한 결과).
+ *   앞의 두 값 중 제목→검색바 9px 는 `Faq.jsx:127` 의 `sm:gap-2.25` 과, 헤더→제목 114px 는
+ *   `Faq.jsx:120-122` 의 `sm:pt-28.5` 과 **정확히 같다**(같은 시안 계열이므로 당연한 결과).
  *   Faq 에 대응 값이 없는 검색바→표 31px 와 표→페이지네이션 49px 만 게시판 시안 값을 새로 쓴다.
  *   모바일은 Faq 와 동일하게 `pt-16` 을 유지해 데스크톱보다 좁게 둔다.
  *
@@ -198,10 +198,10 @@ export default function BoardListPage({
 
   return (
     <main className="min-h-screen bg-white pt-16">
-      <section className="pb-20 pt-16 sm:pb-[7.4375rem] sm:pt-[7.125rem]">
+      <section className="pb-20 pt-16 sm:pb-29.75 sm:pt-28.5">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <div className="flex flex-col gap-6 sm:gap-[0.5625rem]">
-            <h1 className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-[#525252] sm:text-[2.75rem]">
+          <div className="flex flex-col gap-6 sm:gap-2.25">
+            <h1 className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2.75rem]">
               {title}
             </h1>
 
@@ -212,7 +212,7 @@ export default function BoardListPage({
             />
           </div>
 
-          <div ref={listRef} className="mt-[1.9375rem] scroll-mt-24">
+          <div ref={listRef} className="mt-7.75 scroll-mt-24">
             <BoardTable
               rows={pageRows}
               // exactOptionalPropertyTypes: BoardTableProps.getDetailHref는 명시적 undefined를
@@ -247,7 +247,7 @@ export default function BoardListPage({
             currentPage={safePage}
             totalPages={totalPages}
             onPageChange={handlePageChange}
-            className="!mt-[3.0625rem]"
+            className="mt-12.25!"
           />
         </div>
       </section>

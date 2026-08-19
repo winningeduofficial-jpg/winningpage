@@ -35,7 +35,7 @@ export default function ConfirmModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-5"
+      className="fixed inset-0 z-100 flex items-center justify-center p-5"
       role="dialog"
       aria-modal="true"
       aria-labelledby="confirm-modal-title"
@@ -45,8 +45,8 @@ export default function ConfirmModal({
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative flex w-full max-w-[34.125rem] flex-col items-center rounded-[1.25rem] bg-white px-6 py-10 shadow-2xl lg:h-[21.1875rem] lg:justify-center lg:px-0 lg:py-0">
-        <div className="mx-auto flex w-full max-w-[22.625rem] flex-col items-center gap-9 text-center">
+      <div className="relative flex w-full max-w-136.5 flex-col items-center rounded-perf-modal bg-white px-6 py-10 shadow-2xl lg:h-84.75 lg:justify-center lg:px-0 lg:py-0">
+        <div className="mx-auto flex w-full max-w-90.5 flex-col items-center gap-9 text-center">
           <h2
             id="confirm-modal-title"
             className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink"
@@ -59,7 +59,7 @@ export default function ConfirmModal({
           <button
             type="button"
             onClick={onConfirm || onClose}
-            className="flex h-[2.5rem] w-[11.1875rem] shrink-0 items-center justify-center rounded-lg bg-primary text-[1rem] font-semibold text-white transition hover:brightness-125"
+            className="flex h-10 w-44.75 shrink-0 items-center justify-center rounded-lg bg-primary text-[1rem] font-semibold text-white transition hover:brightness-125"
           >
             {buttonLabel}
           </button>

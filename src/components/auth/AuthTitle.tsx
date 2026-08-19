@@ -18,7 +18,7 @@ const VARIANT_CLASSES: Record<string, string> = {
   default:
     "text-2xl font-semibold leading-[1.4] tracking-[-0.04rem] sm:text-[2rem]",
   login:
-    "text-2xl font-bold leading-[2.125rem] tracking-[-0.02em] sm:text-[2.25rem] sm:leading-[3.125rem]",
+    "text-2xl font-bold leading-8.5 tracking-[-0.02em] sm:text-[2.25rem] sm:leading-12.5",
 };
 
 // 로그인 시안(1882:9058)은 1줄 #181d24(= ink.title) + 2줄 #013262(= primary)로

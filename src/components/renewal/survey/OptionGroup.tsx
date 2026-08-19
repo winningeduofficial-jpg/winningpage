@@ -135,14 +135,14 @@ export default function OptionGroup({
               aria-checked={active}
               disabled={isDisabled}
               onClick={() => handleSelect(optionValue)}
-              className={`flex min-h-[4.25rem] items-center gap-6 rounded-[1.25rem] border px-5 py-3.5 text-left transition-[background-color,border-color,color] duration-150 focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+              className={`flex min-h-17 items-center gap-6 rounded-perf-modal border px-5 py-3.5 text-left transition-[background-color,border-color,color] duration-150 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                 variant === "row" ? "w-full" : "w-full md:w-auto"
               } ${
                 active
-                  ? "border-[#013262] bg-[#E9F4FF]"
+                  ? "border-primary bg-[#E9F4FF]"
                   : error
                     ? "border-[#D92D20] bg-white"
-                    : "border-[#D9D9D9] bg-white enabled:hover:border-[#013262]/20 enabled:hover:bg-[#FBFAFA]"
+                    : "border-[#D9D9D9] bg-white enabled:hover:border-primary/20 enabled:hover:bg-[#FBFAFA]"
               } ${isDisabled ? "cursor-not-allowed opacity-50" : ""}`}
             >
               <img
@@ -153,7 +153,7 @@ export default function OptionGroup({
               />
               <span
                 className={`break-keep text-xl font-normal leading-[1.4] ${
-                  active ? "text-[#013262]" : "text-[#525252]"
+                  active ? "text-primary" : "text-ink"
                 }`}
               >
                 {label}

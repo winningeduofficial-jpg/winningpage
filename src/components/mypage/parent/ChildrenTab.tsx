@@ -13,7 +13,7 @@ import RemoveChildModal from "./RemoveChildModal";
 
 function EmptyState({ onOpenLink }: { onOpenLink: () => void }) {
   return (
-    <div className="flex min-h-[13rem] flex-col items-center justify-center rounded-2xl bg-surface-04 px-8 py-16 text-center">
+    <div className="flex min-h-52 flex-col items-center justify-center rounded-2xl bg-surface-04 px-8 py-16 text-center">
       <p className="text-[1.0625rem] font-semibold text-ink">
         아직 연결된 자녀가 없어요
       </p>
@@ -25,7 +25,7 @@ function EmptyState({ onOpenLink }: { onOpenLink: () => void }) {
       <button
         type="button"
         onClick={onOpenLink}
-        className="mt-6 inline-flex h-[2.5rem] items-center justify-center rounded-lg bg-primary px-5 text-[0.875rem] font-semibold text-white transition hover:opacity-90"
+        className="mt-6 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-5 text-[0.875rem] font-semibold text-white transition hover:opacity-90"
       >
         연결코드로 자녀 찾기
       </button>
@@ -88,7 +88,7 @@ export default function ChildrenTab() {
             </button>
           </div>
 
-          <div className="mt-[2.5rem] grid grid-cols-1 gap-[1.25rem] sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {children.map((child) => (
               <ChildCard
                 key={child.link_id}

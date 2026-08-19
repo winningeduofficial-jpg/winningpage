@@ -213,7 +213,7 @@ export default function RefundRequestModal({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
-      className="w-[26rem]"
+      className="w-104"
     >
       <div className="flex-1 overflow-y-auto px-6 pt-8">
         <h2
@@ -307,7 +307,7 @@ export default function RefundRequestModal({
               return (
                 <label
                   key={item}
-                  className={`flex h-[3rem] cursor-pointer items-center gap-3 rounded-xl border px-4 transition ${
+                  className={`flex h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 transition ${
                     selected ? "border-accent bg-surface-info" : "border-line"
                   }`}
                 >
@@ -343,7 +343,7 @@ export default function RefundRequestModal({
                 value={etcText}
                 onChange={(e) => setEtcText(e.target.value)}
                 placeholder="환불 사유를 직접 입력해주세요"
-                className="h-[3rem] w-full rounded-xl border border-line px-4 text-[0.875rem] text-ink outline-none focus:border-accent"
+                className="h-12 w-full rounded-xl border border-line px-4 text-[0.875rem] text-ink outline-hidden focus:border-accent"
               />
             )}
           </div>

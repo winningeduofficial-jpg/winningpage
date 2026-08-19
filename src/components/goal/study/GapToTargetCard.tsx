@@ -13,10 +13,7 @@ type GapToTargetCardProps = {
 
 export default function GapToTargetCard({ rows }: GapToTargetCardProps) {
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex flex-col gap-5 px-[2rem] py-[1.875rem]"
-    >
+    <GoalCard tone="neutral" className="flex flex-col gap-5 px-8 py-7.5">
       <GoalCardHeader title="목표까지 남은 격차" />
       <ul className="flex flex-col gap-3">
         {rows.map((row) => (
@@ -24,7 +21,7 @@ export default function GapToTargetCard({ rows }: GapToTargetCardProps) {
             key={row.label}
             className="flex flex-wrap items-center gap-4 rounded-xl bg-surface-04 px-6 py-4"
           >
-            <span className="w-[6rem] shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+            <span className="w-24 shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
               {row.label}
             </span>
             <span className="min-w-0 flex-1 text-[0.875rem] leading-[1.4] text-ink">

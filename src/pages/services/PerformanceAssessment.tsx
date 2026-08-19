@@ -302,7 +302,7 @@ function HeroSection() {
   ];
 
   return (
-    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
+    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-9">
       {/* 섹션 패딩(md:pb-0 md:pt-[2.25rem])은 목표관리(GoalManagement.jsx)/학습진단
           (LearningDiagnosisLanding.jsx) 히어로와 동일 규격으로 통일했다(사용자 지시 — 1600px
           실측 대조 결과 두 페이지가 이미 공통 규격을 이루고 있어 그 규격을 정본으로 삼는다).
@@ -339,7 +339,7 @@ function HeroSection() {
           검정/투명에 합성돼 그레인이 전면 노출되는 회귀가 LearningDiagnosisLanding에서 실제로 있었다. */}
       <div
         ref={auraRef}
-        className="pointer-events-none absolute left-1/2 top-0 aspect-[4/3] w-[100rem] max-w-none -translate-x-1/2 select-none"
+        className="pointer-events-none absolute left-1/2 top-0 aspect-4/3 w-[100rem] max-w-none -translate-x-1/2 select-none"
       >
         <style>{`
           @keyframes perf-aura-spin {
@@ -369,7 +369,7 @@ function HeroSection() {
       <div
         aria-hidden="true"
         style={{ backgroundImage: `url(${heroGrain})` }}
-        className="pointer-events-none absolute inset-0 select-none bg-[length:8.375rem_8.375rem] bg-repeat opacity-40 mix-blend-overlay"
+        className="pointer-events-none absolute inset-0 select-none bg-size-[8.375rem_8.375rem] bg-repeat opacity-40 mix-blend-overlay"
       />
 
       <div className="relative z-10 mx-auto flex w-full max-w-content flex-col items-center px-5 text-center sm:px-8">
@@ -387,7 +387,7 @@ function HeroSection() {
           주제 선정부터 구성・점검까지, 수행평가를 함께 완성합니다
         </h1>
 
-        <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
+        <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-ink sm:text-[1.25rem] md:text-[1.5rem]">
           주제-자료-구성-점검까지, 학생이 스스로 완성하도록 돕는 든든한
           파트너입니다.
         </p>
@@ -395,7 +395,7 @@ function HeroSection() {
         <button
           type="button"
           onClick={() => navigate(HERO_SERVICE.to)}
-          className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
+          className="mt-6 inline-flex h-14 w-full max-w-75 items-center justify-center rounded-[1.875rem] bg-primary px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:h-17 sm:text-[1.25rem]"
         >
           지금 시작하기
         </button>
@@ -407,7 +407,7 @@ function HeroSection() {
             §2-4) 본문은 계속 빈 배경으로 두되, 크롬 툴바 색상은 수행평가 기존 구현을 유지한다. */}
         <ServiceHeroBrowserFrame>
           <div
-            className="aspect-[1280/553] w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
+            className="aspect-1280/553 w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
             aria-hidden="true"
           />
         </ServiceHeroBrowserFrame>
@@ -452,9 +452,9 @@ export default function PerformanceAssessment() {
         <div className="mx-auto w-full max-w-content px-5 pt-6 sm:px-8">
           <div
             role="status"
-            className="flex flex-col gap-3 rounded-2xl border border-[#D7D7D7] bg-[#F9FAFB] px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+            className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-footer px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
           >
-            <p className="text-[1rem] font-semibold leading-[1.5] text-[#013262]">
+            <p className="text-[1rem] font-semibold leading-normal text-primary">
               {entitlementNotice}
             </p>
             {/* 현재 URL의 해시가 이미 `#pricing`이라 <a href="#pricing">는 같은 해시로의
@@ -462,7 +462,7 @@ export default function PerformanceAssessment() {
             <button
               type="button"
               onClick={scrollToPricing}
-              className="inline-flex h-11 shrink-0 items-center justify-center rounded-[0.9375rem] border border-[#0B84FD] bg-[#013262] px-6 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F]"
+              className="inline-flex h-11 shrink-0 items-center justify-center rounded-[0.9375rem] border border-accent bg-primary px-6 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F]"
             >
               이용권 보러가기
             </button>
@@ -474,14 +474,14 @@ export default function PerformanceAssessment() {
 
       {/* 히어로 목업이 lg:mb-[-7.89375rem]로 이 섹션 위에 겹치므로 pt 가 페이지 내 최소값이다. */}
       <ServiceSection
-        className="lg:pt-[9.8125rem]"
+        className="lg:pt-39.25"
         heading="위닝 수행평가와 함께하는 완성까지의 흐름"
       >
         <ServiceProcessCards items={PROCESS_STEPS} />
       </ServiceSection>
 
       <ServiceSection
-        className="lg:pt-[9.3125rem]"
+        className="lg:pt-37.25"
         heading="네 가지 영역으로 코칭합니다"
       >
         {/* 탭 전환 시 섹션 높이가 튀는 걸 막는 lg 고정 패널 높이는 콘텐츠 줄 수 실측값이라
@@ -491,45 +491,42 @@ export default function PerformanceAssessment() {
           content={COACHING_CONTENT}
           ariaLabel="수행평가 코칭 영역"
           idPrefix="coaching"
-          panelHeightClass="lg:h-[17rem]"
+          panelHeightClass="lg:h-68"
         />
       </ServiceSection>
 
       {/* 학생 사진(JPG) 카드라 imageFit="cover" — 일러스트 PNG 를 쓰는 기준 페이지만 contain 이다. */}
       <ServiceSection
-        className="lg:pt-[12.625rem]"
+        className="lg:pt-50.5"
         heading={
           <>
             이런 학생에게{" "}
-            <span className="text-[#013262]">수행평가를 추천해요</span>
+            <span className="text-primary">수행평가를 추천해요</span>
           </>
         }
       >
         <ServiceAudienceCards items={AUDIENCE_CARDS} imageFit="cover" />
       </ServiceSection>
 
-      <ServiceSection
-        className="lg:pt-[10.1875rem]"
-        heading="네 단계로 차근차근"
-      >
+      <ServiceSection className="lg:pt-40.75" heading="네 단계로 차근차근">
         <ServiceStepCards items={STAGE_SUMMARY_CARDS} columns={4} />
       </ServiceSection>
 
       <ServiceSection
-        className="lg:pt-[10.0625rem]"
+        className="lg:pt-40.25"
         heading="수행평가 서비스로 달라지는 것들"
       >
         <ServiceOutcomesPanel items={OUTCOME_ITEMS} />
       </ServiceSection>
 
       <ServiceSection
-        className="lg:pt-[10rem]"
+        className="lg:pt-40"
         heading="수행평가 서비스를 받아본 학생들의 후기"
       >
         <ServiceTestimonials items={TESTIMONIALS} columns={2} />
       </ServiceSection>
 
-      <ServiceSection className="lg:pt-[10.75rem]" heading="자주 묻는 질문">
+      <ServiceSection className="lg:pt-43" heading="자주 묻는 질문">
         <ServiceFaq items={FAQ_ITEMS} />
       </ServiceSection>
 
@@ -544,7 +541,7 @@ export default function PerformanceAssessment() {
           label: "이용권 구매하기",
           to: "/pricing",
         }}
-        className="scroll-mt-24 pb-20 sm:pb-24 lg:pb-[7.0625rem] lg:pt-[9.1875rem]"
+        className="scroll-mt-24 pb-20 sm:pb-24 lg:pb-28.25 lg:pt-36.75"
       />
     </main>
   );

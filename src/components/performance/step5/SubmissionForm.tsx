@@ -162,7 +162,7 @@ const SubmissionField = memo(function SubmissionField({
       <label
         htmlFor={id}
         className={[
-          "text-[0.875rem] font-medium leading-[1.125rem]",
+          "text-[0.875rem] font-medium leading-4.5",
           field.required ? "text-performance-required" : "text-ink-sub",
         ].join(" ")}
       >
@@ -192,7 +192,7 @@ const SubmissionField = memo(function SubmissionField({
         placeholder={field.helper || undefined}
         readOnly={readOnly}
         aria-describedby={[helperId, counterId].filter(Boolean).join(" ")}
-        className="h-40 w-full resize-none overflow-y-auto rounded-lg border border-performance-line bg-performance-bubble p-3 text-[0.875rem] font-medium leading-[1.125rem] text-ink outline-none transition placeholder:text-performance-line focus:border-primary"
+        className="h-40 w-full resize-none overflow-y-auto rounded-lg border border-performance-line bg-performance-bubble p-3 text-[0.875rem] font-medium leading-4.5 text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary"
       />
 
       {/* 값이 채워지면 사라지는 placeholder를 대신할 항구적 지시문(파일 상단 4). */}
@@ -316,28 +316,28 @@ export default function SubmissionForm({
   return (
     // §5.14 카드 실측: 49.125rem(786) 폭, r16, stroke `#d9d9d9`, 인셋 좌 1.25rem(20) /
     // 우 1.5rem(24) → 콘텐츠 46.375rem(742, **정본**). `InlineCard`를 쓰지 않는 이유는
-    // 그쪽이 `max-w-perf-bubble`(596)과 `px-[1.875rem]`을 고정하고 있어서다 — className
+    // 그쪽이 `max-w-perf-bubble`(596)과 `px-7.5`을 고정하고 있어서다 — className
     // 으로 덮으면 `max-w-*` 두 개가 겹쳐 어느 쪽이 이길지 예측 불가다(AiMessage 주석의
     // 그 함정). 카드 모양만 같은 토큰으로 다시 짓는다.
     // `aria-live="off"` — 파일 상단 4의 ⚠️ 항. `ChatTimeline` 루트의 `polite`를 이
     // 서브트리에 한해 무효화해 카운터·게이트 문구가 타이핑마다 낭독되지 않게 한다.
     <div
       aria-live="off"
-      className="w-full max-w-[49.125rem] rounded-2xl border border-performance-line bg-white py-5 pl-5 pr-6"
+      className="w-full max-w-196.5 rounded-2xl border border-performance-line bg-white py-5 pl-5 pr-6"
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <h3 className="text-[1rem] font-semibold leading-[1.3125rem] text-ink">
+          <h3 className="text-[1rem] font-semibold leading-5.25 text-ink">
             {CARD_TITLE}
           </h3>
           {/* §5.14 카드 본문 2·3행. 유형 라벨·안내문은 **서버 스키마 값**이라 8종에 따라
               바뀐다(시안의 `기본 보고서형`은 그중 하나다). */}
-          <p className="text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
+          <p className="text-[0.875rem] font-medium leading-4.5 text-ink-sub">
             {SCHEMA_LABEL_PREFIX}
             {schema?.label}
           </p>
           {schema?.notice && (
-            <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
+            <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
               {schema.notice}
             </p>
           )}
@@ -350,7 +350,7 @@ export default function SubmissionForm({
           <div className="flex flex-col gap-3">
             <label
               htmlFor={`${idPrefix}-topic`}
-              className="text-[0.875rem] font-medium leading-[1.125rem] text-performance-required"
+              className="text-[0.875rem] font-medium leading-4.5 text-performance-required"
             >
               {TOPIC_LABEL}
               <span aria-hidden="true">*</span>
@@ -364,7 +364,7 @@ export default function SubmissionForm({
               type="text"
               value={topicTitle || ""}
               readOnly
-              className="h-[2.625rem] w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-[0.875rem] font-medium leading-[1.125rem] text-ink outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="h-10.5 w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-[0.875rem] font-medium leading-4.5 text-ink outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             />
           </div>
 
@@ -385,7 +385,7 @@ export default function SubmissionForm({
         {/* 게이트 문구(비활성 사유). live region이 아니다 — 숫자가 매 글자 바뀐다. */}
         <p
           id={gateId}
-          className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub"
+          className="text-[0.875rem] font-normal leading-4.5 text-ink-sub"
         >
           {gateMessage}
         </p>
@@ -399,7 +399,7 @@ export default function SubmissionForm({
           <p
             id={errorId}
             role="alert"
-            className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
+            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
           >
             {error}
           </p>
@@ -409,7 +409,7 @@ export default function SubmissionForm({
         {savedAt && !error && (
           <p
             role="status"
-            className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub"
+            className="text-[0.875rem] font-normal leading-4.5 text-ink-sub"
           >
             {formatSavedAt(savedAt)}에 중간 저장했어요.
           </p>
@@ -429,7 +429,7 @@ export default function SubmissionForm({
             aria-busy={saving || undefined}
             aria-describedby={describedBy}
             className={[
-              "flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl border border-performance-line text-[1rem] font-medium leading-[1.25rem] transition active:scale-[0.97] motion-reduce:active:scale-100",
+              "flex h-13 w-65 items-center justify-center gap-2 rounded-xl border border-performance-line text-[1rem] font-medium leading-5 transition active:scale-[0.97] motion-reduce:active:scale-100",
               // 비활성 표현은 opacity가 아니라 :388(제출 버튼)과 동일한 실제 배경/글자색
               // 조합으로 한다 — `aria-disabled`라 진짜 disabled가 아니고(여전히 포커스·클릭
               // 가능) opacity는 WCAG 비활성 컨트롤 대비 예외를 못 받아 2.2:1로 미달이었다.
@@ -455,7 +455,7 @@ export default function SubmissionForm({
             aria-busy={submitting || undefined}
             aria-describedby={describedBy}
             className={[
-              "flex h-[3.25rem] w-[16.25rem] items-center justify-center gap-2 rounded-xl text-[1rem] font-semibold leading-[1.25rem] transition active:scale-[0.97] motion-reduce:active:scale-100",
+              "flex h-13 w-65 items-center justify-center gap-2 rounded-xl text-[1rem] font-semibold leading-5 transition active:scale-[0.97] motion-reduce:active:scale-100",
               // 비활성 **면 색**은 §5.8 실측(「빈 상태 `#d9d9d9`(비활성) / 입력 시 `#013262`」)과
               // `PrimaryButton`의 disabled 톤을 그대로 따른다 — 처리중(`bg-primary/80`)과
               // 비활성을 시각적으로 구분하는 것도 그 컴포넌트의 관례다.

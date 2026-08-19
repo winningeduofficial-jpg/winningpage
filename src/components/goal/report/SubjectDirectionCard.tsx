@@ -28,7 +28,7 @@ export default function SubjectDirectionCard({
   return (
     <GoalCard
       tone="neutral"
-      className="flex min-h-[19.4375rem] flex-col gap-4 px-[1.875rem] py-[1.875rem]"
+      className="flex min-h-77.75 flex-col gap-4 px-7.5 py-7.5"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1.5">
@@ -48,7 +48,7 @@ export default function SubjectDirectionCard({
         <p className="text-[0.75rem] font-semibold leading-[1.4] text-ink-sub">
           공부 방향
         </p>
-        <p className="max-w-[37.6875rem] text-[0.875rem] leading-[1.6] text-ink">
+        <p className="max-w-150.75 text-[0.875rem] leading-[1.6] text-ink">
           {body}
         </p>
       </div>

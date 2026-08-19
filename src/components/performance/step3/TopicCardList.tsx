@@ -102,7 +102,7 @@ export default function TopicCardList({
           aria-disabled={locked}
           aria-busy={regenerating}
           className={[
-            "flex h-10 w-[8.125rem] items-center justify-center rounded-[0.625rem] border border-performance-line bg-white text-[0.875rem] font-medium leading-[1.125rem] text-ink transition-colors",
+            "flex h-10 w-32.5 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white text-[0.875rem] font-medium leading-4.5 text-ink transition-colors",
             locked ? "cursor-not-allowed opacity-50" : "hover:border-ink-sub",
           ].join(" ")}
         >
@@ -112,7 +112,7 @@ export default function TopicCardList({
         {/* 상한 안내·실패 안내 모두 시안에 없는 표면이다(§11.3 Q39 — 시안에 토스트가 없다).
             다른 STEP과 같은 관례로 카드 아래 한 줄 텍스트로만 만든다. */}
         {limitReached && (
-          <p className="text-[0.875rem] font-normal leading-[1.125rem] text-ink-sub">
+          <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
             주제 추천은 최대 {maxRounds}회까지 받을 수 있어요. 위 주제 중 하나를
             눌러 자세한 내용을 확인해 주세요.
           </p>
@@ -121,7 +121,7 @@ export default function TopicCardList({
         {error && (
           <p
             role="alert"
-            className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
+            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
           >
             {error}
           </p>

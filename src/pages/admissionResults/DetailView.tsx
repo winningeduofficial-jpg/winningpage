@@ -36,7 +36,7 @@ import { CONTAINER } from "./constants";
 import { ErrorBlock, LoadingBlock } from "./StateBlocks";
 
 // 섹션 세로 리듬. SelfAssessment.jsx의 랜딩/서비스형 관례.
-const SECTION_RHYTHM = "pt-16 sm:pt-20 lg:pt-[6.25rem]";
+const SECTION_RHYTHM = "pt-16 sm:pt-20 lg:pt-25";
 
 // 연도 축이 3개 이상으로 복원되면 슬로프 대신 Sparkline으로 되돌린다(명세 §8.3 마지막 줄).
 // 이 상수 하나만 보고 분기하므로 축이 늘어나도 카드 코드는 손대지 않는다.
@@ -215,12 +215,12 @@ function SummaryCard({
     <div
       className={`flex h-full flex-col rounded-xl p-6 md:p-8 ${
         card.hasValue
-          ? "border border-[#d7d7d7] bg-[#fcfcfc]"
-          : "border border-dashed border-[#d7d7d7] bg-transparent"
+          ? "border border-line bg-[#fcfcfc]"
+          : "border border-dashed border-line bg-transparent"
       }`}
     >
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <p className="break-keep text-base font-semibold leading-[1.4] tracking-[-0.02em] text-[#013262]">
+        <p className="break-keep text-base font-semibold leading-[1.4] tracking-[-0.02em] text-primary">
           {card.hasValue ? card.label : card.track}
         </p>
         {/* 산정 기준(basis) 표기. 중심전형 카드의 대표 등급은 전형유형을 전부 섞은 값이
@@ -230,7 +230,7 @@ function SummaryCard({
           <span
             className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold leading-[1.4] tracking-[-0.02em] ${
               card.isGeneralBasis
-                ? "bg-[#eef2f8] text-[#013262]"
+                ? "bg-[#eef2f8] text-primary"
                 : "bg-[#fdf3e4] text-[#8a6a1f]"
             }`}
           >
@@ -244,7 +244,7 @@ function SummaryCard({
           <p className="mt-5 flex items-end gap-2">
             {/* 시안 대형 수치는 FreesentationVF 7 Bold 120px이지만 저장소에 그 폰트가 없다(명세 §4.2).
                 Pretendard SemiBold로 대체하고 크기도 1100px 컨텐츠 폭에 맞춰 낮췄다. */}
-            <span className="text-[3.5rem] font-semibold leading-none tracking-[-0.04em] text-[#013262] sm:text-[4.5rem]">
+            <span className="text-[3.5rem] font-semibold leading-none tracking-[-0.04em] text-primary sm:text-[4.5rem]">
               {card.displayValue}
             </span>
             <span className="pb-1 text-xl font-medium tracking-[-0.02em] text-[#000000] sm:pb-2">
@@ -348,10 +348,10 @@ function CategoryTabs({
             aria-selected={isActive}
             aria-controls="admission-results-panel"
             onClick={() => onSelect(category.key)}
-            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-semibold leading-[1.3] tracking-[-0.02em] transition-colors duration-200 [transition-timing-function:var(--ease-out-quart)] sm:px-4 sm:text-base ${
+            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-2 text-sm font-semibold leading-[1.3] tracking-[-0.02em] transition-colors duration-200 ease-(--ease-out-quart) sm:px-4 sm:text-base ${
               isActive
-                ? "border-[#013262] bg-[#013262] text-white"
-                : "border-[#d7d7d7] bg-white text-[#8f8f8f] hover:border-[#8a8a8a] hover:text-[#525252] focus-visible:border-[#8a8a8a] focus-visible:text-[#525252]"
+                ? "border-primary bg-primary text-white"
+                : "border-line bg-white text-[#8f8f8f] hover:border-[#8a8a8a] hover:text-ink focus-visible:border-[#8a8a8a] focus-visible:text-ink"
             }`}
           >
             {category.label}
@@ -538,42 +538,40 @@ function ReadingGuide({
         👀 읽는 법
       </h2>
 
-      <ul className="mt-6 space-y-2 break-keep text-base font-medium leading-[1.6] tracking-[-0.02em] text-[#525252]">
+      <ul className="mt-6 space-y-2 break-keep text-base font-medium leading-[1.6] tracking-[-0.02em] text-ink">
         <li>
-          <span className="font-semibold text-[#013262]">
+          <span className="font-semibold text-primary">
             등급은 수치가 낮을수록 상위
           </span>
           입니다. 그래서 2026 등급이 2025보다 작아지면 &ldquo;성적
           상승&rdquo;입니다.
         </li>
         <li>
-          <span className="font-semibold text-[#013262]">Δ 전년대비</span>는
-          2026 등급에서 2025 등급을 뺀 변화량입니다.{" "}
-          <span className="font-semibold text-[#013262]">▼</span>는 등급이
-          낮아진 것(성적 상승),{" "}
-          <span className="font-semibold text-[#e5484d]">▲</span>는 높아진
-          것(성적 하락), <span className="font-semibold text-[#8f8f8f]">—</span>
-          는 변동 없음입니다.
+          <span className="font-semibold text-primary">Δ 전년대비</span>는 2026
+          등급에서 2025 등급을 뺀 변화량입니다.{" "}
+          <span className="font-semibold text-primary">▼</span>는 등급이 낮아진
+          것(성적 상승), <span className="font-semibold text-[#e5484d]">▲</span>
+          는 높아진 것(성적 하락),{" "}
+          <span className="font-semibold text-[#8f8f8f]">—</span>는 변동
+          없음입니다.
         </li>
         <li>
-          Δ 칸의 <span className="font-semibold text-[#af9364]">신규</span>는
+          Δ 칸의 <span className="font-semibold text-gold">신규</span>는
           2026에만 수록된 전형이고,{" "}
-          <span className="font-semibold text-[#af9364]">{EMPTY_CELL}</span>는
-          두 해를 맞대어 볼 수 없는 경우(비교 불가)입니다.
+          <span className="font-semibold text-gold">{EMPTY_CELL}</span>는 두
+          해를 맞대어 볼 수 없는 경우(비교 불가)입니다.
         </li>
         <li>
-          Δ 옆의 <span className="font-semibold text-[#af9364]">*</span>는 두
-          해의 컷 기준이 서로 다르다는 표시입니다(예: 2025는 70%컷, 2026은
-          50%컷). 변화량은 계산했지만 그대로 비교하기 어렵습니다.
+          Δ 옆의 <span className="font-semibold text-gold">*</span>는 두 해의 컷
+          기준이 서로 다르다는 표시입니다(예: 2025는 70%컷, 2026은 50%컷).
+          변화량은 계산했지만 그대로 비교하기 어렵습니다.
         </li>
         <li>
           등급 칸의{" "}
-          <span className="font-semibold text-[#af9364]">{EMPTY_CELL}</span>는
-          그해 해당 전형이 없었던 경우이고,{" "}
-          <span className="font-semibold text-[#af9364]">
-            {UNDISCLOSED_CELL}
-          </span>
-          는 전형은 있었으나 대학이 등급을 공개하지 않은 경우입니다.
+          <span className="font-semibold text-gold">{EMPTY_CELL}</span>는 그해
+          해당 전형이 없었던 경우이고,{" "}
+          <span className="font-semibold text-gold">{UNDISCLOSED_CELL}</span>는
+          전형은 있었으나 대학이 등급을 공개하지 않은 경우입니다.
         </li>
         <li>
           괄호 안 숫자(50 · 70 · 85 · 90)는 대학이 발표한 컷 기준(%컷)입니다.
@@ -582,9 +580,9 @@ function ReadingGuide({
         </li>
         <li>
           중심전형 카드의 대표 등급은{" "}
-          <span className="font-semibold text-[#013262]">일반 전형</span>{" "}
-          행만으로 계산합니다. 일반 전형이 없으면 모집인원이 가장 많은
-          전형유형으로 계산하고, 카드에 그 기준을 함께 적습니다.
+          <span className="font-semibold text-primary">일반 전형</span> 행만으로
+          계산합니다. 일반 전형이 없으면 모집인원이 가장 많은 전형유형으로
+          계산하고, 카드에 그 기준을 함께 적습니다.
         </li>
       </ul>
 
@@ -610,8 +608,8 @@ function ReadingGuide({
 // 복귀 액션을 함께 그려야 하는데 공용 블록에는 액션 슬롯이 없다. 껍데기 클래스는 동일하다.
 function DetailEmptyBlock({ onBack }: { onBack?: (() => void) | undefined }) {
   return (
-    <div className="rounded-2xl border border-[#e5e7eb] bg-[#f9fafb] py-16 text-center">
-      <p className="break-keep text-lg font-semibold text-[#525252]">
+    <div className="rounded-2xl border border-[#e5e7eb] bg-surface-footer py-16 text-center">
+      <p className="break-keep text-lg font-semibold text-ink">
         해당 모집단위의 입결 데이터가 없습니다.
       </p>
       <p className="mt-2 break-keep text-sm font-medium text-[#8f8f8f]">
@@ -621,7 +619,7 @@ function DetailEmptyBlock({ onBack }: { onBack?: (() => void) | undefined }) {
         <button
           type="button"
           onClick={onBack}
-          className="mt-4 rounded-full border border-[#d7d7d7] bg-white px-4 py-2 text-sm font-semibold text-[#525252] transition hover:border-[#0b84fd] hover:text-[#0b84fd]"
+          className="mt-4 rounded-full border border-line bg-white px-4 py-2 text-sm font-semibold text-ink transition hover:border-accent hover:text-accent"
         >
           다른 모집단위 선택하기
         </button>
@@ -804,20 +802,20 @@ export default function DetailView({
             <button
               type="button"
               onClick={onBack}
-              className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[#8f8f8f] transition hover:text-[#013262]"
+              className="mb-4 inline-flex items-center gap-1 text-sm font-semibold text-[#8f8f8f] transition hover:text-primary"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
               다른 모집단위 선택하기
             </button>
           ) : null}
 
-          <p className="text-base font-medium leading-[1.3] tracking-[-0.02em] text-[#013262]">
+          <p className="text-base font-medium leading-[1.3] tracking-[-0.02em] text-primary">
             최종등록자 교과등급 · {observedYears.length}개년
           </p>
 
           <h1
             id="admission-results-detail-title"
-            className="mt-3 break-keep text-[2rem] font-semibold leading-tight tracking-[-0.03em] text-[#525252] md:text-[2.75rem]"
+            className="mt-3 break-keep text-[2rem] font-semibold leading-tight tracking-[-0.03em] text-ink md:text-[2.75rem]"
           >
             {title}
           </h1>

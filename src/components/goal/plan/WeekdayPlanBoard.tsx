@@ -53,17 +53,17 @@ export default function WeekdayPlanBoard({
   todayKey,
 }: WeekdayPlanBoardProps) {
   return (
-    <div className="w-full max-w-[74.625rem]">
+    <div className="w-full max-w-298.5">
       {/* 요일 헤더 행 — 150×36, gap 24px(part-09 §269). 요일명(bold)+날짜(회색) 인라인 2스타일 —
           part-09 §286 "한 텍스트 노드 안 2가지 스타일" 근거로 span 분리. */}
-      <div className="grid grid-cols-7 gap-[1.5rem]">
+      <div className="grid grid-cols-7 gap-6">
         {days.map((day) => {
           const key = DAY_KEY[day.day] ?? "mon";
           const isToday = todayKey != null && key === todayKey;
           return (
             <div
               key={day.day}
-              className={`flex h-[2.25rem] items-center rounded-lg px-3 ${WEEKDAY_BG_CLASS[key]} ${
+              className={`flex h-9 items-center rounded-lg px-3 ${WEEKDAY_BG_CLASS[key]} ${
                 isToday ? "ring-2 ring-ink-strong ring-offset-1" : ""
               }`}
             >
@@ -84,13 +84,13 @@ export default function WeekdayPlanBoard({
       </div>
 
       {/* `+ 추가` 버튼 행 — 150×43, 헤더와 24px 간격(part-09 §272). */}
-      <div className="mt-[1.5rem] grid grid-cols-7 gap-[1.5rem]">
+      <div className="mt-6 grid grid-cols-7 gap-6">
         {days.map((day) => (
           <button
             key={day.day}
             type="button"
             onClick={() => onAddTask(day.day, day.dateYmd)}
-            className="flex h-[2.6875rem] items-center justify-center rounded-lg border border-line bg-white text-[0.8125rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
+            className="flex h-10.75 items-center justify-center rounded-lg border border-line bg-white text-[0.8125rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
           >
             + 추가
           </button>
@@ -99,18 +99,18 @@ export default function WeekdayPlanBoard({
 
       {/* 과제 카드 스택 — 컬럼별 세로 pitch 87px(카드 75 + gap 12), 컬럼 높이는 가변(part-10 §127/180).
           items-start로 짧은 컬럼(예: 일요일)이 늘어나지 않게 한다. */}
-      <div className="mt-[1.5rem] grid grid-cols-7 items-start gap-[1.5rem]">
+      <div className="mt-6 grid grid-cols-7 items-start gap-6">
         {days.map((day) => {
           const key = DAY_KEY[day.day] ?? "mon";
           return (
-            <div key={day.day} className="flex flex-col gap-[0.75rem]">
+            <div key={day.day} className="flex flex-col gap-3">
               {day.tasks.map((task) => (
                 // 좌측 4px 보더는 임의 장식이 아니라 시안 실측 그대로다(part-10.md §128 "좌측 4px
                 // 컬러 액센트 바 + 본문 면 구조", §181 "border-left: 4px solid로 구현하면 안쪽 그룹
                 // 146px가 자연스럽게 맞는다"). #29 카드 18개 전부 이 구조라 여기서 제거하지 않는다.
                 <div
                   key={task.id}
-                  className={`h-[4.6875rem] rounded-lg border-l-4 px-3 py-[0.75rem] ${WEEKDAY_BG_CLASS[key]}`}
+                  className={`h-18.75 rounded-lg border-l-4 px-3 py-3 ${WEEKDAY_BG_CLASS[key]}`}
                   style={{ borderLeftColor: WEEKDAY_ACCENT[key] }}
                 >
                   <p className="truncate text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">

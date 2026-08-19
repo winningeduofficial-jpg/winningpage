@@ -19,7 +19,10 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
   // 학생이 신청했던 것과 다른 상품 구성으로 학부모가 이미 새로 결제해 이 주문을
   // 대체함(fn_parent_create_enrollment) — "결제 완료"와 같은 색이면 이중결제로
   // 오인하므로 종결/중립 톤(회색)으로 구분한다.
-  superseded: { label: "다른 상품으로 결제됨", cls: "bg-surface-04 text-ink-sub" },
+  superseded: {
+    label: "다른 상품으로 결제됨",
+    cls: "bg-surface-04 text-ink-sub",
+  },
 
   // ── 학생 "신청 내역" 어휘 (3967:3016 실측) ───────────────────────────
   // 학생 화면은 돈이 아니라 **신청·이용** 관점이다. 같은 주문이라도 학부모는
@@ -41,7 +44,7 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
   // 같은 대기 톤(노랑)으로 둔다.
   refund_approval_pending: {
     label: "환불 요청 대기",
-    cls: "bg-[#fff3d1] text-gold",
+    cls: "bg-performance-tag text-gold",
   },
 
   // 학부모가 반려. status 는 requested 그대로이고 같은 주문으로 재신청할 수
@@ -60,7 +63,10 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
 
   // 자녀가 보낸 결제 요청에 학부모가 아직 승인/거절을 안 함
   // (approval_status='requested'). refund_approval_pending과 같은 대기 톤(노랑).
-  enrollment_requested: { label: "승인 필요", cls: "bg-[#fff3d1] text-gold" },
+  enrollment_requested: {
+    label: "승인 필요",
+    cls: "bg-performance-tag text-gold",
+  },
 
   // 학부모 승인은 끝났고 결제만 남음(approval_status='approved') — 행을 누르면
   // 바로 /checkout 으로 이동한다.

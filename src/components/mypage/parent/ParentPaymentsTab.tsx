@@ -151,7 +151,7 @@ export default function ParentPaymentsTab({
   }
 
   return (
-    <div className="flex flex-col gap-[4.5rem]">
+    <div className="flex flex-col gap-18">
       {/* 1) 환불요청 */}
       <section>
         <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">

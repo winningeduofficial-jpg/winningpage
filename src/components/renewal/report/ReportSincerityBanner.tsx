@@ -28,10 +28,8 @@ export default function ReportSincerityBanner({
    * (색 출처·위계·경고 강도는 동일, 장식만 뺐다).
    */
   return (
-    <section className="fd-screen-only w-full max-w-[70rem] rounded-xl border border-[#736123]/40 bg-[rgba(255,233,155,0.35)] px-5 py-4">
-      <p className="break-keep text-base leading-[1.5] text-[#525252]">
-        {message}
-      </p>
+    <section className="fd-screen-only w-full max-w-280 rounded-xl border border-[#736123]/40 bg-[rgba(255,233,155,0.35)] px-5 py-4">
+      <p className="break-keep text-base leading-normal text-ink">{message}</p>
     </section>
   );
 }

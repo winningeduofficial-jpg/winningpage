@@ -275,21 +275,21 @@ export default function StudentEnrollmentRequest() {
   // (App.jsx 의 /checkout·/pricing 공통 레이아웃 라우트)이 이미 전역으로 감싼다.
   if (completedOrder) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-white px-5 py-16 lg:px-[12.5rem] lg:py-[6.25rem]">
-        <div className="flex w-full flex-col items-center gap-10 lg:gap-[3.75rem]">
+      <main className="flex min-h-screen items-center justify-center bg-white px-5 py-16 lg:px-50 lg:py-25">
+        <div className="flex w-full flex-col items-center gap-10 lg:gap-perf-inset">
           <div className="flex flex-col items-center gap-5">
             <img
               src={successCheck}
               alt=""
               aria-hidden="true"
-              className="size-12 lg:size-[3.75rem]"
+              className="size-12 lg:size-perf-inset"
             />
             <h1 className="whitespace-nowrap text-center text-[1.75rem] font-semibold leading-[1.4] tracking-[-0.035rem] text-ink lg:text-[3.125rem] lg:tracking-[-0.0625rem]">
               결제 요청이 완료 되었어요!
             </h1>
           </div>
 
-          <dl className="w-full max-w-[39.125rem] space-y-1 rounded-[1.25rem] border border-line px-3 py-5">
+          <dl className="w-full max-w-156.5 space-y-1 rounded-perf-modal border border-line px-3 py-5">
             <div className="flex items-center justify-between gap-4 bg-white px-4 py-3">
               <dt className="shrink-0 text-[0.875rem] font-medium text-ink">
                 주문번호
@@ -312,11 +312,11 @@ export default function StudentEnrollmentRequest() {
             </div>
           </dl>
 
-          <div className="flex w-full max-w-[25rem] flex-col items-center">
+          <div className="flex w-full max-w-100 flex-col items-center">
             <button
               type="button"
               onClick={() => navigate("/mypage")}
-              className="flex h-[3.25rem] w-full items-center justify-center rounded-xl bg-ink-title text-[1rem] font-semibold text-white transition hover:brightness-125"
+              className="flex h-13 w-full items-center justify-center rounded-xl bg-ink-title text-[1rem] font-semibold text-white transition hover:brightness-125"
             >
               마이페이지에서 확인하기
             </button>
@@ -376,7 +376,7 @@ export default function StudentEnrollmentRequest() {
                   <div className="flex items-center gap-3 py-2 pr-8 lg:py-5 lg:pr-12">
                     <h2
                       id={`plan-group-label-${service.key}`}
-                      className="text-[1.375rem] font-semibold leading-[1.25rem] tracking-[-0.02em] text-ink lg:text-[2rem] lg:tracking-[-0.04rem]"
+                      className="text-[1.375rem] font-semibold leading-5 tracking-[-0.02em] text-ink lg:text-[2rem] lg:tracking-[-0.04rem]"
                     >
                       {service.name}
                     </h2>
@@ -384,7 +384,7 @@ export default function StudentEnrollmentRequest() {
                       src={sectionArrow}
                       alt=""
                       aria-hidden="true"
-                      className="h-6 w-[1.4375rem] lg:h-[2.5rem] lg:w-[2.396rem]"
+                      className="h-6 w-5.75 lg:h-10 lg:w-[2.396rem]"
                     />
                   </div>
                   {service.desc && (
@@ -397,7 +397,7 @@ export default function StudentEnrollmentRequest() {
                 <div
                   role="radiogroup"
                   aria-labelledby={`plan-group-label-${service.key}`}
-                  className="mt-6 space-y-2 lg:mt-[1.5625rem] lg:space-y-3"
+                  className="mt-6 space-y-2 lg:mt-6.25 lg:space-y-3"
                 >
                   {service.products.map((product, index) => {
                     const isSelected = selected[service.key] === product.id;
@@ -453,7 +453,7 @@ export default function StudentEnrollmentRequest() {
                             {product.name}
                           </span>
                           {product.recommended && (
-                            <span className="flex h-[1.375rem] shrink-0 items-center justify-center rounded-md bg-primary px-2 text-[0.75rem] font-medium text-white lg:h-[1.9375rem] lg:w-[3.25rem] lg:text-[1rem]">
+                            <span className="flex h-5.5 shrink-0 items-center justify-center rounded-md bg-primary px-2 text-[0.75rem] font-medium text-white lg:h-7.75 lg:w-13 lg:text-[1rem]">
                               추천
                             </span>
                           )}
@@ -504,7 +504,7 @@ export default function StudentEnrollmentRequest() {
       {selectedItems.length > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-white shadow-[0_-0.375rem_1.5rem_rgba(13,27,42,0.08)]">
           <div className="mx-auto flex w-full max-w-content flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-8">
-            <dl className="flex items-center gap-6 text-[0.875rem] font-medium leading-[1.25rem] text-ink">
+            <dl className="flex items-center gap-6 text-[0.875rem] font-medium leading-5 text-ink">
               {discountTotal > 0 && (
                 <div>
                   <dt className="text-ink-sub">할인 금액</dt>
@@ -522,7 +522,7 @@ export default function StudentEnrollmentRequest() {
               type="button"
               onClick={handleSubmit}
               disabled={!canSubmit}
-              className={`w-full shrink-0 rounded-xl py-3.5 text-[0.875rem] font-semibold leading-[1.25rem] transition sm:w-auto sm:px-8 ${
+              className={`w-full shrink-0 rounded-xl py-3.5 text-[0.875rem] font-semibold leading-5 transition sm:w-auto sm:px-8 ${
                 canSubmit
                   ? "bg-primary text-white hover:brightness-125"
                   : "cursor-not-allowed border border-line bg-surface-card text-ink"

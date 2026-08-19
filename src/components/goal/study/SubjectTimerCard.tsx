@@ -77,7 +77,7 @@ export default function SubjectTimerCard({
   };
 
   return (
-    <div className="flex flex-col gap-5 rounded-xl border border-line/60 bg-white px-[1.75rem] py-[1.5rem]">
+    <div className="flex flex-col gap-5 rounded-xl border border-line/60 bg-white px-7 py-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span
@@ -98,21 +98,21 @@ export default function SubjectTimerCard({
               step="0.5"
               value={draftHours}
               onChange={(event) => setDraftHours(event.target.value)}
-              className="h-7 w-[3.5rem] rounded border border-line px-2 text-right text-[0.8125rem] tabular-nums"
+              className="h-7 w-14 rounded-sm border border-line px-2 text-right text-[0.8125rem] tabular-nums"
               aria-label={`${label} 목표 시간(시간)`}
             />
             <span className="text-[0.8125rem] text-ink-sub">h</span>
             <button
               type="button"
               onClick={saveTarget}
-              className="rounded px-1.5 text-[0.75rem] font-semibold text-primary"
+              className="rounded-sm px-1.5 text-[0.75rem] font-semibold text-primary"
             >
               저장
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="rounded px-1 text-[0.75rem] text-ink-sub"
+              className="rounded-sm px-1 text-[0.75rem] text-ink-sub"
             >
               취소
             </button>
@@ -148,7 +148,7 @@ export default function SubjectTimerCard({
       <button
         type="button"
         onClick={onToggle}
-        className={`h-[2.4375rem] w-full rounded-lg text-[0.9375rem] font-semibold leading-[1.2] transition-colors ${
+        className={`h-9.75 w-full rounded-lg text-[0.9375rem] font-semibold leading-[1.2] transition-colors ${
           running
             ? "border border-line bg-white text-ink-strong"
             : "bg-primary text-white"

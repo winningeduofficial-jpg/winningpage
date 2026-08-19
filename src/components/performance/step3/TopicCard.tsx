@@ -98,28 +98,28 @@ export default function TopicCard({
       onClick={open}
       className={[
         "w-full max-w-perf-bubble cursor-pointer rounded-2xl border border-performance-line bg-transparent p-5 text-left",
-        "min-h-[12.125rem] transition-colors hover:border-ink-sub",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+        "min-h-48.5 transition-colors hover:border-ink-sub",
+        "focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
         className,
       ].join(" ")}
     >
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           {/* 순번 배지 — 실측 h30 r10 `#f8f7f5`, pad 6. */}
-          <span className="inline-flex h-[1.875rem] shrink-0 items-center rounded-[0.625rem] bg-performance-bubble px-1.5 text-[0.875rem] font-medium leading-[1.125rem] tracking-[-0.0175rem] text-ink-sub">
+          <span className="inline-flex h-7.5 shrink-0 items-center rounded-[0.625rem] bg-performance-bubble px-1.5 text-[0.875rem] font-medium leading-4.5 tracking-[-0.0175rem] text-ink-sub">
             추천 주제 {index}
           </span>
           {/* 시안 원본 색 `#d9d9d9` → 대비 미달로 `ink-sub`(#6b6b6b, 흰 배경 5.33:1) 상향(§5.10 제안). */}
-          <span className="shrink-0 text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub">
+          <span className="shrink-0 text-[0.875rem] font-medium leading-4.5 text-ink-sub">
             자세히 보기 →
           </span>
         </div>
 
-        <p className="text-[1rem] font-medium leading-[1.3125rem] text-ink">
+        <p className="text-[1rem] font-medium leading-5.25 text-ink">
           {topic.title}
         </p>
 
-        <p className="text-[1rem] font-normal leading-[1.3125rem] text-ink-sub">
+        <p className="text-[1rem] font-normal leading-5.25 text-ink-sub">
           {topic.subtitle}
         </p>
 

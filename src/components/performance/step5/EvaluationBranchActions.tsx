@@ -51,11 +51,11 @@ const FINALIZE_NOTICE = `‘${CONFIRM_LABEL}’과 ‘${NEW_ASSESSMENT_LABEL}’
 //      바로 아래 주석의 의도가 성립하려면 버튼이 포커스 가능해야 한다.
 // 그래서 실제 차단은 `onClick` 첫 줄의 가드가 한다(`guard()`).
 const BUTTON_BASE =
-  "flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl px-2 text-center transition active:scale-[0.97] motion-reduce:active:scale-100 aria-disabled:cursor-not-allowed aria-disabled:active:scale-100";
-const SECONDARY = `${BUTTON_BASE} border border-performance-line bg-white text-[1rem] font-medium leading-[1.25rem] text-ink-sub hover:bg-performance-bubble aria-disabled:opacity-60 aria-disabled:hover:bg-white`;
+  "flex h-13 w-65 min-w-0 max-w-full items-center justify-center rounded-xl px-2 text-center transition active:scale-[0.97] motion-reduce:active:scale-100 aria-disabled:cursor-not-allowed aria-disabled:active:scale-100";
+const SECONDARY = `${BUTTON_BASE} border border-performance-line bg-white text-[1rem] font-medium leading-5 text-ink-sub hover:bg-performance-bubble aria-disabled:opacity-60 aria-disabled:hover:bg-white`;
 // 비활성 primary는 흰 글자 on `#d9d9d9`가 1.41:1이라 라벨이 판독되지 않는다 —
 // 면 색은 그대로 두고 글자색만 `ink`(#525252, 5.54:1)로 내린다(`SubmissionForm`과 동일 판단).
-const PRIMARY = `${BUTTON_BASE} bg-primary text-[1rem] font-semibold leading-[1.25rem] text-white hover:bg-primary/90 aria-disabled:bg-performance-line aria-disabled:text-ink aria-disabled:hover:bg-performance-line`;
+const PRIMARY = `${BUTTON_BASE} bg-primary text-[1rem] font-semibold leading-5 text-white hover:bg-primary/90 aria-disabled:bg-performance-line aria-disabled:text-ink aria-disabled:hover:bg-performance-line`;
 
 type EvaluationBusyAction = "confirm" | "new_assessment" | null;
 
@@ -141,7 +141,7 @@ export default function EvaluationBranchActions({
 
       <p
         id={noticeId}
-        className="max-w-[26rem] break-words text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub"
+        className="max-w-104 wrap-break-word text-[0.875rem] font-medium leading-4.5 text-ink-sub"
       >
         {FINALIZE_NOTICE}
       </p>
@@ -149,7 +149,7 @@ export default function EvaluationBranchActions({
       {reevaluateNoteId ? (
         <p
           id={reevaluateNoteId}
-          className="max-w-[26rem] break-words text-[0.875rem] font-medium leading-[1.125rem] text-ink-sub"
+          className="max-w-104 wrap-break-word text-[0.875rem] font-medium leading-4.5 text-ink-sub"
         >
           {reevaluateNote}
         </p>

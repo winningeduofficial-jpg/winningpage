@@ -241,7 +241,7 @@ export default function AcceptanceRateHero({
   if (!hasRates && !hasLogos) return null;
 
   return (
-    <section className="pt-16 sm:pt-20 md:pt-[6.25rem]">
+    <section className="pt-16 sm:pt-20 md:pt-25">
       <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
         {hasRates && (
           // 시안(1882:6520) 실측: 아이브로·라벨은 좌측선이 같은 하나의 컬럼이고
@@ -255,7 +255,7 @@ export default function AcceptanceRateHero({
               <p className="text-xl font-semibold leading-[1.4] tracking-[-0.02em] text-accent">
                 {years}개년 평균
               </p>
-              <span className="text-2xl font-semibold leading-[1.4] tracking-[-0.02em] text-[#525252] sm:text-[2.25rem]">
+              <span className="text-2xl font-semibold leading-[1.4] tracking-[-0.02em] text-ink sm:text-[2.25rem]">
                 {heroLabel}
               </span>
             </div>
@@ -269,7 +269,7 @@ export default function AcceptanceRateHero({
               {/* % 잉크 하단이 라벨보다 4.8px 아래여야 함(현재 12.7px 초과분 7.9px 보정) → pb-4 */}
               <span
                 aria-hidden="true"
-                className="pb-1 text-xl font-semibold leading-none text-[#525252] sm:pb-4"
+                className="pb-1 text-xl font-semibold leading-none text-ink sm:pb-4"
               >
                 %
               </span>
@@ -281,7 +281,7 @@ export default function AcceptanceRateHero({
           <div
             className={
               hasRates
-                ? "mt-12 flex flex-col items-center gap-8 sm:mt-[6.3125rem]"
+                ? "mt-12 flex flex-col items-center gap-8 sm:mt-25.25"
                 : "flex flex-col items-center gap-8"
             }
           >

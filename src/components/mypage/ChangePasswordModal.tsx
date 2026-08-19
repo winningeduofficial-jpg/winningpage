@@ -25,7 +25,7 @@ const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
 const PASSWORD_HINT = "영문·숫자·특수문자 포함 6자 이상";
 
 const FIELD_CLASS =
-  "h-[3.25rem] w-full rounded-xl border border-line px-4 text-[0.9375rem] text-ink outline-none focus:border-accent";
+  "h-13 w-full rounded-xl border border-line px-4 text-[0.9375rem] text-ink outline-hidden focus:border-accent";
 
 type ChangePasswordModalProps = {
   open: boolean;
@@ -155,7 +155,7 @@ export default function ChangePasswordModal({
         open={open}
         onClose={onClose}
         labelledBy={titleId}
-        className="w-[26rem]"
+        className="w-104"
       >
         <div className="flex flex-col items-center px-6 py-10 text-center">
           <h2
@@ -167,7 +167,7 @@ export default function ChangePasswordModal({
           <button
             type="button"
             onClick={onClose}
-            className="mt-7 h-[2.5rem] w-[9.375rem] rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90"
+            className="mt-7 h-10 w-37.5 rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90"
           >
             확인
           </button>
@@ -183,7 +183,7 @@ export default function ChangePasswordModal({
         open={open}
         onClose={onClose}
         labelledBy={titleId}
-        className="w-[26rem]"
+        className="w-104"
       >
         <div className="flex flex-col items-center px-6 py-9 text-center">
           <h2
@@ -226,7 +226,7 @@ export default function ChangePasswordModal({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
-      className="w-[26rem]"
+      className="w-104"
     >
       <div className="flex-1 overflow-y-auto px-6 pt-8">
         <h2

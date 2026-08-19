@@ -36,7 +36,7 @@ export default function EffortSubjectCard({
   const hasBooks = Array.isArray(books) && books.length > 0;
 
   return (
-    <div className="flex h-[28.1875rem] w-[19.5rem] shrink-0 flex-col rounded-xl border border-line/60 bg-white px-[1.1875rem] py-5">
+    <div className="flex h-112.75 w-78 shrink-0 flex-col rounded-xl border border-line/60 bg-white px-4.75 py-5">
       <div className="flex items-baseline gap-2">
         <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
           {subject}
@@ -47,21 +47,21 @@ export default function EffortSubjectCard({
       </div>
 
       {/* 「공부 중인 책」 인셋 박스 — 274×125(part-10 §207~209). */}
-      <div className="mt-[1.375rem] flex w-full shrink-0 flex-col gap-[0.625rem] rounded-lg bg-surface-04 p-[1.25rem]">
+      <div className="mt-5.5 flex w-full shrink-0 flex-col gap-2.5 rounded-lg bg-surface-04 p-5">
         <p className="text-[0.875rem] leading-[1.4] text-ink-sub">
           공부 중인 책
         </p>
         <button
           type="button"
           onClick={onAddBook}
-          className="flex h-[2.25rem] w-full items-center justify-center rounded-lg border border-dashed border-line text-[0.8125rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
+          className="flex h-9 w-full items-center justify-center rounded-lg border border-dashed border-line text-[0.8125rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
         >
           + 문제집 추가
         </button>
       </div>
 
       {/* 등록된 문제집 칩 리스트 — 274×32(part-11 §142), 상단 정렬 + 스크롤(위 주석 참고). */}
-      <div className="mt-[0.75rem] min-h-0 flex-1 overflow-y-auto">
+      <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
         {hasBooks && (
           <ul className="flex flex-col gap-2">
             {books.map((book) => (
@@ -75,7 +75,7 @@ export default function EffortSubjectCard({
                     label={book.title}
                     size="sm"
                     color={color}
-                    className="!w-full !justify-start"
+                    className="w-full! justify-start!"
                   />
                 </button>
               </li>
@@ -86,7 +86,7 @@ export default function EffortSubjectCard({
 
       {/* 완독 책장 선반 — 147×7(part-10 §210), 칩 유무와 무관하게 항상 하단 고정. */}
       <div className="mt-3 flex shrink-0 flex-col items-center gap-2">
-        <div className="h-[0.4375rem] w-[9.1875rem] rounded-full bg-surface-01" />
+        <div className="h-1.75 w-36.75 rounded-full bg-surface-01" />
         <p className="text-[0.75rem] leading-[1.4] text-ink-sub">
           완독하면 여기에 쌓여요
         </p>

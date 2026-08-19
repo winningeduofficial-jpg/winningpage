@@ -371,7 +371,7 @@ function HeroSection() {
   const navigate = useNavigate();
 
   return (
-    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-[2.25rem]">
+    <section className="relative overflow-hidden bg-white pb-14 pt-10 sm:pb-16 sm:pt-14 md:pb-0 md:pt-9">
       {/* 시안(2716:2905→2976→2986→2996)은 히어로 오라가 12초 동안 360° 등속 회전하는
           프로토타입의 키프레임 4장이다(Smart Animate 3000ms LINEAR × 4프레임 = 12s).
           회전 대상은 1600x1200 단일 프레임, 자기 중심(800,600) 피벗, -90도씩 단방향 CW,
@@ -400,7 +400,7 @@ function HeroSection() {
           전정계 자극 등급이 높은 모션이라 의도적으로 느리게 설정. */}
       <div
         ref={auraRef}
-        className="pointer-events-none absolute left-1/2 -top-[10rem] w-[100rem] max-w-none -translate-x-1/2 select-none opacity-90"
+        className="pointer-events-none absolute left-1/2 -top-40 w-[100rem] max-w-none -translate-x-1/2 select-none opacity-90"
       >
         <style>{`
           @keyframes goal-aura-spin {
@@ -429,18 +429,18 @@ function HeroSection() {
           목표관리
         </p>
 
-        <h1 className="mt-6 break-keep max-w-[56rem] text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem]">
+        <h1 className="mt-6 break-keep max-w-4xl text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem]">
           목표의 합격 확률을 관리합니다
         </h1>
 
-        <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-[#525252] sm:text-[1.25rem] md:text-[1.5rem]">
+        <p className="mt-6 break-keep text-[1.125rem] font-medium leading-[1.6] text-ink sm:text-[1.25rem] md:text-[1.5rem]">
           데이터가 합격을 만들고, 실행이 결과를 만듭니다
         </p>
 
         <button
           type="button"
           onClick={() => navigate(HERO_SERVICE.to)}
-          className="mt-6 inline-flex h-14 w-full max-w-[18.75rem] items-center justify-center rounded-[1.875rem] bg-[#013262] px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#013262] focus-visible:ring-offset-2 sm:h-[4.25rem] sm:text-[1.25rem]"
+          className="mt-6 inline-flex h-14 w-full max-w-75 items-center justify-center rounded-[1.875rem] bg-primary px-8 text-base font-semibold text-white shadow-[0_0.625rem_1.5625rem_rgba(1,50,98,0.4)] transition hover:bg-[#01498F] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:h-17 sm:text-[1.25rem]"
         >
           지금 시작하기
         </button>
@@ -460,12 +460,12 @@ function HeroSection() {
 function ProcessSection() {
   return (
     <ServiceSection
-      className="lg:pt-[8.75rem]"
+      className="lg:pt-35"
       heading={
         <>
           위닝 목표관리의
           <br />
-          <span className="text-[#013262]">4단계 핵심 프로세스</span>
+          <span className="text-primary">4단계 핵심 프로세스</span>
         </>
       }
     >
@@ -479,10 +479,7 @@ function ProcessSection() {
 
 function StageSection() {
   return (
-    <ServiceSection
-      className="lg:pt-[13.75rem]"
-      heading="단계별로, 목표를 관리합니다"
-    >
+    <ServiceSection className="lg:pt-55" heading="단계별로, 목표를 관리합니다">
       {/* 탭 — 시안 3종(2063:11610 성적진단, 2063:11744 학습설계, 2063:11878 실행관리)의
           카드 콘텐츠를 반영해 인터랙티브 탭으로 전환했다. '목표 설정' 탭은 기존 확정 콘텐츠를
           그대로 쓴다. '학부모 안내' 탭 콘텐츠 시안 미제공(파일 전수 확인) — STAGE_CONTENT 에
@@ -502,11 +499,11 @@ function StageSection() {
 function AudienceSection() {
   return (
     <ServiceSection
-      className="lg:pt-[17.9375rem]"
+      className="lg:pt-71.75"
       heading={
         <>
           이런 학생에게{" "}
-          <span className="text-[#013262]">목표관리 서비스를 추천해요</span>
+          <span className="text-primary">목표관리 서비스를 추천해요</span>
         </>
       }
     >
@@ -519,7 +516,7 @@ function AudienceSection() {
 function ManagementSection() {
   return (
     <ServiceSection
-      className="lg:pt-[13.875rem]"
+      className="lg:pt-55.5"
       heading="목표 달성까지, 이 모든 걸 함께 관리합니다"
     >
       {/* 카드 마크업이 '다섯 단계로 차근차근' 스텝 카드와 100% 동일해 새 컴포넌트를 만들지
@@ -531,10 +528,7 @@ function ManagementSection() {
 
 function OutcomesSection() {
   return (
-    <ServiceSection
-      className="lg:pt-[15rem]"
-      heading="목표관리로 달라지는 것들"
-    >
+    <ServiceSection className="lg:pt-60" heading="목표관리로 달라지는 것들">
       {/* items 5장 → ServiceOutcomesPanel 이 sm:grid-cols-5 를 자동 적용한다. */}
       <ServiceOutcomesPanel items={OUTCOME_ITEMS} />
     </ServiceSection>
@@ -550,16 +544,16 @@ function PhoneReportSection() {
   ];
 
   return (
-    <section className="overflow-x-clip bg-white pt-16 sm:pt-20 lg:pt-[16.125rem]">
+    <section className="overflow-x-clip bg-white pt-16 sm:pt-20 lg:pt-64.5">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-start lg:justify-between lg:gap-16">
-          <div className="max-w-[26rem] text-center lg:max-w-[36.4375rem] lg:text-left">
+          <div className="max-w-104 text-center lg:max-w-145.75 lg:text-left">
             <h2 className={SECTION_HEADING_CLASS}>
               아이의 일주일 목표 관리를
               <br />
               확인 할 수 있어요
             </h2>
-            <p className="mt-4 break-keep text-[1.25rem] font-medium leading-[1.6] text-[#525252] lg:mt-[1.4375rem]">
+            <p className="mt-4 break-keep text-[1.25rem] font-medium leading-[1.6] text-ink lg:mt-5.75">
               매주 정리된 리포트가 카카오톡 알림톡으로 도착하고, 달성률부터
               학습시간까지 한눈에 확인할 수 있어요.
             </p>
@@ -570,7 +564,7 @@ function PhoneReportSection() {
               돌출해 max-w-content 밖으로 넘치는 문제. 시안(1889:7243) 실측 여백 227px은
               372px 폭 폰 기준이라 그대로 쓰면(14.1875rem) 렌더 폭(320px)에는 과도 —
               위 계산값(12.2rem)에 subpixel 버퍼를 더한 12.5rem(200px)으로 수납. */}
-          <div className="relative mx-auto w-full max-w-[20rem] shrink-0 lg:mx-0 lg:mr-[12.5rem] lg:mt-[3.8125rem]">
+          <div className="relative mx-auto w-full max-w-[20rem] shrink-0 lg:mx-0 lg:mr-50 lg:mt-15.25">
             {/* 부유 모션 — src/index.css를 건드릴 수 없어 컴포넌트 로컬 <style>로 정의한다
                 (LearningDiagnosisLanding MacbookMockup 선례). prefers-reduced-motion: no-preference
                 **opt-in**이라 쿼리 미지원 브라우저에서는 정지가 기본값. */}
@@ -616,10 +610,10 @@ function PhoneReportSection() {
                   key={badge.title}
                   className="rounded-2xl bg-white px-5 py-3 text-left shadow-[0_0.5rem_1.5rem_rgba(1,50,98,0.12)]"
                 >
-                  <p className="text-[1rem] font-semibold leading-[1.4] text-[#013262]">
+                  <p className="text-[1rem] font-semibold leading-[1.4] text-primary">
                     {badge.emoji} {badge.title}
                   </p>
-                  <p className="mt-1 break-keep text-[0.8125rem] font-medium leading-[1.5] text-[#013262]/80">
+                  <p className="mt-1 break-keep text-[0.8125rem] font-medium leading-normal text-primary/80">
                     {badge.desc}
                   </p>
                 </div>
@@ -674,12 +668,12 @@ function PhoneReportSection() {
                             animationDelay: badge.rot.delay,
                           }}
                         >
-                          <p className="text-[1.25rem] font-medium leading-[1.4] text-[#013262]">
+                          <p className="text-[1.25rem] font-medium leading-[1.4] text-primary">
                             {badge.emoji} {badge.title}
                           </p>
                           {/* 시안 원본 #808080 → 프로젝트 회색 하한선(#767676 이상 —
                               ManagementSection/StageSection 선례)으로 클램프 */}
-                          <p className="mt-[0.625rem] break-keep text-[1rem] font-normal leading-[1.625] text-[#767676]">
+                          <p className="mt-2.5 break-keep text-[1rem] font-normal leading-relaxed text-[#767676]">
                             {badge.desc}
                           </p>
                         </div>
@@ -699,7 +693,7 @@ function PhoneReportSection() {
 function TestimonialsSection() {
   return (
     <ServiceSection
-      className="lg:pt-[13.375rem]"
+      className="lg:pt-53.5"
       heading="목표관리 서비스를 받아본 학생&학부모 후기"
     >
       {/* 이모지는 데이터에 없으므로 ServiceTestimonials 기본값 '😉' 가 그대로 쓰인다.
@@ -711,7 +705,7 @@ function TestimonialsSection() {
 
 function FaqSection() {
   return (
-    <ServiceSection className="lg:pt-[15.1875rem]" heading="자주 묻는 질문">
+    <ServiceSection className="lg:pt-60.75" heading="자주 묻는 질문">
       <ServiceFaq items={FAQ_ITEMS} />
     </ServiceSection>
   );
@@ -736,7 +730,7 @@ export default function GoalManagement() {
         serviceKey="goal"
         heading="목표관리 이용권 구매하기"
         cta={{ label: "이용권 구매하기", to: "/pricing" }}
-        className="pb-20 sm:pb-24 lg:pb-[6.875rem] lg:pt-[15.1875rem]"
+        className="pb-20 sm:pb-24 lg:pb-27.5 lg:pt-60.75"
       />
     </main>
   );

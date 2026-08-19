@@ -19,7 +19,7 @@ import { fetchLoggedInStudentName } from "./diagnosisStudentName";
  * 자식 라우트(`/1`~`/5`, `/preview`)만 바뀔 때 인스턴스가 유지된다 —
  * answers 가 스텝 간 이동에서 보존되는 근거다(새로고침 시 소실은 1차 사양).
  *
- * <Outlet> 은 gap-[3.75rem] 컬럼의 직속 자식이어야 한다.
+ * <Outlet> 은 gap-perf-inset 컬럼의 직속 자식이어야 한다.
  * 자식이 반환하는 형제(카드 스택 + 하단 배너)가 이 갭을 그대로 받는다.
  */
 export default function SurveyStepShell() {
@@ -89,11 +89,11 @@ export default function SurveyStepShell() {
   return (
     <main className="min-h-screen w-full bg-[#FBFAFA] pt-16">
       {/* 상단 패딩 56px(3.5rem)은 이 section이 소유한다 — <main>은 pt-16으로 헤더만 비운다. */}
-      <section className="w-full pt-14 pb-16 sm:pb-20 lg:pb-[7.5rem]">
+      <section className="w-full pt-14 pb-16 sm:pb-20 lg:pb-30">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           {/* 컬럼 스택 gap 60 — 타이틀 블록 / 카드 스택 / 하단 배너가 형제로 이 갭을 공유한다. */}
-          <div className="mx-auto flex w-full max-w-content flex-col items-start gap-[3.75rem]">
-            <div className="flex w-full max-w-[37.25rem] flex-col items-start gap-5 text-[#525252]">
+          <div className="mx-auto flex w-full max-w-content flex-col items-start gap-perf-inset">
+            <div className="flex w-full max-w-perf-bubble flex-col items-start gap-5 text-ink">
               <h1 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] sm:text-[2.25rem] lg:text-[2.75rem]">
                 학습진단으로
                 <br />

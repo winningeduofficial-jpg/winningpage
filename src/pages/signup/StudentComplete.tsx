@@ -143,7 +143,7 @@ export default function StudentComplete() {
           tone="muted"
           weight="medium"
           onClick={handleGoHome}
-          className="flex h-[3.25rem] w-full items-center justify-center"
+          className="flex h-13 w-full items-center justify-center"
         >
           홈으로 가기
         </TextLinkButton>

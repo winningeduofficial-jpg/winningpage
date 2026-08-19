@@ -256,7 +256,7 @@ export default function TableBlockEditor({
   return (
     <div className="admission-table-editor">
       {!validation.ok && (
-        <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+        <div className="mb-2 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           <p>표 구조 검증 실패 — 저장하기 전에 고쳐야 합니다:</p>
           <ul className="mt-1 list-disc pl-4">
             {withDedupedKeys(validation.errors).map(({ item: error, key }) => (
@@ -310,7 +310,7 @@ export default function TableBlockEditor({
       )}
 
       {xlsxImportErrors.length > 0 && (
-        <div className="mb-2 rounded border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
+        <div className="mb-2 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-xs font-bold text-red-600">
           <p>
             가져오기를 거부했습니다(기존 값 보존) — 아래 문제를 고친 뒤 다시
             시도하세요:
@@ -324,7 +324,7 @@ export default function TableBlockEditor({
       )}
 
       {xlsxImportPreview && (
-        <div className="mb-2 rounded border border-[#2348ff] bg-[#eef2ff] px-3 py-2 text-xs font-bold text-[#2348ff]">
+        <div className="mb-2 rounded-sm border border-[#2348ff] bg-[#eef2ff] px-3 py-2 text-xs font-bold text-[#2348ff]">
           {xlsxImportPreview.unchanged ? (
             <p>가져온 파일이 현재 표와 내용상 동일합니다(변경 없음).</p>
           ) : (
@@ -351,14 +351,14 @@ export default function TableBlockEditor({
             <button
               type="button"
               onClick={applyXlsxImport}
-              className="rounded bg-[#2348ff] px-3 py-1 text-white"
+              className="rounded-sm bg-[#2348ff] px-3 py-1 text-white"
             >
               적용
             </button>
             <button
               type="button"
               onClick={cancelXlsxImport}
-              className="rounded border border-[#2348ff] px-3 py-1"
+              className="rounded-sm border border-[#2348ff] px-3 py-1"
             >
               취소
             </button>
@@ -367,7 +367,7 @@ export default function TableBlockEditor({
       )}
 
       {xlsxOversized.length > 0 && (
-        <div className="mb-2 rounded border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
+        <div className="mb-2 rounded-sm border border-amber-400 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700">
           <p>
             셀 하나가 엑셀 문자 수 한도(32,767자)를 넘어 내보내지 못했습니다 —
             잘라내지 않고 중단합니다. 아래 셀을 줄인 뒤 다시 시도하세요:

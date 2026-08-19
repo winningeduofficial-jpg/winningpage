@@ -27,12 +27,12 @@ function ChoiceButton({ label, onClick, disabled }: ChoiceButtonProps) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-10 w-[16.25rem] items-center justify-between rounded-lg border border-performance-line bg-[#f8f7f5] px-4 text-[0.875rem] font-medium leading-[1.125rem] text-ink transition-colors hover:border-ink-sub disabled:cursor-not-allowed disabled:opacity-60"
+      className="flex h-10 w-65 items-center justify-between rounded-lg border border-performance-line bg-performance-bubble px-4 text-[0.875rem] font-medium leading-4.5 text-ink transition-colors hover:border-ink-sub disabled:cursor-not-allowed disabled:opacity-60"
     >
       <span>{label}</span>
       <span className="flex h-6 w-6 items-center justify-center">
         <ChevronRight
-          className="h-[0.6875rem] w-[0.4375rem] text-[#808080]"
+          className="h-2.75 w-1.75 text-[#808080]"
           aria-hidden="true"
         />
       </span>
@@ -72,10 +72,7 @@ export default function ResumeChoiceCard({
         />
       </div>
       {error && (
-        <p
-          role="alert"
-          className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
-        >
+        <p role="alert" className="text-[0.875rem] leading-4.5 text-[#d01c1c]">
           {error}
         </p>
       )}

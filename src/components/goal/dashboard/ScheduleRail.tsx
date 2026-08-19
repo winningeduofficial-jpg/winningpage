@@ -32,10 +32,7 @@ export default function ScheduleRail({ schedules }: ScheduleRailProps) {
   }
 
   return (
-    <GoalCard
-      tone="blue"
-      className="flex flex-col gap-4 px-[1.25rem] py-[1.25rem]"
-    >
+    <GoalCard tone="blue" className="flex flex-col gap-4 px-5 py-5">
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
           중요일정 체크하기

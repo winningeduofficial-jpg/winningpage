@@ -79,9 +79,9 @@ const TONE_STYLES: Record<string, { backgroundColor: string; color: string }> =
  *   소비처가 0이 되어 함께 지웠다 — 다시 필요해지면 그때 실측해서 새로 넣을 것.
  */
 const SIZE_CLASSES: Record<string, string> = Object.freeze({
-  md: "rounded-[0.5rem] px-[0.5rem] py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem]",
+  md: "rounded-lg px-2 py-[0.196rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.0175rem]",
   "md-fixed":
-    "h-[1.75rem] w-[3rem] rounded-[0.625rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.02em]",
+    "h-7 w-12 rounded-[0.625rem] text-[0.875rem] font-medium leading-[1.4] tracking-[-0.02em]",
 });
 
 /** 모든 size 가 공유하는 골격. 추출 당시 세 소비처의 기존 마크업이 전부 이 조합이었다. */

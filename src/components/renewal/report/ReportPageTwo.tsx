@@ -85,7 +85,7 @@ const ReportPageTwo = ({ data }: ReportPageTwoProps) => {
       {/* WARN-2 — urgency.message 와 동일 사유로 #6b6b6b(대비 ≈5.34:1) 재사용. 이미 있는
           border-t 구분선과 함께 각주 위계를 색·경계선 이중으로 드러낸다. */}
       {notices?.reportBasis && (
-        <p className="fd-mt-report-basis mt-8 border-t border-[#e5e5e5] pt-3 text-sm leading-[1.4] text-[#6b6b6b] lg:mt-6">
+        <p className="fd-mt-report-basis mt-8 border-t border-[#e5e5e5] pt-3 text-sm leading-[1.4] text-ink-sub lg:mt-6">
           {notices.reportBasis}
         </p>
       )}

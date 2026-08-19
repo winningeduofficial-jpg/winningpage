@@ -91,7 +91,7 @@ function MetaFieldInput({
   labelId: string;
 }) {
   const base =
-    "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none";
+    "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-hidden";
 
   if (field.type === "textarea") {
     return (
@@ -100,7 +100,7 @@ function MetaFieldInput({
         value={(value as string | number | undefined) ?? ""}
         onChange={(e) => onChange(field.key, e.target.value)}
         rows={4}
-        className="w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 text-sm outline-none"
+        className="w-full resize-y border border-[#9ca3af] bg-white px-3 py-2 text-sm outline-hidden"
       />
     );
   }

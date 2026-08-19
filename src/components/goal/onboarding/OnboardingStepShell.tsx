@@ -60,24 +60,20 @@ export default function OnboardingStepShell({
   // 페이지 배경(surface-04)은 부모(Onboarding.jsx의 전체 폭 루트 div)가 담당한다 — 이 div는
   // 콘텐츠 폭 제한(max-w-68.75rem) 전용이라 여기 배경을 주면 회색 패널이 페이지 위에 떠 보인다.
   return (
-    <div className="mx-auto w-full max-w-[68.75rem] px-4 pb-[7.5rem]">
-      <div className="mt-[7.5rem]">
+    <div className="mx-auto w-full max-w-275 px-4 pb-30">
+      <div className="mt-30">
         <p className="text-[1rem] font-semibold text-accent">
           목표 관리 프로그램
         </p>
-        <h1 className="mt-[1.25rem] text-[1.75rem] font-bold leading-[1.4] text-ink-strong">
+        <h1 className="mt-5 text-[1.75rem] font-bold leading-[1.4] text-ink-strong">
           {userName ? `${userName} 학생, 안녕하세요!` : "안녕하세요, 학생님!"}
           <br />
           입력하신 정보로 학습량을 계산해 드려요
         </h1>
-        <OnboardingProgress
-          current={current}
-          total={total}
-          className="mt-[1.5rem]"
-        />
+        <OnboardingProgress current={current} total={total} className="mt-6" />
       </div>
 
-      <div className="mt-[2.5rem] flex flex-col gap-[3.75rem]">{children}</div>
+      <div className="mt-10 flex flex-col gap-perf-inset">{children}</div>
     </div>
   );
 }

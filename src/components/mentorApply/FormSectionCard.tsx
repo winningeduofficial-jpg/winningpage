@@ -37,7 +37,7 @@ export default function FormSectionCard({
     <section
       id={id}
       aria-labelledby={headingId}
-      className="rounded-2xl bg-white px-5 pb-8 pt-7 md:px-10 md:pb-[2.625rem] md:pt-[2.375rem]"
+      className="rounded-2xl bg-white px-5 pb-8 pt-7 md:px-10 md:pb-10.5 md:pt-9.5"
     >
       {/* 섹션 헤더 — 타이틀 + gap 8 + 부제 */}
       <div className="flex flex-col gap-2">
@@ -59,7 +59,7 @@ export default function FormSectionCard({
       <div className="mt-5 border-t border-line" aria-hidden="true" />
 
       {/* 필드군 세로 gap 26(1.625rem) — 섹션 1~5 전부 동일 */}
-      <div className="mt-5 flex flex-col gap-[1.625rem]">{children}</div>
+      <div className="mt-5 flex flex-col gap-6.5">{children}</div>
     </section>
   );
 }

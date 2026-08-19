@@ -509,10 +509,10 @@ export default function PaymentSuccess() {
           {/* 파라미터 없는 재방문은 실패가 아니다 — 가상계좌 구매자가 계좌번호를
                 다시 보려고 히스토리로 돌아오는 것도 이 경로로 들어온다. 빨간 에러
                 대신 중립색 안내로 분기하고 재결제 경로 없이 마이페이지로만 보낸다. */}
-          <h1 className="text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink">
+          <h1 className="text-2xl font-semibold leading-7.75 tracking-[-0.02em] text-ink">
             결제 완료 페이지는 다시 열 수 없습니다
           </h1>
-          <p className="mt-3 max-w-[26.25rem] text-sm font-medium leading-relaxed text-ink-sub">
+          <p className="mt-3 max-w-105 text-sm font-medium leading-relaxed text-ink-sub">
             이 화면은 결제 직후에만 볼 수 있습니다. 계좌번호 등 주문 내용은
             마이페이지에서 확인해 주세요.
           </p>
@@ -543,10 +543,10 @@ export default function PaymentSuccess() {
                 이 H1 은 안내 박스가 아니라 타이틀 단계라 같은 성격의 UI 요소도 아니다.
                 원칙(소비처 확산 금지)을 깨면서까지 3번째 소비처를 만들 이유가 없어
                 파라미터 없는 재방문 분기(위)가 이미 쓰는 ink 중립으로 맞춘다. */}
-          <h1 className="text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink">
+          <h1 className="text-2xl font-semibold leading-7.75 tracking-[-0.02em] text-ink">
             결제 확인이 지연되고 있습니다
           </h1>
-          <p className="mt-3 max-w-[26.25rem] text-sm font-medium leading-relaxed text-ink-sub">
+          <p className="mt-3 max-w-105 text-sm font-medium leading-relaxed text-ink-sub">
             결제는 이미 정상 처리됐을 수 있습니다. 아래 연락처로 주문번호와 함께
             문의해 주세요.
           </p>
@@ -586,7 +586,7 @@ export default function PaymentSuccess() {
 
       {status === "done" && (
         /* 시안 확정 실측: 완료 카드 폭 650px 고정(=40.625rem, 1920·1280 동일).
-             카드의 max-w-[40.625rem] 은 시안 확정값이라 건드리지 않고, 바깥
+             카드의 max-w-162.5 은 시안 확정값이라 건드리지 않고, 바깥
              컨테이너를 전역 컨텐츠 영역 규약 `mx-auto w-full max-w-content px-5
              sm:px-8` 로 통일한다(Pricing.jsx:100-119 주석의 근거 참고. 세로
              패딩만 이 화면 고유값으로 남긴다).
@@ -629,14 +629,14 @@ export default function PaymentSuccess() {
                 움직이지 않은 상태에서 완료를 선언하는 것이라 의도적으로 시안을
                 벗어난다(위 isWaitingDeposit 분기 사유 주석 참고). 타입 단계는
                 그대로 재사용한다. */}
-          <h1 className="mt-8 text-2xl font-semibold leading-[1.9375rem] tracking-[-0.02em] text-ink sm:text-[3.125rem] sm:leading-[4.375rem]">
+          <h1 className="mt-8 text-2xl font-semibold leading-7.75 tracking-[-0.02em] text-ink sm:text-[3.125rem] sm:leading-17.5">
             {isWaitingDeposit
               ? "입금이 확인되면 이용이 시작돼요"
               : "주문이 완료됐어요!"}
           </h1>
 
           {isWaitingDeposit && (
-            <div className="mx-auto mt-10 w-full max-w-[40.625rem] rounded-2xl border border-line px-5 py-5 text-left sm:px-8 sm:py-6">
+            <div className="mx-auto mt-10 w-full max-w-162.5 rounded-2xl border border-line px-5 py-5 text-left sm:px-8 sm:py-6">
               {/* 계좌 정보 승격 블록 — 이전에는 아래 명세 카드의 '가상계좌 번호'
                     한 줄(14px, 다른 39개 명세 행과 동일 위계)이었고 복사 버튼이
                     없어 사용자가 은행 앱으로 손으로 옮겨 적어야 했다. 지금 당장
@@ -694,7 +694,7 @@ export default function PaymentSuccess() {
                 간격, 안내 박스와 동일)으로 좁힌다 — mt-10/12 는 H1 바로 아래 첫
                 블록일 때만 쓰는 간격이다. */}
           <div
-            className={`mx-auto w-full max-w-[40.625rem] rounded-2xl border border-line px-5 py-5 text-left sm:px-8 sm:py-6 ${
+            className={`mx-auto w-full max-w-162.5 rounded-2xl border border-line px-5 py-5 text-left sm:px-8 sm:py-6 ${
               isWaitingDeposit ? "mt-6" : "mt-10 sm:mt-12"
             }`}
           >
@@ -744,7 +744,7 @@ export default function PaymentSuccess() {
                 묶는다 — '즉시 이용 성공'(surface-info)과는 색으로 분리되는 게
                 핵심이다. */}
           <div
-            className={`mx-auto mt-6 w-full max-w-[40.625rem] rounded-2xl border px-5 py-5 text-left sm:px-8 ${
+            className={`mx-auto mt-6 w-full max-w-162.5 rounded-2xl border px-5 py-5 text-left sm:px-8 ${
               isWaitingDeposit || grantFailed
                 ? "border-warning bg-surface-warning"
                 : "border-line bg-surface-info"
@@ -804,7 +804,7 @@ export default function PaymentSuccess() {
                     MyPage.jsx:133 에서 /login 으로 튕긴다) 전화 문의만 남긴다.
                     카카오톡은 채널 URL 정본이 없어 링크로 걸지 않았다(문의 줄에
                     아이디로 노출). */}
-          <div className="mx-auto mt-8 w-full max-w-[40.625rem] sm:mt-10">
+          <div className="mx-auto mt-8 w-full max-w-162.5 sm:mt-10">
             {(() => {
               if (canStart)
                 return (
@@ -814,7 +814,7 @@ export default function PaymentSuccess() {
                         key={item.serviceKey}
                         type="button"
                         onClick={(event) => handleStart(event, item)}
-                        className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                        className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-5.5"
                       >
                         {entries.length > 1
                           ? `${item.label} 시작하기`
@@ -827,7 +827,7 @@ export default function PaymentSuccess() {
                 return (
                   <Link
                     to="/login"
-                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-5.5"
                   >
                     로그인하고 이용하기
                   </Link>
@@ -836,7 +836,7 @@ export default function PaymentSuccess() {
                 return (
                   <Link
                     to="/signup"
-                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-5.5"
                   >
                     회원가입하고 이용 등록하기
                   </Link>
@@ -845,7 +845,7 @@ export default function PaymentSuccess() {
                 return (
                   <a
                     href={`tel:${COMPANY.centerTel}`}
-                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                    className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-5.5"
                   >
                     센터로 문의하기
                   </a>
@@ -860,7 +860,7 @@ export default function PaymentSuccess() {
                         : FALLBACK_PATH,
                     )
                   }
-                  className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-[1.375rem]"
+                  className="w-full rounded-xl bg-primary py-4 text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:w-auto sm:px-16 sm:leading-5.5"
                 >
                   {isParentPayer
                     ? "결제 내역 보러가기"

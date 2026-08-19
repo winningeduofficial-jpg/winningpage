@@ -30,7 +30,7 @@ function GoalRateRow({
         aria-hidden="true"
         className={`h-2 w-2 shrink-0 rounded-full ${dotClassName}`}
       />
-      <span className="w-[9.5rem] shrink-0 text-[0.875rem] leading-[1.4] text-ink">
+      <span className="w-38 shrink-0 text-[0.875rem] leading-[1.4] text-ink">
         {label}
       </span>
       <GoalProgressBar
@@ -40,7 +40,7 @@ function GoalRateRow({
         fillClassName={fillClassName}
         className="flex-1"
       />
-      <span className="w-[3rem] shrink-0 text-right text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
+      <span className="w-12 shrink-0 text-right text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
         {value}%
       </span>
     </div>
@@ -128,7 +128,7 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
   return (
     <GoalCard
       tone="neutral"
-      className="flex h-[25.5625rem] flex-col gap-6 px-[2rem] py-[1.875rem]"
+      className="flex h-102.25 flex-col gap-6 px-8 py-7.5"
     >
       <div>
         <h2 className="text-[1.25rem] font-bold leading-[1.4] text-ink-strong">
@@ -139,11 +139,11 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 rounded-xl bg-surface-04 px-[1.875rem] py-[1.5rem]">
+      <div className="flex flex-wrap items-center gap-4 rounded-xl bg-surface-04 px-7.5 py-6">
         <span className="shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
           오늘 순공 시간
         </span>
-        <div className="flex h-[3.125rem] w-[12rem] shrink-0 items-center justify-end gap-1 rounded-lg border border-line bg-white px-4">
+        <div className="flex h-12.5 w-48 shrink-0 items-center justify-end gap-1 rounded-lg border border-line bg-white px-4">
           <input
             type="number"
             inputMode="decimal"
@@ -153,7 +153,7 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
             value={pendingHours}
             onChange={handleHoursChange}
             aria-label="오늘 순공 시간(시간)"
-            className="w-16 border-none bg-transparent text-right text-[1.25rem] font-bold leading-[1.2] text-ink-strong focus:outline-none"
+            className="w-16 border-none bg-transparent text-right text-[1.25rem] font-bold leading-[1.2] text-ink-strong focus:outline-hidden"
           />
           <span className="text-[0.875rem] leading-[1.4] text-ink-sub">
             시간
@@ -175,7 +175,7 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
           type="button"
           disabled={submitting || pendingHours <= 0}
           onClick={handleSubmit}
-          className="ml-auto h-[3.125rem] shrink-0 rounded-lg bg-primary px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="ml-auto h-12.5 shrink-0 rounded-lg bg-primary px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           {submitting ? "저장 중…" : hasRecord ? "기록 수정" : "기록 저장"}
         </button>

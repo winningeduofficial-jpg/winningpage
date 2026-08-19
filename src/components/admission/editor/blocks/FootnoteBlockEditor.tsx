@@ -56,7 +56,7 @@ export default function FootnoteBlockEditor({
               value={item ?? ""}
               onCommit={(text) => updateItem(idx, text)}
               aria-label={`각주 항목 ${idx + 1}`}
-              className="admission-cell-editor-input w-full border border-[#d7d7d7] px-2 py-1 text-xs"
+              className="admission-cell-editor-input w-full border border-line px-2 py-1 text-xs"
             />
             <button
               type="button"
@@ -77,7 +77,7 @@ export default function FootnoteBlockEditor({
         + 각주 항목 추가
       </button>
       {preview && (
-        <p className="mt-2 rounded border border-[#d7d7d7] bg-[#f9fafb] px-2 py-1.5 text-[11px] text-gray-500">
+        <p className="mt-2 rounded-sm border border-line bg-surface-footer px-2 py-1.5 text-[11px] text-gray-500">
           미리보기(실제 렌더는 항목을 공백으로 이어붙인 한 줄): {preview}
         </p>
       )}

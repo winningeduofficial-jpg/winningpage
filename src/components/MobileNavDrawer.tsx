@@ -112,13 +112,13 @@ export default function MobileNavDrawer({
 
   return (
     <div
-      className={`fixed inset-0 z-[60] desktop:hidden ${open ? "" : "pointer-events-none"}`}
+      className={`fixed inset-0 z-60 desktop:hidden ${open ? "" : "pointer-events-none"}`}
       aria-hidden={!open}
     >
       {/* biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 장식 레이어임을 명시했다. Escape는 document keydown 리스너(위)가 처리한다. */}
       <div
         role="presentation"
-        className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 ${
+        className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 ${
           open ? "opacity-100" : "opacity-0"
         }`}
         onClick={onClose}
@@ -130,14 +130,14 @@ export default function MobileNavDrawer({
         role="dialog"
         aria-modal="true"
         aria-label="전체 메뉴"
-        className={`absolute right-0 top-0 flex h-full w-[85vw] max-w-[22rem] flex-col overflow-y-auto bg-white shadow-[-18px_0_45px_rgba(13,27,42,0.14)] transition-transform duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 ${
+        className={`absolute right-0 top-0 flex h-full w-[85vw] max-w-88 flex-col overflow-y-auto bg-white shadow-[-18px_0_45px_rgba(13,27,42,0.14)] transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 ${
           open ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div className="flex items-center justify-between border-b border-[#eeeeee] px-6 py-5">
           {shouldShowLoggedInHeader ? (
             <div className="flex items-center gap-2 whitespace-nowrap">
-              <span className="rounded bg-[#013262] px-2.5 py-1 text-xs text-white">
+              <span className="rounded-sm bg-primary px-2.5 py-1 text-xs text-white">
                 {csatDDay}
               </span>
               <span className="text-sm font-medium text-[#1e293b]">
@@ -145,7 +145,7 @@ export default function MobileNavDrawer({
               </span>
             </div>
           ) : (
-            <span className="text-lg font-semibold text-[#013262]">메뉴</span>
+            <span className="text-lg font-semibold text-primary">메뉴</span>
           )}
 
           <button
@@ -183,7 +183,7 @@ export default function MobileNavDrawer({
                       aria-expanded={isOpen}
                       aria-controls={`mobile-nav-group-${group.title}`}
                       aria-label={`${group.title} 하위 메뉴 ${isOpen ? "닫기" : "열기"}`}
-                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-[#4d4d4d]"
+                      className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-ink-header"
                     >
                       <ChevronDown
                         size={18}
@@ -197,7 +197,7 @@ export default function MobileNavDrawer({
                 {hasDropdown && (
                   <div
                     id={`mobile-nav-group-${group.title}`}
-                    className={`overflow-hidden transition-[grid-template-rows] duration-300 ease-[var(--ease-out-quart)] motion-reduce:transition-none motion-reduce:duration-0 grid ${
+                    className={`overflow-hidden transition-[grid-template-rows] duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 grid ${
                       isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                     }`}
                   >
@@ -207,7 +207,7 @@ export default function MobileNavDrawer({
                           key={`${group.title}-${item.to}-${item.label}`}
                           to={item.to}
                           onClick={onClose}
-                          className="block whitespace-nowrap px-8 py-3 text-base text-[#525252] transition hover:text-[#013262]"
+                          className="block whitespace-nowrap px-8 py-3 text-base text-ink transition hover:text-primary"
                         >
                           {item.label}
                         </Link>
@@ -231,7 +231,7 @@ export default function MobileNavDrawer({
                     key={item.label}
                     to={item.to}
                     onClick={onClose}
-                    className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-[#4d4d4d] transition hover:text-[#013262]"
+                    className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
                   >
                     <Icon size={18} />
                     {item.label}
@@ -243,7 +243,7 @@ export default function MobileNavDrawer({
                 <Link
                   to="/admin"
                   onClick={onClose}
-                  className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-[#4d4d4d] transition hover:text-[#013262]"
+                  className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
                 >
                   <Settings size={18} />
                   관리자
@@ -256,7 +256,7 @@ export default function MobileNavDrawer({
                   onClose();
                   onLogout();
                 }}
-                className="mt-2 flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[#013262] px-6 py-3 text-base font-medium text-[#f5f5f5] transition hover:bg-[#012347]"
+                className="mt-2 flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 <LogOut size={16} />
                 로그아웃
@@ -269,7 +269,7 @@ export default function MobileNavDrawer({
                 onClose();
                 onLogout();
               }}
-              className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-[#d7d7d7] px-6 py-3 text-base font-medium text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+              className="flex w-full items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-line px-6 py-3 text-base font-medium text-[#1e293b] transition hover:border-primary hover:text-primary"
             >
               로그아웃
             </button>
@@ -278,7 +278,7 @@ export default function MobileNavDrawer({
               <Link
                 to="/login"
                 onClick={onClose}
-                className="flex items-center justify-center whitespace-nowrap rounded-lg border border-[#d7d7d7] px-6 py-3 text-base font-medium text-[#1e293b] transition hover:border-[#013262] hover:text-[#013262]"
+                className="flex items-center justify-center whitespace-nowrap rounded-lg border border-line px-6 py-3 text-base font-medium text-[#1e293b] transition hover:border-primary hover:text-primary"
               >
                 로그인
               </Link>
@@ -286,7 +286,7 @@ export default function MobileNavDrawer({
               <Link
                 to="/signup"
                 onClick={onClose}
-                className="flex items-center justify-center whitespace-nowrap rounded-lg bg-[#013262] px-6 py-3 text-base font-medium text-[#f5f5f5] transition hover:bg-[#012347]"
+                className="flex items-center justify-center whitespace-nowrap rounded-lg bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] transition hover:bg-[#012347]"
               >
                 회원가입
               </Link>

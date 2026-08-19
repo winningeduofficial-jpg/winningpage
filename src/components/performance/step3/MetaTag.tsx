@@ -21,7 +21,7 @@ type MetaTagProps = {
 
 export default function MetaTag({ children }: MetaTagProps) {
   return (
-    <span className="inline-flex h-[1.875rem] shrink-0 items-center rounded-[1.25rem] bg-performance-tag px-1.5 text-[0.875rem] font-medium leading-[1.125rem] text-ink">
+    <span className="inline-flex h-7.5 shrink-0 items-center rounded-perf-modal bg-performance-tag px-1.5 text-[0.875rem] font-medium leading-4.5 text-ink">
       {children}
     </span>
   );

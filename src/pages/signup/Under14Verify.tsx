@@ -102,7 +102,7 @@ export default function Under14Verify() {
         line2Color="ink"
       />
 
-      <div className="w-full max-w-[25.25rem]">
+      <div className="w-full max-w-101">
         <InfoCard variant="card">
           <div className="flex items-center gap-3">
             <Check size={20} strokeWidth={2} className="shrink-0 text-line" />
@@ -114,7 +114,7 @@ export default function Under14Verify() {
         </InfoCard>
       </div>
 
-      <div className="flex w-full max-w-[25rem] flex-col gap-3">
+      <div className="flex w-full max-w-100 flex-col gap-3">
         <PrimaryButton
           size="lg"
           onClick={handlePassAuth}

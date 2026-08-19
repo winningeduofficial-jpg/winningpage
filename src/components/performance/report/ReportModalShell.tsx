@@ -77,7 +77,7 @@ export default function ReportModalShell({
   if (!open) return null;
 
   return createPortal(
-    <div className="performance-report-overlay fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="performance-report-overlay fixed inset-0 z-100 flex items-center justify-center p-4">
       <style>{`
         @media print {
           /* 앱 셸과 프리헤더를 통째로 걷는다 — 인쇄되는 것은 이 포털의 리포트뿐이다. */
@@ -145,21 +145,21 @@ export default function ReportModalShell({
         // 무의미해진다(P9 `TopicDetailModal`에서 확립된 규칙).
         // 폭 77.5rem(1240) — `w-full max-w-`로 좁은 뷰포트에서는 오버레이 패딩(p-4)만 남기고
         // 줄어든다. 가로 스크롤은 생기지 않는다.
-        className="performance-report-panel relative flex h-[46.9375rem] max-h-[90vh] w-full max-w-[77.5rem] flex-col overflow-hidden rounded-[1.25rem] bg-white shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
+        className="performance-report-panel relative flex h-187.75 max-h-[90vh] w-full max-w-310 flex-col overflow-hidden rounded-perf-modal bg-white shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
       >
         {/* 헤더 — §5.13/§5.16 실측: 패널 상단에서 2.5rem 내려 시작, 세로 gap 0.25rem,
             아래 구분선까지 1.1875rem. 좌 인셋은 본문과 같은 2.5rem(넓은 뷰포트 기준,
             좁은 화면은 1.25rem으로 줄인다). 구분선 폭이 모달보다 11px 넓은 것은 시안
             오차라(§13 오류 표 「헤더 구분선 폭 1251」) 따르지 않는다. */}
-        <div className="performance-report-head shrink-0 border-b border-performance-line px-[1.25rem] pb-[1.1875rem] pt-10 xl:px-10">
+        <div className="performance-report-head shrink-0 border-b border-performance-line px-5 pb-4.75 pt-10 xl:px-10">
           <h2
             id={titleId}
-            className="break-words text-[1.25rem] font-semibold leading-[1.625rem] text-ink"
+            className="wrap-break-word text-[1.25rem] font-semibold leading-6.5 text-ink"
           >
             {title}
           </h2>
           {subtitle ? (
-            <p className="mt-1 break-words text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+            <p className="mt-1 wrap-break-word text-[1rem] font-medium leading-5.25 text-ink-sub">
               {subtitle}
             </p>
           ) : null}
@@ -185,9 +185,9 @@ export default function ReportModalShell({
           // biome-ignore lint/a11y/noNoninteractiveTabindex: 위 주석 참고 — APG Scrollable Regions 패턴.
           tabIndex={0}
           aria-label={scrollLabel}
-          className="performance-report-scroll min-h-0 flex-1 overflow-y-auto px-[1.25rem] py-10 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent xl:pl-10 xl:pr-[4.5rem]"
+          className="performance-report-scroll min-h-0 flex-1 overflow-y-auto px-5 py-10 focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent xl:pl-10 xl:pr-18"
         >
-          <div className="max-w-[70.5rem]">{children}</div>
+          <div className="max-w-282">{children}</div>
         </section>
 
         {/* 푸터 — 높이 5rem, 흰 배경, 버튼 우측 정렬 그룹 33.25rem(16.25 + 0.75 + 16.25) ×
@@ -196,7 +196,7 @@ export default function ReportModalShell({
             좌우 인셋은 헤더·본문과 같은 2.5rem으로 근사한다(푸터는 스크롤바가 없어 정확한
             우측 인셋 실측치가 명세에 없다). */}
         {footer ? (
-          <div className="performance-print-hide flex h-20 shrink-0 items-center justify-end gap-3 rounded-b-[1.25rem] border-t border-performance-line bg-white px-[1.25rem] xl:px-10">
+          <div className="performance-print-hide flex h-20 shrink-0 items-center justify-end gap-3 rounded-b-perf-modal border-t border-performance-line bg-white px-5 xl:px-10">
             {footer}
           </div>
         ) : null}
@@ -219,7 +219,7 @@ export default function ReportModalShell({
  */
 export const REPORT_MODAL_FOOTER_BUTTON = {
   secondary:
-    "flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl border border-performance-line px-2 text-center text-[1rem] font-medium leading-[1.25rem] text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100",
+    "flex h-13 w-65 min-w-0 max-w-full items-center justify-center rounded-xl border border-performance-line px-2 text-center text-[1rem] font-medium leading-5 text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100",
   primary:
-    "flex h-[3.25rem] w-[16.25rem] min-w-0 max-w-full items-center justify-center rounded-xl bg-primary px-2 text-center text-[1rem] font-semibold leading-[1.25rem] text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100",
+    "flex h-13 w-65 min-w-0 max-w-full items-center justify-center rounded-xl bg-primary px-2 text-center text-[1rem] font-semibold leading-5 text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100",
 };

@@ -168,7 +168,7 @@ export default function Events() {
             <div className="border-b border-[#e5e5e5] px-4 py-7">
               <div className="mb-3 flex items-center gap-2">
                 {selectedNotice.is_pinned && (
-                  <span className="rounded bg-[#0D1B2A] px-2 py-1 text-xs font-black text-white">
+                  <span className="rounded-sm bg-[#0D1B2A] px-2 py-1 text-xs font-black text-white">
                     공지
                   </span>
                 )}

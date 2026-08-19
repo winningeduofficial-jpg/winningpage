@@ -48,7 +48,7 @@ import {
 const PUBLIC_SHEET_CLASS =
   "admission-modal-sheet flex max-h-[85vh] w-full flex-col overflow-hidden bg-white md:w-[min(78vw,70rem)]";
 const PUBLIC_BODY_CLASS =
-  "admission-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-[#525252] md:px-12";
+  "admission-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 text-sm font-semibold leading-7 text-ink md:px-12";
 const PUBLIC_FOOTER_CLASS =
   "border-t border-[#e5e7eb] bg-white px-6 py-4 text-center md:px-12 md:pb-8 md:pt-4";
 
@@ -203,7 +203,7 @@ export default function AdmissionModalShell({
     // biome-ignore lint/a11y/noStaticElementInteractions: APG 모달 백드롭 패턴 — role="presentation"으로 장식 레이어임을 명시했다. Escape는 위 document keydown 리스너가 처리한다.
     <div
       role="presentation"
-      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/30 px-4"
+      className="fixed inset-0 z-10000 flex items-center justify-center bg-black/30 px-4"
       onClick={requestClose}
     >
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: onClick은 배경 클릭이 대화상자 안까지 닫지 않도록 막는 stopPropagation 가드일 뿐, 키보드로 도달할 사용자 동작이 없다. */}
@@ -221,13 +221,13 @@ export default function AdmissionModalShell({
             type="button"
             onClick={requestClose}
             aria-label="닫기"
-            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#e9f4ff] hover:text-[#013262] md:right-6 md:top-6"
+            className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#e9f4ff] hover:text-primary md:right-6 md:top-6"
           >
             <X className="h-5 w-5" />
           </button>
           <p
             id={`${idPrefix}-university-name`}
-            className="text-center text-base font-medium tracking-[-0.02em] text-[#013262]"
+            className="text-center text-base font-medium tracking-[-0.02em] text-primary"
           >
             {eyebrow}
           </p>

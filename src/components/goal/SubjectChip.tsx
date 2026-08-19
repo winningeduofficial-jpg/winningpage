@@ -8,9 +8,9 @@
 // 않는 죽은 코드였다(WeekdayPlanBoard.jsx는 자체 WEEKDAY_BG_CLASS를 쓴다) — 코드 검수 NIT §6로
 // 제거했다.
 const SIZE_CLASS: Record<string, string> = {
-  sm: "h-[2rem] px-2.5 text-[0.75rem]", // 32px
-  md: "h-[2.4375rem] px-3 text-[0.8125rem]", // 39px
-  lg: "h-[3.25rem] px-4 text-[0.9375rem]", // 52px
+  sm: "h-8 px-2.5 text-[0.75rem]", // 32px
+  md: "h-9.75 px-3 text-[0.8125rem]", // 39px
+  lg: "h-13 px-4 text-[0.9375rem]", // 52px
 };
 
 const SUBJECT_BG_CLASS: Record<string, string> = {

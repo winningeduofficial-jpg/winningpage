@@ -124,7 +124,7 @@ export default function GradeInputGrid({
   );
 
   return (
-    <div className="flex w-full max-w-[62rem] flex-col gap-5">
+    <div className="flex w-full max-w-248 flex-col gap-5">
       {visibleGroups.map((group) => {
         const fieldCount = group.fields.length;
         // 브레이크포인트별로 부족한 칸 수. 그 중 최댓값만큼만 플레이스홀더 DOM을 만들고,
@@ -138,7 +138,7 @@ export default function GradeInputGrid({
         return (
           <div key={group.key} className="flex w-full flex-col gap-2">
             {group.label && (
-              <p className="text-base font-medium leading-5 text-[#525252]">
+              <p className="text-base font-medium leading-5 text-ink">
                 {group.label}
               </p>
             )}
@@ -180,10 +180,10 @@ export default function GradeInputGrid({
                       }
                       aria-invalid={outOfRange || undefined}
                       aria-required={field.required || undefined}
-                      className={`h-[4.25rem] w-full min-w-0 rounded-lg border bg-white text-center text-xl font-normal leading-5 text-[#181D24] transition-[border-color,box-shadow] duration-150 placeholder:text-[#D7D7D7] focus:outline focus:outline-2 focus:outline-accent/30 ${
+                      className={`h-17 w-full min-w-0 rounded-lg border bg-white text-center text-xl font-normal leading-5 text-ink-title transition-[border-color,box-shadow] duration-150 placeholder:text-line focus:outline-solid focus:outline-2 focus:outline-accent/30 ${
                         outOfRange
                           ? "border-[#D92D20]"
-                          : "border-[#D7D7D7] hover:border-[#B0B0B0] focus:border-[#013262]"
+                          : "border-line hover:border-[#B0B0B0] focus:border-primary"
                       }`}
                     />
                   </div>
@@ -206,7 +206,7 @@ export default function GradeInputGrid({
                     {...visibility}
                   >
                     <div className="h-5" />
-                    <div className="h-[4.25rem] w-full min-w-0 rounded-lg border border-[#EDEDED] bg-[#F5F5F5]" />
+                    <div className="h-17 w-full min-w-0 rounded-lg border border-[#EDEDED] bg-[#F5F5F5]" />
                   </div>
                 );
               })}

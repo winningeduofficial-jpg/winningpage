@@ -171,9 +171,9 @@ export default function WeeklyPlan() {
         actions={headerActions}
         subcopy="저장한 계획은 대시보드의 요일 학습 계획에 자동 반영됩니다."
       />
-      <div className="max-w-goal-content px-[3rem] pb-24">
+      <div className="max-w-goal-content px-12 pb-24">
         {result === null && (
-          <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
+          <GoalCard tone="neutral" className="px-8 py-7">
             <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
               주간 계획을 불러오는 중입니다…
             </p>
@@ -184,7 +184,7 @@ export default function WeeklyPlan() {
             이미 이 라우트를 3단계 게이트로 감싸므로(Dashboard.jsx §154 주석과 동일 전제) 정상 경로에선
             도달하지 않는 방어적 분기다. 크래시 대신 안내만 하고 게이트가 다음 진입 때 재판정하게 둔다. */}
         {result && result.kind !== "success" && (
-          <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
+          <GoalCard tone="neutral" className="px-8 py-7">
             <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
               주간 계획을 불러오지 못했습니다. 새로고침해 주세요.
             </p>

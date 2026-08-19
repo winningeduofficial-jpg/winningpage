@@ -11,7 +11,7 @@
 // (c) **원 간격 균등 정규화** — 시안 실측 간격은 268 / 296 / 264 / 276 으로 불균등하지만
 //     라벨 길이에 맞춘 수작업 드리프트로 판단해 4등분(0 / 25 / 50 / 75 / 100%)으로 정규화했다
 //     (확인 항목 ⑱). 스텝도 자연히 각 구간 중점(12.5 / 37.5 / 62.5 / 87.5%)에 온다.
-//     시안 비율을 그대로 살려야 한다면 grid-cols-4 를 flex-grow 268:296:264:276 으로 바꾸면 된다.
+//     시안 비율을 그대로 살려야 한다면 grid-cols-4 를 grow 268:296:264:276 으로 바꾸면 된다.
 //
 // (d) Step1 프레임만 `align-items: flex-start` 라 시안에서 2px 좌측으로 밀려 있다 —
 //     시안 실수로 보고 4개 모두 center 로 통일했다(확인 항목 ⑲).
@@ -96,7 +96,7 @@ export default function SelectionTimeline() {
       <h2 className={MENTOR_HEADING_MD}>{SELECTION_SECTION.title}</h2>
 
       {/* 헤딩 ↔ 타임라인 gap 70(4.375rem). 좁은 폭은 저장소 관례(mt-10 / sm:mt-12)를 따른다. */}
-      <div className="mt-10 sm:mt-12 wide:mt-[4.375rem]">
+      <div className="mt-10 sm:mt-12 wide:mt-17.5">
         {/* ------------------------------------------------------------------
             데스크톱(wide 이상) — 수평 타임라인.
             그룹 높이 116 = 타이틀 28(20×1.4) + gap 48 + 설명 40(14×1.4×2줄)이라 별도 h 고정 없이
@@ -108,12 +108,12 @@ export default function SelectionTimeline() {
               두께는 헤어라인이라 rem 환산하지 않고 1px(h-px)로 둔다. */}
           <div
             aria-hidden="true"
-            className="absolute left-2 right-2 top-[3.125rem] h-px bg-gradient-to-r from-[#D2D2D2] to-[#AFAFAF]"
+            className="absolute left-2 right-2 top-12.5 h-px bg-linear-to-r from-[#D2D2D2] to-[#AFAFAF]"
           />
           {/* 도트 5개 16×16, center y=50 → top 42(2.625rem). */}
           <div
             aria-hidden="true"
-            className="absolute left-2 right-2 top-[2.625rem] h-4"
+            className="absolute left-2 right-2 top-10.5 h-4"
           >
             {DOT_COLOR_CLASSES.map((colorClass, index) => (
               <span
@@ -142,7 +142,7 @@ export default function SelectionTimeline() {
               1px 헤어라인이라 w-px 유지. */}
           <div
             aria-hidden="true"
-            className="absolute bottom-2 left-2 top-[0.875rem] w-px -translate-x-1/2 bg-gradient-to-b from-[#D2D2D2] to-[#AFAFAF]"
+            className="absolute bottom-2 left-2 top-3.5 w-px -translate-x-1/2 bg-linear-to-b from-[#D2D2D2] to-[#AFAFAF]"
           />
 
           {/* biome-ignore lint/a11y/noRedundantRoles: Tailwind list-none이 Safari/VoiceOver의 list role을 지워서 role="list"로 명시 복구한다. */}
@@ -152,7 +152,7 @@ export default function SelectionTimeline() {
                 {/* 도트 중심(top 0.375rem + 반지름 0.5rem = 0.875rem)을 타이틀 첫 줄 중심(28÷2 = 14px)에 맞춘다. */}
                 <span
                   aria-hidden="true"
-                  className={`absolute left-0 top-[0.375rem] h-4 w-4 rounded-full ${DOT_COLOR_CLASSES[index]}`}
+                  className={`absolute left-0 top-1.5 h-4 w-4 rounded-full ${DOT_COLOR_CLASSES[index]}`}
                 />
                 <StepText step={step} />
               </li>

@@ -311,7 +311,7 @@ const GRANT_PAGE_LIMIT = 200;
 const USER_SEARCH_LIMIT = 20;
 
 const INPUT_CLASS =
-  "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-none disabled:bg-gray-100";
+  "h-9 w-full border border-[#9ca3af] bg-white px-3 text-sm outline-hidden disabled:bg-gray-100";
 
 function moneyText(value: number | string | null | undefined) {
   return `${Number(value || 0).toLocaleString()}원`;
@@ -605,7 +605,7 @@ function NullableField({
           disabled={disabled}
           onChange={() => onChange({ [`${fieldKey}_mode`]: "value" })}
         />
-        <span className="w-[10rem]">
+        <span className="w-40">
           <input
             type={type}
             min={type === "number" ? 1 : undefined}
@@ -1094,7 +1094,7 @@ export default function CouponAdmin() {
   if (view === "list") {
     return (
       <>
-        <div className="mb-6 bg-white px-6 py-5 shadow">
+        <div className="mb-6 bg-white px-6 py-5 shadow-sm">
           <div className="flex items-center justify-between gap-4">
             <button
               type="button"
@@ -1121,17 +1121,17 @@ export default function CouponAdmin() {
         </div>
 
         {loading ? (
-          <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+          <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
             데이터를 불러오는 중입니다.
           </div>
         ) : (
-          <div className="bg-white p-6 shadow">
+          <div className="bg-white p-6 shadow-sm">
             <div className="mb-4 text-sm font-bold text-gray-500">
               전체 <span className="text-blue-600">{coupons.length}</span>건
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[71.25rem] border-collapse text-sm">
+              <table className="w-full min-w-285 border-collapse text-sm">
                 <thead>
                   <tr className="border-y border-gray-300">
                     <th className="w-14 px-3 py-3 text-left">번호</th>
@@ -1313,7 +1313,7 @@ export default function CouponAdmin() {
   if (view === "history") {
     return (
       <>
-        <div className="mb-6 bg-white px-6 py-5 shadow">
+        <div className="mb-6 bg-white px-6 py-5 shadow-sm">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -1348,17 +1348,17 @@ export default function CouponAdmin() {
         </div>
 
         {historyLoading ? (
-          <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+          <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
             데이터를 불러오는 중입니다.
           </div>
         ) : (
-          <div className="bg-white p-6 shadow">
+          <div className="bg-white p-6 shadow-sm">
             <div className="mb-4 text-sm font-bold text-gray-500">
               전체 <span className="text-blue-600">{historyRows.length}</span>건
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[62.5rem] border-collapse text-sm">
+              <table className="w-full min-w-250 border-collapse text-sm">
                 <thead>
                   <tr className="border-y border-gray-300">
                     <th className="w-14 px-3 py-3 text-left">번호</th>
@@ -1454,7 +1454,7 @@ export default function CouponAdmin() {
                                   onChange={(e) =>
                                     setVoidReason(e.target.value)
                                   }
-                                  className={`${INPUT_CLASS} w-[12rem]`}
+                                  className={`${INPUT_CLASS} w-48`}
                                 />
                                 <button
                                   type="button"
@@ -1508,7 +1508,7 @@ export default function CouponAdmin() {
   if (view === "grants") {
     return (
       <>
-        <div className="mb-6 bg-white px-6 py-5 shadow">
+        <div className="mb-6 bg-white px-6 py-5 shadow-sm">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -1551,7 +1551,7 @@ export default function CouponAdmin() {
 
         {/* 개별 발급 — 사용자를 찾아서 준다. 이메일·이름 검색은 profiles 를
             직접 조회한다(profiles_admin_select_all 정책). 발급 자체는 RPC 다. */}
-        <div className="mb-6 bg-white p-6 shadow">
+        <div className="mb-6 bg-white p-6 shadow-sm">
           <div className="mb-3 text-sm font-black">
             <FieldName k="email" />
           </div>
@@ -1639,17 +1639,17 @@ export default function CouponAdmin() {
         </div>
 
         {grantLoading ? (
-          <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+          <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
             데이터를 불러오는 중입니다.
           </div>
         ) : (
-          <div className="bg-white p-6 shadow">
+          <div className="bg-white p-6 shadow-sm">
             <div className="mb-4 text-sm font-bold text-gray-500">
               전체 <span className="text-blue-600">{grantRows.length}</span>건
             </div>
 
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[62.5rem] border-collapse text-sm">
+              <table className="w-full min-w-250 border-collapse text-sm">
                 <thead>
                   <tr className="border-y border-gray-300">
                     <th className="w-14 px-3 py-3 text-left">번호</th>
@@ -1732,7 +1732,7 @@ export default function CouponAdmin() {
                                   onChange={(e) =>
                                     setRevokeReason(e.target.value)
                                   }
-                                  className={`${INPUT_CLASS} w-[12rem]`}
+                                  className={`${INPUT_CLASS} w-48`}
                                 />
                                 <button
                                   type="button"
@@ -1792,7 +1792,7 @@ export default function CouponAdmin() {
         {TITLE} {view === "create" ? "등록" : "수정"}
       </h1>
 
-      <div className="bg-white shadow">
+      <div className="bg-white shadow-sm">
         {editingRow && (
           <div className="grid grid-cols-[13.75rem_1fr] border-b border-[#edf0f4]">
             <div className="bg-[#fafafa] px-5 py-3 text-sm font-black">
@@ -1956,7 +1956,7 @@ export default function CouponAdmin() {
 
               {(key === "discount_amount" || key === "min_amount") && (
                 <div className="flex items-center gap-3">
-                  <span className="w-[10rem]">
+                  <span className="w-40">
                     <input
                       type="number"
                       min={key === "discount_amount" ? 1 : 0}

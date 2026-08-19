@@ -472,7 +472,7 @@ export default function LearningDiagnosisAdmin() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white px-6 py-5 shadow">
+      <div className="bg-white px-6 py-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-xl font-black">학습진단 관리</h1>
@@ -490,12 +490,12 @@ export default function LearningDiagnosisAdmin() {
       </div>
 
       {loading ? (
-        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow">
+        <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
           학습진단 데이터를 불러오는 중입니다.
         </div>
       ) : (
         <>
-          <section className="bg-white p-6 shadow">
+          <section className="bg-white p-6 shadow-sm">
             <div className="mb-5 flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-black">추천 프로그램 관리</h2>
@@ -505,7 +505,7 @@ export default function LearningDiagnosisAdmin() {
               </div>
             </div>
 
-            <div className="mb-6 rounded border border-[#B88737]/30 bg-[#FFF8E8] p-4">
+            <div className="mb-6 rounded-sm border border-[#B88737]/30 bg-[#FFF8E8] p-4">
               <h3 className="mb-3 text-sm font-black text-[#7A4A12]">
                 새 추천 프로그램 추가
               </h3>
@@ -704,7 +704,7 @@ export default function LearningDiagnosisAdmin() {
             </div>
           </section>
 
-          <section className="bg-white p-6 shadow">
+          <section className="bg-white p-6 shadow-sm">
             <div className="mb-5">
               <h2 className="text-lg font-black">질문·답변 관리</h2>
               <p className="mt-1 text-xs font-bold text-gray-500">
@@ -713,7 +713,7 @@ export default function LearningDiagnosisAdmin() {
               </p>
             </div>
 
-            <div className="mb-6 rounded border border-[#B88737]/30 bg-[#FFF8E8] p-4">
+            <div className="mb-6 rounded-sm border border-[#B88737]/30 bg-[#FFF8E8] p-4">
               <h3 className="mb-3 text-sm font-black text-[#7A4A12]">
                 새 질문 추가
               </h3>
@@ -928,7 +928,7 @@ export default function LearningDiagnosisAdmin() {
                             {questionOptions.map((option) => (
                               <div
                                 key={option.id}
-                                className="rounded border border-gray-200 p-4"
+                                className="rounded-sm border border-gray-200 p-4"
                               >
                                 <div className="grid gap-3 lg:grid-cols-[1fr_120px]">
                                   <Field label="답변 내용">
@@ -998,7 +998,7 @@ export default function LearningDiagnosisAdmin() {
                             ))}
 
                             {questionOptions.length === 0 && (
-                              <div className="rounded border border-dashed border-gray-300 p-6 text-center text-sm font-bold text-gray-500">
+                              <div className="rounded-sm border border-dashed border-gray-300 p-6 text-center text-sm font-bold text-gray-500">
                                 아직 등록된 답변이 없습니다. 답변 추가를 눌러
                                 선택지를 만드세요.
                               </div>

@@ -36,17 +36,17 @@ export default function MajorCategorySection() {
       headingClassName={MENTOR_HEADING_LG}
       // 상하 패딩 150/150(9.375rem)은 wide 이상에서만. 그 아래는 명세 § 반응형 전략 표대로
       // md~wide 100(6.25rem) / <md 64~80(ServiceSection 기본 pt-16 sm:pt-20)으로 낮춘다.
-      className="pb-16 sm:pb-20 md:pt-[6.25rem] md:pb-[6.25rem] wide:pt-[9.375rem] wide:pb-[9.375rem]"
+      className="pb-16 sm:pb-20 md:pt-25 md:pb-25 wide:pt-37.5 wide:pb-37.5"
     >
       {/* 헤더블록 ↔ 그리드 gap 32(2rem), 카드 간 gap 14(0.875rem, 가로·세로 동일) */}
-      <ul className="mt-8 grid grid-cols-1 gap-[0.875rem] sm:grid-cols-2 wide:grid-cols-4">
+      <ul className="mt-8 grid grid-cols-1 gap-3.5 sm:grid-cols-2 wide:grid-cols-4">
         {MAJOR_CATEGORIES.map((category) => (
           <li key={category.key}>
             {/* radius 8.235px → 0.5rem(rounded-lg)로 정규화(명세 확인 항목 ⑨).
                 border/shadow 없음. 패딩은 시안 실측 좌 30 / 상 28 / 우 20 / 하 20 —
                 일러스트를 절대배치하지 않고 mt-auto self-end 로 흘려 보내므로
                 좁은 폭에서 텍스트와 겹치지 않는다. */}
-            <article className="flex h-full min-h-[10.5rem] flex-col rounded-lg bg-white px-5 pb-5 pt-6 sm:pl-[1.875rem] sm:pt-[1.75rem] wide:min-h-[12.1875rem]">
+            <article className="flex h-full min-h-42 flex-col rounded-lg bg-white px-5 pb-5 pt-6 sm:pl-7.5 sm:pt-7 wide:min-h-48.75">
               {/* 타이틀 ↔ 서브 gap 3.993px ≈ 4px(0.25rem) */}
               <div className="flex flex-col gap-1">
                 {/* 카드 타이틀 20 SemiBold — 시안 #181D24 = ink.title.
@@ -70,7 +70,7 @@ export default function MajorCategorySection() {
                 width={112}
                 height={93}
                 loading="lazy"
-                className="mt-auto h-[4.5625rem] w-[5.5rem] self-end wide:h-[5.8125rem] wide:w-[7rem]"
+                className="mt-auto h-18.25 w-22 self-end wide:h-23.25 wide:w-28"
               />
             </article>
           </li>

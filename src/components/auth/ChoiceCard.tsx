@@ -8,8 +8,8 @@
 import type { ReactNode } from "react";
 
 const SIZE_CLASSES: Record<string, string> = {
-  lg: "min-h-[11rem] w-full md:min-h-0 md:h-[18.5rem] md:w-[18.5rem]",
-  md: "min-h-[10rem] w-full md:min-h-0 md:h-[17.5rem] md:w-[17.5rem]",
+  lg: "min-h-44 w-full md:min-h-0 md:h-74 md:w-74",
+  md: "min-h-40 w-full md:min-h-0 md:h-70 md:w-70",
 };
 
 type ChoiceCardProps = {

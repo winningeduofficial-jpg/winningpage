@@ -12,12 +12,12 @@ const InsightColumns = ({ strengths, improvements }: InsightColumnsProps) => {
   return (
     // fd-insight-columns — 인쇄 훅(BLOCK 수정). report-print.css 가 기존 lg: 리터럴과
     // 동일한 값으로 강제한다.
-    <div className="fd-insight-columns mt-10 grid grid-cols-1 gap-8 lg:mt-[4.5rem] lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4 lg:gap-y-0">
+    <div className="fd-insight-columns mt-10 grid grid-cols-1 gap-8 lg:mt-18 lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4 lg:gap-y-0">
       <div>
-        <h3 className="text-[1.25rem] font-semibold leading-[1.25rem] text-[#0b84fd]">
+        <h3 className="text-[1.25rem] font-semibold leading-5 text-accent">
           잘하고 있는 부분
         </h3>
-        <ul className="mt-[1.375rem] flex flex-col gap-3 list-disc ps-[1.78125rem]">
+        <ul className="mt-5.5 flex flex-col gap-3 list-disc ps-[1.78125rem]">
           {withDedupedKeys(strengths).map(({ item, key }) => (
             <li
               key={key}
@@ -30,10 +30,10 @@ const InsightColumns = ({ strengths, improvements }: InsightColumnsProps) => {
       </div>
 
       <div>
-        <h3 className="text-[1.25rem] font-semibold leading-[1.25rem] text-[#0b84fd]">
+        <h3 className="text-[1.25rem] font-semibold leading-5 text-accent">
           보완할 부분
         </h3>
-        <ul className="mt-[1.375rem] flex flex-col gap-3 list-disc ps-[1.78125rem]">
+        <ul className="mt-5.5 flex flex-col gap-3 list-disc ps-[1.78125rem]">
           {withDedupedKeys(improvements).map(({ item, key }) => (
             <li
               key={key}

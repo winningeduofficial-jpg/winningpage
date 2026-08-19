@@ -112,9 +112,9 @@ export default function PaymentDetailModal({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
-      className="w-[33.75rem]"
+      className="w-135"
     >
-      <div className="flex-1 overflow-y-auto px-[2.1875rem] pt-[2.5rem]">
+      <div className="flex-1 overflow-y-auto px-8.75 pt-10">
         <h2
           id={titleId}
           className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong"
@@ -122,11 +122,11 @@ export default function PaymentDetailModal({
           결제 상세 내역
         </h2>
 
-        <dl className="mt-[1.875rem] flex flex-col pb-[1.875rem]">
+        <dl className="mt-7.5 flex flex-col pb-7.5">
           {rows.map((row) => (
             <div
               key={row.label}
-              className="flex items-center justify-between gap-4 border-b border-line/60 py-[0.9375rem]"
+              className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
             >
               <dt className="shrink-0 text-[0.875rem] text-ink-sub">
                 {row.label}
@@ -142,11 +142,11 @@ export default function PaymentDetailModal({
         </dl>
       </div>
 
-      <div className="flex justify-center gap-[0.75rem] border-t border-[#F0F0F0] px-[2.1875rem] py-[1.5625rem]">
+      <div className="flex justify-center gap-3 border-t border-[#F0F0F0] px-8.75 py-6.25">
         <button
           type="button"
           onClick={onClose}
-          className="h-[2.5rem] w-[8.25rem] rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
+          className="h-10 w-33 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
         >
           닫기
         </button>
@@ -154,7 +154,7 @@ export default function PaymentDetailModal({
           <button
             type="button"
             onClick={onRequestRefund}
-            className="h-[2.5rem] w-[8.25rem] rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-error transition-colors hover:bg-surface-04"
+            className="h-10 w-33 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-error transition-colors hover:bg-surface-04"
           >
             환불 신청
           </button>
@@ -163,7 +163,7 @@ export default function PaymentDetailModal({
           <button
             type="button"
             onClick={onViewReceipt}
-            className="h-[2.5rem] w-[8.25rem] rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
+            className="h-10 w-33 rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
           >
             영수증 보기
           </button>

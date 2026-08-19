@@ -198,7 +198,7 @@ export default function AddScheduleFullModal({
       submitDisabled={!canSubmit}
     >
       <div>
-        <p className="mb-[1.6875rem] text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+        <p className="mb-6.75 text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
           일정 종류<span className="ml-1 text-error">*</span>
         </p>
         <SegmentedChipGroup
@@ -220,7 +220,7 @@ export default function AddScheduleFullModal({
 
       {/* 시안(#40)은 마감일이 다른 필드와 짝을 이루지 않는 168px 단독 행이다 — #19(마감일+일정
           2열)와의 차이. */}
-      <div className="w-[10.5rem]">
+      <div className="w-42">
         <ModalField
           label="마감일"
           variant="date"
@@ -235,7 +235,7 @@ export default function AddScheduleFullModal({
       <div>
         <label
           htmlFor="add-schedule-memo"
-          className="mb-[1.6875rem] block text-[0.875rem] font-semibold leading-[1.4] text-ink-strong"
+          className="mb-6.75 block text-[0.875rem] font-semibold leading-[1.4] text-ink-strong"
         >
           메모 (선택)
         </label>
@@ -245,7 +245,7 @@ export default function AddScheduleFullModal({
           onChange={(event) => setMemo(event.target.value)}
           placeholder="예) 발표 자료 포함, 조사 범위 등 메모를 남겨두세요"
           rows={4}
-          className="h-[6.3125rem] w-full resize-none rounded-lg border border-[#E3E3E3] bg-white px-[0.875rem] py-[0.625rem] text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-none focus:ring-1 focus:ring-accent"
+          className="h-25.25 w-full resize-none rounded-lg border border-[#E3E3E3] bg-white px-3.5 py-2.5 text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent"
         />
       </div>
 

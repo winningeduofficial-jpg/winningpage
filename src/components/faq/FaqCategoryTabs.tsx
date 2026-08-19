@@ -55,7 +55,7 @@ export default function FaqCategoryTabs({
         // 자동 승격된다(활성 탭 border-b-[0.1875rem] + -mb-px 조합이 세로로 살짝
         // 넘치는 값과 만나 실제 스크롤바로 나타남). 가로 스크롤(overflow-x-auto)은
         // 유지하되 세로는 explicit하게 hidden으로 박아 auto 승격을 막는다.
-        className="flex items-center overflow-x-auto overflow-y-hidden border-b border-[#D7D7D7]"
+        className="flex items-center overflow-x-auto overflow-y-hidden border-b border-line"
       >
         {tabs.map((tab, index) => {
           const isActive = tab === active;
@@ -90,9 +90,9 @@ export default function FaqCategoryTabs({
               // 겹쳐 그렸으나, tablist에 overflow-y-hidden을 걸면 그 겹친 1px이
               // 잘려 활성 인디케이터가 3px→2px로 얇아 보였다. margin 제거로 border-b
               // 3px 전체가 클리핑 없이 온전히 보이게 한다.)
-              className={`shrink-0 whitespace-nowrap border-b-[0.1875rem] p-4 text-base leading-[1.3] tracking-[-0.02em] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 sm:px-3 sm:py-[1.375rem] sm:text-lg ${
+              className={`shrink-0 whitespace-nowrap border-b-[0.1875rem] p-4 text-base leading-[1.3] tracking-[-0.02em] transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 sm:px-3 sm:py-5.5 sm:text-lg ${
                 isActive
-                  ? "border-[#013262] font-bold text-[#013262]"
+                  ? "border-primary font-bold text-primary"
                   : "border-transparent font-normal text-[#A3A3A3]"
               }`}
             >
@@ -106,7 +106,7 @@ export default function FaqCategoryTabs({
           하단 1px(border-b 두께)은 마스크 밖에 남겨 tablist 구분선이 끊겨 보이지 않게 한다. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-0 top-0 bottom-[0.0625rem] w-10 bg-gradient-to-l from-white to-transparent"
+        className="pointer-events-none absolute right-0 top-0 bottom-0.25 w-10 bg-linear-to-l from-white to-transparent"
       />
     </div>
   );

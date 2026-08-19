@@ -89,7 +89,7 @@ export default function ReportPageOne({ data }: ReportPageOneProps) {
         모바일은 겹칠 폭이 없으므로 relative/absolute 를 끄고 세로로 쌓는다(헤드라인 → 레이더).
       */}
       <div className="relative">
-        <p className="fd-headline mt-6 w-full text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02rem] text-[#525252] lg:mt-[2.875rem] lg:w-[35.875rem] lg:text-[2rem] lg:tracking-[-0.04rem]">
+        <p className="fd-headline mt-6 w-full text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02rem] text-ink lg:mt-11.5 lg:w-143.5 lg:text-[2rem] lg:tracking-[-0.04rem]">
           {headlineLines.map((line, index) => (
             <span key={line}>
               {line}
@@ -102,11 +102,11 @@ export default function ReportPageOne({ data }: ReportPageOneProps) {
           F-03 배선(2026-08-13) — TYPE_COPY.detail(유형별 상세 설명 1문단)을 헤드라인 바로 아래에
           화면 전용(fd-screen-only)으로 싣는다. head 의 부연이라 다른 자리가 없고, 데스크톱에서
           헤드라인 오른쪽은 절대배치 레이더가 차지해 이 아래로 약 20rem 의 화면 전용 여백이 비어
-          있다(레이더는 flow 에 기여하지 않는다). 폭은 헤드라인과 같은 lg:w-[35.875rem] 재사용,
+          있다(레이더는 flow 에 기여하지 않는다). 폭은 헤드라인과 같은 lg:w-143.5 재사용,
           fd-screen-only 라 인쇄 훅 불필요. typeDetail 이 null(판정 불가·직선응답)이면 접힌다.
         */}
         {typeDetail && (
-          <p className="fd-screen-only mt-4 w-full break-keep text-base leading-[1.5] text-[#6b6b6b] lg:mt-5 lg:w-[35.875rem]">
+          <p className="fd-screen-only mt-4 w-full break-keep text-base leading-normal text-ink-sub lg:mt-5 lg:w-143.5">
             {typeDetail}
           </p>
         )}
@@ -117,7 +117,7 @@ export default function ReportPageOne({ data }: ReportPageOneProps) {
             lg: 리터럴과 동일한 값(35.875rem/2.5625rem)으로 강제한다. */}
         <RadarChart6
           axes={learningAxes}
-          className="fd-radar-overlay relative mx-auto mt-6 lg:absolute lg:left-[35.875rem] lg:top-[2.5625rem] lg:mx-0 lg:mt-0"
+          className="fd-radar-overlay relative mx-auto mt-6 lg:absolute lg:left-143.5 lg:top-10.25 lg:mx-0 lg:mt-0"
         />
       </div>
 
@@ -137,20 +137,20 @@ export default function ReportPageOne({ data }: ReportPageOneProps) {
       */}
       {/* G-3(NIT 3) — 화면 전용 문단, 모바일 text-base(16px) · 데스크톱 기존 text-sm(14px) 유지. */}
       {notices?.hexCaption && (
-        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.4] text-[#6b6b6b] lg:mt-4 lg:w-[35.875rem] lg:text-sm">
+        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.4] text-ink-sub lg:mt-4 lg:w-143.5 lg:text-sm">
           {notices.hexCaption}
         </p>
       )}
 
-      <div className="fd-mt-student mt-8 lg:mt-[4.1875rem]">
+      <div className="fd-mt-student mt-8 lg:mt-16.75">
         <StudentInfoBlock student={student} />
       </div>
 
-      <h2 className="fd-mt-traits-heading mt-8 text-[1.25rem] font-semibold leading-[1.25rem] text-[#0b84fd] lg:mt-[3.5625rem]">
+      <h2 className="fd-mt-traits-heading mt-8 text-[1.25rem] font-semibold leading-5 text-accent lg:mt-14.25">
         {traitsHeading}
       </h2>
 
-      <div className="fd-mt-summary-cards mt-6 lg:mt-[1.8125rem]">
+      <div className="fd-mt-summary-cards mt-6 lg:mt-7.25">
         <SummaryCards cards={summaryCards} />
       </div>
 
@@ -165,12 +165,12 @@ export default function ReportPageOne({ data }: ReportPageOneProps) {
           StudentInfoBlock 모바일 라벨이 이미 쓰는 #6b6b6b(대비 ≈5.34:1)를 재사용한다
           (새 색상값 도입 아님, 팀리드 재조정 지시 2026-08-11). */}
       {urgency?.message && (
-        <p className="fd-mt-urgency mt-3 text-sm leading-[1.4] text-[#6b6b6b] lg:mt-2">
+        <p className="fd-mt-urgency mt-3 text-sm leading-[1.4] text-ink-sub lg:mt-2">
           {urgency.message}
         </p>
       )}
 
-      <div className="fd-mt-priority mt-8 lg:mt-[3.9375rem]">
+      <div className="fd-mt-priority mt-8 lg:mt-15.75">
         <PriorityTable rows={priorityRows} />
       </div>
 
@@ -182,18 +182,18 @@ export default function ReportPageOne({ data }: ReportPageOneProps) {
       */}
       {/* G-3(NIT 3) — 화면 전용 문단, 모바일 text-base(16px) · 데스크톱 기존 text-sm(14px) 유지. */}
       {notices?.goalCompare && (
-        <p className="fd-screen-only mt-3 break-keep text-base leading-[1.4] text-[#6b6b6b] lg:text-sm">
+        <p className="fd-screen-only mt-3 break-keep text-base leading-[1.4] text-ink-sub lg:text-sm">
           {notices.goalCompare}
         </p>
       )}
 
-      <div className="fd-mt-traits mt-10 lg:mt-[5.875rem]">
+      <div className="fd-mt-traits mt-10 lg:mt-23.5">
         {/* notices.traitIntro — TraitNarratives 3블록을 소개하는 리드 문장(§5.1 고정 안내).
             traitsHeading(§타이틀)은 SummaryCards·PriorityTable 과 공용이라 "특성 세 가지"를
             특정하지 않는다 — 이 블록 바로 위에서만 좁혀 소개한다. */}
         {/* WARN-2 — urgency.message 와 동일 사유로 #6b6b6b(대비 ≈5.34:1) 재사용. */}
         {notices?.traitIntro && (
-          <p className="mb-3 text-sm leading-[1.4] text-[#6b6b6b]">
+          <p className="mb-3 text-sm leading-[1.4] text-ink-sub">
             {notices.traitIntro}
           </p>
         )}

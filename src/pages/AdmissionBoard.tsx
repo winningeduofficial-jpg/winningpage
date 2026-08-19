@@ -323,7 +323,7 @@ export default function AdmissionBoard() {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               placeholder={`${routeMeta.title} 검색`}
-              className="ml-2 h-full flex-1 bg-transparent text-sm font-bold outline-none"
+              className="ml-2 h-full flex-1 bg-transparent text-sm font-bold outline-hidden"
             />
           </div>
         </div>

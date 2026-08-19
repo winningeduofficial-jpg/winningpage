@@ -30,7 +30,7 @@ export default function MentorHero() {
     // 쌓아 카피가 길어져도 잘리지 않게 한다. min-h 는 안전망 겸 모바일 최소 높이다.
     // <lg 는 768/375 시안이 없어 구현 재량(확인 항목 ㊺) — 패딩/폰트만 축소하고 구성은 유지한다.
     <section
-      className="relative isolate flex min-h-[26rem] items-center overflow-hidden pb-16 pt-16 sm:min-h-[32rem] sm:pb-20 sm:pt-24 lg:min-h-[51rem] lg:pb-[9.5625rem] lg:pt-[20.5625rem]"
+      className="relative isolate flex min-h-104 items-center overflow-hidden pb-16 pt-16 sm:min-h-128 sm:pb-20 sm:pt-24 lg:min-h-204 lg:pb-38.25 lg:pt-82.25"
       aria-labelledby="mentor-hero-heading"
     >
       {/* 배경 사진(3362:2758). Figma 렌더 파라미터 width:100%/height:156.88%/top:-22.74% 의
@@ -83,7 +83,7 @@ export default function MentorHero() {
       {/* 시안 좌측 기준선 410px 은 본문 컨테이너(x=402)와 8px 차이나는 제작 오차라, 명세
           § 반응형 전략 컨테이너 매핑대로 본문과 동일한 max-w-content 컨테이너로 스냅한다. */}
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-        <div className="max-w-[41rem]">
+        <div className="max-w-164">
           {/* 아이브로 24px Medium / lh 1.3 / ls -2%. 시안 색은 primary(#013262) 지만 min CR 1.00
               (59.0% 미달)로 회생 불가라 white/70 로 교체했다(§F-2 후보 표, white/60 은 19.0%
               미달이라 불가·white/70 이 전 뷰포트 0% 미달 최소값). textShadow 는 MissionSection
@@ -120,7 +120,7 @@ export default function MentorHero() {
               active:scale)를 따랐다. */}
           <a
             href={`#${MENTOR_FORM_ANCHOR_ID}`}
-            className="mt-8 inline-flex items-center justify-center whitespace-pre rounded-[1.25rem] bg-primary px-6 py-4 text-[1.125rem] font-semibold leading-[1.4] text-white transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary active:scale-[0.97] motion-reduce:active:scale-100 sm:mt-12 sm:px-8 sm:py-6 sm:text-[1.25rem] lg:mt-[5.6875rem]"
+            className="mt-8 inline-flex items-center justify-center whitespace-pre rounded-perf-modal bg-primary px-6 py-4 text-[1.125rem] font-semibold leading-[1.4] text-white transition hover:bg-primary/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary active:scale-[0.97] motion-reduce:active:scale-100 sm:mt-12 sm:px-8 sm:py-6 sm:text-[1.25rem] lg:mt-22.75"
           >
             {HERO_COPY.ctaLabel}
           </a>

@@ -99,7 +99,7 @@ export default function MentorCard({
         }}
       >
         <p
-          className="font-semibold leading-[1.4] text-[#525252]"
+          className="font-semibold leading-[1.4] text-ink"
           style={{ fontSize: toRem(BADGE_FONT_PX) }}
         >
           {badge}

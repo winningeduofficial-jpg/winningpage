@@ -86,7 +86,7 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
           '목표 대학과의 격차를 계산하는 기준 데이터입니다. 아직 보지 않은 시험은 "없음"을 선택하세요. 4개 모두 없으면 이전 학년 성적으로 계산합니다.'
         }
       >
-        <div className="grid grid-cols-2 gap-x-[2.5rem] gap-y-[2.5rem]">
+        <div className="grid grid-cols-2 gap-x-10 gap-y-10">
           {NAESIN_EXAMS.map(({ key, label }) => {
             // naesin은 NAESIN_EXAMS로부터 빌드되어 모든 key가 항상 존재한다.
             const exam = naesin[key]!;
@@ -121,16 +121,16 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
         </div>
 
         {allNone && (
-          <div className="mt-[2.5rem]">
-            <div className="rounded-[0.75rem] bg-surface-03 px-[1.25rem] py-[1rem]">
+          <div className="mt-10">
+            <div className="rounded-xl bg-surface-03 px-5 py-4">
               <p className="text-[0.875rem] font-semibold text-accent">
                 {priorCopy.bannerTitle}
               </p>
-              <p className="mt-[0.25rem] text-[0.875rem] leading-[1.5] text-ink-sub">
+              <p className="mt-1 text-[0.875rem] leading-normal text-ink-sub">
                 {priorCopy.bannerBody}
               </p>
             </div>
-            <div className="mt-[1.5rem]">
+            <div className="mt-6">
               <GradeNumberField
                 label={priorCopy.label}
                 value={priorNaesinGrade}

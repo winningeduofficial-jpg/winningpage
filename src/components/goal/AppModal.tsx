@@ -59,7 +59,7 @@ export default function AppModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
       {/* 스크림 — 클릭 시 닫기 */}
       <div
         className="absolute inset-0 bg-black/40"
@@ -72,20 +72,20 @@ export default function AppModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
-        className={`relative flex max-h-[90vh] w-[33.125rem] flex-col overflow-hidden rounded-xl bg-white shadow-[0_24px_60px_rgba(0,0,0,0.24)] ${className}`}
+        className={`relative flex max-h-[90vh] w-132.5 flex-col overflow-hidden rounded-xl bg-white shadow-[0_24px_60px_rgba(0,0,0,0.24)] ${className}`}
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="닫기"
-          className="absolute right-[1.125rem] top-[1.125rem] flex h-6 w-6 items-center justify-center rounded-full text-ink-sub transition-colors hover:bg-surface-04 hover:text-ink-strong"
+          className="absolute right-4.5 top-4.5 flex h-6 w-6 items-center justify-center rounded-full text-ink-sub transition-colors hover:bg-surface-04 hover:text-ink-strong"
         >
           <X size={16} />
         </button>
 
-        <div className="flex-1 overflow-y-auto px-[1.875rem] pt-[1.875rem]">
+        <div className="flex-1 overflow-y-auto px-7.5 pt-7.5">
           {(title || subtitle) && (
-            <div className="mb-[1.6875rem] pr-6">
+            <div className="mb-6.75 pr-6">
               {title && (
                 <h2
                   id={titleId}
@@ -105,16 +105,14 @@ export default function AppModal({
           {/* 블록 pitch(93px = 5.8125rem)는 라벨(21)+간격(27)+컨트롤(39) 합(87)에 근접한 값이라,
               필드 블록 사이는 별도 큰 gap 없이 살짝만(0.5rem) 띄운다 — ModalField가 라벨→컨트롤
               간격(1.6875rem)을 자체 보유하므로 여기서는 블록 간 최소 여백만 추가. */}
-          <div className="flex flex-col gap-[0.5rem] pb-[1.875rem]">
-            {children}
-          </div>
+          <div className="flex flex-col gap-2 pb-7.5">{children}</div>
         </div>
 
-        <div className="grid grid-cols-2 gap-[0.5rem] border-t border-[#F0F0F0] px-[1.875rem] py-[1.25rem]">
+        <div className="grid grid-cols-2 gap-2 border-t border-[#F0F0F0] px-7.5 py-5">
           <button
             type="button"
             onClick={onCancel ?? onClose}
-            className="h-[2.4375rem] rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
+            className="h-9.75 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
           >
             {cancelLabel}
           </button>
@@ -122,7 +120,7 @@ export default function AppModal({
             type="button"
             onClick={onSubmit}
             disabled={submitDisabled}
-            className="h-[2.4375rem] rounded-lg bg-[#2E2A26] text-[0.875rem] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-surface-01 disabled:text-ink-sub"
+            className="h-9.75 rounded-lg bg-[#2E2A26] text-[0.875rem] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-surface-01 disabled:text-ink-sub"
           >
             {submitLabel}
           </button>

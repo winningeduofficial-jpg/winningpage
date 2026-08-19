@@ -38,21 +38,19 @@ export default function MentorSection({
       aria-label="위닝 멘토"
       className={
         isCallMentor
-          ? "mx-auto w-full max-w-[120rem] bg-[#F4F4F6] pt-10 pb-16 sm:pt-12 sm:pb-20 lg:pt-[2.5rem] lg:pb-[7.5rem]"
-          : "mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-[7.5rem]"
+          ? "mx-auto w-full max-w-[120rem] bg-[#F4F4F6] pt-10 pb-16 sm:pt-12 sm:pb-20 lg:pt-10 lg:pb-30"
+          : "mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-30"
       }
     >
-      <div className="flex w-full flex-col gap-[2.5rem]">
+      <div className="flex w-full flex-col gap-10">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <p
-            className={`text-[1.25rem] font-normal leading-[1.3] ${isCallMentor ? "text-[#AF9364]" : "text-accent"}`}
+            className={`text-[1.25rem] font-normal leading-[1.3] ${isCallMentor ? "text-gold" : "text-accent"}`}
           >
             멘토스 소개
           </p>
-          <h2 className="mt-[0.5rem] break-keep text-left text-[2rem] font-semibold leading-[1.4] tracking-[-0.05rem]">
-            <span
-              className={isCallMentor ? "text-[#AF9364]" : "text-[#013262]"}
-            >
+          <h2 className="mt-2 break-keep text-left text-[2rem] font-semibold leading-[1.4] tracking-[-0.05rem]">
+            <span className={isCallMentor ? "text-gold" : "text-primary"}>
               위닝과 함께 합격한 선배에게{" "}
             </span>
             <span
@@ -71,10 +69,10 @@ export default function MentorSection({
             // useInfiniteMarquee의 scrollRef는 여러 엘리먼트 종류에 공용으로 쓰이도록
             // HTMLElement로 넓게 잡혀 있다 — 이 자리는 div이므로 타입만 좁혀 붙인다.
             ref={scrollRef as React.RefObject<HTMLDivElement>}
-            className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
+            className="landing-marquee-mask w-full cursor-grab overflow-x-auto [-ms-overflow-style:none] scrollbar-none active:cursor-grabbing [&::-webkit-scrollbar]:hidden"
           >
             <ul
-              className={`flex w-max min-w-full items-center gap-[1.5625rem] px-5 sm:px-8 ${
+              className={`flex w-max min-w-full items-center gap-6.25 px-5 sm:px-8 ${
                 isMarquee ? "" : "justify-center"
               }`}
             >

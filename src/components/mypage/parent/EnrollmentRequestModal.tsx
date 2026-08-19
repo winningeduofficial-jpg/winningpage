@@ -99,7 +99,7 @@ export default function EnrollmentRequestModal({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
-      className="w-[26rem]"
+      className="w-104"
     >
       <div className="flex-1 overflow-y-auto px-6 pt-8">
         <h2
@@ -134,7 +134,7 @@ export default function EnrollmentRequestModal({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder="거절 사유를 입력해 주세요. 자녀에게 전달됩니다."
-            className="mt-4 w-full resize-none rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink outline-none focus:border-accent"
+            className="mt-4 w-full resize-none rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink outline-hidden focus:border-accent"
           />
         )}
 

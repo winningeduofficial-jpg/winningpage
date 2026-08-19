@@ -172,7 +172,7 @@ function ToastStack({
     <div
       aria-live="polite"
       aria-atomic="false"
-      className="pointer-events-none fixed bottom-6 right-6 z-[200] flex w-full max-w-[22.5rem] flex-col gap-3"
+      className="pointer-events-none fixed bottom-6 right-6 z-200 flex w-full max-w-90 flex-col gap-3"
     >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onDismiss={onDismiss} />
@@ -205,7 +205,7 @@ function ToastItem({
         className={`h-5 w-5 shrink-0 ${tone.iconClass}`}
         aria-hidden="true"
       />
-      <p className="min-w-0 flex-1 whitespace-pre-line text-sm font-medium leading-[1.3125rem] text-ink-strong">
+      <p className="min-w-0 flex-1 whitespace-pre-line text-sm font-medium leading-5.25 text-ink-strong">
         {toast.message}
       </p>
       <button

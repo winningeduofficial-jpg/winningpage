@@ -24,10 +24,7 @@ export default function StudyTimeSection({
   totalHours,
 }: StudyTimeSectionProps) {
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex flex-col gap-5 px-[2rem] py-[1.875rem]"
-    >
+    <GoalCard tone="neutral" className="flex flex-col gap-5 px-8 py-7.5">
       <div>
         <GoalCardHeader title="과목별 순공 시간" />
         <p className="mt-1 text-[0.875rem] leading-[1.4] text-ink-sub">
@@ -38,13 +35,13 @@ export default function StudyTimeSection({
         {rows.map((row) => (
           <li
             key={row.id}
-            className="flex h-[3.75rem] items-center gap-3 rounded-lg bg-surface-04 px-5"
+            className="flex h-perf-inset items-center gap-3 rounded-lg bg-surface-04 px-5"
           >
             <span
               aria-hidden="true"
               className={`h-4 w-4 shrink-0 rounded-full ${getSubjectStrongClass(row.id)}`}
             />
-            <span className="w-[4rem] shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+            <span className="w-16 shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
               {row.label}
             </span>
             <span className="min-w-0 flex-1 text-[0.8125rem] leading-[1.4] text-ink-sub">
@@ -57,8 +54,8 @@ export default function StudyTimeSection({
             </span>
           </li>
         ))}
-        <li className="flex h-[3.75rem] items-center gap-3 rounded-lg bg-surface-04 px-5">
-          <span className="w-[4rem] shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-sub">
+        <li className="flex h-perf-inset items-center gap-3 rounded-lg bg-surface-04 px-5">
+          <span className="w-16 shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-sub">
             합계
           </span>
           <span className="min-w-0 flex-1" />

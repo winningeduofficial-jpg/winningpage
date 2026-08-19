@@ -35,7 +35,7 @@ const PHONE_PURPOSE = "phone_change";
 const RESEND_COOLDOWN_SECONDS = 60;
 
 const FIELD_CLASS =
-  "h-[3.25rem] w-full rounded-xl border border-line px-4 text-[0.9375rem] text-ink outline-none focus:border-accent";
+  "h-13 w-full rounded-xl border border-line px-4 text-[0.9375rem] text-ink outline-hidden focus:border-accent";
 
 type ChangePhoneModalProps = {
   open: boolean;
@@ -207,7 +207,7 @@ export default function ChangePhoneModal({
         open={open}
         onClose={onClose}
         labelledBy={titleId}
-        className="w-[26rem]"
+        className="w-104"
       >
         <div className="flex flex-col items-center px-6 py-10 text-center">
           <h2
@@ -219,7 +219,7 @@ export default function ChangePhoneModal({
           <button
             type="button"
             onClick={onClose}
-            className="mt-7 h-[2.5rem] w-[9.375rem] rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90"
+            className="mt-7 h-10 w-37.5 rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90"
           >
             확인
           </button>
@@ -235,7 +235,7 @@ export default function ChangePhoneModal({
         open={open}
         onClose={onClose}
         labelledBy={titleId}
-        className="w-[26rem]"
+        className="w-104"
       >
         <div className="flex flex-col items-center px-6 py-9 text-center">
           <h2
@@ -291,7 +291,7 @@ export default function ChangePhoneModal({
         open={open}
         onClose={onClose}
         labelledBy={titleId}
-        className="w-[26rem]"
+        className="w-104"
       >
         <div className="flex-1 overflow-y-auto px-6 pt-8">
           <h2
@@ -335,7 +335,7 @@ export default function ChangePhoneModal({
                 type="button"
                 onClick={sendCode}
                 disabled={!canSendPhoneCode}
-                className={`h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
+                className={`h-13 shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
                   canSendPhoneCode
                     ? "bg-primary text-white hover:opacity-90"
                     : "cursor-not-allowed bg-line text-white"
@@ -394,7 +394,7 @@ export default function ChangePhoneModal({
       open={open}
       onClose={onClose}
       labelledBy={titleId}
-      className="w-[26rem]"
+      className="w-104"
     >
       <div className="flex-1 overflow-y-auto px-6 pt-8">
         <h2
@@ -439,7 +439,7 @@ export default function ChangePhoneModal({
               type="button"
               onClick={sendCode}
               disabled={!canSendPhoneCode}
-              className={`h-[3.25rem] shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
+              className={`h-13 shrink-0 whitespace-nowrap rounded-xl px-4 text-[0.8125rem] font-semibold transition ${
                 canSendPhoneCode
                   ? "bg-primary text-white hover:opacity-90"
                   : "cursor-not-allowed bg-line text-white"

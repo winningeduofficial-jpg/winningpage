@@ -58,7 +58,7 @@ export default function LinkDone() {
         line2Color="ink"
       />
 
-      <div className="w-full rounded-[1.25rem] border border-line px-5 py-6 sm:px-8 sm:py-8">
+      <div className="w-full rounded-perf-modal border border-line px-5 py-6 sm:px-8 sm:py-8">
         <p className="text-left text-xl font-medium text-ink-title">
           {child?.name}
         </p>

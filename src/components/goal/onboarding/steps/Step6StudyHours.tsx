@@ -27,7 +27,7 @@ export default function Step6StudyHours({
         title="매일 혼자 공부하는 시간을 요일별로 입력해주세요."
         description="지금의 실제 학습량을 기준으로 목표 학습 시간을 계산합니다."
       >
-        <div className="flex flex-col gap-[1.5rem]">
+        <div className="flex flex-col gap-6">
           {WEEKDAY_OPTIONS.map(({ key, label }) => (
             <SliderRow
               key={key}

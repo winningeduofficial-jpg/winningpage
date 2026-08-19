@@ -69,7 +69,7 @@ export default function TopicDetailModal({
   if (!isOpen || !topic) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
       {/* 딤 — `#00000066`(검정 40%, §5.11 실측 = `performance-dim` 토큰). 클릭 시 닫기. */}
       <div
         className="absolute inset-0 bg-performance-dim"
@@ -100,18 +100,18 @@ export default function TopicDetailModal({
         // `shadow-[0_24px_60px_rgba(0,0,0,0.24)]`는 §5.11에 실측이 없다 — `goal/AppModal.jsx`의
         // 모달 그림자와 동일 값을 저장소 관례로 차용했다(검토 E-4). 시안 미실측 값이므로 실제
         // 디자인 확인 시 조정될 수 있다.
-        className="relative flex h-[50.9375rem] max-h-[90vh] w-full max-w-[47.625rem] flex-col overflow-hidden rounded-2xl border border-performance-line bg-[#fbfbfa] shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
+        className="relative flex h-203.75 max-h-[90vh] w-full max-w-190.5 flex-col overflow-hidden rounded-2xl border border-performance-line bg-[#fbfbfa] shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
       >
         {/* 헤더 — 제목 1.25rem/1.625rem w600 ink, 부제 1rem/1.3125rem w500 ink-sub, 하단
             구분선 performance-line. §5.11 실측 좌 인셋 2.125rem을 헤더·본문·푸터 공통으로
             쓴다(우측 인셋은 본문 스크롤바 거터를 포함한 산출값이라 헤더·푸터에 그대로 옮기지
             않는다 — 명세 「인과로 읽지 말 것」 경고). */}
-        <div className="shrink-0 border-b border-performance-line px-[2.125rem] py-[1.5rem]">
-          {/* break-words — 긴 무공백 문자열(URL 등)이 제목에 오면 패널 `overflow-hidden`에
+        <div className="shrink-0 border-b border-performance-line px-8.5 py-6">
+          {/* wrap-break-word — 긴 무공백 문자열(URL 등)이 제목에 오면 패널 `overflow-hidden`에
               잘려서 소실된다(검토 D-4). */}
           <h2
             id={titleId}
-            className="break-words text-[1.25rem] font-semibold leading-[1.625rem] text-ink"
+            className="wrap-break-word text-[1.25rem] font-semibold leading-6.5 text-ink"
           >
             {topic.title}
           </h2>
@@ -119,7 +119,7 @@ export default function TopicDetailModal({
               이 모달 전체에 붙는 안내 카피라 하드코딩한다(§5.11 경고가 금지하는 "헤더 제목 ↔
               본문 6섹션 불일치 더미"와는 다른 대상 — 그쪽은 `topic.title`/`topic.detail`처럼
               서버 데이터로 대체된다). */}
-          <p className="mt-1 text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+          <p className="mt-1 text-[1rem] font-medium leading-5.25 text-ink-sub">
             선정 근거와 심화 방향을 확인한 뒤 확정하세요
           </p>
         </div>
@@ -138,14 +138,14 @@ export default function TopicDetailModal({
           // biome-ignore lint/a11y/noNoninteractiveTabindex: APG Scrollable Regions 패턴 — useModalBehavior가 이 요소를 초기 포커스로 잡는다.
           tabIndex={0}
           aria-label="주제 상세 내용"
-          className="min-h-0 flex-1 overflow-y-auto px-[2.125rem] py-[1.25rem] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          className="min-h-0 flex-1 overflow-y-auto px-8.5 py-5 focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         >
-          <div className="max-w-[41.875rem]">
+          <div className="max-w-167.5">
             {hasVisibleDetail ? (
               <SectionedReportView sections={visibleSections} />
             ) : (
               // 유효 섹션이 0개 — 검토 C-2. 근거 없이 확정할 수 있는 상태를 막는다(§11.1 Q48).
-              <p className="text-[1rem] font-medium leading-[1.3125rem] text-ink-sub">
+              <p className="text-[1rem] font-medium leading-5.25 text-ink-sub">
                 이 주제의 선정 근거 정보를 아직 불러오지 못했어요. 다른 주제를
                 선택해 주세요.
               </p>
@@ -172,11 +172,11 @@ export default function TopicDetailModal({
             버튼에 `shrink-0`을 줘 794px 미만(모달 47.625rem/762px 미만)에서 컨테이너가
             좁아져도 라벨이 2줄로 무너지지 않게 한다(완화 목적 — 셸 자체가 이 폭 미만에서
             이미 반응형 분기가 없으므로 여기서 과하게 대응하지 않는다). */}
-        <div className="flex h-20 shrink-0 items-center gap-5 rounded-b-2xl border-t border-performance-line bg-white px-[2.125rem]">
+        <div className="flex h-20 shrink-0 items-center gap-5 rounded-b-2xl border-t border-performance-line bg-white px-8.5">
           <button
             type="button"
             onClick={onClose}
-            className="flex h-[3.25rem] w-[15.9375rem] max-w-full shrink-0 items-center justify-center rounded-xl border border-performance-line text-[1rem] font-medium leading-[1.25rem] text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100"
+            className="flex h-13 w-63.75 max-w-full shrink-0 items-center justify-center rounded-xl border border-performance-line text-[1rem] font-medium leading-5 text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100"
           >
             다른 주제 보기
           </button>
@@ -184,7 +184,7 @@ export default function TopicDetailModal({
             type="button"
             onClick={() => onConfirm?.(topic)}
             disabled={!onConfirm || !hasVisibleDetail}
-            className="flex h-[3.25rem] w-[25.9375rem] max-w-full shrink-0 items-center justify-center rounded-xl bg-primary text-[1rem] font-semibold leading-[1.25rem] text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100"
+            className="flex h-13 w-103.75 max-w-full shrink-0 items-center justify-center rounded-xl bg-primary text-[1rem] font-semibold leading-5 text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100"
           >
             이 주제로 확정하기
           </button>

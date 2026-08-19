@@ -62,8 +62,8 @@ export default function GrowthReport() {
           : "리포트를 불러오지 못했습니다. 새로고침해 주세요.";
 
     return (
-      <div className="max-w-goal-content px-[3rem] pb-24 pt-[3.75rem]">
-        <GoalCard tone="neutral" className="px-[2rem] py-[1.75rem]">
+      <div className="max-w-goal-content px-12 pb-24 pt-perf-inset">
+        <GoalCard tone="neutral" className="px-8 py-7">
           <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
             {message}
           </p>

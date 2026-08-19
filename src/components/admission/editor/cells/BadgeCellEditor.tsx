@@ -38,12 +38,12 @@ export default function BadgeCellEditor({
         type="text"
         value={text}
         onCommit={commitText}
-        className="admission-cell-editor-input w-full border border-transparent bg-transparent px-2 py-1.5 text-sm outline-none transition-colors hover:border-[#d7d7d7] hover:bg-white focus:border-[#2348ff] focus:bg-white"
+        className="admission-cell-editor-input w-full border border-transparent bg-transparent px-2 py-1.5 text-sm outline-hidden transition-colors hover:border-line hover:bg-white focus:border-[#2348ff] focus:bg-white"
       />
       <select
         value={badge}
         onChange={commitBadge}
-        className="border border-[#d7d7d7] px-1 py-1 text-xs"
+        className="border border-line px-1 py-1 text-xs"
         aria-label="최저 배지"
       >
         <option value="minimumHas">있음</option>

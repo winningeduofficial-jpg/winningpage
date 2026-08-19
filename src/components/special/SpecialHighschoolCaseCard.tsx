@@ -25,7 +25,7 @@ export default function SpecialHighschoolCaseCard({
       : row?.student_name || "";
 
   return (
-    <article className="relative mx-auto aspect-[344/242.38] w-full max-w-[22rem] overflow-hidden bg-[#E9F4FF]">
+    <article className="relative mx-auto aspect-[344/242.38] w-full max-w-88 overflow-hidden bg-[#E9F4FF]">
       {/* 오른쪽 바깥 그림자(선택 폴리시) */}
       <div
         aria-hidden="true"
@@ -42,7 +42,7 @@ export default function SpecialHighschoolCaseCard({
       {/* 흰 종이 시트 */}
       <div
         aria-hidden="true"
-        className="absolute rounded-[0.25rem] bg-white"
+        className="absolute rounded-sm bg-white"
         style={{
           left: "13%",
           right: "8%",
@@ -55,7 +55,7 @@ export default function SpecialHighschoolCaseCard({
       {/* 중간 네이비 시트 */}
       <div
         aria-hidden="true"
-        className="absolute rounded-t-[0.25rem] bg-[#013262]"
+        className="absolute rounded-t-sm bg-primary"
         style={{
           left: "36.2%",
           right: "18.3%",

@@ -27,7 +27,7 @@ export default function Step7DailySchedule({
         title="하루 일정을 알려주세요."
         description="기상・취침・등교・학원 시간을 빼고 실제로 쓸 수 있는 시간을 계산합니다."
       >
-        <div className="flex flex-col gap-[3.25rem]">
+        <div className="flex flex-col gap-13">
           {DAILY_SCHEDULE_FIELDS.map((field) => (
             <StepperRow
               key={field.key}

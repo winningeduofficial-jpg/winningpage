@@ -46,7 +46,7 @@ export default function GoalChecklistRow({
   const isFail = status === "fail";
 
   return (
-    <li className="flex h-[2.375rem] items-center justify-between gap-2 rounded-lg bg-white px-3">
+    <li className="flex h-9.5 items-center justify-between gap-2 rounded-lg bg-white px-3">
       <span
         className={`flex min-w-0 items-center gap-2 truncate text-[0.875rem] leading-[1.4] ${
           isFail

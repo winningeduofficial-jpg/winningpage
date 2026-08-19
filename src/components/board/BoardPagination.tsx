@@ -70,7 +70,7 @@ export default function BoardPagination({
           type="button"
           onClick={() => goToPage(1)}
           disabled={safeCurrentPage === 1}
-          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-4 w-4 items-center justify-center text-ink transition hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="처음 페이지"
         >
           <ChevronsLeft className="h-4 w-4" />
@@ -79,7 +79,7 @@ export default function BoardPagination({
           type="button"
           onClick={() => goToPage(safeCurrentPage - 1)}
           disabled={safeCurrentPage === 1}
-          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-4 w-4 items-center justify-center text-ink transition hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="이전 페이지"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -97,8 +97,8 @@ export default function BoardPagination({
               aria-current={isActive ? "page" : undefined}
               className={`flex h-8 w-8 items-center justify-center rounded-full text-base tracking-[-0.02em] transition ${
                 isActive
-                  ? "bg-[#013262] font-medium text-white"
-                  : "font-normal text-[#525252] hover:text-[#013262]"
+                  ? "bg-primary font-medium text-white"
+                  : "font-normal text-ink hover:text-primary"
               }`}
             >
               {pageNumber}
@@ -112,7 +112,7 @@ export default function BoardPagination({
           type="button"
           onClick={() => goToPage(safeCurrentPage + 1)}
           disabled={safeCurrentPage === safeTotalPages}
-          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-4 w-4 items-center justify-center text-ink transition hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="다음 페이지"
         >
           <ChevronRight className="h-4 w-4" />
@@ -121,7 +121,7 @@ export default function BoardPagination({
           type="button"
           onClick={() => goToPage(safeTotalPages)}
           disabled={safeCurrentPage === safeTotalPages}
-          className="flex h-4 w-4 items-center justify-center text-[#525252] transition hover:text-[#013262] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-4 w-4 items-center justify-center text-ink transition hover:text-primary disabled:cursor-not-allowed disabled:opacity-40"
           aria-label="마지막 페이지"
         >
           <ChevronsRight className="h-4 w-4" />

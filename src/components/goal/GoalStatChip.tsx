@@ -22,7 +22,7 @@ export default function GoalStatChip({
   const toneClass = TONE_CLASS[tone] ?? TONE_CLASS.blue;
   return (
     <div
-      className={`inline-flex min-h-[4.25rem] w-fit flex-col justify-center gap-1 rounded-xl px-4 py-3 ${toneClass}`}
+      className={`inline-flex min-h-17 w-fit flex-col justify-center gap-1 rounded-xl px-4 py-3 ${toneClass}`}
     >
       <span className="text-[0.75rem] leading-[1.4] opacity-80">{label}</span>
       <span className="text-[1.125rem] font-bold leading-[1.3]">{value}</span>

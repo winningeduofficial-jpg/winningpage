@@ -2257,7 +2257,7 @@ export default function PerformanceChatPage() {
         <div className="flex flex-col items-start gap-3">
           <p
             role="alert"
-            className="text-[0.875rem] leading-[1.125rem] text-[#d01c1c]"
+            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
           >
             {submissionLoadError}
           </p>
@@ -2387,7 +2387,7 @@ const RetryButton = forwardRef<
       ref={ref}
       type="button"
       onClick={onClick}
-      className="flex h-10 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white px-4 text-[0.875rem] font-medium leading-[1.125rem] text-ink transition-colors hover:border-ink-sub"
+      className="flex h-10 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white px-4 text-[0.875rem] font-medium leading-4.5 text-ink transition-colors hover:border-ink-sub"
     >
       {children}
     </button>

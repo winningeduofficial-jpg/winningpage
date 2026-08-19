@@ -10,14 +10,11 @@ type AdviceCardProps = {
 
 export default function AdviceCard({ data }: AdviceCardProps) {
   return (
-    <GoalCard
-      tone="neutral"
-      className="flex h-full flex-col gap-4 px-[2rem] py-[1.75rem]"
-    >
+    <GoalCard tone="neutral" className="flex h-full flex-col gap-4 px-8 py-7">
       <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
         오늘의 조언
       </h3>
-      <p className="text-[0.875rem] leading-[1.5] text-ink">{data.body}</p>
+      <p className="text-[0.875rem] leading-normal text-ink">{data.body}</p>
     </GoalCard>
   );
 }

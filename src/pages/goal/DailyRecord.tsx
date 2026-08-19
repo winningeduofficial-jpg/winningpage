@@ -227,7 +227,7 @@ export default function DailyRecord() {
         meta="2026.08.01 (토)"
         subcopy="하루를 마감하며 기록하면 달성률과 리포트에 반영됩니다."
       />
-      <div className="max-w-goal-content flex flex-col gap-5 px-[3rem] pb-24">
+      <div className="max-w-goal-content flex flex-col gap-5 px-12 pb-24">
         <div
           ref={studyTimeRef}
           className={`rounded-2xl transition-shadow ${highlightStudyTime ? "ring-2 ring-red-400" : ""}`}
@@ -264,7 +264,7 @@ export default function DailyRecord() {
             type="button"
             disabled={!canSave || submitting}
             onClick={handleSave}
-            className="flex h-[4.5625rem] w-full max-w-[27.1875rem] items-center justify-center rounded-2xl text-[1.0625rem] font-bold leading-[1.2] transition-colors disabled:cursor-not-allowed disabled:bg-surface-01 disabled:text-ink-sub enabled:bg-primary enabled:text-white"
+            className="flex h-18.25 w-full max-w-108.75 items-center justify-center rounded-2xl text-[1.0625rem] font-bold leading-[1.2] transition-colors disabled:cursor-not-allowed disabled:bg-surface-01 disabled:text-ink-sub enabled:bg-primary enabled:text-white"
           >
             {submitting
               ? "저장 중…"
@@ -280,7 +280,7 @@ export default function DailyRecord() {
       {banner && (
         <div
           role="alert"
-          className={`fixed inset-x-0 bottom-[2rem] z-[55] mx-auto w-[calc(100%-2.5rem)] max-w-[28rem] rounded-[0.75rem] border px-[1.25rem] py-[1rem] text-center text-[0.875rem] font-semibold shadow-[0_18px_45px_rgba(13,27,42,0.15)] ${
+          className={`fixed inset-x-0 bottom-8 z-55 mx-auto w-[calc(100%-2.5rem)] max-w-md rounded-xl border px-5 py-4 text-center text-[0.875rem] font-semibold shadow-[0_18px_45px_rgba(13,27,42,0.15)] ${
             banner.tone === "success"
               ? "border-green-200 bg-green-50 text-green-700"
               : banner.tone === "error"

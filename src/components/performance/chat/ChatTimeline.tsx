@@ -35,7 +35,7 @@ import UserMessage from "./UserMessage";
 //
 // `kind='card'`는 시안상 자체 아바타가 없는 컬럼이라(`InlineCard` 주석 참고) AI 컬럼과 같은
 // x축에 맞추려면 아바타 폭(3.25rem)+gap(1.25rem)=4.5rem만큼 들여써야 한다 — 그래서 카드
-// 항목만 `ml-[4.5rem]`을 더한다.
+// 항목만 `ml-18`을 더한다.
 //
 // **자동 스크롤**: 시안에는 없는 동작이지만 채팅 UI의 기본 기대치다. 메시지가 늘어날 때마다
 // 최신 항목으로 스크롤한다. `prefers-reduced-motion`이면 즉시 이동, 아니면 부드럽게.
@@ -188,7 +188,7 @@ function renderMessage(message: PerformanceChatMessage) {
 
   if (kind === "card") {
     // 자체 아바타가 없는 컬럼 — AI 말풍선 x축(아바타+gap=4.5rem)에 맞춰 들여쓴다.
-    return <InlineCard className="ml-[4.5rem]">{children}</InlineCard>;
+    return <InlineCard className="ml-18">{children}</InlineCard>;
   }
 
   if (role === "user") {
