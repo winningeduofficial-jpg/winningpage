@@ -5,7 +5,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -97,6 +96,8 @@ const AMOUNT_MISMATCH_TEXT =
 
 // 신규 문구(이 화면 전용, 사용자 승인 대기) — new_copy 배열 참고.
 const LOAD_FAILED_TEXT = "결제 요청 정보를 불러오지 못했습니다.";
+const MISSING_ORDER_ITEM_TEXT =
+  "일부 신청 상품 정보를 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.";
 const ALREADY_PROCESSED_TEXT = "이미 처리된 결제 요청입니다.";
 const NOT_PARENT_TEXT = "학부모 본인만 진행할 수 있는 결제 요청이에요.";
 // 고정 계약 상수 목록의 승인된 재사용 문구 — 신규 아님.
@@ -151,6 +152,15 @@ function mergeStackable(
     ...row,
     stackable: stackableById[row.id] === true,
   }));
+}
+
+// 상품 변경 경로(hasChanged)의 토스 주문명 — api/request-enrollment.ts 의
+// buildOrderName 과 동일 규칙(첫 상품명 + 2개 이상이면 " 외 N건"). 원 주문의
+// order_name 을 그대로 쓰면 실제로 결제하는 상품과 결제창 표기가 달라진다.
+function buildOrderNameFromItems(items: SelectedItem[]) {
+  if (items.length === 0) return "위닝에듀 서비스";
+  const first = items[0]!.name || "위닝에듀 서비스";
+  return items.length === 1 ? first : `${first} 외 ${items.length - 1}건`;
 }
 
 // fn_respond_enrollment 가 raise 하는 문구 키워드로 매핑한다 — SQLSTATE(WCxxx)는
@@ -340,19 +350,22 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   // 이미 요청한 항목)에서 딱 한 번만 채운다 — orderItems 재조회로 이후 사용자
   // 선택을 덮어쓰면 안 된다.
   const [selected, setSelected] = useState<Record<string, string>>({});
-  const initializedRef = useRef(false);
+  const [initialized, setInitialized] = useState(false);
   useEffect(() => {
-    if (initializedRef.current || orderItems.length === 0) return;
+    if (initialized || orderItems.length === 0) return;
     const init: Record<string, string> = {};
     orderItems.forEach((item) => {
       if (item.service_key && item.product_id)
         init[item.service_key] = item.product_id;
     });
     setSelected(init);
-    initializedRef.current = true;
-  }, [orderItems]);
+    setInitialized(true);
+  }, [initialized, orderItems]);
 
   function toggle(serviceKey: string, productId: string) {
+    // 결제 승인(approvedOrder) 이후에는 실제 청구가 이미 고정됐으므로 화면
+    // 표시도 더 이상 바뀌면 안 된다(BLOCK 1) — 표시와 청구 불일치 방지.
+    if (approvedOrder) return;
     setSelected((prev) => {
       const next = { ...prev };
       if (next[serviceKey] === productId) delete next[serviceKey];
@@ -369,6 +382,8 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
     products: ServiceProduct[],
     currentIndex: number,
   ) {
+    // toggle 과 동일하게 승인 후에는 카탈로그를 잠근다(BLOCK 1).
+    if (approvedOrder) return;
     if (e.key === "Escape") {
       if (!(serviceKey in selected)) return;
       e.preventDefault();
@@ -428,17 +443,41 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
     [selectedItems],
   );
   const hasChanged = useMemo(() => {
+    // selected 초기화가 끝나기 전엔 orderItems 와 카탈로그 로딩 타이밍이 어긋나
+    // currentProductIds 가 일시적으로 비어 오탐(true)이 난다(WARN 6) — 초기화
+    // 전에는 무조건 false.
+    if (!initialized) return false;
     if (originalProductIds.size !== currentProductIds.size) return true;
     for (const id of currentProductIds)
       if (!originalProductIds.has(id)) return true;
     return false;
-  }, [originalProductIds, currentProductIds]);
+  }, [initialized, originalProductIds, currentProductIds]);
 
   // 상품이 바뀌면 새 주문은 쿠폰을 쓰지 않으므로(handlePay 분기) 이전에 골라둔
   // 쿠폰이 화면 금액 계산에 남아있으면 안 된다.
   useEffect(() => {
     if (hasChanged) setSelectedCouponIds(new Set());
   }, [hasChanged]);
+
+  // 원 주문 상품이 그 사이 비활성화되거나 사라졌는지 확인한다(BLOCK 3) —
+  // selected 초기화는 orderItems 의 product_id 를 그대로 넣지만, 라이브
+  // 카탈로그(filteredServices, is_active=true 만)에서 찾지 못하면 selectedItems
+  // 에서 조용히 빠져 학부모가 모르는 사이 일부 상품만 결제될 수 있다.
+  const missingOrderItem = useMemo(() => {
+    if (
+      isResume ||
+      productsLoading ||
+      orderItems.length === 0 ||
+      filteredServices.length === 0
+    )
+      return false;
+    return orderItems.some(
+      (item) =>
+        !filteredServices.some((s) =>
+          s.products.some((p) => p.id === item.product_id),
+        ),
+    );
+  }, [isResume, productsLoading, orderItems, filteredServices]);
 
   const selectedListTotal = useMemo(
     () =>
@@ -607,12 +646,20 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   // 통과시킨다 — 재구매 화면에서는 체크박스 자체를 렌더하지 않는다(아래 JSX).
   const paymentTermsReady =
     paymentAgreed === true || (checkedRefund && checkedPayment);
+  // 재개 모드(isResume)는 카탈로그 UI 자체를 렌더하지 않고 이미 승인이 끝난
+  // 주문의 결제만 남았으므로, 라이브 카탈로그 파생값인 selectedItems 대신
+  // orderItems 존재 여부로 판단한다(BLOCK 2) — 그래야 원 주문 상품이 그 사이
+  // 비활성화되거나 카탈로그 조회가 실패해도 결제가 막히지 않는다.
+  const hasSelection = isResume
+    ? orderItems.length > 0
+    : selectedItems.length > 0;
   const canPay =
     Boolean(order) &&
     !orderError &&
-    selectedItems.length > 0 &&
+    hasSelection &&
     !loading &&
-    paymentTermsReady;
+    paymentTermsReady &&
+    !missingOrderItem;
 
   async function handlePay() {
     if (!canPay) return;
@@ -708,7 +755,9 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
       const commonPaymentParams = {
         amount: { currency: "KRW" as const, value: Number(result.amount) },
         orderId: result.order_id || orderId,
-        orderName: order.order_name || "위닝에듀 서비스",
+        orderName: hasChanged
+          ? buildOrderNameFromItems(selectedItems)
+          : order.order_name || "위닝에듀 서비스",
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
         customerEmail: user?.email ?? null,
@@ -1189,6 +1238,15 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                   <dd>{formatKRW(displayAmount)}</dd>
                 </div>
               </dl>
+
+              {missingOrderItem && (
+                <p
+                  aria-live="polite"
+                  className="mt-4 text-[0.75rem] font-medium leading-[1.4] text-error"
+                >
+                  {MISSING_ORDER_ITEM_TEXT}
+                </p>
+              )}
 
               {amountMismatch && (
                 <p
