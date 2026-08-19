@@ -183,8 +183,26 @@ export function computeDiscountBreakdown(order: DiscountOrderInput) {
     };
   });
 
+  // 결제 상품 나열 — "XXX 외 N건"(order_name) 대신 항목별로 이름과 가격을
+  // 보여준다. 가격은 정가(list_price×수량)다 — 항목 행의 합이 바로 아래
+  // 원금(list_amount)과 일치하고, 거기서 할인·쿠폰 행을 빼면 결제 금액에
+  // 닿는 원장 구조를 유지하기 위해서다(판매가를 쓰면 항목 합과 원금이
+  // 어긋나고 할인 행이 이중 차감으로 읽힌다). list_price가 없는 레거시
+  // 스냅샷은 판매가로 폴백한다.
+  const itemRows: DiscountBreakdownRow[] = (order.order_items ?? []).map(
+    (item) => {
+      const qty = item.quantity ?? 1;
+      const unit = item.list_price || item.price || 0;
+      return {
+        label: qty > 1 ? `${item.name} ×${qty}` : item.name,
+        amountText: formatKRW(unit * qty),
+      };
+    },
+  );
+
   return {
     listAmount: order.list_amount ?? 0,
+    itemRows,
     discountRows,
     couponRows,
   };
