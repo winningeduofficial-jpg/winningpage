@@ -52,8 +52,10 @@ const PAY_METHODS: {
   { key: "virtual", label: "가상계좌", tossMethod: "VIRTUAL_ACCOUNT" },
 ];
 
+// MyPage 섹션 헤딩(ParentPaymentsTab.tsx 등)과 위계를 맞추기 위해 반응형 확대를
+// 의도적으로 제거했다(사용자 확정, 2026-08-19) — sm:2rem 이면 h1과 같은 크기가 된다.
 const SECTION_HEADING =
-  "text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2rem] sm:leading-[1.4]";
+  "text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink";
 
 // Checkout.jsx(src/pages/Checkout.jsx) 의 쿠폰 사유 문구·코드 미발견 문구를 그대로
 // 재사용한다 — 같은 fn_usable_coupons/fn_coupon_by_code 반환 형태를 쓰는 화면이라
@@ -568,7 +570,9 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
       {/* 콘텐츠 폭 규약 — Checkout.jsx:517-529 주석과 동일한 전역 관용구
           (mx-auto w-full max-w-content px-5 sm:px-8). */}
       <div className="mx-auto w-full max-w-content px-5 py-14 sm:px-8">
-        <h1 className="mb-12 text-[2rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink sm:text-[3.125rem]">
+        {/* MyPage h1(text-[2rem], 반응형 확대 없음)과 위계를 맞췄다(사용자 확정,
+            2026-08-19) — 기존 sm:3.125rem 은 MyPage 대비 지나치게 컸다. */}
+        <h1 className="mb-12 text-[2rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
           결제하기
         </h1>
 
@@ -588,16 +592,16 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                     className="rounded-2xl border border-line p-5"
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink sm:text-[1.5rem]">
+                      <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink">
                         {item.name}
                       </p>
                       <div className="flex shrink-0 flex-col items-end">
                         {hasDiscount && (
-                          <span className="text-[0.75rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-line line-through sm:text-[1.25rem] sm:font-normal sm:leading-[1.75rem]">
+                          <span className="text-[0.75rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-line line-through">
                             {formatKRW(item.list_price)}
                           </span>
                         )}
-                        <span className="text-[0.8125rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-ink sm:text-[1.25rem] sm:leading-[1.75rem]">
+                        <span className="text-[0.8125rem] font-medium leading-[1.25rem] tracking-[-0.02em] text-ink">
                           {formatKRW(item.price)}
                         </span>
                       </div>
@@ -836,7 +840,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                     </dd>
                   </div>
                 )}
-                <div className="flex justify-between border-t border-line pt-3 text-[1rem] font-semibold leading-[1.4] sm:text-[1.25rem] sm:leading-[1.75rem]">
+                <div className="flex justify-between border-t border-line pt-3 text-[1rem] font-semibold leading-[1.4]">
                   <dt>총 결제 금액</dt>
                   <dd>{formatKRW(displayAmount)}</dd>
                 </div>
@@ -864,7 +868,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                 type="button"
                 onClick={handlePay}
                 disabled={!canPay}
-                className={`mt-6 w-full rounded-xl py-4 text-[0.875rem] font-semibold leading-[1.25rem] transition sm:text-[1.25rem] sm:leading-[1.75rem] ${
+                className={`mt-6 w-full rounded-xl py-4 text-[0.875rem] font-semibold leading-[1.25rem] transition ${
                   canPay
                     ? "bg-primary text-white hover:brightness-125"
                     : "cursor-not-allowed border border-line bg-surface-card text-ink"
