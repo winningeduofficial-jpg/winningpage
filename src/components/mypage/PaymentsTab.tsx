@@ -240,12 +240,11 @@ export default function PaymentsTab({
         order={detailOrder}
         studentName={names.student}
         parentName={names.parent}
-        // 환불은 결제가 끝난 건에만. 학부모 반려 건은 재신청이 열려 있다
-        // (sql/68 미종결 판정에서 rejected 를 뺀 이유).
+        // 환불은 결제가 끝난 건에만. 학부모 반려 건은 종결 — 재신청을 열지
+        // 않는다(사용자 확정 2026-08-19, sql/88 WC057 이 서버에서도 거부).
         canRequestRefund={
           !detailOrder?.is_fake_entitlement &&
-          (detailStatus === "student_active" ||
-            detailStatus === "refund_parent_rejected")
+          detailStatus === "student_active"
         }
         onClose={() => setDetailOrder(null)}
         onRequestRefund={() => {
