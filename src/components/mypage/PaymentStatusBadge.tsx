@@ -10,12 +10,16 @@
 // 눌러 담은 것이다. 조합 → 키 변환은 PaymentsTab.resolveStatus 가 한다.
 //
 // ⚠ 시안(3661:4082 외)에 있는 배지는 결제완료 / 입금대기 / 환불 진행 중 3종뿐이다.
-// 아래 나머지 3종(환불 요청 대기 · 환불 반려 · 환불완료)은 시안에 없는 상태라
-// 신규 카피다 — 승인 필요.
+// 아래 나머지(환불 요청 대기 · 환불 반려 · 환불완료 · 다른 상품으로 결제됨)는
+// 시안에 없는 상태라 신규 카피다 — 승인 필요.
 const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
   // ── 학부모 "결제 내역" 어휘 (3967:3944 실측) ──────────────────────────
   paid: { label: "결제 완료", cls: "bg-[#e9f4ff] text-accent" },
   pending: { label: "입금대기", cls: "bg-[#f5ebcb] text-gold" },
+  // 학생이 신청했던 것과 다른 상품 구성으로 학부모가 이미 새로 결제해 이 주문을
+  // 대체함(fn_parent_create_enrollment) — "결제 완료"와 같은 색이면 이중결제로
+  // 오인하므로 종결/중립 톤(회색)으로 구분한다.
+  superseded: { label: "다른 상품으로 결제됨", cls: "bg-surface-04 text-ink-sub" },
 
   // ── 학생 "신청 내역" 어휘 (3967:3016 실측) ───────────────────────────
   // 학생 화면은 돈이 아니라 **신청·이용** 관점이다. 같은 주문이라도 학부모는
@@ -27,6 +31,10 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
   },
   student_canceled: { label: "신청 취소", cls: "bg-[#d9d9d9] text-[#808080]" },
   student_done: { label: "이용 완료", cls: "bg-[#d9d9d9] text-[#808080]" },
+  student_superseded: {
+    label: "다른 상품으로 결제됨",
+    cls: "bg-[#d9d9d9] text-[#808080]",
+  },
 
   // 학생이 신청했고 학부모가 아직 응답하지 않음(approval_status='requested').
   // 아직 아무도 처리를 시작하지 않았으므로 "진행 중"이 아니다 — 입금대기와

@@ -25,6 +25,7 @@ function formatStamp(value: string | number | Date | null | undefined) {
 type RequestOrder = {
   created_at?: string;
   paid_at?: string;
+  approval_status?: string;
 };
 
 type StudentRequestDetailModalProps = {
@@ -49,6 +50,11 @@ export default function StudentRequestDetailModal({
   const titleId = useId();
 
   if (!open || !order) return null;
+
+  const isSuperseded = order.approval_status === "superseded";
+  // 대체된 주문은 결제가 이뤄지지 않았다 — 환불 대상이 아니므로 상위에서
+  // true 가 내려오더라도 여기서 한 번 더 막는다.
+  const showRefundButton = canRequestRefund && !isSuperseded;
 
   const rows = [
     { label: "신청일", value: formatStamp(order.created_at) },
@@ -82,6 +88,12 @@ export default function StudentRequestDetailModal({
           신청 상세 내역
         </h2>
 
+        {isSuperseded && (
+          <p className="mt-[1.25rem] rounded-lg bg-surface-04 px-[1rem] py-[0.75rem] text-center text-[0.875rem] text-ink-sub">
+            학부모님이 다른 상품으로 결제하셨어요.
+          </p>
+        )}
+
         <dl className="mt-[1.875rem] flex flex-col pb-[1.875rem]">
           {rows.map((row) => (
             <div
@@ -107,7 +119,7 @@ export default function StudentRequestDetailModal({
         >
           닫기
         </button>
-        {canRequestRefund && (
+        {showRefundButton && (
           <button
             type="button"
             onClick={onRequestRefund}
