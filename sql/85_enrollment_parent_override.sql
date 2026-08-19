@@ -56,7 +56,22 @@ comment on column public.orders.superseded_by_order_id is
 
 
 -- =====================================================================
--- 3) fn_parent_create_enrollment — 학부모가 학생의 미응답 요청(status=
+-- 3) orders_superseded_pairing_check — superseded_by_order_id 는
+--    approval_status='superseded' 인 주문에만 채워진다(그 반대도 성립).
+--    reject_reason/responded_at 페어링 체크(sql/68)와 같은 원칙이다 —
+--    지금까지는 이 불변식을 함수 코드만 지키고 있었고 DB 레벨 강제가
+--    없었다.
+-- =====================================================================
+alter table public.orders drop constraint if exists orders_superseded_pairing_check;
+alter table public.orders add constraint orders_superseded_pairing_check
+  check ((approval_status = 'superseded') = (superseded_by_order_id is not null));
+
+comment on constraint orders_superseded_pairing_check on public.orders is
+  'superseded_by_order_id 는 approval_status=superseded 인 주문에만 채워진다(그 반대도 성립) — reject_reason/responded_at 페어링 체크(sql/68)와 같은 원칙(sql/85).';
+
+
+-- =====================================================================
+-- 4) fn_parent_create_enrollment — 학부모가 학생의 미응답 요청(status=
 --    pending, approval_status=requested)을 자신이 고른 상품 구성으로
 --    대체해 즉시 승인 상태의 새 주문을 만든다.
 --
@@ -129,18 +144,26 @@ begin
 
   v_discount_amount := v_list_amount - v_subtotal;
 
-  if v_subtotal <= 0 then
+  -- list_price < price 인 상품 데이터가 섞이면 discount_amount 가 음수가
+  -- 될 수 있다 — 그대로 두면 아래 INSERT 가 orders_discount_amount_check
+  -- (sql/58, discount_amount >= 0)에 걸려 처리되지 않은 raw 23514 로
+  -- 죽는다. WC001 을 재사용해(v_subtotal <= 0 과 같은 금액 무결성 오류)
+  -- 여기서 먼저 명시적으로 거부한다.
+  if v_subtotal <= 0 or v_discount_amount < 0 then
     raise exception 'invalid_amount' using errcode = 'WC001';
   end if;
 
   v_new_order_id := 'order_' || floor(extract(epoch from clock_timestamp()) * 1000)::bigint
                      || '_' || substr(md5(random()::text || clock_timestamp()::text), 1, 8);
 
+  -- p.id 는 랜덤 UUID 라 order by p.id 로는 매번 다른 상품이 "대표"로
+  -- 뽑힌다 — 카탈로그 표시 순서(src/lib/products.ts PRODUCT_COLUMNS 와
+  -- 동일한 service_sort_order, sort_order)로 정렬해 결정적으로 만든다.
   select p.name into v_first_name
     from public.products p
    where p.id = any (v_product_ids)
      and p.is_active = true
-   order by p.id
+   order by p.service_sort_order, p.sort_order
    limit 1;
 
   v_order_name := case when v_product_count > 1
@@ -187,19 +210,42 @@ begin
          responded_at            = now()
    where id = p_original_order_id;
 
+  -- 형제 요청 대체 — sql/76 이 학생당 여러 서비스에 걸친 동시 열린 요청을
+  -- 허용해서, 이번에 선택한 서비스와 겹치는 다른 열린 요청을 안 건드리면
+  -- 그 요청이 나중에 독립적으로 승인될 때 같은 서비스가 중복 결제된다.
+  update public.orders o
+     set approval_status        = 'superseded',
+         superseded_by_order_id = v_new_order_id,
+         status                 = 'canceled',
+         responded_at           = now()
+   where o.student_profile_id = v_order.student_profile_id
+     and o.status = 'pending'
+     and o.approval_status = 'requested'
+     and o.id <> p_original_order_id
+     and exists (
+       select 1 from public.order_items oi
+        where oi.order_id = o.id
+          and oi.service_key in (
+            select distinct p.service_key
+              from public.products p
+             where p.id = any (v_product_ids)
+               and p.is_active = true
+          )
+     );
+
   return query select v_new_order_id, v_subtotal, v_discount_amount;
 end;
 $$;
 
 comment on function public.fn_parent_create_enrollment(text, jsonb) is
-  '학부모가 학생의 미응답 수강신청 요청(status=pending, approval_status=requested)을 자신이 고른 상품 구성으로 대체해 즉시 approved 상태의 새 주문을 만든다(sql/85). 호출자는 그 주문의 parent_profile_id 여야 하고(WC052) 원래 요청이 여전히 미응답이어야 한다(WC053). fn_is_linked_pair 로 쌍을 재검증한다(WC055, sql/71 WC042 와 동일 헬퍼). 선택 상품은 is_active=true 인 것만 허용하며 하나라도 비활성/존재하지 않으면 거부한다(WC056). 새 주문은 쿠폰을 받지 않는다(coupon_id NULL, 범위 밖). 원래 주문은 approval_status=superseded·status=canceled·superseded_by_order_id=새 주문 id 로 종결된다 — reject_reason 은 세팅하지 않는다(orders_reject_reason_pairing_check 상 NULL 유지 필요), responded_at 은 함께 세팅한다(orders_responded_at_pairing_check 상 필수).';
+  '학부모가 학생의 미응답 수강신청 요청(status=pending, approval_status=requested)을 자신이 고른 상품 구성으로 대체해 즉시 approved 상태의 새 주문을 만든다(sql/85). 호출자는 그 주문의 parent_profile_id 여야 하고(WC052) 원래 요청이 여전히 미응답이어야 한다(WC053). fn_is_linked_pair 로 쌍을 재검증한다(WC055, sql/71 WC042 와 동일 헬퍼). 선택 상품은 is_active=true 인 것만 허용하며 하나라도 비활성/존재하지 않으면 거부한다(WC056). discount_amount 가 음수면 WC001 로 거부한다(orders_discount_amount_check 사전 방어). 대표 상품명(order_name)은 카탈로그 정렬(service_sort_order, sort_order)로 결정적으로 고른다. 새 주문은 쿠폰을 받지 않는다(coupon_id NULL, 범위 밖). 원래 주문은 approval_status=superseded·status=canceled·superseded_by_order_id=새 주문 id 로 종결된다 — reject_reason 은 세팅하지 않는다(orders_reject_reason_pairing_check 상 NULL 유지 필요), responded_at 은 함께 세팅한다(orders_responded_at_pairing_check 상 필수). 같은 학생의 다른 열린 요청(sql/76 이 허용하는, 다른 서비스에 걸친 동시 pending/requested 요청) 중 이번에 선택된 상품과 service_key 가 겹치는 것도 함께 superseded 처리해 나중에 독립 승인될 때 같은 서비스가 중복 결제되는 것을 막는다.';
 
 revoke all on function public.fn_parent_create_enrollment(text, jsonb) from public, anon, service_role;
 grant execute on function public.fn_parent_create_enrollment(text, jsonb) to authenticated;
 
 
 -- =====================================================================
--- 4) SQLSTATE 배정 — WC051 부터(WC001~WC050 은 이미 배정됨, sql/71
+-- 5) SQLSTATE 배정 — WC051 부터(WC001~WC050 은 이미 배정됨, sql/71
 --    7절·sql/74·sql/79 참고. invalid_amount 는 WC001 재사용).
 -- =====================================================================
 --   WC051  order_not_found                  fn_parent_create_enrollment
@@ -257,8 +303,29 @@ grant execute on function public.fn_parent_create_enrollment(text, jsonb) to aut
 --    and conname in ('orders_approval_status_check',
 --                     'orders_reject_reason_pairing_check',
 --                     'orders_responded_at_pairing_check',
---                     'orders_approval_before_payment_check');
--- -- superseded 전환 후에도 위 4개 CHECK 가 전부 위반 없이 통과해야 한다.
+--                     'orders_approval_before_payment_check',
+--                     'orders_superseded_pairing_check');
+-- -- superseded 전환 후에도 위 5개 CHECK 가 전부 위반 없이 통과해야 한다.
+--
+-- V6) 형제 요청 동시 대체 — 학생이 서비스 A(주문 X, pending/requested)와
+--   -- 서비스 B(주문 Y, pending/requested)를 각각 열어둔 상태에서, 학부모가
+--   -- 주문 X 를 열어 서비스 A+B 상품을 함께 체크해 fn_parent_create_
+--   -- enrollment(X, [A상품, B상품]) 호출 → X 뿐 아니라 Y 도 함께
+--   -- approval_status='superseded'·superseded_by_order_id=새 order_id 로
+--   -- 종결돼야 한다(겹치지 않는 service_key 를 가진 형제 주문은 손대지
+--   -- 않아야 한다도 함께 확인).
+--
+-- V7) orders_superseded_pairing_check 위반 시도 — superseded_by_order_id
+--   -- 를 채우지 않고 approval_status 만 'superseded' 로 직접 UPDATE 하면
+--   -- (또는 그 반대) 23514 로 거부돼야 한다.
+--
+-- V8) WC001 — list_price < price 인 상품(할인율이 음수인 데이터)만으로
+--   -- 호출하면 discount_amount < 0 이 돼 WC001(invalid_amount) 로
+--   -- 거부돼야 한다(INSERT 까지 가지 않고 함수 안에서 먼저 걸러짐).
+--
+-- V9) order_name 결정성 — 같은 product_id 조합으로 여러 번 호출해도
+--   -- (매번 다른 v_new_order_id 임에도) order_name 의 대표 상품명이
+--   -- 항상 동일해야 한다(service_sort_order, sort_order 정렬 기준).
 --
 -- =====================================================================
 -- 적용 이력
