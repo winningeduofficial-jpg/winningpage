@@ -18,10 +18,12 @@ import {
 // 관리해야 해서 계속 텍스트가 셀 경계에 바짝 붙어 보였다. shadcn Table의
 // TableHead/TableCell 기본 padding(p-2)을 그대로 받아 쓴다.
 //
-// 열 폭은 기존 결제내역 표 실측을 그대로 승계한다 — 주문번호·승인일시 각 220px,
-// 상품은 나머지 전부, 금액·상태는 고정폭. table-fixed + colgroup으로 고정한다
-// (기존 grid-template-columns와 동일한 의도).
-const COL_WIDTHS = ["13.75rem", "13.75rem", undefined, "9rem", "9rem"];
+// 열 폭 — 실측(각 셀 콘텐츠의 nowrap 폭) 기준. 주문번호는 전체 값(order_
+// 접두어만 뗀 토스 orderId, 예: 1786575058832_3939f472, 최대 223px)이
+// 말줄임 없이 한 줄로 들어가야 해서 14rem. 승인일시(최대 101px)·금액(최대
+// 91px)·상태 배지(최대 108px)는 타이트하게 잡고, 상품이 나머지 전부를
+// 가져가 제일 넓다. table-fixed + colgroup으로 고정한다.
+const COL_WIDTHS = ["14rem", "7rem", undefined, "7rem", "8rem"];
 
 type PaymentTableHeaders = {
   id: string;
@@ -100,11 +102,11 @@ export default function PaymentTable({
                   onSelect?.(row);
                 }
               }}
-              className="cursor-pointer hover:bg-surface-04"
+              className="cursor-pointer border-b-0 hover:bg-surface-04"
             >
               <TableCell
                 title={row.idFull || row.idText}
-                className="truncate text-accent underline underline-offset-2"
+                className="whitespace-nowrap font-semibold text-ink-strong"
               >
                 {row.idText}
               </TableCell>

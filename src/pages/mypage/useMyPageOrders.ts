@@ -13,6 +13,7 @@ export type Order = {
   method?: string;
   vat?: number | string | null;
   is_fake_entitlement?: boolean;
+  order_items?: { name: string }[];
 };
 
 export type Refund = {
@@ -68,7 +69,7 @@ export function useMyPageOrders(user: SessionUser | null) {
           // (orders.raw.vat)을 그대로 읽는다 — raw 전체는 행당 수 KB라 목록 조회에
           // 얹으면 무겁기 때문에 PostgREST JSON 경로로 필요한 한 값만 뽑는다.
           .select(
-            "id, order_name, amount, paid_at, status, approval_status, method, vat:raw->>vat",
+            "id, order_name, amount, paid_at, status, approval_status, method, vat:raw->>vat, order_items(name)",
           )
           // 쌍 구조(sql/68) — orders.user_id 는 **결제한 사람(학부모)** 축이다.
           // 학생은 student_profile_id 에만 박히므로 user_id 로만 조회하면 학생

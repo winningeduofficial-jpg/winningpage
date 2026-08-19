@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router";
 import PaymentDetailModal from "@/components/mypage/PaymentDetailModal";
 import PaymentStatusBadge from "@/components/mypage/PaymentStatusBadge";
 import PaymentTable from "@/components/mypage/PaymentTable";
 import {
   formatApprovedAt,
   formatOrderId,
+  formatProductNames,
   resolveOrderStatus,
 } from "@/components/mypage/paymentRows";
 import ReceiptModal from "@/components/mypage/ReceiptModal";
@@ -25,9 +25,11 @@ import RefundApprovalModal from "./RefundApprovalModal";
 //                    행을 누르면 확인 모달이 열리고 거기서 금액을 본다
 //                    (RefundApprovalModal — 학생 화면엔 금액이 없다).
 //   2) 결제 신청하기  자녀가 보낸 결제 요청(status='pending'). row 전체 클릭이
-//                    유일한 트리거다 — approval_status 가 approved 면(수락까지
-//                    끝나고 결제창만 닫힌 경우) 바로 /checkout 으로, requested 면
-//                    승인/거절 확인 모달(EnrollmentRequestModal)을 연다.
+//                    유일한 트리거이고, approval_status 와 무관하게 항상
+//                    승인/거절 확인 모달(EnrollmentRequestModal)을 먼저 연다 —
+//                    거기서 "결제 진행하기"를 눌러야 /checkout 으로 간다.
+//                    approved 인 건(수락까지 끝나고 결제창만 닫힌 경우)은 모달의
+//                    거절 버튼이 "닫기"로 바뀔 뿐, 모달을 거치는 건 동일하다.
 //   3) 지난 결제내역  결제가 끝난 주문(paid/waiting_deposit). 주문번호를 누르면
 //                    기존 결제 상세 → 영수증/환불 신청 체인으로 이어진다.
 //
@@ -56,6 +58,7 @@ type Order = {
   method?: string;
   vat?: number | string | null;
   is_fake_entitlement?: boolean;
+  order_items?: { name: string }[];
 };
 
 type Refund = {
@@ -82,7 +85,6 @@ export default function ParentPaymentsTab({
   refunds = [],
   onRefundSubmitted,
 }: ParentPaymentsTabProps) {
-  const navigate = useNavigate();
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [nameById, setNameById] = useState<Record<string, string>>({});
 
@@ -107,7 +109,7 @@ export default function ParentPaymentsTab({
       supabase
         .from("orders")
         .select(
-          "id, order_name, amount, status, approval_status, student_profile_id, created_at",
+          "id, order_name, amount, status, approval_status, student_profile_id, created_at, order_items(name)",
         )
         .eq("parent_profile_id", uid)
         .eq("status", "pending")
@@ -198,20 +200,13 @@ export default function ParentPaymentsTab({
               idText: formatOrderId(o.id),
               dateText: formatApprovedAt(o.created_at),
               productText: childName
-                ? `${childName} · ${o.order_name}`
-                : o.order_name || "",
+                ? `${childName} · ${formatProductNames(o)}`
+                : formatProductNames(o),
               amountText: formatKRW(o.amount),
               raw: o,
             };
           })}
-          onSelect={(row) => {
-            const target = row.raw as Order;
-            if (target.approval_status === "approved") {
-              navigate(`/checkout?order=${encodeURIComponent(target.id)}`);
-            } else {
-              setEnrollmentRequest(target);
-            }
-          }}
+          onSelect={(row) => setEnrollmentRequest(row.raw as Order)}
           renderStatus={(row) => (
             <PaymentStatusBadge
               status={
@@ -237,7 +232,7 @@ export default function ParentPaymentsTab({
             idFull: o.id,
             idText: formatOrderId(o.id),
             dateText: formatApprovedAt(o.paid_at),
-            productText: o.order_name || "",
+            productText: formatProductNames(o),
             amountText: formatKRW(o.amount),
             ...(o.is_fake_entitlement && { note: "(개발용)" }),
             raw: o,

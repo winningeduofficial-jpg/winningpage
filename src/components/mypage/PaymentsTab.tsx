@@ -6,6 +6,7 @@ import PaymentTable from "./PaymentTable";
 import {
   formatApprovedAt,
   formatOrderId,
+  formatProductNames,
   resolveOrderStatus,
 } from "./paymentRows";
 import RefundNoticeModal from "./RefundNoticeModal";
@@ -44,6 +45,7 @@ type Order = {
   status?: string;
   approval_status?: string;
   is_fake_entitlement?: boolean;
+  order_items?: { name: string }[];
 };
 
 type Refund = {
@@ -216,7 +218,7 @@ export default function PaymentsTab({
           idText: formatOrderId(o.id),
           // 결제 전 건은 승인일시가 없다 — 신청 시각(created_at)이 이 표의 축이다.
           dateText: formatApprovedAt(o.created_at || o.paid_at),
-          productText: o.order_name || "",
+          productText: formatProductNames(o),
           amountText: formatKRW(o.amount),
           ...(o.is_fake_entitlement && { note: "(개발용)" }),
           raw: o,

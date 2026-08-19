@@ -25,15 +25,25 @@ export function formatApprovedAt(
   return `${y}/${m}/${d}`;
 }
 
-// 표시용 주문번호 축약. 시안(9자리 숫자, 예: 123283945)은 그대로 두고, 실데이터의
-// 토스 orderId(order_1785898468780_adf9e6aa, sql/10_pricing_orders.sql)처럼 긴 값만
-// order_ 접두어를 떼고 뒤쪽 10자만 남겨 220px 컬럼을 넘지 않게 한다. 원본은 표의
-// title 속성에 남아 hover 로 확인할 수 있다.
+// 표시용 주문번호. 실데이터의 토스 orderId(order_1785898468780_adf9e6aa,
+// sql/10_pricing_orders.sql)에서 order_ 접두어만 뗀 전체 값을 그대로 보여준다
+// (축약·말줄임 없음 — 주문번호 칼럼은 전체가 보이도록 폭을 맞춘다).
 export function formatOrderId(id: string | number | null | undefined) {
   const raw = String(id || "");
-  const stripped = raw.startsWith("order_") ? raw.slice("order_".length) : raw;
-  if (stripped.length <= 12) return stripped;
-  return `…${stripped.slice(-10)}`;
+  return raw.startsWith("order_") ? raw.slice("order_".length) : raw;
+}
+
+// 표시용 상품명 — 여러 상품이 담긴 주문도 order_name(대표 상품명 + "외 N건" 요약)
+// 대신 order_items 전체를 ", "로 나열한다. order_items 조인이 없는 호출부(옛
+// 쿼리, 아직 안 옮긴 화면)를 위해 order_name 폴백을 남겨 둔다.
+export function formatProductNames(order: {
+  order_name?: string | null;
+  order_items?: { name: string }[] | null;
+}) {
+  if (order.order_items && order.order_items.length > 0) {
+    return order.order_items.map((item) => item.name).join(", ");
+  }
+  return order.order_name || "";
 }
 
 // order + 매칭되는 refund_requests 최신 행으로 상태 배지 키를 계산한다.
