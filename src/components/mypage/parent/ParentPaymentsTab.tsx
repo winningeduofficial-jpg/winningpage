@@ -44,6 +44,10 @@ const TABLE_HEADERS = {
   status: "상태",
 };
 
+// "결제 신청하기" 섹션은 아직 학부모 응답 전(또는 응답만 끝나고 결제 전) 건이라
+// "승인 일시"가 아니라 자녀가 신청을 보낸 시점을 보여준다.
+const PENDING_TABLE_HEADERS = { ...TABLE_HEADERS, date: "요청 일시" };
+
 const EMPTY_TEXT = "요청 사항이 없습니다.";
 
 type Order = {
@@ -186,7 +190,7 @@ export default function ParentPaymentsTab({
           결제 신청하기
         </h2>
         <PaymentTable
-          headers={TABLE_HEADERS}
+          headers={PENDING_TABLE_HEADERS}
           emptyText={EMPTY_TEXT}
           rows={pendingOrders.map((o) => {
             // student_profile_id가 없으면 nameById 조회를 건너뛴다(PaymentTableRow는
