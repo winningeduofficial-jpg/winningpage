@@ -67,7 +67,7 @@ export default function PaymentTable({
           <span className="text-right">{headers.status}</span>
         </div>
 
-        <div className={`${GRID} gap-y-5 pt-[1.25rem]`}>
+        <div className="flex flex-col gap-y-5 pt-[1.25rem]">
           {rows.map((row) => {
             const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
               if (event.key === "Enter" || event.key === " ") {
@@ -76,24 +76,28 @@ export default function PaymentTable({
               }
             };
             return (
+              // 배경(hover:bg-surface-04)이 wrapper 자기 자신에 붙어야 grid gap
+              // 영역까지 이어서 칠해진다 — 셀마다 개별로 주면 gap 만큼 배경이
+              // 끊겨 보인다. 열 폭 정렬은 헤더와 같은 GRID 상수를 그대로 재사용해
+              // 맞춘다(부모가 아니라 이 wrapper 자신이 grid 컨테이너다).
               <div
                 key={row.key}
                 role="button"
                 tabIndex={0}
                 onClick={() => onSelect?.(row)}
                 onKeyDown={handleKeyDown}
-                className="group contents cursor-pointer"
+                className={`${GRID} cursor-pointer rounded-lg hover:bg-surface-04`}
               >
                 <span
                   title={row.idFull || row.idText}
-                  className="flex h-8 items-center truncate self-center text-left text-accent underline underline-offset-2 group-hover:bg-surface-04"
+                  className="flex h-8 items-center truncate self-center text-left text-accent underline underline-offset-2"
                 >
                   {row.idText}
                 </span>
-                <span className="flex h-8 items-center truncate text-ink-sub group-hover:bg-surface-04">
+                <span className="flex h-8 items-center truncate text-ink-sub">
                   {row.dateText}
                 </span>
-                <span className="flex h-8 items-center truncate text-ink-strong group-hover:bg-surface-04">
+                <span className="flex h-8 items-center truncate text-ink-strong">
                   {row.productText}
                   {row.note && (
                     <span className="ml-1.5 shrink-0 text-xs text-ink-sub">
@@ -101,12 +105,12 @@ export default function PaymentTable({
                     </span>
                   )}
                 </span>
-                <span className="flex h-8 items-center justify-end truncate text-ink-strong group-hover:bg-surface-04">
+                <span className="flex h-8 items-center justify-end truncate text-ink-strong">
                   {row.amountText}
                 </span>
                 <span
                   onClick={(e) => e.stopPropagation()}
-                  className="flex h-8 items-center justify-end group-hover:bg-surface-04"
+                  className="flex h-8 items-center justify-end"
                 >
                   {renderStatus(row)}
                 </span>
