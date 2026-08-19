@@ -86,14 +86,6 @@ export default function PaymentDetailModal({
 
   if (!open || !order) return null;
 
-  // 부가세는 토스 승인 응답 원본(orders.raw.vat)이 정본이다 — 우리가 금액에서
-  // 역산하지 않는다(면세/과세 판정과 반올림 규칙을 우리가 알 수 없다).
-  // MyPage.jsx 가 `vat:raw->>vat` 로 뽑아 내려준다. 값이 없으면 대시로 둔다.
-  const vat =
-    order.vat === null || order.vat === undefined || order.vat === ""
-      ? null
-      : Number(order.vat);
-
   // 원금/할인 사유별/쿠폰명 분해는 EnrollmentRequestModal과 공유하는
   // computeDiscountBreakdown(paymentRows.ts)에 정본으로 몰아뒀다 — 두 화면이
   // 각자 계산하면 같은 주문이 서로 다른 할인 내역으로 보일 수 있다.
@@ -115,7 +107,6 @@ export default function PaymentDetailModal({
     ...discountRows.map((row) => ({ label: row.label, value: row.amountText })),
     ...couponRows.map((row) => ({ label: row.label, value: row.amountText })),
     { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
-    { label: "부가 가치", value: Number.isFinite(vat) ? formatKRW(vat) : "-" },
     { label: "결제 금액", value: formatKRW(order.amount) },
     { label: "결제 상태", value: STATUS_TEXT[status || ""] || "-" },
   ];
