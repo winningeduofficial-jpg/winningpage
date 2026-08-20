@@ -35,6 +35,20 @@
   }
 
   /*
+   * A4 출력물 컨셉(2026-08-20) — 화면은 lg(1024px) 미만에서 A4 시트 대신 다운로드 안내
+   * 카드(fd-mobile-notice)만 보여준다. 인쇄는 뷰포트와 무관하게 항상 A4 데스크톱 레이아웃이
+   * 나가야 하므로, 인쇄 뷰포트(794px, lg: 미적용)에서도 시트를 강제로 켜고 안내 카드는
+   * 강제로 끈다 — 그러지 않으면 모바일에서 인쇄를 눌렀을 때 빈 페이지만 나간다.
+   */
+  .fd-desktop-report {
+    display: flex !important;
+  }
+
+  .fd-mobile-notice {
+    display: none !important;
+  }
+
+  /*
    * fd-screen-only — QA 행 102(2026-08-20) 이후 인쇄에도 노출한다.
    *
    * 종전(F-04·F-05, 2026-08-11)에는 인쇄를 A4 정확히 2장으로 고정하기 위해 이 클래스가
@@ -156,45 +170,11 @@
     color: #808080 !important;
   }
 
-  /* PriorityTable — hidden lg:block(데스크톱 표) / lg:hidden(모바일 카드) 강제 전환 */
-  .fd-wide-only {
-    display: block !important;
-  }
-
-  .fd-narrow-only {
-    display: none !important;
-  }
-
-  /* QA 행 105 — PriorityTable.tsx:34 컨테이너가 `w-full lg:w-250`인데 인쇄 뷰포트(794px)는
-     lg:을 타지 못해 w-full로 남아 부모(시트 콘텐츠 영역, 실질 62.5rem)를 다 차지하는 대신
-     조상 grid/flex 흐름에 따라 시트 폭 밖으로 늘어나 보였다. lg:w-250과 동일한 값(62.5rem
-     = fd-summary-cards 등 다른 섹션이 이미 쓰는 시트 콘텐츠 폭)으로 고정한다. */
+  /* QA 행 105 — 인쇄 뷰포트(794px)는 Tailwind lg: 를 타지 않는다. PriorityTable은 A4 출력물
+     컨셉(2026-08-20) 이후 항상 고정폭(w-250)이지만, 시트 폭(62.5rem)과 같은 값으로 다시
+     명시해 향후 클래스 변경에도 인쇄 폭이 흔들리지 않게 한다. */
   .fd-priority-table {
     width: 62.5rem !important;
-  }
-
-  /* DimensionBarChart — lg:h-5(1.25rem) lg:gap-[3.75rem] */
-  .fd-dim-row {
-    height: 1.25rem !important;
-    gap: 3.75rem !important;
-  }
-
-  /* DimensionBarChart 라벨 — lg:w-[4.625rem] */
-  .fd-dim-label {
-    width: 4.625rem !important;
-  }
-
-  /* DimensionBarChart ScoreBar(responsive) — lg:w-[14.4375rem] lg:flex-none */
-  .fd-dim-bar {
-    width: 14.4375rem !important;
-    flex: none !important;
-  }
-
-  /* DimensionBarChart 상태 라벨 — lg:w-[3.75rem] lg:text-left lg:whitespace-nowrap */
-  .fd-dim-status {
-    width: 3.75rem !important;
-    text-align: left !important;
-    white-space: nowrap !important;
   }
 
   /* ReportPageOne 헤드라인 — lg:mt-[2.875rem] lg:w-[35.875rem] lg:text-[2rem] lg:tracking-[-0.04rem] */

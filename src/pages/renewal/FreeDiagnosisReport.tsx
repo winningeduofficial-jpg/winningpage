@@ -52,9 +52,11 @@ type DiagnosisReportData = ComponentProps<typeof ReportPageTwo>["data"] &
  *   main 상단 오프셋은 기존 설문 셸과 동일한 pt-16(4rem) 관례를 따른다.
  * - fd-print-area / fd-report-sheet / fd-no-print 클래스는 report-print.css 의 계약이므로
  *   섹션 컴포넌트가 들어와도 그대로 유지해야 한다.
- * - 좁은 뷰포트 반응형(R3, 2026-08-11): lg(1024px) 미만은 각 섹션 컴포넌트가 단일 컬럼으로
- *   리플로우한다(축소 폐기 — report-responsive.css 상단 주석 참고). lg 이상은 기존 A4 고정
- *   레이아웃 그대로다. 인쇄(@media print)는 항상 A4 2장 고정 — 화면 리플로우와 무관하다.
+ * - A4 출력물 컨셉(2026-08-20 확정) — 리포트는 A4 인쇄용 문서고 화면은 그 프리뷰다. 모바일
+ *   리플로우(R3)는 폐기했다: lg(1024px) 미만에서는 A4 시트를 화면에 렌더하지 않고 다운로드
+ *   안내 카드만 보여준다(fd-mobile-notice). 인쇄는 뷰포트와 무관하게 항상 A4 데스크톱
+ *   레이아웃이 나가야 하므로 fd-desktop-report 훅으로 report-print.css 가 인쇄 시 강제
+ *   표시하고, fd-mobile-notice는 인쇄에서 강제 숨김한다.
  */
 export default function FreeDiagnosisReport() {
   const location = useLocation();
@@ -130,9 +132,27 @@ export default function FreeDiagnosisReport() {
     return <Navigate to={SURVEY_ENTRY_PATH} replace />;
   }
 
+  // QA 행 103 — 브라우저 인쇄 다이얼로그가 제안하는 기본 파일명은 document.title을 따른다
+  // (PDF 저장 시 이 값이 그대로 파일명이 된다). SPA라 페이지 자체를 이동하지 않으므로, 인쇄
+  // 직전에만 문서 제목을 바꾸고 다이얼로그가 닫힌 뒤 원복한다. window.print()는 다이얼로그가
+  // 닫힐 때까지 호출 스레드를 막으므로 이 동기 순서로 충분하다(SPA 내 다른 print 진입점이
+  // 없어 전역 상태로 관리할 필요가 없다). 데스크톱 시트 하단 버튼과 모바일 안내 카드 버튼이
+  // 이 하나의 핸들러를 공유한다.
+  const handlePdfDownload = () => {
+    const originalTitle = document.title;
+    document.title = studentName
+      ? `${studentName}_${REPORT_FILE_SUFFIX}`
+      : REPORT_FILE_SUFFIX;
+    window.print();
+    document.title = originalTitle;
+  };
+
   return (
     <main className="fd-print-area min-h-screen w-full bg-[#FBFAFA] pt-16">
-      <div className="fd-sheet-stack flex flex-col items-center gap-10 px-4 pt-10 pb-10 lg:gap-25 lg:px-0 lg:pt-25 lg:pb-25">
+      {/* 데스크톱 A4 리포트 — A4 출력물 컨셉(2026-08-20)이므로 lg(1024px) 미만에서는 렌더하지
+          않는다. fd-desktop-report 훅으로 report-print.css 가 인쇄 시(뷰포트 무관) 항상
+          강제 표시한다. */}
+      <div className="fd-sheet-stack fd-desktop-report hidden flex-col items-center gap-10 px-4 pt-10 pb-10 lg:flex lg:gap-25 lg:px-0 lg:pt-25 lg:pb-25">
         {/* 불성실 응답 경고는 시트 **위**에 둔다 — '결과가 다를 수 있다'는 안내가 리포트 2장을
             다 읽은 뒤에 나오면 기능을 못 한다. 시트 밖인 이유는 승인된 A4 레이아웃의 첫 요소를
             밀어내지 않기 위해서다. */}
@@ -151,30 +171,31 @@ export default function FreeDiagnosisReport() {
             종결 신호가 되어 이 섹션의 발견율이 급감한다. */}
         <ReportScreenExtras data={data} />
 
-        {/* PdfDownloadButton.jsx 미배정 — 결정9 스펙(253×60, r30, bg #013262)을 인라인 구현.
-            모바일에서도 살아 있어야 한다(A4 출력은 이 경로로만 얻는다) — 터치 타깃 h-perf-inset
-            (60px) 는 이미 2.75rem(44px) 최소 기준을 넘는다. */}
+        {/* PdfDownloadButton.jsx 미배정 — 결정9 스펙(253×60, r30, bg #013262)을 인라인 구현. */}
         <div className="fd-no-print">
           <button
             type="button"
-            onClick={() => {
-              // QA 행 103 — 브라우저 인쇄 다이얼로그가 제안하는 기본 파일명은 document.title을
-              // 따른다(PDF 저장 시 이 값이 그대로 파일명이 된다). SPA라 페이지 자체를 이동하지
-              // 않으므로, 인쇄 직전에만 문서 제목을 바꾸고 다이얼로그가 닫힌 뒤 원복한다.
-              // window.print()는 다이얼로그가 닫힐 때까지 호출 스레드를 막으므로 이 동기 순서로
-              // 충분하다(SPA 내 다른 print 진입점이 없어 전역 상태로 관리할 필요가 없다).
-              const originalTitle = document.title;
-              document.title = studentName
-                ? `${studentName}_${REPORT_FILE_SUFFIX}`
-                : REPORT_FILE_SUFFIX;
-              window.print();
-              document.title = originalTitle;
-            }}
+            onClick={handlePdfDownload}
             className="flex h-perf-inset w-63.25 items-center justify-center rounded-[1.875rem] bg-primary px-10 py-5 text-[1.25rem] font-semibold text-white transition-colors duration-150 hover:bg-[#01427e] focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             PDF 파일로 다운 받기
           </button>
         </div>
+      </div>
+
+      {/* 모바일 안내 카드 — A4 시트 대신 다운로드 경로만 제공한다. fd-mobile-notice 훅으로
+          report-print.css 가 인쇄에서 항상 숨긴다(모바일에서 인쇄해도 A4가 나가야 한다). */}
+      <div className="fd-mobile-notice flex flex-col items-center gap-6 px-6 py-20 text-center lg:hidden">
+        <p className="max-w-70 text-base leading-[1.6] text-ink-sub">
+          학습진단 리포트는 A4 인쇄용 문서로 제공됩니다. PDF 파일로 다운로드해 확인해 주세요.
+        </p>
+        <button
+          type="button"
+          onClick={handlePdfDownload}
+          className="flex h-perf-inset w-63.25 items-center justify-center rounded-[1.875rem] bg-primary px-10 py-5 text-[1.25rem] font-semibold text-white transition-colors duration-150 hover:bg-[#01427e] focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          PDF 파일로 다운 받기
+        </button>
       </div>
     </main>
   );
