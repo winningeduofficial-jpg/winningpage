@@ -91,6 +91,8 @@ interface GoalStudentPayload {
   lastRecordDate: string | null;
   jungsiAvailable: boolean;
   probabilityHistory: GoalProbabilityHistoryEntry[];
+  /** 최근 7일 goal_daily_records 순공시간 평균. 기록 0건이면 null(억지 산출 금지). */
+  recentAvgStudyHours: number | null;
 }
 
 /** 오늘 확률 스냅샷 — api/goal/daily-record.ts buildProbsPayload(). */
@@ -226,7 +228,7 @@ async function parseJsonSafe(response: Response): Promise<any> {
 //       { onboarded, status, profile:{name,schoolType,grade,schoolCutType},
 //         targets, scores, baseProbs, rates, cumulativeBonus, probs,
 //         weeklySchedule, weekIdeal, weekMin, actualStartDate, recordCount,
-//         lastRecordDate, jungsiAvailable, probabilityHistory }
+//         lastRecordDate, jungsiAvailable, probabilityHistory, recentAvgStudyHours }
 //       probabilityHistory: {recordedAt, idealSusi, idealJungsi, minSusi, minJungsi}[]
 //       — 오래된 순. "학업 성취도 변화 추이" 차트(AchievementChart) 전용.
 export type FetchGoalStudentResult =
