@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { useNavigate } from "react-router";
 import KakaoConsultButton from "@/components/mypage/KakaoConsultButton";
 import MyPageTabs from "@/components/mypage/MyPageTabs";
@@ -40,13 +41,23 @@ export default function MyPage() {
   const navigate = useNavigate();
 
   const { user, profile, loading } = useMyPageProfile(navigate);
-  const { orders, refunds, reloadRefunds } = useMyPageOrders(user);
+  const { orders, refunds, reload: reloadOrders } = useMyPageOrders(user);
 
   const memberType = cleanText(profile?.member_type).toLowerCase();
   const isParent = memberType === "parent";
 
   // 학부모 탭 배지용 대기 건수(확정 디자인 3967:3944 "결제 요청 1"·"환불 요청 1").
-  const pendingOrderCount = usePendingOrderCount(user, isParent);
+  const { pendingOrderCount, reload: reloadPendingCount } =
+    usePendingOrderCount(user, isParent);
+
+  // 학부모 결제 내역 탭에서 액션(환불 응답·결제요청 반려·환불 신청)이 일어나면
+  // 주문·환불 목록과 탭 배지를 한 번에 다시 읽는다 — 세 섹션이 서로 다른 데이터를
+  // 보므로 부분 갱신은 반드시 어딘가를 stale 로 남긴다. pending 주문 목록(섹션 2)은
+  // ParentPaymentsTab 이 자체 보유해서 그쪽 reloadPending 과 합성된다.
+  const refreshPayments = useCallback(() => {
+    reloadOrders();
+    reloadPendingCount();
+  }, [reloadOrders, reloadPendingCount]);
 
   const refundRequestCount = refunds.filter(
     (r) => r.approval_status === "requested",
@@ -100,13 +111,13 @@ export default function MyPage() {
                 <ParentPaymentsTab
                   orders={orders}
                   refunds={refunds}
-                  onRefundSubmitted={reloadRefunds}
+                  onRefresh={refreshPayments}
                 />
               ) : (
                 <PaymentsTab
                   orders={orders}
                   refunds={refunds}
-                  onRefundSubmitted={reloadRefunds}
+                  onRefundSubmitted={reloadOrders}
                 />
               )}
             </>
