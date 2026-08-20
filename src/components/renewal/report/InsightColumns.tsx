@@ -17,7 +17,7 @@ const InsightColumns = ({ strengths, improvements }: InsightColumnsProps) => {
         <h3 className="text-[1.25rem] font-semibold leading-5 text-accent">
           잘하고 있는 부분
         </h3>
-        <ul className="mt-5.5 flex flex-col gap-3 list-disc ps-[1.78125rem]">
+        <ul className="mt-5.5 flex flex-col gap-3 list-disc ps-4.5">
           {withDedupedKeys(strengths).map(({ item, key }) => (
             <li
               key={key}
@@ -33,7 +33,7 @@ const InsightColumns = ({ strengths, improvements }: InsightColumnsProps) => {
         <h3 className="text-[1.25rem] font-semibold leading-5 text-accent">
           보완할 부분
         </h3>
-        <ul className="mt-5.5 flex flex-col gap-3 list-disc ps-[1.78125rem]">
+        <ul className="mt-5.5 flex flex-col gap-3 list-disc ps-4.5">
           {withDedupedKeys(improvements).map(({ item, key }) => (
             <li
               key={key}
