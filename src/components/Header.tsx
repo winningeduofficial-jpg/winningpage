@@ -48,21 +48,17 @@ const MEGA_PROMO_W = "23rem";
 // 3144:2883 — 크기·간격·그림자·타이포는 비로그인 카드(1483:926)와 완전히 동일해 상수는
 // 그대로 재사용하고, 콘텐츠(타이틀/서브/이미지/CTA)만 이 두 상수 객체로 분기한다.
 const MEGA_PROMO_GUEST = {
-  title: "월 2만원 대로 시작하는 입시 관리!",
-  subtitle: (
-    <>
-      학업·교내활동, 탐구, 학종, 교과, 면접까지
-      <br />
-      무제한 점검하세요
-    </>
-  ),
+  title: "흔들리지 않는 학습·진로 관리의 시작!",
+  subtitle:
+    "학습진단, 목표관리, 수행, 탐구, 성장설계까지 완벽히 점검해 드립니다",
   image: "/images/mega-menu-promo.png",
   ctaLabel: "로그인하기",
   ctaTo: "/login",
 };
 const MEGA_PROMO_MEMBER = {
-  title: "나에게 딱 맞는 서비스를 추천받아요",
-  subtitle: "무료 설문조사로 나의 강점과 약점을 찾아보세요",
+  title: "흔들리지 않는 학습·진로 관리의 시작!",
+  subtitle:
+    "학습진단, 목표관리, 수행, 탐구, 성장설계까지 완벽히 점검해 드립니다",
   image: megaPromoDiagnosisImg,
   ctaLabel: "학습진단 하기",
   ctaTo: "/services/learning-diagnosis",
@@ -628,160 +624,162 @@ export default function Header() {
           />
         </Link>
 
-        <button
-          ref={mobileNavTriggerRef}
-          type="button"
-          onClick={() => setMobileNavOpen(true)}
-          aria-expanded={mobileNavOpen}
-          aria-controls="mobile-nav-drawer"
-          aria-label="전체 메뉴 열기"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-[#1e293b] transition hover:border-primary hover:text-primary desktop:hidden"
-        >
-          <Menu size={22} />
-        </button>
+        <div className="flex shrink-0 items-center gap-3">
+          <button
+            ref={mobileNavTriggerRef}
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            aria-expanded={mobileNavOpen}
+            aria-controls="mobile-nav-drawer"
+            aria-label="전체 메뉴 열기"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-[#1e293b] transition hover:border-primary hover:text-primary"
+          >
+            <Menu size={22} />
+          </button>
 
-        <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
-          {(() => {
-            if (!isAuthReady)
-              return <div className="h-8 w-[16rem]" aria-hidden="true" />;
-            if (shouldShowLoggedInHeader)
-              return (
-                <>
-                  <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-primary whitespace-nowrap">
-                    {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
-                  </div>
+          <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
+            {(() => {
+              if (!isAuthReady)
+                return <div className="h-8 w-[16rem]" aria-hidden="true" />;
+              if (shouldShowLoggedInHeader)
+                return (
+                  <>
+                    <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-primary whitespace-nowrap">
+                      {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
+                    </div>
 
-                  {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
-                  <div
-                    className="relative flex items-center"
-                    onMouseEnter={() => setMyOpen(true)}
-                    onMouseLeave={() => setMyOpen(false)}
-                  >
+                    {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
+                    <div
+                      className="relative flex items-center"
+                      onMouseEnter={() => setMyOpen(true)}
+                      onMouseLeave={() => setMyOpen(false)}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setMyOpen((prev) => !prev)}
+                        className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
+                      >
+                        마이페이지
+                        <ChevronDown
+                          size={14}
+                          className={`transition ${myOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
+
+                      {myOpen && (
+                        <div className="absolute right-0 top-full z-50 w-[16rem]">
+                          <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                            {myMenu.map((item) => {
+                              const Icon = item.icon;
+
+                              return (
+                                <Link
+                                  key={item.label}
+                                  to={item.to}
+                                  onClick={() => setMyOpen(false)}
+                                  className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
+                                >
+                                  <Icon size={18} />
+                                  {item.label}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-line bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-primary hover:text-primary"
+                      >
+                        <Settings size={14} />
+                        관리자
+                      </Link>
+                    )}
+
                     <button
                       type="button"
-                      onClick={() => setMyOpen((prev) => !prev)}
-                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
+                      onClick={handleLogout}
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
                     >
-                      마이페이지
-                      <ChevronDown
-                        size={14}
-                        className={`transition ${myOpen ? "rotate-180" : ""}`}
-                      />
+                      로그아웃
                     </button>
-
-                    {myOpen && (
-                      <div className="absolute right-0 top-full z-50 w-[16rem]">
-                        <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                          {myMenu.map((item) => {
-                            const Icon = item.icon;
-
-                            return (
-                              <Link
-                                key={item.label}
-                                to={item.to}
-                                onClick={() => setMyOpen(false)}
-                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
-                              >
-                                <Icon size={18} />
-                                {item.label}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {isAdmin && (
-                    <Link
-                      to="/admin"
-                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-line bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-primary hover:text-primary"
+                  </>
+                );
+              if (isLoggedIn)
+                return (
+                  <>
+                    {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
+                    <div
+                      className="relative flex items-center"
+                      onMouseEnter={() => setMyOpen(true)}
+                      onMouseLeave={() => setMyOpen(false)}
                     >
-                      <Settings size={14} />
-                      관리자
-                    </Link>
-                  )}
+                      <button
+                        type="button"
+                        onClick={() => setMyOpen((prev) => !prev)}
+                        className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
+                      >
+                        마이페이지
+                        <ChevronDown
+                          size={14}
+                          className={`transition ${myOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
-                  >
-                    로그아웃
-                  </button>
-                </>
-              );
-            if (isLoggedIn)
-              return (
-                <>
-                  {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
-                  <div
-                    className="relative flex items-center"
-                    onMouseEnter={() => setMyOpen(true)}
-                    onMouseLeave={() => setMyOpen(false)}
-                  >
+                      {myOpen && (
+                        <div className="absolute right-0 top-full z-50 w-[16rem]">
+                          <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
+                            {myMenu.map((item) => {
+                              const Icon = item.icon;
+
+                              return (
+                                <Link
+                                  key={item.label}
+                                  to={item.to}
+                                  onClick={() => setMyOpen(false)}
+                                  className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
+                                >
+                                  <Icon size={18} />
+                                  {item.label}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <button
                       type="button"
-                      onClick={() => setMyOpen((prev) => !prev)}
-                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
+                      onClick={handleLogout}
+                      className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
                     >
-                      마이페이지
-                      <ChevronDown
-                        size={14}
-                        className={`transition ${myOpen ? "rotate-180" : ""}`}
-                      />
+                      로그아웃
                     </button>
-
-                    {myOpen && (
-                      <div className="absolute right-0 top-full z-50 w-[16rem]">
-                        <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                          {myMenu.map((item) => {
-                            const Icon = item.icon;
-
-                            return (
-                              <Link
-                                key={item.label}
-                                to={item.to}
-                                onClick={() => setMyOpen(false)}
-                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
-                              >
-                                <Icon size={18} />
-                                {item.label}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                  </>
+                );
+              return (
+                <>
+                  <Link
+                    to="/login"
+                    className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
                   >
-                    로그아웃
-                  </button>
+                    로그인
+                  </Link>
+
+                  <Link
+                    to="/signup"
+                    className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                  >
+                    회원가입
+                  </Link>
                 </>
               );
-            return (
-              <>
-                <Link
-                  to="/login"
-                  className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
-                >
-                  로그인
-                </Link>
-
-                <Link
-                  to="/signup"
-                  className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
-                >
-                  회원가입
-                </Link>
-              </>
-            );
-          })()}
+            })()}
+          </div>
         </div>
       </div>
 

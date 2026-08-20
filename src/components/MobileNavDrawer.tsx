@@ -26,7 +26,8 @@ type MobileNavDrawerProps = {
   activeGroupTitle?: string | null;
 };
 
-// 헤더 nav(desktop:flex 미만)를 대체하는 전체화면 드로어.
+// 헤더 햄버거(전체메뉴) 버튼으로 여는 전체화면 드로어. 모바일 전용이 아니라 데스크톱에서도
+// nav 5개 메뉴와 병행 노출된다(전체메뉴 버튼 클릭 시 뷰포트 무관하게 항상 열린다).
 // 5개 nav 그룹 + 로그인 상태의 마이페이지/관리자/로그아웃(또는 로그인/회원가입)을 아코디언으로 노출한다.
 //
 // ESC 닫기·포커스 트랩·배경 스크롤 잠금은 shadcn Dialog(Base UI) 내장 동작이 처리한다.
@@ -73,7 +74,7 @@ export default function MobileNavDrawer({
       }}
     >
       <DialogPortal>
-        <DialogOverlay className="bg-black/40 desktop:hidden" />
+        <DialogOverlay className="bg-black/40" />
         <DialogPrimitive.Popup
           // Header의 햄버거 버튼이 aria-controls="mobile-nav-drawer"로 이 패널을
           // 가리킨다 — Base UI가 자동 부여하는 useId 대신 이 고정 id를 유지해야 한다.
@@ -83,7 +84,7 @@ export default function MobileNavDrawer({
           // Base UI Popup은 aria-modal을 자동 배선하지 않는다 — 리터럴로 명시.
           aria-modal="true"
           aria-label="전체 메뉴"
-          className="fixed inset-y-0 right-0 z-60 flex h-full w-[85vw] max-w-88 flex-col overflow-y-auto bg-white shadow-[-18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-closed:translate-x-full data-open:translate-x-0 desktop:hidden"
+          className="fixed inset-y-0 right-0 z-60 flex h-full w-[85vw] max-w-88 flex-col overflow-y-auto bg-white shadow-[-18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-closed:translate-x-full data-open:translate-x-0"
         >
           <div className="flex items-center justify-between border-b border-[#eeeeee] px-6 py-5">
             {shouldShowLoggedInHeader ? (
