@@ -1,10 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
 
-// 좌→우 컨베이어 방향(음수 speed — useInfiniteMarquee 기본값은 scrollLeft 증가라 화면상
-// 아이템이 우→좌로 흐른다) + 저속(한 바퀴 약 30-40s 수준, 카드 실측폭 기준 역산).
-const MARQUEE_SPEED_LEFT_TO_RIGHT = -0.05;
-
 const TRACK_TABS = [
   { key: "general", label: "일반계열" },
   { key: "medical_special", label: "의약학 · 특수계열" },
@@ -65,7 +61,6 @@ export default function AcceptanceSection({
   const { scrollRef, repeatIndices, containerHandlers, recenter } =
     useInfiniteMarquee({
       itemCount: activeUniversities.length,
-      speed: MARQUEE_SPEED_LEFT_TO_RIGHT,
     });
 
   // 탭 전환 시 캐러셀 위치 리셋 (중앙 사이클로 재배치 — 훅의 동적 repeatCount 반영)
