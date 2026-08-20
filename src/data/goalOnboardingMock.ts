@@ -17,53 +17,9 @@ export const HIGH_SCHOOL_GRADE_OPTIONS = [
   { value: "g3", label: "고등학교 3학년" },
 ];
 
-// 데이터 소스 미확정(part-01 구현 노트: "대입모집요강 데이터셋과 연동 가능성 있음, 확인 필요") —
-// 여기서는 정적 목업 배열 + 클라이언트 substring 필터만 구현한다. 실 서비스에서는 원격 검색 +
-// 디바운스가 필요하다(part-02 #4 구현 노트). "울산" 검색 시 3개 자동완성이 뜨는 시안 재현을 위해
-// 울산 계열 대학 3곳을 포함한다.
-export const UNIVERSITY_OPTIONS = [
-  {
-    name: "서울대학교",
-    departments: [
-      "경영학과",
-      "경제학과",
-      "컴퓨터공학부",
-      "전기정보공학부",
-      "의예과",
-    ],
-  },
-  {
-    name: "연세대학교",
-    departments: ["경영학과", "심리학과", "전기전자공학부", "언더우드학부"],
-  },
-  {
-    name: "고려대학교",
-    departments: ["경영학과", "정치외교학과", "컴퓨터학과", "의과대학"],
-  },
-  {
-    name: "성균관대학교",
-    departments: ["글로벌경영학과", "소프트웨어학과", "전자전기공학부"],
-  },
-  {
-    name: "한양대학교",
-    departments: ["건축학부", "컴퓨터소프트웨어학부", "경영학부"],
-  },
-  {
-    name: "중앙대학교",
-    departments: ["경영학과", "소프트웨어학부", "심리학과"],
-  },
-  { name: "경희대학교", departments: ["한의예과", "경영학과", "컴퓨터공학과"] },
-  { name: "건국대학교", departments: ["경영학과", "컴퓨터공학부", "수의예과"] },
-  { name: "울산대학교", departments: ["의예과", "기계공학부", "경영학부"] },
-  {
-    name: "울산과학기술원",
-    departments: ["전기전자공학과", "컴퓨터공학과", "화학공학과"],
-  },
-  {
-    name: "울산과학대학교",
-    departments: ["간호학과", "기계공학과", "경영학과"],
-  },
-];
+// UNIVERSITY_OPTIONS(대학 11곳 고정 목업)는 삭제됐다 — UniversitySelect.tsx가
+// src/lib/goal/universitySearch.ts로 goal_university_cuts를 직접 검색한다
+// (mock 삭제 후속 UoW, 2026-08-20).
 
 // #6 카피 그대로.
 export const NAESIN_EXAMS = [

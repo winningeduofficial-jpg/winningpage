@@ -1,11 +1,22 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { UNIVERSITY_OPTIONS } from "@/data/goalOnboardingMock";
+import {
+  fetchDepartmentsForUniversity,
+  searchUniversities,
+  type UniversityOption,
+} from "@/lib/goal/universitySearch";
 
 // 대학 검색 콤보박스 + 학과 셀렉트 — docs/figma-goal/00-INDEX.md §5-3 `UniversitySelect`.
 // 상한(2단계)・하한(3단계) 두 스텝이 이 컴포넌트 하나를 `target` prop만 바꿔 공유한다
 // (part-02 part-01 구현 노트: "상한/하한 두 스텝을 하나의 UniversitySelectStep 컴포넌트로").
 //
+// 데이터 소스: goal_university_cuts(공개 읽기 RLS, sql/55_goal_management.sql (6-4))를
+// searchUniversities()/fetchDepartmentsForUniversity()로 직접 조회한다(공개 읽기라 서버
+// 경유 불요) — 정적 목업(goalOnboardingMock.js UNIVERSITY_OPTIONS, 대학 11곳 고정)을
+// 대체한다(mock 삭제 후속 UoW, 2026-08-20). 온보딩 제출(intake.js)은 대학명 문자열을
+// 그대로 받는 계약이라 이 배선 전환으로 바뀌지 않는다.
+const SEARCH_DEBOUNCE_MS = 300;
+
 type UniversityChoice = {
   university: string;
   department: string;
@@ -19,8 +30,6 @@ type UniversitySelectProps = {
   departmentPlaceholder?: string;
 };
 
-// 데이터 소스 미확정(part-01 구현 노트) — 정적 목업 배열 + 클라이언트 substring 필터로만
-// 구현한다. 실 서비스에서는 원격 검색 + 디바운스가 필요하다(part-02 #4 구현 노트).
 export default function UniversitySelect({
   value,
   onChange,
@@ -30,11 +39,58 @@ export default function UniversitySelect({
 }: UniversitySelectProps) {
   const [searchTerm, setSearchTerm] = useState(value.university || "");
   const [isOpen, setIsOpen] = useState(false);
+  const [searchResults, setSearchResults] = useState<UniversityOption[]>([]);
+  const [searching, setSearching] = useState(false);
+  // 이미 선택된 대학의 학과 목록 — searchResults(현재 검색 세션 결과)와 별도로 둔다.
+  // 대학을 고르면 드롭다운이 닫히고 이후 검색어가 다시 바뀔 수 있어, searchResults만
+  // 쓰면 그 순간 학과 셀렉트가 빈 목록으로 떨어진다.
+  const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setSearchTerm(value.university || "");
   }, [value.university]);
+
+  // 선택된 대학이 바뀔 때마다(직접 선택 + 온보딩 재진입 등 외부 hydration 포함) 학과
+  // 목록을 정확 일치로 다시 채운다 — 단일 정본(value.university)에서만 파생한다.
+  useEffect(() => {
+    let alive = true;
+    if (!value.university) {
+      setSelectedDepartments([]);
+      return;
+    }
+    fetchDepartmentsForUniversity(value.university).then((departments) => {
+      if (alive) setSelectedDepartments(departments);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [value.university]);
+
+  // 검색 디바운스 — 드롭다운이 열려 있고 입력이 있을 때만 조회한다(전량 프리로드 금지,
+  // universitySearch.ts 헤더 주석 참고).
+  useEffect(() => {
+    if (!isOpen || !searchTerm.trim()) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+
+    let alive = true;
+    setSearching(true);
+    const timer = setTimeout(() => {
+      searchUniversities(searchTerm).then((results) => {
+        if (!alive) return;
+        setSearchResults(results);
+        setSearching(false);
+      });
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [searchTerm, isOpen]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -51,18 +107,7 @@ export default function UniversitySelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [value.university]);
 
-  const filteredUniversities = searchTerm
-    ? UNIVERSITY_OPTIONS.filter((university) =>
-        university.name.includes(searchTerm),
-      )
-    : UNIVERSITY_OPTIONS;
-
-  const selectedUniversity = UNIVERSITY_OPTIONS.find(
-    (university) => university.name === value.university,
-  );
-  const departmentOptions = selectedUniversity?.departments || [];
-
-  function selectUniversity(name) {
+  function selectUniversity(name: string) {
     onChange({ university: name, department: "" });
     setSearchTerm(name);
     setIsOpen(false);
@@ -106,12 +151,20 @@ export default function UniversitySelect({
             role="listbox"
             className="absolute left-0 right-0 top-[calc(100%+0.25rem)] z-20 max-h-68 overflow-y-auto rounded-xl border border-line bg-white shadow-[0_0.75rem_2rem_rgba(15,23,42,0.12)]"
           >
-            {filteredUniversities.length === 0 ? (
+            {!searchTerm.trim() ? (
+              <li className="px-5 py-4.25 text-[0.875rem] text-ink-sub">
+                대학명을 입력해 검색하세요.
+              </li>
+            ) : searching ? (
+              <li className="px-5 py-4.25 text-[0.875rem] text-ink-sub">
+                검색 중…
+              </li>
+            ) : searchResults.length === 0 ? (
               <li className="px-5 py-4.25 text-[0.875rem] text-ink-sub">
                 검색 결과가 없습니다.
               </li>
             ) : (
-              filteredUniversities.map((university) => (
+              searchResults.map((university) => (
                 <li key={university.name}>
                   <button
                     type="button"
@@ -147,7 +200,7 @@ export default function UniversitySelect({
           <option value="" disabled>
             {departmentPlaceholder}
           </option>
-          {departmentOptions.map((department) => (
+          {selectedDepartments.map((department) => (
             <option key={department} value={department}>
               {department}
             </option>
