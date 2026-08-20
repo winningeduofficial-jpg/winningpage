@@ -118,8 +118,8 @@ type GrowthReportBodyProps = {
 // mock 제거(I단계 실배선) — 데이터는 더 이상 이 컴포넌트가 소유하지 않는다. fetch 훅은
 // pages/goal/GrowthReport.jsx가 갖고, `report`는 api/goal/report.js buildGrowthReport()가
 // 만드는 그대로다(합격 가능성 변화 데이터도 report.admission으로 함께 온다 — 예전엔
-// goalMock.mockAdmissionChance/goalReportMock.monthlyAdmissionChance 두 파일에서 따로
-// import했었다). 순수 프레젠테이션 컴포넌트로만 남긴다 — 데이터 유무 판단(빈 상태 등)은
+// 옛 목업 두 파일(mockAdmissionChance/monthlyAdmissionChance)에서 따로 import했었다).
+// 순수 프레젠테이션 컴포넌트로만 남긴다 — 데이터 유무 판단(빈 상태 등)은
 // 전부 report 필드 자체(예: execution.subjectShare.empty)로 표현되고, 이 컴포넌트는
 // 그 값을 그대로 자식에게 흘린다.
 //

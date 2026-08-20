@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import GoalCard from "@/components/goal/GoalCard";
 import GoalCardHeader from "@/components/goal/GoalCardHeader";
 
@@ -9,12 +10,16 @@ type GapRow = { label: string; description: string; remaining: string };
 
 type GapToTargetCardProps = {
   rows: GapRow[];
+  /** 타이틀 옆 인라인 보조 텍스트 — "어느 대학 기준인지"(예: "이상 목표 기준") 등.
+   * src/lib/goal/gapToTarget.ts는 이 표시를 모른다(행마다 반복하지 않기 위해
+   * 호출부가 카드 단위로 한 번만 얹는다). */
+  meta?: ReactNode;
 };
 
-export default function GapToTargetCard({ rows }: GapToTargetCardProps) {
+export default function GapToTargetCard({ rows, meta }: GapToTargetCardProps) {
   return (
     <GoalCard tone="neutral" className="flex flex-col gap-5 px-8 py-7.5">
-      <GoalCardHeader title="목표까지 남은 격차" />
+      <GoalCardHeader title="목표까지 남은 격차" meta={meta} />
       <ul className="flex flex-col gap-3">
         {rows.map((row) => (
           <li

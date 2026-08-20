@@ -52,13 +52,13 @@ export const config = { runtime: "nodejs" };
 type GoalSession = Awaited<ReturnType<typeof openGoalSession>>;
 
 // ---------------------------------------------------------------------------
-// 화이트리스트 — 코드값 → 한글 라벨 (src/data/goalStudyMock.js 와 글자 단위로 같다)
+// 화이트리스트 — 코드값 → 한글 라벨 (src/components/goal/studyRecordOptions.js 와 글자 단위로 같다)
 // ---------------------------------------------------------------------------
 
-// mockStudyItemOptions(goalStudyMock.js:49-56). schoolSubject→'내신 과목' /
+// STUDY_ITEM_OPTIONS(studyRecordOptions.js:49-56). schoolSubject→'내신 과목' /
 // mockExam→'기출/모의고사' 는 bonusV2.js 의 TASK_NAESIN/TASK_MOCK_EXAM 태그 가산
 // 입력이기도 하다 — 라벨이 어긋나면 태그 가산이 조용히 0배가 된다.
-const TASK_LABELS = {
+export const TASK_LABELS = {
   concept: "개념 학습",
   academyHomework: "학원 숙제",
   wrongAnswerReview: "오답 정리",
@@ -67,8 +67,8 @@ const TASK_LABELS = {
   etc: "기타",
 };
 
-// mockDisturbanceOptions(goalStudyMock.js:40-46). 수식 미반영 — 기록 전용(팀장 지시).
-const REASON_LABELS = {
+// DISTURBANCE_OPTIONS(studyRecordOptions.js:40-46). 수식 미반영 — 기록 전용(팀장 지시).
+export const REASON_LABELS = {
   academySchedule: "수업 · 학원 일정",
   smartphone: "스마트폰",
   fatigue: "피로 · 수면 부족",
@@ -76,9 +76,9 @@ const REASON_LABELS = {
   none: "없었음",
 };
 
-// mockConditionOptions(goalStudyMock.js:31-36). sql/73_goal_daily_record_v2.sql 의
+// CONDITION_OPTIONS(studyRecordOptions.js:31-36). sql/73_goal_daily_record_v2.sql 의
 // body_condition CHECK 값 도메인과 정확히 같다(빈 문자열 별도 허용).
-const BODY_CONDITIONS = new Set(["great", "normal", "tired", "exhausted"]);
+export const BODY_CONDITIONS = new Set(["great", "normal", "tired", "exhausted"]);
 
 const MEMO_MAX_LENGTH = 1000;
 const STUDY_HOURS_MAX = 24;

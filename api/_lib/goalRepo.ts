@@ -69,7 +69,7 @@ export const CUT_KEYS = [
 ];
 
 // 학습 계획 과제(goal_plan_tasks) 과목 — DB CHECK 5종(sql/75_goal_plan_tasks.sql)과
-// AddTaskModal 과목 칩의 한글 라벨(goalModalOptions.taskSubjects, goalMock.js:296)을 잇는다.
+// AddTaskModal 과목 칩의 한글 라벨(TASK_SUBJECTS, src/components/goal/goalFormOptions.ts)을 잇는다.
 // '탐구' → 'science' 매핑은 team-lead가 sql/75 CHECK 값을 먼저 확정해 준 결과다 —
 // 사회탐구까지 포괄하는 라벨이지만 DB 값은 그대로 따른다. api/goal/plan-tasks.js 는 이
 // 배럴만 참조하고 자체 매핑을 두지 않는다(단일 정본).
@@ -200,6 +200,25 @@ export async function fetchStudentRow(
 
   if (error) throw error;
   return data || null;
+}
+
+/**
+ * profiles.name 1건 — 사이드바 인사말("OO의 목표관리") 등 학생 이름 표시 전용.
+ * profile_id 는 곧 profiles.id(auth user id, openGoalSession 규약 1과 동일). 없거나
+ * name 이 비어 있으면 null — 호출부가 "나의 목표관리" 등 이름 없는 문구로 폴백한다.
+ */
+export async function fetchProfileName(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("name")
+    .eq("id", profileId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as Row | null)?.name || null;
 }
 
 /**
@@ -808,7 +827,14 @@ export type TargetsPayload = {
   };
 };
 
-/** targets 블록. 온보딩 미완료(awaiting_cuts) 응답에도 그대로 실린다. */
+/**
+ * targets 블록. 온보딩 미완료(awaiting_cuts) 응답에도 그대로 실린다.
+ *
+ * naesinCut/jungsiCut은 sql/55_goal_management.sql:191-198 컬럼 코멘트대로 스케일이
+ * 다르다 — naesinCut은 내신 등급 1~9(작을수록 우세), jungsiCut은 정시 백분위 0~100
+ * (클수록 우세). "목표까지 남은 격차" 계산(src/lib/goal/gapToTarget.ts)이 이 부호
+ * 반전을 그대로 물려받는다.
+ */
 export function buildTargets(row: Row): TargetsPayload {
   return {
     ideal: {
@@ -835,12 +861,20 @@ export function buildTargets(row: Row): TargetsPayload {
  * @param schoolCutType getSchoolCutType(row.school_type) 결과.
  *   DB 에 저장하지 않고 매번 파생한다(§7-2).
  * @param historyRows fetchProbabilityHistory() 결과(오래된 순). 생략 시 빈 배열.
+ * @param profileName fetchProfileName() 결과. profiles.name 이 비어 있으면 null —
+ *   호출부(GoalSidebar)가 "나의 목표관리" 등으로 폴백한다. 생략 시 null.
+ * @param recentAvgStudyHours aggregate.js computeAvgStudyHours() 결과(최근 7일
+ *   goal_daily_records 평균, 기록 0건이면 null) — 대시보드 웰컴 카드·목표까지 남은
+ *   격차 카드의 "학습 시간 격차" 계산 전용. 이 함수 자체는 계산하지 않고 그대로 옮긴다
+ *   (파일 헌장 §1 "계산 로직 없음" 유지). 생략 시 null.
  */
 export function buildStudentPayload(
   row: Row,
   stateRow: Row | null,
   schoolCutType: string,
   historyRows: ProbabilityHistoryEntry[] = [],
+  profileName: string | null = null,
+  recentAvgStudyHours: number | null = null,
 ) {
   const state: Row = stateRow || {};
 
@@ -848,6 +882,7 @@ export function buildStudentPayload(
     onboarded: true,
     status: row.status,
     profile: {
+      name: profileName,
       schoolType: row.school_type,
       grade: row.grade,
       schoolCutType,
@@ -895,6 +930,8 @@ export function buildStudentPayload(
     actualStartDate: ymd(row.actual_start_date),
     recordCount: num(state.record_count) ?? 0,
     lastRecordDate: ymd(state.last_record_date),
+    // 최근 7일 순공시간 평균 — "학습 시간 격차" 계산 전용(src/lib/goal/gapToTarget.ts).
+    recentAvgStudyHours,
     // "학업 성취도 변화 추이" 차트(4계열 라인) 전용. 오래된 순 그대로 넘긴다 — 정렬은
     // fetchProbabilityHistory()가 이미 했다(§9-4 확장).
     probabilityHistory: historyRows,

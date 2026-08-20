@@ -20,7 +20,7 @@ import {
 //     성적(scores.convertedGrade/currentMogo)을 가져온다. 이 페이지가 새로 만드는 게 아니다.
 //   - fetchGoalGrades()   신규(api/goal/grades.js) — 이 페이지에서 추가한 회차 기록 배열.
 //
-// mockGrades(goalMock.js)는 더 이상 쓰지 않는다 — 이 페이지는 실데이터 전용이다.
+// mockGrades(옛 목업 데이터)는 더 이상 쓰지 않는다 — 이 페이지는 실데이터 전용이다.
 //
 // ── KPI 게이지 값 파생 규칙(판단 지점, 팀장 지시 "파생 가능한 것만") ─────────────
 // - value/round: 기록된 회차가 있으면 최신 회차, 없으면 온보딩 베이스라인(scores.*)로 대체
