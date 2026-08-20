@@ -1,7 +1,7 @@
 // 대시보드/서브페이지 진입 모달 3종(과제 추가 · 중요일정 등록 · 모의고사 성적 추가) +
 // "오늘의 목표" 카드 퀵칩이 공유하는 선택지 상수.
 //
-// 원래 src/data/goalMock.ts의 `goalModalOptions`였다(mock 삭제 UoW로 이관, 2026-08-20).
+// 원래 옛 목업 파일의 `goalModalOptions`였다(mock 삭제 UoW로 이관, 2026-08-20).
 // scheduleTypes·scheduleRanges 두 키는 이관하지 않았다 — 소비처가 없다(중요일정 등록 모달
 // AddScheduleFullModal은 src/lib/goal/scheduleCategory.ts의 SCHEDULE_CATEGORIES를 쓴다).
 //
