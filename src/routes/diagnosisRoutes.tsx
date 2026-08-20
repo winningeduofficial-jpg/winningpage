@@ -1,5 +1,7 @@
 import type { RouteObject } from "react-router";
 import { Navigate } from "react-router";
+import { AuthCheckingFallback } from "@/components/routeGuards/RouteGuardUi";
+import { requireAuthMiddleware } from "@/lib/routeMiddleware";
 import LearningDiagnosisLanding from "@/pages/renewal/LearningDiagnosisLanding";
 import SurveyPreview from "@/pages/renewal/SurveyPreview";
 import SurveyStepPage from "@/pages/renewal/SurveyStepPage";
@@ -13,12 +15,15 @@ const diagnosisRoutes: RouteObject[] = [
     path: "/services/learning-diagnosis",
     Component: LearningDiagnosisLanding,
   },
-  // ⚠️ 설계 리스크 — 이 화면은 무료·체험 성격이라 로그인 없이 접근 가능해야 할 수 있다.
-  //     추후 /app/* 전체에 일괄 로그인 가드를 걸 때 이 라우트를 예외 처리해야 한다(이번
-  //     단계에서는 가드 자체를 구현하지 않는다).
+  // 비회원 진입 차단(QA 행 27·101) — /checkout(homeRoutes.tsx)과 동일하게
+  // requireAuthMiddleware만 건다. 이용권 판정은 하지 않는다(무료·체험 성격 유지) —
+  // 로그인 여부만 확인해 비회원을 /login?redirect=...로 보내고, 회원가입 링크는
+  // 로그인 화면이 이미 제공한다.
   {
     path: "/app/learning-diagnosis/survey",
     Component: SurveyStepShell,
+    middleware: [requireAuthMiddleware],
+    HydrateFallback: AuthCheckingFallback,
     children: [
       // /survey 진입은 스텝1로 명시 리다이렉트. 없으면 최하단 catch-all 이 홈으로 삼킨다.
       {
