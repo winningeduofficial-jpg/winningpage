@@ -35,19 +35,26 @@
   }
 
   /*
-   * fd-screen-only (F-04 · F-05, 2026-08-11) — 화면 전용 확장 영역·각주 일괄 제외.
+   * fd-screen-only — QA 행 102(2026-08-20) 이후 인쇄에도 노출한다.
    *
-   * 인쇄 페이지 하단 여유는 실측 1p 71.0px · 2p 52.6px 뿐이라 AREA_COPY 108문구와 고지
-   * 7종을 시트 안에 넣을 자리가 물리적으로 없다. 화면은 세로 제약이 없으므로 그쪽으로
-   * 옮기고 여기서 통째로 뺀다 — 그래서 인쇄는 승인된 A4 정확히 2장을 유지한다.
+   * 종전(F-04·F-05, 2026-08-11)에는 인쇄를 A4 정확히 2장으로 고정하기 위해 이 클래스가
+   * 붙은 확장 영역·각주(AREA_COPY 108문구, 고지 7종 등)를 인쇄에서 통째로 뺐다. 그 결과
+   * "리포트는 3페이지인데 PDF는 2페이지만 나오고 뒷부분이 통째로 사라진다"는 피드백으로
+   * 이어져(행 102) 전제를 뒤집는다 — 이제 화면과 인쇄가 같은 내용을 보여줘야 하므로 더 이상
+   * display:none 으로 숨기지 않는다. 아래 `.fd-report-sheet`의 고정 높이/overflow:hidden도
+   * 함께 풀어야 이 내용이 실제로 3페이지째로 흘러나간다(같은 파일 아래 주석 참고).
    *
-   * §7.5 예외 명시: `fd-screen-only` 하위의 `lg:` 값들은 인쇄에서 이 한 줄로 전부 사라지므로
-   * 개별 `fd-*` 인쇄 훅을 만들지 않는다. 다음 감사자가 훅 20개를 덧붙이지 않도록 여기 적어 둔다.
-   * (반대로 fd-screen-only **밖**에 새 `lg:` 를 만들면 §7.5 대로 훅을 함께 추가해야 한다.)
+   * `fd-screen-only` 하위의 `lg:` 값은 이제 인쇄에서도 살아 있는 콘텐츠에 적용되므로,
+   * 인쇄 뷰포트(794px)에서 `lg:`가 꺼지는 문제가 남아 있다 — 다만 이 블록들은 전부
+   * 각주·보조 설명 텍스트라 base 클래스만으로도 A4 폭 안에서 읽히고, 개별 `fd-*` 훅이
+   * 필요한 만큼 폭이 벌어지는 요소는 없었다(AdmissionSection.tsx:71 주석 참고 — 그 페이지의
+   * 핵심 수치 블록은 애초에 fd-screen-only 밖에 있다).
+   *
+   * display를 강제하지 않고 규칙 자체를 지운다 — AdmissionSection.tsx:107처럼 `fd-screen-only`와
+   * `flex`(반응형 접두어 없음)를 함께 쓴 요소가 있어 `display: block !important`로 되돌리면
+   * 그 내부 flex-wrap 배치가 인쇄에서만 깨진다. 규칙을 없애면 각 요소는 원래 Tailwind
+   * 클래스가 결정한 display(block/flex 등) 그대로 인쇄된다.
    */
-  .fd-screen-only {
-    display: none !important;
-  }
 
   .fd-print-area {
     padding: 0 !important;
@@ -65,19 +72,35 @@
     margin: 0 !important;
   }
 
+  /*
+   * QA 행 102 — 종전 height:297mm(고정) + overflow:hidden은 "정확히 A4 2장"을 강제하려고
+   * 위 fd-screen-only 콘텐츠를 자르던 짝(pair)이었다. fd-screen-only를 다시 보이게 한
+   * 이상 이 고정 높이를 유지하면 늘어난 내용이 페이지 밖으로 잘려나가 사라지기만 할 뿐
+   * 3페이지째로 흘러나가지 않는다. min-height + overflow:visible로 바꿔 시트 1장의
+   * 실제 콘텐츠가 297mm를 넘으면 브라우저 인쇄 페이지네이션이 이어지는 페이지로 자연스럽게
+   * 흘려보내게 한다 — 이 시트의 시작 위치는 여전히 `.fd-report-sheet + .fd-report-sheet`의
+   * break-before:page가 고정하므로, 늘어나는 것은 항상 뒤쪽(3페이지째)이다.
+   */
   .fd-report-sheet {
     width: 70rem !important;
-    height: 297mm !important; /* 297.18mm 오버플로 방지 고정 */
-    min-height: 0 !important;
+    min-height: 297mm !important;
     margin: 0 !important;
     padding: 3.75rem !important; /* ReportSheetA4 lg:p-[3.75rem] 와 동일 출처 */
     border-radius: 0 !important; /* ReportSheetA4 lg:rounded-none 와 동일 */
     box-shadow: none !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
 
   /* 시트 사이에만 개행 — 형제 요소 추가에 안전 */
   .fd-report-sheet + .fd-report-sheet {
+    break-before: page;
+    page-break-before: page;
+  }
+
+  /* QA 행 102 — 화면 전용 부록(ReportScreenExtras)이 3페이지째로 인쇄되도록 강제 개행.
+     시트 2장 뒤에 자연스럽게 이어붙게 두면 페이지 2 하단 여백만큼만 밀려 들어가 잘리거나
+     어중간하게 걸쳐 나뉜다 — 항상 새 페이지에서 시작시킨다. */
+  .fd-print-page3 {
     break-before: page;
     page-break-before: page;
   }
@@ -140,6 +163,14 @@
 
   .fd-narrow-only {
     display: none !important;
+  }
+
+  /* QA 행 105 — PriorityTable.tsx:34 컨테이너가 `w-full lg:w-250`인데 인쇄 뷰포트(794px)는
+     lg:을 타지 못해 w-full로 남아 부모(시트 콘텐츠 영역, 실질 62.5rem)를 다 차지하는 대신
+     조상 grid/flex 흐름에 따라 시트 폭 밖으로 늘어나 보였다. lg:w-250과 동일한 값(62.5rem
+     = fd-summary-cards 등 다른 섹션이 이미 쓰는 시트 콘텐츠 폭)으로 고정한다. */
+  .fd-priority-table {
+    width: 62.5rem !important;
   }
 
   /* DimensionBarChart — lg:h-5(1.25rem) lg:gap-[3.75rem] */

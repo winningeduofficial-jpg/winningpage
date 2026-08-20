@@ -198,7 +198,10 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
 
   return (
     <section
-      className="fd-screen-only w-full max-w-280 px-4 lg:px-0"
+      // fd-print-page3 — QA 행 102: fd-screen-only가 인쇄에도 보이게 되면서(report-print.css)
+      // 이 부록이 사실상 3페이지째 콘텐츠가 된다. 시트 2장(fd-report-sheet)과 이어 붙지 않고
+      // 항상 새 페이지에서 시작하도록 break-before 훅을 둔다.
+      className="fd-screen-only fd-print-page3 w-full max-w-280 px-4 lg:px-0"
       aria-label={copy.sectionTitle}
     >
       <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-primary">

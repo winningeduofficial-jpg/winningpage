@@ -1,4 +1,4 @@
-import { type ComponentProps, useMemo } from "react";
+import { type ComponentProps, useEffect, useMemo, useState } from "react";
 import { Navigate, useLocation } from "react-router";
 import "../../styles/report-print.css";
 import "../../styles/report-responsive.css";
@@ -10,6 +10,11 @@ import ReportSincerityBanner from "@/components/renewal/report/ReportSincerityBa
 // 다른 파일이라 리터럴을 양쪽에 두면 조용히 갈라진다.
 import { loadDiagnosisInput } from "@/lib/diagnosisInputStorage";
 import { buildReport } from "@/lib/diagnosisReport";
+import { supabase } from "@/lib/supabase";
+
+// QA 행 103 — PDF(인쇄) 파일명 "{학생이름}_위닝학습진단리포트"의 기본 접미어.
+// 이름을 못 구하면(세션 없음·profiles.name 미기재) 접두어 없이 이 문구만 쓴다.
+const REPORT_FILE_SUFFIX = "위닝학습진단리포트";
 
 // 입력 없이 이 URL 로 진입했을 때 되돌려보낼 설문 시작점. 라우트 정본(App.jsx)과 같은 경로다.
 const SURVEY_ENTRY_PATH = "/app/learning-diagnosis/survey";
@@ -53,6 +58,34 @@ type DiagnosisReportData = ComponentProps<typeof ReportPageTwo>["data"] &
  */
 export default function FreeDiagnosisReport() {
   const location = useLocation();
+
+  // QA 행 103 — 설문에는 이름 수집 문항이 없어(StudentInfoBlock.tsx:38 주석) data.student.name이
+  // 상시 null이다. 이 페이지 진입은 이제 로그인 필수(비회원 가드, diagnosisRoutes.tsx)라
+  // profiles.name으로 대신 채운다 — PaymentsTab.tsx와 동일한 조회 패턴.
+  const [studentName, setStudentName] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+
+    (async () => {
+      const { data: session } = await supabase.auth.getSession();
+      const uid = session?.session?.user?.id;
+      if (!uid) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("name")
+        .eq("id", uid)
+        .maybeSingle();
+
+      if (!alive) return;
+      setStudentName(profile?.name || "");
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const data = useMemo(() => {
     const input = loadDiagnosisInput(location.state);
@@ -124,7 +157,19 @@ export default function FreeDiagnosisReport() {
         <div className="fd-no-print">
           <button
             type="button"
-            onClick={() => window.print()}
+            onClick={() => {
+              // QA 행 103 — 브라우저 인쇄 다이얼로그가 제안하는 기본 파일명은 document.title을
+              // 따른다(PDF 저장 시 이 값이 그대로 파일명이 된다). SPA라 페이지 자체를 이동하지
+              // 않으므로, 인쇄 직전에만 문서 제목을 바꾸고 다이얼로그가 닫힌 뒤 원복한다.
+              // window.print()는 다이얼로그가 닫힐 때까지 호출 스레드를 막으므로 이 동기 순서로
+              // 충분하다(SPA 내 다른 print 진입점이 없어 전역 상태로 관리할 필요가 없다).
+              const originalTitle = document.title;
+              document.title = studentName
+                ? `${studentName}_${REPORT_FILE_SUFFIX}`
+                : REPORT_FILE_SUFFIX;
+              window.print();
+              document.title = originalTitle;
+            }}
             className="flex h-perf-inset w-63.25 items-center justify-center rounded-[1.875rem] bg-primary px-10 py-5 text-[1.25rem] font-semibold text-white transition-colors duration-150 hover:bg-[#01427e] focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
           >
             PDF 파일로 다운 받기

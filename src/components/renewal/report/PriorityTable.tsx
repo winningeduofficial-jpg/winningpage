@@ -31,7 +31,9 @@ type PriorityTableProps = {
 
 export default function PriorityTable({ rows }: PriorityTableProps) {
   return (
-    <div className="w-full lg:w-250">
+    // fd-priority-table — QA 행 105: 인쇄 뷰포트(794px)는 lg:을 타지 않아 lg:w-250이 무시되고
+    // w-full로 늘어나 보이던 문제. report-print.css가 이 훅으로 동일 폭(62.5rem)을 강제한다.
+    <div className="fd-priority-table w-full lg:w-250">
       {/* 데스크톱 전용 — 5열 그리드 표.
           fd-wide-only — 인쇄(뷰포트 794px, lg: 미적용)에서도 report-print.css 가 이 훅으로
           강제 표시한다(인쇄는 항상 데스크톱 레이아웃). */}
