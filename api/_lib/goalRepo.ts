@@ -69,7 +69,7 @@ export const CUT_KEYS = [
 ];
 
 // 학습 계획 과제(goal_plan_tasks) 과목 — DB CHECK 5종(sql/75_goal_plan_tasks.sql)과
-// AddTaskModal 과목 칩의 한글 라벨(goalModalOptions.taskSubjects, goalMock.js:296)을 잇는다.
+// AddTaskModal 과목 칩의 한글 라벨(TASK_SUBJECTS, src/components/goal/goalFormOptions.ts)을 잇는다.
 // '탐구' → 'science' 매핑은 team-lead가 sql/75 CHECK 값을 먼저 확정해 준 결과다 —
 // 사회탐구까지 포괄하는 라벨이지만 DB 값은 그대로 따른다. api/goal/plan-tasks.js 는 이
 // 배럴만 참조하고 자체 매핑을 두지 않는다(단일 정본).
