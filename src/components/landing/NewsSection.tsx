@@ -54,22 +54,13 @@ function filterByPinned(items: NewsItem[], filter: NewsFilterKey) {
 // 시안(Figma 1907:14893) 배지 3색 → 공통 Chip 의 tone 토큰 매핑.
 // 색 hex 는 전부 src/components/Chip.jsx 가 소유한다(TONE_STYLES).
 //
-// 공지/중요 배지의 coral(#FFC4C4/#FF7373)은 대비 1.75:1로 WCAG 미달이나 0803 재스펙
+// 중요 배지의 coral(#FFC4C4/#FF7373)은 대비 1.75:1로 WCAG 미달이나 0803 재스펙
 // (3015:14378)에서 디자이너가 원값을 유지했고 사용자 지시로 원값 적용
 // (이전 보정 팔레트 #FFE9E9/#8F1616 폐기). ⚠ 게시판 중요 칩(Chip tone="red",
 // #FFD9D9/#991E1E)과는 별개 물건이다 — 한쪽 값을 다른 쪽에 복사하지 말 것.
 //
-// ★ 렌더 조건: category 값 자체가 없으면 배지 대신 스페이서를 그린다.
-//   값은 있는데 이 표에 없는 카테고리는 gray 폴백으로 **렌더된다**(기존 동작 그대로).
-const CATEGORY_BADGE_TONES: Record<string, string> = {
-  보도자료: "blue",
-  파트너십: "green",
-  공지: "coral",
-  중요: "coral",
-};
-
-/** 매핑에 없는 카테고리의 폴백 tone(기존 #F1F5F9/#525252 리터럴과 동일). */
-const CATEGORY_BADGE_FALLBACK_TONE = "gray";
+// ★ 배지는 is_pinned 단일 상태만 노출한다 — DB category(보도자료/공지 등 자유 텍스트)는
+//   랜딩에서 미노출(사용자 확정 2026-08-20). 게시판 "중요" 칩(BoardTable)과 같은 축.
 
 // KST(UTC+9) 기준 날짜 표기 — Home.jsx todayKstYmd와 동일한 +9h 시프트 방식.
 // toISOString() 단독 사용 시 KST 00:00~08:59 생성 글이 전날로 표시되는 문제 방지.
@@ -90,20 +81,17 @@ function formatDate(value: string | number | Date | null | undefined) {
     .replace(/-/g, ".");
 }
 
-// 배지 폭은 0803 시안(3015:14378) 기준 min 4rem + hug — '중요'(2자) 64px 고정,
-// '보도자료'(4자) hug 72px을 모두 재현. 카테고리 없으면 동일 min 폭 스페이서.
+// 배지 폭은 0803 시안(3015:14378) 기준 min 4rem — '중요'(2자) 64px 고정.
+// 미고정 행은 동일 min 폭 스페이서로 제목 시작선을 맞춘다.
 type ChipTone = "blue" | "green" | "coral" | "red" | "gray";
 
-function CategoryBadge({ category }: { category?: string | null | undefined }) {
-  if (!category)
+function PinnedBadge({ pinned }: { pinned: boolean }) {
+  if (!pinned)
     return <span aria-hidden="true" className="relative w-16 shrink-0" />;
 
-  const tone = (CATEGORY_BADGE_TONES[category] ??
-    CATEGORY_BADGE_FALLBACK_TONE) as ChipTone;
-
   return (
-    <Chip tone={tone} size="md" className="relative min-w-16 shrink-0">
-      {category}
+    <Chip tone={"coral" as ChipTone} size="md" className="relative min-w-16 shrink-0">
+      중요
     </Chip>
   );
 }
@@ -209,7 +197,7 @@ function NewsRow({ item, basePath }: { item: NewsItem; basePath: string }) {
           className="absolute inset-0 rounded-xl bg-[#F1F5F9] opacity-0 transition-opacity duration-150 ease-(--ease-out-quart) group-hover:opacity-100 group-focus-visible:opacity-100 group-focus-visible:ring-2 group-focus-visible:ring-[#0B84FD] motion-reduce:transition-none sm:-inset-x-3 sm:-inset-y-3"
         />
         <div className="flex min-w-0 items-center gap-[1.956rem] sm:contents">
-          <CategoryBadge category={item.category} />
+          <PinnedBadge pinned={Boolean(item.is_pinned)} />
           <p className="relative min-w-0 flex-1 truncate text-[1rem] font-medium leading-[1.4] tracking-[-0.02rem] text-ink transition-colors duration-150 ease-(--ease-out-quart) group-hover:text-primary motion-reduce:transition-none">
             {item.title}
           </p>
