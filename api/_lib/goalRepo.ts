@@ -203,6 +203,25 @@ export async function fetchStudentRow(
 }
 
 /**
+ * profiles.name 1건 — 사이드바 인사말("OO의 목표관리") 등 학생 이름 표시 전용.
+ * profile_id 는 곧 profiles.id(auth user id, openGoalSession 규약 1과 동일). 없거나
+ * name 이 비어 있으면 null — 호출부가 "나의 목표관리" 등 이름 없는 문구로 폴백한다.
+ */
+export async function fetchProfileName(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from("profiles")
+    .select("name")
+    .eq("id", profileId)
+    .maybeSingle();
+
+  if (error) throw error;
+  return (data as Row | null)?.name || null;
+}
+
+/**
  * 현재확률 뷰 1행. 없으면 null.
  * 뷰는 security_invoker = true 이지만 service_role 은 RLS 를 우회하므로
  * 여기서도 profile_id 스코프가 유일한 소유자 판정이다.
@@ -835,12 +854,15 @@ export function buildTargets(row: Row): TargetsPayload {
  * @param schoolCutType getSchoolCutType(row.school_type) 결과.
  *   DB 에 저장하지 않고 매번 파생한다(§7-2).
  * @param historyRows fetchProbabilityHistory() 결과(오래된 순). 생략 시 빈 배열.
+ * @param profileName fetchProfileName() 결과. profiles.name 이 비어 있으면 null —
+ *   호출부(GoalSidebar)가 "나의 목표관리" 등으로 폴백한다. 생략 시 null.
  */
 export function buildStudentPayload(
   row: Row,
   stateRow: Row | null,
   schoolCutType: string,
   historyRows: ProbabilityHistoryEntry[] = [],
+  profileName: string | null = null,
 ) {
   const state: Row = stateRow || {};
 
@@ -848,6 +870,7 @@ export function buildStudentPayload(
     onboarded: true,
     status: row.status,
     profile: {
+      name: profileName,
       schoolType: row.school_type,
       grade: row.grade,
       schoolCutType,

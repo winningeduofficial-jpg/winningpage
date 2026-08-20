@@ -43,7 +43,12 @@ interface GoalProbabilityHistoryEntry {
 interface GoalStudentPayload {
   onboarded: true;
   status: string;
-  profile: { schoolType: string; grade: string; schoolCutType: string };
+  profile: {
+    name: string | null;
+    schoolType: string;
+    grade: string;
+    schoolCutType: string;
+  };
   targets: GoalTargets;
   scores: {
     currentScore: number | null;
@@ -218,7 +223,7 @@ async function parseJsonSafe(response: Response): Promise<any> {
 //   { kind: 'onboarded', student }
 //     — 200 {onboarded:true, ...}. student는 api/_lib/goalRepo.js의
 //       buildStudentPayload() 반환 객체 전체를 그대로 담는다:
-//       { onboarded, status, profile:{schoolType,grade,schoolCutType},
+//       { onboarded, status, profile:{name,schoolType,grade,schoolCutType},
 //         targets, scores, baseProbs, rates, cumulativeBonus, probs,
 //         weeklySchedule, weekIdeal, weekMin, actualStartDate, recordCount,
 //         lastRecordDate, jungsiAvailable, probabilityHistory }

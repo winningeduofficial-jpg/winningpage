@@ -29,6 +29,7 @@ import {
   buildAwaitingCutsPayload,
   buildStudentPayload,
   fetchProbabilityHistory,
+  fetchProfileName,
   fetchStudentRow,
   fetchStudentStateRow,
   narrowGoalSession,
@@ -71,9 +72,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(buildAwaitingCutsPayload(row));
     }
 
-    const [stateRow, historyRows] = await Promise.all([
+    const [stateRow, historyRows, profileName] = await Promise.all([
       fetchStudentStateRow(supabaseAdmin, profileId),
       fetchProbabilityHistory(supabaseAdmin, profileId),
+      fetchProfileName(supabaseAdmin, profileId),
     ]);
 
     // schoolCutType 은 DB 에 저장하지 않고 school_type 에서 매번 파생한다(§7-2).
@@ -85,6 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           stateRow,
           getSchoolCutType(row.school_type),
           historyRows,
+          profileName,
         ),
       );
   } catch (error) {
