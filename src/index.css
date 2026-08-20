@@ -220,9 +220,14 @@ body {
   background: #f8f7f3;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* 앵커 리셋은 반드시 base 레이어 안에 둔다 — 레이어 밖(unlayered) 규칙은 명시도와
+   무관하게 @layer utilities 를 이기므로, 밖에 두면 <a> 에 붙인 text-* 색 유틸리티가
+   전부 무효가 된다(primary 배경 버튼 글자가 잉크색으로 보이던 원인). */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 button,
