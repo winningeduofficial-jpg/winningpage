@@ -48,6 +48,7 @@ import type { CutsInput } from "../../src/lib/goal/calc/pipeline.js";
 import {
   appendProbabilityLog,
   buildStudentPayload,
+  fetchProfileName,
   fetchStudentRow,
   fetchStudentStateRow,
   fetchTargetCuts,
@@ -124,7 +125,7 @@ const MOCK_SUBJECTS = ["kor", "math", "eng", "tam1", "tam2"];
 const NAESIN_NONE_REMAINING = { 고1: 10, 고2: 6, 고3: 2 };
 const MOGO_NONE_REMAINING = { 고1: 14, 고2: 10, 고3: 6 };
 
-// goalOnboardingMock.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
+// onboardingOptions.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
 // 원본 DAYS_CONFIG 와 동일하게 월~금만 등교일이다.
 const WEEKDAYS = [
   { short: "mon", long: "monday", hasSchool: true },
@@ -136,7 +137,7 @@ const WEEKDAYS = [
   { short: "sun", long: "sunday", hasSchool: false },
 ];
 
-// goalOnboardingMock.js:76-81 DAILY_SCHEDULE_FIELDS 의 min/max 와 글자 단위로 같다.
+// onboardingOptions.js:76-81 DAILY_SCHEDULE_FIELDS 의 min/max 와 글자 단위로 같다.
 const DAILY_SCHEDULE_LIMITS = {
   wakeUpHour: { min: 0, max: 23 },
   sleepHour: { min: 0, max: 24 },
@@ -845,11 +846,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 12) 응답 — GET /api/goal/student 와 완전히 같은 본문을 담는다.
     //     뷰를 다시 읽는 이유는 두 엔드포인트가 같은 조립 경로를 타게 하기 위해서다
     //     (온보딩 직후에는 누적 증분이 0 이라 값은 base 와 같다).
-    const stateRow = await fetchStudentStateRow(supabaseAdmin, profileId);
+    const [stateRow, profileName] = await Promise.all([
+      fetchStudentStateRow(supabaseAdmin, profileId),
+      fetchProfileName(supabaseAdmin, profileId),
+    ]);
 
     return res.status(200).json({
       ok: true,
-      student: buildStudentPayload(savedRow, stateRow, state.schoolCutType),
+      // historyRows/recentAvgStudyHours는 온보딩 직후라 비어 있거나 무의미하다(확률
+      // 스냅샷은 방금 1건 막 쌓였고, 최근 7일 순공시간은 아직 없다) — GET student와
+      // 달리 여기서는 계산하지 않고 기본값(빈 배열/null)에 맡긴다. profile.name만
+      // GET /api/goal/student와 동일 규약으로 채운다.
+      student: buildStudentPayload(
+        savedRow,
+        stateRow,
+        state.schoolCutType,
+        [],
+        profileName,
+      ),
     });
   } catch (error) {
     console.error("goal/intake error:", error);

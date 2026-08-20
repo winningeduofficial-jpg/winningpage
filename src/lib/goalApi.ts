@@ -40,10 +40,15 @@ interface GoalProbabilityHistoryEntry {
 }
 
 /** GET /api/goal/student 200 본문(온보딩 완료 학생) — api/_lib/goalRepo.js buildStudentPayload(). */
-interface GoalStudentPayload {
+export interface GoalStudentPayload {
   onboarded: true;
   status: string;
-  profile: { schoolType: string; grade: string; schoolCutType: string };
+  profile: {
+    name: string | null;
+    schoolType: string;
+    grade: string;
+    schoolCutType: string;
+  };
   targets: GoalTargets;
   scores: {
     currentScore: number | null;
@@ -86,6 +91,8 @@ interface GoalStudentPayload {
   lastRecordDate: string | null;
   jungsiAvailable: boolean;
   probabilityHistory: GoalProbabilityHistoryEntry[];
+  /** 최근 7일 goal_daily_records 순공시간 평균. 기록 0건이면 null(억지 산출 금지). */
+  recentAvgStudyHours: number | null;
 }
 
 /** 오늘 확률 스냅샷 — api/goal/daily-record.ts buildProbsPayload(). */
@@ -218,10 +225,10 @@ async function parseJsonSafe(response: Response): Promise<any> {
 //   { kind: 'onboarded', student }
 //     — 200 {onboarded:true, ...}. student는 api/_lib/goalRepo.js의
 //       buildStudentPayload() 반환 객체 전체를 그대로 담는다:
-//       { onboarded, status, profile:{schoolType,grade,schoolCutType},
+//       { onboarded, status, profile:{name,schoolType,grade,schoolCutType},
 //         targets, scores, baseProbs, rates, cumulativeBonus, probs,
 //         weeklySchedule, weekIdeal, weekMin, actualStartDate, recordCount,
-//         lastRecordDate, jungsiAvailable, probabilityHistory }
+//         lastRecordDate, jungsiAvailable, probabilityHistory, recentAvgStudyHours }
 //       probabilityHistory: {recordedAt, idealSusi, idealJungsi, minSusi, minJungsi}[]
 //       — 오래된 순. "학업 성취도 변화 추이" 차트(AchievementChart) 전용.
 export type FetchGoalStudentResult =

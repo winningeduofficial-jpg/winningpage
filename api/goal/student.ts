@@ -24,16 +24,24 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getSchoolCutType } from "../../src/lib/goal/calc/index.js";
+import { addDaysYMD, kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
+import { computeAvgStudyHours } from "../../src/lib/goal/report/aggregate.js";
 
 import {
   buildAwaitingCutsPayload,
   buildStudentPayload,
   fetchProbabilityHistory,
+  fetchProfileName,
+  fetchRecordsInRange,
   fetchStudentRow,
   fetchStudentStateRow,
   narrowGoalSession,
   openGoalSession,
 } from "../_lib/goalRepo.js";
+
+// "최근 7일" 창 — 오늘(KST) 포함 6일 전부터. gapToTarget.ts의 학습 시간 격차 전용
+// (recentAvgStudyHours). 리포트 주간 경계(월~일)와는 무관한 단순 롤링 윈도우다.
+const RECENT_STUDY_HOURS_WINDOW_DAYS = 7;
 
 export const config = { runtime: "nodejs" };
 
@@ -71,10 +79,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json(buildAwaitingCutsPayload(row));
     }
 
-    const [stateRow, historyRows] = await Promise.all([
-      fetchStudentStateRow(supabaseAdmin, profileId),
-      fetchProbabilityHistory(supabaseAdmin, profileId),
-    ]);
+    const now = new Date();
+    const todayYmd = kstYMD(now);
+    const recentFromYmd = addDaysYMD(
+      todayYmd,
+      -(RECENT_STUDY_HOURS_WINDOW_DAYS - 1),
+      now,
+    );
+
+    const [stateRow, historyRows, profileName, recentRecords] =
+      await Promise.all([
+        fetchStudentStateRow(supabaseAdmin, profileId),
+        fetchProbabilityHistory(supabaseAdmin, profileId),
+        fetchProfileName(supabaseAdmin, profileId),
+        fetchRecordsInRange(supabaseAdmin, profileId, recentFromYmd, todayYmd),
+      ]);
 
     // schoolCutType 은 DB 에 저장하지 않고 school_type 에서 매번 파생한다(§7-2).
     return res
@@ -85,6 +104,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           stateRow,
           getSchoolCutType(row.school_type),
           historyRows,
+          profileName,
+          computeAvgStudyHours(recentRecords),
         ),
       );
   } catch (error) {

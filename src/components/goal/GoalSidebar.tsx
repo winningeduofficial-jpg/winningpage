@@ -1,9 +1,14 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router";
-import { mockStudent } from "@/data/goalMock";
 import { kstYMD } from "@/lib/goal/calc/index.js";
-import { fetchGoalSchedules, fetchGoalTimer } from "@/lib/goalApi";
+import {
+  fetchGoalSchedules,
+  fetchGoalStudent,
+  fetchGoalTimer,
+} from "@/lib/goalApi";
 import { GOAL_NAV_FOOTER, GOAL_NAV_GROUPS } from "./goalNavItems";
+
+type SidebarProfile = { name: string | null; grade: string; schoolType: string };
 
 // "진행중" 뱃지 폴링 간격 — Timer.jsx 본문 폴링(20초)보다 느슨하게 둔다. 사이드바는
 // GoalAppLayout에 상주해 어느 목표관리 화면에 있어도 계속 폴링되므로 과한 빈도는 낭비다.
@@ -16,6 +21,22 @@ const TIMER_BADGE_POLL_MS = 45 * 1000;
 export default function GoalSidebar() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [scheduleCount, setScheduleCount] = useState(0);
+  // null = 로딩 중(사용자 블록 이름·학년 줄 비움). fetchGoalStudent()가 실패하거나
+  // kind가 'onboarded'가 아니면(방어적 분기, Dashboard.jsx와 동일 사유) 로딩 상태로
+  // 남겨 "나의 목표관리" 폴백 문구만 보여준다.
+  const [profile, setProfile] = useState<SidebarProfile | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    fetchGoalStudent().then((result) => {
+      if (!alive || result.kind !== "onboarded") return;
+      const { name, grade, schoolType } = result.student.profile;
+      setProfile({ name, grade, schoolType });
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,13 +77,16 @@ export default function GoalSidebar() {
 
   return (
     <aside className="flex min-h-screen w-perf-sidebar shrink-0 flex-col bg-goal-sidebar">
-      {/* 사용자 블록 — x=60(3.75rem) / y=100(6.25rem) 이름, y=130 학년·학교유형 */}
+      {/* 사용자 블록 — x=60(3.75rem) / y=100(6.25rem) 이름, y=130 학년·학교유형.
+          로딩 중·이름 없음은 "나의 목표관리"로 폴백한다. 학년·학교유형 줄은 값이
+          있을 때만 채우고, 로딩 중엔 레이아웃이 흔들리지 않도록 p 태그는 유지한 채
+          내용만 비운다. */}
       <div className="px-perf-inset pt-25">
         <p className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
-          {mockStudent.name}의 목표관리
+          {profile?.name ? `${profile.name}의 목표관리` : "나의 목표관리"}
         </p>
         <p className="mt-2 text-[0.875rem] leading-[1.4] text-ink-sub">
-          {mockStudent.grade}・{mockStudent.schoolType}
+          {profile ? `${profile.grade}・${profile.schoolType}` : ""}
         </p>
       </div>
 

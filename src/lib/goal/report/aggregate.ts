@@ -224,6 +224,20 @@ export function computeStudyHours(records: GoalDailyRecordRow[]): number {
 }
 
 /**
+ * 최근 N일 순공시간 평균(대시보드 웰컴 카드 "학습 시간 격차" 전용). 분모는 조회 기간
+ * 일수가 아니라 실제 기록이 있는 행 수다 — 학생이 건너뛴 날을 0으로 채워 평균을
+ * 깎지 않는다(실측만 반영, 판단 지점). 기록이 0건이면 null(억지 산출 금지 — 호출부가
+ * "학습 시간 격차" 행을 렌더에서 뺀다).
+ */
+export function computeAvgStudyHours(
+  records: GoalDailyRecordRow[],
+): number | null {
+  if (records.length === 0) return null;
+  const total = records.reduce((sum, r) => sum + (toNum(r.study_hours) ?? 0), 0);
+  return round1(total / records.length);
+}
+
+/**
  * D2 — 이상/최소 달성률. 분자는 기간 전체 공부 시간(D1과 동일), 분모는
  * effectiveWindow 안의 요일별 목표 합(getEffectiveScheduleTarget, 일요일 제외).
  * effectiveWindow 가 없으면(아직 시작 전 등) 0%.

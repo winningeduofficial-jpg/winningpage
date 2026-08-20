@@ -1,6 +1,6 @@
 // 과목 색 정본 매핑 헬퍼 — 코드 검수 지적사항 §1/§2.
 // tailwind.config.js `goal.subject.*`(배경/칩 전용 파스텔) + `goal.subjectStrong.*`(도트·진행바
-// 채움 전용 진한 톤) 두 계층을 이 파일 한 곳에서만 관리한다. 기존에 4곳(goalStudyMock.js
+// 채움 전용 진한 톤) 두 계층을 이 파일 한 곳에서만 관리한다. 기존에 4곳(studyRecordOptions.js
 // SUBJECT_DOT_CLASS / TomorrowPlanCard.jsx SUBJECT_TONE / EffortSubjectCard.jsx SUBJECT_COLOR /
 // AchievementChart.jsx 로컬 hex)으로 흩어져 서로 다른 색으로 어긋나 있던 매핑을 통합한다.
 //

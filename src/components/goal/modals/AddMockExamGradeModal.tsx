@@ -1,12 +1,12 @@
 import type { ChangeEvent } from "react";
 import { useId, useState } from "react";
 import AppModal from "@/components/goal/AppModal";
+import { MOCK_EXAM_ROUNDS } from "@/components/goal/goalFormOptions";
 import ModalField from "@/components/goal/ModalField";
-import { goalModalOptions } from "@/data/goalMock";
 
 // 모의고사 성적 추가 모달 — docs/figma-goal/part-08.md #22 (530×574 = 33.125rem × 35.875rem,
 // 높이는 주석용). 트리거: MockExamCard("+ 성적 추가").
-const ROUND_OPTIONS = goalModalOptions.mockExamRounds.map((label) => ({
+const ROUND_OPTIONS = MOCK_EXAM_ROUNDS.map((label) => ({
   value: label,
   label,
 }));
@@ -83,7 +83,7 @@ export default function AddMockExamGradeModal({
   onClose,
   onSubmit,
 }: AddMockExamGradeModalProps) {
-  // ROUND_OPTIONS는 goalModalOptions.mockExamRounds 고정 목록에서 파생되어 항상 비지 않는다.
+  // ROUND_OPTIONS는 MOCK_EXAM_ROUNDS 고정 목록(4건)에서 파생되어 항상 비지 않는다.
   const [round, setRound] = useState(ROUND_OPTIONS[0]!.value);
   const [examDate, setExamDate] = useState("");
   const [scores, setScores] = useState<Record<string, string>>({

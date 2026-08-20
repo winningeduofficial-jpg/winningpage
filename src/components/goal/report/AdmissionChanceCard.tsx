@@ -3,9 +3,9 @@ import GoalCard from "@/components/goal/GoalCard";
 import GoalProgressBar from "@/components/goal/GoalProgressBar";
 
 // Row3 카드③ `합격 가능성 변화` — docs/figma-goal/00-INDEX.md §5-4 `AdmissionChanceCard`.
-// 대학 2블록 × (수시/정시) 2행. 데이터 형태는 goalMock.js의 `mockAdmissionChance`와 동일 스키마
-// (`{ university, susi: { delta, rate }, jeongsi: { delta, rate } }`)로 맞춰 주간(mockAdmissionChance)
-// ↔ 월간(monthlyAdmissionChance)을 동일 컴포넌트로 렌더한다.
+// 대학 2블록 × (수시/정시) 2행. 데이터 형태는 옛 목업의 `mockAdmissionChance`와 동일 스키마
+// (`{ university, susi: { delta, rate }, jeongsi: { delta, rate } }`)로 맞춰 주간 ↔ 월간을
+// 동일 컴포넌트로 렌더한다.
 //
 // ⚠︎ 결함3: 시안은 4행 모두 채움 80px 고정이라 확률값과 무관했다 — 여기서는 rate(0~100 사이의
 // 실제 퍼센트 값)를 그대로 GoalProgressBar의 value/max=100에 넘겨 값 비례로 렌더한다.

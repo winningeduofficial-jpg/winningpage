@@ -1,7 +1,7 @@
-// 목표관리 앱 서브페이지 3종(내 목표 대학 #24 · 열공 타이머 #25 · 오늘의 공부 기록 #26) 전용 목업.
-// src/data/goalMock.js는 다른 배치 작업과 동시 편집 중이라 절대 수정하지 않는다(파일 소유권 규칙).
-// #24는 goalMock.js의 `mockTargetUniversities`를 그대로 import해 쓰고(대시보드 계열이 정본), 여기서는
-// #25·#26에 필요한 신규 데이터만 둔다.
+// 목표관리 앱 서브페이지 2종(열공 타이머 #25 · 오늘의 공부 기록 #26) 전용 옵션 상수 정본.
+// #24(TargetUniversity.tsx)는 실데이터로 전환됐다(mock 삭제 UoW, 2026-08-20) — 이 파일은
+// #25·#26에 필요한 데이터만 남아 있다. 과거 src/data/goalStudyMock.ts 에서 이관·rename
+// (2026-08-20, FF 응집도 — 사용처 옆 배치).
 
 // 과목 색 매핑은 src/components/goal/subjectTokens.js로 정본화했다(코드 검수 §1) —
 // #25/#26을 포함한 앱 전체가 그 헬퍼를 공유한다. 여기서는 더 이상 로컬 매핑을 두지 않는다.
@@ -14,7 +14,7 @@
 export const TIMER_SUBJECT_ORDER = ["math", "korean", "english", "science"];
 
 // 섹션2 "오늘의 컨디션" — 단일 선택. part-09 §180 카피 전문.
-export const mockConditionOptions = [
+export const CONDITION_OPTIONS = [
   { value: "great", emoji: "😆", label: "아주 좋음" },
   { value: "normal", emoji: "🙂", label: "보통" },
   { value: "tired", emoji: "😣", label: "피곤함" },
@@ -23,7 +23,7 @@ export const mockConditionOptions = [
 
 // 섹션3 "방해 요인" — 다중 선택. `없었음`은 다른 항목과 상호배타(part-09 §247 추정).
 // part-09 §230 카피 전문.
-export const mockDisturbanceOptions = [
+export const DISTURBANCE_OPTIONS = [
   { value: "academySchedule", label: "수업 · 학원 일정" },
   { value: "smartphone", label: "스마트폰" },
   { value: "fatigue", label: "피로 · 수면 부족" },
@@ -32,7 +32,7 @@ export const mockDisturbanceOptions = [
 ];
 
 // 섹션4 "오늘 완료한 핵심 학습 항목" — 다중 선택. part-09 §232 카피 전문.
-export const mockStudyItemOptions = [
+export const STUDY_ITEM_OPTIONS = [
   { value: "concept", label: "개념 학습" },
   { value: "academyHomework", label: "학원 숙제" },
   { value: "wrongAnswerReview", label: "오답 정리" },

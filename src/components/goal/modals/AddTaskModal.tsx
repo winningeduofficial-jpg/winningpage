@@ -2,7 +2,11 @@ import { useState } from "react";
 import AppModal from "@/components/goal/AppModal";
 import ModalField from "@/components/goal/ModalField";
 import SegmentedChipGroup from "@/components/goal/SegmentedChipGroup";
-import { goalModalOptions } from "@/data/goalMock";
+import {
+  TASK_DURATIONS,
+  TASK_SCHEDULES,
+  TASK_SUBJECTS,
+} from "@/components/goal/goalFormOptions";
 
 // 과제 추가 모달 — docs/figma-goal/part-06.md #16 (530×468 = 33.125rem × 29.25rem, 높이는 주석용).
 // 트리거: StudyPlanRail("+")·주간 학습 계획표 컬럼 "+ 추가".
@@ -11,15 +15,15 @@ import { goalModalOptions } from "@/data/goalMock";
 // "일정(오늘만/이번 주만/매주 반복)"을 몇 개의 plan_date로 펼칠지가 다르기 때문이다
 // (StudyPlanRail은 항상 오늘 기준, WeeklyPlan은 화살표로 이동한 임의의 주 기준 —
 // src/lib/goalPlanUtils.js). onSubmit 미지정 시 콘솔 로그로 물러난다(단계 E 이전 호출부 보호).
-const SUBJECT_OPTIONS = goalModalOptions.taskSubjects.map((label) => ({
+const SUBJECT_OPTIONS = TASK_SUBJECTS.map((label) => ({
   value: label,
   label,
 }));
-const DURATION_OPTIONS = goalModalOptions.taskDurations.map((label) => ({
+const DURATION_OPTIONS = TASK_DURATIONS.map((label) => ({
   value: label,
   label,
 }));
-const SCHEDULE_OPTIONS = goalModalOptions.taskSchedules.map((label) => ({
+const SCHEDULE_OPTIONS = TASK_SCHEDULES.map((label) => ({
   value: label,
   label,
 }));
