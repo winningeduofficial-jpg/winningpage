@@ -16,6 +16,7 @@ import {
   fetchTodayGoalRecord,
   submitDailyRecord,
 } from "@/lib/goalApi";
+import { formatTodayDateMeta } from "@/lib/goalPlanUtils";
 
 // 코드값 → 라벨(goalStudyMock.js 옵션 그대로) / 라벨 → 코드값(GET 응답 프리필용, 서버는
 // api/goal/daily-record.js 가 한글 라벨로 저장하므로 역매핑이 필요하다).
@@ -224,7 +225,7 @@ export default function DailyRecord() {
     <>
       <GoalPageHeader
         title="오늘의 공부 기록"
-        meta="2026.08.01 (토)"
+        meta={formatTodayDateMeta()}
         subcopy="하루를 마감하며 기록하면 달성률과 리포트에 반영됩니다."
       />
       <div className="max-w-goal-content flex flex-col gap-5 px-12 pb-24">
