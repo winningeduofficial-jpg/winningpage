@@ -45,8 +45,11 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
                 index > 0 ? "border-t border-[#e5e5e5]" : ""
               }`}
             >
-              {/* exactOptionalPropertyTypes 대응 — undefined일 때 tone 키 생략(StatusBadge 미수정 범위). */}
+              {/* exactOptionalPropertyTypes 대응 — undefined일 때 tone 키 생략(StatusBadge 미수정 범위).
+                  justify-self-start — 그리드 셀 기본 stretch가 칩을 열 폭(116px)까지 늘리는 것을
+                  막아 시안처럼 내용 폭(56px) 필로 유지한다. */}
               <StatusBadge
+                className="justify-self-start"
                 {...(row.tone !== undefined ? { tone: row.tone } : {})}
               >
                 {row.badge}
