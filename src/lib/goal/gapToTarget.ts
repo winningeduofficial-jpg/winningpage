@@ -2,7 +2,8 @@
 // 미의존. TMP 목표관리 서비스기획서 §3.16 근거: 좁혀야 할 거리를 숫자로 보여준다
 // ("0.98등급 격차", "백분위 4.3점 격차" 류). 기준 대학은 항상 이상 목표다(§3.4
 // "학습량 산출의 상한선") — 호출부(TargetUniversity.tsx)가 이상 목표 컷/현재값만
-// 넘긴다.
+// 넘긴다. 이 모듈은 "어느 대학 기준인지"는 모른다 — 그 표시는 호출부가 카드 meta로
+// 한 번만 얹는다(행마다 반복하지 않는다).
 //
 // 값이 없는 축은 계산 함수가 null을 반환하고, 조립 함수(buildGapRows)가 그 행을
 // 결과 배열에서 아예 뺀다 — 억지 산출 금지(스펙 원칙).
@@ -90,7 +91,7 @@ function buildNaesinRow(
   if (diff == null || current == null || target == null) return null;
   return {
     label: "내신 등급",
-    description: `현재 ${current.toFixed(2)}등급 → 목표 ${target.toFixed(2)}등급 (이상 목표 기준)`,
+    description: `현재 ${current.toFixed(2)}등급 → 목표 ${target.toFixed(2)}등급`,
     remaining: formatRemaining(diff, "등급"),
   };
 }
@@ -103,7 +104,7 @@ function buildMogoRow(
   if (diff == null || current == null || target == null) return null;
   return {
     label: "모의고사",
-    description: `현재 ${current.toFixed(1)} 백분위 → 목표 ${target.toFixed(1)} 백분위 (이상 목표 기준)`,
+    description: `현재 ${current.toFixed(1)} 백분위 → 목표 ${target.toFixed(1)} 백분위`,
     remaining: formatRemaining(diff, ""),
   };
 }

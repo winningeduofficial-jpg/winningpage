@@ -88,12 +88,12 @@ describe("buildGapRows", () => {
     ]);
     expect(rows[0]).toEqual({
       label: "내신 등급",
-      description: "현재 3.24등급 → 목표 2.71등급 (이상 목표 기준)",
+      description: "현재 3.24등급 → 목표 2.71등급",
       remaining: "0.53등급 부족",
     });
     expect(rows[1]).toEqual({
       label: "모의고사",
-      description: "현재 78.4 백분위 → 목표 92.0 백분위 (이상 목표 기준)",
+      description: "현재 78.4 백분위 → 목표 92.0 백분위",
       remaining: "13.6 부족",
     });
     expect(rows[2]).toEqual({
@@ -112,7 +112,7 @@ describe("buildGapRows", () => {
     expect(rows).toEqual([
       {
         label: "내신 등급",
-        description: "현재 1.50등급 → 목표 2.71등급 (이상 목표 기준)",
+        description: "현재 1.50등급 → 목표 2.71등급",
         remaining: "1.21등급 우위",
       },
     ]);

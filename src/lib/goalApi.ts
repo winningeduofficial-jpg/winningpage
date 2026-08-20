@@ -40,7 +40,7 @@ interface GoalProbabilityHistoryEntry {
 }
 
 /** GET /api/goal/student 200 본문(온보딩 완료 학생) — api/_lib/goalRepo.js buildStudentPayload(). */
-interface GoalStudentPayload {
+export interface GoalStudentPayload {
   onboarded: true;
   status: string;
   profile: {
