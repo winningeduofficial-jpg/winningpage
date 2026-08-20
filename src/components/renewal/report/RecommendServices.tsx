@@ -1,6 +1,6 @@
 // 추천 지원 서비스 카드 2장 — 490x201, border #d1e8ff, 순위 타이틀 + 본문 + 칩 4개.
-// 칩은 StatusBadge(blue)와 동일 시각(bg #f1f8ff / text #1b5da0)이나 폰트 크기만 달라
-// 로컬 span 으로 구현(props 계약: RecommendServices 내부 전용, StatusBadge 미의존).
+// 칩은 StatusBadge(blue)와 동일 시각(bg #E9F4FF / text #496C99, 시안 팔레트)이나 폰트 크기만
+// 달라 로컬 span 으로 구현(props 계약: RecommendServices 내부 전용, StatusBadge 미의존).
 // props: { cards } = [{ rank, name, desc, chips: string[4] }] x2 — data.recommendations.
 // R3(2026-08-11) — 2열 고정 카드(490×201)는 모바일 1열 스택으로, 높이·본문 폭 고정도 제거해
 // 실제 텍스트 줄 수만큼 카드가 늘어나게 한다(칩 줄바꿈으로 인한 세로 잘림 방지).
@@ -63,7 +63,7 @@ const RecommendServices = ({
               {withDedupedKeys(card.chips).map(({ item: chip, key }) => (
                 <span
                   key={key}
-                  className="inline-flex h-7 items-center justify-center rounded-xl bg-[#f1f8ff] px-2 py-1 text-[0.875rem] font-normal text-performance-reportHeading"
+                  className="inline-flex h-7 items-center justify-center rounded-xl bg-[#e9f4ff] px-2 py-1 text-[0.875rem] font-normal text-[#496c99]"
                 >
                   {chip}
                 </span>
