@@ -185,11 +185,12 @@
     letter-spacing: -0.04rem !important;
   }
 
-  /* RadarChart6 겹침 배치 — lg:absolute lg:left-[35.875rem] lg:top-[2.5625rem] lg:mx-0 lg:mt-0 */
+  /* RadarChart6 겹침 배치 — lg:absolute lg:left-[35.875rem] lg:-top-[1.625rem] lg:mx-0 lg:mt-0
+     (시안 A4-3: 차트 박스 y=101, 컨테이너 실측 기준 -1.625rem) */
   .fd-radar-overlay {
     position: absolute !important;
     left: 35.875rem !important;
-    top: 2.5625rem !important;
+    top: -1.625rem !important;
     margin: 0 !important;
   }
 

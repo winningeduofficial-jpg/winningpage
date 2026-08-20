@@ -3,8 +3,11 @@ import StatusBadge from "./StatusBadge";
 
 // 우선순위 표 6행 — 뱃지 / 영역 / 현재·목표 수준 게이지 / 현재 상태 / 필요한 것.
 // rows = [...data.learningAxes].sort((a, b) => a.score - b.score) (ReportPageOne 소유).
-// 헤더/바디 공용 그리드: 116 / 188 / 237 / 120 / auto (px) → 7.25 / 11.75 / 14.8125 / 7.5rem / 1fr.
+// 헤더 그리드: 116 / 188 / 237 / 120 / auto (px) — 시안 헤더 라벨 x(60/176/364/601/721).
+// 데이터 행 그리드는 헤더와 다르다(시안 A4-3 실측): 게이지가 헤더 라벨보다 왼쪽(x310)에서
+// 시작한다 — 영역 열 134px / 게이지 열 291px(바 231 + 우측 여백 60).
 const GRID_COLS = "grid-cols-[7.25rem_11.75rem_14.8125rem_7.5rem_1fr]";
+const ROW_GRID_COLS = "grid-cols-[7.25rem_8.375rem_18.1875rem_7.5rem_1fr]";
 
 type PriorityRow = {
   area?: string;
@@ -41,7 +44,7 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
           return (
             <div
               key={area}
-              className={`grid h-7 ${GRID_COLS} items-center ${
+              className={`grid h-7 ${ROW_GRID_COLS} items-center ${
                 index > 0 ? "border-t border-[#e5e5e5]" : ""
               }`}
             >
