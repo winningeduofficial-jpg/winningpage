@@ -27,7 +27,8 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
   return (
     // fd-priority-table — QA 행 105: 인쇄 뷰포트(794px)는 lg:을 타지 않아 lg:w-250이 무시되고
     // w-full로 늘어나 보이던 문제. report-print.css가 이 훅으로 동일 폭(62.5rem)을 강제한다.
-    <div className="fd-priority-table w-250">
+    // py-3 — 화면 전용으로 표 블록 위아래에도 숨을 준다(인쇄는 print css가 0으로 복원).
+    <div className="fd-priority-table w-250 py-3">
       <div
         className={`grid h-5 ${GRID_COLS} text-base font-semibold leading-5 text-ink`}
       >
@@ -38,14 +39,17 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
         <span>필요한 것</span>
       </div>
 
-      <div className="mt-3.75 flex flex-col gap-4">
+      <div className="mt-4 flex flex-col gap-2">
         {rows.map((row, index) => {
           const area = row.area ?? row.name;
           return (
             <div
               key={area}
-              className={`grid h-7 ${ROW_GRID_COLS} items-center ${
-                index > 0 ? "border-t border-[#e5e5e5]" : ""
+              // fd-priority-row — 화면에서는 구분선 아래 pt-2로 행 사이 숨을 틔우고(피치 52px),
+              // 인쇄는 report-print.css가 이 훅으로 시안 피치(h-7·pt-0)로 되돌린다 —
+              // A4 1페이지 세로 여유(71px)를 화면 여백 증가분이 잠식하면 인쇄가 넘치기 때문.
+              className={`fd-priority-row grid ${ROW_GRID_COLS} items-center ${
+                index > 0 ? "h-9 border-t border-[#e5e5e5] pt-2" : "h-7"
               }`}
             >
               {/* exactOptionalPropertyTypes 대응 — undefined일 때 tone 키 생략(StatusBadge 미수정 범위).

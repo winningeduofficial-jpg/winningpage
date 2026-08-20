@@ -175,6 +175,15 @@
      명시해 향후 클래스 변경에도 인쇄 폭이 흔들리지 않게 한다. */
   .fd-priority-table {
     width: 62.5rem !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  /* 우선순위 표 행 — 화면 전용 여백(h-11·pt-4, 피치 60px)을 시안 피치(44px)로 복원.
+     A4 1페이지 세로 여유(71px) < 화면 여백 증가분(80px)이라 그대로 두면 넘친다. */
+  .fd-priority-row {
+    height: 1.75rem !important;
+    padding-top: 0 !important;
   }
 
   /* ReportPageOne 헤드라인 — lg:mt-[2.875rem] lg:w-[35.875rem] lg:text-[2rem] lg:tracking-[-0.04rem] */
