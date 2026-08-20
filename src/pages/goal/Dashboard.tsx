@@ -13,7 +13,7 @@ import TomorrowPlanCard from "@/components/goal/dashboard/TomorrowPlanCard";
 import GoalCard from "@/components/goal/GoalCard";
 import { QUICK_ADD_HOURS } from "@/components/goal/goalFormOptions";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
-import { TIMER_SUBJECT_ORDER } from "@/data/goalStudyMock";
+import { TIMER_SUBJECT_ORDER } from "@/components/goal/studyRecordOptions";
 import {
   getDayIndexFromYMDServer,
   kstYMD,

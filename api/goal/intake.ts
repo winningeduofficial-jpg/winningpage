@@ -125,7 +125,7 @@ const MOCK_SUBJECTS = ["kor", "math", "eng", "tam1", "tam2"];
 const NAESIN_NONE_REMAINING = { 고1: 10, 고2: 6, 고3: 2 };
 const MOGO_NONE_REMAINING = { 고1: 14, 고2: 10, 고3: 6 };
 
-// goalOnboardingMock.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
+// onboardingOptions.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
 // 원본 DAYS_CONFIG 와 동일하게 월~금만 등교일이다.
 const WEEKDAYS = [
   { short: "mon", long: "monday", hasSchool: true },
@@ -137,7 +137,7 @@ const WEEKDAYS = [
   { short: "sun", long: "sunday", hasSchool: false },
 ];
 
-// goalOnboardingMock.js:76-81 DAILY_SCHEDULE_FIELDS 의 min/max 와 글자 단위로 같다.
+// onboardingOptions.js:76-81 DAILY_SCHEDULE_FIELDS 의 min/max 와 글자 단위로 같다.
 const DAILY_SCHEDULE_LIMITS = {
   wakeUpHour: { min: 0, max: 23 },
   sleepHour: { min: 0, max: 24 },

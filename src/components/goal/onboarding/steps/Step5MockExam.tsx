@@ -6,7 +6,7 @@ import { useGoalOnboarding } from "@/context/GoalOnboardingContext";
 import {
   MOCK_EXAM_ROUNDS,
   MOCK_EXAM_SUBJECTS,
-} from "@/data/goalOnboardingMock";
+} from "@/components/goal/onboarding/onboardingOptions";
 
 function isValidGrade(raw: string) {
   const num = Number(raw);

@@ -6,11 +6,11 @@ import RetrospectSection from "@/components/goal/study/RetrospectSection";
 import StudyTimeSection from "@/components/goal/study/StudyTimeSection";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
 import {
-  mockConditionOptions,
-  mockDisturbanceOptions,
-  mockStudyItemOptions,
+  CONDITION_OPTIONS,
+  DISTURBANCE_OPTIONS,
+  STUDY_ITEM_OPTIONS,
   TIMER_SUBJECT_ORDER,
-} from "@/data/goalStudyMock";
+} from "@/components/goal/studyRecordOptions";
 import {
   fetchGoalTimer,
   fetchTodayGoalRecord,
@@ -18,13 +18,13 @@ import {
 } from "@/lib/goalApi";
 import { formatTodayDateMeta } from "@/lib/goalPlanUtils";
 
-// 코드값 → 라벨(goalStudyMock.js 옵션 그대로) / 라벨 → 코드값(GET 응답 프리필용, 서버는
+// 코드값 → 라벨(studyRecordOptions.js 옵션 그대로) / 라벨 → 코드값(GET 응답 프리필용, 서버는
 // api/goal/daily-record.js 가 한글 라벨로 저장하므로 역매핑이 필요하다).
 const TASK_CODE_BY_LABEL = Object.fromEntries(
-  mockStudyItemOptions.map((o) => [o.label, o.value]),
+  STUDY_ITEM_OPTIONS.map((o) => [o.label, o.value]),
 );
 const REASON_CODE_BY_LABEL = Object.fromEntries(
-  mockDisturbanceOptions.map((o) => [o.label, o.value]),
+  DISTURBANCE_OPTIONS.map((o) => [o.label, o.value]),
 );
 
 // 오늘의 공부 기록(#26). 시안 실측 콘텐츠 폭은 1190px(74.375rem, part-09 §156)이지만 앱 공통 폭
@@ -239,13 +239,13 @@ export default function DailyRecord() {
         {/* 섹션2·3 — 시안은 639×265 + 531×265 2열(part-09 §160~161, 639:531 ≈ 6:5) */}
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-[6fr_5fr]">
           <ConditionSection
-            options={mockConditionOptions}
+            options={CONDITION_OPTIONS}
             value={condition}
             onChange={setCondition}
           />
           <ChipSelectSection
             title="방해 요인"
-            options={mockDisturbanceOptions}
+            options={DISTURBANCE_OPTIONS}
             selectedValues={disturbances}
             onToggle={toggleDisturbance}
           />
@@ -253,7 +253,7 @@ export default function DailyRecord() {
 
         <ChipSelectSection
           title="오늘 완료한 핵심 학습 항목"
-          options={mockStudyItemOptions}
+          options={STUDY_ITEM_OPTIONS}
           selectedValues={studyItems}
           onToggle={toggleStudyItem}
         />

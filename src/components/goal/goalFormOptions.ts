@@ -31,7 +31,7 @@ function currentKstYear(): number {
 
 // 모의고사 회차 4종(10/9/6/3월) — 최신 회차가 맨 앞에 오는 기존 순서 규칙을 유지한다
 // (원래 시안(part-08 #22)엔 9/6/3월 3종만 있었으나, 온보딩 MOCK_EXAM_ROUNDS
-// (src/data/goalOnboardingMock.ts, 3/6/9/10월 4종)와 기획서 기준에 맞춰 10월을
+// (src/components/goal/onboarding/onboardingOptions.ts, 3/6/9/10월 4종)와 기획서 기준에 맞춰 10월을
 // 추가했다 — 2026-08-20 정정). 연도는 KST 현재 연도에서 매번 파생한다.
 // AddMockExamGradeModal의 ROUND_OPTIONS[0]는 이 배열이 고정 4건이라 "항상 비지
 // 않는다"(그 파일 주석과 정합).

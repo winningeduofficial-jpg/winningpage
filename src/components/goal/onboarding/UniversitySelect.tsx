@@ -12,7 +12,7 @@ import {
 //
 // 데이터 소스: goal_university_cuts(공개 읽기 RLS, sql/55_goal_management.sql (6-4))를
 // searchUniversities()/fetchDepartmentsForUniversity()로 직접 조회한다(공개 읽기라 서버
-// 경유 불요) — 정적 목업(goalOnboardingMock.js UNIVERSITY_OPTIONS, 대학 11곳 고정)을
+// 경유 불요) — 정적 목업(onboardingOptions.js UNIVERSITY_OPTIONS, 대학 11곳 고정)을
 // 대체한다(mock 삭제 후속 UoW, 2026-08-20). 온보딩 제출(intake.js)은 대학명 문자열을
 // 그대로 받는 계약이라 이 배선 전환으로 바뀌지 않는다.
 const SEARCH_DEBOUNCE_MS = 300;

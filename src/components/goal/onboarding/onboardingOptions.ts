@@ -1,6 +1,6 @@
-// 목표관리 온보딩(7단계 위저드) 목업 데이터 — docs/figma-goal/part-01.md~part-04.md 카피 기준.
-// 서버 저장 없음(작업 지시 §확정 사항 4) — 전부 클라이언트 목업이며 API·Supabase 연동은
-// 이번 범위 밖이다.
+// 목표관리 온보딩(7단계 위저드) 폼 옵션·카피 정본 — docs/figma-goal/part-01.md~part-04.md
+// 카피 기준. 과거 src/data/goalOnboardingMock.ts 에서 이관(2026-08-20, FF 응집도 —
+// 사용처 옆 배치).
 
 // #1 카피 그대로. 중학교・초등학교는 §확정 사항 2에 따라 "준비 중" 안내로 막고 진행시키지 않는다.
 export const SCHOOL_TYPE_OPTIONS = [
