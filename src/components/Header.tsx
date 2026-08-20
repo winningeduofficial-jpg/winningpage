@@ -939,16 +939,24 @@ export default function Header() {
                   key={`mega-col-${group.title}`}
                   className="flex flex-col gap-3"
                 >
-                  {group.items.map((item) => (
-                    <Link
-                      key={`mega-${group.title}-${item.to}-${item.label}`}
-                      to={item.to}
-                      onClick={() => setActiveMega(null)}
-                      className="break-keep text-sm font-medium leading-5 text-ink transition hover:text-primary"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
+                  {group.items.map((item) => {
+                    const isItemActive = item.to === pathname;
+                    return (
+                      <Link
+                        key={`mega-${group.title}-${item.to}-${item.label}`}
+                        to={item.to}
+                        onClick={() => setActiveMega(null)}
+                        aria-current={isItemActive ? "page" : undefined}
+                        className={`break-keep text-sm leading-5 transition hover:text-primary ${
+                          isItemActive
+                            ? "font-semibold text-primary"
+                            : "font-medium text-ink"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               ))}
             </div>
