@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router";
 
 import Chip from "@/components/Chip";
@@ -31,9 +32,24 @@ type NewsItem = {
   created_at: string;
   category?: string | null;
   sort_order?: number;
+  is_pinned?: boolean | null;
 };
 
 const MAX_ROWS = 3;
+
+// 컬럼별 "중요/일반" 필터 — is_pinned(회사소식/공지사항 공용 컬럼) 기준 2분기.
+type NewsFilterKey = "pinned" | "general";
+
+const NEWS_FILTER_TABS: { key: NewsFilterKey; label: string }[] = [
+  { key: "pinned", label: "중요" },
+  { key: "general", label: "일반" },
+];
+
+function filterByPinned(items: NewsItem[], filter: NewsFilterKey) {
+  return items.filter((item) =>
+    filter === "pinned" ? Boolean(item.is_pinned) : !item.is_pinned,
+  );
+}
 
 // 시안(Figma 1907:14893) 배지 3색 → 공통 Chip 의 tone 토큰 매핑.
 // 색 hex 는 전부 src/components/Chip.jsx 가 소유한다(TONE_STYLES).
@@ -119,6 +135,48 @@ function ColumnHeader({
   );
 }
 
+function NewsFilterTabs({
+  idPrefix,
+  label,
+  value,
+  onChange,
+}: {
+  idPrefix: string;
+  label: string;
+  value: NewsFilterKey;
+  onChange: (key: NewsFilterKey) => void;
+}) {
+  return (
+    <div
+      role="tablist"
+      aria-label={label}
+      className="mt-4 flex items-center gap-2 md:mt-3"
+    >
+      {NEWS_FILTER_TABS.map((tab) => {
+        const isActive = value === tab.key;
+
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            id={`${idPrefix}-filter-${tab.key}`}
+            aria-selected={isActive}
+            onClick={() => onChange(tab.key)}
+            className={`rounded-full px-3 py-1 text-[0.8125rem] transition-colors duration-150 ease-(--ease-out-quart) motion-reduce:transition-none ${
+              isActive
+                ? "bg-primary font-semibold text-white"
+                : "bg-[#F1F5F9] font-medium text-[#767676] hover:text-primary"
+            }`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function EmptyRows({
   message,
   className,
@@ -182,8 +240,23 @@ export default function NewsSection({
   companyNews = [],
   notices = [],
 }: NewsSectionProps) {
-  const newsRows = companyNews.slice(0, MAX_ROWS);
-  const noticeRows = notices.slice(0, MAX_ROWS);
+  const [companyFilter, setCompanyFilter] = useState<NewsFilterKey>("pinned");
+  const [noticeFilter, setNoticeFilter] = useState<NewsFilterKey>("pinned");
+
+  const newsRows = filterByPinned(companyNews, companyFilter).slice(
+    0,
+    MAX_ROWS,
+  );
+  const noticeRows = filterByPinned(notices, noticeFilter).slice(
+    0,
+    MAX_ROWS,
+  );
+  const companyFilterLabel = NEWS_FILTER_TABS.find(
+    (tab) => tab.key === companyFilter,
+  )?.label;
+  const noticeFilterLabel = NEWS_FILTER_TABS.find(
+    (tab) => tab.key === noticeFilter,
+  )?.label;
 
   return (
     <section
@@ -195,7 +268,7 @@ export default function NewsSection({
           위닝에듀의 새로운 소식
         </h2>
 
-        <div className="mt-perf-inset grid grid-cols-1 gap-perf-inset md:mt-15.25 md:grid-cols-2 md:gap-9.25">
+        <div className="mt-perf-inset grid grid-cols-1 gap-perf-inset md:mt-15.25 md:grid-cols-2 md:gap-16">
           {/* 좌: 회사소식 */}
           <div>
             <ColumnHeader
@@ -203,16 +276,22 @@ export default function NewsSection({
               moreLink="/company-news/list"
               moreLabel="회사소식 더보기"
             />
+            <NewsFilterTabs
+              idPrefix="company-news"
+              label="회사소식 분류"
+              value={companyFilter}
+              onChange={setCompanyFilter}
+            />
             {newsRows.length > 0 ? (
-              <ul className="mt-10 space-y-6 md:mt-6">
+              <ul className="mt-6 space-y-6">
                 {newsRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/company-news" />
                 ))}
               </ul>
             ) : (
               <EmptyRows
-                message="등록된 회사소식이 없습니다."
-                className="mt-6 h-16 md:mt-6 md:h-31.5"
+                message={`등록된 ${companyFilterLabel} 회사소식이 없습니다.`}
+                className="mt-6 h-16 md:h-31.5"
               />
             )}
           </div>
@@ -224,16 +303,22 @@ export default function NewsSection({
               moreLink="/events"
               moreLabel="공지사항 더보기"
             />
+            <NewsFilterTabs
+              idPrefix="notices"
+              label="공지사항 분류"
+              value={noticeFilter}
+              onChange={setNoticeFilter}
+            />
             {noticeRows.length > 0 ? (
-              <ul className="mt-10 space-y-6 md:mt-6">
+              <ul className="mt-6 space-y-6">
                 {noticeRows.map((item) => (
                   <NewsRow key={item.id} item={item} basePath="/events" />
                 ))}
               </ul>
             ) : (
               <EmptyRows
-                message="등록된 공지사항이 없습니다."
-                className="mt-6 h-16 md:mt-6 md:h-31.5"
+                message={`등록된 ${noticeFilterLabel} 공지사항이 없습니다.`}
+                className="mt-6 h-16 md:h-31.5"
               />
             )}
           </div>

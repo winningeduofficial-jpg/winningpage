@@ -30,20 +30,24 @@ type Service = {
 const DEAD_SERVICE_LINK_FALLBACK = "/services/learning-diagnosis";
 const MAX_VISIBLE_SERVICES = 6;
 
-// service.link 해석 순서: 1) /page/services-* 구슬러그면 신규 라우트로 승격(useNavGroups와
-// 동일 매핑 재사용) 2) 그래도 죽은 값('/services')·빈 값이면 서비스명으로 정본 라우트 매칭
-// 3) 그것도 없으면 학습진단으로 폴백.
+// service.link 해석 순서: 1) 서비스명이 SERVICE_NAME_ROUTES에 있으면 그 정본 내부 라우트를
+// 최우선 사용(상단 메뉴/메가패널과 동일한 라우트·동일한 전환 방식을 강제 — DB link 컬럼에
+// 실수로 외부 절대 URL이 들어가 있어도 새 탭으로 튀지 않는다) 2) 없으면 /page/services-*
+// 구슬러그를 신규 라우트로 승격(useNavGroups와 동일 매핑 재사용) 3) 그래도 죽은
+// 값('/services')·빈 값이면 학습진단으로 폴백.
 function resolveServiceLink(service: Service) {
+  const knownRoute =
+    SERVICE_NAME_ROUTES[
+      String(service?.name || "").trim() as keyof typeof SERVICE_NAME_ROUTES
+    ];
+  if (knownRoute) return knownRoute;
+
   const raw = String(service?.link || "").trim();
   const promoted = resolvePromotedSlugLink(raw);
 
   if (promoted && promoted !== "/services") return promoted;
 
-  return (
-    SERVICE_NAME_ROUTES[
-      String(service?.name || "").trim() as keyof typeof SERVICE_NAME_ROUTES
-    ] || DEAD_SERVICE_LINK_FALLBACK
-  );
+  return DEAD_SERVICE_LINK_FALLBACK;
 }
 
 const ICON_SHADOW_SRC = "/images/landing/services/icon-shadow.png";

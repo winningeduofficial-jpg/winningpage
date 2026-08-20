@@ -1,6 +1,10 @@
 import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
 import MentorCard from "./MentorCard";
 
+// 좌→우 컨베이어 방향(음수 speed — useInfiniteMarquee 기본값은 scrollLeft 증가라 화면상
+// 아이템이 우→좌로 흐른다) + 저속(한 바퀴 약 30-40s 수준, 카드 실측폭 기준 역산).
+const MARQUEE_SPEED_LEFT_TO_RIGHT = -0.05;
+
 /**
  * 멘토 섹션 (명세 3.4, 0729 시안 2207:13029 리뉴얼)
  * - 순수 화이트 배경(기존 그라데이션 밴드 제거) + 무한 마퀴 사진 스트립 (카드 기본 210×360, 김무경 230×360)
@@ -22,6 +26,7 @@ export default function MentorSection({
 }: MentorSectionProps) {
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
     itemCount: mentors.length,
+    speed: MARQUEE_SPEED_LEFT_TO_RIGHT,
   });
 
   if (mentors.length === 0) return null;
