@@ -83,7 +83,7 @@ export default function AddMockExamGradeModal({
   onClose,
   onSubmit,
 }: AddMockExamGradeModalProps) {
-  // ROUND_OPTIONS는 MOCK_EXAM_ROUNDS 고정 목록(3건)에서 파생되어 항상 비지 않는다.
+  // ROUND_OPTIONS는 MOCK_EXAM_ROUNDS 고정 목록(4건)에서 파생되어 항상 비지 않는다.
   const [round, setRound] = useState(ROUND_OPTIONS[0]!.value);
   const [examDate, setExamDate] = useState("");
   const [scores, setScores] = useState<Record<string, string>>({
