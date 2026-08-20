@@ -12,6 +12,8 @@ import TodayGoalCard from "@/components/goal/dashboard/TodayGoalCard";
 import TomorrowPlanCard from "@/components/goal/dashboard/TomorrowPlanCard";
 import GoalCard from "@/components/goal/GoalCard";
 import { QUICK_ADD_HOURS } from "@/components/goal/goalFormOptions";
+import { getSubjectLabel } from "@/components/goal/subjectTokens";
+import { TIMER_SUBJECT_ORDER } from "@/data/goalStudyMock";
 import {
   getDayIndexFromYMDServer,
   kstYMD,
@@ -25,18 +27,67 @@ import {
   fetchGoalRanking,
   fetchGoalSchedules,
   fetchGoalStudent,
+  fetchGoalTimer,
   fetchTodayGoalRecord,
 } from "@/lib/goalApi";
 import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
 import { formatTodayDateLabel } from "@/lib/goalPlanUtils";
 
-// AI 조언 생성 로직 미이식(docs/figma-goal/calc-port-status.md §9.2) — 산출 로직 이식 시
-// 교체한다. 헤드라인은 학생명 없는 중립 문구(예전 mockAdvice.ai는 특정 학생명을 박아 뒀다).
-const NEUTRAL_ADVICE = {
-  badge: "AI 입시 분석 조언",
-  headline: "오늘 목표를 지키면 합격 가능성이 한 걸음 가까워져요.",
-  body: "학습 조언은 준비 중입니다.",
-};
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+// AI 조언 생성 로직은 이식 대상이 아니다(docs/figma-goal/calc-port-status.md §9.2) —
+// 대신 서비스기획서 §3.16 규칙 기반 3요소를 조립한다: ① 확률 요약(웰컴 카드 body) ②
+// 오늘의 조언(웰컴 카드 headline, buildTodayHeadline) ③ 내일 계획(TomorrowPlanCard,
+// buildTomorrowPlan). "AI 입시 분석 조언" 뱃지 문구는 UI 명칭으로 유지하되 실제로는
+// AI 생성이 아니다 — 학생명은 넣지 않는다(사이드바가 이미 표기).
+//
+// 컴플라이언스(고객사 확정): "반드시/100%/보장" 같은 확정 단정, "늦었다/돌이킬 수
+// 없다" 같은 공포 소구, "의지가 약하다" 같은 낙인 문구를 절대 쓰지 않는다 — 아래
+// 문구들은 전부 중립·격려 톤으로만 작성한다.
+
+/** 소수 시간을 "N시간 M분"/"N시간"/"M분"으로. 0 이하는 호출부가 걸러야 한다. */
+function formatHoursLabel(hours: number): string {
+  const totalMinutes = Math.max(0, Math.round(hours * 60));
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  if (h <= 0) return `${m}분`;
+  if (m <= 0) return `${h}시간`;
+  return `${h}시간 ${m}분`;
+}
+
+/**
+ * 웰컴 카드 headline — "오늘의 조언". 오늘 기록(studyHours)과 오늘 이상 목표 시간만
+ * 비교하는 규칙 기반 문구다(AI 생성 아님). idealHours<=0은 스케줄 미설정(온보딩
+ * 직후 등)이라 시간 언급 없이 시작을 권한다.
+ */
+function buildTodayHeadline(idealHours: number, studyHours: number): string {
+  if (studyHours <= 0) {
+    return idealHours > 0
+      ? `아직 오늘의 학습 기록이 없어요. 오늘 목표는 ${formatHoursLabel(idealHours)}이에요.`
+      : "아직 오늘의 학습 기록이 없어요. 오늘부터 시작해볼까요?";
+  }
+  const remaining = idealHours - studyHours;
+  if (idealHours <= 0 || remaining <= 0) {
+    return "오늘 목표를 지켰어요! 이 페이스를 이어가 봐요.";
+  }
+  return `오늘 목표까지 ${formatHoursLabel(remaining)} 남았어요.`;
+}
+
+/**
+ * 웰컴 카드 body — 확률 요약(§3.16 ①). 정시 컷 미확보(jungsiAvailable=false)면
+ * 대시보드 레일과 같은 규약으로 "미산출"을 쓴다.
+ */
+function buildProbabilitySummary(
+  targetUniversities: ReturnType<typeof mapTargetUniversities>,
+): string {
+  const { upper, lower } = targetUniversities;
+  const jeongsiLabel = (block: typeof upper) =>
+    block.jungsiAvailable ? `${block.jeongsiRate}%` : "미산출";
+  return (
+    `이상 ${upper.university} 수시 ${upper.susiRate}%·정시 ${jeongsiLabel(upper)}` +
+    ` / 최소 ${lower.university} 수시 ${lower.susiRate}%·정시 ${jeongsiLabel(lower)}`
+  );
+}
 
 // ---------------------------------------------------------------------------
 // GET /api/goal/student → 4개 실데이터 카드(TargetUniversityRail/MockExamCard/
@@ -113,25 +164,34 @@ type SchedulesResult =
   | { kind: "no-session" | "not-allowed" | "error" };
 
 /**
+ * 주어진 시각이 속한 KST 요일의 student.weeklySchedule 항목. 오늘의 목표 카드(같은
+ * 날)와 내일 계획 카드(다음 날, `now`에 +1일한 Date를 넘긴다)가 공유한다.
+ * 스케줄이 없으면(온보딩 직후 등) {ideal:0, min:0}.
+ */
+function resolveDaySchedule(
+  weeklySchedule: GoalStudent["weeklySchedule"],
+  now = new Date(),
+) {
+  const dayIndex = getDayIndexFromYMDServer(kstYMD(now), now);
+  // getDayIndexFromYMDServer는 항상 0~6을 반환하고 VIRTUAL_DAY_NAMES는 7개 고정이다.
+  const dayName = VIRTUAL_DAY_NAMES[dayIndex]!;
+  return weeklySchedule?.[dayName] || { ideal: 0, min: 0 };
+}
+
+/**
  * "오늘의 목표" 카드 데이터. GET /api/goal/daily-record 결과(dailyRecordResult)와
- * student.weeklySchedule(요일별 목표 시간, 기존 실데이터)을 합쳐 만든다.
+ * daySchedule(오늘 요일의 목표 시간, resolveDaySchedule 결과)을 합쳐 만든다.
  *
  * dailyRecordResult가 아직 없거나(로딩 중) 방어적 분기(kind !== 'success')면 studyHours=0
  * 인 빈 상태로 그린다 — TodayGoalCard의 hasRecord 파생(studyHours>0)과 자연히 맞는다.
  */
 function mapTodayGoal(
-  student: GoalStudent,
+  daySchedule: { ideal: number; min: number },
   dailyRecordResult: DailyRecordResult | null,
 ) {
   const record =
     dailyRecordResult?.kind === "success" ? dailyRecordResult.record : null;
   const studyHours = record?.studyHours || 0;
-
-  const now = new Date();
-  const dayIndex = getDayIndexFromYMDServer(kstYMD(now), now);
-  // getDayIndexFromYMDServer는 항상 0~6을 반환하고 VIRTUAL_DAY_NAMES는 7개 고정이다.
-  const dayName = VIRTUAL_DAY_NAMES[dayIndex]!;
-  const daySchedule = student.weeklySchedule?.[dayName] || { ideal: 0, min: 0 };
 
   const rateOf = (targetHours: number) =>
     targetHours > 0
@@ -146,6 +206,57 @@ function mapTodayGoal(
     upperGoalRate: rateOf(daySchedule.ideal),
     lowerGoalRate: rateOf(daySchedule.min),
   };
+}
+
+/**
+ * 과목별 배분 비율(합=1). fetchGoalTimer().summary.targets(goal_subject_targets, 학생이
+ * 타이머 페이지에서 설정한 과목별 목표 시간)가 있으면 그 비율로, 하나도 없으면
+ * TIMER_SUBJECT_ORDER 4과목 균등 배분한다(Timer 페이지 기존 파생 규칙과 동일 폴백).
+ */
+function buildSubjectRatios(
+  timerTargets: { subject: string; targetHours: number }[] | null,
+): Record<string, number> {
+  const relevant = (timerTargets || []).filter(
+    (t) => TIMER_SUBJECT_ORDER.includes(t.subject) && t.targetHours > 0,
+  );
+  const total = relevant.reduce((sum, t) => sum + t.targetHours, 0);
+
+  if (total <= 0) {
+    const equalShare = 1 / TIMER_SUBJECT_ORDER.length;
+    return Object.fromEntries(
+      TIMER_SUBJECT_ORDER.map((subject) => [subject, equalShare]),
+    );
+  }
+
+  return Object.fromEntries(
+    TIMER_SUBJECT_ORDER.map((subject) => {
+      const match = relevant.find((t) => t.subject === subject);
+      return [subject, match ? match.targetHours / total : 0];
+    }),
+  );
+}
+
+/**
+ * "내일 계획 제시" 카드(§3.16 ③) — 내일(KST) 이상 목표 시간을 과목별로 배분한다.
+ * unit(단원)은 산출 근거가 없어 만들지 않는다(TomorrowPlanCard가 unit 없이도 자연스럽게
+ * 그리도록 조정했다). 배분 결과가 0시간인 과목은 행 자체를 뺀다(억지 산출 금지).
+ */
+function buildTomorrowPlan(
+  tomorrowIdealHours: number,
+  timerTargets: { subject: string; targetHours: number }[] | null,
+): { subject: string; duration: string }[] {
+  if (tomorrowIdealHours <= 0) return [];
+
+  const ratios = buildSubjectRatios(timerTargets);
+  return TIMER_SUBJECT_ORDER.map((subjectId) => ({
+    subject: getSubjectLabel(subjectId),
+    hours: tomorrowIdealHours * (ratios[subjectId] ?? 0),
+  }))
+    .filter((item) => item.hours > 0)
+    .map((item) => ({
+      subject: item.subject,
+      duration: formatHoursLabel(item.hours),
+    }));
 }
 
 function mapMockExam(student: GoalStudent) {
@@ -241,8 +352,6 @@ function mapNaesin(student: GoalStudent) {
 // 분기) — 컴포넌트 코드를 다시 건드릴 필요가 없다. AchievementChart는 실데이터
 // (student.probabilityHistory) 기준이라 빈 상태는 이력 0~1건일 때 컴포넌트가 자체 분기한다.
 export default function Dashboard() {
-  const advice = NEUTRAL_ADVICE;
-
   // fetchGoalStudent() 결과를 discriminated union 그대로 보관한다(재가공하지 않는다 —
   // goalApi.js의 kind 계약을 이 컴포넌트가 다시 해석하는 지점을 하나로 좁혀 둔다).
   // null = 아직 응답 도착 전(로딩 중). RequireGoalAccess가 이미 onboarded:true만
@@ -266,6 +375,13 @@ export default function Dashboard() {
   // 한다(예: daily-record 네트워크 오류가 나도 목표대학·모의고사 카드는 그대로 보여야 함).
   const [dailyRecordResult, setDailyRecordResult] =
     useState<DailyRecordResult | null>(null);
+
+  // 내일 계획 제시(TomorrowPlanCard) 과목 배분 비율 전용 — GET /api/goal/timer의
+  // targets(goal_subject_targets). null = 로딩 중/미설정 둘 다(buildSubjectRatios가
+  // 빈 배열과 null을 동일하게 균등 배분 폴백으로 처리해 구분할 필요가 없다).
+  const [timerTargets, setTimerTargets] = useState<
+    { subject: string; targetHours: number }[] | null
+  >(null);
 
   const reloadDailyRecord = () => {
     fetchTodayGoalRecord().then((r) =>
@@ -301,6 +417,16 @@ export default function Dashboard() {
     let alive = true;
     fetchGoalRanking().then((r) => {
       if (alive) setRankingResult(r as RankingResult);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    fetchGoalTimer().then((r) => {
+      if (alive && r.kind === "success") setTimerTargets(r.summary.targets);
     });
     return () => {
       alive = false;
@@ -352,9 +478,26 @@ export default function Dashboard() {
 
   const { student } = result;
   const targetUniversities = mapTargetUniversities(student);
-  const todayGoalData = mapTodayGoal(student, dailyRecordResult);
+  const todayDaySchedule = resolveDaySchedule(student.weeklySchedule);
+  const todayGoalData = mapTodayGoal(todayDaySchedule, dailyRecordResult);
   const mockExamData = mapMockExam(student);
   const naesinData = mapNaesin(student);
+
+  const tomorrowDaySchedule = resolveDaySchedule(
+    student.weeklySchedule,
+    new Date(Date.now() + ONE_DAY_MS),
+  );
+  const tomorrowPlan = buildTomorrowPlan(
+    tomorrowDaySchedule.ideal,
+    timerTargets,
+  );
+
+  // 웰컴 카드(§3.16) — headline은 오늘의 조언(②), body는 확률 요약(①). badge는
+  // DashboardPageHeader가 adviceType prop으로 자체 렌더하므로 여기서는 만들지 않는다.
+  const advice = {
+    headline: buildTodayHeadline(todayDaySchedule.ideal, todayGoalData.studyHours),
+    body: buildProbabilitySummary(targetUniversities),
+  };
 
   return (
     <div className={outerClassName}>
@@ -375,14 +518,15 @@ export default function Dashboard() {
 
             <div className="flex gap-4">
               <div className="w-132.5">
-                {/* AdviceCard: AI 조언 생성 로직 미이식(docs/figma-goal/calc-port-status.md §9.2) —
-                    NEUTRAL_ADVICE(중립 문구) 유지. */}
+                {/* AdviceCard: buildProbabilitySummary()의 확률 요약(§3.16 ①) — AI 생성이
+                    아니라 규칙 기반 조립이다. */}
                 <AdviceCard data={advice} />
               </div>
               <div className="w-132.5">
-                {/* TomorrowPlanCard: 내일 학습 계획 산출 로직 미이식 — 빈 배열을 넘기면
-                    위젯이 스스로 "준비 중" 빈 상태를 그린다. */}
-                <TomorrowPlanCard plan={[]} />
+                {/* TomorrowPlanCard: buildTomorrowPlan()의 과목별 시간 배분(§3.16 ③). 내일
+                    목표 시간이 0/미설정이면 빈 배열이라 위젯이 스스로 "준비 중" 빈 상태를
+                    그린다. */}
+                <TomorrowPlanCard plan={tomorrowPlan} />
               </div>
             </div>
 
