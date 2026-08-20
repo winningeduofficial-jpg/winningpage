@@ -11,7 +11,7 @@ import TargetUniversityRail from "@/components/goal/dashboard/TargetUniversityRa
 import TodayGoalCard from "@/components/goal/dashboard/TodayGoalCard";
 import TomorrowPlanCard from "@/components/goal/dashboard/TomorrowPlanCard";
 import GoalCard from "@/components/goal/GoalCard";
-import { mockAdvice, mockDailyGoal, mockDailyGoalEmpty } from "@/data/goalMock";
+import { QUICK_ADD_HOURS } from "@/components/goal/goalFormOptions";
 import {
   getDayIndexFromYMDServer,
   kstYMD,
@@ -27,6 +27,16 @@ import {
   fetchGoalStudent,
   fetchTodayGoalRecord,
 } from "@/lib/goalApi";
+import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
+import { formatTodayDateLabel } from "@/lib/goalPlanUtils";
+
+// AI 조언 생성 로직 미이식(docs/figma-goal/calc-port-status.md §9.2) — 산출 로직 이식 시
+// 교체한다. 헤드라인은 학생명 없는 중립 문구(예전 mockAdvice.ai는 특정 학생명을 박아 뒀다).
+const NEUTRAL_ADVICE = {
+  badge: "AI 입시 분석 조언",
+  headline: "오늘 목표를 지키면 합격 가능성이 한 걸음 가까워져요.",
+  body: "학습 조언은 준비 중입니다.",
+};
 
 // ---------------------------------------------------------------------------
 // GET /api/goal/student → 4개 실데이터 카드(TargetUniversityRail/MockExamCard/
@@ -38,11 +48,6 @@ import {
 // (GoalProgressBar max=100, `{value}%`로 직접 렌더)와 스케일이 이미 일치해 변환은
 // "반올림"뿐이다(소수점 노출 방지, 표시 목적).
 // ---------------------------------------------------------------------------
-
-/** null-safe 반올림 — 확률 필드는 num()이 null을 낼 수 있어(§goalRepo.js num()) 0으로 접는다. */
-function pctRound(value?: number | null) {
-  return Math.round(value ?? 0);
-}
 
 // api/_lib/goalRepo.js buildStudentPayload() 반환 shape 중 이 페이지가 실제로 읽는 필드만.
 type GoalStudent = {
@@ -107,33 +112,6 @@ type SchedulesResult =
   | { kind: "success"; schedules: ScheduleItem[] }
   | { kind: "no-session" | "not-allowed" | "error" };
 
-function mapTargetUniversities(student: GoalStudent) {
-  // jungsiAvailable(goalRepo.js buildStudentPayload, §7-1-A)은 정시 컷 쌍(상한·하한)이
-  // 둘 다 있을 때만 true다 — 이상/최소 목표대학에 공통으로 적용되는 단일 플래그다.
-  // false면 calcJeongsiProb 쪽 파이프라인이 이미 0을 낸다(pipeline.js:227-228)지만,
-  // 그 0은 "가망 없음"이 아니라 "정시 컷 미확보"다. TargetUniversityRail의 RateRow가
-  // 이 플래그로 값 자리를 "미산출"로 바꿔 실제 0%와 구분한다(이번 UoW가 메운 지점).
-  const { jungsiAvailable } = student;
-  return {
-    upper: {
-      label: "이상목표대학",
-      university: student.targets.ideal.university,
-      department: student.targets.ideal.department,
-      susiRate: pctRound(student.probs.idealSusi),
-      jeongsiRate: pctRound(student.probs.idealJungsi),
-      jungsiAvailable,
-    },
-    lower: {
-      label: "최소목표대학",
-      university: student.targets.min.university,
-      department: student.targets.min.department,
-      susiRate: pctRound(student.probs.minSusi),
-      jeongsiRate: pctRound(student.probs.minJungsi),
-      jungsiAvailable,
-    },
-  };
-}
-
 /**
  * "오늘의 목표" 카드 데이터. GET /api/goal/daily-record 결과(dailyRecordResult)와
  * student.weeklySchedule(요일별 목표 시간, 기존 실데이터)을 합쳐 만든다.
@@ -162,9 +140,9 @@ function mapTodayGoal(
 
   return {
     studyHours,
-    // 퀵칩 증분 목록 자체는 실데이터가 아니라 UI 상수다 — goalMock.js mockDailyGoal이
-    // 이미 이 값을 들고 있어 그대로 재사용한다(사본을 새로 만들지 않는다).
-    quickAddOptions: mockDailyGoal.quickAddOptions,
+    // 퀵칩 증분 목록 자체는 실데이터가 아니라 UI 상수다 — goalFormOptions.ts의
+    // QUICK_ADD_HOURS를 그대로 재사용한다(사본을 새로 만들지 않는다).
+    quickAddOptions: QUICK_ADD_HOURS,
     upperGoalRate: rateOf(daySchedule.ideal),
     lowerGoalRate: rateOf(daySchedule.min),
   };
@@ -258,12 +236,12 @@ function mapNaesin(student: GoalStudent) {
 //
 // 조언 유형("일일 분석 조언" ↔ "AI 입시 분석 조언") 상태 축은 `DashboardPageHeader`의
 // `adviceType` prop으로 옮겼다(part-06 #17/#18 뱃지 변형). 기본 렌더는 "오늘 기록 있음"(#20) ·
-// adviceType="ai" 상태다. 미기록 축을 확인하려면 goalMock.js의 `mockDailyGoalEmpty`로
-// TodayGoalCard/TomorrowPlanCard props만 바꿔 끼우면 된다 — 위젯이 데이터 유무로 상태를
-// 스스로 분기하므로 컴포넌트 코드는 수정할 필요가 없다. AchievementChart는 실데이터
+// adviceType="ai" 상태다. 미기록 축(studyHours=0, tomorrowPlan=[])은 실데이터가 그 값을
+// 낼 때 위젯이 스스로 분기한다(TodayGoalCard의 hasRecord 파생, TomorrowPlanCard의 빈 배열
+// 분기) — 컴포넌트 코드를 다시 건드릴 필요가 없다. AchievementChart는 실데이터
 // (student.probabilityHistory) 기준이라 빈 상태는 이력 0~1건일 때 컴포넌트가 자체 분기한다.
 export default function Dashboard() {
-  const advice = mockAdvice.ai;
+  const advice = NEUTRAL_ADVICE;
 
   // fetchGoalStudent() 결과를 discriminated union 그대로 보관한다(재가공하지 않는다 —
   // goalApi.js의 kind 계약을 이 컴포넌트가 다시 해석하는 지점을 하나로 좁혀 둔다).
@@ -384,7 +362,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-[67.25rem_23.25rem] gap-x-10 gap-y-19.5">
           <DashboardPageHeader
             adviceType="ai"
-            dateLabel={mockDailyGoalEmpty.dateLabel}
+            dateLabel={formatTodayDateLabel()}
             headline={advice.headline}
             className="col-start-1 row-start-1"
           />
@@ -397,12 +375,14 @@ export default function Dashboard() {
 
             <div className="flex gap-4">
               <div className="w-132.5">
-                {/* AdviceCard: AI 조언 생성 로직 미이식(docs/figma-goal/calc-port-status.md §9.2) — mock 유지. */}
+                {/* AdviceCard: AI 조언 생성 로직 미이식(docs/figma-goal/calc-port-status.md §9.2) —
+                    NEUTRAL_ADVICE(중립 문구) 유지. */}
                 <AdviceCard data={advice} />
               </div>
               <div className="w-132.5">
-                {/* TomorrowPlanCard: 내일 학습 계획 산출 로직 미이식 — mock 유지. */}
-                <TomorrowPlanCard plan={mockDailyGoalEmpty.tomorrowPlan} />
+                {/* TomorrowPlanCard: 내일 학습 계획 산출 로직 미이식 — 빈 배열을 넘기면
+                    위젯이 스스로 "준비 중" 빈 상태를 그린다. */}
+                <TomorrowPlanCard plan={[]} />
               </div>
             </div>
 

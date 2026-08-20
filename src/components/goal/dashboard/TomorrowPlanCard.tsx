@@ -21,18 +21,26 @@ export default function TomorrowPlanCard({ plan }: TomorrowPlanCardProps) {
       <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
         내일 계획 제시
       </h3>
-      <div className="flex flex-wrap gap-2">
-        {plan.map((item) => (
-          <span
-            key={`${item.subject}-${item.unit}`}
-            className={`inline-flex h-8 w-fit shrink-0 items-center rounded-full px-4 text-[0.8125rem] font-medium leading-[1.2] text-ink-strong ${getSubjectBgClass(
-              item.subject,
-            )}`}
-          >
-            {item.subject}({item.unit}) {item.duration}
-          </span>
-        ))}
-      </div>
+      {/* 내일 계획 산출 로직 미이식(docs/figma-goal/calc-port-status.md §9.2, AdviceCard와
+          동일 사유) — 위젯이 데이터 유무로 스스로 분기한다(빈 배열이면 준비 중 문구). */}
+      {plan.length === 0 ? (
+        <p className="text-[0.875rem] leading-normal text-ink-sub">
+          내일 계획 산출 준비 중입니다.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {plan.map((item) => (
+            <span
+              key={`${item.subject}-${item.unit}`}
+              className={`inline-flex h-8 w-fit shrink-0 items-center rounded-full px-4 text-[0.8125rem] font-medium leading-[1.2] text-ink-strong ${getSubjectBgClass(
+                item.subject,
+              )}`}
+            >
+              {item.subject}({item.unit}) {item.duration}
+            </span>
+          ))}
+        </div>
+      )}
     </GoalCard>
   );
 }
