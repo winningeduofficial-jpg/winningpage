@@ -2,18 +2,25 @@ import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
 import { templateCopy } from "@/lib/diagnosisCopyBinding";
 
 /**
- * 화면 전용 확장 영역(F-04 · F-05) — A4 시트 2장 **아래**에 이어지는 문서형 부록.
+ * 확장 영역(F-04 · F-05) — A4 시트 2장 **아래**에 이어지는 문서형 부록.
  *
  * 왜 시트 밖인가(D1):
  *   시트 안에 큰 블록을 넣으면 report-responsive.css 의
  *   `margin-bottom: calc((var(--fd-sheet-scale) - 1) * 99.0588rem)` 보정이 어긋난다 —
- *   그 수식은 시트 실제 높이가 정확히 99.0588rem 이라는 전제 위에 있다. 그리고 인쇄 하단
- *   여유가 1p 71.0px · 2p 52.6px 뿐이라 108문구가 물리적으로 들어가지 않는다.
+ *   그 수식은 시트 실제 높이가 정확히 99.0588rem 이라는 전제 위에 있다.
  *   시트 안에는 '해당 섹션에 붙어야만 읽히는 1문단 각주'만 남기고, 덩어리는 전부 여기로 뺀다.
  *
- * 인쇄 제외는 `fd-screen-only` 클래스 **하나**로 한다(report-print.css 가 display:none 처리).
- *   → 이 서브트리 안의 `lg:` 값들은 인쇄에서 통째로 사라지므로 §7.5 의 "새 lg: 는 인쇄 훅과
- *     함께" 규칙이 적용되지 않는다. 개별 fd-* 훅을 덧붙이지 마라(print CSS 에도 같은 주석 있음).
+ * QA 행 102(2026-08-20) — "PDF가 3페이지가 아니다"는 피드백의 진의는 이 부록(영역별 상세
+ * 진단·맞춤 전략)을 PDF에 포함해달라는 것이었다. 그래서 이 섹션은 화면·인쇄 양쪽에서 항상
+ * 렌더한다(더 이상 `fd-screen-only` 로 인쇄를 걷어내지 않는다) — `fd-print-page3` 훅으로
+ * report-print.css 가 시트 2장 뒤 새 페이지에서 강제로 시작시킨다.
+ * 주의 — `fd-screen-only` 는 이 섹션 전용이 아니라 AdmissionSection·RecommendServices·
+ * ReportPageOne 등 다른 화면 전용 각주가 공유하는 클래스다. 그 각주들은 여전히 인쇄에서
+ * 제외돼야 한다(길이가 길어 시트 여유를 넘긴다) — 그래서 이 섹션만 그 클래스를 떼고
+ * `fd-print-page3` 하나로 인쇄 가시성을 진다(report-print.css 상단 주석 참고).
+ * 이 서브트리 안의 `lg:` 값들은 인쇄(뷰포트 794px)에서 통째로 사라지므로 §7.5 의
+ * "새 lg: 는 인쇄 훅과 함께" 규칙이 적용되지 않는다 — 개별 fd-* 훅을 덧붙이지 마라
+ * (전부 각주·보조 설명 텍스트라 base 클래스만으로도 A4 폭 안에서 읽힌다).
  *
  * 시각 언어(D 결정): 흰 카드 아님 · 아이콘 없음 · 중첩 카드 없음 · 접기는 페이지 전체에서 1개.
  *   시트 2장이 이미 흰 카드라 부록까지 흰 박스로 만들면 '3페이지짜리 리포트'로 읽혀 인쇄
@@ -198,18 +205,15 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
 
   return (
     <section
-      // fd-print-page3 — QA 행 102: fd-screen-only가 인쇄에도 보이게 되면서(report-print.css)
-      // 이 부록이 사실상 3페이지째 콘텐츠가 된다. 시트 2장(fd-report-sheet)과 이어 붙지 않고
-      // 항상 새 페이지에서 시작하도록 break-before 훅을 둔다.
-      className="fd-screen-only fd-print-page3 w-full max-w-280 px-4 lg:px-0"
+      // fd-print-page3 — QA 행 102: 이 부록을 인쇄에도 항상 포함한다(더 이상 fd-screen-only
+      // 로 걷어내지 않는다). 시트 2장(fd-report-sheet)과 이어 붙지 않고 항상 새 페이지에서
+      // 시작하도록 report-print.css 가 이 훅으로 break-before 를 강제한다.
+      className="fd-print-page3 w-full max-w-280 px-4 lg:px-0"
       aria-label={copy.sectionTitle}
     >
       <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-primary">
         {copy.sectionTitle}
       </h2>
-      <p className="mt-4 text-base leading-normal text-ink-sub">
-        {copy.screenOnlyNote}
-      </p>
 
       {/* ── 블록 A — 영역별 상세 진단 12행(AREA_COPY.levels) ── */}
       {hasAreaDetails && (

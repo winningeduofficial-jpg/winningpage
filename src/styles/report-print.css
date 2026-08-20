@@ -49,26 +49,22 @@
   }
 
   /*
-   * fd-screen-only — QA 행 102(2026-08-20) 이후 인쇄에도 노출한다.
+   * fd-screen-only — 인쇄에서 계속 숨긴다(F-04·F-05, 2026-08-11 원안 유지).
    *
-   * 종전(F-04·F-05, 2026-08-11)에는 인쇄를 A4 정확히 2장으로 고정하기 위해 이 클래스가
-   * 붙은 확장 영역·각주(AREA_COPY 108문구, 고지 7종 등)를 인쇄에서 통째로 뺐다. 그 결과
-   * "리포트는 3페이지인데 PDF는 2페이지만 나오고 뒷부분이 통째로 사라진다"는 피드백으로
-   * 이어져(행 102) 전제를 뒤집는다 — 이제 화면과 인쇄가 같은 내용을 보여줘야 하므로 더 이상
-   * display:none 으로 숨기지 않는다. 아래 `.fd-report-sheet`의 고정 높이/overflow:hidden도
-   * 함께 풀어야 이 내용이 실제로 3페이지째로 흘러나간다(같은 파일 아래 주석 참고).
-   *
-   * `fd-screen-only` 하위의 `lg:` 값은 이제 인쇄에서도 살아 있는 콘텐츠에 적용되므로,
-   * 인쇄 뷰포트(794px)에서 `lg:`가 꺼지는 문제가 남아 있다 — 다만 이 블록들은 전부
-   * 각주·보조 설명 텍스트라 base 클래스만으로도 A4 폭 안에서 읽히고, 개별 `fd-*` 훅이
-   * 필요한 만큼 폭이 벌어지는 요소는 없었다(AdmissionSection.tsx:71 주석 참고 — 그 페이지의
-   * 핵심 수치 블록은 애초에 fd-screen-only 밖에 있다).
-   *
-   * display를 강제하지 않고 규칙 자체를 지운다 — AdmissionSection.tsx:107처럼 `fd-screen-only`와
-   * `flex`(반응형 접두어 없음)를 함께 쓴 요소가 있어 `display: block !important`로 되돌리면
-   * 그 내부 flex-wrap 배치가 인쇄에서만 깨진다. 규칙을 없애면 각 요소는 원래 Tailwind
-   * 클래스가 결정한 display(block/flex 등) 그대로 인쇄된다.
+   * QA 행 102(2026-08-20) 최초 대응에서는 이 클래스 자체의 display:none 규칙을 지워
+   * "화면 전용" 전체를 인쇄에도 노출시켰다. 그런데 `fd-screen-only`는 부록(현재
+   * ReportScreenExtras) 하나가 아니라 AdmissionSection·RecommendServices·ReportPageOne의
+   * 각주 7종이 함께 공유하던 클래스였다 — 그 각주들은 원래 "길어서 시트 여유(1p 71.0px·
+   * 2p 52.6px)를 넘긴다"는 이유로 인쇄에서 뺀 것이었는데, 규칙을 통째로 지우면서 부록과
+   * 함께 되살아나 시트 2장(특히 2페이지 AdmissionSection)이 예산을 크게 초과했다(실측
+   * 297mm 대비 +153px). 사용자가 실제로 원한 것은 부록만 PDF에 포함하는 것이었다(행 102
+   * 재확인, 2026-08-20) — 그래서 부록(ReportScreenExtras)은 `fd-screen-only`를 떼고
+   * `fd-print-page3` 하나만으로 인쇄 가시성을 지게 하고, 이 규칙은 원래 의도대로
+   * display:none 으로 복원한다.
    */
+  .fd-screen-only {
+    display: none !important;
+  }
 
   .fd-print-area {
     padding: 0 !important;
@@ -87,17 +83,15 @@
   }
 
   /*
-   * QA 행 102 — 종전 height:297mm(고정) + overflow:hidden은 "정확히 A4 2장"을 강제하려고
-   * 위 fd-screen-only 콘텐츠를 자르던 짝(pair)이었다. fd-screen-only를 다시 보이게 한
-   * 이상 이 고정 높이를 유지하면 늘어난 내용이 페이지 밖으로 잘려나가 사라지기만 할 뿐
-   * 3페이지째로 흘러나가지 않는다. min-height + overflow:visible로 바꿔 시트 1장의
-   * 실제 콘텐츠가 297mm를 넘으면 브라우저 인쇄 페이지네이션이 이어지는 페이지로 자연스럽게
-   * 흘려보내게 한다 — 이 시트의 시작 위치는 여전히 `.fd-report-sheet + .fd-report-sheet`의
-   * break-before:page가 고정하므로, 늘어나는 것은 항상 뒤쪽(3페이지째)이다.
+   * QA 행 102 후속(2026-08-20) — min-height:297mm를 없앤다. 실측 콘텐츠가 이미 297mm와
+   * 비슷하거나 더 커서(§ AdmissionSection 등 데이터 의존 섹션) 바닥 역할을 한 적이 없는
+   * 죽은 값이었다 — 남겨 둬도 실제 높이는 항상 콘텐츠가 결정한다. overflow:visible은
+   * 유지한다 — 시트가 297mm를 넘는 경우 잘라내지 않고 다음 페이지로 자연스럽게
+   * 흘려보내기 위해서다(콘텐츠 자체를 297mm 이하로 맞추는 것이 근본 해결책 —
+   * 아래 fd-screen-only 복원 참고).
    */
   .fd-report-sheet {
     width: 70rem !important;
-    min-height: 297mm !important;
     margin: 0 !important;
     padding: 3.75rem !important; /* ReportSheetA4 lg:p-[3.75rem] 와 동일 출처 */
     border-radius: 0 !important; /* ReportSheetA4 lg:rounded-none 와 동일 */
@@ -105,15 +99,17 @@
     overflow: visible !important;
   }
 
-  /* 시트 사이에만 개행 — 형제 요소 추가에 안전 */
+  /* 시트1 → 시트2 경계. 시트는 항상 정확히 2장이라(ReportPageOne+ReportPageTwo 무조건 렌더)
+     형제 셀렉터로 고정해도 안전하다. */
   .fd-report-sheet + .fd-report-sheet {
     break-before: page;
     page-break-before: page;
   }
 
-  /* QA 행 102 — 화면 전용 부록(ReportScreenExtras)이 3페이지째로 인쇄되도록 강제 개행.
-     시트 2장 뒤에 자연스럽게 이어붙게 두면 페이지 2 하단 여백만큼만 밀려 들어가 잘리거나
-     어중간하게 걸쳐 나뉜다 — 항상 새 페이지에서 시작시킨다. */
+  /* QA 행 102 — 부록(ReportScreenExtras)이 존재할 때만 시트2 뒤에서 강제 개행한다(조건부
+     렌더라 없을 수도 있다 — 형제 규칙이 아니라 부록 자신에 걸어야 부록이 없을 때 시트2
+     뒤에 빈 페이지가 남지 않는다). 시트 2장 뒤에 자연스럽게 이어붙게 두면 페이지 2 하단
+     여백만큼만 밀려 들어가 잘리거나 어중간하게 걸쳐 나뉜다 — 항상 새 페이지에서 시작시킨다. */
   .fd-print-page3 {
     break-before: page;
     page-break-before: page;
