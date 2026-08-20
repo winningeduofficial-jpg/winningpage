@@ -1,8 +1,9 @@
 // 점수 게이지 바 공용 원자. fill 폭 = 점수→트랙 폭 선형 환산(결정6, 시안 px 더미 폐기).
+// Figma 시안(1889-12784) 확정 팔레트 — 뮤티드 톤, StatusBadge와 동일 계열(2026-08-20).
 const FILL_COLORS: Record<string, string> = {
-  red: "#991e1e",
-  amber: "#736123",
-  blue: "#1b5da0",
+  red: "#98504D",
+  amber: "#9A843F",
+  blue: "#496C99",
 };
 
 // responsive=true(R3, 2026-08-11) — 트랙 폭을 모바일에서 w-full(부모 flex 아이템에 맞춰
@@ -45,7 +46,7 @@ export default function ScoreBar({
   return (
     <div
       {...a11yProps}
-      className={`h-2.5 overflow-hidden rounded-sm bg-[#e5e5e5] ${widthClass} ${className}`}
+      className={`h-2.5 overflow-hidden rounded-sm bg-[#d9d9d9] ${widthClass} ${className}`}
     >
       <div
         className="h-full rounded-sm"
