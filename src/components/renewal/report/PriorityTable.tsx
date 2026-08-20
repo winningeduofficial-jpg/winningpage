@@ -67,29 +67,13 @@ export default function PriorityTable({ rows }: PriorityTableProps) {
                 <span className="text-base font-normal leading-5 text-ink">
                   {area}
                 </span>
-                {/*
-                  F-20(2026-08-11) — 막대만으로는 값이 없다. 숫자를 3열 **안에서** 만든다:
-                  10.625rem(막대) + 0.5rem(gap) + 2.875rem(숫자) = 14rem ≤ 14.8125rem(열 폭)
-                  → 열 폭·행 높이(h-7)·시트 높이가 한 픽셀도 변하지 않는다.
-                  숫자 칸 2.875rem(46px)은 최장 '100점'(실측 43.3px) 기준이고, 열 끝에 0.8125rem
-                  (13px)을 남겨 다음 열('현재 상태')과 붙지 않게 했다 — 그리드에 column-gap 이
-                  없어 이 여백을 남기지 않으면 '34점취약'으로 붙어 읽힌다(실측 확인).
-                  **인쇄에도 나간다** — PDF 는 학생이 보관·출력해 보여 주는 산출물인데 막대만
-                  남으면 값이 소실되고, tone 3색이 흑백 출력에서 무너지면 길이 정보밖에 안 남는다.
-                  새 lg: 값을 만들지 않았으므로(전부 base 클래스) 인쇄 훅 추가가 필요 없다.
-                  숫자가 텍스트로 있으므로 막대는 decorative(중복 낭독 방지).
-                */}
-                <div className="flex items-center gap-2">
-                  <ScoreBar
-                    score={row.score}
-                    {...(row.tone !== undefined ? { tone: row.tone } : {})}
-                    trackClass="w-42.5"
-                    decorative
-                  />
-                  <span className="w-11.5 shrink-0 text-right text-base font-normal leading-5 text-ink tabular-nums">
-                    {row.score}점
-                  </span>
-                </div>
+                {/* 시안 회귀(2026-08-20) — 점수 숫자 표기(F-20)를 폐기하고 게이지 폭을
+                    시안 231px(w-57.75, 기본값)로 되돌린다. 숫자가 사라져 막대가 값의 유일한
+                    표현이 되므로 decorative를 걷어내 role="img" aria-label 경로를 살린다. */}
+                <ScoreBar
+                  score={row.score}
+                  {...(row.tone !== undefined ? { tone: row.tone } : {})}
+                />
                 <span className="text-base font-normal leading-5 text-ink">
                   {row.status}
                 </span>
