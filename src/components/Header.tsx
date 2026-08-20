@@ -1041,6 +1041,7 @@ export default function Header() {
         isAdmin={isAdmin}
         onLogout={handleLogout}
         triggerRef={mobileNavTriggerRef}
+        activeGroupTitle={activePathTitle}
       />
     </header>
   );

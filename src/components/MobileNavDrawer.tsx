@@ -1,7 +1,7 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { ChevronDown, LogOut, Settings, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
 import type { useNavGroups } from "@/hooks/useNavGroups";
 import { buildMyMenu } from "./myMenuItems";
@@ -21,6 +21,9 @@ type MobileNavDrawerProps = {
   isAdmin: boolean;
   onLogout: () => void;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
+  // 현재 경로가 속한 nav 그룹 타이틀 — Header의 activePathTitle(정확 일치 → 첫 세그먼트
+  // 2단계 판정)을 그대로 받아 데스크톱 nav와 활성 표시 기준을 일치시킨다.
+  activeGroupTitle?: string | null;
 };
 
 // 헤더 nav(desktop:flex 미만)를 대체하는 전체화면 드로어.
@@ -47,8 +50,10 @@ export default function MobileNavDrawer({
   isAdmin,
   onLogout,
   triggerRef,
+  activeGroupTitle = null,
 }: MobileNavDrawerProps) {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const { pathname } = useLocation();
 
   useEffect(() => {
     if (!open) {
@@ -109,6 +114,7 @@ export default function MobileNavDrawer({
               const hasDropdown =
                 Array.isArray(group.items) && group.items.length > 0;
               const isOpen = openGroup === group.title;
+              const isGroupActive = activeGroupTitle === group.title;
 
               return (
                 <div key={group.title} className="border-b border-[#eeeeee]">
@@ -116,7 +122,12 @@ export default function MobileNavDrawer({
                     <Link
                       to={group.to}
                       onClick={onClose}
-                      className="flex-1 whitespace-nowrap px-4 py-4 text-lg font-medium text-[#1e293b]"
+                      aria-current={isGroupActive ? "page" : undefined}
+                      className={`flex-1 whitespace-nowrap px-4 py-4 text-lg ${
+                        isGroupActive
+                          ? "font-semibold text-primary"
+                          : "font-medium text-[#1e293b]"
+                      }`}
                     >
                       {group.title}
                     </Link>
@@ -147,16 +158,24 @@ export default function MobileNavDrawer({
                       }`}
                     >
                       <div className="min-h-0">
-                        {group.items.map((item) => (
-                          <Link
-                            key={`${group.title}-${item.to}-${item.label}`}
-                            to={item.to}
-                            onClick={onClose}
-                            className="block whitespace-nowrap px-8 py-3 text-base text-ink transition hover:text-primary"
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
+                        {group.items.map((item) => {
+                          const isItemActive = item.to === pathname;
+                          return (
+                            <Link
+                              key={`${group.title}-${item.to}-${item.label}`}
+                              to={item.to}
+                              onClick={onClose}
+                              aria-current={isItemActive ? "page" : undefined}
+                              className={`block whitespace-nowrap px-8 py-3 text-base transition hover:text-primary ${
+                                isItemActive
+                                  ? "font-semibold text-primary"
+                                  : "text-ink"
+                              }`}
+                            >
+                              {item.label}
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
