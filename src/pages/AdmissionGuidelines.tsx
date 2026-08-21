@@ -1943,7 +1943,7 @@ export default function AdmissionGuidelines() {
            거짓 어포던스였다. 이제 밑줄 = 실제로 열리는 링크다. 링크가 없는
            행(official_source_url 미등록·자리표시자·미매칭)은 밑줄이 사라지는데,
            의도된 시각 변화다. */
-        .admission-directory-name { color: #525252; font-size: 0.78125rem; line-height: 1.35; font-weight: 700; letter-spacing: -0.04em; word-break: keep-all; white-space: nowrap; }
+        .admission-directory-name { color: #525252; font-size: 0.78125rem; line-height: 1.35; font-weight: 700; letter-spacing: -0.04em; word-break: keep-all; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
         .admission-directory-name-link { text-decoration: underline; text-decoration-skip-ink: auto; transition: color 0.15s; }
         .admission-directory-name-link:hover { color: #0b84fd; }
         .admission-directory-region { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; min-width: 2.625rem; height: 1.5rem; padding: 0 0.625rem; border-radius: 999px; background: #013262; color: #fff; font-size: 0.75rem; line-height: 1.3; font-weight: 500; white-space: nowrap; }

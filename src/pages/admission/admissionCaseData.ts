@@ -159,10 +159,11 @@ export async function fetchAdmissionCaseById(
 }
 
 /**
- * 노출 중인 연도별 합격률. 테이블 미생성/조회 실패면 폴백 상수를 반환한다.
- * 정상 응답이면 활성 행이 0건이어도(어드민이 전부 비활성화한 상태) 빈 배열을
- * 그대로 반환한다 — 호출부가 "조회 실패"와 "의도적으로 0건"을 구분해야 하므로
- * 여기서 빈 배열을 폴백으로 덮어써서는 안 된다.
+ * 노출 중인 연도별 합격률. 폴백 수치 없음 — 테이블 미생성/조회 실패면 빈 배열을
+ * 반환하고, 호출부(AcceptanceRateHero)는 숫자 블록 자체를 렌더하지 않는다.
+ * 정상 응답이면 활성 행이 0건이어도(어드민이 전부 비활성화한 상태) 마찬가지로
+ * 빈 배열이 그대로 온다 — "조회 실패"와 "의도적으로 0건"을 호출부가 구분할
+ * 필요가 없어졌으므로 반환값 형태를 굳이 나누지 않는다.
  * select('*') 고정 — 마이그레이션 미적용 환경에서도 죽지 않게 하는 규약(fetchAdmissionCases와 동일).
  * @returns {Promise<Array<{ year: number, rate: number }>>}
  */
@@ -187,10 +188,11 @@ export async function fetchAcceptanceRates(
 }
 
 /**
- * 히어로 대학 로고 스트립. 테이블 미생성/조회 실패면 null을 반환해 호출부
- * (AcceptanceRateHero)가 번들 로고 12종 폴백을 유지하게 한다. 정상 응답이면
- * 활성 행이 0건이어도(어드민이 전부 비활성화한 상태) 빈 배열을 그대로
- * 반환해 호출부가 로고 스트립 자체를 숨길 수 있게 한다.
+ * 히어로 대학 로고 스트립. 폴백 로고 없음 — 테이블 미생성/조회 실패면 null을
+ * 반환하고, 호출부(AcceptanceRateHero)는 초기 빈 상태를 그대로 유지해 로고
+ * 스트립을 렌더하지 않는다. 정상 응답이면 활성 행이 0건이어도(어드민이 전부
+ * 비활성화한 상태) 빈 배열을 그대로 반환해 호출부가 로고 스트립 자체를
+ * 숨길 수 있게 한다.
  * @returns {Promise<Array<{ id: string, name: string, logo_url: string,
  *   display_height_rem: number, opacity: number, sort_order: number }> | null>}
  */

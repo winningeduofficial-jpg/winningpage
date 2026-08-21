@@ -1,16 +1,4 @@
 import { useEffect, useState } from "react";
-import cau from "@/assets/admission/universities/cau.png";
-import hanyang from "@/assets/admission/universities/hanyang.png";
-import hufs from "@/assets/admission/universities/hufs.png";
-import kaist from "@/assets/admission/universities/kaist.png";
-import konkuk from "@/assets/admission/universities/konkuk.png";
-import korea from "@/assets/admission/universities/korea.png";
-import pusan from "@/assets/admission/universities/pusan.png";
-import skku from "@/assets/admission/universities/skku.png";
-import snu from "@/assets/admission/universities/snu.png";
-import sogang from "@/assets/admission/universities/sogang.png";
-import unist from "@/assets/admission/universities/unist.png";
-import yonsei from "@/assets/admission/universities/yonsei.png";
 import CountUpNumber from "@/components/CountUpNumber";
 import type { AdmissionCaseLogoRow } from "@/pages/admission/admissionCaseData";
 import {
@@ -31,113 +19,6 @@ interface LogoItem {
   opacity: number;
   rowNo?: number;
 }
-
-// 번들 폴백 로고 — admission_case_logos 테이블이 없거나 비어 있을 때 사용.
-// 1440→1164 컨테이너 축소 비율(1164/1440≈0.808) 적용 후 rem 환산.
-// 폴백은 widthRem을 함께 갖는다(원본 종횡비 보존 — 현재 화면과 픽셀 동일).
-// DB 행은 width 컬럼이 없으므로 widthRem이 undefined → width:auto + object-contain.
-const FALLBACK_LOGO_ROWS: LogoItem[][] = [
-  [
-    {
-      key: "snu",
-      src: snu,
-      name: "서울대학교",
-      heightRem: 1.858,
-      widthRem: 5.994,
-      opacity: 1,
-    },
-    {
-      key: "yonsei",
-      src: yonsei,
-      name: "연세대학교",
-      heightRem: 2.043,
-      widthRem: 5.856,
-      opacity: 1,
-    },
-    {
-      key: "korea",
-      src: korea,
-      name: "고려대학교",
-      heightRem: 1.67,
-      widthRem: 6.186,
-      opacity: 1,
-    },
-    {
-      key: "hanyang",
-      src: hanyang,
-      name: "한양대학교",
-      heightRem: 2.044,
-      widthRem: 6.596,
-      opacity: 1,
-    },
-    {
-      key: "pusan",
-      src: pusan,
-      name: "부산대학교",
-      heightRem: 2.043,
-      widthRem: 8.132,
-      opacity: 1,
-    },
-    {
-      key: "kaist",
-      src: kaist,
-      name: "KAIST",
-      heightRem: 1.858,
-      widthRem: 5.326,
-      opacity: 0.7,
-    },
-    {
-      key: "unist",
-      src: unist,
-      name: "UNIST",
-      heightRem: 1.111,
-      widthRem: 6.315,
-      opacity: 0.7,
-    },
-  ],
-  [
-    {
-      key: "skku",
-      src: skku,
-      name: "성균관대학교",
-      heightRem: 2.416,
-      widthRem: 6.528,
-      opacity: 1,
-    },
-    {
-      key: "hufs",
-      src: hufs,
-      name: "한국외국어대학교",
-      heightRem: 1.516,
-      widthRem: 7.376,
-      opacity: 0.8,
-    },
-    {
-      key: "konkuk",
-      src: konkuk,
-      name: "건국대학교",
-      heightRem: 2.041,
-      widthRem: 4.791,
-      opacity: 1,
-    },
-    {
-      key: "cau",
-      src: cau,
-      name: "중앙대학교",
-      heightRem: 1.861,
-      widthRem: 7.468,
-      opacity: 1,
-    },
-    {
-      key: "sogang",
-      src: sogang,
-      name: "서강대학교",
-      heightRem: 1.86,
-      widthRem: 5.568,
-      opacity: 1,
-    },
-  ],
-];
 
 function toLogoItems(dbRows: AdmissionCaseLogoRow[]): LogoItem[] {
   return dbRows.map((row) => ({
@@ -206,7 +87,8 @@ export default function AcceptanceRateHero({
   // 폴백 수치 없음(QA 시트 2026-08-21) — 숫자 블록은 DB 조회 결과가 도착해
   // 실제 값이 있을 때만 나타난다. 첫 페인트에는 렌더되지 않는다.
   const [rates, setRates] = useState<{ year: number; rate: number }[]>([]);
-  const [logoRows, setLogoRows] = useState<LogoItem[][]>(FALLBACK_LOGO_ROWS);
+  // 폴백 로고 없음(QA 시트 2026-08-21) — DB 조회 결과가 도착해 실제 로고가 있을 때만 채워진다.
+  const [logoRows, setLogoRows] = useState<LogoItem[][]>([]);
 
   // 정적 문구 모드(headlineOverride)이거나 showRates=false면 숫자를 아예 쓰지 않으므로 조회를 건너뛴다.
   const shouldFetchRates = showRates && !headlineOverride;
@@ -225,7 +107,7 @@ export default function AcceptanceRateHero({
       // 빈 배열이 그대로 온다 — 어느 쪽이든 값이 없으면 숫자 블록을 렌더하지 않는다.
       if (shouldFetchRates) setRates(rateRows);
 
-      // logoDbRows === null: 조회 실패 → 초기값(번들 폴백 로고)을 그대로 유지.
+      // logoDbRows === null: 조회 실패 → 빈 상태(초기값) 그대로 유지, 로고 스트립 렌더 안 함.
       // logoDbRows가 배열이면 정상 응답 → 그대로 반영(0건이면 빈 배열 → 스트립 숨김).
       if (showLogos && logoDbRows !== null) {
         setLogoRows(
@@ -245,8 +127,7 @@ export default function AcceptanceRateHero({
   const average = computeAcceptanceAverage(rates);
   const showHeadline = showRates && Boolean(headlineOverride);
   const showNumbers = showRates && !headlineOverride && years > 0;
-  const showLogoStrip =
-    showLogos && logoRows.some((row) => row.length > 0);
+  const showLogoStrip = showLogos && logoRows.some((row) => row.length > 0);
 
   // 숫자·문구·로고를 전부 끄면 빈 여백만 남기지 않고 히어로 섹션 자체를 렌더하지 않는다.
   if (!showHeadline && !showNumbers && !showLogoStrip) return null;
