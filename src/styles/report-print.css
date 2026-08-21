@@ -254,15 +254,15 @@
      (시안 A4-3: 차트 박스 y=101, 컨테이너 실측 기준 -1.625rem) */
   .fd-radar-overlay {
     position: absolute !important;
-    left: 26.25rem !important; /* 1.3배 확대(2026-08-21)에 맞춰 우측 여백 안으로 재배치 */
-    top: -3.25rem !important;
+    left: 30.4375rem !important; /* 1.15배(2026-08-21 조정)에 맞춰 우측 정렬 재배치 */
+    top: -2.4375rem !important;
     margin: 0 !important;
   }
 
   /* RadarChart6 크기 — lg:h-[24.9375rem] lg:w-[27.875rem] lg:max-w-none */
   .fd-radar-svg {
-    height: 32.4375rem !important; /* 1.3배(2026-08-21) — lg 값과 동일 출처 */
-    width: 36.25rem !important;
+    height: 28.6875rem !important; /* 1.15배(2026-08-21 조정) — lg 값과 동일 출처 */
+    width: 32.0625rem !important;
     max-width: none !important;
   }
 

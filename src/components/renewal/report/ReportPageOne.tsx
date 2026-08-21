@@ -120,7 +120,7 @@ export default function ReportPageOne({ data, totalPages }: ReportPageOneProps) 
             lg: 리터럴과 동일한 값(35.875rem/2.5625rem)으로 강제한다. */}
         <RadarChart6
           axes={learningAxes}
-          className="fd-radar-overlay relative mx-auto mt-6 lg:absolute lg:left-105 lg:-top-13 lg:mx-0 lg:mt-0"
+          className="fd-radar-overlay relative mx-auto mt-6 lg:absolute lg:left-[30.4375rem] lg:-top-[2.4375rem] lg:mx-0 lg:mt-0"
         />
       </div>
 

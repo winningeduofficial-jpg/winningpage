@@ -68,7 +68,7 @@ export default function RadarChart6({
       // 넘지 않게 해 라벨 겹침을 막고, lg 이상은 기존 고정 rem 치수를 그대로 유지한다.
       // fd-radar-svg — 인쇄 훅(BLOCK 수정). report-print.css 가 기존 lg: 리터럴과 동일한
       // 값(24.9375rem/27.875rem)으로 강제한다.
-      className={`fd-radar-svg h-auto w-full max-w-88 lg:h-[32.4375rem] lg:w-[36.25rem] lg:max-w-none ${className}`}
+      className={`fd-radar-svg h-auto w-full max-w-88 lg:h-[28.6875rem] lg:w-[32.0625rem] lg:max-w-none ${className}`}
       role="img"
       aria-label="학습 6축 레이더 차트"
     >
