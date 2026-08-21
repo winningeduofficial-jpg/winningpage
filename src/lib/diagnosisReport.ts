@@ -383,7 +383,9 @@ function buildHeadlineLines(
 ) {
   if (sincerityFlagged) {
     const head = commonCopy("SINCERITY_HEAD");
-    if (head) return [head];
+    // \n = 확정된 라인 분리 지점(diagnosisCopy SINCERITY_HEAD 주석 참고). 분리 지점이 없는
+    // 문자열(예: DB 오버라이드 구본)은 그대로 한 줄로 나간다.
+    if (head) return head.split("\n").filter((line) => line.trim() !== "");
   }
 
   const head = type ? TYPE_COPY[type]?.head : null;
