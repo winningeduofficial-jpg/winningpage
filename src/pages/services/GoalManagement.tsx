@@ -100,9 +100,9 @@ const STAGE_TABS = [
 
 // 탭별 카드 콘텐츠 — Figma 시안 3종(2063:11610 성적진단, 2063:11744 학습설계,
 // 2063:11878 실행관리)을 반영해 탭마다 실제 카드가 전환되도록 구성했다. '목표 설정' 탭은
-// 기존 확정 콘텐츠(구 STAGE_CARDS)를 그대로 이전했다. '학부모 안내' 탭은 시안 파일을
-// 전수 확인했으나 콘텐츠가 존재하지 않아 비활성 탭으로 남긴다(아래 StageSection 참고) —
-// 시안이 추가되면 이 맵에 '학부모 안내' 키를 등록한다.
+// 기존 확정 콘텐츠(구 STAGE_CARDS)를 그대로 이전했다. '학부모 안내' 탭은 시안에 전용 콘텐츠가
+// 없어 비활성으로 남아 있었으나(QA 지적), 아래 PhoneReportSection과 같은 주제(주간・월간
+// 리포트)로 채워 활성화했다 — 신규 에셋 없이 기존 리포트 아이콘・목업만 재사용한다.
 //
 // 시안(1889:7053, 목표 설정 탭)은 5개 카드 중 2~5번 설명 문구가 전부 "과목과 관심사에 맞는
 // 탐구 주제 후보를 제안합니다."로 동일한 placeholder가 남아있다(다른 서비스 카피가 잘못
@@ -218,6 +218,23 @@ const STAGE_CONTENT = {
       desc: "한 주의 실행 결과를 리포트로 정리합니다.",
     },
   ],
+  "학부모 안내": [
+    {
+      icon: stageExecWizard,
+      title: "주간 리포트",
+      desc: "한 주의 학습 실행과 성취도를 정리해 매주 보내드립니다.",
+    },
+    {
+      icon: outcomeCalendar,
+      title: "월간 리포트",
+      desc: "한 달간의 목표 달성 현황을 월간 리포트로 확인할 수 있습니다.",
+    },
+    {
+      icon: phoneReportMockup,
+      title: "주간・월간 리포트 확인",
+      desc: "카카오톡 알림톡으로 도착한 리포트를 언제든 다시 확인할 수 있습니다.",
+    },
+  ],
 };
 
 const AUDIENCE_CARDS = [
@@ -324,17 +341,17 @@ const TESTIMONIALS = [
   {
     quote:
       "내 목표 대학까지의 확률이 눈에 보이니까, 막연하던 공부가 방향이 생겼어요.",
-    name: "고2 김OO",
+    name: "고1 김OO",
     tag: "인문계열",
   },
   {
     quote: "매일 뭘 해야 할지 콕 짚어주니, 미루던 습관이 줄었습니다.",
-    name: "고2 김OO",
-    tag: "인문계열",
+    name: "고1 최OO",
+    tag: "자연계열",
   },
   {
     quote: "주간 리포트로 아이 상황을 함께 볼 수 있어 안심이 됩니다.",
-    name: "고2 김OO",
+    name: "고3 박OO",
     tag: "학부모",
   },
 ];
@@ -482,9 +499,9 @@ function StageSection() {
     <ServiceSection className="lg:pt-55" heading="단계별로, 목표를 관리합니다">
       {/* 탭 — 시안 3종(2063:11610 성적진단, 2063:11744 학습설계, 2063:11878 실행관리)의
           카드 콘텐츠를 반영해 인터랙티브 탭으로 전환했다. '목표 설정' 탭은 기존 확정 콘텐츠를
-          그대로 쓴다. '학부모 안내' 탭 콘텐츠 시안 미제공(파일 전수 확인) — STAGE_CONTENT 에
-          키가 없으면 ServiceTabsPanel 이 자동으로 비활성 처리한다. 시안 추가 시 키만 등록하면
-          별도 분기 없이 활성화된다. */}
+          그대로 쓴다. '학부모 안내' 탭은 시안 전용 콘텐츠는 없지만(QA 지적) STAGE_CONTENT 에
+          키를 등록해 활성화했다 — 아래 PhoneReportSection과 같은 주간・월간 리포트 주제를
+          재사용한 카드 3장이다. */}
       <ServiceTabsPanel
         tabs={STAGE_TABS}
         content={STAGE_CONTENT}
@@ -668,12 +685,14 @@ function PhoneReportSection() {
                             animationDelay: badge.rot.delay,
                           }}
                         >
-                          <p className="text-[1.25rem] font-medium leading-[1.4] text-primary">
+                          {/* 폰 목업 대비 과대(QA 지적) — 시안값 1.25rem에서 한 단계
+                              내려 1rem으로 축소. desc도 같은 비율로 0.875rem으로 낮춘다. */}
+                          <p className="text-[1rem] font-medium leading-[1.4] text-primary">
                             {badge.emoji} {badge.title}
                           </p>
                           {/* 시안 원본 #808080 → 프로젝트 회색 하한선(#767676 이상 —
                               ManagementSection/StageSection 선례)으로 클램프 */}
-                          <p className="mt-2.5 break-keep text-[1rem] font-normal leading-relaxed text-[#767676]">
+                          <p className="mt-2.5 break-keep text-[0.875rem] font-normal leading-relaxed text-[#767676]">
                             {badge.desc}
                           </p>
                         </div>
@@ -728,7 +747,7 @@ export default function GoalManagement() {
           레이아웃(섹션 패딩)과 헤딩・CTA 목적지뿐이다. */}
       <ServicePricingSection
         serviceKey="goal"
-        heading="목표관리 이용권 구매하기"
+        heading="목표관리 이용권 안내"
         cta={{ label: "이용권 구매하기", to: "/pricing" }}
         className="pb-20 sm:pb-24 lg:pb-27.5 lg:pt-60.75"
       />

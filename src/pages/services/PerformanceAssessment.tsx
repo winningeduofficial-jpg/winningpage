@@ -432,18 +432,20 @@ export default function PerformanceAssessment() {
   // 해시가 있을 때 "최상단으로 이동"만 건너뛸 뿐, 앵커로 스크롤하는 코드는 저장소
   // 어디에도 없다(<a href="#...">를 쓰는 콜멘토는 같은 문서 내 이동이라 해당 없음).
   // 그래서 가드가 보낸 `#pricing`을 여기서 직접 처리한다.
+  // QA 지적(행 153): 이용권 미보유로 튕겨 온 사용자가 배너를 직접 눌러야만 가격
+  // 섹션으로 내려가던 것이, 목표관리(GoalManagement)의 "시작하기 → 이용요금 바로
+  // 이동" 흐름과 달리 화면 위쪽에 안내 박스만 남은 채 멈춰 있는 것처럼 보였다.
+  // 배너(entitlementNotice)가 떠 있어도 자동으로 가격 섹션까지 스크롤하도록 바꿔
+  // 목표관리와 동일하게 "이용요금 직행"이 되게 한다 — 배너 자체는 그대로 남아
+  // 있으니 "왜 돌아왔는지"는 스크롤 후에도 위로 올리면 계속 확인할 수 있다.
   useEffect(() => {
     if (location.hash !== `#${PRICING_ANCHOR_ID}`) return undefined;
-    // 단, 안내 배너가 떠 있으면 자동 이동하지 않는다 — 배너는 "왜 되돌아왔는지"를
-    // 설명하는 유일한 표면인데 곧바로 가격 섹션으로 내려버리면 그 문장을 아무도
-    // 읽지 못한다. 배너의 CTA가 같은 앵커로 데려간다.
-    if (entitlementNotice) return undefined;
 
     // 레이아웃이 한 번 확정된 뒤에 이동한다(첫 프레임 좌표는 지연 로드 이미지 탓에
     // 실제 위치와 다르다).
     const frame = requestAnimationFrame(scrollToPricing);
     return () => cancelAnimationFrame(frame);
-  }, [location.hash, entitlementNotice, scrollToPricing]);
+  }, [location.hash, scrollToPricing]);
 
   return (
     <main className="min-h-screen bg-white pt-16">

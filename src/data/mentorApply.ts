@@ -125,8 +125,9 @@ export const SELECTION_SECTION = {
   title: "선발 절차",
 };
 
-// ⚠ 1번만 마침표로 끝나고 2·3·4는 없다 — 시안 원문 그대로(명세 확인 항목 ⑮, 통일 여부 미확정).
 // title 의 `N. ` 번호 접두는 시안 텍스트 노드에 포함된 원문이라 그대로 둔다.
+// desc 종결형 — 시안 원문은 1번만 마침표로 끝나고 2·3·4는 없었다(명세 확인 항목 ⑮).
+// QA 지적으로 4개 전부 "~니다."로 통일했다.
 export const SELECTION_STEPS = [
   {
     key: "document",
@@ -136,17 +137,17 @@ export const SELECTION_STEPS = [
   {
     key: "interview",
     title: "2. 2차 시연과 인터뷰",
-    desc: "상담 시연과 적합성\n인터뷰를 진행합니다",
+    desc: "상담 시연과 적합성\n인터뷰를 진행합니다.",
   },
   {
     key: "training",
     title: "3. 멘토 교육",
-    desc: "상담 진행 방식과\n기록 방법을 교육합니다",
+    desc: "상담 진행 방식과\n기록 방법을 교육합니다.",
   },
   {
     key: "start",
     title: "4. 활동 시작",
-    desc: "선택한 분야와\n시간대에 맞춰 배정됩니다",
+    desc: "선택한 분야와\n시간대에 맞춰 배정됩니다.",
   },
 ];
 
