@@ -1,12 +1,18 @@
 // 추천 지원 서비스 카드 2장 — 490x201, border #d1e8ff, 순위 타이틀 + 본문 + 칩 4개.
 // 칩은 StatusBadge(blue)와 동일 시각(bg #E9F4FF / text #496C99, 시안 팔레트)이나 폰트 크기만
 // 달라 로컬 span 으로 구현(props 계약: RecommendServices 내부 전용, StatusBadge 미의존).
-// props: { cards } = [{ rank, name, desc, chips: string[4] }] x2 — data.recommendations.
+// props: { cards } = [{ rank, name, desc, chips: string[4] }] x0~2 — data.recommendations.
 // R3(2026-08-11) — 2열 고정 카드(490×201)는 모바일 1열 스택으로, 높이·본문 폭 고정도 제거해
 // 실제 텍스트 줄 수만큼 카드가 늘어나게 한다(칩 줄바꿈으로 인한 세로 잘림 방지).
 // leadNote(F-05 · F-06) — '왜 카드가 적은지'를 설명하는 조건부 안내(중3 / 고3 6월 이후).
 // prop 이름을 serviceLimit 이 아니라 일반명 leadNote 로 둔 이유: 학년별 제한 안내가 두 자리로
 // 갈라지지 않게 같은 슬롯을 계속 재사용하기 위해서다. 조건 판정은 엔진이 소유한다(buildNotices).
+//
+// 빈 보더 박스(2026-08-21 사용자 확정) — 레이아웃 그리드는 항상 2칸이다. 엔진(추천 개수
+// 게이트·SVC_NONE 폴백)은 건드리지 않는다 — 데이터가 1장·0장(SVC_NONE 안내 카드 1장)만
+// 내려도, 이 컴포넌트가 남는 칸을 내용 없는 빈 보더 박스로 채워 그리드 2칸을 고정한다.
+// 빈 박스는 형제 카드와 같은 fd-recommend-card 클래스(같은 보더·크기)를 그대로 쓰되 내용이
+// 없어 장식 요소다 — aria-hidden.
 import { withDedupedKeys } from "@/lib/reactKeys";
 
 type RecommendCard = {
@@ -44,9 +50,9 @@ const RecommendServices = ({
       )}
 
       <div className="fd-recommend-grid mt-4 grid grid-cols-1 gap-4 lg:mt-3.75 lg:grid-cols-2 lg:gap-5">
-        {cards.map((card) => (
+        {cards.map((card, index) => (
           <div
-            key={card.rank}
+            key={card.rank || `card-${index}`}
             className="fd-recommend-card w-full rounded-xl border border-[#d1e8ff] px-3.25 py-4 lg:h-50.25 lg:w-122.5 lg:pl-3.25 lg:pr-0 lg:pt-4 lg:pb-0"
           >
             {/* 적합도 50 미만이라 추천 서비스가 하나도 없을 때(SVC_NONE 안내 카드)는 rank·name 이 비어
@@ -71,6 +77,17 @@ const RecommendServices = ({
             </div>
           </div>
         ))}
+        {/* 빈 보더 박스 — 그리드는 항상 2칸. 엔진이 낸 카드가 2장 미만이면 형제 카드와
+            같은 fd-recommend-card(보더·크기)로 남는 칸을 채운다. 내용이 없는 장식 요소다. */}
+        {Array.from({ length: Math.max(0, 2 - cards.length) }).map(
+          (_, index) => (
+            <div
+              key={`empty-${index}`}
+              aria-hidden="true"
+              className="fd-recommend-card w-full rounded-xl border border-[#d1e8ff] px-3.25 py-4 lg:h-50.25 lg:w-122.5 lg:pl-3.25 lg:pr-0 lg:pt-4 lg:pb-0"
+            />
+          ),
+        )}
       </div>
     </section>
   );
