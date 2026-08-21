@@ -62,7 +62,7 @@
 // ③ POST /api/mentor-apply  — 실제 제출
 //    요청 (application/json):
 //      {
-//        name, birth_date, phone, email, residence_region,
+//        name, birth_date, gender, phone, email, residence_region,
 //        university, major, admission_year, enrollment_status,
 //        admission_history, final_admission_track, exam_results,
 //        highschool_region, highschool_name, highschool_type,
@@ -225,7 +225,15 @@ const MAX_SUBMITS_PER_IP_DAY = 10;
 // 이고, 셋 중 하나만 고치면 조용히 어긋나므로 **셋을 항상 함께** 고칠 것.
 // ---------------------------------------------------------------------------
 
+// QA 지시(2026-08-21)로 신설 — src/data/mentorApply.ts GENDER_OPTIONS 와 값이 같아야 한다.
+// mentor_applications.gender 컬럼의 CHECK 제약(supabase/migrations/
+// 20260821000006_mentor_apply_gender.sql)과도 반드시 함께 고칠 것 — 셋 중 하나만 바뀌면
+// 조용히 어긋난다(파일 상단 "허용값 화이트리스트" 주석과 같은 사정).
+const GENDERS = ["남", "여"];
 const RESIDENCE_REGIONS = [
+  // QA 지시(2026-08-21)로 "서울"을 추가했다 — src/data/mentorApply.ts MENTOR_REGION_OPTIONS
+  // 와 반드시 함께 고칠 것(파일 상단 "허용값 화이트리스트" 주석 참고).
+  "서울",
   "부산·경남",
   "수도권",
   "대구·경북",
@@ -307,6 +315,9 @@ const FIELD_SPECS: FieldSpec[] = [
   // 1. 지원자 정보
   { key: "name", kind: "text", required: true, max: 50 },
   { key: "birth_date", kind: "birthDate", required: true },
+  // QA 지시(2026-08-21) 신설 필드. supabase/migrations/20260821000006_mentor_apply_gender.sql
+  // 참고.
+  { key: "gender", kind: "enum", required: true, options: GENDERS },
   { key: "email", kind: "text", required: true, max: 254, regex: EMAIL_REGEX },
   {
     key: "residence_region",
