@@ -128,6 +128,9 @@ export const SELECTION_SECTION = {
 // title 의 `N. ` 번호 접두는 시안 텍스트 노드에 포함된 원문이라 그대로 둔다.
 // desc 종결형 — 시안 원문은 1번만 마침표로 끝나고 2·3·4는 없었다(명세 확인 항목 ⑮).
 // QA 지적으로 4개 전부 "~니다."로 통일했다.
+// ⚠ 2번 스텝은 QA 지시(2026-08-21)로 "시연" 언급을 뺐다 — 실제 선발 절차에 상담 시연이
+//    없어 제목·설명 둘 다 인터뷰만 남긴다. title "2차 시연과 인터뷰" → "2차 인터뷰",
+//    desc "상담 시연과 적합성 인터뷰를 진행합니다." → "적합성 인터뷰를 진행합니다."
 export const SELECTION_STEPS = [
   {
     key: "document",
@@ -136,8 +139,8 @@ export const SELECTION_STEPS = [
   },
   {
     key: "interview",
-    title: "2. 2차 시연과 인터뷰",
-    desc: "상담 시연과 적합성\n인터뷰를 진행합니다.",
+    title: "2. 2차 인터뷰",
+    desc: "적합성 인터뷰를 진행합니다.",
   },
   {
     key: "training",
@@ -196,10 +199,13 @@ export const PROGRESS_SIDEBAR = {
 
 // --- 폼 옵션 -----------------------------------------------------------------
 
-// 거주 지역(1-5) — 6개 광역권.
+// 거주 지역(1-5) — 7개 광역권.
 // ⚠ 기존 REGION_OPTIONS(src/pages/signup/StudentForm.jsx, 17개 시도 + 기타)와 체계가 다르다.
 //    이름 충돌과 오용을 막기 위해 MENTOR_ 접두를 붙였다. 재사용 금지, 상호 치환 금지.
+// ⚠ QA 지시(2026-08-21)로 "서울"을 맨 앞에 추가했다 — api/mentor-apply.ts RESIDENCE_REGIONS
+//    화이트리스트와 반드시 함께 고칠 것(둘 중 하나만 고치면 "서울" 선택 시 서버가 거절한다).
 export const MENTOR_REGION_OPTIONS = [
+  "서울",
   "부산·경남",
   "수도권",
   "대구·경북",
@@ -207,6 +213,12 @@ export const MENTOR_REGION_OPTIONS = [
   "호남·제주",
   "해외",
 ];
+
+// 지원자 성별(1-신설) — QA 지시(2026-08-21)로 추가한 단일 선택 칩.
+// DB 컬럼(mentor_applications.gender, supabase/migrations/20260821000006_mentor_apply_gender.sql)
+// 과 서버 화이트리스트(api/mentor-apply.ts GENDERS)까지 전부 배선됐다 — 값을 바꾸려면 셋을
+// 항상 함께 고칠 것.
+export const GENDER_OPTIONS = ["남", "여"];
 
 // 입시 이력(2-5) — 단일 선택 칩.
 export const ADMISSION_HISTORY_OPTIONS = ["현역", "재수", "삼수+"];

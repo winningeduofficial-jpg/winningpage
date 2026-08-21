@@ -26,7 +26,11 @@ import type { FormEvent } from "react";
 import { useEffect, useState } from "react";
 import { MENTOR_HEADING_LG } from "@/components/services/serviceTokens";
 import { FORM_HEADER, PROGRESS_SIDEBAR } from "@/data/mentorApply";
-import { isValidMobile, normalizePhone } from "@/lib/phoneVerification";
+import {
+  formatPhoneInput,
+  isValidMobile,
+  normalizePhone,
+} from "@/lib/phoneVerification";
 import { supabase } from "@/lib/supabase";
 import { isWithinMaxLength } from "@/lib/validators";
 import FormSectionApplicant, {
@@ -71,6 +75,10 @@ type MentorApplyValues = {
   // 1. 지원자 정보
   name: string;
   birth_date: string;
+  // QA 지시(2026-08-21) 추가 필드. DB 컬럼·서버 화이트리스트 배선까지 끝났다
+  // (supabase/migrations/20260821000006_mentor_apply_gender.sql, api/mentor-apply.ts
+  // FIELD_SPECS) — 다른 필드와 동일하게 `...values` 스프레드로 그대로 제출된다.
+  gender: string;
   phone: string;
   email: string;
   residence_region: string;
@@ -114,6 +122,7 @@ const INITIAL_VALUES: MentorApplyValues = Object.freeze({
   // 1. 지원자 정보
   name: "",
   birth_date: "",
+  gender: "",
   phone: "",
   email: "",
   residence_region: "",
@@ -281,6 +290,7 @@ const FIELD_ORDER = [
 // 대신 MentorFieldShell 이 **에러가 없을 때도 항상** `${fieldId}-error` 노드를 렌더하므로
 // (레이아웃 시프트 방지용 고정 슬롯) 그 노드를 스크롤 앵커로 쓴다. 포커스는 걸지 않는다.
 const FIELD_ANCHORS = {
+  gender: "mentor-gender-error",
   residence_region: "mentor-residence-region-error",
   enrollment_status: "enrollment_status", // SelectField 실제 컨트롤 id
   admission_history: "mentor-admission-history-error",
@@ -470,7 +480,14 @@ export default function MentorApplyForm() {
   const [applicationId, setApplicationId] = useState("");
 
   function updateField(key: keyof MentorApplyValues, value: string | string[]) {
-    setValues((prev) => ({ ...prev, [key]: value }) as MentorApplyValues);
+    // 전화번호(1-3 · 5-2 본인인증이 같은 키를 공유)는 QA 지시(2026-08-21)로 입력 중
+    // 자동으로 010-1234-5678 형태 하이픈을 넣는다 — 두 입력이 모두 이 함수를 거치므로
+    // 한 곳만 고치면 된다(파일 상단 ⚠ 참고).
+    const nextValue =
+      key === "phone" && typeof value === "string"
+        ? formatPhoneInput(value)
+        : value;
+    setValues((prev) => ({ ...prev, [key]: nextValue }) as MentorApplyValues);
     // 사용자가 고치기 시작한 필드의 에러는 즉시 지운다 — 고친 뒤에도 빨간 글씨가 남아 있으면
     // 무엇이 아직 문제인지 알 수 없다.
     setErrors((prev) => (prev[key] ? { ...prev, [key]: undefined } : prev));
@@ -549,6 +566,28 @@ export default function MentorApplyForm() {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [submitting]);
+
+  // 제출 완료 시 스크롤 — QA 지시(2026-08-21)로 고친 버그. 예전에는 handleSubmit 안에서
+  // setApplicationId 직후 곧바로 window.scrollTo(top:0) 를 불렀는데, 그 시점엔 아직 리렌더
+  // 전이라 CompletionPanel 이 DOM 에 없고 결과적으로 페이지 맨 위(히어로)로 튀었다. applicationId
+  // 가 실제로 세워져 이 이펙트가 도는 시점(= 다음 렌더 이후)에 접수 완료 화면 섹션으로
+  // scrollIntoView 한다 — 섹션에 이미 `scroll-mt-26`(히어로 CTA 앵커와 같은 값)이 붙어 있어
+  // 고정 헤더에 가리지 않는다.
+  useEffect(() => {
+    if (!applicationId) return;
+    if (typeof window === "undefined") return;
+
+    const target = document.getElementById(MENTOR_FORM_ANCHOR_ID);
+    if (!target) return;
+
+    const prefersReduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    target.scrollIntoView({
+      behavior: prefersReduced ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [applicationId]);
 
   // 진행률 사이드바가 보는 값. 파일·인증·약관은 `values` 밖에 있으므로 여기서 합성한다.
   //
@@ -727,9 +766,11 @@ export default function MentorApplyForm() {
         throw new SubmitStepError("submit", result);
       }
 
+      // 페이지 최상단이 아니라 접수 완료 화면으로 스크롤한다 — 아래
+      // "제출 완료 시 스크롤" useEffect 가 applicationId 가 세워지는 시점(= CompletionPanel 이
+      // 실제로 그려진 다음)에 맞춰 처리한다. setApplicationId 직후 여기서 곧바로 스크롤하면
+      // 아직 리렌더 전이라 top:0(히어로)으로 튀어 버린다(QA 지시 2026-08-21로 발견된 버그).
       setApplicationId(result.application_id || "");
-      if (typeof window !== "undefined")
-        window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error) {
       if (error instanceof SubmitStepError) {
         const { stage, result } = error;
@@ -806,6 +847,7 @@ export default function MentorApplyForm() {
             <ProgressSidebar
               sections={sidebarSections}
               values={progressValues}
+              errors={errors}
             />
 
             {/* noValidate — 검증은 전부 이 컴포넌트가 한다. 브라우저 기본 말풍선이 뜨면
