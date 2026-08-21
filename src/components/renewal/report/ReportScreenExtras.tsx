@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
 import { templateCopy } from "@/lib/diagnosisCopyBinding";
 
@@ -22,9 +23,12 @@ import { templateCopy } from "@/lib/diagnosisCopyBinding";
  * "새 lg: 는 인쇄 훅과 함께" 규칙이 적용되지 않는다 — 개별 fd-* 훅을 덧붙이지 마라
  * (전부 각주·보조 설명 텍스트라 base 클래스만으로도 A4 폭 안에서 읽힌다).
  *
- * 시각 언어(D 결정): 흰 카드 아님 · 아이콘 없음 · 중첩 카드 없음 · 접기는 페이지 전체에서 1개.
- *   시트 2장이 이미 흰 카드라 부록까지 흰 박스로 만들면 '3페이지짜리 리포트'로 읽혀 인쇄
- *   결과(2장)와 어긋난다. 배경색 위 타이포그래피 + 헤어라인만으로 위계를 만든다.
+ * 시각 언어(2026-08-21 개정): 시트 1·2와 동일한 A4 용지 카드(흰 배경·동일 폭·동일 그림자).
+ *   원래 D 결정은 "흰 카드 아님"이었으나 그 근거가 '인쇄는 2장뿐이라 3페이지처럼 읽히면
+ *   안 된다'였다 — 행 102 재확인으로 부록이 실제 PDF 3페이지째부터 인쇄되면서 근거가
+ *   소멸해 사용자 지시로 용지 시각으로 통일했다. 카드 시각은 데스크톱 전용(lg:)이라
+ *   인쇄(뷰포트 794px, lg: 미적용) 페이지네이션에는 영향이 없다.
+ *   아이콘 없음 · 중첩 카드 없음 · 접기는 페이지 전체에서 1개는 유지.
  *
  * 순서(학생의 질문 순서): 진단(무엇이 어떤 상태인가) → 긴급도(얼마나 급한가)
  *   → 전략(무엇부터 할까) → 고지(어디까지 믿을까).
@@ -155,6 +159,31 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
   const { areaDetails, strategyGroups, urgency, notices, typeTodos } =
     data ?? {};
 
+  // PDF에는 접힌 토글을 열 손이 없다 — window.print() 직전(beforeprint)에 접힌
+  // fd-strategy-more 를 강제로 펼치고, 다이얼로그가 닫히면 원복한다. CDP printToPDF 처럼
+  // beforeprint 가 안 오는 경로는 report-print.css 의 ::details-content 해제가 커버한다.
+  useEffect(() => {
+    const opened = new Set<HTMLDetailsElement>();
+    const before = () => {
+      document
+        .querySelectorAll<HTMLDetailsElement>("details.fd-strategy-more:not([open])")
+        .forEach((d) => {
+          d.setAttribute("open", "");
+          opened.add(d);
+        });
+    };
+    const after = () => {
+      opened.forEach((d) => d.removeAttribute("open"));
+      opened.clear();
+    };
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => {
+      window.removeEventListener("beforeprint", before);
+      window.removeEventListener("afterprint", after);
+    };
+  }, []);
+
   const detailRows = rules.showAreaDetails ? areaDetails : null;
   const hasAreaDetails =
     (detailRows?.page1?.some((row) => row.detail) ?? false) ||
@@ -208,7 +237,7 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
       // fd-print-page3 — QA 행 102: 이 부록을 인쇄에도 항상 포함한다(더 이상 fd-screen-only
       // 로 걷어내지 않는다). 시트 2장(fd-report-sheet)과 이어 붙지 않고 항상 새 페이지에서
       // 시작하도록 report-print.css 가 이 훅으로 break-before 를 강제한다.
-      className="fd-print-page3 w-full max-w-280 px-4 lg:px-0"
+      className="fd-print-page3 w-full max-w-280 px-4 lg:w-280 lg:bg-white lg:p-perf-inset lg:shadow-[0_0_1.25rem_rgba(0,0,0,0.06)]"
       aria-label={copy.sectionTitle}
     >
       <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-primary">
@@ -280,7 +309,11 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
           )}
 
           {restGroups.length > 0 && (
-            <details className="mt-10">
+            // fd-strategy-more — PDF에서는 토글을 열 수 없으므로 인쇄에서 항상 펼친다:
+            // ① report-print.css 가 ::details-content 의 content-visibility 를 강제 해제하고
+            //    summary(보기 라벨)를 숨긴다. ② window.print() 경로는 beforeprint 에서 open
+            //    속성을 켜고 afterprint 에 원복한다(구형 렌더러 폴백, 아래 useEffect).
+            <details className="fd-strategy-more mt-10">
               <summary className="cursor-pointer py-2 text-base font-medium text-performance-reportHeading underline underline-offset-4 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
                 {copy.strategyMoreLabel}
               </summary>
@@ -312,6 +345,15 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
             {notices?.reportLimit}
           </p>
         </section>
+      )}
+
+      {/* reportBasis(산출 근거 고지) — 원래 2페이지 하단 각주였으나 부록이 인쇄에 포함되면서
+          문서의 끝이 여기로 바뀌어 구분선째 이동했다(사용자 지시, 2026-08-21). 문서 전체에
+          걸리는 신뢰성 고지라 항상 마지막에 한 번만 나온다. */}
+      {notices?.reportBasis && (
+        <p className="fd-mt-report-basis mt-12 border-t border-[#e5e5e5] pt-3 text-sm leading-[1.4] text-ink-sub lg:mt-16">
+          {notices.reportBasis}
+        </p>
       )}
     </section>
   );

@@ -124,6 +124,20 @@
     page-break-before: page;
   }
 
+  /* fd-strategy-more — 접힌 '나머지 영역의 맞춤 전략'을 인쇄에서 항상 펼친다(PDF에서는
+     토글을 열 수 없다). Chromium은 닫힌 details 내용을 ::details-content 의
+     content-visibility:hidden 으로 감춘다 — 이를 해제하고, 토글 라벨(summary)은
+     인쇄물에서 의미가 없으니 숨긴다. window.print() 경로는 beforeprint 훅이 open 속성을
+     함께 켠다(ReportScreenExtras.tsx). */
+  .fd-strategy-more::details-content {
+    content-visibility: visible !important;
+    display: block !important;
+  }
+
+  .fd-strategy-more > summary {
+    display: none !important;
+  }
+
   /*
    * F-18 (2026-08-11) — 예시(픽스처) 리포트 워터마크.
    * 화면 배너만으로는 부족하다: 인쇄물은 표시 없이 그대로 남의 리포트로 유통된다.
