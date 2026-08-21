@@ -38,9 +38,15 @@ const ADMISSION_REGION_OPTIONS = [
 
 // 수시정시합격 페이지는 사이드바에 admissionSusiJungsi 하나만 노출하고, 그 안에서
 // 서브탭으로 admission_posts/admission_acceptance_rates/admission_case_logos를 전환한다.
+//
+// "연도별 합격률" 탭은 숨김 처리한다(QA 리뷰, 2026-08-21) — 사이트 상단 합격률 숫자
+// 노출을 껐고(AdmissionCases.tsx가 AcceptanceRateHero에 headlineOverride를 넘겨 숫자
+// 대신 정적 문구를 쓴다) 정본 수치가 아직 확정되지 않았다. acceptanceRates config·
+// admission_acceptance_rates 테이블·라우팅은 그대로 남긴다 — 정본 수치가 확정되면
+// 아래 주석을 풀어 탭만 복원하면 된다.
 const ADMISSION_CASES_TABS = [
   { key: "admissionSusiJungsi", label: "합격 사례" },
-  { key: "acceptanceRates", label: "연도별 합격률" },
+  // { key: "acceptanceRates", label: "연도별 합격률" },
   { key: "admissionCaseLogos", label: "대학 로고" },
 ];
 
@@ -53,9 +59,14 @@ const ADMISSION_CASE_CATEGORY_OPTIONS = [
 // 특목고합격 — 사이드바에 specialHighschool 하나만 노출하고 그 안에서 서브탭으로 전환한다.
 // 히어로 대학 로고는 수시정시합격과 같은 테이블(admission_case_logos)을 공유하므로
 // 여기에 로고 탭을 만들지 않는다 — 같은 데이터의 편집 입구가 둘이 되면 드리프트가 난다.
+//
+// "연도별 합격률" 탭은 숨김 처리한다(QA 리뷰, 2026-08-21) — SpecialHighschoolCases.tsx가
+// AcceptanceRateHero를 showRates=false·showLogos=false로 호출해 상단 숫자·로고 스트립
+// 자체를 렌더하지 않는다. specialHighschoolRates config·테이블·라우팅은 그대로 남긴다 —
+// 정본 수치가 확정되면 아래 주석을 풀어 탭만 복원하면 된다.
 const SPECIAL_HIGHSCHOOL_TABS = [
   { key: "specialHighschool", label: "합격 사례" },
-  { key: "specialHighschoolRates", label: "연도별 합격률" },
+  // { key: "specialHighschoolRates", label: "연도별 합격률" },
 ];
 
 // 공개 페이지 탭(전체/자사고/외고/국제고/영재고/과학고) 및 DB CHECK 제약과 동일하게 유지할 것.
@@ -80,7 +91,7 @@ export const admissionConfigs: Record<string, AdminConfig> = {
     searchPlaceholder: "학교명 또는 학생명을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `특목고 합격 페이지의 합격 사례 카드입니다. 구분(자사고/외고/국제고/영재고/과학고)이 공개 페이지의 탭 필터와 그대로 연결되며, 여기 없는 구분은 선택할 수 없습니다. 학생명은 반드시 마스킹해 입력하세요(허용 문자: O, ○, *, 예: 홍O동) — 실명 노출은 개인정보 위반입니다. 출신 중학교는 있는 경우에만 입력하며, 비워 두면 카드에 표시되지 않습니다. 순서 숫자가 작을수록 앞에 나옵니다. 상단 합격률 숫자는 '연도별 합격률' 탭에서 관리하고, 그 아래 대학 로고 줄은 '수시정시합격 > 대학 로고'에서 관리합니다(두 페이지가 같은 로고를 공유합니다).`,
+    guideText: `특목고 합격 페이지의 합격 사례 카드입니다. 구분(자사고/외고/국제고/영재고/과학고)이 공개 페이지의 탭 필터와 그대로 연결되며, 여기 없는 구분은 선택할 수 없습니다. 학생명은 반드시 마스킹해 입력하세요(허용 문자: O, ○, *, 예: 홍O동) — 실명 노출은 개인정보 위반입니다. 출신 중학교는 있는 경우에만 입력하며, 비워 두면 카드에 표시되지 않습니다. 순서 숫자가 작을수록 앞에 나옵니다. 페이지 상단 합격률 숫자·대학 로고 줄은 현재 노출되지 않습니다(정본 수치 확정 전까지 꺼둔 상태).`,
     columns: [
       { key: "school_type", label: "구분" },
       { key: "school_name", label: "학교명" },
@@ -309,7 +320,7 @@ export const admissionConfigs: Record<string, AdminConfig> = {
     searchPlaceholder: "대학명을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `수시정시 합격사례 페이지 상단 합격률 아래 대학 로고 줄입니다. 표시 줄에서 지정한 대로 1행/2행에 배치되며, 시안은 1행 7개·2행 5개 구성입니다. 로고는 여백 없이 딱 맞게 크롭한 PNG(투명 배경) / 1MB 이하로 올려 주세요 — 이미지에 여백이 포함되면 다른 로고보다 작아 보입니다. 표시 높이는 로고마다 달라야 자연스럽습니다(시안 기준 1.1~2.4). 너비는 원본 비율에 맞춰 자동 계산됩니다. 투명도는 1이 기본이며 시안에서는 KAIST·UNIST 0.7, 한국외대 0.8을 씁니다. 로고를 한 건이라도 등록하면 기본 제공 로고 12종이 전부 사라지고 등록한 로고만 표시되므로, 등록할 때는 12종을 모두 넣어 주세요.`,
+    guideText: `수시정시 합격사례 페이지 상단 합격률 아래 대학 로고 줄입니다. 표시 줄에서 지정한 대로 1행/2행에 배치되며, 시안은 1행 7개·2행 5개 구성입니다. 로고는 여백 없이 딱 맞게 크롭한 PNG(투명 배경) / 1MB 이하로 올려 주세요 — 이미지에 여백이 포함되면 다른 로고보다 작아 보입니다. 표시 높이는 로고마다 달라야 자연스럽습니다(시안 기준 1.1~2.4). 너비는 원본 비율에 맞춰 자동 계산됩니다. 투명도는 1이 기본이며 시안에서는 KAIST·UNIST 0.7, 한국외대 0.8을 씁니다. 기본 제공(폴백) 로고는 없습니다 — 여기서 한 건도 등록하지 않으면 로고 줄 자체가 표시되지 않으므로, 노출하려면 12종을 모두 등록해 주세요.`,
     columns: [
       { key: "logo_url", label: "로고", type: "image" },
       { key: "name", label: "대학명" },
