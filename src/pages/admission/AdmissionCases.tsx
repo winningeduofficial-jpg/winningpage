@@ -8,10 +8,15 @@ import {
   CASE_CATEGORIES,
   CATEGORY_LABELS,
   fetchAdmissionCases,
+  fetchAllAdmissionCases,
 } from "./admissionCaseData";
 
+// QA 시트(입시정보 카테고리) 반영 — 수시/정시 구분 탭을 숨기고 목록을 통합 노출한다.
+// 탭 UI·카테고리별 조회 코드는 지우지 않고 이 상수로만 끈다(복원 가능해야 함).
+const SHOW_CATEGORY_TABS = false;
+
 const DESCRIPTION =
-  "강원석미래교육연구소 위닝에듀는 해운대 센텀 연구소와 화명센터가 운영되고 있으며 학생 개인에 맞춘 학습코칭으로 정확한 로드맵을 제시합니다. 1:1 학습코칭으로 내신 상승 프로그램을 제시, 성적향상을 이끌며 각 교과별 수행평가에서 진로.진학을 고려해 학생의 학업역량이 드러나는 탐구활동을 제시, 가이드하여 수시학생부종합의 합격 조건인 학교생활기록부의 차별성을 인정받고 있습니다";
+  "위닝에듀의 시작은 학생 자신입니다. 방향을 정하고, 방향에 맞는 활동을 함께 설계하고, 실행 과정을 준비합니다. 위닝의 목표는 학생 스스로 갖추는 경쟁력입니다";
 
 export default function AdmissionCases() {
   // /admission/susi, /admission/jungsi는 리터럴 경로(:category 세그먼트 없음) —
@@ -29,7 +34,9 @@ export default function AdmissionCases() {
 
     (async () => {
       setLoading(true);
-      const data = await fetchAdmissionCases(category);
+      const data = SHOW_CATEGORY_TABS
+        ? await fetchAdmissionCases(category)
+        : await fetchAllAdmissionCases();
       if (!alive) return;
       setRows(data);
       setLoading(false);
@@ -42,35 +49,37 @@ export default function AdmissionCases() {
 
   return (
     <main className="bg-white pt-16">
-      <AcceptanceRateHero />
+      <AcceptanceRateHero headlineOverride="합격생 선배들의 압도적 선택, 위닝에듀" />
 
       <section className="pb-20 pt-16 sm:pb-24 sm:pt-20">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <h1 className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2.25rem]">
-            수시정시 합격 사례
+            위닝에듀의 방향은 학생 스스로 갖추는 경쟁력
           </h1>
 
-          <p className="mt-5 max-w-3xl break-keep text-base font-medium leading-[1.4] text-[#7A7A7A]">
+          <p className="mt-5 break-keep text-base font-medium leading-[1.4] text-[#7A7A7A]">
             {DESCRIPTION}
           </p>
 
-          <div className="mt-9 flex items-center gap-4 sm:mt-11">
-            {CASE_CATEGORIES.map((key, index) => (
-              <div key={key} className="flex items-center gap-4">
-                {index > 0 && (
-                  <span className="h-6 w-px bg-line" aria-hidden="true" />
-                )}
-                <Link
-                  to={`/admission/${key}`}
-                  className={`text-2xl font-semibold leading-[1.3] tracking-[-0.02em] ${
-                    category === key ? "text-ink" : "text-line"
-                  }`}
-                >
-                  {CATEGORY_LABELS[key]}
-                </Link>
-              </div>
-            ))}
-          </div>
+          {SHOW_CATEGORY_TABS && (
+            <div className="mt-9 flex items-center gap-4 sm:mt-11">
+              {CASE_CATEGORIES.map((key, index) => (
+                <div key={key} className="flex items-center gap-4">
+                  {index > 0 && (
+                    <span className="h-6 w-px bg-line" aria-hidden="true" />
+                  )}
+                  <Link
+                    to={`/admission/${key}`}
+                    className={`text-2xl font-semibold leading-[1.3] tracking-[-0.02em] ${
+                      category === key ? "text-ink" : "text-line"
+                    }`}
+                  >
+                    {CATEGORY_LABELS[key]}
+                  </Link>
+                </div>
+              ))}
+            </div>
+          )}
 
           <div className="mt-9">
             {loading ? (

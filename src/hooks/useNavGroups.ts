@@ -52,7 +52,11 @@ export function cleanText(value: unknown) {
 // 금지)이라 PROMOTED_SLUG_ROUTES와 같은 취지로 이 훅에서 안전망을 둔다. '컬럼' 전역 치환은 이
 // 파일 밖(테이블/레이아웃 컬럼 등)에서는 절대 하면 안 되고, 메뉴 라벨 문자열에만 좁게 적용한다.
 function normalizeMenuLabel(label: unknown) {
-  return cleanText(label).replaceAll("컬럼", "칼럼");
+  return cleanText(label)
+    .replaceAll("컬럼", "칼럼")
+    // QA 시트 반영(입시정보 카테고리) — DB page_contents.menu_label이 구 라벨
+    // '수시정시합격'을 계속 내려줘도(DB 수정 금지 규칙) 헤더/푸터에는 항상 신 라벨을 노출한다.
+    .replaceAll("수시정시합격", "대입합격");
 }
 
 function safeJsonStringify(value: unknown) {

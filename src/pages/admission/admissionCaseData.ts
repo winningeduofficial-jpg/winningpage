@@ -129,6 +129,29 @@ export async function fetchAdmissionCases(
   return data || [];
 }
 
+/**
+ * QA 시트(입시정보 카테고리) 반영 — 수시/정시 구분 탭을 숨기고 목록을 통합 노출한다.
+ * select 필터만 category 단건 → CASE_CATEGORIES 전체로 넓힌 것 외에는 fetchAdmissionCases와
+ * 동일한 정렬 규약(고정 → 순서 → 최신순)을 쓴다.
+ */
+export async function fetchAllAdmissionCases(): Promise<AdmissionPostRow[]> {
+  const { data, error } = await supabase
+    .from("admission_posts")
+    .select("*")
+    .eq("is_active", true)
+    .in("category", CASE_CATEGORIES)
+    .order("is_pinned", { ascending: false })
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("합격사례 통합 조회 실패:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
 export async function fetchAdmissionCaseById(
   id: string,
 ): Promise<AdmissionPostRow | null> {
