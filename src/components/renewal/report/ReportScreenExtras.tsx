@@ -268,10 +268,11 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
               {notices.skipNote}
             </p>
           )}
-          {/* fd-area-groups — 2026-08-21 사용자 지시: 두 그룹(학습 실행 역량 6행 · 학교
-              생활 및 입시 준비도 6행)이 각각 한 단씩 차지하는 2단 배치. 화면 lg에 신설한
-              값이라 report-print.css 가 그대로 복사해 인쇄에도 강제한다. */}
-          <div className="fd-area-groups lg:grid lg:grid-cols-2 lg:gap-x-8">
+          {/* fd-area-groups — 2026-08-21 사용자 지시(재확정): 두 그룹(학습 실행 역량 6행 ·
+              학교 생활 및 입시 준비도 6행)의 2단 배치는 **PDF 전용**이다 — 화면은 세로
+              1단 그대로 두고, report-print.css 의 .fd-area-groups 규칙만 인쇄에서 2단을
+              강제한다(페이지 수 압축 목적, 화면은 스크롤이라 압축 불필요). */}
+          <div className="fd-area-groups">
             <AreaDetailGroup title={page1Title} rows={detailRows?.page1} />
             <AreaDetailGroup
               title={copy.areaDetailTitle.page2}
