@@ -7,6 +7,17 @@
 // 여부(4 vs 2)에 따라 달라지는 값이라 이 컴포넌트가 임의로 추정하면 안 된다. 호출부
 // (FreeDiagnosisReport)가 hasReportExtras() 로 한 번 계산해 모든 시트·부록 페이지에
 // 동일한 값을 내려보낸다 — 페이지 라벨이 시트마다 다른 총page수를 말하는 사고를 막는다.
+//
+// 라벨→첫 콘텐츠 간격 소유권 이관(2026-08-21, 사용자 지시 — 스크린샷 3장 근거) — 종전엔
+// 페이지마다 첫 요소가 제각각 자기 mt를 갖고 있어(헤드라인 mt-6 lg:mt-11.5 · 준비도/입결
+// mt-12 · 부록 대제목 마진 없음) 라벨 밑 간격이 29~48px, 부록은 0px으로 들쭉날쭉했다.
+// 시안(A4-3: 라벨 y59+h22=81 → 헤드라인 y127, 갭 46px)을 canonical 값으로 확정해 이
+// 컴포넌트가 소유한다 — 자식 전체를 mt-[2.875rem](46px) 래퍼로 감싸고, `[&>*:first-child]`
+// 로 실제 렌더된 첫 자식(조건부 렌더라 페이지마다 다를 수 있다 — 부록 4페이지는 restGroups
+// 유무에 따라 details·해석 한계·reportBasis 중 하나가 첫 자식이 된다)의 자체 마진을
+// 0으로 덮어써 이중 마진을 막는다. 헤드라인(ReportPageOne)·준비도/입결 비교
+// (ReadinessOverview·AdmissionSection, page2 첫 줄)는 손자 요소라 이 선택자가 안 닿아
+// 각 컴포넌트에서 직접 자체 마진을 걷어냈다(완료 보고 참고).
 import type { ReactNode } from "react";
 import { SAMPLE_REPORT_COPY } from "@/data/diagnosisScreenCopy";
 
@@ -40,7 +51,7 @@ export default function ReportSheetA4({
       <p className="fd-page-label text-sm font-normal leading-[1.3] text-ink lg:text-base lg:text-[#808080]">
         {pageLabel}
       </p>
-      {children}
+      <div className="mt-[2.875rem] [&>*:first-child]:mt-0">{children}</div>
     </section>
   );
 }

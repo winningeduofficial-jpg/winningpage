@@ -92,8 +92,11 @@ export default function ReportPageOne({ data, totalPages }: ReportPageOneProps) 
         R3(2026-08-11) — 데스크톱은 헤드라인 옆에 레이더를 절대배치로 겹쳐 올리는 2단 구성이다.
         모바일은 겹칠 폭이 없으므로 relative/absolute 를 끄고 세로로 쌓는다(헤드라인 → 레이더).
       */}
+      {/* fd-headline 자체 마진(구 mt-6 lg:mt-11.5) 제거(2026-08-21) — 라벨→첫 콘텐츠 간격은
+          이제 ReportSheetA4가 소유한다(46px 캐노니컬, ReportSheetA4.tsx 주석 참고). 이 값과
+          우연히 같았을 뿐 이중 소유였다. */}
       <div className="relative">
-        <p className="fd-headline mt-6 w-full text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02rem] text-ink lg:mt-11.5 lg:w-143.5 lg:text-[2rem] lg:tracking-[-0.04rem]">
+        <p className="fd-headline w-full text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02rem] text-ink lg:w-143.5 lg:text-[2rem] lg:tracking-[-0.04rem]">
           {headlineLines.map((line, index) => (
             <span key={line}>
               {line}

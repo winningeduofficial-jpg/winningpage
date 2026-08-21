@@ -71,12 +71,12 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
   // 기존 lg: 리터럴과 동일한 rem 값으로 되돌린다(BLOCK 수정, ReportSheetA4 주석 참고).
   // fd-screen-only 가 붙은 요소는 인쇄에서 통째로 display:none 이라 그 안의 lg: 값에는
   // 별도 인쇄 훅을 만들지 않는다(§7.5 예외 — report-print.css 주석에 근거 있음).
-  // mt-12(2026-08-21) — ReadinessOverview·DimensionBarChart(왼쪽 단)와 나란히 시작하도록
-  // 왼쪽 단 첫 섹션(ReadinessOverview)과 같은 값으로 맞췄다(종전 mt-10 lg:mt-16.25는
-  // InsightColumns 뒤에 세로로 이어지던 옛 배치의 값 — 2단 스플릿에서는 더 이상 맞지
-  // 않는다). lg: 분기가 없어져 print CSS 강제 규칙도 함께 제거했다.
+  // className 비움(2026-08-21) — ReadinessOverview(왼쪽 단)와 나란히 시작하도록 예전엔
+  // 둘 다 mt-12를 갖고 있었으나, 이제 라벨→첫 콘텐츠 간격을 ReportSheetA4가 소유한다
+  // (46px 캐노니컬) — 이 섹션은 항상 시트2의 첫 줄(2단 스플릿 오른쪽 단)이라 섹션 상단
+  // 마진 자체가 없다. 정렬은 왼쪽 단과 동일하게 "마진 없음"으로 여전히 맞는다.
   return (
-    <ReportSection title="목표 대학 입결 비교" className="mt-12">
+    <ReportSection title="목표 대학 입결 비교" className="">
       {/*
         F-01 — 인쇄 슬롯의 값은 **밴드 4글자**('안정'/'적정'/'소신'/'위험')를 유지한다.
         점추정 %(엔진 내부값)는 학생 화면 어디에도 그대로 나가지 않는다.

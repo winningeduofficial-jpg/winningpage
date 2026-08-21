@@ -242,9 +242,10 @@
     padding-top: 0 !important;
   }
 
-  /* ReportPageOne 헤드라인 — lg:mt-[2.875rem] lg:w-[35.875rem] lg:text-[2rem] lg:tracking-[-0.04rem] */
+  /* ReportPageOne 헤드라인 — lg:w-[35.875rem] lg:text-[2rem] lg:tracking-[-0.04rem].
+     margin-top은 라벨→첫 콘텐츠 간격 통일(2026-08-21)로 제거했다 — ReportSheetA4의
+     mt-[2.875rem] 래퍼가 lg: 분기 없이 항상 같은 값을 낸다. */
   .fd-headline {
-    margin-top: 2.875rem !important;
     width: 35.875rem !important;
     font-size: 2rem !important;
     letter-spacing: -0.04rem !important;
