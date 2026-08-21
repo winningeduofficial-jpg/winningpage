@@ -74,15 +74,19 @@ export default function SpecialHighschoolCases() {
 
   return (
     <main className="bg-white pt-16">
-      <AcceptanceRateHero scope="special-highschool" />
+      <AcceptanceRateHero
+        scope="special-highschool"
+        showRates={false}
+        showLogos={false}
+      />
 
       <section className="pb-20 pt-16 sm:pb-24 sm:pt-20">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <h1 className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2.25rem]">
-            특목고 합격 사례
+            특목고 합격 학생
           </h1>
 
-          <p className="mt-5 max-w-3xl break-keep text-base font-medium leading-[1.4] text-[#7A7A7A]">
+          <p className="mt-5 break-keep text-base font-medium leading-[1.4] text-[#7A7A7A]">
             {SPECIAL_HS_DESCRIPTION}
           </p>
 
