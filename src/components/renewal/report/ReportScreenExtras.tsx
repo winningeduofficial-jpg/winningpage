@@ -19,9 +19,13 @@ import { templateCopy } from "@/lib/diagnosisCopyBinding";
  * ReportPageOne 등 다른 화면 전용 각주가 공유하는 클래스다. 그 각주들은 여전히 인쇄에서
  * 제외돼야 한다(길이가 길어 시트 여유를 넘긴다) — 그래서 이 섹션만 그 클래스를 떼고
  * `fd-print-page3` 하나로 인쇄 가시성을 진다(report-print.css 상단 주석 참고).
- * 이 서브트리 안의 `lg:` 값들은 인쇄(뷰포트 794px)에서 통째로 사라지므로 §7.5 의
- * "새 lg: 는 인쇄 훅과 함께" 규칙이 적용되지 않는다 — 개별 fd-* 훅을 덧붙이지 마라
- * (전부 각주·보조 설명 텍스트라 base 클래스만으로도 A4 폭 안에서 읽힌다).
+ * 이 서브트리 안의 `lg:` 값들은 인쇄(뷰포트 794px)에서 통째로 사라진다. 각주·보조 설명
+ * 텍스트는 여전히 base 클래스만으로 A4 폭 안에서 읽히므로 훅이 필요 없다 — 하지만 사용자
+ * 지시(2026-08-21, "좌우 스플릿 도입해서 최대한 줄여라")로 영역별 상세 진단(블록 A)·맞춤
+ * 전략(블록 B)의 목록형 콘텐츠는 화면 lg 배치(2~3단)와 동등한 폭을 인쇄에도 강제해야
+ * 페이지 수가 줄어든다 — 이 둘은 `fd-area-rows`/`fd-strategy-grid` 훅으로 report-print.css
+ * 가 grid-template-columns 를 강제한다(§7.5 예외 — 위 "새 lg: 는 인쇄 훅과 함께" 규칙이
+ * 이제 이 서브트리에도 적용된다는 뜻이다).
  *
  * 시각 언어(2026-08-21 개정): 시트 1·2와 동일한 A4 용지 카드(흰 배경·동일 폭·동일 그림자).
  *   원래 D 결정은 "흰 카드 아님"이었으나 그 근거가 '인쇄는 2장뿐이라 3페이지처럼 읽히면
@@ -61,7 +65,10 @@ function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
         {title}
       </h4>
 
-      <div className="mt-3">
+      {/* fd-area-rows — 인쇄 전용 2단 스플릿 훅(2026-08-21, 사용자 지시). 화면(모바일·데스크톱
+          공통)은 단일 컬럼 세로 스택 그대로, report-print.css 가 이 훅에만 2열 grid를 강제해
+          12행(6+6)이 세로로 다 늘어지지 않게 한다. */}
+      <div className="fd-area-rows mt-3">
         {visible.map((row) => (
           // 모바일: 세로 스택(영역명 … 62점 · 보통 / 문장). 데스크톱: 3열 그리드.
           // lg:contents 로 내부 래퍼를 걷어내 같은 DOM 하나로 두 레이아웃을 만든다.
@@ -76,7 +83,9 @@ function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
              * 두 소섹션이 각각 별개 grid 라 auto 를 쓰면 행마다 열 폭이 달라진다 — 고정폭이어야
              * 12행이 한 줄로 정렬된다.
              */
-            className="border-t border-[#e5e5e5] py-3 lg:grid lg:grid-cols-[7rem_7.5rem_1fr] lg:items-baseline lg:gap-x-4"
+            // fd-area-row — 인쇄 2단 grid 안에서 행 중간에 열이 끊기지 않도록
+            // report-print.css 가 break-inside:avoid 를 건다.
+            className="fd-area-row border-t border-[#e5e5e5] py-3 lg:grid lg:grid-cols-[7rem_7.5rem_1fr] lg:items-baseline lg:gap-x-4"
           >
             <div className="flex items-baseline gap-2 lg:contents">
               <span className="break-keep text-base font-medium leading-normal text-ink">
@@ -109,7 +118,9 @@ type StrategyGroupItem = {
 /** 맞춤 전략 한 묶음(영역 1개 × 4항목). ol 인 이유는 문구집 키가 '맞춤 전략 1~4'로 순번을 갖기 때문이다. */
 function StrategyGroup({ group }: { group: StrategyGroupItem }) {
   return (
-    <div>
+    // fd-strategy-item — 인쇄 3단 grid 안에서 묶음 중간에 열이 끊기지 않도록
+    // report-print.css 가 break-inside:avoid 를 건다.
+    <div className="fd-strategy-item">
       <h4 className="break-keep text-base font-semibold leading-normal text-ink">
         {group.name}
       </h4>
@@ -300,8 +311,10 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
             </div>
           )}
 
+          {/* fd-strategy-grid — 인쇄 전용 3단 스플릿 훅(2026-08-21, 사용자 지시). 화면
+              lg 배치(grid-cols-3)와 동등하게 인쇄에도 강제한다. */}
           {hasStrategies && (
-            <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
+            <div className="fd-strategy-grid mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
               {focusGroups.map((group) => (
                 <StrategyGroup key={group.code} group={group} />
               ))}
@@ -317,8 +330,9 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
               <summary className="cursor-pointer py-2 text-base font-medium text-performance-reportHeading underline underline-offset-4 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
                 {copy.strategyMoreLabel}
               </summary>
-              {/* 접혀 있어도 DOM 에는 존재한다 — Ctrl+F 검색과 스크린리더 탐색이 그대로 된다. */}
-              <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
+              {/* 접혀 있어도 DOM 에는 존재한다 — Ctrl+F 검색과 스크린리더 탐색이 그대로 된다.
+                  fd-strategy-grid — 인쇄 3단 스플릿(위 focusGroups 그리드와 동일 훅). */}
+              <div className="fd-strategy-grid mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
                 {restGroups.map((group) => (
                   <StrategyGroup key={group.code} group={group} />
                 ))}
