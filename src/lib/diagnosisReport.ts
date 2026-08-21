@@ -733,19 +733,8 @@ function formatAdmissionDiff(row: {
 
 /**
  * 추천 서비스 카드(§4.5 · §7.2).
- *
- * 항상 2박스(사용자 확정 2026-08-21) — 종전에는 rank1·rank2(rankServices 의
- * SERVICE_RANK2_MIN_FIT·SERVICE_RANK2_MAX_DIFF 게이트로 "2번째 추천이 1번째와 너무 차이
- * 나거나 절대 적합도가 낮으면 아예 숨긴다")를 그대로 받아 0~2장을 냈다. 이제는 그 게이트를
- * 화면 노출 결정에서 걷어내고 tier(fit>=50) 통과 전체 후보(services.all, fit 내림차순)에서
- * 상위 2개를 그대로 자른다 — "buildRecommendations 가 상위 N을 자르는 구조" 요청대로 컷
- * 지점을 여기 하나로 모았다(rankServices 자신의 rank1/rank2 필드와 그 게이트 상수는 그대로
- * 둔다 — 이 함수 밖에서 참조하는 다른 소비자가 없어 건드릴 이유가 없다).
- *
- * 후보가 정확히 1개뿐이면 두 번째 칸을 SVC_NONE 폴백 문구로 박스 형태로 채운다(사용자 확정).
- * 후보가 0개(전 서비스 fit<50)인 경우는 **미확정** — 폴백 카드 2장 vs fit<50 후보 중 상위
- * 2개를 그대로 채우는 안, 두 방향의 트레이드오프가 있어 종전 동작(안내 카드 1장)을 그대로
- * 둔다. 완료 보고에 두 안을 남겨 사용자 확인을 기다린다.
+ * 전 서비스 fit < 50 이면 SVC_NONE 을 노출할 캡션 슬롯이 없어 안내 카드 1장으로 흡수한다
+ * (rank·name 을 비워 카드 제목 줄만 접는다 — 컴포넌트 수정도 문구 창작도 하지 않는다).
  */
 type RankedService = {
   code: string;
@@ -757,8 +746,12 @@ type RankedService = {
   lowestLinkedAreaName: string | null;
 };
 
-function buildRecommendations(services: { all: RankedService[] }) {
-  const picked = (services.all ?? []).slice(0, 2);
+function buildRecommendations(services: {
+  rank1: RankedService | null;
+  rank2: RankedService | null;
+}) {
+  const { rank1, rank2 } = services;
+  const picked = [rank1, rank2].filter((service) => service != null);
 
   if (picked.length === 0) {
     return [
@@ -766,7 +759,7 @@ function buildRecommendations(services: { all: RankedService[] }) {
     ];
   }
 
-  const cards = picked.map((service, index) => {
+  return picked.map((service, index) => {
     const copy = serviceCopy(
       service.code,
       service.tier as "HIGH" | "MID" | "LOW" | null,
@@ -778,18 +771,6 @@ function buildRecommendations(services: { all: RankedService[] }) {
       chips: copy?.tags ?? [],
     };
   });
-
-  // 후보가 1개뿐이면 두 번째 칸을 폴백 문구로 채워 항상 2박스를 보장한다.
-  if (cards.length === 1) {
-    cards.push({
-      rank: "",
-      name: "",
-      desc: commonCopy("SVC_NONE") ?? "",
-      chips: [],
-    });
-  }
-
-  return cards;
 }
 
 /**
