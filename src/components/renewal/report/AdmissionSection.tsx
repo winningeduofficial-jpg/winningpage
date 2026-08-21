@@ -6,6 +6,7 @@
 // 줄바꿈되면 h-5.25 고정 행 높이가 텍스트를 잘라낸다. 라벨 열을 auto, 행 높이를
 // min-h + items-start 로 바꿔 실제 줄 수만큼 늘어나게 한다(가로 스크롤 없이 세로로 흡수).
 import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
+import ReportSection from "./ReportSection";
 
 type AdmissionRow = {
   label: string;
@@ -70,12 +71,12 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
   // 기존 lg: 리터럴과 동일한 rem 값으로 되돌린다(BLOCK 수정, ReportSheetA4 주석 참고).
   // fd-screen-only 가 붙은 요소는 인쇄에서 통째로 display:none 이라 그 안의 lg: 값에는
   // 별도 인쇄 훅을 만들지 않는다(§7.5 예외 — report-print.css 주석에 근거 있음).
+  // className 비움(2026-08-21) — ReadinessOverview(왼쪽 단)와 나란히 시작하도록 예전엔
+  // 둘 다 mt-12를 갖고 있었으나, 이제 라벨→첫 콘텐츠 간격을 ReportSheetA4가 소유한다
+  // (46px 캐노니컬) — 이 섹션은 항상 시트2의 첫 줄(2단 스플릿 오른쪽 단)이라 섹션 상단
+  // 마진 자체가 없다. 정렬은 왼쪽 단과 동일하게 "마진 없음"으로 여전히 맞는다.
   return (
-    <section className="fd-admission-section mt-10 lg:mt-16.25">
-      <h2 className="text-[1.25rem] font-semibold leading-5 text-accent">
-        목표 대학 입결 비교
-      </h2>
-
+    <ReportSection title="목표 대학 입결 비교" className="">
       {/*
         F-01 — 인쇄 슬롯의 값은 **밴드 4글자**('안정'/'적정'/'소신'/'위험')를 유지한다.
         점추정 %(엔진 내부값)는 학생 화면 어디에도 그대로 나가지 않는다.
@@ -85,7 +86,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
       */}
       {/* items-center 유지 — 시안 승인 정렬이다. 배지를 붙이려고 baseline 으로 바꾸면
           라벨·값 두 줄의 세로 위치가 함께 움직여 1440 데스크톱 렌더가 회귀한다. */}
-      <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="text-[1.1875rem] font-medium text-ink">
           {probabilityLabel}
         </span>
@@ -133,8 +134,11 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
 
       {/* G-3(NIT 2) — admissionEmptyTableMode='NOTICE_ROW' 일 때만 hasRows=false 여도 박스를 그린다
           (기본 'HIDE' 에서는 showEmptyNotice 가 항상 false 라 이 줄이 종전 hasRows 단독 조건과 동일하다). */}
+      {/* lg:w-122.5(2026-08-21) — 종전 lg:w-127.5(31.875rem)는 전폭(62.5rem) 단일 컬럼
+          기준이었다. 2단 스플릿의 오른쪽 단 폭(30.875rem)에 맞춰 fd-admission-summary와
+          같은 값(122.5=30.625rem)으로 줄였다. */}
       {(hasRows || showEmptyNotice) && (
-        <div className="fd-admission-box mt-3.5 w-full rounded-xl border border-[#d9d9d9] px-3.25 py-2.75 lg:w-127.5">
+        <div className="fd-admission-box mt-3.5 w-full rounded-xl border border-[#d9d9d9] px-3.25 py-2.75 lg:w-122.5">
           {showEmptyNotice ? (
             <p className="text-base leading-[1.3] text-[#808080]">
               {emptyNotice}
@@ -176,7 +180,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
         표 바로 아래에 붙인다(F-10 의 빈 표 오인과 같은 계열의 위험이라 거리가 멀면 기능하지 않는다).
       */}
       {finalAvgNote && (
-        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-127.5 lg:text-sm">
+        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-122.5 lg:text-sm">
           {finalAvgNote}
         </p>
       )}
@@ -187,11 +191,11 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
         엔진이 `!== caption` 중복 가드를 이미 걸어 null 로 내려 준다(같은 문장 2회 방지).
       */}
       {tableNote && (
-        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-127.5 lg:text-sm">
+        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-122.5 lg:text-sm">
           {tableNote}
         </p>
       )}
-    </section>
+    </ReportSection>
   );
 };
 

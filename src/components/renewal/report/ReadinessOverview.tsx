@@ -1,6 +1,7 @@
 // 2페이지 첫 섹션 — §타이틀(학교 생활 및 입시 준비도) + 종합점수 + 요약 2줄.
 // props: { scoreLabel, summaryLines } — data.readiness 에서 전달.
 import { withDedupedKeys } from "@/lib/reactKeys";
+import ReportSection from "./ReportSection";
 
 type ReadinessOverviewProps = {
   scoreLabel: string;
@@ -12,12 +13,11 @@ const ReadinessOverview = ({
   summaryLines,
 }: ReadinessOverviewProps) => {
   return (
-    <section className="mt-12">
-      <h2 className="text-[1.25rem] font-semibold leading-5 text-accent">
-        학교 생활 및 입시 준비도
-      </h2>
-
-      <div className="mt-6 flex items-center gap-3">
+    // className 비움(2026-08-21) — 이 섹션은 항상 시트2의 첫 줄(준비도·입결 비교 2단
+    // 스플릿의 왼쪽 단)이라 섹션 상단 마진을 갖지 않는다. 라벨→첫 콘텐츠 간격은
+    // ReportSheetA4가 소유한다(46px 캐노니컬) — 종전 mt-12(48px)는 이중 소유였다.
+    <ReportSection title="학교 생활 및 입시 준비도" className="">
+      <div className="flex items-center gap-3">
         <span className="text-[1.1875rem] font-medium text-ink">종합점수</span>
         <span className="text-[1.25rem] font-medium text-primary">
           {scoreLabel}
@@ -31,7 +31,7 @@ const ReadinessOverview = ({
           <p key={key}>{line}</p>
         ))}
       </div>
-    </section>
+    </ReportSection>
   );
 };
 

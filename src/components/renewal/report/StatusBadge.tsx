@@ -1,10 +1,11 @@
 import type { ReactNode } from "react";
 
 // 상태 뱃지 공용 원자 — 3단 의미색(결정5): red(취약) / amber(보완 필요) / blue(양호·상위 등).
+// Figma 시안(1889-12784) 확정 팔레트 — 뮤티드 톤(2026-08-20).
 const TONES: Record<string, { bg: string; text: string }> = {
-  red: { bg: "#ffcdcd", text: "#991e1e" },
-  amber: { bg: "rgba(255,233,155,0.8)", text: "#736123" },
-  blue: { bg: "#f1f8ff", text: "#1b5da0" },
+  red: { bg: "#F7DAD8", text: "#98504D" },
+  amber: { bg: "#F5EBCB", text: "#9A843F" },
+  blue: { bg: "#E9F4FF", text: "#496C99" },
 };
 
 type StatusBadgeProps = {
