@@ -190,8 +190,17 @@ function LogoRow({ logos }: { logos: LogoItem[] }) {
 
 export default function AcceptanceRateHero({
   scope = DEFAULT_HERO_SCOPE,
+  showRates = true,
+  showLogos = true,
+  headlineOverride,
 }: {
   scope?: string;
+  // QA 시트(입시정보 카테고리) 반영 — 페이지별로 통계 숫자·로고 스트립을
+  // 완전히 끌 수 있게 하는 스위치. 기본값은 기존 동작(둘 다 노출) 그대로다.
+  showRates?: boolean;
+  showLogos?: boolean;
+  // 지정하면 조회한 합격률 숫자 대신 이 정적 문구를 노출한다(showRates=true일 때만 의미가 있다).
+  headlineOverride?: string;
 }) {
   const { heroLabel, fallbackRates } =
     HERO_SCOPES[scope] || DEFAULT_HERO_SCOPE_CONFIG;
@@ -201,23 +210,26 @@ export default function AcceptanceRateHero({
   const [rates, setRates] = useState(() => fallbackRates);
   const [logoRows, setLogoRows] = useState<LogoItem[][]>(FALLBACK_LOGO_ROWS);
 
+  // 정적 문구 모드(headlineOverride)이거나 showRates=false면 숫자를 아예 쓰지 않으므로 조회를 건너뛴다.
+  const shouldFetchRates = showRates && !headlineOverride;
+
   useEffect(() => {
     let alive = true;
 
     (async () => {
       const [rateRows, logoDbRows] = await Promise.all([
-        fetchAcceptanceRates(scope),
-        fetchAdmissionCaseLogos(),
+        shouldFetchRates ? fetchAcceptanceRates(scope) : Promise.resolve([]),
+        showLogos ? fetchAdmissionCaseLogos() : Promise.resolve(null),
       ]);
       if (!alive) return;
 
       // rateRows: 조회 실패면 폴백(5개년)이 오고, 정상 응답이면 0건이어도
       // 빈 배열이 그대로 온다 — 어드민이 전부 비활성화한 상태를 존중한다.
-      setRates(rateRows);
+      if (shouldFetchRates) setRates(rateRows);
 
       // logoDbRows === null: 조회 실패 → 초기값(번들 폴백 로고)을 그대로 유지.
       // logoDbRows가 배열이면 정상 응답 → 그대로 반영(0건이면 빈 배열 → 스트립 숨김).
-      if (logoDbRows !== null) {
+      if (showLogos && logoDbRows !== null) {
         setLogoRows(
           logoDbRows.length > 0
             ? splitIntoTwoRows(toLogoItems(logoDbRows))
@@ -229,21 +241,28 @@ export default function AcceptanceRateHero({
     return () => {
       alive = false;
     };
-  }, [scope]);
+  }, [scope, shouldFetchRates, showLogos]);
 
   const years = rates.length;
   const average = computeAcceptanceAverage(rates);
-  const hasRates = years > 0;
-  const hasLogos = logoRows.some((row) => row.length > 0);
+  const showHeadline = showRates && Boolean(headlineOverride);
+  const showNumbers = showRates && !headlineOverride && years > 0;
+  const showLogoStrip =
+    showLogos && logoRows.some((row) => row.length > 0);
 
-  // 어드민이 합격률·로고를 모두 비활성화하면 빈 여백만 남기지 않고
-  // 히어로 섹션 자체를 렌더하지 않는다.
-  if (!hasRates && !hasLogos) return null;
+  // 숫자·문구·로고를 전부 끄면 빈 여백만 남기지 않고 히어로 섹션 자체를 렌더하지 않는다.
+  if (!showHeadline && !showNumbers && !showLogoStrip) return null;
 
   return (
     <section className="pt-16 sm:pt-20 md:pt-25">
       <div className="mx-auto w-full max-w-content px-5 text-center sm:px-8">
-        {hasRates && (
+        {showHeadline && (
+          <p className="break-keep text-2xl font-semibold leading-[1.4] tracking-[-0.02em] text-ink sm:text-[2.25rem]">
+            {headlineOverride}
+          </p>
+        )}
+
+        {showNumbers && (
           // 시안(1882:6520) 실측: 아이브로·라벨은 좌측선이 같은 하나의 컬럼이고
           // (아이브로가 그룹 중앙 정렬이 아니다), 숫자·%는 그 오른쪽에 붙는다.
           // 숫자가 라벨보다 커서(leading-none이어도) 행 높이를 부풀리지 않도록
@@ -277,10 +296,10 @@ export default function AcceptanceRateHero({
           </div>
         )}
 
-        {hasLogos && (
+        {showLogoStrip && (
           <div
             className={
-              hasRates
+              showHeadline || showNumbers
                 ? "mt-12 flex flex-col items-center gap-8 sm:mt-25.25"
                 : "flex flex-col items-center gap-8"
             }
