@@ -109,6 +109,7 @@ export default function AdmissionResults() {
 
   const {
     departments,
+    departmentsKey,
     loading: departmentsLoading,
     error: departmentsError,
     retry: retryDepartments,
@@ -224,13 +225,26 @@ export default function AdmissionResults() {
     setDepartmentKey("");
   }, [universitiesUnavailable, universityKeySet, universityKey]);
 
+  // departmentsKey !== universityKey인 동안은 departments가 아직 이전 대학의 스냅샷이다
+  // (B3 — URL↔폼 동기화가 university+department를 같은 틱에 세팅해도, useSusiDepartments의
+  // fetch effect는 그 다음 커밋에야 실행돼 departments가 한 렌더 이상 뒤늦게 갈아치워진다).
+  // 이 지연 창에서 새 department_key를 옛 목록 기준으로 "무효"로 오판해 지우던 게 B3 버그다
+  // — departmentsKey === universityKey로 목록이 실제로 갈아치워졌는지 먼저 확인한다.
   useEffect(() => {
     if (departmentsLoading || departmentsError || departments.length === 0)
       return;
+    if (departmentsKey !== universityKey) return;
     if (!departmentKey) return;
     if (departments.some((row) => row.department_key === departmentKey)) return;
     setDepartmentKey("");
-  }, [departmentsLoading, departmentsError, departments, departmentKey]);
+  }, [
+    departmentsLoading,
+    departmentsError,
+    departments,
+    departmentsKey,
+    universityKey,
+    departmentKey,
+  ]);
 
   // 대학을 바꾸면 모집단위 선택을 반드시 비운다
   // (AdmissionGuidelines.jsx:1257-1280 필터 초기화 규율과 동일).
