@@ -119,13 +119,13 @@ const BUSINESS_CARDS = [
     key: "ai-platform",
     image: bizAiPlatform,
     title: "학습 플랫폼",
-    desc: "목표관리・수시예측\n콜멘토・수행평가・학습진단",
+    desc: "학습진단, 목표관리, 수행평가, 성장설계, 콜멘토, 자기평가, 심화탐구",
   },
   {
     key: "consulting",
     image: bizConsulting,
     title: "입시 컨설팅 서비스",
-    desc: "세특관리・약점관리\n프리미엄 컨설팅",
+    desc: "멘토기반 프리미엄 컨설팅, 소수 원장 프리미엄 컨설팅",
   },
   {
     key: "network",
@@ -200,7 +200,7 @@ const PARTNER_CARDS = [
       { label: "천안점", href: "https://naver.me/xKthcxAW" },
     ],
     logo: partnerChloeWinningArt,
-    logoWidth: "w-[16.7rem]",
+    logoWidth: "w-[8.35rem]",
   },
   {
     key: "jungsang-language",
@@ -209,7 +209,7 @@ const PARTNER_CARDS = [
     brand: "정상어학원",
     links: [{ label: "화명캠퍼스", href: "https://naver.me/FY3j5eyl" }],
     logo: partnerJungsangLanguage,
-    logoWidth: "w-52",
+    logoWidth: "w-[6.5rem]",
   },
   {
     key: "jungsang-math",
@@ -218,7 +218,7 @@ const PARTNER_CARDS = [
     brand: "정상수학학원",
     links: [{ label: "부산캠퍼스", href: "https://naver.me/GkRHGKeZ" }],
     logo: partnerJungsangMath,
-    logoWidth: "w-52",
+    logoWidth: "w-[6.5rem]",
   },
 ];
 // "바로가기" 5개 링크는 네이버 지도 단축링크(naver.me)를 실제 목적지로 받았다 — 전부 외부 새 탭
@@ -290,11 +290,11 @@ function HeroSection({ page }: { page: IntroPage }) {
   // 히어로의 아이브로우/헤드라인/컷아웃 사진 슬롯에 그대로 매핑하면 위계가 다른 옛 카피가
   // 노출되고 투명 컷아웃 사진의 하단 플러시 구성이 깨진다. 관리자 오버레이는 회귀 위험이 낮은
   // body(보조 카피, 선택 렌더)만 유지한다.
-  const eyebrow = "10년간 쌓아온 데이터로 빈틈없이 함께 가겠습니다.";
-  const headline = "강원석 원장님";
+  const headline = "15년간 쌓아온 데이터로 빈틈없이 함께 가겠습니다.";
+  const name = "강원석 대표이사";
   const body = cleanText(page?.body);
   const heroImage = directorPortrait;
-  const heroImageAlt = "위닝에듀 강원석 원장";
+  const heroImageAlt = "위닝에듀 강원석 대표이사";
 
   return (
     <section className="relative overflow-hidden bg-[#202f3f] pt-29 pb-16 sm:pb-0 lg:min-h-167.5 lg:pt-0 lg:pb-0">
@@ -304,10 +304,7 @@ function HeroSection({ page }: { page: IntroPage }) {
             높이(pt+콘텐츠+pb)가 사진 높이에 못 미치는 만큼의 여백이 컬럼 상단에 남는 방식으로
             "아이브로우 top ≈ 섹션 top + 116px" "카드 하단 → 섹션 하단 103px"를 근사한다. */}
         <div className="flex flex-col lg:max-w-142.5 lg:flex-1 lg:pt-29 lg:pb-25.75">
-          <p className="text-[0.9375rem] leading-[1.3] text-white/60">
-            {eyebrow}
-          </p>
-          <h1 className="mt-2.75 break-keep text-[1.75rem] font-semibold leading-[1.3] text-white sm:text-[2.125rem]">
+          <h1 className="break-keep text-[1.75rem] font-semibold leading-[1.3] text-white sm:text-[2.125rem]">
             {headline}
           </h1>
           {body && (
@@ -377,6 +374,9 @@ function HeroSection({ page }: { page: IntroPage }) {
             alt={heroImageAlt}
             className="h-auto w-full object-contain object-bottom"
           />
+          <p className="mt-3 text-center text-[0.8125rem] font-medium leading-[1.3] text-white/70">
+            {name}
+          </p>
         </div>
       </div>
     </section>
@@ -384,9 +384,10 @@ function HeroSection({ page }: { page: IntroPage }) {
 }
 
 // -------------------------------------------------------------------------
-// [2] Mission / Vision / Talents — 전면 사진 배경 + 좌측 3블록
+// [2] Mission / Vision — 전면 사진 배경 + 좌측 2블록
 // 시안엔 dim 오버레이 레이어가 없어 실측 렌더에서 텍스트가 사진 밝은 영역에 묻힌다
 // — 시안에 없는 좌→우 그라디언트 스크림을 추가로 넣었다(근거를 여기 남긴다).
+// Talents for Winning Edu 블록은 사용자 확정으로 삭제했다(미션·비전만 유지).
 // -------------------------------------------------------------------------
 const MISSION_BLOCKS = [
   {
@@ -403,20 +404,6 @@ const MISSION_BLOCKS = [
     lines: [
       "데이터와 실적으로 증명하는",
       "대한민국 대표 입시 컨설팅 플랫폼입니다",
-    ],
-  },
-  {
-    key: "talents",
-    label: (
-      <>
-        Talents for
-        <br />
-        Winning Edu
-      </>
-    ),
-    lines: [
-      "학생 한 명의 가능성을 믿고, 10년 이상의",
-      "현장 노하우와 전문성으로 함께 성장하는 사람",
     ],
   },
 ];
