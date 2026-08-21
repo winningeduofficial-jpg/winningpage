@@ -230,30 +230,37 @@ body {
   }
 }
 
-button,
-input,
-textarea,
-select {
-  font-family: inherit;
-}
+/* 요소 리셋은 반드시 base 레이어 안에 둔다 — 위 앵커 리셋 주석과 같은 이유다.
+   밖(unlayered)에 두면 명시도와 무관하게 @layer utilities 를 이겨서, img 의
+   max-w-* / input 의 focus-visible:outline-* 같은 유틸리티가 전부 무효가 된다
+   (콜멘토 히어로 목업이 max-w-118.5 를 무시하고 전폭으로 커지던 원인, 2026-08-21
+   전수 조사로 실피해 4곳 확인). */
+@layer base {
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
 
-button {
-  cursor: pointer;
-}
+  button {
+    cursor: pointer;
+  }
 
-button:disabled {
-  cursor: not-allowed;
-}
+  button:disabled {
+    cursor: not-allowed;
+  }
 
-img {
-  display: block;
-  max-width: 100%;
-}
+  img {
+    display: block;
+    max-width: 100%;
+  }
 
-input,
-textarea,
-select {
-  outline: none;
+  input,
+  textarea,
+  select {
+    outline: none;
+  }
 }
 
 ::selection {
