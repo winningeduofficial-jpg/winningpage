@@ -83,25 +83,26 @@ export default function AdmissionResults() {
 
   const detailRef = useRef<HTMLDivElement>(null);
 
-  // isDetail 가드: 딥링크(?u=&d=)로 바로 상세에 진입해도 검색 뷰 전용 목록 쿼리가
-  // 무조건 실행되던 문제(SearchView는 렌더조차 안 되는데 응답을 기다림)를 막는다.
-  // isDetail이 나중에 false로 바뀌면(onBack) 그때 다시 실행된다.
+  // QA 시트 반영으로 SearchView(폼)가 이제 isDetail 여부와 무관하게 항상 렌더된다
+  // (조회 결과는 폼 아래에 이어 붙는다) — 그래서 목록 쿼리도 더 이상 isDetail로
+  // skip하지 않는다. 예전엔 딥링크(?u=&d=)로 바로 상세에 진입하면 SearchView 자체가
+  // 렌더조차 안 됐기 때문에 skip이 의미가 있었다.
   const {
     universities,
     loading: universitiesLoading,
     error: universitiesError,
     retry: retryUniversities,
-  } = useSusiUniversities(isDetail);
+  } = useSusiUniversities(false);
 
   const {
     departments,
     loading: departmentsLoading,
     error: departmentsError,
     retry: retryDepartments,
-  } = useSusiDepartments(universityKey, isDetail);
+  } = useSusiDepartments(universityKey, false);
 
   // 실패하면 섹션을 통째로 감춘다(부가 정보라 에러 UI를 띄우지 않는다).
-  const { trending } = useTrendingDepartments(isDetail);
+  const { trending } = useTrendingDepartments(false);
 
   const universityOptions = useMemo(
     () =>
@@ -270,7 +271,17 @@ export default function AdmissionResults() {
   return (
     <div className="min-h-screen bg-white">
       <main className="pt-16">
-        {isDetail ? (
+        {/* QA 시트(입시정보 카테고리) 반영 — 조회 버튼을 눌러도 페이지를 이동하지 않고
+            검색 폼은 그대로 둔 채 그 아래에 결과를 이어 붙인다. 딥링크(?u=&d=) 호환을 위해
+            라우트/쿼리스트링 계약은 그대로 유지하고, 뷰를 서로 바꿔치기하던 기존 삼항연산자만
+            "폼 + 조건부 결과"로 바꿨다. */}
+        <SearchView
+          selector={selector}
+          trending={trendingItems}
+          onSelectTrending={handleSelectTrending}
+        />
+
+        {isDetail && (
           <div ref={detailRef} className="scroll-mt-24">
             {/* DetailView는 uncontrolled 모드로 쓴다 — Q3(fetchSusiResultRows) 페칭과
                 buildDetailModel 집계를 자기가 수행한다. 셸은 쿼리스트링 파싱과 뷰 스위치,
@@ -284,7 +295,10 @@ export default function AdmissionResults() {
                 </section>
               }
             >
+              {/* key로 대학·모집단위 조합이 바뀔 때마다 새로 마운트해 연속 조회 시
+                  이전 결과의 잔여 상태(스크롤·탭 선택 등) 없이 결과가 완전히 교체되게 한다. */}
               <DetailView
+                key={`${detailUniversityKey}::${detailDepartmentKey}`}
                 universityKey={detailUniversityKey}
                 departmentKey={detailDepartmentKey}
                 universityName={university?.label ?? ""}
@@ -293,12 +307,6 @@ export default function AdmissionResults() {
               />
             </Suspense>
           </div>
-        ) : (
-          <SearchView
-            selector={selector}
-            trending={trendingItems}
-            onSelectTrending={handleSelectTrending}
-          />
         )}
       </main>
 
