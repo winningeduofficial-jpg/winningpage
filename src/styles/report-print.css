@@ -121,20 +121,6 @@
     page-break-before: page;
   }
 
-  /* fd-strategy-more — 접힌 '나머지 영역의 맞춤 전략'을 인쇄에서 항상 펼친다(PDF에서는
-     토글을 열 수 없다). Chromium은 닫힌 details 내용을 ::details-content 의
-     content-visibility:hidden 으로 감춘다 — 이를 해제하고, 토글 라벨(summary)은
-     인쇄물에서 의미가 없으니 숨긴다. window.print() 경로는 beforeprint 훅이 open 속성을
-     함께 켠다(ReportScreenExtras.tsx). */
-  .fd-strategy-more::details-content {
-    content-visibility: visible !important;
-    display: block !important;
-  }
-
-  .fd-strategy-more > summary {
-    display: none !important;
-  }
-
   /*
    * 부록 좌우 스플릿(2026-08-21, 사용자 지시 "페이지는 최대한 줄여야 하니까 좌우 스플릿
    * 레이아웃을 도입해서 최대한 줄여봐") — 인쇄 뷰포트(794px)는 lg:를 타지 않아 부록(블록

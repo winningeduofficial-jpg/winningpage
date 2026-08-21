@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
 import { templateCopy } from "@/lib/diagnosisCopyBinding";
 import ReportSection from "./ReportSection";
@@ -254,31 +253,6 @@ export default function ReportScreenExtras({
   data,
   totalPages,
 }: ReportScreenExtrasProps) {
-  // PDF에는 접힌 토글을 열 손이 없다 — window.print() 직전(beforeprint)에 접힌
-  // fd-strategy-more 를 강제로 펼치고, 다이얼로그가 닫히면 원복한다. CDP printToPDF 처럼
-  // beforeprint 가 안 오는 경로는 report-print.css 의 ::details-content 해제가 커버한다.
-  useEffect(() => {
-    const opened = new Set<HTMLDetailsElement>();
-    const before = () => {
-      document
-        .querySelectorAll<HTMLDetailsElement>("details.fd-strategy-more:not([open])")
-        .forEach((d) => {
-          d.setAttribute("open", "");
-          opened.add(d);
-        });
-    };
-    const after = () => {
-      opened.forEach((d) => d.removeAttribute("open"));
-      opened.clear();
-    };
-    window.addEventListener("beforeprint", before);
-    window.addEventListener("afterprint", after);
-    return () => {
-      window.removeEventListener("beforeprint", before);
-      window.removeEventListener("afterprint", after);
-    };
-  }, []);
-
   const {
     detailRows,
     hasAreaDetails,
@@ -388,22 +362,15 @@ export default function ReportScreenExtras({
       {/* 4페이지 — restGroups(9, 항상 펼침) + 해석 한계 고지 + reportBasis(문서 끝). */}
       <ReportSheetA4 page={4} totalPages={totalPages}>
         {restGroups.length > 0 && (
-          // fd-strategy-more — PDF에서는 토글을 열 수 없으므로 인쇄에서 항상 펼친다:
-          // ① report-print.css 가 ::details-content 의 content-visibility 를 강제 해제하고
-          //    summary(보기 라벨)를 숨긴다. ② window.print() 경로는 beforeprint 에서 open
-          //    속성을 켜고 afterprint 에 원복한다(구형 렌더러 폴백, 위 useEffect).
-          <details className="fd-strategy-more mt-10">
-            <summary className="cursor-pointer py-2 text-base font-medium text-performance-reportHeading underline underline-offset-4 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
-              {copy.strategyMoreLabel}
-            </summary>
-            {/* 접혀 있어도 DOM 에는 존재한다 — Ctrl+F 검색과 스크린리더 탐색이 그대로 된다.
-                fd-strategy-grid — 인쇄 3단 스플릿(3페이지 focusGroups 그리드와 동일 훅). */}
-            <div className="fd-strategy-grid mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
-              {restGroups.map((group) => (
-                <StrategyGroup key={group.code} group={group} />
-              ))}
-            </div>
-          </details>
+          // 접기 폐기(2026-08-21, 사용자 지시) — 문서가 4페이지 체제로 확정되면서 화면도
+          // 인쇄와 동일하게 나머지 전략을 항상 펼쳐 보여준다. details/summary 토글과
+          // 인쇄 강제 펼침 장치(beforeprint 훅·::details-content 해제)는 함께 제거했다.
+          // fd-strategy-grid — 인쇄 3단 스플릿(3페이지 focusGroups 그리드와 동일 훅).
+          <div className="fd-strategy-grid mt-10 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
+            {restGroups.map((group) => (
+              <StrategyGroup key={group.code} group={group} />
+            ))}
+          </div>
         )}
 
         {/* ── 블록 D — 해석 한계 고지 ── */}
