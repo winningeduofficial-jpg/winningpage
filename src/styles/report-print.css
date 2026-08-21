@@ -124,6 +124,19 @@
     page-break-before: page;
   }
 
+  /*
+   * fd-print-page3 패딩(2026-08-21 사용자 지시) — 부록 페이지 여백을 시트(.fd-report-sheet)와
+   * 동일하게 맞춘다. 화면은 이미 lg:p-perf-inset(3.75rem)으로 시트와 같지만, 인쇄 뷰포트
+   * (794px)는 lg:가 꺼져 base px-4(1rem)만 남아 시트보다 여백이 좁았다 — 시트와 같은
+   * 4방향 3.75rem + 동일한 하단 트림 정책(0.75rem, 위 .fd-report-sheet 규칙과 같은 사유)을
+   * 강제한다. 위 fd-area-groups/fd-strategy-grid는 1fr 반복이라 이 패딩 변경(콘텐츠 폭
+   * 68rem → 62.5rem, 시트 콘텐츠 폭과 동일)이 자동으로 반영된다 — 별도 폭 값 수정 불필요.
+   */
+  .fd-print-page3 {
+    padding: 3.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+
   /* fd-strategy-more — 접힌 '나머지 영역의 맞춤 전략'을 인쇄에서 항상 펼친다(PDF에서는
      토글을 열 수 없다). Chromium은 닫힌 details 내용을 ::details-content 의
      content-visibility:hidden 으로 감춘다 — 이를 해제하고, 토글 라벨(summary)은
@@ -140,20 +153,22 @@
 
   /*
    * 부록 좌우 스플릿(2026-08-21, 사용자 지시 "페이지는 최대한 줄여야 하니까 좌우 스플릿
-   * 레이아웃을 도입해서 최대한 줄여봐") — 인쇄 뷰포트(794px)는 lg:를 타지 않아 부록(블록
-   * A·B)이 전부 단일 컬럼으로 흘러 3페이지를 먹었다. 화면 lg 배치(2~3단)와 동등한 폭을
-   * 인쇄에도 강제한다. 열 폭은 화면 lg의 고정 rem 값을 그대로 베끼지 않고 1fr 반복으로
-   * 둔다 — 이 두 블록은 부록 콘텐츠 폭(68rem, 시트보다 좁은 fd-print-page3 자체 padding
-   * 기준)에 맞춰 자동 분배되면 되는 목록형 레이아웃이라, 다른 fd-* 훅들(시트 내부 고정
-   * 좌표 정렬용)과 달리 픽셀 단위 복제가 필요 없다.
+   * 레이아웃을 도입해서 최대한 줄여봐" → 정정 "인쇄 레이아웃 = 화면 lg 레이아웃 재현"
+   * 원칙, report-print.css 전체가 따르는 기존 관례와 동일) — 인쇄 뷰포트(794px)는 lg:를
+   * 타지 않아 부록(블록 A·B)이 전부 단일 컬럼으로 흘러 3페이지를 먹었다. 화면 lg 배치와
+   * 동일한 단수를 인쇄에도 강제한다. 열 "폭"은 화면 lg의 고정 rem 값을 그대로 베끼지
+   * 않고 1fr 반복으로 둔다 — 다른 fd-* 훅들(시트 내부 고정 좌표 정렬용)과 달리 이 둘은
+   * 부록 콘텐츠 폭에 맞춰 자동 분배되면 되는 목록형 레이아웃이라 픽셀 단위 복제가
+   * 필요 없다. 단수·gap 값(화면 lg 리터럴과 동일 출처)만 복사한다.
    */
 
-  /* fd-area-rows — 블록 A(영역별 상세 진단) 12행(6+6)을 2단으로. gap은 화면 InsightColumns
-     lg:gap-x-4(1rem)와 동일 값을 재사용(같은 "각주 목록 2단" 성격의 간격). */
-  .fd-area-rows {
+  /* fd-area-groups — 블록 A(영역별 상세 진단) 두 그룹(학습 실행 역량 6행 · 학교 생활 및
+     입시 준비도 6행)이 각각 한 단씩. 화면 lg:grid-cols-2 lg:gap-x-8(2026-08-21 신설)과
+     동일 출처. */
+  .fd-area-groups {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;
-    column-gap: 1rem !important;
+    column-gap: 2rem !important;
   }
 
   .fd-area-row {

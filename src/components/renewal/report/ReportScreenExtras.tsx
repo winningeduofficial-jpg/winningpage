@@ -20,12 +20,12 @@ import { templateCopy } from "@/lib/diagnosisCopyBinding";
  * 제외돼야 한다(길이가 길어 시트 여유를 넘긴다) — 그래서 이 섹션만 그 클래스를 떼고
  * `fd-print-page3` 하나로 인쇄 가시성을 진다(report-print.css 상단 주석 참고).
  * 이 서브트리 안의 `lg:` 값들은 인쇄(뷰포트 794px)에서 통째로 사라진다. 각주·보조 설명
- * 텍스트는 여전히 base 클래스만으로 A4 폭 안에서 읽히므로 훅이 필요 없다 — 하지만 사용자
- * 지시(2026-08-21, "좌우 스플릿 도입해서 최대한 줄여라")로 영역별 상세 진단(블록 A)·맞춤
- * 전략(블록 B)의 목록형 콘텐츠는 화면 lg 배치(2~3단)와 동등한 폭을 인쇄에도 강제해야
- * 페이지 수가 줄어든다 — 이 둘은 `fd-area-rows`/`fd-strategy-grid` 훅으로 report-print.css
- * 가 grid-template-columns 를 강제한다(§7.5 예외 — 위 "새 lg: 는 인쇄 훅과 함께" 규칙이
- * 이제 이 서브트리에도 적용된다는 뜻이다).
+ * 텍스트는 여전히 base 클래스만으로 A4 폭 안에서 읽히므로 훅이 필요 없다 — 하지만 원칙
+ * (2026-08-21 확정): "인쇄 레이아웃 = 화면 lg 레이아웃 재현", 기존 report-print.css 전체가
+ * 따르는 관례 그대로다. 목록형 블록 두 곳은 화면 lg 자체가 다단이거나(맞춤 전략,
+ * grid-cols-3 그대로) 다단으로 새로 바뀌었다(영역별 상세 진단, 2026-08-21 사용자 지시로
+ * lg:grid-cols-2 신설 — 좌: 학습 실행 역량 그룹, 우: 학교 생활 및 입시 준비도 그룹) — 이
+ * lg: 값을 `fd-area-groups`/`fd-strategy-grid` 훅으로 report-print.css 가 그대로 복사한다.
  *
  * 시각 언어(2026-08-21 개정): 시트 1·2와 동일한 A4 용지 카드(흰 배경·동일 폭·동일 그림자).
  *   원래 D 결정은 "흰 카드 아님"이었으나 그 근거가 '인쇄는 2장뿐이라 3페이지처럼 읽히면
@@ -65,10 +65,7 @@ function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
         {title}
       </h4>
 
-      {/* fd-area-rows — 인쇄 전용 2단 스플릿 훅(2026-08-21, 사용자 지시). 화면(모바일·데스크톱
-          공통)은 단일 컬럼 세로 스택 그대로, report-print.css 가 이 훅에만 2열 grid를 강제해
-          12행(6+6)이 세로로 다 늘어지지 않게 한다. */}
-      <div className="fd-area-rows mt-3">
+      <div className="mt-3">
         {visible.map((row) => (
           // 모바일: 세로 스택(영역명 … 62점 · 보통 / 문장). 데스크톱: 3열 그리드.
           // lg:contents 로 내부 래퍼를 걷어내 같은 DOM 하나로 두 레이아웃을 만든다.
@@ -83,7 +80,7 @@ function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
              * 두 소섹션이 각각 별개 grid 라 auto 를 쓰면 행마다 열 폭이 달라진다 — 고정폭이어야
              * 12행이 한 줄로 정렬된다.
              */
-            // fd-area-row — 인쇄 2단 grid 안에서 행 중간에 열이 끊기지 않도록
+            // fd-area-row — 그룹(단) 안에서 행 중간에 페이지가 끊기지 않도록
             // report-print.css 가 break-inside:avoid 를 건다.
             className="fd-area-row border-t border-[#e5e5e5] py-3 lg:grid lg:grid-cols-[7rem_7.5rem_1fr] lg:items-baseline lg:gap-x-4"
           >
@@ -271,11 +268,16 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
               {notices.skipNote}
             </p>
           )}
-          <AreaDetailGroup title={page1Title} rows={detailRows?.page1} />
-          <AreaDetailGroup
-            title={copy.areaDetailTitle.page2}
-            rows={detailRows?.page2}
-          />
+          {/* fd-area-groups — 2026-08-21 사용자 지시: 두 그룹(학습 실행 역량 6행 · 학교
+              생활 및 입시 준비도 6행)이 각각 한 단씩 차지하는 2단 배치. 화면 lg에 신설한
+              값이라 report-print.css 가 그대로 복사해 인쇄에도 강제한다. */}
+          <div className="fd-area-groups lg:grid lg:grid-cols-2 lg:gap-x-8">
+            <AreaDetailGroup title={page1Title} rows={detailRows?.page1} />
+            <AreaDetailGroup
+              title={copy.areaDetailTitle.page2}
+              rows={detailRows?.page2}
+            />
+          </div>
         </section>
       )}
 
