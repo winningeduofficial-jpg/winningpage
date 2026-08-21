@@ -38,6 +38,12 @@ import { ErrorBlock, LoadingBlock } from "./StateBlocks";
 // 섹션 세로 리듬. SelfAssessment.jsx의 랜딩/서비스형 관례.
 const SECTION_RHYTHM = "pt-16 sm:pt-20 lg:pt-25";
 
+// 히어로(첫 섹션) 전용 상단 여백(QA 리뷰) — SECTION_RHYTHM을 그대로 쓰면 폼 아래에
+// 이어 붙는 인라인 결과 화면에서 폼과 결과 사이 순공백이 과하게 벌어진다(실측
+// 14.5rem). 히어로만 축소하고, 히어로 아래 카드·표 섹션의 내부 리듬(SECTION_RHYTHM)은
+// 그대로 둔다 — DetailView 내부 세로 흐름은 이번 수정 범위가 아니다.
+const DETAIL_HERO_TOP_RHYTHM = "pt-12 sm:pt-14 lg:pt-16";
+
 // 연도 축이 3개 이상으로 복원되면 슬로프 대신 Sparkline으로 되돌린다(명세 §8.3 마지막 줄).
 // 이 상수 하나만 보고 분기하므로 축이 늘어나도 카드 코드는 손대지 않는다.
 const SPARKLINE_MIN_YEARS = 3;
@@ -791,7 +797,7 @@ export default function DetailView({
     <div>
       {/* 히어로 */}
       <section
-        className={SECTION_RHYTHM}
+        className={DETAIL_HERO_TOP_RHYTHM}
         aria-labelledby="admission-results-detail-title"
       >
         <div className={CONTAINER}>

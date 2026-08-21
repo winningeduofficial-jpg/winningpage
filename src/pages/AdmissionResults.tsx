@@ -14,7 +14,7 @@ import {
   formatDeptCount,
   formatTrackTags,
 } from "./admissionResults/constants";
-import SearchView from "./admissionResults/SearchView";
+import SearchView, { TrendingBlock } from "./admissionResults/SearchView";
 import { LoadingBlock } from "./admissionResults/StateBlocks";
 import {
   useSusiDepartments,
@@ -320,34 +320,45 @@ export default function AdmissionResults() {
           selector={selector}
           trending={trendingItems}
           onSelectTrending={handleSelectTrending}
+          suppressTrendingBlock={isDetail}
         />
 
         {isDetail && (
-          <div ref={detailRef} className="scroll-mt-24">
-            {/* DetailView는 uncontrolled 모드로 쓴다 — Q3(fetchSusiResultRows) 페칭과
-                buildDetailModel 집계를 자기가 수행한다. 셸은 쿼리스트링 파싱과 뷰 스위치,
-                그리고 로딩 중 히어로에 쓸 이름 폴백만 넘긴다. */}
-            <Suspense
-              fallback={
-                <section
-                  className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-25`}
-                >
-                  <LoadingBlock />
-                </section>
-              }
-            >
-              {/* key로 대학·모집단위 조합이 바뀔 때마다 새로 마운트해 연속 조회 시
-                  이전 결과의 잔여 상태(스크롤·탭 선택 등) 없이 결과가 완전히 교체되게 한다. */}
-              <DetailView
-                key={`${detailUniversityKey}::${detailDepartmentKey}`}
-                universityKey={detailUniversityKey}
-                departmentKey={detailDepartmentKey}
-                universityName={detailUniversityLabel}
-                departmentName={detailDepartmentLabel}
-                onBack={handleBackToSearch}
-              />
-            </Suspense>
-          </div>
+          <>
+            <div ref={detailRef} className="scroll-mt-24">
+              {/* DetailView는 uncontrolled 모드로 쓴다 — Q3(fetchSusiResultRows) 페칭과
+                  buildDetailModel 집계를 자기가 수행한다. 셸은 쿼리스트링 파싱과 뷰 스위치,
+                  그리고 로딩 중 히어로에 쓸 이름 폴백만 넘긴다. */}
+              <Suspense
+                fallback={
+                  <section
+                    className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-25`}
+                  >
+                    <LoadingBlock />
+                  </section>
+                }
+              >
+                {/* key로 대학·모집단위 조합이 바뀔 때마다 새로 마운트해 연속 조회 시
+                    이전 결과의 잔여 상태(스크롤·탭 선택 등) 없이 결과가 완전히 교체되게 한다. */}
+                <DetailView
+                  key={`${detailUniversityKey}::${detailDepartmentKey}`}
+                  universityKey={detailUniversityKey}
+                  departmentKey={detailDepartmentKey}
+                  universityName={detailUniversityLabel}
+                  departmentName={detailDepartmentLabel}
+                  onBack={handleBackToSearch}
+                />
+              </Suspense>
+            </div>
+
+            {/* 트렌딩 칩 블록(QA 리뷰) — 폼 바로 아래(SearchView 내부)가 아니라 결과
+                아래로 옮겨 그린다. suppressTrendingBlock으로 SearchView 쪽 렌더는 꺼져
+                있으니 여기서 한 번만 그린다. */}
+            <TrendingBlock
+              trending={trendingItems}
+              onSelectTrending={handleSelectTrending}
+            />
+          </>
         )}
       </main>
 
