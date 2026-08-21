@@ -57,7 +57,10 @@ export default function AdmissionCases() {
             위닝에듀의 방향은 학생 스스로 갖추는 경쟁력
           </h1>
 
-          <p className="mt-5 break-keep text-base font-medium leading-[1.4] text-[#7A7A7A]">
+          {/* QA 리뷰(2026-08-21) — 문단 폭은 풀폭 그대로 유지(고객 요청)하고, 긴 줄 보상으로
+              leading만 1.4→1.6으로 늘린다. SpecialHighschoolCases.tsx도 같은 클래스를 쓰는
+              별도 문단(공유 상수 아님)이라 그쪽도 동일하게 맞췄다. */}
+          <p className="mt-5 break-keep text-base font-medium leading-[1.6] text-[#7A7A7A]">
             {DESCRIPTION}
           </p>
 
