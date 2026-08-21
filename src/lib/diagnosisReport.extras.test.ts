@@ -420,10 +420,16 @@ test("표가 있으면 최종등록자 평균 제외 캡션이 붙는다", () =>
       SELF_DECIDED.SERVICE_H3_LATE_NOTICE,
     );
   });
+  // obstacles·wishes(2026-08-21 추가) — serviceLimit 은 이제 H3_LATE 외에도 '확신 후보
+  // 0개' 사유로 채워질 수 있다. 이 테스트의 의도(H3_LATE 가 아니면 제한하지 않는다)를
+  // 지키려면 확신 후보가 확실히 있는 입력이어야 한다(GOAL_CARE fit=95.5, 다른 F-06
+  // 테스트가 이미 검증한 조합 재사용).
   const h3Early = buildReport(
     makeInput({
       profile: { name: null, gradeLevel: "H3", schoolType: null },
       meta: { schemaVersion: "test", diagnosedAt: "2026-03-01T00:00:00.000Z" },
+      obstacles: ["OBS_01", "OBS_02", "OBS_03"],
+      wishes: ["WISH_02"],
     }),
   );
   test("고3 1~5월은 제한하지 않는다", () => {
