@@ -353,10 +353,18 @@ test("표가 있으면 최종등록자 평균 제외 캡션이 붙는다", () =>
     }),
   );
   test("직선 응답이면 헤드라인이 SINCERITY_HEAD 로 치환된다", () => {
-    expect(flagged.headlineLines).toEqual([COMMON_COPY.SINCERITY_HEAD]);
+    // SINCERITY_HEAD 는 확정 분리 지점(\n)을 가진다(diagnosisCopy 주석, 2026-08-21) —
+    // buildHeadlineLines 가 그 기준으로 라인 배열을 만들므로 split 결과와 비교한다.
+    expect(flagged.headlineLines).toEqual(
+      COMMON_COPY.SINCERITY_HEAD.split("\n"),
+    );
   });
-  test("헤드라인은 추가가 아니라 치환이다(줄 수 1)", () => {
-    expect(flagged.headlineLines.length).toEqual(1);
+  test("헤드라인은 추가가 아니라 치환이다(유형·등급 문구 미포함)", () => {
+    // 종전 단언은 '줄 수 1'이었으나 \n 분할 도입으로 줄 수는 문구 소유가 됐다 —
+    // 치환 불변식의 본질(유형/등급 헤드라인이 함께 나오지 않는다)만 남긴다.
+    expect(flagged.headlineLines.join("")).toEqual(
+      COMMON_COPY.SINCERITY_HEAD.replace(/\n/g, ""),
+    );
   });
   test("특성 도입부도 치환된다", () => {
     expect(flagged.notices.traitIntro).toEqual(COMMON_COPY.SINCERITY_TRAIT);
