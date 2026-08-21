@@ -734,23 +734,18 @@ function formatAdmissionDiff(row: {
 /**
  * 추천 서비스 카드(§4.5 · §7.2).
  *
- * 어떤 경우에도 2박스, 둘 다 실제 서비스 카드(사용자 확정 2026-08-21, 스크린샷 재지시로
- * 최종안=B) — 종전에는 두 단계로 후보가 줄었다: ① rankServices 자신의 tier 필터
- * (fit>=50), ② rank1·rank2 게이트(SERVICE_RANK2_MIN_FIT·MAX_DIFF, "2번째가 1번째와
- * 너무 차이 나거나 절대 적합도가 낮으면 숨긴다"). 이제 둘 다 화면 노출 결정에서 걷어내고
- * tier 이전 전체 순위(services.allRanked, fit 내림차순 — rankServices 신설 필드)에서
- * 상위 2개를 그대로 자른다. 후보 풀은 최소 2종(SERVICE_GRADE_FILTER 최소 구성)이라
- * allRanked 는 항상 2개 이상이다 — "1개뿐이라 채울 게 없는" 경우가 구조적으로 없다.
+ * 항상 2박스(사용자 확정 2026-08-21) — 종전에는 rank1·rank2(rankServices 의
+ * SERVICE_RANK2_MIN_FIT·SERVICE_RANK2_MAX_DIFF 게이트로 "2번째 추천이 1번째와 너무 차이
+ * 나거나 절대 적합도가 낮으면 아예 숨긴다")를 그대로 받아 0~2장을 냈다. 이제는 그 게이트를
+ * 화면 노출 결정에서 걷어내고 tier(fit>=50) 통과 전체 후보(services.all, fit 내림차순)에서
+ * 상위 2개를 그대로 자른다 — "buildRecommendations 가 상위 N을 자르는 구조" 요청대로 컷
+ * 지점을 여기 하나로 모았다(rankServices 자신의 rank1/rank2 필드와 그 게이트 상수는 그대로
+ * 둔다 — 이 함수 밖에서 참조하는 다른 소비자가 없어 건드릴 이유가 없다).
  *
- * SVC_NONE 안내 카드(구 1장짜리 폴백)는 제거했다. 전 후보 fit<50(확신할 후보가 0개)이면
- * 카드 자체는 그대로 2장(하위 2개) 내고, 대신 buildNotices 의 serviceLimit 슬롯에 같은
- * SVC_NONE 원문을 리드 문구로 얹어 "억지 추천처럼 보이는" 리스크를 완충한다(문구 재작성
- * 아님 — 기존 문구 재사용, RecommendServices leadNote 참고).
- *
- * tier=null(fit<50) 후보는 SERVICE_COPY 에 등급별 문구가 없어 serviceCopy() 가 null 을
- * 반환하고 기존 rankPrefix() 폴백(1순위/2순위 일반 캡션)으로 떨어진다 — 이 함수 밖의
- * 기존 폴백 경로를 그대로 재사용한다(새 분기 아님). chips 도 함께 빈다(태그는 등급별
- * 문구에만 있다) — 신뢰도가 낮은 카드가 시각적으로도 확정 추천과 구분되는 부수 효과다.
+ * 후보가 정확히 1개뿐이면 두 번째 칸을 SVC_NONE 폴백 문구로 박스 형태로 채운다(사용자 확정).
+ * 후보가 0개(전 서비스 fit<50)인 경우는 **미확정** — 폴백 카드 2장 vs fit<50 후보 중 상위
+ * 2개를 그대로 채우는 안, 두 방향의 트레이드오프가 있어 종전 동작(안내 카드 1장)을 그대로
+ * 둔다. 완료 보고에 두 안을 남겨 사용자 확인을 기다린다.
  */
 type RankedService = {
   code: string;
@@ -762,10 +757,16 @@ type RankedService = {
   lowestLinkedAreaName: string | null;
 };
 
-function buildRecommendations(services: { allRanked: RankedService[] }) {
-  const picked = (services.allRanked ?? []).slice(0, 2);
+function buildRecommendations(services: { all: RankedService[] }) {
+  const picked = (services.all ?? []).slice(0, 2);
 
-  return picked.map((service, index) => {
+  if (picked.length === 0) {
+    return [
+      { rank: "", name: "", desc: commonCopy("SVC_NONE") ?? "", chips: [] },
+    ];
+  }
+
+  const cards = picked.map((service, index) => {
     const copy = serviceCopy(
       service.code,
       service.tier as "HIGH" | "MID" | "LOW" | null,
@@ -777,6 +778,18 @@ function buildRecommendations(services: { allRanked: RankedService[] }) {
       chips: copy?.tags ?? [],
     };
   });
+
+  // 후보가 1개뿐이면 두 번째 칸을 폴백 문구로 채워 항상 2박스를 보장한다.
+  if (cards.length === 1) {
+    cards.push({
+      rank: "",
+      name: "",
+      desc: commonCopy("SVC_NONE") ?? "",
+      chips: [],
+    });
+  }
+
+  return cards;
 }
 
 /**
@@ -898,10 +911,6 @@ function buildNotices(
   input: DiagnosisInputLike,
   serviceFilterReason: string | null,
   sincerityFlagged: boolean,
-  // 2026-08-21 사용자 확정 — 전 서비스 fit<50(확신할 후보가 0개)이면 추천 카드 2장 위에
-  // 리드 문구로 SVC_NONE 원문을 재사용한다(새 문구 작성 아님). serviceLimit 자리를 그대로
-  // 쓴다 — RecommendServices의 leadNote 슬롯이 이미 이 값 하나만 본다.
-  noConfidentService: boolean,
 ) {
   const likert = { ...(input.likert1 ?? {}), ...(input.likert2 ?? {}) };
   const likertKeys = Object.keys(likert);
@@ -926,17 +935,12 @@ function buildNotices(
     // 배점표 1번이 후보를 2종으로 제한하는 경우에만 붙는 안내. 중3·N수생은 학년 자체가 근거이고
     // (SERVICE_GRADE_FILTER), 고3 6~12월은 제출 시각이 근거다(serviceCandidates).
     // 문구가 갈리는 이유도 다르다 — M3 는 문구집 원문, H3_LATE 는 자체 결정(2026-08-12 확정)이다.
-    // 학년 제한 사유가 없고 전 후보 fit<50(noConfidentService)이면 SVC_NONE 을 같은 자리에
-    // 리드 문구로 남긴다(2026-08-21 확정) — 두 사유는 서로 다른 문제(후보 풀 자체가 좁다 vs
-    // 좁지 않은 풀에서도 적합도가 낮다)라 학년 제한이 있으면 그 설명이 우선한다.
     serviceLimit:
       serviceFilterReason === "M3"
         ? commonCopy("SVC_M3_LIMIT")
         : serviceFilterReason === "H3_LATE"
           ? SELF_DECIDED.SERVICE_H3_LATE_NOTICE
-          : noConfidentService
-            ? (commonCopy("SVC_NONE") ?? null)
-            : null,
+          : null,
     // 리커트를 건너뛴 문장이 있으면 해당 영역이 남은 응답만으로 산출됐음을 알린다(§4.2 결측).
     skipNote: hasSkipped ? commonCopy("SKIP_NOTE") : null,
     // F-15 — 아래 2종은 불성실 판정에서만 발화하는 화면 전용 문구다. 배너는 리포트 최상단(시트
@@ -1057,7 +1061,6 @@ export function buildReport(input: any, ctx: BuildReportCtx = {}) {
       safeInput,
       services.filterReason ?? null,
       sincerity.flagged,
-      services.all.length === 0,
     ),
 
     // §4.5 원문 17번 감지 신호(Q-36 해소, 사용자 확정 2026-08-11) — urgency·notices와 달리

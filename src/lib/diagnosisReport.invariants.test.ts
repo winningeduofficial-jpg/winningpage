@@ -209,14 +209,8 @@ test("notices 에 조건부 키(serviceLimit·skipNote)가 존재한다", () => 
       "skipNote" in report.notices,
   ).toBe(true);
 });
-test("M3 가 아니면 serviceLimit 은 null(확신 후보가 있을 때)", () => {
-  // 2026-08-21 — serviceLimit 은 이제 M3/H3_LATE 외에도 '확신 후보 0개'(전 서비스
-  // fit<50) 사유로 채워질 수 있다. 공용 report 픽스처(obstacles 1개뿐)는 그 조건에
-  // 우연히 걸릴 수 있어, 확신 후보가 확실히 있는 입력으로 별도 검증한다.
-  const confidentReport = buildReport(
-    makeInput({ obstacles: ["OBS_01", "OBS_02", "OBS_03"], wishes: ["WISH_02"] }),
-  );
-  expect(confidentReport.notices.serviceLimit).toEqual(null);
+test("M3 가 아니면 serviceLimit 은 null", () => {
+  expect(report.notices.serviceLimit).toEqual(null);
 });
 test("M3 면 SVC_M3_LIMIT 안내가 붙는다", () => {
   expect(
@@ -407,23 +401,16 @@ test("추천 카드 chips 는 4개(문구집 태그 세트)", () => {
     ),
   ).toBe(true);
 });
-// 전 서비스 fit < 50(확신 후보 0개)이어도 카드는 항상 2장이다(2026-08-21 사용자 확정,
-// 안B) — SVC_NONE 안내 카드 1장짜리 폴백은 폐기했다. 대신 리드 문구(notices.serviceLimit)
-// 에 같은 SVC_NONE 원문을 얹어 "억지 추천처럼 보이는" 리스크를 완충한다.
+// 전 서비스 fit < 50 이면 SVC_NONE 안내 카드 1장으로 접는다(컴포넌트에 캡션 슬롯이 없다).
 const noService = buildReport(
   makeInput({
     likert1: Object.fromEntries(LIKERT1_KEYS.map((k) => [k, 100])),
     likert2: Object.fromEntries(LIKERT2_KEYS.map((k) => [k, 100])),
   }),
 );
-test("추천 대상이 없어도 카드는 항상 2장", () => {
-  expect(noService.recommendations.length).toEqual(2);
+test("추천 대상이 없으면 안내 카드 1장", () => {
+  expect(noService.recommendations.length).toEqual(1);
 });
-test("확신 후보가 없으면 리드 문구가 SVC_NONE", () => {
-  expect(noService.notices.serviceLimit).toEqual(COMMON_COPY.SVC_NONE);
-});
-test("확신 후보가 없어도 카드 2장은 실제 서비스명을 갖는다(빈 카드 아님)", () => {
-  expect(
-    noService.recommendations.every((card) => card.rank && card.name),
-  ).toBe(true);
+test("안내 카드 본문 = SVC_NONE", () => {
+  expect(noService.recommendations[0]?.desc).toEqual(COMMON_COPY.SVC_NONE);
 });

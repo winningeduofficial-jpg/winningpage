@@ -652,12 +652,7 @@ export function rankServices(input, areaScores) {
     safeInput.meta?.diagnosedAt,
   );
 
-  // allRanked — tier 필터 **전** 전체 후보를 fit 내림차순으로 둔다(2026-08-21, 사용자 확정
-  // "추천 박스는 어떤 경우에도 2장, 둘 다 실제 서비스 카드"의 근거 데이터). tier(fit>=50)
-  // 통과 여부와 무관하게 화면에 "그래도 상위 2개는 무엇인지"를 보여줘야 해서 rankServices
-  // 자신의 tier 판정(§4.5 확정 임계값)은 그대로 두고, 그 판정을 소비하는 쪽(buildRecommendations)
-  // 이 원하는 값을 고르게 둘 다 반환한다.
-  const allRanked = candidates
+  const all = candidates
     .map((code) => {
       const rule = SERVICE_RULES[code];
       if (!rule) return null;
@@ -701,18 +696,13 @@ export function rankServices(input, areaScores) {
         lowestLinkedAreaName: AREA_LABEL[lowestLinkedArea] ?? null,
       };
     })
-    .filter((service) => service != null)
+    .filter((service) => service != null && service.tier != null)
     // 동점 타이브레이커는 SERVICE_CODES 표 순서 고정(§4.5 결측).
     .sort(
       (a, b) =>
         b.fit - a.fit ||
         SERVICE_CODES.indexOf(a.code) - SERVICE_CODES.indexOf(b.code),
     );
-
-  // all — 기존 계약 유지(tier>=LOW 통과만). rank1/rank2 게이트도 이 부분집합 위에서 그대로
-  // 동작한다 — 둘 다 diagnosisScoring.serviceRanking.test.ts 가 직접 검증하는 값이라 여기서
-  // 바뀌면 안 된다.
-  const all = allRanked.filter((service) => service.tier != null);
 
   const rank1 = all[0] ?? null;
   const second = all[1] ?? null;
@@ -727,7 +717,7 @@ export function rankServices(input, areaScores) {
   // filterReason 은 화면 분기용이 아니라 사후 재판정용이다(Q-13 가드레일) — 2종으로 줄어든 뒤
   // tier 필터까지 걸려 all 이 0건이 되면 기존 SVC_NONE 폴백이 그대로 동작하고, 그때도 '왜 2종
   // 이었는지'는 이 값에만 남는다.
-  return { rank1, rank2, all, allRanked, filterReason };
+  return { rank1, rank2, all, filterReason };
 }
 
 /* ================================================================== *
