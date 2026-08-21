@@ -70,8 +70,12 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
   // 기존 lg: 리터럴과 동일한 rem 값으로 되돌린다(BLOCK 수정, ReportSheetA4 주석 참고).
   // fd-screen-only 가 붙은 요소는 인쇄에서 통째로 display:none 이라 그 안의 lg: 값에는
   // 별도 인쇄 훅을 만들지 않는다(§7.5 예외 — report-print.css 주석에 근거 있음).
+  // mt-12(2026-08-21) — ReadinessOverview·DimensionBarChart(왼쪽 단)와 나란히 시작하도록
+  // 왼쪽 단 첫 섹션(ReadinessOverview)과 같은 값으로 맞췄다(종전 mt-10 lg:mt-16.25는
+  // InsightColumns 뒤에 세로로 이어지던 옛 배치의 값 — 2단 스플릿에서는 더 이상 맞지
+  // 않는다). lg: 분기가 없어져 print CSS 강제 규칙도 함께 제거했다.
   return (
-    <section className="fd-admission-section mt-10 lg:mt-16.25">
+    <section className="mt-12">
       <h2 className="text-[1.25rem] font-semibold leading-5 text-accent">
         목표 대학 입결 비교
       </h2>
@@ -133,8 +137,11 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
 
       {/* G-3(NIT 2) — admissionEmptyTableMode='NOTICE_ROW' 일 때만 hasRows=false 여도 박스를 그린다
           (기본 'HIDE' 에서는 showEmptyNotice 가 항상 false 라 이 줄이 종전 hasRows 단독 조건과 동일하다). */}
+      {/* lg:w-122.5(2026-08-21) — 종전 lg:w-127.5(31.875rem)는 전폭(62.5rem) 단일 컬럼
+          기준이었다. 2단 스플릿의 오른쪽 단 폭(30.875rem)에 맞춰 fd-admission-summary와
+          같은 값(122.5=30.625rem)으로 줄였다. */}
       {(hasRows || showEmptyNotice) && (
-        <div className="fd-admission-box mt-3.5 w-full rounded-xl border border-[#d9d9d9] px-3.25 py-2.75 lg:w-127.5">
+        <div className="fd-admission-box mt-3.5 w-full rounded-xl border border-[#d9d9d9] px-3.25 py-2.75 lg:w-122.5">
           {showEmptyNotice ? (
             <p className="text-base leading-[1.3] text-[#808080]">
               {emptyNotice}
@@ -176,7 +183,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
         표 바로 아래에 붙인다(F-10 의 빈 표 오인과 같은 계열의 위험이라 거리가 멀면 기능하지 않는다).
       */}
       {finalAvgNote && (
-        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-127.5 lg:text-sm">
+        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-122.5 lg:text-sm">
           {finalAvgNote}
         </p>
       )}
@@ -187,7 +194,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
         엔진이 `!== caption` 중복 가드를 이미 걸어 null 로 내려 준다(같은 문장 2회 방지).
       */}
       {tableNote && (
-        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-127.5 lg:text-sm">
+        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-122.5 lg:text-sm">
           {tableNote}
         </p>
       )}

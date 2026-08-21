@@ -307,6 +307,15 @@
     padding-top: 1.75rem !important;
   }
 
+  /* fd-readiness-admission-split(2026-08-21) — ReportPageTwo 준비도(좌)·입결 비교(우)
+     2단. lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4와 동일 출처(InsightColumns와
+     같은 2단 폭 관례 재사용 — 새 매직 넘버 아님). */
+  .fd-readiness-admission-split {
+    display: grid !important;
+    grid-template-columns: 30.875rem 30.875rem !important;
+    column-gap: 1rem !important;
+  }
+
   /* ReadinessOverview 요약 — lg:w-[30.5625rem] */
   .fd-readiness-summary {
     width: 30.5625rem !important;
@@ -320,19 +329,15 @@
     row-gap: 0 !important;
   }
 
-  /* AdmissionSection — lg:mt-[4.0625rem] */
-  .fd-admission-section {
-    margin-top: 4.0625rem !important;
-  }
-
   /* AdmissionSection 요약문 — lg:w-[30.625rem] */
   .fd-admission-summary {
     width: 30.625rem !important;
   }
 
-  /* AdmissionSection 표 박스 — lg:w-[31.875rem] */
+  /* AdmissionSection 표 박스 — lg:w-[30.625rem](2026-08-21, 2단 스플릿 오른쪽 단 폭에 맞춘
+     값. 종전 31.875rem은 전폭 단일 컬럼 기준) */
   .fd-admission-box {
-    width: 31.875rem !important;
+    width: 30.625rem !important;
   }
 
   /* AdmissionSection 행 간격 — lg:gap-[0.9375rem] */

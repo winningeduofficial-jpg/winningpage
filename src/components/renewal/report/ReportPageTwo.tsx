@@ -45,8 +45,8 @@ type ReportPageTwoProps = {
   totalPages: number;
 };
 
-// 결과 리포트 2페이지(A4-4) — 학교 생활 및 입시 준비도 / 6영역 바 그래프 /
-// 잘하고 있는 부분·보완할 부분 / 목표 대학 입결 비교 / 추천 지원 서비스.
+// 결과 리포트 2페이지(A4-4) — [학교 생활 및 입시 준비도 + 6영역 바 그래프 | 목표 대학
+// 입결 비교] 2단 스플릿 / 잘하고 있는 부분·보완할 부분 / 추천 지원 서비스.
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
 const ReportPageTwo = ({ data, totalPages }: ReportPageTwoProps) => {
   const {
@@ -60,13 +60,21 @@ const ReportPageTwo = ({ data, totalPages }: ReportPageTwoProps) => {
 
   return (
     <ReportSheetA4 page={2} totalPages={totalPages}>
-      <ReadinessOverview
-        scoreLabel={readiness.scoreLabel}
-        summaryLines={readiness.summaryLines}
-      />
-      <DimensionBarChart areas={readiness.areas} />
+      {/* fd-readiness-admission-split — 2026-08-21 사용자 지시: 준비도(좌)·입결 비교(우)를
+          같은 선상의 2단으로. 새 lg: 값(grid-cols-[30.875rem_30.875rem] gap-x-4)을
+          report-print.css 가 그대로 복사하는 기존 관례(화면=인쇄 프리뷰)를 따른다.
+          InsightColumns(잘하고/보완할)는 종전대로 이 2단 아래 전폭으로 남는다. */}
+      <div className="fd-readiness-admission-split grid grid-cols-1 lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4">
+        <div>
+          <ReadinessOverview
+            scoreLabel={readiness.scoreLabel}
+            summaryLines={readiness.summaryLines}
+          />
+          <DimensionBarChart areas={readiness.areas} />
+        </div>
+        <AdmissionSection admission={admission} />
+      </div>
       <InsightColumns strengths={strengths} improvements={improvements} />
-      <AdmissionSection admission={admission} />
       {/* exactOptionalPropertyTypes 대응 — undefined일 때 leadNote 키 생략(RecommendServices 미수정 범위). */}
       <RecommendServices
         cards={recommendations}
