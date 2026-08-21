@@ -94,6 +94,9 @@ export default function SurveyStepPage() {
   // submitDiagnosis 는 Q-01(로그인 이름 조회)때문에 비동기다 — 클릭→이동 사이에 조회 1회가 낀다.
   const goToReport = async () => {
     const diagnosisInput = await submitDiagnosis();
+    // null = 게이팅이 막았다(무료 1회 소진 + 이용권 없음/만료/소진). 셸이 이미
+    // 안내 후 /pricing으로 보냈으므로 여기서는 리포트로 이동하지 않는다.
+    if (!diagnosisInput) return;
     navigate(SURVEY_REPORT_PATH, { state: { diagnosisInput } });
   };
 
