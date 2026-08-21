@@ -58,12 +58,15 @@ type ReportPageOneData = {
 
 type ReportPageOneProps = {
   data: ReportPageOneData;
+  // ReportSheetA4 totalPages 계약(2026-08-21) — 부록 렌더 여부(hasReportExtras)로
+  // FreeDiagnosisReport 가 한 번만 계산해 전 시트·부록 페이지에 동일한 값을 내려보낸다.
+  totalPages: number;
 };
 
 // 결과 리포트 1페이지(A4-3) — 헤드라인+레이더 / 학생 기본정보 / 주요 학습 특성 섹션
 // (§타이틀 → 요약 카드 3장 → 우선순위 표 6행 → 서술 3블록).
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
-export default function ReportPageOne({ data }: ReportPageOneProps) {
+export default function ReportPageOne({ data, totalPages }: ReportPageOneProps) {
   const {
     student,
     headlineLines,
@@ -83,7 +86,7 @@ export default function ReportPageOne({ data }: ReportPageOneProps) {
   // 두 곳이 되어 한쪽만 고쳐진다.
 
   return (
-    <ReportSheetA4 page={1}>
+    <ReportSheetA4 page={1} totalPages={totalPages}>
       {/*
         R3(2026-08-11) — 데스크톱은 헤드라인 옆에 레이더를 절대배치로 겹쳐 올리는 2단 구성이다.
         모바일은 겹칠 폭이 없으므로 relative/absolute 를 끄고 세로로 쌓는다(헤드라인 → 레이더).

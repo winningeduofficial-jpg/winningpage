@@ -59,8 +59,9 @@
    * 함께 되살아나 시트 2장(특히 2페이지 AdmissionSection)이 예산을 크게 초과했다(실측
    * 297mm 대비 +153px). 사용자가 실제로 원한 것은 부록만 PDF에 포함하는 것이었다(행 102
    * 재확인, 2026-08-20) — 그래서 부록(ReportScreenExtras)은 `fd-screen-only`를 떼고
-   * `fd-print-page3` 하나만으로 인쇄 가시성을 지게 하고, 이 규칙은 원래 의도대로
-   * display:none 으로 복원한다.
+   * (2026-08-21부터는 `.fd-report-sheet` 재사용 자체가 인쇄 가시성을 진다 — 아래
+   * `.fd-report-sheet + .fd-report-sheet` 참고), 이 규칙은 원래 의도대로 display:none
+   * 으로 복원한다.
    */
   .fd-screen-only {
     display: none !important;
@@ -108,33 +109,16 @@
     padding-bottom: 0.75rem !important;
   }
 
-  /* 시트1 → 시트2 경계. 시트는 항상 정확히 2장이라(ReportPageOne+ReportPageTwo 무조건 렌더)
-     형제 셀렉터로 고정해도 안전하다. */
+  /*
+   * 시트 사이 경계(2026-08-21 갱신) — 문서는 항상 짝수 장(2 또는 4)의 `.fd-report-sheet`
+   * 로 구성된다: 시트1·2(ReportPageOne·Two)는 무조건 렌더, 부록이 있으면 3·4페이지
+   * (ReportScreenExtras, ReportSheetA4 재사용)가 이어 붙는다. 형제 셀렉터 하나로 모든
+   * 인접 쌍(1→2, 2→3, 3→4)의 개행을 커버한다 — 전용 페이지별 훅(구 fd-print-page3)이
+   * 필요 없다. 부록이 없으면 시트가 2장뿐이라 이 규칙은 그 사이 한 번만 발동한다.
+   */
   .fd-report-sheet + .fd-report-sheet {
     break-before: page;
     page-break-before: page;
-  }
-
-  /* QA 행 102 — 부록(ReportScreenExtras)이 존재할 때만 시트2 뒤에서 강제 개행한다(조건부
-     렌더라 없을 수도 있다 — 형제 규칙이 아니라 부록 자신에 걸어야 부록이 없을 때 시트2
-     뒤에 빈 페이지가 남지 않는다). 시트 2장 뒤에 자연스럽게 이어붙게 두면 페이지 2 하단
-     여백만큼만 밀려 들어가 잘리거나 어중간하게 걸쳐 나뉜다 — 항상 새 페이지에서 시작시킨다. */
-  .fd-print-page3 {
-    break-before: page;
-    page-break-before: page;
-  }
-
-  /*
-   * fd-print-page3 패딩(2026-08-21 사용자 지시) — 부록 페이지 여백을 시트(.fd-report-sheet)와
-   * 동일하게 맞춘다. 화면은 이미 lg:p-perf-inset(3.75rem)으로 시트와 같지만, 인쇄 뷰포트
-   * (794px)는 lg:가 꺼져 base px-4(1rem)만 남아 시트보다 여백이 좁았다 — 시트와 같은
-   * 4방향 3.75rem + 동일한 하단 트림 정책(0.75rem, 위 .fd-report-sheet 규칙과 같은 사유)을
-   * 강제한다. 위 fd-area-groups/fd-strategy-grid는 1fr 반복이라 이 패딩 변경(콘텐츠 폭
-   * 68rem → 62.5rem, 시트 콘텐츠 폭과 동일)이 자동으로 반영된다 — 별도 폭 값 수정 불필요.
-   */
-  .fd-print-page3 {
-    padding: 3.75rem !important;
-    padding-bottom: 0.75rem !important;
   }
 
   /* fd-strategy-more — 접힌 '나머지 영역의 맞춤 전략'을 인쇄에서 항상 펼친다(PDF에서는
@@ -153,18 +137,20 @@
 
   /*
    * 부록 좌우 스플릿(2026-08-21, 사용자 지시 "페이지는 최대한 줄여야 하니까 좌우 스플릿
-   * 레이아웃을 도입해서 최대한 줄여봐" → 정정 "인쇄 레이아웃 = 화면 lg 레이아웃 재현"
-   * 원칙, report-print.css 전체가 따르는 기존 관례와 동일) — 인쇄 뷰포트(794px)는 lg:를
-   * 타지 않아 부록(블록 A·B)이 전부 단일 컬럼으로 흘러 3페이지를 먹었다. 화면 lg 배치와
-   * 동일한 단수를 인쇄에도 강제한다. 열 "폭"은 화면 lg의 고정 rem 값을 그대로 베끼지
-   * 않고 1fr 반복으로 둔다 — 다른 fd-* 훅들(시트 내부 고정 좌표 정렬용)과 달리 이 둘은
-   * 부록 콘텐츠 폭에 맞춰 자동 분배되면 되는 목록형 레이아웃이라 픽셀 단위 복제가
-   * 필요 없다. 단수·gap 값(화면 lg 리터럴과 동일 출처)만 복사한다.
+   * 레이아웃을 도입해서 최대한 줄여봐") — 인쇄 뷰포트(794px)는 lg:를 타지 않아 부록(블록
+   * A·B)이 전부 단일 컬럼으로 흘러 3페이지를 먹었다. 열 "폭"은 고정 rem 값이 아니라 1fr
+   * 반복으로 둔다 — 다른 fd-* 훅들(시트 내부 고정 좌표 정렬용)과 달리 이 둘은 부록
+   * 콘텐츠 폭에 맞춰 자동 분배되면 되는 목록형 레이아웃이라 픽셀 단위 복제가 필요 없다.
+   *
+   * fd-strategy-grid(맞춤 전략)는 화면 lg:grid-cols-3와 같은 단수를 그대로 복사한
+   * 것이지만, fd-area-groups(영역별 상세 진단)의 2단은 **인쇄 전용**이다 — 화면은 세로
+   * 1단을 유지한다(사용자 재확정, 2026-08-21: "화면은 스크롤이라 압축 불필요"). 즉 이
+   * 훅만큼은 "인쇄 = 화면 lg 재현" 관례의 예외다.
    */
 
   /* fd-area-groups — 블록 A(영역별 상세 진단) 두 그룹(학습 실행 역량 6행 · 학교 생활 및
-     입시 준비도 6행)이 각각 한 단씩. 화면 lg:grid-cols-2 lg:gap-x-8(2026-08-21 신설)과
-     동일 출처. */
+     입시 준비도 6행)이 인쇄에서만 각각 한 단씩. 화면은 이 클래스에 lg: 값이 없어(위 참고)
+     세로 1단 그대로다. */
   .fd-area-groups {
     display: grid !important;
     grid-template-columns: repeat(2, 1fr) !important;

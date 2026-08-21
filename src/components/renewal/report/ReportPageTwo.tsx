@@ -40,12 +40,15 @@ type ReportPageTwoProps = {
       sincerityAct?: string | null;
     };
   };
+  // ReportSheetA4 totalPages 계약(2026-08-21) — 부록 렌더 여부(hasReportExtras)로
+  // FreeDiagnosisReport 가 한 번만 계산해 전 시트·부록 페이지에 동일한 값을 내려보낸다.
+  totalPages: number;
 };
 
 // 결과 리포트 2페이지(A4-4) — 학교 생활 및 입시 준비도 / 6영역 바 그래프 /
 // 잘하고 있는 부분·보완할 부분 / 목표 대학 입결 비교 / 추천 지원 서비스.
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
-const ReportPageTwo = ({ data }: ReportPageTwoProps) => {
+const ReportPageTwo = ({ data, totalPages }: ReportPageTwoProps) => {
   const {
     readiness,
     strengths,
@@ -56,7 +59,7 @@ const ReportPageTwo = ({ data }: ReportPageTwoProps) => {
   } = data;
 
   return (
-    <ReportSheetA4 page={2}>
+    <ReportSheetA4 page={2} totalPages={totalPages}>
       <ReadinessOverview
         scoreLabel={readiness.scoreLabel}
         summaryLines={readiness.summaryLines}

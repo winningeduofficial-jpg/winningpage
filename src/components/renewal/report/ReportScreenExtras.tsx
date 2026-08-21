@@ -1,38 +1,40 @@
 import { useEffect } from "react";
 import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
 import { templateCopy } from "@/lib/diagnosisCopyBinding";
+import ReportSheetA4 from "./ReportSheetA4";
 
 /**
- * 확장 영역(F-04 · F-05) — A4 시트 2장 **아래**에 이어지는 문서형 부록.
+ * 확장 영역(F-04 · F-05) — A4 시트 3·4페이지. 영역별 상세 진단·맞춤 전략을 담는다.
  *
- * 왜 시트 밖인가(D1):
- *   시트 안에 큰 블록을 넣으면 report-responsive.css 의
- *   `margin-bottom: calc((var(--fd-sheet-scale) - 1) * 99.0588rem)` 보정이 어긋난다 —
- *   그 수식은 시트 실제 높이가 정확히 99.0588rem 이라는 전제 위에 있다.
- *   시트 안에는 '해당 섹션에 붙어야만 읽히는 1문단 각주'만 남기고, 덩어리는 전부 여기로 뺀다.
+ * 2026-08-21 재구성(사용자 지시) — 종전에는 단일 flow 카드였다가, 인쇄에서 페이지 경계가
+ * 데이터量에 따라 흘러 페이지 라벨을 못 넣었다. 지금은 시트 1·2와 똑같이 `ReportSheetA4` 를
+ * 재사용한 두 장(page=3/4)이다 — 워터마크(data-watermark)·페이지 라벨·A4 카드 시각(화면
+ * lg:bg-white 등)·인쇄 패딩(.fd-report-sheet 규칙)을 전부 공짜로 물려받는다. 시트끼리의
+ * `.fd-report-sheet + .fd-report-sheet { break-before: page }` 형제 규칙이 시트2→3페이지·
+ * 3→4페이지 경계도 그대로 커버해 `fd-print-page3` 같은 전용 훅이 더 필요 없다.
  *
- * QA 행 102(2026-08-20) — "PDF가 3페이지가 아니다"는 피드백의 진의는 이 부록(영역별 상세
- * 진단·맞춤 전략)을 PDF에 포함해달라는 것이었다. 그래서 이 섹션은 화면·인쇄 양쪽에서 항상
- * 렌더한다(더 이상 `fd-screen-only` 로 인쇄를 걷어내지 않는다) — `fd-print-page3` 훅으로
- * report-print.css 가 시트 2장 뒤 새 페이지에서 강제로 시작시킨다.
- * 주의 — `fd-screen-only` 는 이 섹션 전용이 아니라 AdmissionSection·RecommendServices·
- * ReportPageOne 등 다른 화면 전용 각주가 공유하는 클래스다. 그 각주들은 여전히 인쇄에서
- * 제외돼야 한다(길이가 길어 시트 여유를 넘긴다) — 그래서 이 섹션만 그 클래스를 떼고
- * `fd-print-page3` 하나로 인쇄 가시성을 진다(report-print.css 상단 주석 참고).
+ * 블록 배분(실측 기준, 2026-08-21):
+ *   3페이지 — 영역별 상세 진단(블록 A, 인쇄 2단) + 맞춤 전략 도입부(긴급도·먼저 할 일) +
+ *             focusGroups(3, 인쇄 3단). 실측 약 900px < 1122.5px(A4 1장) — 여유 충분.
+ *   4페이지 — restGroups(9, 항상 펼침, 인쇄 3단) + 해석 한계 고지 + reportBasis(문서 끝).
+ *             실측 약 600px < 1122.5px — 여유 충분.
+ *   긴급도·먼저 할 일을 3페이지에 남긴 이유: '맞춤 전략' 절 도입부라 focusGroups 앞에 있어야
+ *   자연스럽게 읽힌다(도입 문장이 4페이지로 밀리면 3페이지의 전략 그룹만 먼저 보이고 설명은
+ *   한 장 넘어가야 나온다) — 그래도 3페이지가 예산을 넘기지 않아 그대로 뒀다.
+ *
  * 이 서브트리 안의 `lg:` 값들은 인쇄(뷰포트 794px)에서 통째로 사라진다. 각주·보조 설명
- * 텍스트는 여전히 base 클래스만으로 A4 폭 안에서 읽히므로 훅이 필요 없다 — 하지만 원칙
- * (2026-08-21 확정): "인쇄 레이아웃 = 화면 lg 레이아웃 재현", 기존 report-print.css 전체가
- * 따르는 관례 그대로다. 목록형 블록 두 곳은 화면 lg 자체가 다단이거나(맞춤 전략,
- * grid-cols-3 그대로) 다단으로 새로 바뀌었다(영역별 상세 진단, 2026-08-21 사용자 지시로
- * lg:grid-cols-2 신설 — 좌: 학습 실행 역량 그룹, 우: 학교 생활 및 입시 준비도 그룹) — 이
- * lg: 값을 `fd-area-groups`/`fd-strategy-grid` 훅으로 report-print.css 가 그대로 복사한다.
+ * 텍스트는 base 클래스만으로 A4 폭 안에서 읽히므로 훅이 필요 없다 — 원칙(2026-08-21 확정):
+ * "인쇄 레이아웃 = 화면 lg 레이아웃 재현", report-print.css 전체가 따르는 기존 관례 그대로다.
+ * 맞춤 전략(focusGroups·restGroups)은 화면 lg 자체가 다단(grid-cols-3)이라 그 값을
+ * `fd-strategy-grid` 훅으로 그대로 복사한다. 영역별 상세 진단의 2단(`fd-area-groups`)은
+ * PDF 페이지 압축 전용 결정이라 **인쇄에서만** 적용한다 — 화면(lg)은 세로 1단 그대로 둔다
+ * (별도 커밋 "영역별 상세 진단 2단 배치를 PDF 전용으로 되돌림" 확정 유지, 이번 재구성에서도
+ * 건드리지 않는다).
  *
- * 시각 언어(2026-08-21 개정): 시트 1·2와 동일한 A4 용지 카드(흰 배경·동일 폭·동일 그림자).
- *   원래 D 결정은 "흰 카드 아님"이었으나 그 근거가 '인쇄는 2장뿐이라 3페이지처럼 읽히면
- *   안 된다'였다 — 행 102 재확인으로 부록이 실제 PDF 3페이지째부터 인쇄되면서 근거가
- *   소멸해 사용자 지시로 용지 시각으로 통일했다. 카드 시각은 데스크톱 전용(lg:)이라
- *   인쇄(뷰포트 794px, lg: 미적용) 페이지네이션에는 영향이 없다.
- *   아이콘 없음 · 중첩 카드 없음 · 접기는 페이지 전체에서 1개는 유지.
+ * 시각 언어(2026-08-21 개정): 시트 1·2와 동일한 A4 용지 카드. 원래 D 결정은 "흰 카드
+ * 아님"이었으나 그 근거('인쇄는 2장뿐이라 3페이지처럼 읽히면 안 된다')가 부록이 실제 PDF
+ * 3·4페이지로 인쇄되면서 소멸해 사용자 지시로 용지 시각으로 통일했다. 아이콘 없음 ·
+ * 중첩 카드 없음 · 접기는 페이지 전체에서 1개는 유지.
  *
  * 순서(학생의 질문 순서): 진단(무엇이 어떤 상태인가) → 긴급도(얼마나 급한가)
  *   → 전략(무엇부터 할까) → 고지(어디까지 믿을까).
@@ -159,38 +161,14 @@ type ReportScreenExtrasData = {
   typeTodos?: string[];
 };
 
-type ReportScreenExtrasProps = {
-  data?: ReportScreenExtrasData | null;
-};
-
-export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
+/**
+ * data → 부록 렌더에 필요한 조건을 한 번에 계산한다. `hasReportExtras()`(부모가 totalPages를
+ * 정할 때 씀)와 이 컴포넌트의 렌더 분기가 반드시 같은 값을 봐야 하므로, 둘 다 이 함수 하나만
+ * 부른다 — 판정 로직이 두 곳으로 갈라지는 사고를 원천 차단한다.
+ */
+function deriveExtrasFlags(data?: ReportScreenExtrasData | null) {
   const { areaDetails, strategyGroups, urgency, notices, typeTodos } =
     data ?? {};
-
-  // PDF에는 접힌 토글을 열 손이 없다 — window.print() 직전(beforeprint)에 접힌
-  // fd-strategy-more 를 강제로 펼치고, 다이얼로그가 닫히면 원복한다. CDP printToPDF 처럼
-  // beforeprint 가 안 오는 경로는 report-print.css 의 ::details-content 해제가 커버한다.
-  useEffect(() => {
-    const opened = new Set<HTMLDetailsElement>();
-    const before = () => {
-      document
-        .querySelectorAll<HTMLDetailsElement>("details.fd-strategy-more:not([open])")
-        .forEach((d) => {
-          d.setAttribute("open", "");
-          opened.add(d);
-        });
-    };
-    const after = () => {
-      opened.forEach((d) => d.removeAttribute("open"));
-      opened.clear();
-    };
-    window.addEventListener("beforeprint", before);
-    window.addEventListener("afterprint", after);
-    return () => {
-      window.removeEventListener("beforeprint", before);
-      window.removeEventListener("afterprint", after);
-    };
-  }, []);
 
   const detailRows = rules.showAreaDetails ? areaDetails : null;
   const hasAreaDetails =
@@ -227,151 +205,222 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
   // F-03 — 유형별 '먼저 할 일' 3항목. 판정 불가·직선응답이면 빈 배열이라 자리가 접힌다.
   const hasTodos = Array.isArray(typeTodos) && typeTodos.length > 0;
 
-  // 실을 것이 하나도 없으면(판정 불가 등) 섹션을 통째로 만들지 않는다 — 빈 제목만 남기지 않는다.
-  if (
-    !hasAreaDetails &&
-    !hasStrategies &&
-    !strategyLead &&
-    !hasNotice &&
-    !hasTodos
-  )
-    return null;
+  const hasAny =
+    hasAreaDetails ||
+    hasStrategies ||
+    Boolean(strategyLead) ||
+    hasNotice ||
+    hasTodos;
+
+  return {
+    detailRows,
+    hasAreaDetails,
+    focusGroups,
+    restGroups,
+    strategyLead,
+    hasStrategies,
+    hasNotice,
+    hasTodos,
+    hasAny,
+    notices,
+    typeTodos,
+    urgency,
+  };
+}
+
+/**
+ * 부록(3·4페이지)이 실제로 렌더될지 판정한다. FreeDiagnosisReport 가 totalPages(부록
+ * 있으면 4, 없으면 2)를 정할 때 이 함수 하나만 부른다 — ReportScreenExtras 자신의 렌더
+ * 분기와 반드시 같은 조건이어야 하므로 deriveExtrasFlags() 하나를 공유한다.
+ */
+export function hasReportExtras(data?: ReportScreenExtrasData | null) {
+  return deriveExtrasFlags(data).hasAny;
+}
+
+type ReportScreenExtrasProps = {
+  data?: ReportScreenExtrasData | null;
+  totalPages: number;
+};
+
+export default function ReportScreenExtras({
+  data,
+  totalPages,
+}: ReportScreenExtrasProps) {
+  // PDF에는 접힌 토글을 열 손이 없다 — window.print() 직전(beforeprint)에 접힌
+  // fd-strategy-more 를 강제로 펼치고, 다이얼로그가 닫히면 원복한다. CDP printToPDF 처럼
+  // beforeprint 가 안 오는 경로는 report-print.css 의 ::details-content 해제가 커버한다.
+  useEffect(() => {
+    const opened = new Set<HTMLDetailsElement>();
+    const before = () => {
+      document
+        .querySelectorAll<HTMLDetailsElement>("details.fd-strategy-more:not([open])")
+        .forEach((d) => {
+          d.setAttribute("open", "");
+          opened.add(d);
+        });
+    };
+    const after = () => {
+      opened.forEach((d) => d.removeAttribute("open"));
+      opened.clear();
+    };
+    window.addEventListener("beforeprint", before);
+    window.addEventListener("afterprint", after);
+    return () => {
+      window.removeEventListener("beforeprint", before);
+      window.removeEventListener("afterprint", after);
+    };
+  }, []);
+
+  const {
+    detailRows,
+    hasAreaDetails,
+    focusGroups,
+    restGroups,
+    strategyLead,
+    hasStrategies,
+    hasNotice,
+    hasTodos,
+    hasAny,
+    notices,
+    typeTodos,
+  } = deriveExtrasFlags(data);
+
+  // 실을 것이 하나도 없으면(판정 불가 등) 부록 자체를 만들지 않는다 — 빈 제목만 남기지 않는다.
+  if (!hasAny) return null;
 
   const page1Title =
     templateCopy("card_exec.title") ?? copy.areaDetailTitle.page1;
 
   return (
-    <section
-      // fd-print-page3 — QA 행 102: 이 부록을 인쇄에도 항상 포함한다(더 이상 fd-screen-only
-      // 로 걷어내지 않는다). 시트 2장(fd-report-sheet)과 이어 붙지 않고 항상 새 페이지에서
-      // 시작하도록 report-print.css 가 이 훅으로 break-before 를 강제한다.
-      className="fd-print-page3 w-full max-w-280 px-4 lg:w-280 lg:bg-white lg:p-perf-inset lg:shadow-[0_0_1.25rem_rgba(0,0,0,0.06)]"
-      aria-label={copy.sectionTitle}
-    >
-      <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-primary">
-        {copy.sectionTitle}
-      </h2>
+    <>
+      {/* 3페이지 — 영역별 상세 진단 + 맞춤 전략 도입부(긴급도·먼저 할 일) + focusGroups(3). */}
+      <ReportSheetA4 page={3} totalPages={totalPages}>
+        <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-primary">
+          {copy.sectionTitle}
+        </h2>
 
-      {/* ── 블록 A — 영역별 상세 진단 12행(AREA_COPY.levels) ── */}
-      {hasAreaDetails && (
-        <section>
-          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
-            {copy.areaDetailTitle.section}
-          </h3>
-          {/*
-            skipNote 는 조건부다(리커트를 건너뛴 학생만). 영역 점수를 12개 나열하는 바로 이
-            블록이 그 문장이 실제로 작용하는 자리라 여기 둔다 — 차트 옆에 붙이면 두 번 반복해야 한다.
-            기본 픽스처에서는 보이지 않으니 '배선 누락'으로 오판하지 마라.
-          */}
-          {notices?.skipNote && (
-            <p className="mt-4 text-base leading-normal text-ink-sub">
-              {notices.skipNote}
-            </p>
-          )}
-          {/* fd-area-groups — 2026-08-21 사용자 지시(재확정): 두 그룹(학습 실행 역량 6행 ·
-              학교 생활 및 입시 준비도 6행)의 2단 배치는 **PDF 전용**이다 — 화면은 세로
-              1단 그대로 두고, report-print.css 의 .fd-area-groups 규칙만 인쇄에서 2단을
-              강제한다(페이지 수 압축 목적, 화면은 스크롤이라 압축 불필요). */}
-          <div className="fd-area-groups">
-            <AreaDetailGroup title={page1Title} rows={detailRows?.page1} />
-            <AreaDetailGroup
-              title={copy.areaDetailTitle.page2}
-              rows={detailRows?.page2}
-            />
-          </div>
-        </section>
-      )}
-
-      {/* ── 블록 B — 긴급도 한 줄 + 맞춤 전략(AREA_COPY.strategies) ── */}
-      {(strategyLead || hasStrategies || hasTodos) && (
-        <section>
-          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
-            {copy.strategyTitle}
-          </h3>
-          {strategyLead && (
-            <p className="mt-4 text-base leading-normal text-ink-sub">
-              {strategyLead}
-            </p>
-          )}
-
-          {/*
-            F-03 배선(2026-08-13) — TYPE_COPY.todos 3항목('먼저 할 일')을 리드 문장 다음이자 아래
-            전략 그리드 **앞**에 싣는다. 유형 기반 과제(3)가 영역 기반 전략(12)보다 상위 서사라
-            순서가 그렇다(블록 제목을 '먼저 할 일'이 아니라 '맞춤 전략'으로 잡은 이유이기도 하다).
-          */}
-          {hasTodos && (
-            <div className="mt-6">
-              <h4 className="break-keep text-base font-semibold leading-normal text-ink">
-                {copy.strategyTodosTitle}
-              </h4>
-              <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-base leading-normal text-ink">
-                {typeTodos.map((item) => (
-                  <li key={item} className="break-keep">
-                    {item}
-                  </li>
-                ))}
-              </ol>
+        {/* ── 블록 A — 영역별 상세 진단 12행(AREA_COPY.levels) ── */}
+        {hasAreaDetails && (
+          <section>
+            <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
+              {copy.areaDetailTitle.section}
+            </h3>
+            {/*
+              skipNote 는 조건부다(리커트를 건너뛴 학생만). 영역 점수를 12개 나열하는 바로 이
+              블록이 그 문장이 실제로 작용하는 자리라 여기 둔다 — 차트 옆에 붙이면 두 번 반복해야 한다.
+              기본 픽스처에서는 보이지 않으니 '배선 누락'으로 오판하지 마라.
+            */}
+            {notices?.skipNote && (
+              <p className="mt-4 text-base leading-normal text-ink-sub">
+                {notices.skipNote}
+              </p>
+            )}
+            {/* fd-area-groups — 인쇄 전용 2단 배치(별도 커밋으로 PDF 전용 확정, 화면은
+                세로 1단 유지). 두 그룹(학습 실행 역량 6행 · 학교 생활 및 입시 준비도
+                6행)이 인쇄에서만 각각 한 단씩 차지한다. */}
+            <div className="fd-area-groups">
+              <AreaDetailGroup title={page1Title} rows={detailRows?.page1} />
+              <AreaDetailGroup
+                title={copy.areaDetailTitle.page2}
+                rows={detailRows?.page2}
+              />
             </div>
-          )}
+          </section>
+        )}
 
-          {/* fd-strategy-grid — 인쇄 전용 3단 스플릿 훅(2026-08-21, 사용자 지시). 화면
-              lg 배치(grid-cols-3)와 동등하게 인쇄에도 강제한다. */}
-          {hasStrategies && (
-            <div className="fd-strategy-grid mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
-              {focusGroups.map((group) => (
-                <StrategyGroup key={group.code} group={group} />
-              ))}
-            </div>
-          )}
+        {/* ── 블록 B 도입부 — 긴급도 한 줄 + 먼저 할 일 + focusGroups(3) ── */}
+        {(strategyLead || hasStrategies || hasTodos) && (
+          <section>
+            <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
+              {copy.strategyTitle}
+            </h3>
+            {strategyLead && (
+              <p className="mt-4 text-base leading-normal text-ink-sub">
+                {strategyLead}
+              </p>
+            )}
 
-          {restGroups.length > 0 && (
-            // fd-strategy-more — PDF에서는 토글을 열 수 없으므로 인쇄에서 항상 펼친다:
-            // ① report-print.css 가 ::details-content 의 content-visibility 를 강제 해제하고
-            //    summary(보기 라벨)를 숨긴다. ② window.print() 경로는 beforeprint 에서 open
-            //    속성을 켜고 afterprint 에 원복한다(구형 렌더러 폴백, 아래 useEffect).
-            <details className="fd-strategy-more mt-10">
-              <summary className="cursor-pointer py-2 text-base font-medium text-performance-reportHeading underline underline-offset-4 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
-                {copy.strategyMoreLabel}
-              </summary>
-              {/* 접혀 있어도 DOM 에는 존재한다 — Ctrl+F 검색과 스크린리더 탐색이 그대로 된다.
-                  fd-strategy-grid — 인쇄 3단 스플릿(위 focusGroups 그리드와 동일 훅). */}
+            {/*
+              F-03 배선(2026-08-13) — TYPE_COPY.todos 3항목('먼저 할 일')을 리드 문장 다음이자 아래
+              전략 그리드 **앞**에 싣는다. 유형 기반 과제(3)가 영역 기반 전략(12)보다 상위 서사라
+              순서가 그렇다(블록 제목을 '먼저 할 일'이 아니라 '맞춤 전략'으로 잡은 이유이기도 하다).
+            */}
+            {hasTodos && (
+              <div className="mt-6">
+                <h4 className="break-keep text-base font-semibold leading-normal text-ink">
+                  {copy.strategyTodosTitle}
+                </h4>
+                <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-base leading-normal text-ink">
+                  {typeTodos?.map((item) => (
+                    <li key={item} className="break-keep">
+                      {item}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {/* fd-strategy-grid — 인쇄 전용 3단 스플릿 훅(2026-08-21, 사용자 지시). 화면
+                lg 배치(grid-cols-3)와 동등하게 인쇄에도 강제한다. */}
+            {hasStrategies && (
               <div className="fd-strategy-grid mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
-                {restGroups.map((group) => (
+                {focusGroups.map((group) => (
                   <StrategyGroup key={group.code} group={group} />
                 ))}
               </div>
-            </details>
-          )}
-        </section>
-      )}
+            )}
+          </section>
+        )}
+      </ReportSheetA4>
 
-      {/* ── 블록 D — 해석 한계 고지 ── */}
-      {hasNotice && (
-        <section>
-          {/*
-            reportBasis(산출 근거)는 2페이지 하단에 이미 인쇄되고 있다 — 건드리지 않는다.
-            reportLimit(해석 한계)만 여기 둔다. 화면 스크롤상 시트2 각주 → 이 블록 순으로
-            연달아 읽혀 쌍이 유지되면서, 인쇄 여유(2p 52.6px)를 1px 도 쓰지 않는다.
-            새 고지가 생기면 먼저 의미상 소속 섹션을 찾아라 — 여기에 몰아넣지 않는다.
-          */}
-          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
-            {copy.noticeTitle}
-          </h3>
-          <p className="mt-4 max-w-180 break-keep text-base leading-[1.6] text-ink">
-            {/* hasNotice가 true인 분기이므로 notices?.reportLimit은 항상 truthy(동작 동일). */}
-            {notices?.reportLimit}
+      {/* 4페이지 — restGroups(9, 항상 펼침) + 해석 한계 고지 + reportBasis(문서 끝). */}
+      <ReportSheetA4 page={4} totalPages={totalPages}>
+        {restGroups.length > 0 && (
+          // fd-strategy-more — PDF에서는 토글을 열 수 없으므로 인쇄에서 항상 펼친다:
+          // ① report-print.css 가 ::details-content 의 content-visibility 를 강제 해제하고
+          //    summary(보기 라벨)를 숨긴다. ② window.print() 경로는 beforeprint 에서 open
+          //    속성을 켜고 afterprint 에 원복한다(구형 렌더러 폴백, 위 useEffect).
+          <details className="fd-strategy-more mt-10">
+            <summary className="cursor-pointer py-2 text-base font-medium text-performance-reportHeading underline underline-offset-4 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
+              {copy.strategyMoreLabel}
+            </summary>
+            {/* 접혀 있어도 DOM 에는 존재한다 — Ctrl+F 검색과 스크린리더 탐색이 그대로 된다.
+                fd-strategy-grid — 인쇄 3단 스플릿(3페이지 focusGroups 그리드와 동일 훅). */}
+            <div className="fd-strategy-grid mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
+              {restGroups.map((group) => (
+                <StrategyGroup key={group.code} group={group} />
+              ))}
+            </div>
+          </details>
+        )}
+
+        {/* ── 블록 D — 해석 한계 고지 ── */}
+        {hasNotice && (
+          <section>
+            {/*
+              reportBasis(산출 근거)는 이 페이지 맨 아래에 별도로 실린다 — 건드리지 않는다.
+              reportLimit(해석 한계)만 여기 둔다. 새 고지가 생기면 먼저 의미상 소속 섹션을
+              찾아라 — 여기에 몰아넣지 않는다.
+            */}
+            <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
+              {copy.noticeTitle}
+            </h3>
+            <p className="mt-4 max-w-180 break-keep text-base leading-[1.6] text-ink">
+              {/* hasNotice가 true인 분기이므로 notices?.reportLimit은 항상 truthy(동작 동일). */}
+              {notices?.reportLimit}
+            </p>
+          </section>
+        )}
+
+        {/* reportBasis(산출 근거 고지) — 원래 2페이지 하단 각주였으나 부록이 인쇄에 포함되면서
+            문서의 끝이 여기(4페이지)로 바뀌어 구분선째 이동했다(사용자 지시, 2026-08-21).
+            문서 전체에 걸리는 신뢰성 고지라 항상 마지막에 한 번만 나온다. */}
+        {notices?.reportBasis && (
+          <p className="fd-mt-report-basis mt-12 border-t border-[#e5e5e5] pt-3 text-sm leading-[1.4] text-ink-sub lg:mt-16">
+            {notices.reportBasis}
           </p>
-        </section>
-      )}
-
-      {/* reportBasis(산출 근거 고지) — 원래 2페이지 하단 각주였으나 부록이 인쇄에 포함되면서
-          문서의 끝이 여기로 바뀌어 구분선째 이동했다(사용자 지시, 2026-08-21). 문서 전체에
-          걸리는 신뢰성 고지라 항상 마지막에 한 번만 나온다. */}
-      {notices?.reportBasis && (
-        <p className="fd-mt-report-basis mt-12 border-t border-[#e5e5e5] pt-3 text-sm leading-[1.4] text-ink-sub lg:mt-16">
-          {notices.reportBasis}
-        </p>
-      )}
-    </section>
+        )}
+      </ReportSheetA4>
+    </>
   );
 }
