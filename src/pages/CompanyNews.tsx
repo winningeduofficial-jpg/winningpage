@@ -158,7 +158,7 @@ const BUSINESS_CARDS = [
     desc: "정상어학원・정상수학학원\n클로이위닝 미술학원",
   },
 ];
-// ⚠ 가운뎃점은 시안 원문이 U+00B7(·)이나, 코드 정본(InDepthResearch.jsx) 및 페이지 전역 선례가
+// ! 가운뎃점은 시안 원문이 U+00B7(·)이나, 코드 정본(InDepthResearch.jsx) 및 페이지 전역 선례가
 // U+30FB(・)로 통일돼 있어 그 관용을 따랐다.
 
 // -------------------------------------------------------------------------
@@ -366,7 +366,7 @@ function HeroSection({ page }: { page: IntroPage }) {
                     {card.desc[1]}
                   </span>
                   {/* 타이틀 서체 — 파일 상단 주석 참고(font-grace, font-bold 필수 동반). */}
-                  <span className="mt-2 block text-center font-grace text-[1.375rem] font-bold leading-[1.3] text-white sm:text-[1.6875rem] lg:text-[1.9375rem]">
+                  <span className="mt-2 block text-center font-grace text-[1.375rem] font-bold leading-[1.3] text-white sm:text-[1.6875rem] lg:text-[1.6rem]">
                     {card.title}
                   </span>
                 </>
@@ -398,13 +398,13 @@ function HeroSection({ page }: { page: IntroPage }) {
           </div>
         </div>
 
-        <div className="mx-auto w-[16rem] shrink-0 sm:w-[20rem] lg:mx-0 lg:mb-0 lg:w-[24rem] lg:self-end xl:w-112.5">
+        <div className="relative mx-auto w-[16rem] shrink-0 sm:w-[20rem] lg:mx-0 lg:mb-0 lg:w-[24rem] lg:self-end xl:w-112.5">
           <img
             src={heroImage}
             alt={heroImageAlt}
             className="h-auto w-full object-contain object-bottom"
           />
-          <p className="mt-3 text-center text-[0.8125rem] font-medium leading-[1.3] text-white/70">
+          <p className="absolute bottom-1 right-1 text-center text-[0.8125rem] font-medium leading-[1.3] text-white/70">
             {name}
           </p>
         </div>
