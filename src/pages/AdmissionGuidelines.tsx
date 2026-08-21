@@ -1596,7 +1596,7 @@ export default function AdmissionGuidelines() {
         <div className="mx-auto max-w-content px-6 py-8 md:px-8">
           <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <h1 className="break-keep text-[32px] font-semibold leading-tight tracking-[-0.03em] text-ink md:text-[44px]">
-              대학모집요강
+              대입모집요강
             </h1>
 
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -1934,7 +1934,7 @@ export default function AdmissionGuidelines() {
         .admission-directory-table tr > *:first-child { border-left: 0; }
         .admission-directory-table thead th { position: sticky; top: 0; z-index: 3; background: #013262; color: #fff; font-weight: 700; white-space: nowrap; }
         .admission-directory-sticky-head,
-        .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 7.25rem; max-width: 8.25rem; background: #ffffff; }
+        .admission-directory-name-cell { position: sticky; left: 0; z-index: 4; min-width: 7.25rem; max-width: 14rem; background: #ffffff; }
         .admission-directory-sticky-head { background: #013262 !important; color: #fff !important; }
         .admission-directory-name-group { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 0.625rem; }
         .admission-directory-table .admission-directory-name-cell { text-align: left; }
@@ -1943,7 +1943,7 @@ export default function AdmissionGuidelines() {
            거짓 어포던스였다. 이제 밑줄 = 실제로 열리는 링크다. 링크가 없는
            행(official_source_url 미등록·자리표시자·미매칭)은 밑줄이 사라지는데,
            의도된 시각 변화다. */
-        .admission-directory-name { color: #525252; font-size: 0.78125rem; line-height: 1.35; font-weight: 700; letter-spacing: -0.04em; word-break: keep-all; white-space: normal; }
+        .admission-directory-name { color: #525252; font-size: 0.78125rem; line-height: 1.35; font-weight: 700; letter-spacing: -0.04em; word-break: keep-all; white-space: nowrap; }
         .admission-directory-name-link { text-decoration: underline; text-decoration-skip-ink: auto; transition: color 0.15s; }
         .admission-directory-name-link:hover { color: #0b84fd; }
         .admission-directory-region { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; min-width: 2.625rem; height: 1.5rem; padding: 0 0.625rem; border-radius: 999px; background: #013262; color: #fff; font-size: 0.75rem; line-height: 1.3; font-weight: 500; white-space: nowrap; }
@@ -1959,7 +1959,7 @@ export default function AdmissionGuidelines() {
           .admission-directory-table th,
           .admission-directory-table td { border-right: 0; border-bottom: 0; padding: 0 0.5rem; }
           .admission-directory-table thead th { position: static; top: auto; background: #f9fafb; color: #525252; font-weight: 500; font-size: 0.875rem; letter-spacing: -0.02em; white-space: normal; border-top: 1px solid #000; height: 3.75rem; }
-          .admission-directory-table thead th.admission-directory-sticky-head { background: #f9fafb !important; color: #525252 !important; width: 12rem; }
+          .admission-directory-table thead th.admission-directory-sticky-head { background: #f9fafb !important; color: #525252 !important; width: 14rem; }
           /* "전년도와 차이점(수시)" 헤더는 2어절 중 "차이점(수시)"(약 68.5px)가 균등 분배폭보다
              넓어 3줄로 더 꺾인다 — 이 컬럼만 살짝 넓혀 2줄을 유지(나머지 6컬럼은 여유가 있어 흡수). */
           .admission-directory-table thead th:nth-child(2) { width: 5.5rem; }
