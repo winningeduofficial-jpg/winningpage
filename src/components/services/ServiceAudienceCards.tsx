@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { CARD_DESC_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
 // cardSurface: 리터럴 lookup — 클래스 문자열 템플릿 조립 금지 규약(SECTION_SURFACE 와 동일).
@@ -6,7 +7,9 @@ const AUDIENCE_CARD_SURFACE: Record<string, string> = {
   white: "bg-white",
 };
 
-type AudienceItem = { title: string; image: string; desc: string };
+// desc 는 ReactNode 허용 — 콜멘토 §4 카드 1장이 지정 줄내림(<br/>)을 넣어야 해서 문자열 고정을
+// 풀었다. 기존 호출부(4페이지)는 전부 문자열을 넘기므로 영향 없음.
+type AudienceItem = { title: string; image: string; desc: ReactNode };
 
 type ServiceAudienceCardsProps = {
   items: AudienceItem[];
