@@ -63,6 +63,17 @@ export const SERVICE_CONFIGS: Record<string, ServiceConfig> = {
     // 관용을 좁혀도 기존 사용자의 앱 진입이 끊기지 않는다(2026-08-11).
     program_keys: ["target"],
   },
+  // 학습진단(이용 요금 구조 최종본 20260806) — 유료 전환. 회원가입 시 1회 무료는
+  // 이 config가 관여하지 않는 별도 판정이다(diagnosis_attempts kind='free',
+  // api/diagnosis/access.ts·consume.ts 참고) — hasPaidServiceAccess는 "무료 1회
+  // 이후" 이용권만 본다. products.program_key='diagnose'(sql/60 관계, session_quota
+  // 1)와 1:1 대응.
+  diagnose: {
+    service_key: "diagnose",
+    service_name: "학습진단 서비스",
+    payment_keywords: ["진단", "학습진단"],
+    program_keys: ["diagnose"],
+  },
 };
 
 export function clean(value: unknown): string {
