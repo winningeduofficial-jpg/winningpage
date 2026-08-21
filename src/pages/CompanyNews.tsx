@@ -40,19 +40,25 @@ type Attachment = string | { name?: string; url?: string };
 //   Location(회색)→News(흰)      배경 전환 — Location lg:pb-30.25 / News lg:pt-18.75
 //   News(흰)→Footer(#f9fafb)     배경 전환, 시안 249px 그대로 — News lg:pb-47.75
 //
-// 히어로 카드 타이틀 6개는 시안 서체 "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배,
+// 히어로 카드 타이틀은 시안 서체 "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배,
 // SIL OFL 1.1)를 tailwind.config.js의 font-grace 토큰으로 셀프호스팅 적용한다(src/styles/fonts.css).
 // 카드 타이틀 weight 는 시안이 Bold/Regular 혼용(학습진단·수시카드·프리미엄만 Bold)인데 확대
 // 렌더로도 구분이 안 되는 시안 실수로 판단해 전 카드 font-bold 로 통일했다.
-// "수시카드"는 코드 정본 라우트가 없어 다른 5장처럼 Link 로 보내지 않고, 서비스
-// 준비중 alert(alertServiceNotReady)로 안내한다 — 자기평가·심화탐구 CTA와 동일한 처리다.
-// 목표관리 카드 설명 텍스트만 시안 실측이 #ffffff 로 다른 5장(배경색의 밝은 틴트)과 규칙이
+// 카드는 사용자 확정으로 6→8장으로 확장했다(수시카드는 코드 정본 서비스가 아니라 제외,
+// 성장설계·자기평가·심화탐구를 새로 추가). "성장설계"는 /services/growth가 아직 코드 정본
+// 랜딩이 없어(useNavGroups.ts 고객사 목업 데모 주석 참고) 다른 카드처럼 Link 로 보내지 않고,
+// 서비스 준비중 alert(alertServiceNotReady)로 안내한다 — 회사소식 상세 CTA와 동일한 처리다.
+// 목표관리 카드 설명 텍스트만 시안 실측이 #ffffff 로 다른 카드(배경색의 밝은 틴트)와 규칙이
 // 다르다(시안 결함으로 추정) — 카피가 아닌 색 값 판단은 임의 확정하지 않고 실측값을
-// 보수적으로 유지했다. 카드 설명 텍스트의 opacity는 WCAG AA(4.5:1) 검증 결과 0.7에서 6장 중
-// 4장이 미달해 0.95로 상향했다(리뷰 실측: susi/mentor/perf/premium 전부 4.5:1 이상 확보).
+// 보수적으로 유지했다. 카드 설명 텍스트의 opacity는 WCAG AA(4.5:1) 검증 결과 0.7에서 기존
+// 6장 중 4장이 미달해 0.95로 상향했다(리뷰 실측: susi/mentor/perf/premium 전부 4.5:1 이상
+// 확보). 신규 3장(성장설계·자기평가·심화탐구)도 동일 opacity 0.95에서 4.5:1 이상을 확보하는
+// 배경색·틴트 조합으로 선정했다(계산 실측: 5.07 / 5.37 / 5.31).
 
 // -------------------------------------------------------------------------
-// 히어로 — 서비스 카드 6장 (1882:19182 y 148~1023)
+// 히어로 — 서비스 카드 8장 (제공 전 서비스 + 프리미엄, 사용자 확정으로 6→8장 확장.
+// 수시카드는 코드 정본 서비스가 아니라 목록에서 뺐다. 1882:19182 y 148~1023 시안의
+// 3×2 6칸 그리드를 4×2 8칸으로 확장했다 — 아래 그리드 클래스 참고.)
 // -------------------------------------------------------------------------
 const HERO_CARDS = [
   {
@@ -74,13 +80,40 @@ const HERO_CARDS = [
     route: "/services/goal",
   },
   {
-    key: "susi",
-    bg: "#6b4055",
-    tint: "#e8c0d3",
-    title: "수시카드",
-    desc: ["체계적이고 논리적인", "수시전략"],
+    key: "perf",
+    bg: "#40606b",
+    tint: "#c0eefe",
+    title: "수행평가",
+    desc: ["주제 추천부터 연계까지", "AI가 관리하는 수행평가"],
     best: false,
-    route: null, // 코드 정본에 대응 라우트 없음 — 준비중 alert 처리
+    route: "/services/performance",
+  },
+  {
+    key: "growth",
+    bg: "#2d5c4a",
+    tint: "#b6e3cf",
+    title: "성장설계",
+    desc: ["나만의 강점을 찾는", "성장 로드맵 설계"],
+    best: false,
+    route: null, // /services/growth는 아직 코드 정본 랜딩이 없다(useNavGroups.ts 고객사 목업 데모 주석 참고) — 준비중 alert 처리
+  },
+  {
+    key: "self",
+    bg: "#5a3d63",
+    tint: "#e3c2ea",
+    title: "자기평가",
+    desc: ["활동 후 정리까지", "완성하는 자기평가서"],
+    best: false,
+    route: "/services/self-assessment",
+  },
+  {
+    key: "research",
+    bg: "#3d4a6b",
+    tint: "#c2d0f5",
+    title: "심화탐구",
+    desc: ["주제 추천부터 연계까지", "깊이 있는 심화탐구"],
+    best: false,
+    route: "/services/research",
   },
   {
     key: "mentor",
@@ -90,15 +123,6 @@ const HERO_CARDS = [
     desc: ["나만의 1:1", "입시 멘토링"],
     best: true,
     route: "/services/callmentor",
-  },
-  {
-    key: "perf",
-    bg: "#40606b",
-    tint: "#c0eefe",
-    title: "수행평가",
-    desc: ["주제 추천부터 연계까지", "AI가 관리하는 수행평가"],
-    best: false,
-    route: "/services/performance",
   },
   {
     key: "premium",
@@ -313,10 +337,10 @@ function HeroSection({ page }: { page: IntroPage }) {
             </p>
           )}
 
-          {/* 카드 그리드 검산: 데스크톱 3열 × 2행, gap 0(맞닿는 타일이 시안 핵심 구성).
-              모바일은 2열 × 3행, 768~1023 구간은 3열 × 2행으로 미리 전환해 타일이
-              과도하게 부풀지 않게 한다. */}
-          <div className="mt-6.5 grid grid-cols-2 sm:grid-cols-3 lg:grid-rows-2">
+          {/* 카드 그리드 검산: 8장 확장(6→8, 사용자 확정) 후 데스크톱 4열 × 2행,
+              gap 0(맞닿는 타일이 시안 핵심 구성) 유지. 모바일은 2열 × 4행,
+              768px 이상은 4열 × 2행으로 조기 전환해 타일이 과도하게 부풀지 않게 한다. */}
+          <div className="mt-6.5 grid grid-cols-2 sm:grid-cols-4 lg:grid-rows-2">
             {HERO_CARDS.map((card) => {
               const content = (
                 <>
