@@ -2947,9 +2947,17 @@ export function AdminSectionRoute({ section }: { section: string }) {
 
     delete payload.created_at;
     delete payload.updated_at;
-    // 조회수는 공개면에서만 증가한다. payload는 수정 화면을 열 때의 row 스냅샷이라,
-    // 그대로 저장하면 화면을 열어둔 사이 늘어난 조회수가 옛 값으로 덮여 롤백된다.
-    delete payload.view_count;
+    // 조회수는 원칙적으로 공개면에서만 증가한다. payload는 수정 화면을 열 때의 row
+    // 스냅샷이라, 그대로 저장하면 화면을 열어둔 사이 늘어난 조회수가 옛 값으로 덮여
+    // 롤백된다 — 그래서 기본은 항상 제거한다. 단, config.fields에 view_count가 있는
+    // 표(notices/companyNews/galleries "조회수 조정")는 어드민이 그 필드를 통해 값을
+    // 명시적으로 편집한 것이므로 강제 조정 의도를 그대로 반영한다.
+    const viewCountEditable = config.fields?.some(
+      (field) => field.key === "view_count",
+    );
+    if (!viewCountEditable) {
+      delete payload.view_count;
+    }
 
     if (
       Array.isArray(payload.image_urls) &&

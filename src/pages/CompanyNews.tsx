@@ -40,19 +40,25 @@ type Attachment = string | { name?: string; url?: string };
 //   Location(회색)→News(흰)      배경 전환 — Location lg:pb-30.25 / News lg:pt-18.75
 //   News(흰)→Footer(#f9fafb)     배경 전환, 시안 249px 그대로 — News lg:pb-47.75
 //
-// 히어로 카드 타이틀 6개는 시안 서체 "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배,
+// 히어로 카드 타이틀은 시안 서체 "우아한세리프"(GraceSerif, Pear Type Foundry / 이희배,
 // SIL OFL 1.1)를 tailwind.config.js의 font-grace 토큰으로 셀프호스팅 적용한다(src/styles/fonts.css).
 // 카드 타이틀 weight 는 시안이 Bold/Regular 혼용(학습진단·수시카드·프리미엄만 Bold)인데 확대
 // 렌더로도 구분이 안 되는 시안 실수로 판단해 전 카드 font-bold 로 통일했다.
-// "수시카드"는 코드 정본 라우트가 없어 다른 5장처럼 Link 로 보내지 않고, 서비스
-// 준비중 alert(alertServiceNotReady)로 안내한다 — 자기평가·심화탐구 CTA와 동일한 처리다.
-// 목표관리 카드 설명 텍스트만 시안 실측이 #ffffff 로 다른 5장(배경색의 밝은 틴트)과 규칙이
+// 카드는 사용자 확정으로 6→8장으로 확장했다(수시카드는 코드 정본 서비스가 아니라 제외,
+// 성장설계·자기평가·심화탐구를 새로 추가). "성장설계"는 /services/growth가 아직 코드 정본
+// 랜딩이 없어(useNavGroups.ts 고객사 목업 데모 주석 참고) 다른 카드처럼 Link 로 보내지 않고,
+// 서비스 준비중 alert(alertServiceNotReady)로 안내한다 — 회사소식 상세 CTA와 동일한 처리다.
+// 목표관리 카드 설명 텍스트만 시안 실측이 #ffffff 로 다른 카드(배경색의 밝은 틴트)와 규칙이
 // 다르다(시안 결함으로 추정) — 카피가 아닌 색 값 판단은 임의 확정하지 않고 실측값을
-// 보수적으로 유지했다. 카드 설명 텍스트의 opacity는 WCAG AA(4.5:1) 검증 결과 0.7에서 6장 중
-// 4장이 미달해 0.95로 상향했다(리뷰 실측: susi/mentor/perf/premium 전부 4.5:1 이상 확보).
+// 보수적으로 유지했다. 카드 설명 텍스트의 opacity는 WCAG AA(4.5:1) 검증 결과 0.7에서 기존
+// 6장 중 4장이 미달해 0.95로 상향했다(리뷰 실측: susi/mentor/perf/premium 전부 4.5:1 이상
+// 확보). 신규 3장(성장설계·자기평가·심화탐구)도 동일 opacity 0.95에서 4.5:1 이상을 확보하는
+// 배경색·틴트 조합으로 선정했다(계산 실측: 5.07 / 5.37 / 5.31).
 
 // -------------------------------------------------------------------------
-// 히어로 — 서비스 카드 6장 (1882:19182 y 148~1023)
+// 히어로 — 서비스 카드 8장 (제공 전 서비스 + 프리미엄, 사용자 확정으로 6→8장 확장.
+// 수시카드는 코드 정본 서비스가 아니라 목록에서 뺐다. 1882:19182 y 148~1023 시안의
+// 3×2 6칸 그리드를 4×2 8칸으로 확장했다 — 아래 그리드 클래스 참고.)
 // -------------------------------------------------------------------------
 const HERO_CARDS = [
   {
@@ -74,13 +80,40 @@ const HERO_CARDS = [
     route: "/services/goal",
   },
   {
-    key: "susi",
-    bg: "#6b4055",
-    tint: "#e8c0d3",
-    title: "수시카드",
-    desc: ["체계적이고 논리적인", "수시전략"],
+    key: "perf",
+    bg: "#40606b",
+    tint: "#c0eefe",
+    title: "수행평가",
+    desc: ["주제 추천부터 연계까지", "AI가 관리하는 수행평가"],
     best: false,
-    route: null, // 코드 정본에 대응 라우트 없음 — 준비중 alert 처리
+    route: "/services/performance",
+  },
+  {
+    key: "growth",
+    bg: "#2d5c4a",
+    tint: "#b6e3cf",
+    title: "성장설계",
+    desc: ["나만의 강점을 찾는", "성장 로드맵 설계"],
+    best: false,
+    route: null, // /services/growth는 아직 코드 정본 랜딩이 없다(useNavGroups.ts 고객사 목업 데모 주석 참고) — 준비중 alert 처리
+  },
+  {
+    key: "self",
+    bg: "#5a3d63",
+    tint: "#e3c2ea",
+    title: "자기평가",
+    desc: ["활동 후 정리까지", "완성하는 자기평가서"],
+    best: false,
+    route: "/services/self-assessment",
+  },
+  {
+    key: "research",
+    bg: "#3d4a6b",
+    tint: "#c2d0f5",
+    title: "심화탐구",
+    desc: ["주제 추천부터 연계까지", "깊이 있는 심화탐구"],
+    best: false,
+    route: "/services/research",
   },
   {
     key: "mentor",
@@ -90,15 +123,6 @@ const HERO_CARDS = [
     desc: ["나만의 1:1", "입시 멘토링"],
     best: true,
     route: "/services/callmentor",
-  },
-  {
-    key: "perf",
-    bg: "#40606b",
-    tint: "#c0eefe",
-    title: "수행평가",
-    desc: ["주제 추천부터 연계까지", "AI가 관리하는 수행평가"],
-    best: false,
-    route: "/services/performance",
   },
   {
     key: "premium",
@@ -119,13 +143,13 @@ const BUSINESS_CARDS = [
     key: "ai-platform",
     image: bizAiPlatform,
     title: "학습 플랫폼",
-    desc: "목표관리・수시예측\n콜멘토・수행평가・학습진단",
+    desc: "학습진단, 목표관리, 수행평가, 성장설계, 콜멘토, 자기평가, 심화탐구",
   },
   {
     key: "consulting",
     image: bizConsulting,
     title: "입시 컨설팅 서비스",
-    desc: "세특관리・약점관리\n프리미엄 컨설팅",
+    desc: "멘토기반 프리미엄 컨설팅, 소수 원장 프리미엄 컨설팅",
   },
   {
     key: "network",
@@ -134,11 +158,11 @@ const BUSINESS_CARDS = [
     desc: "정상어학원・정상수학학원\n클로이위닝 미술학원",
   },
 ];
-// ⚠ 가운뎃점은 시안 원문이 U+00B7(·)이나, 코드 정본(InDepthResearch.jsx) 및 페이지 전역 선례가
+// ! 가운뎃점은 시안 원문이 U+00B7(·)이나, 코드 정본(InDepthResearch.jsx) 및 페이지 전역 선례가
 // U+30FB(・)로 통일돼 있어 그 관용을 따랐다.
 
 // -------------------------------------------------------------------------
-// Location — 캠퍼스 카드 8장 (1882:19312)
+// Location — 캠퍼스 카드 9장 (1882:19312, 대전 실주소 반영 + 청담 오픈예정 추가)
 // -------------------------------------------------------------------------
 const CAMPUS_CARDS = [
   {
@@ -174,13 +198,19 @@ const CAMPUS_CARDS = [
   {
     key: "daejeon",
     name: "위닝에듀 대전캠퍼스",
-    address: [],
-    comingSoon: true,
+    address: ["대전시 서구 대덕대로 325, 4층"],
+    href: "https://naver.me/5MvGNyCS",
   },
   { key: "daechi", name: "위닝에듀 대치캠퍼스", address: [], comingSoon: true },
   {
     key: "bundang",
     name: "위닝에듀 분당캠퍼스",
+    address: [],
+    comingSoon: true,
+  },
+  {
+    key: "cheongdam",
+    name: "위닝에듀 청담캠퍼스",
     address: [],
     comingSoon: true,
   },
@@ -200,7 +230,7 @@ const PARTNER_CARDS = [
       { label: "천안점", href: "https://naver.me/xKthcxAW" },
     ],
     logo: partnerChloeWinningArt,
-    logoWidth: "w-[16.7rem]",
+    logoWidth: "w-[8.35rem]",
   },
   {
     key: "jungsang-language",
@@ -209,7 +239,7 @@ const PARTNER_CARDS = [
     brand: "정상어학원",
     links: [{ label: "화명캠퍼스", href: "https://naver.me/FY3j5eyl" }],
     logo: partnerJungsangLanguage,
-    logoWidth: "w-52",
+    logoWidth: "w-[6.5rem]",
   },
   {
     key: "jungsang-math",
@@ -218,7 +248,7 @@ const PARTNER_CARDS = [
     brand: "정상수학학원",
     links: [{ label: "부산캠퍼스", href: "https://naver.me/GkRHGKeZ" }],
     logo: partnerJungsangMath,
-    logoWidth: "w-52",
+    logoWidth: "w-[6.5rem]",
   },
 ];
 // "바로가기" 5개 링크는 네이버 지도 단축링크(naver.me)를 실제 목적지로 받았다 — 전부 외부 새 탭
@@ -290,11 +320,11 @@ function HeroSection({ page }: { page: IntroPage }) {
   // 히어로의 아이브로우/헤드라인/컷아웃 사진 슬롯에 그대로 매핑하면 위계가 다른 옛 카피가
   // 노출되고 투명 컷아웃 사진의 하단 플러시 구성이 깨진다. 관리자 오버레이는 회귀 위험이 낮은
   // body(보조 카피, 선택 렌더)만 유지한다.
-  const eyebrow = "10년간 쌓아온 데이터로 빈틈없이 함께 가겠습니다.";
-  const headline = "강원석 원장님";
+  const headline = "15년간 쌓아온 데이터로 빈틈없이 함께 가겠습니다.";
+  const name = "강원석 대표이사";
   const body = cleanText(page?.body);
   const heroImage = directorPortrait;
-  const heroImageAlt = "위닝에듀 강원석 원장";
+  const heroImageAlt = "위닝에듀 강원석 대표이사";
 
   return (
     <section className="relative overflow-hidden bg-[#202f3f] pt-29 pb-16 sm:pb-0 lg:min-h-167.5 lg:pt-0 lg:pb-0">
@@ -304,10 +334,7 @@ function HeroSection({ page }: { page: IntroPage }) {
             높이(pt+콘텐츠+pb)가 사진 높이에 못 미치는 만큼의 여백이 컬럼 상단에 남는 방식으로
             "아이브로우 top ≈ 섹션 top + 116px" "카드 하단 → 섹션 하단 103px"를 근사한다. */}
         <div className="flex flex-col lg:max-w-142.5 lg:flex-1 lg:pt-29 lg:pb-25.75">
-          <p className="text-[0.9375rem] leading-[1.3] text-white/60">
-            {eyebrow}
-          </p>
-          <h1 className="mt-2.75 break-keep text-[1.75rem] font-semibold leading-[1.3] text-white sm:text-[2.125rem]">
+          <h1 className="break-keep text-[1.75rem] font-semibold leading-[1.3] text-white sm:text-[2.125rem]">
             {headline}
           </h1>
           {body && (
@@ -316,10 +343,10 @@ function HeroSection({ page }: { page: IntroPage }) {
             </p>
           )}
 
-          {/* 카드 그리드 검산: 데스크톱 3열 × 2행, gap 0(맞닿는 타일이 시안 핵심 구성).
-              모바일은 2열 × 3행, 768~1023 구간은 3열 × 2행으로 미리 전환해 타일이
-              과도하게 부풀지 않게 한다. */}
-          <div className="mt-6.5 grid grid-cols-2 sm:grid-cols-3 lg:grid-rows-2">
+          {/* 카드 그리드 검산: 8장 확장(6→8, 사용자 확정) 후 데스크톱 4열 × 2행,
+              gap 0(맞닿는 타일이 시안 핵심 구성) 유지. 모바일은 2열 × 4행,
+              768px 이상은 4열 × 2행으로 조기 전환해 타일이 과도하게 부풀지 않게 한다. */}
+          <div className="mt-6.5 grid grid-cols-2 sm:grid-cols-4 lg:grid-rows-2">
             {HERO_CARDS.map((card) => {
               const content = (
                 <>
@@ -339,7 +366,7 @@ function HeroSection({ page }: { page: IntroPage }) {
                     {card.desc[1]}
                   </span>
                   {/* 타이틀 서체 — 파일 상단 주석 참고(font-grace, font-bold 필수 동반). */}
-                  <span className="mt-2 block text-center font-grace text-[1.375rem] font-bold leading-[1.3] text-white sm:text-[1.6875rem] lg:text-[1.9375rem]">
+                  <span className="mt-2 block text-center font-grace text-[1.375rem] font-bold leading-[1.3] text-white sm:text-[1.6875rem] lg:text-[1.6rem]">
                     {card.title}
                   </span>
                 </>
@@ -371,12 +398,15 @@ function HeroSection({ page }: { page: IntroPage }) {
           </div>
         </div>
 
-        <div className="mx-auto w-[16rem] shrink-0 sm:w-[20rem] lg:mx-0 lg:mb-0 lg:w-[24rem] lg:self-end xl:w-112.5">
+        <div className="relative mx-auto w-[16rem] shrink-0 sm:w-[20rem] lg:mx-0 lg:mb-0 lg:w-[24rem] lg:self-end xl:w-112.5">
           <img
             src={heroImage}
             alt={heroImageAlt}
             className="h-auto w-full object-contain object-bottom"
           />
+          <p className="absolute bottom-1 right-1 text-center text-[0.8125rem] font-medium leading-[1.3] text-white/70">
+            {name}
+          </p>
         </div>
       </div>
     </section>
@@ -384,9 +414,10 @@ function HeroSection({ page }: { page: IntroPage }) {
 }
 
 // -------------------------------------------------------------------------
-// [2] Mission / Vision / Talents — 전면 사진 배경 + 좌측 3블록
+// [2] Mission / Vision — 전면 사진 배경 + 좌측 2블록
 // 시안엔 dim 오버레이 레이어가 없어 실측 렌더에서 텍스트가 사진 밝은 영역에 묻힌다
 // — 시안에 없는 좌→우 그라디언트 스크림을 추가로 넣었다(근거를 여기 남긴다).
+// Talents for Winning Edu 블록은 사용자 확정으로 삭제했다(미션·비전만 유지).
 // -------------------------------------------------------------------------
 const MISSION_BLOCKS = [
   {
@@ -403,20 +434,6 @@ const MISSION_BLOCKS = [
     lines: [
       "데이터와 실적으로 증명하는",
       "대한민국 대표 입시 컨설팅 플랫폼입니다",
-    ],
-  },
-  {
-    key: "talents",
-    label: (
-      <>
-        Talents for
-        <br />
-        Winning Edu
-      </>
-    ),
-    lines: [
-      "학생 한 명의 가능성을 믿고, 10년 이상의",
-      "현장 노하우와 전문성으로 함께 성장하는 사람",
     ],
   },
 ];
@@ -542,8 +559,8 @@ function BusinessSection() {
 // -------------------------------------------------------------------------
 // [4] Location + 연계 협력기관
 // -------------------------------------------------------------------------
-// 캠퍼스 8곳 중 5곳(세종·화명·센텀·천안·제주)은 실제 네이버 지도 단축링크(CAMPUS_CARDS의
-// href)를 받아 외부 새 탭으로 연다. 나머지 3곳(대전·대치·분당)은 아직 지점이 열리지 않아
+// 캠퍼스 9곳 중 6곳(세종·화명·센텀·천안·제주·대전)은 실제 네이버 지도 단축링크(CAMPUS_CARDS의
+// href)를 받아 외부 새 탭으로 연다. 나머지 3곳(대치·분당·청담)은 아직 지점이 열리지 않아
 // href가 없다(comingSoon) — 이 카드는 <button>으로 남기고 클릭 시 "오픈예정입니다." 전용
 // 안내만 띄운다(PartnerCard의 alertServiceNotReady "준비중" 문구와 의도가 달라 구분했다).
 // href 유무로 <a>/<button>을 분기하되(as-element), 카드 내부 구조(span 트리)·치수·간격은

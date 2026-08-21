@@ -111,6 +111,11 @@ export const boardConfigs: Record<string, BoardConfig> = {
           ".pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg",
       },
       { key: "sort_order", label: "순서", type: "number" },
+      // 조회수는 공개면에서만 증가하는 값이라 원칙적으로 이 폼으로 편집하지 않는다
+      // (saveRow의 delete payload.view_count 참고). 이 필드는 어드민이 명시적으로
+      // 값을 강제 조정하려는 경우만을 위한 예외 통로다 — fields에 view_count가
+      // 있는 표에 한해 saveRow가 그 값을 그대로 저장한다.
+      { key: "view_count", label: "조회수 조정", type: "number" },
     ],
     defaults: {
       is_active: true,
@@ -175,6 +180,8 @@ export const boardConfigs: Record<string, BoardConfig> = {
           ".pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg",
       },
       { key: "sort_order", label: "순서", type: "number" },
+      // 조회수 강제 조정 예외 통로 — notices 설정의 동일 필드 주석 참고.
+      { key: "view_count", label: "조회수 조정", type: "number" },
     ],
     defaults: {
       is_active: true,
@@ -206,6 +213,7 @@ export const boardConfigs: Record<string, BoardConfig> = {
       { key: "is_featured", label: "인기", type: "boolean" },
       { key: "is_active", label: "노출", type: "boolean" },
       { key: "created_at", label: "작성일", type: "date" },
+      { key: "view_count", label: "조회수" },
     ],
     fields: [
       {
@@ -241,6 +249,8 @@ export const boardConfigs: Record<string, BoardConfig> = {
         ],
       },
       { key: "is_featured", label: "이번주 인기 노출", type: "radioBoolean" },
+      // 조회수 강제 조정 예외 통로 — notices 설정의 동일 필드 주석 참고.
+      { key: "view_count", label: "조회수 조정", type: "number" },
     ],
     defaults: {
       is_active: true,
