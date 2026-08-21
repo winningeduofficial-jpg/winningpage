@@ -7,10 +7,10 @@ import heroCallMockup from "@/assets/callmentor/hero-call-mockup.webp";
 import iconValueCard from "@/assets/callmentor/icon-value-card.svg";
 import iconValueCheck from "@/assets/callmentor/icon-value-check.svg";
 import iconValuePlan from "@/assets/callmentor/icon-value-plan.svg";
-import stepCall from "@/assets/callmentor/step-call.jpg";
 import stepDiagnosis from "@/assets/callmentor/step-diagnosis.jpg";
 import stepMentorMatch from "@/assets/callmentor/step-mentor-match.jpg";
 import stepReview from "@/assets/callmentor/step-review.jpg";
+import stepVideoCall from "@/assets/callmentor/step-video-call.png";
 import CmButton from "@/components/callmentor/CmButton";
 import MentorSection from "@/components/landing/MentorSection";
 import ServiceAudienceCards from "@/components/services/ServiceAudienceCards";
@@ -131,7 +131,7 @@ const VALUE_CARDS = [
   {
     icon: iconValueCard,
     title: "액션카드 + 재점검",
-    desc: "정리된 카드를 받고, 1주 뒤 실천 여부를 다시 확인합니다.",
+    desc: "상담을 마치고 1주일내 나의 액션카드를 확인하고 실천으로 옮기기",
   },
 ];
 
@@ -147,12 +147,12 @@ const STEP_CARDS = [
     alt: "책상에서 노트북을 보며 매칭 결과를 확인하는 학생",
   },
   {
-    caption: "3. 30분 전화 상담",
-    image: stepCall,
-    alt: "전화로 멘토와 상담하는 학생",
+    caption: "3. 30분 화상통화 상담",
+    image: stepVideoCall,
+    alt: "화상통화로 멘토와 상담하는 화면",
   },
   {
-    caption: "4. 1주 후 실천 재점검",
+    caption: "4. 액션카드로 실천 재점검",
     image: stepReview,
     alt: "노트에 실천 계획을 적는 모습",
   },
@@ -162,7 +162,12 @@ const STEP_CARDS = [
 const AUDIENCE_CARDS = [
   {
     title: "진로가 고민인 학생",
-    desc: "희망 학과를 못 정했거나 여러 개를 두고 고민하는 경우",
+    desc: (
+      <>
+        희망 학과를 못 정했거나 <br />
+        여러 개를 두고 고민하는 경우
+      </>
+    ),
     image: audienceCareer,
   },
   {
@@ -259,12 +264,12 @@ export default function Callmentor() {
           <div className="flex w-full max-w-146 flex-col gap-8">
             <h1 className="break-keep text-[1.75rem] font-semibold leading-[1.3] tracking-[-0.02em] text-[#0F172A] sm:text-[2.25rem] md:text-[2rem]">
               막막한 입시 고민, <br className="hidden sm:inline" />
-              30분 통화 한 번으로 끝냅니다
+              30분 화상통화 한 번으로 끝냅니다
             </h1>
             <p className="max-w-143 break-keep text-[1.125rem] font-medium leading-[1.6] text-ink sm:text-[1.25rem] md:text-[1.5rem]">
-              내 학습 데이터를 먼저 분석하고, 검증된 대학생 멘토가 전화로{" "}
-              <br className="hidden sm:inline" />
-              핵심 문제 하나와 실행 계획을 정리해 드립니다.
+              내 학습 데이터를 먼저 분석하고, 검증된 대학생 멘토가{" "}
+              <br className="hidden lg:inline" />
+              전화로 핵심 문제 하나와 실행 계획을 정리해 드립니다.
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
               {/* 콜멘토는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가
@@ -278,7 +283,7 @@ export default function Callmentor() {
               </CmButton>
               {/* 하위 플로우(상담 안내) 미구현 범위 — 우선 4단계 진행 순서 섹션으로 인페이지 스크롤 */}
               <CmButton variant="outline" href="#callmentor-steps">
-                상담이 처음이예요
+                상담이 처음이에요
               </CmButton>
             </div>
           </div>
@@ -395,7 +400,7 @@ export default function Callmentor() {
         heading={
           <>
             이런 학생에게
-            <span className="text-[#BF923D]"> 전화 상담을 추천해요</span>
+            <span className="text-[#BF923D]"> 화상통화 상담을 추천해요</span>
           </>
         }
       >
