@@ -14,6 +14,7 @@
 // 빈 박스는 형제 카드와 같은 fd-recommend-card 클래스(같은 보더·크기)를 그대로 쓰되 내용이
 // 없어 장식 요소다 — aria-hidden.
 import { withDedupedKeys } from "@/lib/reactKeys";
+import ReportSection from "./ReportSection";
 
 type RecommendCard = {
   rank?: string;
@@ -32,24 +33,22 @@ const RecommendServices = ({
   leadNote = null,
 }: RecommendServicesProps) => {
   return (
-    // fd-recommend-* — 인쇄 훅(BLOCK 수정). report-print.css 가 기존 lg: 리터럴과 동일한
-    // 값으로 강제한다.
-    <section className="fd-recommend-section mt-12 lg:mt-21.25">
-      <h2 className="text-[1.25rem] font-semibold leading-5 text-accent">
-        추천 지원 서비스
-      </h2>
-
+    // fd-recommend-grid — 인쇄 훅(BLOCK 수정). report-print.css 가 기존 lg: 리터럴과 동일한
+    // 값으로 강제한다. mt-12(2026-08-21) — 섹션 상단 마진 통일(완료 보고 표 근거)로 종전
+    // mt-12 lg:mt-21.25 대신 lg: 분기 없는 값 하나 — fd-recommend-section 훅(구 margin-top
+    // 강제)은 더 이상 필요 없어 클래스째 걷어냈다.
+    <ReportSection title="추천 지원 서비스" className="mt-12">
       {/* 카드 **앞**이어야 기능한다 — 뒤에 있으면 '서비스가 부실하다'고 판단한 뒤에 읽힌다.
           인쇄 제외는 2페이지 flow 여유(52.6px) 보호 때문이며, PDF 에서도 카드 자체는 그대로다. */}
       {/* G-3(NIT 3) — 인쇄에서 display:none 인 화면 전용 문단이라 모바일 14px 를 유지할 이유가
           없다. 모바일 text-base(16px), 데스크톱만 기존 text-sm(14px) 유지. */}
       {leadNote && (
-        <p className="fd-screen-only mt-3 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-250 lg:text-sm">
+        <p className="fd-screen-only mt-4 w-full break-keep text-base leading-[1.45] text-ink-sub lg:w-250 lg:text-sm">
           {leadNote}
         </p>
       )}
 
-      <div className="fd-recommend-grid mt-4 grid grid-cols-1 gap-4 lg:mt-3.75 lg:grid-cols-2 lg:gap-5">
+      <div className="fd-recommend-grid mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5">
         {cards.map((card, index) => (
           <div
             key={card.rank || `card-${index}`}
@@ -89,7 +88,7 @@ const RecommendServices = ({
           ),
         )}
       </div>
-    </section>
+    </ReportSection>
   );
 };
 

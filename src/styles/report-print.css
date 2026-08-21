@@ -266,17 +266,12 @@
     max-width: none !important;
   }
 
-  /* ReportPageOne 섹션 간격 — 각 lg:mt-* 리터럴과 동일 값 */
+  /* ReportPageOne 섹션 간격 — 각 lg:mt-* 리터럴과 동일 값. fd-mt-traits-heading·
+     fd-mt-summary-cards는 섹션 위계 통일(2026-08-21, ReportSection 도입)로 제거했다 —
+     제목은 lg: 분기 없이 mt-12 하나, SummaryCards는 ReportSection 콘텐츠 래퍼(mt-4)가
+     그 자리를 대신한다(더 이상 자체 마진 클래스를 쓰지 않는다). */
   .fd-mt-student {
     margin-top: 4.1875rem !important;
-  }
-
-  .fd-mt-traits-heading {
-    margin-top: 3.5625rem !important;
-  }
-
-  .fd-mt-summary-cards {
-    margin-top: 1.8125rem !important;
   }
 
   .fd-mt-urgency {
@@ -321,9 +316,9 @@
     width: 30.5625rem !important;
   }
 
-  /* InsightColumns — lg:mt-[4.5rem] lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4 lg:gap-y-0 */
+  /* InsightColumns — lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4 lg:gap-y-0. margin-top은
+     섹션 위계 통일(2026-08-21)로 제거했다 — 더 이상 lg: 분기가 없다(항상 mt-12). */
   .fd-insight-columns {
-    margin-top: 4.5rem !important;
     grid-template-columns: 30.875rem 30.875rem !important;
     column-gap: 1rem !important;
     row-gap: 0 !important;
@@ -351,14 +346,11 @@
     align-items: center !important;
   }
 
-  /* RecommendServices — lg:mt-[5.3125rem] */
-  .fd-recommend-section {
-    margin-top: 5.3125rem !important;
-  }
-
-  /* RecommendServices 그리드 — lg:mt-[0.9375rem] lg:grid-cols-2 lg:gap-5 */
+  /* RecommendServices·RecommendServices 그리드 — margin-top 훅 둘 다 섹션 위계 통일
+     (2026-08-21)로 제거했다: 섹션 상단은 더 이상 lg: 분기가 없고(항상 mt-12), 그리드도
+     leadNote 유무와 무관하게 항상 mt-4 하나(더 이상 lg:mt-3.75로 갈라지지 않는다).
+     grid-cols-2/gap 규칙은 유지한다. */
   .fd-recommend-grid {
-    margin-top: 0.9375rem !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 1.25rem !important;
   }

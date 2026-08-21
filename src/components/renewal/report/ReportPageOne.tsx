@@ -1,5 +1,6 @@
 import PriorityTable from "./PriorityTable";
 import RadarChart6 from "./RadarChart6";
+import ReportSection from "./ReportSection";
 import ReportSheetA4 from "./ReportSheetA4";
 import StudentInfoBlock from "./StudentInfoBlock";
 import SummaryCards from "./SummaryCards";
@@ -149,63 +150,63 @@ export default function ReportPageOne({ data, totalPages }: ReportPageOneProps) 
         <StudentInfoBlock student={student} />
       </div>
 
-      <h2 className="fd-mt-traits-heading mt-8 text-[1.25rem] font-semibold leading-5 text-accent lg:mt-14.25">
-        {traitsHeading}
-      </h2>
-
-      <div className="fd-mt-summary-cards mt-6 lg:mt-7.25">
+      {/* mt-12(2026-08-21) — 섹션 상단 마진 통일(완료 보고 표 근거)로 종전 mt-8 lg:mt-14.25
+          대신 다른 섹션과 같은 값 하나 — print CSS의 fd-mt-traits-heading 강제 규칙도
+          제거했다. traitsHeading(§타이틀)은 아래 SummaryCards·PriorityTable·TraitNarratives
+          전부와 공용이라 이 ReportSection 하나가 그 묶음 전체를 감싼다. */}
+      <ReportSection title={traitsHeading} className="mt-12">
         <SummaryCards cards={summaryCards} />
-      </div>
 
-      {/*
-        R3(2026-08-11) — urgency(§4.4 E)는 buildReport 가 이미 조립해 두고도 렌더 슬롯이 없어
-        죽어 있던 값이다(diagnosisReport.js buildUrgency 주석 참고). "가장 시급한 영역" 카드
-        바로 아래 각주로 붙인다 — 위 카드와 같은 화제(긴급도)를 다루면서도 경고성 문구라
-        카드 자체보다 한 단계 낮은 위계(text-sm)로 분리한다.
-      */}
-      {/* WARN-2(2026-08-11) — 본문(#525252)과 동일 색이면 위계가 크기(14px)로만 구분돼
-          약하다. #808080(대비 3.95:1)은 14px 본문 기준(WCAG AA ≥4.5:1)에 미달해 되돌린다 —
-          StudentInfoBlock 모바일 라벨이 이미 쓰는 #6b6b6b(대비 ≈5.34:1)를 재사용한다
-          (새 색상값 도입 아님, 팀리드 재조정 지시 2026-08-11). */}
-      {urgency?.message && (
-        <p className="fd-mt-urgency mt-3 text-sm leading-[1.4] text-ink-sub lg:mt-2">
-          {urgency.message}
-        </p>
-      )}
-
-      <div className="fd-mt-priority mt-8 lg:mt-15.75">
-        <PriorityTable rows={priorityRows} />
-      </div>
-
-      {/*
-        notices.goalCompare(F-05) — 이 문장이 설명하는 대상은 바로 위 표의 '현재 수준/목표 수준'
-        열과 요약 카드의 '목표 75점'이다. 확장 영역으로 보내면 두 화면만큼 떨어져 연결이 끊긴다.
-        인쇄에 넣지 않는 이유: 1페이지 flow 여유가 71.0px 뿐인데 이건 hexCaption 과 달리
-        flow 요소라 그 여유를 직접 갉아먹는다(절대배치 공짜 공간이 없다).
-      */}
-      {/* G-3(NIT 3) — 화면 전용 문단, 모바일 text-base(16px) · 데스크톱 기존 text-sm(14px) 유지. */}
-      {notices?.goalCompare && (
-        <p className="fd-screen-only mt-3 break-keep text-base leading-[1.4] text-ink-sub lg:text-sm">
-          {notices.goalCompare}
-        </p>
-      )}
-
-      <div className="fd-mt-traits mt-10 lg:mt-23.5">
-        {/* notices.traitIntro — TraitNarratives 3블록을 소개하는 리드 문장(§5.1 고정 안내).
-            traitsHeading(§타이틀)은 SummaryCards·PriorityTable 과 공용이라 "특성 세 가지"를
-            특정하지 않는다 — 이 블록 바로 위에서만 좁혀 소개한다. */}
-        {/* WARN-2 — urgency.message 와 동일 사유로 #6b6b6b(대비 ≈5.34:1) 재사용. */}
-        {notices?.traitIntro && (
-          <p className="mb-3 text-sm leading-[1.4] text-ink-sub">
-            {notices.traitIntro}
+        {/*
+          R3(2026-08-11) — urgency(§4.4 E)는 buildReport 가 이미 조립해 두고도 렌더 슬롯이 없어
+          죽어 있던 값이다(diagnosisReport.js buildUrgency 주석 참고). "가장 시급한 영역" 카드
+          바로 아래 각주로 붙인다 — 위 카드와 같은 화제(긴급도)를 다루면서도 경고성 문구라
+          카드 자체보다 한 단계 낮은 위계(text-sm)로 분리한다.
+        */}
+        {/* WARN-2(2026-08-11) — 본문(#525252)과 동일 색이면 위계가 크기(14px)로만 구분돼
+            약하다. #808080(대비 3.95:1)은 14px 본문 기준(WCAG AA ≥4.5:1)에 미달해 되돌린다 —
+            StudentInfoBlock 모바일 라벨이 이미 쓰는 #6b6b6b(대비 ≈5.34:1)를 재사용한다
+            (새 색상값 도입 아님, 팀리드 재조정 지시 2026-08-11). */}
+        {urgency?.message && (
+          <p className="fd-mt-urgency mt-3 text-sm leading-[1.4] text-ink-sub lg:mt-2">
+            {urgency.message}
           </p>
         )}
-        {/* exactOptionalPropertyTypes 대응 — undefined일 때 heading 키 생략(TraitNarratives 미수정 범위). */}
-        <TraitNarratives
-          items={traits}
-          {...(traitsHeading !== undefined ? { heading: traitsHeading } : {})}
-        />
-      </div>
+
+        <div className="fd-mt-priority mt-8 lg:mt-15.75">
+          <PriorityTable rows={priorityRows} />
+        </div>
+
+        {/*
+          notices.goalCompare(F-05) — 이 문장이 설명하는 대상은 바로 위 표의 '현재 수준/목표 수준'
+          열과 요약 카드의 '목표 75점'이다. 확장 영역으로 보내면 두 화면만큼 떨어져 연결이 끊긴다.
+          인쇄에 넣지 않는 이유: 1페이지 flow 여유가 71.0px 뿐인데 이건 hexCaption 과 달리
+          flow 요소라 그 여유를 직접 갉아먹는다(절대배치 공짜 공간이 없다).
+        */}
+        {/* G-3(NIT 3) — 화면 전용 문단, 모바일 text-base(16px) · 데스크톱 기존 text-sm(14px) 유지. */}
+        {notices?.goalCompare && (
+          <p className="fd-screen-only mt-3 break-keep text-base leading-[1.4] text-ink-sub lg:text-sm">
+            {notices.goalCompare}
+          </p>
+        )}
+
+        <div className="fd-mt-traits mt-10 lg:mt-23.5">
+          {/* notices.traitIntro — TraitNarratives 3블록을 소개하는 리드 문장(§5.1 고정 안내).
+              traitsHeading(§타이틀)은 SummaryCards·PriorityTable 과 공용이라 "특성 세 가지"를
+              특정하지 않는다 — 이 블록 바로 위에서만 좁혀 소개한다. */}
+          {/* WARN-2 — urgency.message 와 동일 사유로 #6b6b6b(대비 ≈5.34:1) 재사용. */}
+          {notices?.traitIntro && (
+            <p className="mb-3 text-sm leading-[1.4] text-ink-sub">
+              {notices.traitIntro}
+            </p>
+          )}
+          {/* exactOptionalPropertyTypes 대응 — undefined일 때 heading 키 생략(TraitNarratives 미수정 범위). */}
+          <TraitNarratives
+            items={traits}
+            {...(traitsHeading !== undefined ? { heading: traitsHeading } : {})}
+          />
+        </div>
+      </ReportSection>
     </ReportSheetA4>
   );
 }

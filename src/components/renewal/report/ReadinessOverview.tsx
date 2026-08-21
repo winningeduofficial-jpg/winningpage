@@ -1,6 +1,7 @@
 // 2페이지 첫 섹션 — §타이틀(학교 생활 및 입시 준비도) + 종합점수 + 요약 2줄.
 // props: { scoreLabel, summaryLines } — data.readiness 에서 전달.
 import { withDedupedKeys } from "@/lib/reactKeys";
+import ReportSection from "./ReportSection";
 
 type ReadinessOverviewProps = {
   scoreLabel: string;
@@ -12,12 +13,8 @@ const ReadinessOverview = ({
   summaryLines,
 }: ReadinessOverviewProps) => {
   return (
-    <section className="mt-12">
-      <h2 className="text-[1.25rem] font-semibold leading-5 text-accent">
-        학교 생활 및 입시 준비도
-      </h2>
-
-      <div className="mt-6 flex items-center gap-3">
+    <ReportSection title="학교 생활 및 입시 준비도" className="mt-12">
+      <div className="flex items-center gap-3">
         <span className="text-[1.1875rem] font-medium text-ink">종합점수</span>
         <span className="text-[1.25rem] font-medium text-primary">
           {scoreLabel}
@@ -31,7 +28,7 @@ const ReadinessOverview = ({
           <p key={key}>{line}</p>
         ))}
       </div>
-    </section>
+    </ReportSection>
   );
 };
 

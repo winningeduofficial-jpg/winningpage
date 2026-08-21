@@ -6,6 +6,7 @@
 // 줄바꿈되면 h-5.25 고정 행 높이가 텍스트를 잘라낸다. 라벨 열을 auto, 행 높이를
 // min-h + items-start 로 바꿔 실제 줄 수만큼 늘어나게 한다(가로 스크롤 없이 세로로 흡수).
 import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
+import ReportSection from "./ReportSection";
 
 type AdmissionRow = {
   label: string;
@@ -75,11 +76,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
   // InsightColumns 뒤에 세로로 이어지던 옛 배치의 값 — 2단 스플릿에서는 더 이상 맞지
   // 않는다). lg: 분기가 없어져 print CSS 강제 규칙도 함께 제거했다.
   return (
-    <section className="mt-12">
-      <h2 className="text-[1.25rem] font-semibold leading-5 text-accent">
-        목표 대학 입결 비교
-      </h2>
-
+    <ReportSection title="목표 대학 입결 비교" className="mt-12">
       {/*
         F-01 — 인쇄 슬롯의 값은 **밴드 4글자**('안정'/'적정'/'소신'/'위험')를 유지한다.
         점추정 %(엔진 내부값)는 학생 화면 어디에도 그대로 나가지 않는다.
@@ -89,7 +86,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
       */}
       {/* items-center 유지 — 시안 승인 정렬이다. 배지를 붙이려고 baseline 으로 바꾸면
           라벨·값 두 줄의 세로 위치가 함께 움직여 1440 데스크톱 렌더가 회귀한다. */}
-      <div className="mt-3.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="text-[1.1875rem] font-medium text-ink">
           {probabilityLabel}
         </span>
@@ -198,7 +195,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
           {tableNote}
         </p>
       )}
-    </section>
+    </ReportSection>
   );
 };
 

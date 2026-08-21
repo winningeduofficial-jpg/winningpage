@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
 import { templateCopy } from "@/lib/diagnosisCopyBinding";
+import ReportSection from "./ReportSection";
 import ReportSheetA4 from "./ReportSheetA4";
 
 /**
@@ -36,6 +37,13 @@ import ReportSheetA4 from "./ReportSheetA4";
  * 3·4페이지로 인쇄되면서 소멸해 사용자 지시로 용지 시각으로 통일했다. 아이콘 없음 ·
  * 중첩 카드 없음 · 접기는 페이지 전체에서 1개는 유지.
  *
+ * 섹션 위계 통일(2026-08-21, 전 페이지 감사 근거 — 완료 보고 표 참고) — 블록 A·B·D 제목
+ * ("영역별 상세 진단"·"맞춤 전략"·"이 리포트를 읽을 때")은 `ReportSection`(as="h3")을
+ * 쓴다. 종전 leading-[1.4](28px)는 다른 시트 제목 전부가 쓰는 leading-5(20px)로 통일했고,
+ * lg: 값(mt-16)은 base(mt-12)와 다른 섹션들처럼 하나로 합쳐 print CSS 강제 규칙이 필요
+ * 없어졌다(제목→콘텐츠 간격도 ReportSection 기본값 mt-4로 통일 — AreaDetailGroup 자신의
+ * mt-8은 걷어내고 fd-area-groups 래퍼의 flex gap-8로 옮겼다, 아래 참고).
+ *
  * 순서(학생의 질문 순서): 진단(무엇이 어떤 상태인가) → 긴급도(얼마나 급한가)
  *   → 전략(무엇부터 할까) → 고지(어디까지 믿을까).
  */
@@ -62,7 +70,7 @@ function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
   if (visible.length === 0) return null;
 
   return (
-    <section className="mt-8">
+    <section>
       <h4 className="text-base font-semibold leading-normal text-ink">
         {title}
       </h4>
@@ -301,39 +309,43 @@ export default function ReportScreenExtras({
 
         {/* ── 블록 A — 영역별 상세 진단 12행(AREA_COPY.levels) ── */}
         {hasAreaDetails && (
-          <section>
-            <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
-              {copy.areaDetailTitle.section}
-            </h3>
+          // mt-12(2026-08-21) — 섹션 상단 마진 통일(완료 보고 표 근거)로 종전 mt-12 lg:mt-16
+          // 대신 다른 섹션과 같은 값 하나(원래도 base mt-12였다 — lg: 분기만 제거).
+          <ReportSection
+            title={copy.areaDetailTitle.section}
+            as="h3"
+            className="mt-12"
+          >
             {/*
               skipNote 는 조건부다(리커트를 건너뛴 학생만). 영역 점수를 12개 나열하는 바로 이
               블록이 그 문장이 실제로 작용하는 자리라 여기 둔다 — 차트 옆에 붙이면 두 번 반복해야 한다.
               기본 픽스처에서는 보이지 않으니 '배선 누락'으로 오판하지 마라.
             */}
             {notices?.skipNote && (
-              <p className="mt-4 text-base leading-normal text-ink-sub">
+              <p className="mb-4 text-base leading-normal text-ink-sub">
                 {notices.skipNote}
               </p>
             )}
-            {/* fd-area-groups — 인쇄 전용 2단 배치(별도 커밋으로 PDF 전용 확정, 화면은
-                세로 1단 유지). 두 그룹(학습 실행 역량 6행 · 학교 생활 및 입시 준비도
-                6행)이 인쇄에서만 각각 한 단씩 차지한다. */}
-            <div className="fd-area-groups">
+            {/* fd-area-groups — 화면: 세로 스택(flex gap-8, 종전 AreaDetailGroup 자신의
+                mt-8과 동일 값을 컨테이너로 옮겼다 — 인쇄 2단 정렬을 두 그룹이 각자
+                떠안는 대신 이 래퍼 하나가 진다). 인쇄: 2단 그리드로 압축(PDF 전용, 화면
+                세로 1단 유지 결정 그대로) — 그리드 셀은 이 래퍼의 마진 하나로만
+                정렬되므로(2026-08-21 지시: "그리드 안이라 상단 정렬이 서로 맞아야 함")
+                두 그룹의 h4 제목이 항상 같은 y좌표에서 시작한다. */}
+            <div className="fd-area-groups flex flex-col gap-8">
               <AreaDetailGroup title={page1Title} rows={detailRows?.page1} />
               <AreaDetailGroup
                 title={copy.areaDetailTitle.page2}
                 rows={detailRows?.page2}
               />
             </div>
-          </section>
+          </ReportSection>
         )}
 
         {/* ── 블록 B 도입부 — 긴급도 한 줄 + 먼저 할 일 + focusGroups(3) ── */}
         {(strategyLead || hasStrategies || hasTodos) && (
-          <section>
-            <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
-              {copy.strategyTitle}
-            </h3>
+          // mt-12(2026-08-21) — 섹션 상단 마진 통일(원래도 base mt-12였다 — lg: 분기만 제거).
+          <ReportSection title={copy.strategyTitle} as="h3" className="mt-12">
             {strategyLead && (
               <p className="mt-4 text-base leading-normal text-ink-sub">
                 {strategyLead}
@@ -369,7 +381,7 @@ export default function ReportScreenExtras({
                 ))}
               </div>
             )}
-          </section>
+          </ReportSection>
         )}
       </ReportSheetA4>
 
@@ -396,20 +408,18 @@ export default function ReportScreenExtras({
 
         {/* ── 블록 D — 해석 한계 고지 ── */}
         {hasNotice && (
-          <section>
+          // mt-12(2026-08-21) — 섹션 상단 마진 통일(원래도 base mt-12였다 — lg: 분기만 제거).
+          <ReportSection title={copy.noticeTitle} as="h3" className="mt-12">
             {/*
               reportBasis(산출 근거)는 이 페이지 맨 아래에 별도로 실린다 — 건드리지 않는다.
               reportLimit(해석 한계)만 여기 둔다. 새 고지가 생기면 먼저 의미상 소속 섹션을
               찾아라 — 여기에 몰아넣지 않는다.
             */}
-            <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
-              {copy.noticeTitle}
-            </h3>
-            <p className="mt-4 max-w-180 break-keep text-base leading-[1.6] text-ink">
+            <p className="max-w-180 break-keep text-base leading-[1.6] text-ink">
               {/* hasNotice가 true인 분기이므로 notices?.reportLimit은 항상 truthy(동작 동일). */}
               {notices?.reportLimit}
             </p>
-          </section>
+          </ReportSection>
         )}
 
         {/* reportBasis(산출 근거 고지) — 원래 2페이지 하단 각주였으나 부록이 인쇄에 포함되면서
