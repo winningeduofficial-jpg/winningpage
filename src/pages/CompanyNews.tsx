@@ -162,7 +162,7 @@ const BUSINESS_CARDS = [
 // U+30FB(・)로 통일돼 있어 그 관용을 따랐다.
 
 // -------------------------------------------------------------------------
-// Location — 캠퍼스 카드 8장 (1882:19312)
+// Location — 캠퍼스 카드 9장 (1882:19312, 대전 실주소 반영 + 청담 오픈예정 추가)
 // -------------------------------------------------------------------------
 const CAMPUS_CARDS = [
   {
@@ -198,13 +198,19 @@ const CAMPUS_CARDS = [
   {
     key: "daejeon",
     name: "위닝에듀 대전캠퍼스",
-    address: [],
-    comingSoon: true,
+    address: ["대전시 서구 대덕대로 325, 4층"],
+    href: "https://naver.me/5MvGNyCS",
   },
   { key: "daechi", name: "위닝에듀 대치캠퍼스", address: [], comingSoon: true },
   {
     key: "bundang",
     name: "위닝에듀 분당캠퍼스",
+    address: [],
+    comingSoon: true,
+  },
+  {
+    key: "cheongdam",
+    name: "위닝에듀 청담캠퍼스",
     address: [],
     comingSoon: true,
   },
@@ -553,8 +559,8 @@ function BusinessSection() {
 // -------------------------------------------------------------------------
 // [4] Location + 연계 협력기관
 // -------------------------------------------------------------------------
-// 캠퍼스 8곳 중 5곳(세종·화명·센텀·천안·제주)은 실제 네이버 지도 단축링크(CAMPUS_CARDS의
-// href)를 받아 외부 새 탭으로 연다. 나머지 3곳(대전·대치·분당)은 아직 지점이 열리지 않아
+// 캠퍼스 9곳 중 6곳(세종·화명·센텀·천안·제주·대전)은 실제 네이버 지도 단축링크(CAMPUS_CARDS의
+// href)를 받아 외부 새 탭으로 연다. 나머지 3곳(대치·분당·청담)은 아직 지점이 열리지 않아
 // href가 없다(comingSoon) — 이 카드는 <button>으로 남기고 클릭 시 "오픈예정입니다." 전용
 // 안내만 띄운다(PartnerCard의 alertServiceNotReady "준비중" 문구와 의도가 달라 구분했다).
 // href 유무로 <a>/<button>을 분기하되(as-element), 카드 내부 구조(span 트리)·치수·간격은
