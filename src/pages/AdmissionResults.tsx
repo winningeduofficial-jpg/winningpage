@@ -81,7 +81,20 @@ export default function AdmissionResults() {
   const [departmentKey, setDepartmentKey] = useState(detailDepartmentKey);
   const [openField, setOpenField] = useState<string | null>(null);
 
+  // 폼 state는 마운트 시 1회만 URL에서 씨앗을 받던 것과 달리, 조회 대상(detailUniversityKey/
+  // detailDepartmentKey)이 바뀔 때마다 계속 동기화한다(QA 리뷰). A 조회 → B 조회 → 뒤로가기 하면
+  // 브라우저가 URL을 A로 되돌리는데(react-router setSearchParams는 기본 push), 이 effect가 없으면
+  // 결과 패널은 A인데 폼 셀렉터는 마지막으로 조회했던 B에 그대로 남는다.
+  // 사용자가 폼에서 값을 고르는 중에는(제출 전) URL이 바뀌지 않으므로 이 effect는 반응하지 않는다
+  // — 의존성이 URL 파생값(detailUniversityKey/detailDepartmentKey)뿐이라 타이핑 중 state가
+  // 덮어써지지 않는다. 이 effect가 반대 방향으로 URL을 바꾸지는 않으므로 무한루프도 없다.
+  useEffect(() => {
+    setUniversityKey(detailUniversityKey);
+    setDepartmentKey(detailDepartmentKey);
+  }, [detailUniversityKey, detailDepartmentKey]);
+
   const detailRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
 
   // QA 시트 반영으로 SearchView(폼)가 이제 isDetail 여부와 무관하게 항상 렌더된다
   // (조회 결과는 폼 아래에 이어 붙는다) — 그래서 목록 쿼리도 더 이상 isDetail로
@@ -178,6 +191,29 @@ export default function AdmissionResults() {
     );
   }, [departmentKey, departmentOptions]);
 
+  // 결과 패널(DetailView) 제목은 폼 선택값(university/department, universityKey 기반)이 아니라
+  // 조회 중인 대상(detailUniversityKey/detailDepartmentKey, URL 기반)에서 파생해야 한다(QA 리뷰).
+  // 안 그러면 A를 조회한 뒤 폼에서 B를 고르기만 해도(조회 버튼을 누르지 않았는데도) 결과 패널
+  // 제목이 아직 표시 중인 A 결과에 B 라벨을 붙이는 오염이 생긴다.
+  // universityOptions는 전체 대학 목록이라 항상 조회 가능하지만, departmentOptions는 폼의
+  // universityKey에 종속된 목록(useSusiDepartments)이라 폼에서 다른 대학을 고른 상태라면
+  // 상세 대상의 모집단위가 그 목록에 없을 수 있다 — 그 경우 키 자체를 라벨로 쓴다.
+  const detailUniversityLabel = useMemo(() => {
+    if (!detailUniversityKey) return "";
+    return (
+      universityOptions.find((option) => option.key === detailUniversityKey)
+        ?.label ?? detailUniversityKey
+    );
+  }, [detailUniversityKey, universityOptions]);
+
+  const detailDepartmentLabel = useMemo(() => {
+    if (!detailDepartmentKey) return "";
+    return (
+      departmentOptions.find((option) => option.key === detailDepartmentKey)
+        ?.label ?? detailDepartmentKey
+    );
+  }, [detailDepartmentKey, departmentOptions]);
+
   // 목록에 없는 키(수명이 끝난 공유 링크, 손댄 쿼리스트링, 큐레이션에 남은 옛 슬러그)를
   // 그대로 들고 있으면 필드에 정규화 키가 그대로 찍히고 모집단위는 영영 빈 목록이 된다.
   // 목록이 도착한 뒤에만 판정한다 — 로딩 중에는 "없는 키"와 "아직 안 온 키"를 구분할 수 없다.
@@ -236,8 +272,12 @@ export default function AdmissionResults() {
     [setSearchParams],
   );
 
+  // 버튼이 결과 패널 하단(DetailView 히어로)에 있어, 쿼리스트링만 비우면 스크롤 위치가
+  // 그대로 남아 폼(페이지 상단)이 화면 밖으로 벗어난 빈 공간만 보인다(QA 리뷰) — 폼 쪽으로
+  // 직접 스크롤을 옮긴다.
   const handleBackToSearch = useCallback(() => {
     setSearchParams({});
+    topRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [setSearchParams]);
 
   // ScrollToTop(src/App.jsx:50)은 pathname 변경에만 반응하므로 쿼리 전환 시 스크롤이 남는다.
@@ -275,6 +315,7 @@ export default function AdmissionResults() {
             검색 폼은 그대로 둔 채 그 아래에 결과를 이어 붙인다. 딥링크(?u=&d=) 호환을 위해
             라우트/쿼리스트링 계약은 그대로 유지하고, 뷰를 서로 바꿔치기하던 기존 삼항연산자만
             "폼 + 조건부 결과"로 바꿨다. */}
+        <div ref={topRef} className="scroll-mt-24" />
         <SearchView
           selector={selector}
           trending={trendingItems}
@@ -301,8 +342,8 @@ export default function AdmissionResults() {
                 key={`${detailUniversityKey}::${detailDepartmentKey}`}
                 universityKey={detailUniversityKey}
                 departmentKey={detailDepartmentKey}
-                universityName={university?.label ?? ""}
-                departmentName={department?.label ?? ""}
+                universityName={detailUniversityLabel}
+                departmentName={detailDepartmentLabel}
                 onBack={handleBackToSearch}
               />
             </Suspense>

@@ -813,12 +813,14 @@ export default function DetailView({
             최종등록자 교과등급 · {observedYears.length}개년
           </p>
 
-          <h1
+          {/* SearchView가 페이지 h1을 이미 렌더한다(QA 리뷰) — 결과 패널은 h2로
+              내려 문서에 h1이 중복되지 않게 한다. 시각 스타일은 그대로 유지한다. */}
+          <h2
             id="admission-results-detail-title"
             className="mt-3 break-keep text-[2rem] font-semibold leading-tight tracking-[-0.03em] text-ink md:text-[2.75rem]"
           >
             {title}
-          </h1>
+          </h2>
 
           {heroSummary && (
             <p className="mt-6 break-keep text-base font-medium leading-[1.6] text-[#7a7a7a]">
