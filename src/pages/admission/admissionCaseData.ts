@@ -15,7 +15,6 @@ export interface AdmissionPostRow {
 interface HeroScopeConfig {
   ratesTable: string;
   heroLabel: string;
-  fallbackRates: { year: number; rate: number }[];
 }
 
 export const CATEGORY_LABELS: Record<CaseCategory, string> = {
@@ -32,16 +31,12 @@ export const CASE_CATEGORIES: CaseCategory[] = ["susi", "jungsi"];
  */
 // 기본 scope 설정 — Record 인덱스 접근으로 되짚으면 undefined 가능 타입이 되므로
 // 폴백용으로 별도 상수를 먼저 만들어 둔다(DEFAULT_HERO_SCOPE_CONFIG 참고).
+// 합격률 폴백 수치는 두지 않는다(QA 시트 2026-08-21 확정) — 하드코딩 폴백이
+// 특목고 페이지에 수시정시와 동일한 가짜 수치를 노출시킨 원인이었다. 숫자는
+// 각 scope의 DB 테이블 값만 신뢰하고, 없으면 아예 렌더하지 않는다.
 const DEFAULT_HERO_SCOPE_ENTRY: HeroScopeConfig = {
   ratesTable: "admission_acceptance_rates",
   heroLabel: "목표 대학 합격률",
-  fallbackRates: [
-    { year: 2021, rate: 92 },
-    { year: 2022, rate: 97 },
-    { year: 2023, rate: 95 },
-    { year: 2024, rate: 95 },
-    { year: 2025, rate: 98 },
-  ],
 };
 
 export const HERO_SCOPES: Record<string, HeroScopeConfig> = {
@@ -49,13 +44,6 @@ export const HERO_SCOPES: Record<string, HeroScopeConfig> = {
   "special-highschool": {
     ratesTable: "special_highschool_acceptance_rates",
     heroLabel: "목표 특목고 합격률",
-    fallbackRates: [
-      { year: 2021, rate: 92 },
-      { year: 2022, rate: 97 },
-      { year: 2023, rate: 95 },
-      { year: 2024, rate: 95 },
-      { year: 2025, rate: 98 },
-    ],
   },
 };
 
@@ -190,8 +178,9 @@ export async function fetchAcceptanceRates(
     .order("year", { ascending: true });
 
   if (error) {
+    // 폴백 수치 없음 — 조회 실패 시 숫자 블록을 렌더하지 않는 것이 정본이다.
     console.error("연도별 합격률 조회 실패:", error);
-    return scopeConfig.fallbackRates;
+    return [];
   }
 
   return data || [];
