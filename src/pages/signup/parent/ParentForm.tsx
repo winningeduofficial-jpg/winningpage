@@ -27,6 +27,7 @@ import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
 import {
   DUPLICATE_PHONE_MESSAGE,
+  formatPhoneInput,
   isValidMobile,
   normalizePhone,
   PHONE_RESEND_COOLDOWN_SECONDS,
@@ -322,7 +323,11 @@ export default function ParentForm() {
         updateVerification("email", { checked: false, available: false });
         setEmailMessage({
           // state가 없으면 상태 조회 자체가 실패한 것이고, 있으면 발송이 실패한 것이다.
-          text: state ? error.message : EMAIL_MESSAGES.checkFailed,
+          // error.message는 이제 signupEmailAuth.sendSignupEmailCode가 항상 채워
+          // 보내지만(QA 2026-08-21 "{}" 노출 버그 대응), 방어적으로 한 번 더 확인한다.
+          text: state
+            ? error.message || EMAIL_MESSAGES.checkFailed
+            : EMAIL_MESSAGES.checkFailed,
           status: "error",
         });
         return;
@@ -527,7 +532,12 @@ export default function ParentForm() {
           name="phone"
           type="tel"
           value={formData.phone}
-          onChange={(value) => updateFormData({ phone: value })}
+          // 자동 하이픈 포맷(010-1234-5678, QA 지시 2026-08-21) — src/lib/phoneVerification.ts
+          // formatPhoneInput, 멘토신청·프리미엄이용 폼과 공유하는 유틸이다. 서버 전송 값은
+          // normalizedPhone(normalizePhone)이 별도로 숫자만 남긴다.
+          onChange={(value) =>
+            updateFormData({ phone: formatPhoneInput(value) })
+          }
           placeholder="전화번호를 입력 해주세요"
           actionLabel="인증번호 보내기"
           onAction={handleSendPhoneCode}
@@ -536,7 +546,12 @@ export default function ParentForm() {
           }
           // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
           // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
-          helperText={verification.phone.verified ? "" : phoneMessage.text}
+          // 상태 메시지가 없을 때는 하이픈 자동 포맷 안내를 기본으로 보여준다.
+          helperText={
+            verification.phone.verified
+              ? ""
+              : phoneMessage.text || "하이픈은 자동으로 입력돼요."
+          }
           status={verification.phone.verified ? "default" : phoneMessage.status}
           required
         />
