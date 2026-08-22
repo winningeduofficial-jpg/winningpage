@@ -74,6 +74,16 @@ export const BANKS: Record<string, string> = {
   92: "토스뱅크",
 };
 
+// BANKS(코드→이름)를 {value, label} 옵션 배열로 뒤집는다 — 환불계좌 입력
+// select(RefundAccountFields)와 어드민 목록(revenue.ts refundRequests 컬럼)이
+// 같은 코드 목록을 공유한다. DB(refund_requests.refund_bank)에는 코드를
+// 저장한다 — 토스 결제취소 API의 refundReceiveAccount.bank가 요구하는 값이
+// 코드이고(virtualAccount.bankCode와 같은 코드 체계), 한글 라벨을 저장하면
+// 서버가 다시 코드로 매핑해야 해서 값이 어긋날 여지가 생긴다.
+export const BANK_OPTIONS: { value: string; label: string }[] = Object.entries(
+  BANKS,
+).map(([code, name]) => ({ value: code, label: name }));
+
 function pad(n: number) {
   return String(n).padStart(2, "0");
 }

@@ -334,6 +334,14 @@ export default function ParentPaymentsTab({
       <RefundApprovalModal
         open={!!approvalRequest}
         request={approvalRequest}
+        // 환불 신청(refund_requests)에는 결제수단 정보가 없다 — 그 주문
+        // (orders)에서 가상계좌 여부·환불계좌 프리필값을 찾아 내려준다.
+        virtualAccount={
+          approvalRequest
+            ? (orders.find((o) => o.id === approvalRequest.order_id)
+                ?.virtual_account ?? null)
+            : null
+        }
         childName={
           approvalRequest?.student_profile_id
             ? nameById[approvalRequest.student_profile_id] || ""
