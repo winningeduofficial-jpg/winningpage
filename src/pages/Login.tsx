@@ -198,6 +198,25 @@ export default function Login() {
         </PrimaryButton>
       </form>
 
+      {/* 아이디·비밀번호 찾기(QA 지시 2026-08-21) — 로그인 박스 하단, 회원가입 안내
+          위에 배치한다. 색·굵기는 하단 회원가입 안내와 같은 톤(ink, xs)으로 맞춘다. */}
+      <p className="flex items-center justify-center gap-2 text-xs font-medium text-ink sm:text-base">
+        <TextLinkButton as="link" to="/login/find-id" tone="ink" size="xs">
+          아이디 찾기
+        </TextLinkButton>
+        <span aria-hidden="true" className="text-line">
+          |
+        </span>
+        <TextLinkButton
+          as="link"
+          to="/login/find-password"
+          tone="ink"
+          size="xs"
+        >
+          비밀번호 찾기
+        </TextLinkButton>
+      </p>
+
       {/* 하단 안내 시안 실측: 390 12px w500 / 1920 16px w500, 링크는 같은 크기의 w700.
           색은 두 요소 모두 #36393e 로 토큰이 없다 — sRGB 거리상 ink(#525252)가
           ink.title(#181d24)보다 가까워(약 42.5 vs 48.6) ink 로 맞춘다. 시안이 링크를

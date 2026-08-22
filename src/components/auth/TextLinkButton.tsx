@@ -1,5 +1,5 @@
 // 배경/보더 없는 텍스트 버튼·링크 — docs/login-signup-renewal-spec.md §3.3(전 화면)/§5.1.
-// 용례가 넓다: "회원가입"(하단 안내, 16px semibold primary), "+ 자녀 추가하기"(16px semibold
+// 용례가 넓다: "회원가입"(하단 안내, 16px semibold primary), "+ 자녀추가 초대"(16px semibold
 // primary), "건너뛰기"(20px medium line — 접근성 대비 미달 우려는 §6.3 R7에 기록됨,
 // 색 교체는 디자이너 컨펌 후 tone prop만 바꾸면 됨), "코드 복사하기"(12px underline accent).
 // as='link'면 react-router Link로 렌더(내부 이동), as='button'이면 버튼(클릭 핸들러만 필요한
@@ -17,7 +17,7 @@ const TONE_CLASSES: Record<string, string> = {
 const SIZE_CLASSES: Record<string, string> = {
   xs: "text-xs", // 12px — 인증번호 보내기, 코드 복사하기
   sm: "text-sm", // 14px
-  md: "text-base", // 16px — + 자녀 추가하기, 회원가입 링크
+  md: "text-base", // 16px — + 자녀추가 초대, 회원가입 링크
   lg: "text-xl", // 20px — 건너뛰기
 };
 
