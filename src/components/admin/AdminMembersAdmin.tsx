@@ -276,6 +276,34 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
     alert("개별 권한을 저장했습니다.");
   }
 
+  // confirmExisting — 기존 서비스 회원을 관리자로 올릴 때 서버가 한 번 되묻고,
+  // 사용자가 확인하면 같은 요청을 이 플래그와 함께 다시 보낸다. 오타 하나로
+  // 고객 계정이 관리자가 되는 걸 막는 지점이다(api/admin/invite-member 참고).
+  async function postInvite(confirmExisting: boolean) {
+    const accessToken = await getFreshSupabaseAccessTokenOrSignOut();
+
+    const response = await fetch("/api/admin/invite-member", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        email: inviteEmail.trim(),
+        roleId: inviteRole,
+        department: inviteDept.trim(),
+        confirmExisting,
+      }),
+    });
+
+    const result = await response.json().catch(async () => {
+      const text = await response.text().catch(() => "");
+      return { detail: text || `HTTP ${response.status}` };
+    });
+
+    return { response, result };
+  }
+
   async function sendInvite() {
     if (inviting) return;
 
@@ -287,25 +315,25 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
     setInviting(true);
 
     try {
-      const accessToken = await getFreshSupabaseAccessTokenOrSignOut();
+      let { response, result } = await postInvite(false);
 
-      const response = await fetch("/api/admin/invite-member", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          email: inviteEmail.trim(),
-          roleId: inviteRole,
-          department: inviteDept.trim(),
-        }),
-      });
+      if (!response.ok && result?.needsConfirm) {
+        const label = result.existingName
+          ? `${result.existingName}(${result.existingMemberType})`
+          : result.existingMemberType;
+        if (
+          !window.confirm(
+            `${result.detail}
 
-      const result = await response.json().catch(async () => {
-        const text = await response.text().catch(() => "");
-        return { detail: text || `HTTP ${response.status}` };
-      });
+대상: ${label}
+
+이 계정은 관리자가 되면 전 회원 정보를 볼 수 있게 됩니다. 계속하시겠습니까?`,
+          )
+        ) {
+          return;
+        }
+        ({ response, result } = await postInvite(true));
+      }
 
       if (!response.ok) {
         throw new Error(result?.detail || `HTTP ${response.status}`);

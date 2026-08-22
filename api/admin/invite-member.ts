@@ -115,6 +115,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     email?: string;
     roleId?: string;
     department?: string;
+    // 기존 서비스 회원을 관리자로 올릴 때 화면이 되묻고 다시 보내는 확인 플래그.
+    confirmExisting?: boolean;
   };
   const email = String(body.email || "")
     .trim()
@@ -137,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 또는 "기존 회원을 관리자로 올리기" 경로다. 먼저 기존 사용자를 찾아본다.
   const { data: existingProfile } = await supabaseAdmin
     .from("profiles")
-    .select("id")
+    .select("id, member_type, name")
     .eq("email", email)
     .maybeSingle();
 
@@ -154,6 +156,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (member?.status === "active") {
       return res.status(409).json({ detail: "이미 활성 상태인 관리자입니다." });
     }
+
+    // ⚠️ 서비스 이용자(학생·학부모·멘토)를 관리자로 올리는 건 되돌리기 어려운
+    //   결정이라 한 번 되묻는다. 그냥 통과시키면 오타 하나로 고객 계정이
+    //   관리자가 되고, 그 계정은 전 회원 정보를 볼 수 있게 된다.
+    //   member_type 이 비어 있는 계정(초대만 받고 서비스는 안 쓰는 계정)은
+    //   이 확인 없이 진행한다.
+    if (existingProfile?.member_type && body.confirmExisting !== true) {
+      return res.status(409).json({
+        detail: `이 이메일은 이미 서비스 회원(${existingProfile.member_type})으로 가입돼 있습니다. 그 계정을 관리자로 올리시겠습니까?`,
+        needsConfirm: true,
+        existingMemberType: existingProfile.member_type,
+        existingName: existingProfile.name ?? null,
+      });
+    }
+
     resent = Boolean(member);
   } else {
     const { data: invited, error: inviteError } =
@@ -169,10 +186,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     profileId = invited.user.id;
   }
 
-  // prod 에는 auth → profiles 트리거가 없다(파일 상단 ⚠️ 참고).
-  const { error: profileError } = await supabaseAdmin
-    .from("profiles")
-    .upsert({ id: profileId, email, role: "user" }, { onConflict: "id" });
+  // prod 에는 auth → profiles 트리거가 없다(파일 상단 ⚠️ 참고). 그래서 **새로
+  // 만든 계정에 한해** profiles 행을 직접 만든다. 기존 회원은 건드리지 않는다 —
+  // 여기서 upsert 하면 그 사람의 이름·회원유형이 걸린 행에 role 을 덮어쓰게 된다.
+  const { error: profileError } = existingProfile
+    ? { error: null }
+    : await supabaseAdmin
+        .from("profiles")
+        .insert({ id: profileId, email, role: "user" });
 
   if (profileError) {
     console.error("admin/invite-member profiles upsert 실패:", profileError);
