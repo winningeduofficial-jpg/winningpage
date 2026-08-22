@@ -28,6 +28,17 @@ export default function GrowthReport() {
     ? (periodParam as ReportPeriod)
     : "weekly";
 
+  // `at` — 어느 주/달의 리포트인가. 알림톡 링크가 넘겨주는 값이고
+  // (src/routes/alimtalkLinkRoutes.tsx), 형식은 api/goal/report 의 period 인자
+  // 그대로다: 주간은 그 주 월요일 YMD('2026-08-17'), 월간은 'YYYY-MM'.
+  // 없으면 API 가 오늘(KST) 기준 이번 주/이번 달로 잡는다 — 화면에서 탭만
+  // 눌러 들어온 기존 동작이 그대로다.
+  //
+  // ⚠️ 위 `period` 와 헷갈리지 말 것. period 는 이 페이지의 탭(주간/월간)이고
+  //    at 은 "그 탭 안에서 몇 번째 주/달"이다 — 파일 상단 주석이 원래 지적한
+  //    바로 그 구분이며, 이제 at 이 후자를 실제로 담는다.
+  const at = searchParams.get("at") || undefined;
+
   // fetchGoalReport() 결과를 discriminated union 그대로 보관한다(재가공하지 않는다 —
   // goalApi.js의 kind 계약을 이 컴포넌트가 다시 해석하는 지점을 하나로 좁혀 둔다).
   // null = 아직 응답 도착 전(로딩 중). RequireGoalAccess가 이미 onboarded:true만
@@ -37,18 +48,21 @@ export default function GrowthReport() {
   useEffect(() => {
     let alive = true;
     setResult(null);
-    fetchGoalReport(period).then((r: GoalReportResult) => {
+    fetchGoalReport(period, at).then((r: GoalReportResult) => {
       if (alive) setResult(r);
     });
     return () => {
       alive = false;
     };
-  }, [period]);
+  }, [period, at]);
 
   function handlePeriodChange(nextPeriod: ReportPeriod) {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
       params.set("period", nextPeriod);
+      // 탭을 바꾸면 at 은 버린다 — 주간 키('2026-08-17')와 월간 키('2026-08')는
+      // 형식이 달라서 그대로 들고 넘어가면 반대편 탭에서 해석되지 않는다.
+      params.delete("at");
       return params;
     });
   }

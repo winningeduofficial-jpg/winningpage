@@ -152,3 +152,23 @@ from (values
 cross join public.terms t
 where t.is_required
 on conflict do nothing;
+
+-- ---------------------------------------------------------------------
+-- 어드민 권한 부여 — 20260822000003_admin_permissions 대응 (2026-08-22)
+--
+-- 그 마이그레이션의 9-c)절이 "기존 profiles.role='admin' 전원을 최고 관리자로
+-- 승격"하지만, 로컬에서는 순서가 반대다 — 마이그레이션이 먼저 돌고 그 뒤에
+-- 이 파일이 QA 어드민 계정을 만든다. 그래서 여기서 한 번 더 승격하지 않으면
+-- devadmin 계정이 admin_members 에 없어 어드민 화면의 모든 메뉴가 접근 불가로
+-- 떨어진다(규칙 3: 아무 항목도 없는 메뉴는 접근 불가).
+--
+-- dev·prod 는 이 파일을 실행하지 않는다 — 그쪽은 마이그레이션 9-c)가
+-- 담당한다(적용 시점에 이미 관리자 계정이 존재하므로).
+-- ---------------------------------------------------------------------
+
+insert into public.admin_members (profile_id, role_id, status, activated_at)
+select p.id, r.id, 'active', now()
+  from public.profiles p
+  cross join public.admin_roles r
+ where p.role = 'admin' and r.is_super
+on conflict (profile_id) do nothing;

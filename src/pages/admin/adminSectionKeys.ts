@@ -59,6 +59,11 @@ export const ADMIN_SECTION_KEYS = [
   // 목표관리
   "goalUniversityCuts",
   "goalStudents",
+  // 관리자 설정 — 20260822000010_admin_permissions 의 admin_resources 시드에도
+  // 같은 키(adminMembers/adminRoles)가 들어 있다. 둘이 어긋나면 화면은 있는데
+  // 권한을 못 주거나(키 누락) 권한 화면에 유령 항목이 뜬다(키 잔존).
+  "adminMembers",
+  "adminRoles",
 ] as const;
 
 export type AdminSectionKey = (typeof ADMIN_SECTION_KEYS)[number];

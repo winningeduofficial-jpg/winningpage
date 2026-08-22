@@ -50,7 +50,23 @@ select
   'diagnose', '위닝 학습진단', 0, 1, '[이용권] 위닝 학습진단', 'diagnose-1', 'diagnose',
   10000, 10000, 1, '회원가입 시 1회 무료', true,
   '학습진단 서비스는 학생의 학습 습관과 성향을 설문으로 진단해 리포트로 제공하는 서비스입니다. 회원가입 시 1회 무료로 이용할 수 있으며, 이후에는 이용권 결제 후 이용할 수 있습니다.'
-where not exists (select 1 from public.products where slug = 'diagnose-1');
+where not exists (select 1 from public.products where slug = 'diagnose-1')
+  -- ⚠️ 2026-08-22 추가 — programs 에 'diagnose' 가 있을 때만 넣는다.
+  --   baseline 은 스키마 전용(INSERT 0건)이라 갓 만든 로컬 DB 에서는 programs 가
+  --   비어 있고, products_program_key_fkey 가 이 INSERT 를 23503 으로 막아
+  --   `supabase db reset` 전체가 중단됐다(= db-migrations-ci 의 rehearse-migrations
+  --   도 supabase/ 를 건드리는 모든 PR 에서 실패한다).
+  --
+  --   programs 행을 여기서 만들어 채우지 않는 이유: programs·products 는 둘 다
+  --   scripts/seed-from-dev.mjs 의 TABLES 에 있어 dev 에서 통째로 주입된다. 이
+  --   마이그레이션이 임의 uuid 로 diagnose 행을 만들어두면 그 시드가 upsert
+  --   (onConflict: 'id') 할 때 dev 의 diagnose 행과 id 가 달라 program_key
+  --   유니크 제약에 걸린다. 로컬에서는 이 상품 행도 어차피 시드가 가져오므로
+  --   건너뛰는 것이 맞다.
+  --
+  --   dev·prod 에는 이미 적용된 마이그레이션이라 이 가드는 영향이 없다
+  --   (programs 에 diagnose 가 있고, slug 중복으로 이미 no-op 이다).
+  and exists (select 1 from public.programs where program_key = 'diagnose');
 
 -- 쿠폰 최종본 반영 — 회원가입 축하 쿠폰은 9월 30일까지, 8만원 기준 쿠폰은
 -- 10만원 이상 결제 시 5,000원 할인으로 조정(slug 도 의미에 맞게 갱신).

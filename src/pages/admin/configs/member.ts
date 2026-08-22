@@ -52,69 +52,46 @@ interface MemberCustomConfig {
 type MemberConfig = MemberCrudConfig | MemberCustomConfig;
 
 export const memberConfigs: Record<string, MemberConfig> = {
+  // 회원 목록 + 고객 상세 — QA 182 의 「고객조회상담」 메인메뉴를 별도로 만들지
+  // 않고 이 화면에 통합한다(사용자 확정 2026-08-22). 상세는 탭 6개(고객상세정보/
+  // 이용서비스/결제내역/상담/알림톡·문자/서비스이용내역)이고, profiles 한 테이블이
+  // 아니라 parent_child_links·program_access·orders 를 함께 읽으며 개인정보 마스킹
+  // 토글이 필요해 제네릭 AdminForm 으로는 표현할 수 없다. mentorApplications 와 같은
+  // 방식으로 목록만 AdminTable 을 재사용한다(src/components/admin/MembersAdmin.tsx).
+  //
+  // ⚠️ 이 전환으로 **제네릭 편집 폼이 사라진다.** 이전에는 이 탭에서 회원 정보를
+  //    자유 편집할 수 있었는데, 와이어프레임의 고객 상세는 조회 화면이라 편집
+  //    수단을 두지 않았다. 회원 정보 수정이 실제로 필요하면 어떤 필드를 누가 고칠
+  //    수 있는지부터 정하고 다시 붙인다(권한 체계와 함께 가는 게 맞다).
+  //
+  // columns 는 목록에서만 쓰인다 — 와이어프레임 목록의
+  // "번호 | 회원명 | 가입 유형 | 이메일 | 전화번호 | 가입일 | 더보기" 순서를 따른다.
+  // 전화번호에 maskedPhone 을 쓰는 이유는 목록이 한 화면에 수십 명을 늘어놓기
+  // 때문이다 — 상세에서만 마스킹 해제 버튼으로 원본을 본다.
   members: {
     title: "회원 목록",
     table: "profiles",
     searchPlaceholder: "회원명, 아이디, 이메일, 연락처 검색",
     order: "created_at",
-    noCreate: true,
+    readOnly: true,
+    custom: true,
+    customComponentKey: "members",
     columns: [
-      { key: "name", label: "이름" },
-      { key: "username", label: "아이디" },
+      { key: "name", label: "회원명" },
+      { key: "member_type", label: "가입 유형" },
       { key: "email", label: "이메일" },
-      { key: "phone", label: "연락처" },
-      { key: "member_type", label: "회원유형" },
-      { key: "role", label: "권한" },
+      { key: "phone", label: "전화번호", type: "maskedPhone" },
+      // 회원구분 — dev 에서 QA 186 으로 추가된 관리자 전용 컬럼(20260822000011).
+      // 회원은 못 보고 관리자만 본다. 값은 고정 목록이 아니라 자유 텍스트다
+      // (일반회원 / OO학교 / OO기관 / OO캠퍼스 / OO기업 / 기타).
+      //
+      // ⚠️ 이 config 가 custom 으로 바뀌면서 제네릭 편집 폼이 사라졌다. 그래서
+      //    회원구분 **편집**은 MembersAdmin 상세의 「고객 상세 정보」 탭이 맡는다
+      //    (src/components/admin/MembersAdmin.tsx) — 목록에서 값만 보이고 고칠
+      //    데가 없으면 QA 186 요구가 반쪽이 된다.
       { key: "member_category", label: "회원구분" },
       { key: "created_at", label: "가입일", type: "date" },
     ],
-    fields: [
-      { key: "name", label: "이름", type: "text", required: true },
-      { key: "username", label: "아이디", type: "text" },
-      { key: "email", label: "이메일", type: "text" },
-      { key: "phone", label: "연락처", type: "text" },
-      { key: "birth_date", label: "생년월일", type: "date" },
-      {
-        key: "gender",
-        label: "성별",
-        type: "select",
-        options: ["남성", "여성"],
-      },
-      {
-        key: "region",
-        label: "거주구분",
-        type: "select",
-        options: ["관내", "관외"],
-      },
-      { key: "school_type", label: "학교구분", type: "text" },
-      { key: "school_name", label: "학교명", type: "text" },
-      // sql/40_auth_signup.sql profiles_member_type_check와 일치 (구 'teacher' → 'mentor')
-      {
-        key: "member_type",
-        label: "회원유형",
-        type: "select",
-        options: ["student", "parent", "mentor"],
-      },
-      {
-        key: "role",
-        label: "권한",
-        type: "select",
-        options: ["user", "admin"],
-      },
-      // 고정 목록이 아니라 관리자가 자유 텍스트로 기입한다(예: 일반회원/OO학교/
-      // OO기관/OO캠퍼스/OO기업/기타) — DB에도 CHECK 제약이 없다(사용자 확정).
-      {
-        key: "member_category",
-        label: "회원구분",
-        type: "text",
-        placeholder: "일반회원 / OO학교 / OO기관 / OO캠퍼스 / OO기업 / 기타",
-      },
-      { key: "is_active", label: "사용 여부", type: "radioBoolean" },
-      { key: "sms_agreed", label: "SMS수신동의", type: "checkbox" },
-      { key: "payment_terminal_id", label: "결제단말기 ID", type: "text" },
-      { key: "memo", label: "비고", type: "textarea" },
-    ],
-    defaults: {},
   },
 
   enrollments: {

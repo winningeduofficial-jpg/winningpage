@@ -2,6 +2,8 @@ import { ChevronDown, Download, Plus, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import * as XLSX from "xlsx";
+import AdminMembersAdmin from "@/components/admin/AdminMembersAdmin";
+import AdminRolesAdmin from "@/components/admin/AdminRolesAdmin";
 // 쿠폰관리는 제네릭 CRUD 로 표현되지 않는다(파생 사용 건수 · NULL=무제한 3상태
 // 입력 · slug 사전중복검사 · 사용이력 드릴다운 + void RPC). config.custom +
 // customComponentKey(CUSTOM_COMPONENT_REGISTRY 조회)로 붙인다 — premiumBookPages 선례와 같은 방식이다.
@@ -10,6 +12,7 @@ import * as XLSX from "xlsx";
 import CouponAdmin from "@/components/admin/CouponAdmin";
 import GoalStudentsAdmin from "@/components/admin/GoalStudentsAdmin";
 import LearningDiagnosisAdmin from "@/components/admin/LearningDiagnosisAdmin";
+import MembersAdmin from "@/components/admin/MembersAdmin";
 import MentorApplicationsAdmin from "@/components/admin/MentorApplicationsAdmin";
 import PremiumBookAdmin from "@/components/admin/PremiumBookAdmin";
 import AdmissionMetaEditModal from "@/components/admission/editor/AdmissionMetaEditModal";
@@ -42,6 +45,7 @@ import {
   ADMIN_DEFAULT_SECTION_KEY,
   ADMIN_SECTION_KEYS,
 } from "./admin/adminSectionKeys";
+import { adminSettingsConfigs } from "./admin/configs/adminSettings";
 import { admissionConfigs } from "./admin/configs/admission";
 import { boardConfigs } from "./admin/configs/board";
 import { goalConfigs } from "./admin/configs/goal";
@@ -167,6 +171,16 @@ const MENU_GROUPS = [
       { key: "coupons", label: "쿠폰관리" },
     ],
   },
+  // 관리자 설정 — 기획 문서 「관리자 권한 체계 안내」의 신규 메뉴 그룹.
+  // 실무 관리자 묶음에는 이 그룹 권한 항목이 하나도 없어(규칙 3) 메뉴 자체가
+  // 보이지 않는다. 최고 관리자만 쓴다.
+  {
+    title: "관리자 설정",
+    items: [
+      { key: "adminMembers", label: "관리자 관리" },
+      { key: "adminRoles", label: "관리자 권한 관리" },
+    ],
+  },
 ];
 
 const CONFIGS = {
@@ -178,6 +192,7 @@ const CONFIGS = {
   ...winningConfigs,
   ...revenueConfigs,
   ...goalConfigs,
+  ...adminSettingsConfigs,
 };
 
 // App.jsx의 ADMIN_SECTION_KEYS(라우트 목록, adminSectionKeys.ts)와 여기 CONFIGS가
@@ -208,6 +223,9 @@ const CUSTOM_COMPONENT_REGISTRY = {
   premiumBookPages: PremiumBookAdmin,
   mentorApplications: MentorApplicationsAdmin,
   goalStudents: GoalStudentsAdmin,
+  members: MembersAdmin,
+  adminMembers: AdminMembersAdmin,
+  adminRoles: AdminRolesAdmin,
 };
 
 // CUSTOM_COMPONENT_REGISTRY와 같은 이유의 간접 레이어 — config.ListSummary가

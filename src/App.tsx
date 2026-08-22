@@ -10,6 +10,7 @@ import {
 import SiteLayout from "./components/SiteLayout";
 import adminRoutes from "./routes/adminRoutes";
 import admissionRoutes from "./routes/admissionRoutes";
+import alimtalkLinkRoutes from "./routes/alimtalkLinkRoutes";
 import applyRoutes from "./routes/applyRoutes";
 import authRoutes from "./routes/authRoutes";
 import contentRoutes from "./routes/contentRoutes";
@@ -75,6 +76,12 @@ const routes: RouteObject[] = [
 
       // 수행평가 학생 앱 — SessionProvider/RequireEntitlement 셸. SiteLayout 밖.
       ...performanceAppRoutes,
+
+      // 알림톡 승인 링크 → 실제 라우트 리다이렉트. SiteLayout 밖에 둔다 —
+      // 헤더·푸터를 그렸다가 곧바로 이동하면 한 프레임 깜빡인다.
+      // (경로 랭킹상 /services/goal/reports/* 는 /services/goal 보다,
+      //  /mypage/coupons 는 /mypage 보다 구체적이라 순서와 무관하게 먼저 잡힌다.)
+      ...alimtalkLinkRoutes,
 
       ...standaloneRoutes,
 
