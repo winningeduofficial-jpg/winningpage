@@ -39,6 +39,9 @@ const ALLOWED_PURPOSES = [
   "parent_signup",
   "phone_change",
   "mentor_apply",
+  // 아이디·비밀번호 찾기(20260822000009). SIGNUP_PURPOSES 에 넣지 않는다 —
+  // 가입은 "이미 가입된 번호"를 거부하지만 찾기는 반대로 가입된 번호여야 한다.
+  "find_account",
 ];
 
 // 가입 목적의 발송만 중복 번호를 막는다. 'phone_change'는 로그인한 본인의 번호가

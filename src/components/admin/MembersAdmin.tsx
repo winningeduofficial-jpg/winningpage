@@ -2,8 +2,13 @@ import { Eye, EyeOff, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { AdminTable } from "@/pages/admin/shared/AdminEngine";
+import { getFreshSupabaseAccessTokenOrSignOut } from "@/pages/admin/shared/adminSession";
 import { searchable } from "@/pages/admin/shared/csvExport";
-import { ActionButton, Select } from "@/pages/admin/shared/formFields";
+import {
+  ActionButton,
+  Select,
+  Textarea,
+} from "@/pages/admin/shared/formFields";
 
 // ---------------------------------------------------------------------------
 // 회원 관리(members) — 목록 + 고객 상세.
@@ -92,6 +97,17 @@ interface OrderRow {
   created_at?: string | null;
 }
 
+interface MessageLogRow {
+  id: number;
+  template_key: string;
+  channel: string;
+  subject?: string | null;
+  message: string;
+  status: string;
+  provider_message?: string | null;
+  sent_at: string;
+}
+
 interface MembersAdminProps {
   config: {
     title: string;
@@ -123,11 +139,7 @@ const TABS = [
     label: "상담",
     pending: "상담 원장 테이블 도입 후 열립니다.",
   },
-  {
-    key: "msg",
-    label: "알림톡·문자",
-    pending: "알림톡 발송 로그 도입 후 열립니다.",
-  },
+  { key: "msg", label: "알림톡·문자" },
   {
     key: "usage",
     label: "서비스이용내역",
@@ -208,8 +220,11 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
   const [links, setLinks] = useState<LinkedPerson[]>([]);
   const [accesses, setAccesses] = useState<ProgramAccessRow[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [messages, setMessages] = useState<MessageLogRow[]>([]);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
 
   async function loadRows() {
     setLoading(true);
@@ -259,7 +274,7 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
 
     const isParent = String(profile.member_type || "") === "parent";
 
-    const [linkRes, accessRes, orderRes] = await Promise.all([
+    const [linkRes, accessRes, orderRes, msgRes] = await Promise.all([
       supabase
         .from("parent_child_links")
         .select("id, parent_id, student_id, status")
@@ -285,11 +300,22 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
           `student_profile_id.eq.${profile.id},parent_profile_id.eq.${profile.id}`,
         )
         .order("created_at", { ascending: false }),
+      supabase
+        .from("alimtalk_send_logs")
+        .select(
+          "id, template_key, channel, subject, message, status, provider_message, sent_at",
+        )
+        .eq("profile_id", profile.id)
+        .order("sent_at", { ascending: false })
+        .limit(100),
     ]);
 
-    const errors = [linkRes.error, accessRes.error, orderRes.error].filter(
-      Boolean,
-    );
+    const errors = [
+      linkRes.error,
+      accessRes.error,
+      orderRes.error,
+      msgRes.error,
+    ].filter(Boolean);
     if (errors.length > 0) {
       console.error(errors);
       setDetailError(
@@ -316,6 +342,7 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
     );
     setAccesses((accessRes.data as ProgramAccessRow[]) || []);
     setOrders((orderRes.data as OrderRow[]) || []);
+    setMessages((msgRes.data as MessageLogRow[]) || []);
     setDetailLoading(false);
   }
 
@@ -326,6 +353,8 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
     setLinks([]);
     setAccesses([]);
     setOrders([]);
+    setMessages([]);
+    setDraft("");
     loadDetail(row);
   }
 
@@ -338,6 +367,52 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
     unmasked ? row?.phone || "-" : maskPhone(row?.phone);
   const emailOf = (row?: ProfileRow | null) =>
     unmasked ? row?.email || "-" : maskEmail(row?.email);
+
+  // 자유 문구 발송 — 알림톡이 아니라 SMS/LMS 다(알림톡은 승인 템플릿 본문만
+  // 보낼 수 있다). 90바이트를 넘으면 서버가 LMS 로 올려 보내고 단가가 3배
+  // 이상이라, 아래 폼이 바이트 수를 실시간으로 보여준다.
+  async function sendMessage() {
+    if (!selected || sending) return;
+
+    const text = draft.trim();
+    if (!text) {
+      alert("보낼 내용을 입력해 주세요.");
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      const accessToken = await getFreshSupabaseAccessTokenOrSignOut();
+      const response = await fetch("/api/admin/send-message", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        // phone 은 넘기지 않는다 — 마스킹 상태면 화면이 원문을 모른다.
+        // 서버가 profileId 로 직접 읽는다.
+        body: JSON.stringify({ profileId: selected.id, text }),
+      });
+
+      const result = await response.json().catch(async () => {
+        const raw = await response.text().catch(() => "");
+        return { detail: raw || `HTTP ${response.status}` };
+      });
+
+      if (!response.ok) {
+        throw new Error(result?.detail || `HTTP ${response.status}`);
+      }
+
+      setDraft("");
+      await loadDetail(selected);
+      alert(`발송했습니다 (${result.channel}).`);
+    } catch (error) {
+      alert(`발송 실패: ${(error as Error).message}`);
+    } finally {
+      setSending(false);
+    }
+  }
 
   // 결제 요약 3종 — 참조 HTML 의 "이번 달 결제 / 미납액 / 누적 결제액".
   // 미납액은 아직 결제가 끝나지 않은 주문(pending·waiting_deposit)의 합으로
@@ -469,6 +544,14 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
           />
         ) : tab === "services" ? (
           <ServicesPane accesses={accesses} />
+        ) : tab === "msg" ? (
+          <MessagePane
+            messages={messages}
+            draft={draft}
+            setDraft={setDraft}
+            onSend={sendMessage}
+            sending={sending}
+          />
         ) : (
           <PayPane
             orders={orders}
@@ -813,6 +896,132 @@ function PayPane({
                     {ORDER_STATUS_LABEL[String(order.status || "")] ||
                       order.status ||
                       "-"}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 알림톡·문자 탭
+//
+// 이력은 alimtalk_send_logs 한 표에서 온다 — 크론이 보낸 리포트 알림톡과
+// 운영자가 보낸 문자가 같은 표에 쌓인다. 그래야 "이 회원에게 무엇이 나갔나"를
+// 한 화면에서 답할 수 있다.
+//
+// 발송은 알림톡이 아니라 SMS/LMS 다(알림톡은 승인 템플릿 본문만 가능).
+// 참조 HTML 의 "90byte 초과 시 자동으로 LMS(장문)로 전환됩니다" 안내가 그 얘기다.
+// ---------------------------------------------------------------------------
+
+/** EUC-KR 기준 바이트 — 한글/전각 2, 그 외 1. api/_lib/aligo.ts 의 규칙과 같다. */
+function smsBytes(text: string): number {
+  let bytes = 0;
+  for (const ch of text) bytes += ch.charCodeAt(0) > 0x7f ? 2 : 1;
+  return bytes;
+}
+
+const TEMPLATE_LABEL: Record<string, string> = {
+  dailyReport: "일간 보고서",
+  weeklyReport: "주간 리포트",
+  monthlyReport: "월간 리포트",
+  signupCoupon: "회원가입 축하",
+  manualMessage: "직접 발송",
+};
+
+function MessagePane({
+  messages,
+  draft,
+  setDraft,
+  onSend,
+  sending,
+}: {
+  messages: MessageLogRow[];
+  draft: string;
+  setDraft: (value: string) => void;
+  onSend: () => void;
+  sending: boolean;
+}) {
+  const bytes = smsBytes(draft);
+  const isLong = bytes > 90;
+
+  return (
+    <>
+      <div className="mb-4 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-black">새 메시지 보내기</h2>
+        <p className="mt-1 text-sm text-gray-500">
+          자유 문구는 문자로 나갑니다. 알림톡은 카카오 승인을 받은 템플릿 본문만
+          보낼 수 있습니다.
+        </p>
+
+        <div className="mt-4">
+          <Textarea value={draft} onChange={setDraft} rows={4} />
+        </div>
+
+        <div className="mt-2 flex items-center justify-between">
+          <span
+            className={`text-xs font-bold ${isLong ? "text-[#B88737]" : "text-gray-500"}`}
+          >
+            {bytes} / 90 byte
+            {isLong &&
+              " — 90byte를 넘어 LMS(장문)로 전환됩니다. 단가가 3배 이상입니다."}
+          </span>
+          <ActionButton onClick={onSend} disabled={sending}>
+            {sending ? "보내는 중..." : "발송"}
+          </ActionButton>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto bg-white shadow-sm">
+        <table className="w-full min-w-[860px] text-sm">
+          <thead>
+            <tr className="border-b border-[#edf0f4] bg-[#fafafa] text-left">
+              <th className="px-4 py-3 font-black">발송 일시</th>
+              <th className="px-4 py-3 font-black">채널</th>
+              <th className="px-4 py-3 font-black">종류</th>
+              <th className="px-4 py-3 font-black">메시지 내용</th>
+              <th className="px-4 py-3 font-black">상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            {messages.length === 0 ? (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="px-4 py-12 text-center font-bold text-gray-500"
+                >
+                  발송 이력이 없습니다.
+                </td>
+              </tr>
+            ) : (
+              messages.map((row) => (
+                <tr key={row.id} className="border-b border-[#edf0f4]">
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {formatDateTime(row.sent_at)}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">{row.channel}</td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {TEMPLATE_LABEL[row.template_key] || row.template_key}
+                  </td>
+                  {/* 본문이 길어 표를 밀지 않도록 줄바꿈은 살리되 폭을 제한한다. */}
+                  <td className="max-w-[420px] whitespace-pre-line px-4 py-3 text-gray-700">
+                    {row.message}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3">
+                    {row.status === "sent" ? (
+                      "발송 완료"
+                    ) : (
+                      <span
+                        className="text-[#B88737]"
+                        title={row.provider_message || undefined}
+                      >
+                        실패
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))

@@ -411,3 +411,68 @@ export async function sendTemplateMessage({
     message,
   };
 }
+
+/**
+ * 자유 문구 문자 발송 (SMS/LMS).
+ *
+ * 알림톡이 아니다 — 알림톡은 승인된 템플릿 본문만 보낼 수 있어서, 운영자가
+ * 그때그때 쓰는 안내는 문자로 나간다(회원 상세의 「알림톡·문자」 탭 발송 기능).
+ *
+ * 90바이트를 넘으면 LMS 로 자동 전환한다. 알리고는 msg_type 을 SMS 로 우기면
+ * 초과분을 잘라버리므로, 길이를 재서 명시하는 쪽이 안전하다. LMS 는 단가가
+ * 3배 이상이라 호출부가 길이를 보여주고 사용자가 알고 보내게 해야 한다.
+ */
+export async function sendPlainMessage({
+  phone,
+  text,
+  subject,
+}: {
+  phone: string;
+  text: string;
+  subject?: string;
+}): Promise<SendResult> {
+  const isLong = !isWithinSmsLimit(text);
+
+  if (isDryRun()) {
+    console.warn(
+      `[aligo] DRY_RUN — 실제 발송 없음. ${maskPhone(phone)} ${isLong ? "LMS" : "SMS"} ${smsByteLength(text)}byte`,
+    );
+    return {
+      ok: true,
+      channel: `${isLong ? "lms" : "sms"}(dry-run)`,
+      providerCode: "dry_run",
+      providerMessage: "dry run",
+      messageId: null,
+      dryRun: true,
+    };
+  }
+
+  const params: Record<string, string> = {
+    key: getEnv("ALIGO_API_KEY"),
+    user_id: getEnv("ALIGO_USER_ID"),
+    sender: getEnv("ALIGO_SENDER"),
+    receiver: phone,
+    msg: text,
+    msg_type: isLong ? "LMS" : "SMS",
+    testmode_yn: isTestMode() ? "Y" : "N",
+  };
+
+  // LMS 는 제목을 받는다(SMS 는 무시한다).
+  if (isLong && subject) params.title = subject;
+
+  if (!params.key || !params.user_id || !params.sender) {
+    throw new Error(
+      "ALIGO_API_KEY / ALIGO_USER_ID / ALIGO_SENDER 환경변수가 필요합니다.",
+    );
+  }
+
+  const { httpStatus, payload, raw } = await postForm(SMS_ENDPOINT, params);
+
+  return {
+    ok: Number(payload?.result_code) === 1,
+    channel: isLong ? "lms" : "sms",
+    providerCode: payload?.result_code ?? httpStatus,
+    providerMessage: payload?.message || raw || "",
+    messageId: payload?.msg_id || null,
+  };
+}
