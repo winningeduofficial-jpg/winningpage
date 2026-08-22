@@ -19,9 +19,18 @@ type MetaTagProps = {
   children?: ReactNode;
 };
 
+// QA 지적 — 라벨은 BasicInfoForm.tsx의 자유 입력값(진로・직접 입력 과목)에서 오고, 그
+// 필드들은 이제 maxLength로 길이를 막지만(BasicInfoForm.tsx 주석) 그건 신규 입력에만
+// 적용된다. 이미 저장된 세션(구 데이터) 값이 더 길 수 있으므로 칩 자체도 방어한다 —
+// `max-w`로 카드 폭(37.25rem)을 넘지 않는 폭에서 자르고 말줄임(`truncate`)한다.
+// `title`로 잘린 전체 텍스트를 hover 시 확인할 수 있게 하고, 텍스트 자체는 그대로
+// DOM에 남아 스크린리더는 전체 문구를 읽는다(시각적 말줄임일 뿐 접근성 손실 없음).
 export default function MetaTag({ children }: MetaTagProps) {
   return (
-    <span className="inline-flex h-7.5 shrink-0 items-center rounded-perf-modal bg-performance-tag px-1.5 text-[0.875rem] font-medium leading-4.5 text-ink">
+    <span
+      title={typeof children === "string" ? children : undefined}
+      className="inline-flex h-7.5 max-w-50 shrink-0 items-center truncate rounded-perf-modal bg-performance-tag px-1.5 text-[0.875rem] font-medium leading-4.5 text-ink"
+    >
       {children}
     </span>
   );

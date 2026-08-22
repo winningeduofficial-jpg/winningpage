@@ -21,6 +21,7 @@ interface MemberField {
     | "textarea";
   required?: boolean;
   options?: FieldOption[];
+  placeholder?: string;
 }
 
 interface MemberCrudConfig {
@@ -64,6 +65,7 @@ export const memberConfigs: Record<string, MemberConfig> = {
       { key: "phone", label: "연락처" },
       { key: "member_type", label: "회원유형" },
       { key: "role", label: "권한" },
+      { key: "member_category", label: "회원구분" },
       { key: "created_at", label: "가입일", type: "date" },
     ],
     fields: [
@@ -98,6 +100,14 @@ export const memberConfigs: Record<string, MemberConfig> = {
         label: "권한",
         type: "select",
         options: ["user", "admin"],
+      },
+      // 고정 목록이 아니라 관리자가 자유 텍스트로 기입한다(예: 일반회원/OO학교/
+      // OO기관/OO캠퍼스/OO기업/기타) — DB에도 CHECK 제약이 없다(사용자 확정).
+      {
+        key: "member_category",
+        label: "회원구분",
+        type: "text",
+        placeholder: "일반회원 / OO학교 / OO기관 / OO캠퍼스 / OO기업 / 기타",
       },
       { key: "is_active", label: "사용 여부", type: "radioBoolean" },
       { key: "sms_agreed", label: "SMS수신동의", type: "checkbox" },

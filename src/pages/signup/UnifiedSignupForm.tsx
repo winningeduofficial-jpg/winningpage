@@ -45,6 +45,7 @@ import {
 } from "@/components/auth";
 import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
+import { formatPhoneInput } from "@/lib/phoneVerification";
 import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
@@ -414,9 +415,14 @@ export default function UnifiedSignupForm() {
             name="phone"
             size="default"
             value={formData.phone}
-            onChange={(v) => updateFormData({ phone: v })}
+            // 자동 하이픈 포맷(010-1234-5678, QA 지시 2026-08-21) — StudentForm.jsx와 동일
+            // src/lib/phoneVerification.ts formatPhoneInput을 재사용한다.
+            onChange={(v) => updateFormData({ phone: formatPhoneInput(v) })}
             placeholder="전화번호를 입력 해주세요"
             disabled={formData.noOwnPhone}
+            helperText={
+              formData.noOwnPhone ? "" : "하이픈은 자동으로 입력돼요."
+            }
           />
 
           <InlineCheckbox
@@ -543,8 +549,11 @@ export default function UnifiedSignupForm() {
           name="guardianPhone"
           size="default"
           value={formData.guardianPhone}
-          onChange={(v) => updateFormData({ guardianPhone: v })}
+          onChange={(v) =>
+            updateFormData({ guardianPhone: formatPhoneInput(v) })
+          }
           placeholder="전화번호를 입력 해주세요"
+          helperText="하이픈은 자동으로 입력돼요."
         />
 
         <InfoCard variant="card">

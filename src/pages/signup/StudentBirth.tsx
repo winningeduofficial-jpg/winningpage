@@ -11,24 +11,32 @@ import { useNavigate } from "react-router";
 import {
   AuthLayout,
   AuthTitle,
-  InfoCard,
   PrimaryButton,
   TextField,
 } from "@/components/auth";
 import { computeIsUnder14, useSignup } from "@/context/SignupContext";
 
-// 14세 미만 가입 플로우(D-1 PASS 본인인증 스텁 등)는 아직 백엔드 연동이 없는 데드엔드라
-// 기본 off. off인 배포에서는 14세 미만으로 판정돼도 under14 라우트로 보내지 않고 준비 중
-// 안내만 표시한다(Under14Verify/Under14Form의 URL 직접 진입 가드와 짝을 이룬다).
+// 14세 미만 가입 플로우(D-1 PASS 본인인증, D-2 법정대리인 동의 폼, complete_signup_profile
+// RPC의 guardian_* 인자까지)는 이미 만들어져 있지만 기본 off다(QA 2026-08-22 재확인 —
+// Under14Verify.jsx/Under14Form.jsx의 guardian 관련 코드는 이 작업 범위가 아니다, 손대지
+// 않는다). 플래그를 켜면(sql/84_under14_signup.sql 등 선행 마이그레이션 적용 후) 14세
+// 미만도 법정대리인 동의를 거쳐 정상 가입한다 — 아래 "만 14세 이상만 가입할 수 있습니다."
+// 안내는 그 플로우가 꺼져 있는 배포에서만 보이는 임시 문구이고, 켜지면 이 분기 자체를
+// 타지 않고 바로 under14 라우트로 이동한다(Under14Verify/Under14Form의 URL 직접 진입
+// 가드와 짝을 이룬다).
 const UNDER14_SIGNUP_ENABLED =
   import.meta.env.VITE_UNDER14_SIGNUP_ENABLED === "true";
+
+// QA 지시(2026-08-22): 플래그 off 배포에서 14세 미만 판정 시 노출하는 안내. 생년월일
+// 입력 바로 아래(helperText)에 인라인으로 보여준다 — 시트가 요구한 위치가 별도 화면/
+// 모달이 아니라 입력 하단이라 error 문구와 같은 자리를 공유한다.
+const UNDER14_BLOCKED_MESSAGE = "만 14세 이상만 가입할 수 있습니다.";
 
 export default function StudentBirth() {
   const navigate = useNavigate();
   const { memberType, birthDate, setBirthDate } = useSignup();
   const [value, setValue] = useState(birthDate || "");
   const [error, setError] = useState("");
-  const [showUnder14ComingSoon, setShowUnder14ComingSoon] = useState(false);
 
   // memberType 없이(예: 새로고침 전 이탈, 직접 URL 진입) 이 화면에 들어온 경우 첫 단계로 되돌림.
   useEffect(() => {
@@ -40,7 +48,6 @@ export default function StudentBirth() {
   function handleChange(next: string) {
     setValue(next.replace(/\D/g, "").slice(0, 8));
     if (error) setError("");
-    if (showUnder14ComingSoon) setShowUnder14ComingSoon(false);
   }
 
   function handleContinue() {
@@ -57,7 +64,7 @@ export default function StudentBirth() {
     }
 
     if (isUnder14 && !UNDER14_SIGNUP_ENABLED) {
-      setShowUnder14ComingSoon(true);
+      setError(UNDER14_BLOCKED_MESSAGE);
       return;
     }
 
@@ -97,12 +104,6 @@ export default function StudentBirth() {
         />
 
         <PrimaryButton onClick={handleContinue}>계속하기</PrimaryButton>
-
-        {showUnder14ComingSoon && (
-          <InfoCard variant="card">
-            만 14세 미만 가입은 준비 중입니다. 잠시 후 다시 시도해 주세요.
-          </InfoCard>
-        )}
       </div>
     </AuthLayout>
   );

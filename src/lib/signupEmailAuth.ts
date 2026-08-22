@@ -33,6 +33,28 @@
 
 import { supabase } from "./supabase";
 
+/**
+ * 어떤 값이 오든(Error, 문자열, undefined, 예상 밖의 객체) 사용자에게 보여줄 수 있는
+ * 문자열로 정규화한다(QA 2026-08-21 "{}" 노출 버그 대응).
+ *
+ * 왜 필요한가
+ *   호출부는 지금까지 error.message를 그대로 읽었다. Supabase의 AuthError/
+ *   PostgrestError는 항상 문자열 message를 채워 던지지만, 예상 밖의 예외(네트워크
+ *   스택이 던진 순수 객체, message가 빈 문자열인 경우 등)가 섞이면 message가
+ *   비거나 존재하지 않는 값으로 남는다. 그 값을 그대로 화면에 내리면 helperText가
+ *   빈 문자열이 되어 아무 안내도 없이 막히거나, 호출부가 JSON.stringify 등으로
+ *   감싸는 순간 "{}"(빈 객체 직렬화)가 그대로 노출된다. 여기서 한 곳으로 좁혀
+ *   막는다 — Error가 아니거나 message가 비어 있으면 항상 fallback 문구로 대체한다.
+ */
+export function toErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === "string" && error) return error;
+  return fallback;
+}
+
+const UNEXPECTED_SEND_ERROR =
+  "이메일 인증코드 발송 중 예상하지 못한 문제가 발생했습니다.";
+
 export const EMAIL_STATE = {
   AVAILABLE: "available",
   RESUMABLE_UNVERIFIED: "resumable_unverified",
@@ -117,54 +139,82 @@ export async function sendSignupEmailCode({
   resumed?: boolean;
   error?: Error;
 }> {
-  const { state, error: stateError } = await checkEmailSignupState(email);
-
-  if (stateError) return { error: stateError };
-  if (state === EMAIL_STATE.TAKEN) return { state };
-
-  // 이전 세션이 남아 있으면 OTP 검증이 엉뚱한 계정에 붙을 수 있어 먼저 끊는다.
+  // 이 함수 안에서 무엇이 던져지든(네트워크 예외, 예상 밖의 비-Error 값 등) 호출부에는
+  // 항상 message가 채워진 Error만 넘긴다 — QA 2026-08-21 "이메일 인증번호 보내기"가
+  // 붉은 "{}"만 남기던 버그 대응. 호출부 네 화면(StudentForm/ParentForm/Under14Form/
+  // UnifiedSignupForm)이 error.message를 그대로 읽으므로, 정규화를 여기 한 곳에 두면
+  // 화면마다 다시 방어할 필요가 없다.
   try {
-    await supabase.auth.signOut({ scope: "global" });
-  } catch (_error) {
-    // 세션이 없으면 실패하는 게 정상이라 무시한다.
-  }
+    const { state, error: stateError } = await checkEmailSignupState(email);
 
-  // 이메일이 이미 확인된 계정은 signUp이 "이미 등록됨"으로 막힌다.
-  // 이 경우에만 OTP 로그인으로 코드를 보낸다.
-  if (state === EMAIL_STATE.RESUMABLE_VERIFIED) {
-    const { error } = await supabase.auth.signInWithOtp({
+    if (stateError)
+      return {
+        error: new Error(
+          toErrorMessage(
+            stateError,
+            "이메일 중복확인 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+          ),
+        ),
+      };
+    if (state === EMAIL_STATE.TAKEN) return { state };
+
+    // 이전 세션이 남아 있으면 OTP 검증이 엉뚱한 계정에 붙을 수 있어 먼저 끊는다.
+    try {
+      await supabase.auth.signOut({ scope: "global" });
+    } catch (_error) {
+      // 세션이 없으면 실패하는 게 정상이라 무시한다.
+    }
+
+    // 이메일이 이미 확인된 계정은 signUp이 "이미 등록됨"으로 막힌다.
+    // 이 경우에만 OTP 로그인으로 코드를 보낸다.
+    if (state === EMAIL_STATE.RESUMABLE_VERIFIED) {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      });
+
+      if (error)
+        return {
+          error: new Error(toErrorMessage(error, UNEXPECTED_SEND_ERROR)),
+          state,
+        };
+      return { state, mode: OTP_MODE.EMAIL, resumed: true };
+    }
+
+    // available / resumable_unverified 는 둘 다 signUp으로 처리된다.
+    // 미확인 계정에 대한 signUp 재호출은 확인메일을 다시 보낸다.
+    const { error } = await supabase.auth.signUp({
       email,
-      options: { shouldCreateUser: false },
+      // 비밀번호 입력 여부와 무관하게 인증을 진행시키기 위한 임시값(파일 상단 주석).
+      password: password || generateTempPassword(),
+      options: {
+        data: {
+          email,
+          name,
+          full_name: name,
+          member_type: memberType,
+          role: "user",
+        },
+      },
     });
 
-    if (error) return { error, state };
-    return { state, mode: OTP_MODE.EMAIL, resumed: true };
+    if (error)
+      return {
+        error: new Error(toErrorMessage(error, UNEXPECTED_SEND_ERROR)),
+        state,
+      };
+
+    return {
+      state,
+      mode: OTP_MODE.SIGNUP,
+      resumed: state === EMAIL_STATE.RESUMABLE_UNVERIFIED,
+    };
+  } catch (error) {
+    // 여기까지 오면 supabase-js가 반환이 아니라 진짜로 예외를 던진 것이다(순수 Error가
+    // JSON.stringify되면 "{}"가 되는 그 경로) — Error로 감싸 항상 문자열 message를 보장한다.
+    console.error("이메일 인증코드 발송 중 예외:", error);
+    return { error: new Error(toErrorMessage(error, UNEXPECTED_SEND_ERROR)) };
   }
-
-  // available / resumable_unverified 는 둘 다 signUp으로 처리된다.
-  // 미확인 계정에 대한 signUp 재호출은 확인메일을 다시 보낸다.
-  const { error } = await supabase.auth.signUp({
-    email,
-    // 비밀번호 입력 여부와 무관하게 인증을 진행시키기 위한 임시값(파일 상단 주석).
-    password: password || generateTempPassword(),
-    options: {
-      data: {
-        email,
-        name,
-        full_name: name,
-        member_type: memberType,
-        role: "user",
-      },
-    },
-  });
-
-  if (error) return { error, state };
-
-  return {
-    state,
-    mode: OTP_MODE.SIGNUP,
-    resumed: state === EMAIL_STATE.RESUMABLE_UNVERIFIED,
-  };
 }
 
 /**
