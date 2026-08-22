@@ -1,4 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
+import type {
+  CardInfo,
+  EasyPayInfo,
+  VirtualAccountInfo,
+} from "@/hooks/usePaymentConfirmation";
 import { FAKE_ENTITLEMENT_ENABLED, getMockPaidOrders } from "@/lib/entitlement";
 import { supabase } from "@/lib/supabase";
 import type { SessionUser } from "./useMyPageProfile";
@@ -12,6 +17,14 @@ export type Order = {
   approval_status?: string;
   method?: string;
   vat?: number | string | null;
+  // 영수증(ReceiptModal) 전용 — 토스 raw 응답의 card/virtualAccount/easyPay/
+  // approvedAt 서브 객체를 PostgREST JSON path(raw->card 등)로 그대로 꺼낸다.
+  // raw 전체(행당 수 KB)를 select 하지 않고 필요한 서브 객체만 얕게 뽑는 이유는
+  // 위 vat 필드와 같다.
+  card?: CardInfo | null;
+  virtual_account?: VirtualAccountInfo | null;
+  easy_pay?: EasyPayInfo | null;
+  approved_at?: string | null;
   is_fake_entitlement?: boolean;
   order_items?: {
     name: string;
@@ -83,6 +96,9 @@ export function useMyPageOrders(user: SessionUser | null) {
           // 쓴다. 부가세는 우리가 금액에서 역산하지 않고 토스 승인 응답 원본
           // (orders.raw.vat)을 그대로 읽는다 — raw 전체는 행당 수 KB라 목록 조회에
           // 얹으면 무겁기 때문에 PostgREST JSON 경로로 필요한 한 값만 뽑는다.
+          // card/virtual_account/easy_pay/approved_at 도 같은 이유로 raw 서브
+          // 객체만 얕게 뽑는다 — 결제 영수증(ReceiptModal)이 카드사·할부·승인번호·
+          // 입금계좌를 src/lib/paymentReceiptFormat.ts 포맷터로 표시하는 데 쓴다.
           // list_amount/discount_amount/coupon_redemptions 는 결제 상세 모달
           // (PaymentDetailModal)의 "원금"/"할인 금액"/"쿠폰" 행 분해용 — redemption 은
           // 주문당 몇 개 안 되는 얕은 임베드라 목록 조회에 얹어도 가볍다. order_items의
@@ -90,7 +106,7 @@ export function useMyPageOrders(user: SessionUser | null) {
           // 쿠폰명 노출용 — coupons는 public read가 is_active=true 행만 통과시키므로
           // 비활성 쿠폰이면 embed가 null로 온다(코드에서 폴백 처리).
           .select(
-            "id, order_name, amount, paid_at, status, approval_status, method, vat:raw->>vat, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
+            "id, order_name, amount, paid_at, status, approval_status, method, vat:raw->>vat, card:raw->card, virtual_account:raw->virtualAccount, easy_pay:raw->easyPay, approved_at:raw->>approvedAt, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
           )
           // 쌍 구조(sql/68) — orders.user_id 는 **결제한 사람(학부모)** 축이다.
           // 학생은 student_profile_id 에만 박히므로 user_id 로만 조회하면 학생
@@ -107,7 +123,13 @@ export function useMyPageOrders(user: SessionUser | null) {
           ])
           // waiting_deposit 은 paid_at 이 null 이라 paid_at 정렬에서는 순서가 불안정하다.
           // 주문 생성 시각은 항상 존재하므로(orders.created_at not null) 정렬 키로 쓴다.
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          // supabase 클라이언트가 Database 제네릭 없이 생성돼(src/lib/supabase.ts)
+          // select 문자열만으로 타입을 추론한다 — raw->card 같은 단일 화살표(JSON
+          // 객체) 경로는 Json 타입으로 추론되어 위 Order.card(CardInfo | null)와
+          // 맞지 않는다. .returns()로 이 쿼리 결과 타입만 우리 Order 타입으로
+          // 못박는다(쿼리 자체의 컬럼명 오타 검증은 그대로 유지된다).
+          .returns<Order[]>(),
         supabase
           .from("refund_requests")
           .select(

@@ -12,6 +12,11 @@ import ReceiptModal from "@/components/mypage/ReceiptModal";
 import RefundNoticeModal from "@/components/mypage/RefundNoticeModal";
 import RefundRequestModal from "@/components/mypage/RefundRequestModal";
 import { formatKRW } from "@/data/pricingCatalog";
+import type {
+  CardInfo,
+  EasyPayInfo,
+  VirtualAccountInfo,
+} from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
 import EnrollmentRequestModal from "./EnrollmentRequestModal";
 import RefundApprovalModal from "./RefundApprovalModal";
@@ -61,6 +66,11 @@ type Order = {
   paid_at?: string;
   method?: string;
   vat?: number | string | null;
+  // 영수증(ReceiptModal) 전용 — useMyPageOrders.ts 와 동일 이유(그쪽 주석 참고).
+  card?: CardInfo | null;
+  virtual_account?: VirtualAccountInfo | null;
+  easy_pay?: EasyPayInfo | null;
+  approved_at?: string | null;
   is_fake_entitlement?: boolean;
   order_items?: {
     name: string;
@@ -324,6 +334,14 @@ export default function ParentPaymentsTab({
       <RefundApprovalModal
         open={!!approvalRequest}
         request={approvalRequest}
+        // 환불 신청(refund_requests)에는 결제수단 정보가 없다 — 그 주문
+        // (orders)에서 가상계좌 여부·환불계좌 프리필값을 찾아 내려준다.
+        virtualAccount={
+          approvalRequest
+            ? (orders.find((o) => o.id === approvalRequest.order_id)
+                ?.virtual_account ?? null)
+            : null
+        }
         childName={
           approvalRequest?.student_profile_id
             ? nameById[approvalRequest.student_profile_id] || ""

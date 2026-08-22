@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { clearCart } from "@/lib/cart";
 import { supabase } from "@/lib/supabase";
 
-interface CardInfo {
+export interface CardInfo {
   cardType?: string;
   issuerCode?: string;
   number?: string;
@@ -16,9 +16,19 @@ export interface VirtualAccountInfo {
   bank?: string;
   bankCode?: string;
   accountNumber?: string;
+  // 결제 시점에 구매자가 미리 입력한 환불계좌(토스 결제위젯이 요청하도록
+  // 설정한 경우에만 온다 — src/pages/checkout/ParentCheckout.tsx의 현재
+  // virtualAccount 옵션(cashReceipt/validHours)은 이걸 요청하지 않으므로
+  // 실제로는 거의 항상 비어 있다). 있으면 환불계좌 입력 폼(RefundRequestModal/
+  // RefundApprovalModal)이 프리필에 쓴다 — 값을 지어내지 않고 실제로 있을 때만.
+  refundReceiveAccount?: {
+    bank?: string;
+    accountNumber?: string;
+    holderName?: string;
+  };
 }
 
-interface EasyPayInfo {
+export interface EasyPayInfo {
   provider?: string;
 }
 

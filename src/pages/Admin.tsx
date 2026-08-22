@@ -3050,19 +3050,38 @@ export function AdminSectionRoute({ section }: { section: string }) {
     await loadRows();
   }
 
-  // refundRequests 탭 전용 — fn_complete_refund RPC 로만 '환불완료'를 찍는다
+  // refundRequests 탭 전용 — '환불완료'는 fn_complete_refund RPC 직접 호출이
+  // 아니라 api/complete-refund 서버 라우트를 거친다(2026-08-22, 환불 갭 해결
+  // 확정 설계). 그 라우트가 토스 결제취소(카드 부분취소·가상계좌/계좌이체
+  // 취소)를 먼저 실행하고, **성공했을 때만** fn_complete_refund 를 호출한다 —
+  // 예전처럼 RPC를 바로 부르면 DB 상태만 완료로 바뀌고 실제로는 아무도
+  // 돈을 돌려주지 않은 채 남는다(qa-payment 환불 흐름 점검 보고).
   // (제네릭 PATCH 로는 completed 로 못 가게 status select 에서 이미 뺐다, ①).
-  // RPC 인자명은 Baseline §2 fn_complete_refund 시그니처 그대로.
   async function completeRefund(row) {
     if (!window.confirm("환불을 완료 처리하시겠습니까?")) return;
 
-    const { error } = await supabase.rpc("fn_complete_refund", {
-      p_refund_request_id: row.id,
-      p_admin_memo: null,
+    const accessToken = await getFreshSupabaseAccessTokenOrSignOut();
+
+    const response = await fetch("/api/complete-refund", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ refundRequestId: row.id }),
     });
 
-    if (error) {
-      reportAdminError("환불 완료 처리 실패", error);
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      // 토스 에러 메시지를 그대로 보여준다(팀 리드 지시) — reportAdminError의
+      // WC 코드 매핑을 거치면 "요청을 처리하지 못했습니다"류 일반 문구로
+      // 뭉개져 카드사·계좌 거부 사유(예: 이미 취소된 결제, 잔액 부족)가
+      // 안 보인다. 여기는 admin 전용 화면이라 원문 노출 위험이 낮다.
+      console.error("환불 완료 처리 실패:", result);
+      alert(
+        `환불 완료 처리 실패: ${result?.error || `HTTP ${response.status}`}`,
+      );
       return;
     }
 

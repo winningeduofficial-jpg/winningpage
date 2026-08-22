@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { formatKRW } from "@/data/pricingCatalog";
+import type { VirtualAccountInfo } from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
 import MyPageModalShell from "./MyPageModalShell";
+import RefundAccountFields from "./RefundAccountFields";
 
 // 환불 신청 모달 (Figma 3665:6635).
 //
@@ -11,10 +13,14 @@ import MyPageModalShell from "./MyPageModalShell";
 // (fn_request_refund)이 이 함수를 쓰기 때문이다. 화면과 DB가 다른 숫자를
 // 말하는 상황이 구조적으로 생길 수 없어야 한다.
 //
-// 계좌 3필드(은행/계좌번호/예금주)는 시안에 없어 뺐다. 환불은 원결제 수단으로
-// 환급되고(RefundNoticeModal "결제하신 수단으로 환급해드려요"), fn_request_refund
-// 의 해당 인자는 전부 default null 이라 안 보내도 된다. 현금 환급이 필요한
-// 예외 건은 어드민이 처리한다.
+// 계좌 3필드(은행/계좌번호/예금주)는 시안에 없어 처음엔 뺐지만(2026-08-13),
+// 카드 부분취소·계좌 환불을 토스로 일원화하면서(api/complete-refund.ts) 가상
+// 계좌 결제 건은 이 계좌가 없으면 실제로 환급할 방법이 없어졌다 — 그래서
+// **학부모(결제자) 역할 + 가상계좌 결제 건에 한해** 다시 필수로 받는다
+// (2026-08-22, 환불 갭 해결 확정 설계). 학생 화면(asStudent)에는 여전히
+// 노출하지 않는다 — 학생은 금액도 못 보는 화면이라(2026-08-13 확정) 계좌
+// 정보를 물을 대상이 아니다. 학생이 신청한 건은 학부모가 승인할 때
+// (RefundApprovalModal) 계좌를 받는다.
 
 const ETC_REASON = "기타 사유 (직접 입력)";
 
@@ -59,6 +65,10 @@ const REFUND_ERROR_TEXT = {
   WC037: "이미 환불이 완료된 주문입니다.",
   // sql/88 — 학부모 반려 건 재신청 차단(종결 축). ⚠ 신규 카피 — 승인 필요.
   WC057: "학부모님이 반려한 주문은 다시 환불 신청할 수 없습니다.",
+  // 2026-08-22 — 학부모 직접 신청은 즉시 approved 로 들어가 다시 계좌를
+  // 받을 기회가 없다. 프런트가 이미 필수 입력으로 막지만, RPC 직접 호출
+  // 등으로 우회하면 서버가 여기서 막는다(RefundApprovalModal과 동일 문구).
+  WC058: "가상계좌 환불은 환불계좌(은행/계좌번호/예금주) 입력이 필요합니다.",
 };
 const REFUND_UNKNOWN_ERROR_TEXT =
   "환불 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.";
@@ -70,6 +80,7 @@ type RefundOrder = {
   id: string;
   order_name?: string;
   amount: number;
+  virtual_account?: VirtualAccountInfo | null;
 };
 
 type RefundQuote = {
@@ -109,10 +120,21 @@ export default function RefundRequestModal({
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
+  const [refundBank, setRefundBank] = useState("");
+  const [refundAccount, setRefundAccount] = useState("");
+  const [refundHolder, setRefundHolder] = useState("");
+
   const orderId = order?.id;
+  const virtualAccount = order?.virtual_account ?? null;
+  const isVirtualAccountOrder = Boolean(virtualAccount);
+  // 계좌 필드는 학부모(asStudent=false) + 가상계좌 결제 건에서만 필요하다.
+  const showAccountFields = !asStudent && isVirtualAccountOrder;
 
   // 열릴 때마다 산정을 새로 받는다. 회차 소비·기간 경과는 시간이 지나면
-  // 바뀌므로 캐시하지 않는다.
+  // 바뀌므로 캐시하지 않는다. virtualAccount는 order 프롭에서 파생되는데,
+  // order는 상위(ParentPaymentsTab)가 매 렌더 새 배열/객체로 내려줄 수 있어
+  // deps에 넣으면 입력 중인 계좌 값이 다른 이유의 재렌더로 초기화된다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: orderId(스칼라) 하나로 "이 모달이 다른 주문을 위해 다시 열렸는가"만 판별하는 기존 설계를 그대로 따른다.
   useEffect(() => {
     if (!open || !orderId) return undefined;
     let alive = true;
@@ -123,6 +145,12 @@ export default function RefundRequestModal({
     setReason("");
     setEtcText("");
     setSubmitError("");
+    // 결제 시점에 이미 환불계좌가 있으면(위 VirtualAccountInfo.refundReceiveAccount
+    // 주석 참고) 프리필하고, 없으면 빈 값 — 지어내지 않는다.
+    const prefill = virtualAccount?.refundReceiveAccount;
+    setRefundBank(prefill?.bank || "");
+    setRefundAccount(prefill?.accountNumber || "");
+    setRefundHolder(prefill?.holderName || "");
 
     (async () => {
       const { data, error } = await supabase.rpc("fn_refund_quote", {
@@ -165,6 +193,16 @@ export default function RefundRequestModal({
     const { error } = await supabase.rpc("fn_request_refund", {
       p_order_id: orderId,
       p_reason: finalReason,
+      // 가상계좌 결제 건만 실어 보낸다 — 카드 결제 건에 빈 문자열을 보내면
+      // fn_request_refund 가 저장은 하되(스키마상 막지 않는다) 의미 없는 값이
+      // refund_requests 에 남는다.
+      ...(showAccountFields
+        ? {
+            p_refund_bank: refundBank,
+            p_refund_account: refundAccount.trim(),
+            p_refund_holder: refundHolder.trim(),
+          }
+        : {}),
     });
 
     setSaving(false);
@@ -187,7 +225,18 @@ export default function RefundRequestModal({
     }
 
     onSubmitted?.();
-  }, [orderId, reason, etcText, saving, onSubmitted, onStaleData]);
+  }, [
+    orderId,
+    reason,
+    etcText,
+    saving,
+    onSubmitted,
+    onStaleData,
+    showAccountFields,
+    refundBank,
+    refundAccount,
+    refundHolder,
+  ]);
 
   if (!open || !order) return null;
 
@@ -205,8 +254,18 @@ export default function RefundRequestModal({
 
   const reasonFilled =
     Boolean(reason) && (reason !== ETC_REASON || etcText.trim().length > 0);
+  const accountFieldsFilled =
+    !showAccountFields ||
+    (Boolean(refundBank) &&
+      refundAccount.trim().length > 0 &&
+      refundHolder.trim().length > 0);
   const canSubmit =
-    !loading && !quoteError && !blockedByPolicy && reasonFilled && !saving;
+    !loading &&
+    !quoteError &&
+    !blockedByPolicy &&
+    reasonFilled &&
+    accountFieldsFilled &&
+    !saving;
 
   const policyText = quote ? POLICY_TEXT[quote.policy_code || ""] : "";
 
@@ -300,6 +359,19 @@ export default function RefundRequestModal({
             );
           })()}
         </div>
+
+        {/* 환불계좌 — 학부모 + 가상계좌 결제 건만(위 파일 상단 주석 참고).
+              0원 환불이면 계좌도 필요 없으므로 blockedByPolicy 와 함께 숨긴다. */}
+        {showAccountFields && !blockedByPolicy && (
+          <RefundAccountFields
+            bank={refundBank}
+            account={refundAccount}
+            holder={refundHolder}
+            onBankChange={setRefundBank}
+            onAccountChange={setRefundAccount}
+            onHolderChange={setRefundHolder}
+          />
+        )}
 
         {/* 사유 선택 — 환불 금액이 0원이면 고를 필요가 없으므로 숨긴다. */}
         {!blockedByPolicy && (
