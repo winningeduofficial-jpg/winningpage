@@ -39,6 +39,10 @@ const ALLOWED_PURPOSES = [
   "parent_signup",
   "phone_change",
   "mentor_apply",
+  // 아이디(이메일) 찾기(QA 지시 2026-08-21) — /api/find-account-by-phone이
+  // 이 purpose로 인증된 요청만 받는다. 계정이 '있어야' 정상 시나리오라
+  // SIGNUP_PURPOSES에는 넣지 않는다(중복 번호 차단 대상 아님).
+  "find_account",
 ];
 
 // 가입 목적의 발송만 중복 번호를 막는다. 'phone_change'는 로그인한 본인의 번호가
