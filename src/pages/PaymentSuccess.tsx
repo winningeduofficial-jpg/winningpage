@@ -564,14 +564,16 @@ export default function PaymentSuccess() {
             <p className="mt-4 text-xs leading-4 text-ink-sub">{errorMsg}</p>
           )}
           {/* 재결제 경로(/pricing, /checkout)를 만들지 않는다 — 이미 승인된 결제를
-                다시 결제하게 만드는 사고를 구조적으로 막는다. 1순위는 전화 문의(권한
-                부여 실패 분기와 같은 번호), 2순위는 마이페이지에서 본인 확인. */}
+                다시 결제하게 만드는 사고를 구조적으로 막는다. 1순위는 카카오톡 문의(권한
+                부여 실패 분기와 동일 채널), 2순위는 마이페이지에서 본인 확인. */}
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a
-              href={`tel:${COMPANY.centerTel}`}
+              href={COMPANY.kakaoChannelUrl}
+              target="_blank"
+              rel="noopener noreferrer"
               className="rounded-xl bg-primary px-8 py-3.5 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90"
             >
-              센터로 문의하기
+              카카오톡으로 문의하기
             </a>
             <button
               type="button"
@@ -786,8 +788,7 @@ export default function PaymentSuccess() {
             {/* 12.5px 은 시안에 없는 단계였다 — 14px 로 올리고 보조 정보라는 사실은
                   ink.sub(#808080)로 표현한다(무게는 본문과 같은 w500). */}
             <p className="mt-3 text-[0.875rem] font-medium leading-5 text-ink-sub">
-              문의: 카카오톡 {COMPANY.kakao} · 대표전화 {COMPANY.tel} · 센터문의{" "}
-              {COMPANY.centerTel}
+              문의: 카카오톡 {COMPANY.kakao}
             </p>
           </div>
 
@@ -801,9 +802,8 @@ export default function PaymentSuccess() {
                   · 로그아웃 재방문은 로그인이 곧 해결이므로 /login 으로 보낸다.
                   · 비회원 결제는 회원가입이 유일한 자력 복구 경로다.
                   · 그 외 영구 실패는 로그인 벽인 /mypage 로 보내지 않고(비회원은
-                    MyPage.jsx:133 에서 /login 으로 튕긴다) 전화 문의만 남긴다.
-                    카카오톡은 채널 URL 정본이 없어 링크로 걸지 않았다(문의 줄에
-                    아이디로 노출). */}
+                    MyPage.jsx:133 에서 /login 으로 튕긴다) 카카오톡 문의만 남긴다
+                    (사용자 확정 — 전화 등 다른 연락 수단은 노출하지 않는다). */}
           <div className="mx-auto mt-8 w-full max-w-162.5 sm:mt-10">
             {(() => {
               if (canStart)
@@ -844,10 +844,12 @@ export default function PaymentSuccess() {
               if (grantPermanent)
                 return (
                   <a
-                    href={`tel:${COMPANY.centerTel}`}
+                    href={COMPANY.kakaoChannelUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
                     className="block w-full rounded-xl bg-primary py-4 text-center text-base font-semibold leading-5 text-white transition hover:bg-primary/90 sm:mx-auto sm:w-auto sm:px-16 sm:leading-5.5"
                   >
-                    센터로 문의하기
+                    카카오톡으로 문의하기
                   </a>
                 );
               return (
