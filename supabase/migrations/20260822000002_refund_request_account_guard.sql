@@ -33,6 +33,7 @@ declare
   v_completed_amount   integer;
   v_quote              record;
   v_is_virtual_account boolean;
+  v_normalized_account "text";
 begin
   perform pg_advisory_xact_lock(hashtextextended(p_order_id, 100));
 
@@ -93,18 +94,27 @@ begin
     v_resp_at := null;
   end if;
 
+  -- 계좌번호는 숫자만 남긴 뒤 판정·저장 양쪽에 쓴다(fn_respond_refund와
+  -- 동일 방식, 20260822000001) — 판정에 쓴 값과 실제로 저장되는 값이
+  -- 다르면(하이픈 섞인 원본을 그대로 저장) api/complete-refund.ts가 나중에
+  -- 다시 걸러야 하는 불일치가 생긴다. 학생 신청(v_status='requested')은
+  -- p_refund_account 가 애초에 NULL 로 오지만(RefundRequestModal이 학생
+  -- 화면엔 이 필드를 보내지 않는다), 여기서 무조건 계산해 둬야 INSERT 가
+  -- 경로에 상관없이 같은 값을 쓴다.
+  v_normalized_account := regexp_replace(p_refund_account, '[^0-9]', '', 'g');
+
   -- 신규(WC058, 2026-08-22) — 학부모 본인 신청이 즉시 approved 로 들어가는
   -- 이 경로는 fn_respond_refund 같은 나중 승인 단계가 없다. 그 주문이
-  -- 가상계좌 결제면 여기서 바로 막는다. 계좌번호는 숫자만 남긴 뒤
-  -- 판정한다(RefundAccountFields 가 프런트에서도 숫자만 남기지만, RPC를
-  -- 직접 호출하는 경로까지 막으려면 서버도 같은 정규화를 반복해야 한다).
+  -- 가상계좌 결제면 여기서 바로 막는다(RefundAccountFields 가 프런트에서도
+  -- 숫자만 남기지만, RPC를 직접 호출하는 경로까지 막으려면 서버도 같은
+  -- 정규화를 반복해야 한다).
   if v_status = 'approved' then
     v_is_virtual_account := (v_order.raw -> 'virtualAccount') is not null
       and (v_order.raw -> 'virtualAccount') <> 'null'::jsonb;
 
     if v_is_virtual_account
        and (coalesce(btrim(p_refund_bank), '') = ''
-            or coalesce(regexp_replace(p_refund_account, '[^0-9]', '', 'g'), '') = ''
+            or coalesce(v_normalized_account, '') = ''
             or coalesce(btrim(p_refund_holder), '') = '') then
       raise exception 'refund_account_required_for_virtual_account'
         using errcode = 'WC058';
@@ -119,7 +129,7 @@ begin
     gross_amount, policy_code, needs_review, quote
   ) values (
     v_caller, v_order.id, null, v_order.order_name, v_quote.refund_amount, p_reason,
-    p_refund_bank, p_refund_account, p_refund_holder, 'requested',
+    p_refund_bank, nullif(v_normalized_account, ''), p_refund_holder, 'requested',
     v_order.student_profile_id, v_order.parent_profile_id, v_caller,
     v_status, v_resp_at,
     v_quote.gross_amount, v_quote.policy_code, v_quote.needs_review, v_quote.lines
