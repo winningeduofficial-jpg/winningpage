@@ -41,6 +41,7 @@ import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
 import {
   DUPLICATE_PHONE_MESSAGE,
+  formatPhoneInput,
   isValidMobile,
   normalizePhone,
   PHONE_RESEND_COOLDOWN_SECONDS,
@@ -227,7 +228,11 @@ export default function StudentForm() {
   // 새로고침 후에도 리셋된 상태 그대로 복구된다.
   function handleField(key: string) {
     return (value: string) => {
-      updateFormData({ [key]: value });
+      // 전화번호는 자동 하이픈 포맷(010-1234-5678)을 적용한다(QA 지시 2026-08-21) —
+      // 멘토신청·프리미엄이용 문의 폼과 같은 src/lib/phoneVerification.ts 유틸을 공유한다.
+      // 서버로 보낼 때는 normalizePhone이 다시 숫자만 남기므로 여기서는 표시용으로만 쓴다.
+      const nextValue = key === "phone" ? formatPhoneInput(value) : value;
+      updateFormData({ [key]: nextValue });
 
       if (key === "email") {
         lastEmailAttempt.current = "";
@@ -797,7 +802,9 @@ export default function StudentForm() {
           actionDisabled={
             phoneSending || phoneCooldown.active || verification.phone.verified
           }
-          helperText={phoneMessage.text}
+          // 발송·검증 상태 메시지가 없을 때는 하이픈 자동 포맷 안내를 기본으로 보여준다
+          // (QA 지시 2026-08-21, password 필드의 정적 helperText 관례와 동일).
+          helperText={phoneMessage.text || "하이픈은 자동으로 입력돼요."}
           status={phoneMessage.status}
           autoComplete="tel"
           required

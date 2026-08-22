@@ -5,7 +5,7 @@
 --     infinite recursion detected in policy for relation "admin_members"
 --
 -- 원인
---   20260822000003 이 권한 테이블 5개에 같은 모양의 읽기 정책을 루프로 찍었다:
+--   20260822000010 이 권한 테이블 5개에 같은 모양의 읽기 정책을 루프로 찍었다:
 --     using (exists (select 1 from public.admin_members m
 --                     where m.profile_id = auth.uid() and m.status = 'active'))
 --   다른 4개(admin_resources/roles/role_permissions/member_permissions)에서는
@@ -53,7 +53,7 @@ as $$
 $$;
 
 comment on function public.fn_is_active_admin(uuid) is
-  '활성 관리자 여부(20260822000006). 권한 테이블의 읽기 정책 술어 전용이다 — 인라인 EXISTS 로 쓰면 admin_members 자신의 정책에서 42P17(무한 재귀)이 난다. SECURITY DEFINER 로 소유자 권한으로 돌아 RLS 를 우회하는 것이 재귀를 끊는 지점이다(fn_is_super_admin 과 같은 구조).';
+  '활성 관리자 여부(20260822000013). 권한 테이블의 읽기 정책 술어 전용이다 — 인라인 EXISTS 로 쓰면 admin_members 자신의 정책에서 42P17(무한 재귀)이 난다. SECURITY DEFINER 로 소유자 권한으로 돌아 RLS 를 우회하는 것이 재귀를 끊는 지점이다(fn_is_super_admin 과 같은 구조).';
 
 revoke all on function public.fn_is_active_admin(uuid) from public, anon;
 grant execute on function public.fn_is_active_admin(uuid) to authenticated, service_role;

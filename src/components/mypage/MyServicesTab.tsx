@@ -25,6 +25,13 @@ import ServiceCard from "./ServiceCard";
  * 정식 스키마(entitlement_months / entitlement_count 컬럼 등)가 생기면 이 파싱을 걷어내고
  * 그 값을 직접 써야 한다.
  *
+ * ── 한 주문에 여러 상품이 담긴 경우(order_items.length > 1) ──
+ * order_name은 "대표 상품명 외 N건"으로 요약돼 있어(buildOrderNameFromItems 계열) 그대로
+ * 쓰면 QA 지적대로 무슨 서비스가 묶였는지 알 수 없다. order_items가 2건 이상이면 order_name
+ * 대신 항목별로 카드를 쪼갠다(expandOrder) — 단, order_items.name은 products.name 스냅샷
+ * 그대로라 대괄호 기간·회차 표기가 없으므로, 쪼갠 카드는 기간 파싱 없이(months=null) 위
+ * "개월 정보 없음" 폴백(기본 이용 중, 메타 '-')과 같은 경로를 그대로 탄다.
+ *
  * ── 서비스명 → 표시 형식 분류 ──
  * 시안은 서비스 성격에 따라 메타 정보·하단 액션 문구가 다르다(콜멘토=세션형, 무료진단=1회성
  * 리포트형, 그 외=기간형). 서비스명 키워드로 분류하는 휴리스틱이며 실제 서비스 카탈로그
@@ -42,6 +49,7 @@ type Order = {
   paid_at?: string | null;
   status?: string | null;
   is_fake_entitlement?: boolean;
+  order_items?: { name: string }[] | null;
 };
 
 type ServiceCategory = "session" | "diagnosis" | "duration";
@@ -137,6 +145,22 @@ function programLink(serviceName: string) {
   if (serviceName.includes("목표관리")) return "/app/goal";
   const matched = SERVICE_INTRO_ROUTES.find((route) => route.test(serviceName));
   return matched ? matched.href : "/services";
+}
+
+// order_items가 2건 이상인 주문(여러 상품을 한 번에 결제한 경우)은 order_name이
+// "대표 상품명 외 N건"으로 뭉개져 있어 항목별로 쪼갠다. 1건 이하면 기존 order_name
+// 파싱 경로를 그대로 쓴다 — order_items가 정확히 1건일 때는 order_name의 대괄호
+// 기간 표기가 그 1건에 대한 것이라 그대로 유지해야 정보 손실이 없다.
+function expandOrder(order: Order): Order[] {
+  const items = order.order_items;
+  if (!items || items.length <= 1) return [order];
+  return items.map((item, index) => ({
+    id: `${order.id}:${index}`,
+    order_name: item.name,
+    paid_at: order.paid_at ?? null,
+    status: order.status ?? null,
+    is_fake_entitlement: order.is_fake_entitlement ?? false,
+  }));
 }
 
 function parseOrder(order: Order): ParsedOrder {
@@ -340,7 +364,8 @@ export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
     return <EmptyState />;
   }
 
-  const cards = usableOrders.map((order) => toViewModel(parseOrder(order)));
+  const displayOrders = usableOrders.flatMap(expandOrder);
+  const cards = displayOrders.map((order) => toViewModel(parseOrder(order)));
   const ongoing = cards.filter((card) => card.isOngoing);
   const completed = cards.filter((card) => !card.isOngoing);
 

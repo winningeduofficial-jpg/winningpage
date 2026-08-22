@@ -58,7 +58,7 @@ create table if not exists public.admin_resources (
 );
 
 comment on table public.admin_resources is
-  '권한을 걸 수 있는 어드민 메뉴 마스터(20260822000003_admin_permissions). key 는 ADMIN_SECTION_KEYS 와 같은 문자열이어야 한다 — 코드가 정본이고 이 테이블은 그 사본이다. 어긋나면 화면은 있는데 권한을 못 주거나(키 누락) 권한 화면에 유령 항목이 뜬다(키 잔존).';
+  '권한을 걸 수 있는 어드민 메뉴 마스터(20260822000010_admin_permissions). key 는 ADMIN_SECTION_KEYS 와 같은 문자열이어야 한다 — 코드가 정본이고 이 테이블은 그 사본이다. 어긋나면 화면은 있는데 권한을 못 주거나(키 누락) 권한 화면에 유령 항목이 뜬다(키 잔존).';
 
 
 -- ---------------------------------------------------------------------
@@ -87,7 +87,7 @@ create unique index if not exists admin_roles_single_super_idx
   on public.admin_roles ((true)) where is_super;
 
 comment on table public.admin_roles is
-  '권한 묶음(20260822000003_admin_permissions). is_super 묶음은 권한 항목을 갖지 않고 판정 함수가 전 메뉴 edit 으로 단락시킨다 — 새 메뉴가 추가돼도 최고 관리자는 자동 사용 가능해야 하므로.';
+  '권한 묶음(20260822000010_admin_permissions). is_super 묶음은 권한 항목을 갖지 않고 판정 함수가 전 메뉴 edit 으로 단락시킨다 — 새 메뉴가 추가돼도 최고 관리자는 자동 사용 가능해야 하므로.';
 
 
 -- ---------------------------------------------------------------------
@@ -206,7 +206,7 @@ as $$
 $$;
 
 comment on function public.fn_admin_effective_permissions(uuid) is
-  '한 사람의 최종 권한(20260822000003_admin_permissions). 규칙은 deny-wins → 최고수준 → default deny. 여기 안 나오는 메뉴는 접근 불가다(규칙 3은 "행이 없음"으로 표현된다).';
+  '한 사람의 최종 권한(20260822000010_admin_permissions). 규칙은 deny-wins → 최고수준 → default deny. 여기 안 나오는 메뉴는 접근 불가다(규칙 3은 "행이 없음"으로 표현된다).';
 
 revoke all on function public.fn_admin_effective_permissions(uuid) from public, anon;
 grant execute on function public.fn_admin_effective_permissions(uuid) to authenticated, service_role;

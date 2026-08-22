@@ -64,6 +64,12 @@ export function resolveOrderStatus(
   // 매칭이나 다른 상태로 오분류되지 않는다.
   if (order.approval_status === "superseded") return "superseded";
 
+  // 학부모가 결제 요청(수강신청) 자체를 반려함(fn_respond_enrollment,
+  // p_approve=false) — status 는 canceled 로 함께 떨어지므로 이 분기가
+  // 없으면 아래 "매칭되는 refund 없음 → paid" 폴백에 걸려 반려 건이
+  // "결제 완료"로 잘못 표시된다(돈이 들어온 적이 없는 주문이다).
+  if (order.approval_status === "rejected") return "enrollment_parent_rejected";
+
   // 가상계좌 미입금(waiting_deposit)은 환불 대상이 아니므로 refunds 매칭보다 먼저
   // 본다 — 돈이 안 들어온 주문이라 refund_requests 행이 있을 수 없다.
   if (order.status === "waiting_deposit") return "pending";

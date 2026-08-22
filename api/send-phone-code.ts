@@ -39,8 +39,9 @@ const ALLOWED_PURPOSES = [
   "parent_signup",
   "phone_change",
   "mentor_apply",
-  // 아이디·비밀번호 찾기(20260822000009). SIGNUP_PURPOSES 에 넣지 않는다 —
-  // 가입은 "이미 가입된 번호"를 거부하지만 찾기는 반대로 가입된 번호여야 한다.
+  // 아이디(이메일) 찾기(QA 지시 2026-08-21) — /api/find-account-by-phone이
+  // 이 purpose로 인증된 요청만 받는다. 계정이 '있어야' 정상 시나리오라
+  // SIGNUP_PURPOSES에는 넣지 않는다(중복 번호 차단 대상 아님).
   "find_account",
 ];
 

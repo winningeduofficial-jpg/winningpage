@@ -23,6 +23,7 @@ const STATUS_TEXT: Record<string, string> = {
   refund_completed: "환불 완료",
   refund_rejected: "환불 반려",
   superseded: "다른 상품으로 결제됨",
+  enrollment_parent_rejected: "학부모 반려",
 };
 
 function formatApprovedAtDetail(
@@ -46,6 +47,7 @@ type PaymentOrder = {
   paid_at?: string;
   vat?: number | string | null;
   amount: number;
+  reject_reason?: string | null;
   order_items?: {
     name: string;
     list_price?: number;
@@ -94,6 +96,11 @@ export default function PaymentDetailModal({
     { label: "결제 수단", value: order.method || "-" },
     { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
     { label: "결제 상태", value: STATUS_TEXT[status || ""] || "-" },
+    // 반려 건에만(orders_reject_reason_pairing_check) 노출한다. 폴백 문구 없이
+    // 값이 없으면 행 자체를 렌더하지 않는다.
+    ...(status === "enrollment_parent_rejected" && order.reject_reason
+      ? [{ label: "학부모 반려 사유", value: order.reject_reason }]
+      : []),
   ];
 
   // 환불 신청 버튼은 결제가 확정된 건에만 노출한다. 입금 대기(가상계좌 미입금)는
@@ -108,9 +115,11 @@ export default function PaymentDetailModal({
   // 거친다(확정 디자인 3967:3561 "환불을 요청할게요").
   const canRequestRefund = status === "paid";
 
-  // 영수증은 결제가 실제로 이뤄진 건에만 있다 — superseded(대체됨) 주문은
-  // 결제된 적이 없어 영수증을 보여주면 안 된다.
-  const canViewReceipt = status !== "superseded";
+  // 영수증은 결제가 실제로 이뤄진 건에만 있다 — superseded(대체됨)·
+  // enrollment_parent_rejected(반려) 주문은 결제된 적이 없어 영수증을
+  // 보여주면 안 된다.
+  const canViewReceipt =
+    status !== "superseded" && status !== "enrollment_parent_rejected";
 
   return (
     <MyPageModalShell

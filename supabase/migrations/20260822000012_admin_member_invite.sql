@@ -51,7 +51,7 @@ end;
 $$;
 
 comment on function public.fn_activate_admin_member() is
-  '초대받은 관리자가 첫 진입 시 자기 행을 invited → active 로 바꾼다(20260822000005). 정지(suspended)는 되살리지 않고, role_id 도 바꾸지 않는다 — 권한은 초대한 최고 관리자가 정한다.';
+  '초대받은 관리자가 첫 진입 시 자기 행을 invited → active 로 바꾼다(20260822000012). 정지(suspended)는 되살리지 않고, role_id 도 바꾸지 않는다 — 권한은 초대한 최고 관리자가 정한다.';
 
 revoke all on function public.fn_activate_admin_member() from public, anon;
 grant execute on function public.fn_activate_admin_member() to authenticated;
@@ -92,6 +92,6 @@ left join public.admin_roles r on r.id = m.role_id
 left join public.profiles   p on p.id = m.profile_id;
 
 comment on view public.admin_member_directory is
-  '직원 관리 화면용 평면 뷰(20260822000005). security_invoker=on — 조회자 권한으로 admin_members RLS 를 평가한다(끄면 이 뷰가 RLS 우회 경로가 된다).';
+  '직원 관리 화면용 평면 뷰(20260822000012). security_invoker=on — 조회자 권한으로 admin_members RLS 를 평가한다(끄면 이 뷰가 RLS 우회 경로가 된다).';
 
 grant select on public.admin_member_directory to authenticated;

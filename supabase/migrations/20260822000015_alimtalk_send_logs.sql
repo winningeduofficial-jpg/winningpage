@@ -54,7 +54,7 @@ create unique index if not exists alimtalk_send_logs_dedupe_idx
   on public.alimtalk_send_logs (dedupe_key) where dedupe_key is not null;
 
 comment on table public.alimtalk_send_logs is
-  '알림톡·문자 발송 이력(20260822000008). 회원 상세 「알림톡·문자」 탭과 크론 실패 추적의 근거다. 인증번호 발송은 본문에 코드가 그대로 들어가 로그가 인증 우회 수단이 되므로 여기 남기지 않는다.';
+  '알림톡·문자 발송 이력(20260822000015). 회원 상세 「알림톡·문자」 탭과 크론 실패 추적의 근거다. 인증번호 발송은 본문에 코드가 그대로 들어가 로그가 인증 우회 수단이 되므로 여기 남기지 않는다.';
 comment on column public.alimtalk_send_logs.dedupe_key is
   '중복 발송 방지 키(예: dailyReport:<profile_id>:2026-08-22). 부분 유니크 인덱스가 걸려 있어 두 번째 insert 가 23505 로 튕긴다 — 크론 재시도·중복 기동에서 같은 알림이 두 번 나가지 않게 한다.';
 

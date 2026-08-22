@@ -82,7 +82,8 @@ export default function InviteDone() {
           tone="primary"
           size="md"
         >
-          + 자녀 추가하기
+          {/* QA 지시 2026-08-21: "다른자녀초대" 표기를 "자녀추가 초대"로 통일. */}
+          + 자녀추가 초대
         </TextLinkButton>
       </div>
     </AuthLayout>

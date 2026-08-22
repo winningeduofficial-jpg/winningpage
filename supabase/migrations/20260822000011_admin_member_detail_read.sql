@@ -16,7 +16,7 @@
 --   PERMISSIVE 정책은 OR 로 합쳐지므로 덧붙여봐야 중복일 뿐이다.
 --
 -- 왜 is_admin() 이 아니라 fn_admin_can() 인가
---   20260822000003 이 도입한 권한 체계를 화면뿐 아니라 데이터 층에서도 쓰기
+--   20260822000010 이 도입한 권한 체계를 화면뿐 아니라 데이터 층에서도 쓰기
 --   위해서다. 어드민 화면은 브라우저에서 supabase-js 로 테이블을 직접 읽으므로,
 --   술어가 is_admin() 이면 "메뉴는 숨겼는데 REST 로는 읽힌다"가 된다.
 --   도입 시점의 기존 관리자는 전원 최고 관리자라(9-c절) 보이는 것은 달라지지 않는다.
@@ -39,4 +39,4 @@ create policy "program_access admin select" on public.program_access
   using (public.fn_admin_can('members', 'view'));
 
 comment on policy "program_access admin select" on public.program_access is
-  '회원 상세 이용서비스 탭(20260822000004). 기존 정책이 program_access_select_own(auth.uid() = id) 뿐이라 어드민이 남의 이용권을 에러가 아니라 0행으로 보게 되던 것을 연다. 술어가 is_admin()이 아니라 fn_admin_can(''members'',''view'')인 이유는 파일 상단 주석 참고.';
+  '회원 상세 이용서비스 탭(20260822000011). 기존 정책이 program_access_select_own(auth.uid() = id) 뿐이라 어드민이 남의 이용권을 에러가 아니라 0행으로 보게 되던 것을 연다. 술어가 is_admin()이 아니라 fn_admin_can(''members'',''view'')인 이유는 파일 상단 주석 참고.';

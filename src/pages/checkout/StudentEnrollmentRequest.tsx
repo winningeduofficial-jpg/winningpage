@@ -285,7 +285,7 @@ export default function StudentEnrollmentRequest() {
           <div className="flex w-full max-w-100 flex-col items-center">
             <button
               type="button"
-              onClick={() => navigate("/mypage")}
+              onClick={() => navigate("/mypage?tab=payments")}
               className="flex h-13 w-full items-center justify-center rounded-xl bg-ink-title text-[1rem] font-semibold text-white transition hover:brightness-125"
             >
               마이페이지에서 확인하기

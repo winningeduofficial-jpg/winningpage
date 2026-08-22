@@ -21,6 +21,7 @@ interface MemberField {
     | "textarea";
   required?: boolean;
   options?: FieldOption[];
+  placeholder?: string;
 }
 
 interface MemberCrudConfig {
@@ -80,6 +81,15 @@ export const memberConfigs: Record<string, MemberConfig> = {
       { key: "member_type", label: "가입 유형" },
       { key: "email", label: "이메일" },
       { key: "phone", label: "전화번호", type: "maskedPhone" },
+      // 회원구분 — dev 에서 QA 186 으로 추가된 관리자 전용 컬럼(20260822000011).
+      // 회원은 못 보고 관리자만 본다. 값은 고정 목록이 아니라 자유 텍스트다
+      // (일반회원 / OO학교 / OO기관 / OO캠퍼스 / OO기업 / 기타).
+      //
+      // ⚠️ 이 config 가 custom 으로 바뀌면서 제네릭 편집 폼이 사라졌다. 그래서
+      //    회원구분 **편집**은 MembersAdmin 상세의 「고객 상세 정보」 탭이 맡는다
+      //    (src/components/admin/MembersAdmin.tsx) — 목록에서 값만 보이고 고칠
+      //    데가 없으면 QA 186 요구가 반쪽이 된다.
+      { key: "member_category", label: "회원구분" },
       { key: "created_at", label: "가입일", type: "date" },
     ],
   },

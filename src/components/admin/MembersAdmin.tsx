@@ -55,6 +55,7 @@ interface ProfileRow {
   landline?: string | null;
   guardian_phone?: string | null;
   memo?: string | null;
+  member_category?: string | null;
   is_active?: boolean | null;
   terms_service_agreed?: boolean | null;
   privacy_required_agreed?: boolean | null;
@@ -188,7 +189,7 @@ function formatMoney(value?: number | null) {
 // 개인정보 마스킹 — 참조 HTML 의 "🔒 개인정보 마스킹" 토글이 요구하는 표기다
 // (기본 마스킹, 버튼으로 해제). 연락처는 가운데 자리를, 이메일은 로컬파트
 // 뒷부분을 가린다. 표시만 가리는 것이고 조회 자체를 막지는 않는다 — 조회
-// 차단은 RLS(20260822000004)가 fn_admin_can('members','view')로 한다.
+// 차단은 RLS(20260822000011)가 fn_admin_can('members','view')로 한다.
 function maskPhone(value?: string | null) {
   if (!value) return "-";
   const digits = String(value).replace(/[^0-9]/g, "");
@@ -225,6 +226,11 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
   const [detailError, setDetailError] = useState("");
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
+  // 회원구분(QA 186) — dev 가 제네릭 폼 필드로 추가했는데 이 화면이 custom 으로
+  // 바뀌면서 그 폼이 사라졌다. 목록에 값만 뜨고 고칠 데가 없으면 요구가 반쪽이라
+  // 여기서 인라인으로 편집한다. 고정 목록이 아니라 자유 텍스트다(DB CHECK 없음).
+  const [categoryDraft, setCategoryDraft] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
 
   async function loadRows() {
     setLoading(true);
@@ -355,6 +361,7 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
     setOrders([]);
     setMessages([]);
     setDraft("");
+    setCategoryDraft(row.member_category || "");
     loadDetail(row);
   }
 
@@ -412,6 +419,33 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
     } finally {
       setSending(false);
     }
+  }
+
+  async function saveMemberCategory() {
+    if (!selected || savingCategory) return;
+    setSavingCategory(true);
+
+    const next = categoryDraft.trim() || null;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ member_category: next })
+      .eq("id", selected.id);
+
+    setSavingCategory(false);
+
+    if (error) {
+      alert(`회원구분 저장 실패: ${error.message}`);
+      return;
+    }
+
+    // 목록과 상세가 같은 값을 보게 맞춰둔다(재조회 없이).
+    setSelected({ ...selected, member_category: next });
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === selected.id ? { ...row, member_category: next } : row,
+      ),
+    );
+    alert("회원구분을 저장했습니다.");
   }
 
   // 결제 요약 3종 — 참조 HTML 의 "이번 달 결제 / 미납액 / 누적 결제액".
@@ -541,6 +575,10 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
             unmasked={unmasked}
             phoneOf={phoneOf}
             emailOf={emailOf}
+            categoryDraft={categoryDraft}
+            setCategoryDraft={setCategoryDraft}
+            onSaveCategory={saveMemberCategory}
+            savingCategory={savingCategory}
           />
         ) : tab === "services" ? (
           <ServicesPane accesses={accesses} />
@@ -661,6 +699,10 @@ function ProfilePane({
   unmasked,
   phoneOf,
   emailOf,
+  categoryDraft,
+  setCategoryDraft,
+  onSaveCategory,
+  savingCategory,
 }: {
   profile: ProfileRow;
   isParent: boolean;
@@ -668,6 +710,10 @@ function ProfilePane({
   unmasked: boolean;
   phoneOf: (row?: ProfileRow | null) => string;
   emailOf: (row?: ProfileRow | null) => string;
+  categoryDraft: string;
+  setCategoryDraft: (value: string) => void;
+  onSaveCategory: () => void;
+  savingCategory: boolean;
 }) {
   const address = [profile.address, profile.address_detail]
     .filter(Boolean)

@@ -2,7 +2,9 @@ import type { RouteObject } from "react-router";
 import { Outlet } from "react-router";
 import { SignupProvider } from "@/context/SignupContext";
 import FindAccount from "@/pages/FindAccount";
+import FindPassword from "@/pages/FindPassword";
 import Login from "@/pages/Login";
+import ResetPassword from "@/pages/ResetPassword";
 // 회원가입 플로우(§5.2) — 유형 선택 → 생년월일 → 학생/학부모 분기 폼 → 완료/온보딩
 import MemberType from "@/pages/signup/MemberType";
 import InviteChild from "@/pages/signup/parent/InviteChild";
@@ -39,10 +41,11 @@ function SignupFlowLayout() {
 // SiteLayout 안으로 편입(구 Login.jsx/Signup.jsx의 pt-16 보정 관례 그대로 재사용).
 const authRoutes: RouteObject[] = [
   { path: "/login", Component: Login },
-  // 아이디·비밀번호 찾기 — 탭 하나에 두 기능이 들어간다(와이어프레임 구조).
-  // ?tab=password 로 비밀번호 탭을 바로 열 수 있게 해 로그인 화면의 두 링크가
-  // 같은 페이지를 가리키면서도 각자 자기 탭으로 들어오게 한다.
-  { path: "/find-account", Component: FindAccount },
+  // 아이디·비밀번호 찾기(QA 지시 2026-08-21) — SignupProvider 밖(회원가입 단계 데이터와
+  // 무관)에 둔다. reset-password는 FindPassword가 보낸 이메일 링크의 redirectTo다.
+  { path: "/login/find-id", Component: FindAccount },
+  { path: "/login/find-password", Component: FindPassword },
+  { path: "/login/reset-password", Component: ResetPassword },
 
   {
     Component: SignupFlowLayout,

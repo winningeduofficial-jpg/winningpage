@@ -114,7 +114,7 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
   // 즉 관리자가 아닌 사람이 /admin 을 찔러봐야 권한이 생기지 않는다.
   //
   // active 가 되면 admin_members_sync_role 트리거가 profiles.role 을 'admin' 으로
-  // 올린다(20260822000007) — 기존 RLS 수백 곳이 여전히 is_admin() 을 쓰므로 그
+  // 올린다(20260822000014) — 기존 RLS 수백 곳이 여전히 is_admin() 을 쓰므로 그
   // 축까지 올라가야 화면이 실제로 데이터를 읽는다.
   const { data: activated, error: activateError } = await supabase.rpc(
     "fn_activate_admin_member",

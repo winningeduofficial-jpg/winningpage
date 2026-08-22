@@ -1,7 +1,7 @@
 -- admin_members ↔ profiles.role 동기화
 --
 -- 왜 필요한가 — 판정 축이 둘로 갈려 있다
---   새 권한 체계(20260822000003)는 admin_members 를 본다. 그런데 이 저장소의
+--   새 권한 체계(20260822000010)는 admin_members 를 본다. 그런데 이 저장소의
 --   RLS 정책 대부분은 여전히 is_admin()(= profiles.role = 'admin')을 술어로 쓴다
 --   (baseline 에서 profiles_admin_select_all / orders select own 등 수백 곳).
 --   두 축이 어긋나면 이런 일이 생긴다:
@@ -59,14 +59,14 @@ end;
 $$;
 
 comment on function public.fn_sync_admin_member_role() is
-  'admin_members.status → profiles.role 동기화(20260822000007). 활성이면 admin, 아니면 user. 판정 축이 admin_members(신규)와 is_admin()(기존 RLS 수백 곳)으로 갈려 있어 어긋나면 "화면은 열리는데 표가 비거나" "정지시켰는데 REST 로는 읽히는" 상태가 된다. RLS 술어를 fn_admin_can 으로 옮기기 전까지의 다리다.';
+  'admin_members.status → profiles.role 동기화(20260822000014). 활성이면 admin, 아니면 user. 판정 축이 admin_members(신규)와 is_admin()(기존 RLS 수백 곳)으로 갈려 있어 어긋나면 "화면은 열리는데 표가 비거나" "정지시켰는데 REST 로는 읽히는" 상태가 된다. RLS 술어를 fn_admin_can 으로 옮기기 전까지의 다리다.';
 
 drop trigger if exists admin_members_sync_role on public.admin_members;
 create trigger admin_members_sync_role
   after insert or update or delete on public.admin_members
   for each row execute function public.fn_sync_admin_member_role();
 
--- 기존 행 정합 — 20260822000003 9-c)절이 만든 행들과 seed.sql 이 만든 행은
+-- 기존 행 정합 — 20260822000010 9-c)절이 만든 행들과 seed.sql 이 만든 행은
 -- 트리거가 생기기 전에 들어왔다. 한 번 맞춰준다.
 update public.profiles p
    set role = 'admin'
