@@ -2,16 +2,16 @@ import { useEffect, useState } from "react";
 import AppModal from "@/components/goal/AppModal";
 import ModalField from "@/components/goal/ModalField";
 import SegmentedChipGroup from "@/components/goal/SegmentedChipGroup";
+import { TASK_SUBJECTS } from "@/components/goal/goalFormOptions";
 import { resolveSubjectId } from "@/components/goal/subjectTokens";
-import { goalModalOptions } from "@/data/goalMock";
 
 // 문제집 추가/수정 모달 — docs/figma-goal/part-11.md #31 (530×468 = 33.125rem × 29.25rem).
 // 트리거: 「나의 노력」 과목 카드 `+ 문제집 추가`(과목 프리셀렉트, 신규) / 헤더 `+ 과목 추가하기`
 // (프리셀렉트 없음, 신규) / 등록된 문제집 칩 클릭(수정 — 진도 갱신 동선이 시안에 별도로 없어 이
 // 모달을 재사용한다, api/goal/workbooks.js PUT 배선 시 재량 판단).
 // 과목 칩 5종(국어/수학/영어/탐구/기타)은 AddTaskModal의 과목 옵션과 동일 집합이라
-// goalModalOptions.taskSubjects를 그대로 재사용한다(part-11 §243 "#28 모달의 과목 칩 5종과 동일").
-const SUBJECT_OPTIONS = goalModalOptions.taskSubjects.map((label) => ({
+// TASK_SUBJECTS를 그대로 재사용한다(part-11 §243 "#28 모달의 과목 칩 5종과 동일").
+const SUBJECT_OPTIONS = TASK_SUBJECTS.map((label) => ({
   value: label,
   label,
 }));

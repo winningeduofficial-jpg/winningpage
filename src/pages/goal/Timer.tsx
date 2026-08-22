@@ -4,7 +4,7 @@ import SessionRecordPanel from "@/components/goal/study/SessionRecordPanel";
 import SubjectTimerCard from "@/components/goal/study/SubjectTimerCard";
 import TimerSummaryBar from "@/components/goal/study/TimerSummaryBar";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
-import { TIMER_SUBJECT_ORDER } from "@/data/goalStudyMock";
+import { TIMER_SUBJECT_ORDER } from "@/components/goal/studyRecordOptions";
 import {
   getDayIndexFromYMDServer,
   kstYMD,

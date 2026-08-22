@@ -12,8 +12,8 @@ import { addDaysYMD, getMondayYMD, kstYMD } from "./goal/calc/index.js";
 // 않도록 그대로 재노출한다 — 이 파일이 이미 같은 심볼을 쓰고 있어 재노출 비용이 없다.
 export { kstYMD };
 
-// WeekdayPlanBoard.jsx DAY_KEY와 같은 순서(월~일). mockWeeklyPlan(goalMock.js)의
-// day 라벨과 글자 단위로 같아야 WeekdayPlanBoard가 그대로 소비할 수 있다.
+// WeekdayPlanBoard.jsx DAY_KEY와 같은 순서(월~일). WeekdayPlanBoard가 그대로
+// 소비할 수 있도록 그 컴포넌트의 day 라벨과 글자 단위로 같아야 한다.
 export const WEEKDAY_LABELS = [
   "월요일",
   "화요일",
@@ -67,9 +67,35 @@ export function formatWeekRangeLabel(weekDates: string[]) {
   return `${sy}.${sm}.${sd} – ${em}.${ed}`;
 }
 
+/** 'YYYY-MM-DD' → 'YYYY.MM.DD' 점 구분 표기. */
+function formatDotDate(ymd: string) {
+  const [y, m, d] = ymd.split("-");
+  return `${y}.${m}.${d}`;
+}
+
 /**
- * AddTaskModal "예상 소요 시간" 셀렉트 라벨(goalModalOptions.taskDurations,
- * goalMock.js:297 — "30분"·"1시간"·"1시간 30분" 등) → 분.
+ * 대시보드 헤더 날짜 라벨 — "YYYY.MM.DD 요일 기준"(요일 전체 표기, 예: "2026.08.20 목요일 기준").
+ * KST 기준으로 오늘을 읽는다(getTodayWeekdayLabel과 동일 타임존).
+ */
+export function formatTodayDateLabel(now = new Date()) {
+  return `${formatDotDate(kstYMD(now))} ${getTodayWeekdayLabel(now)} 기준`;
+}
+
+/**
+ * GoalPageHeader meta 라벨 — "YYYY.MM.DD (요일)"(요일 축약, 예: "2026.08.20 (목)").
+ * DailyRecord.jsx "오늘의 공부 기록" 헤더 전용.
+ */
+export function formatTodayDateMeta(now = new Date()) {
+  const short = new Intl.DateTimeFormat("ko-KR", {
+    weekday: "short",
+    timeZone: "Asia/Seoul",
+  }).format(now);
+  return `${formatDotDate(kstYMD(now))} (${short})`;
+}
+
+/**
+ * AddTaskModal "예상 소요 시간" 셀렉트 라벨(TASK_DURATIONS,
+ * src/components/goal/goalFormOptions.ts — "30분"·"1시간"·"1시간 30분" 등) → 분.
  * "N시간"·"M분" 부분 문자열을 각각 찾아 더하는 방식이라 6개 옵션 전부와
  * 향후 라벨 추가에도 별도 표 없이 대응한다.
  */

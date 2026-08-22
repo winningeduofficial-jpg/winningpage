@@ -39,7 +39,7 @@ import {
 } from "./bonus.js";
 
 // 컨디션 배수 — 신시안 "오늘의 컨디션" 4지선다(part-09 §180,
-// src/data/goalStudyMock.js mockConditionOptions)와 값 도메인이 정확히 같다.
+// src/components/goal/studyRecordOptions.js CONDITION_OPTIONS)와 값 도메인이 정확히 같다.
 // sql/73_goal_daily_record_v2.sql 의 body_condition CHECK 도 이 4값 + 빈 문자열이다.
 export const CONDITION_MULTIPLIER = {
   great: 1.1,

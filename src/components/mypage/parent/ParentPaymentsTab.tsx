@@ -83,10 +83,7 @@ type Order = {
   coupon_redemptions?: {
     discount_amount: number;
     voided_at?: string | null;
-    coupons?:
-      | { title?: string | null }
-      | { title?: string | null }[]
-      | null;
+    coupons?: { title?: string | null } | { title?: string | null }[] | null;
   }[];
 };
 
@@ -106,13 +103,15 @@ type Refund = {
 type ParentPaymentsTabProps = {
   orders?: Order[];
   refunds?: Refund[];
-  onRefundSubmitted?: () => void;
+  // 상위(MyPage)가 가진 데이터(orders·refunds·탭 배지) 재조회 — 모달 액션 후
+  // 아래 refreshAll 이 자체 pending 목록과 함께 호출한다.
+  onRefresh?: () => void;
 };
 
 export default function ParentPaymentsTab({
   orders = [],
   refunds = [],
-  onRefundSubmitted,
+  onRefresh,
 }: ParentPaymentsTabProps) {
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [nameById, setNameById] = useState<Record<string, string>>({});
@@ -161,6 +160,14 @@ export default function ParentPaymentsTab({
   useEffect(() => {
     reloadPending();
   }, [reloadPending]);
+
+  // 세 섹션(환불요청·결제 신청하기·지난 결제내역)은 데이터 출처가 갈린다 —
+  // 1·3은 상위 orders/refunds, 2는 여기 pendingOrders. 어느 섹션의 액션이든
+  // 다른 섹션의 상태(배지·목록·건수)를 바꿀 수 있으므로 항상 전부 다시 읽는다.
+  const refreshAll = useCallback(() => {
+    reloadPending();
+    onRefresh?.();
+  }, [reloadPending, onRefresh]);
 
   // 자녀가 보낸 환불 요청 — 학부모 본인 신청은 제약상 즉시 approved 라
   // 이 목록에 남지 않는다(refund_requests_parent_auto_approve_check).
@@ -304,11 +311,9 @@ export default function ParentPaymentsTab({
         onSubmitted={() => {
           setRefundOrder(null);
           setNoticeOpen(true);
-          onRefundSubmitted?.();
+          refreshAll();
         }}
-        // onStaleData는 optional(exactOptionalPropertyTypes) — onRefundSubmitted가
-        // undefined면 키 자체를 생략한다(동작 동일, onStaleData?.() 호출부가 처리).
-        {...(onRefundSubmitted && { onStaleData: onRefundSubmitted })}
+        onStaleData={refreshAll}
       />
 
       <RefundNoticeModal
@@ -327,7 +332,7 @@ export default function ParentPaymentsTab({
         onClose={() => setEnrollmentRequest(null)}
         onRejected={() => {
           setEnrollmentRequest(null);
-          reloadPending();
+          refreshAll();
         }}
       />
 
@@ -350,7 +355,7 @@ export default function ParentPaymentsTab({
         onClose={() => setApprovalRequest(null)}
         onResponded={() => {
           setApprovalRequest(null);
-          onRefundSubmitted?.();
+          refreshAll();
         }}
       />
     </div>
