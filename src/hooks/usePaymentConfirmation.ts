@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { clearCart } from "@/lib/cart";
 import { supabase } from "@/lib/supabase";
 
-interface CardInfo {
+export interface CardInfo {
   cardType?: string;
   issuerCode?: string;
   number?: string;
@@ -18,7 +18,7 @@ export interface VirtualAccountInfo {
   accountNumber?: string;
 }
 
-interface EasyPayInfo {
+export interface EasyPayInfo {
   provider?: string;
 }
 
