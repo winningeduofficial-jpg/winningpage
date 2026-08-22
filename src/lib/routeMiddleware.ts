@@ -95,11 +95,38 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
   }
 
   const role = profile?.role ?? null;
-  setCached(user.id, "admin-role", role);
 
-  if (role !== "admin") {
-    throw new AdminForbiddenError();
+  if (role === "admin") {
+    setCached(user.id, "admin-role", role);
+    return;
   }
+
+  // 초대받은 관리자의 첫 진입 — 여기가 유일한 통로다.
+  //
+  // 초대 메일 링크는 비밀번호 설정 후 /admin 으로 돌아온다. 그런데 그 시점의
+  // profiles.role 은 아직 'user' 라(초대는 admin_members 에 invited 행만 만든다)
+  // 위 검사에서 그대로 막힌다. 막히면 활성화를 호출할 기회가 영영 없다 —
+  // 닭과 달걀이다.
+  //
+  // 그래서 role 검사에 걸린 사람에 한해 활성화를 한 번 시도한다.
+  // fn_activate_admin_member 는 **자기 행이 invited 일 때만** active 로 바꾸고
+  // (role_id 는 건드리지 않는다), 해당 행이 없으면 아무것도 하지 않는다.
+  // 즉 관리자가 아닌 사람이 /admin 을 찔러봐야 권한이 생기지 않는다.
+  //
+  // active 가 되면 admin_members_sync_role 트리거가 profiles.role 을 'admin' 으로
+  // 올린다(20260822000007) — 기존 RLS 수백 곳이 여전히 is_admin() 을 쓰므로 그
+  // 축까지 올라가야 화면이 실제로 데이터를 읽는다.
+  const { data: activated, error: activateError } = await supabase.rpc(
+    "fn_activate_admin_member",
+  );
+
+  if (!activateError && activated?.status === "active") {
+    setCached(user.id, "admin-role", "admin");
+    return;
+  }
+
+  setCached(user.id, "admin-role", role);
+  throw new AdminForbiddenError();
 };
 
 // 3) /app/goal/* — 로그인 + 이용권('goal') 확인(RequireGoalAccess.jsx의 1・2단계,
