@@ -80,18 +80,16 @@ import { useInView } from "@/hooks/useInView";
 // 불필요하다). 히어로 CTA는 `/app/performance`로 단순 이동만 하고, 실제 판정(로그인
 // 여부・결제 여부)은 전부 RequireEntitlement 가드(App.jsx)가 처리한다 — 여기서
 // openPaidServiceOrAlert 같은 판정 로직을 다시 호출하면 이중 판정이 된다(GoalManagement.jsx
-// 상단 주석과 동일한 이유). 가드가 이용권 미보유자를 `forbiddenTo="/services/performance#pricing"`
-// 로 되돌리는 것도 §2.2 설계상 정상 경로다 — 가드가 최종 권위이므로 랜딩에서 이용권을
-// 이중 판정할 이유가 없다.
+// 상단 주석과 동일한 이유). 가드가 이용권 미보유자를 되돌리는 목적지는 목표관리
+// (requireGoalAccessMiddleware)와 동일하게 `/pricing`(이용요금 탭)이다 — 이 랜딩으로
+// 되돌리지 않는다(QA 지적, performanceAppRoutes.tsx 주석 참고: 되돌렸을 때 배너가
+// history.state에 남아 새로고침해도 사라지지 않는 문제가 있었다).
 const HERO_SERVICE = { name: "수행평가 서비스", to: "/app/performance" };
 
-// 이용권 미보유 사용자가 `/app/performance`에 직접 접근하면 이 페이지의 가격
-// 섹션으로 되돌려진다(App.jsx의 `forbiddenTo="/services/performance#pricing"`,
-// 명세서 §2.2 forbidden 행). 그 계약을 이 페이지가 받는 지점이 아래 둘이다.
-//   ① 앵커 — `#pricing`이 가리킬 실제 id. 없으면 최상단에 그대로 머문다.
-//   ② 인라인 안내 — RequireEntitlement가 `location.state.entitlementNotice`로
-//      실어 보내는 문구. 소비하는 쪽이 없으면 사용자는 왜 튕겼는지 알 수 없다
-//      (§2.2 「현행 alert 대신 화면 안내로 승격」).
+// 가격 섹션 앵커 — RequireEntitlement의 forbidden 경로는 더 이상 이 페이지로 돌아오지
+// 않지만(위 주석 참고), QuotaExhaustedBanner/QuotaExhaustedCard(이미 이용권이 있는
+// 사용자의 회차 소진 안내)의 "이용권 구매하기" 링크가 여전히 `#pricing`으로 이 페이지에
+// 진입한다 — 그 계약을 아래 해시 스크롤 effect가 받는다.
 const PRICING_ANCHOR_ID = "pricing";
 
 // desc는 시안(2393:12092) 원문 그대로 자동 줄바꿈이 아니라 "명시적 개행"이다.
@@ -418,7 +416,6 @@ function HeroSection() {
 
 export default function PerformanceAssessment() {
   const location = useLocation();
-  const entitlementNotice = location.state?.entitlementNotice || null;
 
   // 해시(`#pricing`)로 도착해도 가격 섹션이 늘 로딩 분기일 수 있으므로 id는
   // ServicePricingSection의 3분기 모두에 붙어 있다. 도착 오차는 scroll-mt-24가 흡수한다.
@@ -430,14 +427,9 @@ export default function PerformanceAssessment() {
 
   // SPA 내부 이동은 해시를 브라우저가 처리해 주지 않는다 — App.jsx의 ScrollToTop은
   // 해시가 있을 때 "최상단으로 이동"만 건너뛸 뿐, 앵커로 스크롤하는 코드는 저장소
-  // 어디에도 없다(<a href="#...">를 쓰는 콜멘토는 같은 문서 내 이동이라 해당 없음).
-  // 그래서 가드가 보낸 `#pricing`을 여기서 직접 처리한다.
-  // QA 지적(행 153): 이용권 미보유로 튕겨 온 사용자가 배너를 직접 눌러야만 가격
-  // 섹션으로 내려가던 것이, 목표관리(GoalManagement)의 "시작하기 → 이용요금 바로
-  // 이동" 흐름과 달리 화면 위쪽에 안내 박스만 남은 채 멈춰 있는 것처럼 보였다.
-  // 배너(entitlementNotice)가 떠 있어도 자동으로 가격 섹션까지 스크롤하도록 바꿔
-  // 목표관리와 동일하게 "이용요금 직행"이 되게 한다 — 배너 자체는 그대로 남아
-  // 있으니 "왜 돌아왔는지"는 스크롤 후에도 위로 올리면 계속 확인할 수 있다.
+  // 어디에도 없다. 그래서 QuotaExhaustedBanner/Card가 보낸 `#pricing`을 여기서
+  // 직접 처리한다(RequireEntitlement의 forbidden 경로는 더 이상 이 해시를 쓰지
+  // 않는다 — 위 PRICING_ANCHOR_ID 주석 참고).
   useEffect(() => {
     if (location.hash !== `#${PRICING_ANCHOR_ID}`) return undefined;
 
@@ -449,29 +441,6 @@ export default function PerformanceAssessment() {
 
   return (
     <main className="min-h-screen bg-white pt-16">
-      {/* 이용권 미보유로 되돌려진 경우에만 뜬다. 평상시 방문에는 아무것도 렌더하지 않는다. */}
-      {entitlementNotice ? (
-        <div className="mx-auto w-full max-w-content px-5 pt-6 sm:px-8">
-          <div
-            role="status"
-            className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-footer px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <p className="text-[1rem] font-semibold leading-normal text-primary">
-              {entitlementNotice}
-            </p>
-            {/* 현재 URL의 해시가 이미 `#pricing`이라 <a href="#pricing">는 같은 해시로의
-                이동이 되어 브라우저가 아무것도 하지 않는다. 그래서 직접 스크롤한다. */}
-            <button
-              type="button"
-              onClick={scrollToPricing}
-              className="inline-flex h-11 shrink-0 items-center justify-center rounded-[0.9375rem] border border-accent bg-primary px-6 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F]"
-            >
-              이용권 보러가기
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       <HeroSection />
 
       {/* 히어로 목업이 lg:mb-[-7.89375rem]로 이 섹션 위에 겹치므로 pt 가 페이지 내 최소값이다. */}

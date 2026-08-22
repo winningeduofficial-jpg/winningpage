@@ -43,6 +43,18 @@ const SEMESTER_OPTIONS = ["1학기", "2학기"];
 
 const CUSTOM_SUBJECT_SENTINEL = "직접 입력";
 
+// QA 지적 — 이 세 자유 입력 필드값은 그대로 STEP3 추천 주제 카드의 메타 태그
+// (`MetaTag`, 고정 높이 h-7.5·줄바꿈 없는 한 줄)로 흘러간다(`customSubject`→`subject`→
+// "교과군/과목" 칩, `careerGoal`→"진로" 칩 — TopicCard.tsx 주석 §8.3 `buildTags`).
+// 길게 입력하면 칩 하나가 카드 폭(37.25rem)을 넘겨 레이아웃이 깨진다. 상한은 그
+// 칩 실측(폭 = 텍스트 폭 + 좌우 0.375rem, 시안 최장 예시 "국어/공통국어1" 6자 기준)에
+// 여유를 두고 잡았다 — 태그로 가지 않는 `previousTopic`도 같은 화면의 다른 필드와
+// 일관되게 상한을 둔다(과설계 방지를 위해 넉넉한 값). 잘라내기가 아니라 네이티브
+// `maxLength`로 입력 자체를 막는다(초과 시 잘림 금지 — QA 지적).
+const CUSTOM_SUBJECT_MAX_LENGTH = 20;
+const PREVIOUS_TOPIC_MAX_LENGTH = 40;
+const CAREER_GOAL_MAX_LENGTH = 20;
+
 const REQUIRED_LABEL_CLASS = "text-performance-required";
 const OPTIONAL_LABEL_CLASS = "text-ink-sub";
 
@@ -288,6 +300,7 @@ export default function BasicInfoForm({
           value={values.customSubject}
           onChange={(value) => setField("customSubject", value)}
           placeholder="예: 심화 국어 특강"
+          maxLength={CUSTOM_SUBJECT_MAX_LENGTH}
         />
       )}
 
@@ -299,6 +312,7 @@ export default function BasicInfoForm({
         value={values.previousTopic}
         onChange={(value) => setField("previousTopic", value)}
         placeholder="예: 항생제 내성, 조건부확률, 소설 속 인물 심리 분석"
+        maxLength={PREVIOUS_TOPIC_MAX_LENGTH}
       />
 
       <TextField
@@ -310,6 +324,7 @@ export default function BasicInfoForm({
         value={values.careerGoal}
         onChange={(value) => setField("careerGoal", value)}
         placeholder="예: 의학, 컴퓨터공학, 심리학"
+        maxLength={CAREER_GOAL_MAX_LENGTH}
       />
 
       {/* 안내 패널 — §5.5 단정 실측(536×216, r8, fill performance-bubble, stroke performance-line).

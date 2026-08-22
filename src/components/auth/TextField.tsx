@@ -56,6 +56,8 @@ interface TextFieldProps {
   spellCheck?: boolean;
   required?: boolean;
   className?: string;
+  /** 네이티브 `maxLength` — 초과분은 브라우저가 입력 자체를 막는다(잘라내기가 아니다). */
+  maxLength?: number;
 }
 
 // auth-field-shake(index.css)가 --duration-slow(320ms) 토큰으로 재생되는 애니메이션이라
@@ -91,6 +93,7 @@ export default function TextField({
   spellCheck,
   required = false,
   className = "",
+  maxLength,
 }: TextFieldProps) {
   const fieldId = id || name;
   const [shake, setShake] = useState(false);
@@ -125,6 +128,7 @@ export default function TextField({
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
+        maxLength={maxLength}
         autoComplete={autoComplete}
         autoCapitalize={autoCapitalize}
         spellCheck={spellCheck}
