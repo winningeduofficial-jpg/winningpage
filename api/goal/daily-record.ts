@@ -78,7 +78,25 @@ export const REASON_LABELS = {
 
 // CONDITION_OPTIONS(studyRecordOptions.js:31-36). sql/73_goal_daily_record_v2.sql 의
 // body_condition CHECK 값 도메인과 정확히 같다(빈 문자열 별도 허용).
-export const BODY_CONDITIONS = new Set(["great", "normal", "tired", "exhausted"]);
+export const BODY_CONDITIONS = new Set([
+  "great",
+  "normal",
+  "tired",
+  "exhausted",
+]);
+
+// 코드값 → 한글 라벨. 지금까지는 값 집합(BODY_CONDITIONS)만 있으면 됐다 —
+// 저장 시 검증만 했고 서버가 이 값을 사람에게 보여줄 일이 없었기 때문이다.
+// 일간 보고서 알림톡(api/cron/daily-report.ts)이 「■ 오늘의 컨디션」 자리에
+// 이 라벨을 그대로 싣는다. 없으면 학부모 문자에 'normal' 이 찍힌다.
+// 위 두 맵과 같은 규칙 — studyRecordOptions.ts 의 CONDITION_OPTIONS 와 글자
+// 단위로 같아야 하고, 그 패리티는 studyRecordOptions.test.ts 가 단언한다.
+export const CONDITION_LABELS: Record<string, string> = {
+  great: "아주 좋음",
+  normal: "보통",
+  tired: "피곤함",
+  exhausted: "힘듦",
+};
 
 const MEMO_MAX_LENGTH = 1000;
 const STUDY_HOURS_MAX = 24;
