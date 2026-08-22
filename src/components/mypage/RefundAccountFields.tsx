@@ -8,6 +8,17 @@ import { BANK_OPTIONS } from "@/lib/paymentReceiptFormat";
 // 카드 결제 건에는 이 필드가 아예 렌더되지 않는다(호출부가 가상계좌 여부를
 // 먼저 판정) — 토스 결제취소 API가 카드 취소에는 refundReceiveAccount를
 // 받지 않고, 가상계좌 취소에만 요구하기 때문이다(api/complete-refund.ts).
+//
+// 계좌번호는 토스 공식 제약(숫자만, 최대 20자)에 맞춰 입력 즉시 정규화한다
+// — 하이픈을 넣어 타이핑해도 상태값은 항상 숫자만 남는다. api/complete-
+// refund.ts도 방어적으로 같은 필터를 한 번 더 건다(이중 안전망, RPC를
+// 직접 호출하는 경로나 레거시 데이터까지 막기 위해).
+const ACCOUNT_NUMBER_MAX_LENGTH = 20;
+
+function normalizeAccountNumber(value: string): string {
+  return value.replace(/[^0-9]/g, "").slice(0, ACCOUNT_NUMBER_MAX_LENGTH);
+}
+
 type RefundAccountFieldsProps = {
   bank: string;
   account: string;
@@ -46,8 +57,10 @@ export default function RefundAccountFields({
         type="text"
         inputMode="numeric"
         value={account}
-        onChange={(e) => onAccountChange(e.target.value)}
-        placeholder="계좌번호(- 없이 숫자만)"
+        onChange={(e) =>
+          onAccountChange(normalizeAccountNumber(e.target.value))
+        }
+        placeholder="계좌번호(하이픈 없이 자동 반영돼요)"
         className="h-12 w-full rounded-xl border border-line px-4 text-[0.875rem] text-ink outline-hidden focus:border-accent"
       />
       <input

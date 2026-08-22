@@ -79,6 +79,19 @@ function clean(value: unknown): string {
   return String(value || "").trim();
 }
 
+// 토스 결제취소 API의 refundReceiveAccount.accountNumber 제약(공식 문서:
+// 숫자만, 최대 20자). RefundAccountFields.tsx가 프런트 입력 단계에서 이미
+// 정규화하지만, 여기서도 방어적으로 한 번 더 거른다 — DB에 하이픈 섞인
+// 레거시 값이 남아 있거나 프런트를 거치지 않고 RPC를 직접 호출한 경우까지
+// 대비하는 이중 안전망이다.
+const ACCOUNT_NUMBER_MAX_LENGTH = 20;
+
+export function normalizeAccountNumber(value: unknown): string {
+  return String(value || "")
+    .replace(/[^0-9]/g, "")
+    .slice(0, ACCOUNT_NUMBER_MAX_LENGTH);
+}
+
 /**
  * orders.raw 에 virtualAccount 키가 실제로 있는지 본다(toss 응답 원본).
  * 값이 아예 없거나(키 부재) jsonb null 이면 카드/간편결제/계좌이체로 본다.
@@ -136,7 +149,7 @@ export function buildCancelRequestBody(params: {
   if (!params.isVirtualAccount) return body;
 
   const bank = clean(params.refundBank);
-  const accountNumber = clean(params.refundAccount);
+  const accountNumber = normalizeAccountNumber(params.refundAccount);
   const holderName = clean(params.refundHolder);
   if (!bank || !accountNumber || !holderName) return body;
 

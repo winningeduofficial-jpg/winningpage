@@ -10,6 +10,7 @@ import {
   buildIdempotencyKey,
   findMatchingCancel,
   isVirtualAccountPayment,
+  normalizeAccountNumber,
 } from "./complete-refund.js";
 
 describe("isVirtualAccountPayment", () => {
@@ -57,6 +58,30 @@ describe("findMatchingCancel", () => {
   });
 });
 
+describe("normalizeAccountNumber", () => {
+  test("숫자만 남긴다(하이픈 제거)", () => {
+    expect(normalizeAccountNumber("110-1234-5678")).toBe("11012345678");
+  });
+
+  test("공백·문자도 제거한다", () => {
+    expect(normalizeAccountNumber("110 1234 5678번")).toBe("11012345678");
+  });
+
+  test("토스 제약(최대 20자)을 넘으면 잘라낸다", () => {
+    expect(normalizeAccountNumber("1".repeat(30))).toBe("1".repeat(20));
+    expect(normalizeAccountNumber("1".repeat(30)).length).toBe(20);
+  });
+
+  test("숫자가 하나도 없으면(하이픈만 등) 빈 문자열", () => {
+    expect(normalizeAccountNumber("----")).toBe("");
+  });
+
+  test("null/undefined는 빈 문자열", () => {
+    expect(normalizeAccountNumber(null)).toBe("");
+    expect(normalizeAccountNumber(undefined)).toBe("");
+  });
+});
+
 describe("buildCancelRequestBody", () => {
   test("카드 결제는 refundReceiveAccount를 넣지 않는다", () => {
     const body = buildCancelRequestBody({
@@ -70,7 +95,7 @@ describe("buildCancelRequestBody", () => {
     expect(body).toEqual({ cancelReason: "단순 변심", cancelAmount: 10000 });
   });
 
-  test("가상계좌 + 계좌 3필드가 모두 있으면 refundReceiveAccount를 채운다", () => {
+  test("가상계좌 + 계좌 3필드가 모두 있으면 refundReceiveAccount를 채운다(계좌번호는 숫자만 정규화)", () => {
     const body = buildCancelRequestBody({
       cancelReason: "단순 변심",
       cancelAmount: 10000,
@@ -79,9 +104,11 @@ describe("buildCancelRequestBody", () => {
       refundAccount: "110-1234-5678",
       refundHolder: "홍길동",
     });
+    // 토스 결제취소 API 제약(숫자만, 최대 20자) — 하이픈이 저장돼 있어도
+    // 여기서 방어적으로 한 번 더 걸러낸다(이중 안전망).
     expect(body.refundReceiveAccount).toEqual({
       bank: "88",
-      accountNumber: "110-1234-5678",
+      accountNumber: "11012345678",
       holderName: "홍길동",
     });
   });
@@ -93,6 +120,18 @@ describe("buildCancelRequestBody", () => {
       isVirtualAccount: true,
       refundBank: "88",
       refundAccount: "",
+      refundHolder: "홍길동",
+    });
+    expect(body.refundReceiveAccount).toBeUndefined();
+  });
+
+  test("계좌번호가 하이픈만 있는 등 숫자가 하나도 없으면 빈 값으로 취급해 refundReceiveAccount를 넣지 않는다", () => {
+    const body = buildCancelRequestBody({
+      cancelReason: "단순 변심",
+      cancelAmount: 10000,
+      isVirtualAccount: true,
+      refundBank: "88",
+      refundAccount: "----",
       refundHolder: "홍길동",
     });
     expect(body.refundReceiveAccount).toBeUndefined();
