@@ -14,7 +14,7 @@ import {
   formatDeptCount,
   formatTrackTags,
 } from "./admissionResults/constants";
-import SearchView from "./admissionResults/SearchView";
+import SearchView, { TrendingBlock } from "./admissionResults/SearchView";
 import { LoadingBlock } from "./admissionResults/StateBlocks";
 import {
   useSusiDepartments,
@@ -81,27 +81,42 @@ export default function AdmissionResults() {
   const [departmentKey, setDepartmentKey] = useState(detailDepartmentKey);
   const [openField, setOpenField] = useState<string | null>(null);
 
-  const detailRef = useRef<HTMLDivElement>(null);
+  // 폼 state는 마운트 시 1회만 URL에서 씨앗을 받던 것과 달리, 조회 대상(detailUniversityKey/
+  // detailDepartmentKey)이 바뀔 때마다 계속 동기화한다(QA 리뷰). A 조회 → B 조회 → 뒤로가기 하면
+  // 브라우저가 URL을 A로 되돌리는데(react-router setSearchParams는 기본 push), 이 effect가 없으면
+  // 결과 패널은 A인데 폼 셀렉터는 마지막으로 조회했던 B에 그대로 남는다.
+  // 사용자가 폼에서 값을 고르는 중에는(제출 전) URL이 바뀌지 않으므로 이 effect는 반응하지 않는다
+  // — 의존성이 URL 파생값(detailUniversityKey/detailDepartmentKey)뿐이라 타이핑 중 state가
+  // 덮어써지지 않는다. 이 effect가 반대 방향으로 URL을 바꾸지는 않으므로 무한루프도 없다.
+  useEffect(() => {
+    setUniversityKey(detailUniversityKey);
+    setDepartmentKey(detailDepartmentKey);
+  }, [detailUniversityKey, detailDepartmentKey]);
 
-  // isDetail 가드: 딥링크(?u=&d=)로 바로 상세에 진입해도 검색 뷰 전용 목록 쿼리가
-  // 무조건 실행되던 문제(SearchView는 렌더조차 안 되는데 응답을 기다림)를 막는다.
-  // isDetail이 나중에 false로 바뀌면(onBack) 그때 다시 실행된다.
+  const detailRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+
+  // QA 시트 반영으로 SearchView(폼)가 이제 isDetail 여부와 무관하게 항상 렌더된다
+  // (조회 결과는 폼 아래에 이어 붙는다) — 그래서 목록 쿼리도 더 이상 isDetail로
+  // skip하지 않는다. 예전엔 딥링크(?u=&d=)로 바로 상세에 진입하면 SearchView 자체가
+  // 렌더조차 안 됐기 때문에 skip이 의미가 있었다.
   const {
     universities,
     loading: universitiesLoading,
     error: universitiesError,
     retry: retryUniversities,
-  } = useSusiUniversities(isDetail);
+  } = useSusiUniversities(false);
 
   const {
     departments,
+    departmentsKey,
     loading: departmentsLoading,
     error: departmentsError,
     retry: retryDepartments,
-  } = useSusiDepartments(universityKey, isDetail);
+  } = useSusiDepartments(universityKey, false);
 
   // 실패하면 섹션을 통째로 감춘다(부가 정보라 에러 UI를 띄우지 않는다).
-  const { trending } = useTrendingDepartments(isDetail);
+  const { trending } = useTrendingDepartments(false);
 
   const universityOptions = useMemo(
     () =>
@@ -177,6 +192,29 @@ export default function AdmissionResults() {
     );
   }, [departmentKey, departmentOptions]);
 
+  // 결과 패널(DetailView) 제목은 폼 선택값(university/department, universityKey 기반)이 아니라
+  // 조회 중인 대상(detailUniversityKey/detailDepartmentKey, URL 기반)에서 파생해야 한다(QA 리뷰).
+  // 안 그러면 A를 조회한 뒤 폼에서 B를 고르기만 해도(조회 버튼을 누르지 않았는데도) 결과 패널
+  // 제목이 아직 표시 중인 A 결과에 B 라벨을 붙이는 오염이 생긴다.
+  // universityOptions는 전체 대학 목록이라 항상 조회 가능하지만, departmentOptions는 폼의
+  // universityKey에 종속된 목록(useSusiDepartments)이라 폼에서 다른 대학을 고른 상태라면
+  // 상세 대상의 모집단위가 그 목록에 없을 수 있다 — 그 경우 키 자체를 라벨로 쓴다.
+  const detailUniversityLabel = useMemo(() => {
+    if (!detailUniversityKey) return "";
+    return (
+      universityOptions.find((option) => option.key === detailUniversityKey)
+        ?.label ?? detailUniversityKey
+    );
+  }, [detailUniversityKey, universityOptions]);
+
+  const detailDepartmentLabel = useMemo(() => {
+    if (!detailDepartmentKey) return "";
+    return (
+      departmentOptions.find((option) => option.key === detailDepartmentKey)
+        ?.label ?? detailDepartmentKey
+    );
+  }, [detailDepartmentKey, departmentOptions]);
+
   // 목록에 없는 키(수명이 끝난 공유 링크, 손댄 쿼리스트링, 큐레이션에 남은 옛 슬러그)를
   // 그대로 들고 있으면 필드에 정규화 키가 그대로 찍히고 모집단위는 영영 빈 목록이 된다.
   // 목록이 도착한 뒤에만 판정한다 — 로딩 중에는 "없는 키"와 "아직 안 온 키"를 구분할 수 없다.
@@ -187,13 +225,26 @@ export default function AdmissionResults() {
     setDepartmentKey("");
   }, [universitiesUnavailable, universityKeySet, universityKey]);
 
+  // departmentsKey !== universityKey인 동안은 departments가 아직 이전 대학의 스냅샷이다
+  // (B3 — URL↔폼 동기화가 university+department를 같은 틱에 세팅해도, useSusiDepartments의
+  // fetch effect는 그 다음 커밋에야 실행돼 departments가 한 렌더 이상 뒤늦게 갈아치워진다).
+  // 이 지연 창에서 새 department_key를 옛 목록 기준으로 "무효"로 오판해 지우던 게 B3 버그다
+  // — departmentsKey === universityKey로 목록이 실제로 갈아치워졌는지 먼저 확인한다.
   useEffect(() => {
     if (departmentsLoading || departmentsError || departments.length === 0)
       return;
+    if (departmentsKey !== universityKey) return;
     if (!departmentKey) return;
     if (departments.some((row) => row.department_key === departmentKey)) return;
     setDepartmentKey("");
-  }, [departmentsLoading, departmentsError, departments, departmentKey]);
+  }, [
+    departmentsLoading,
+    departmentsError,
+    departments,
+    departmentsKey,
+    universityKey,
+    departmentKey,
+  ]);
 
   // 대학을 바꾸면 모집단위 선택을 반드시 비운다
   // (AdmissionGuidelines.jsx:1257-1280 필터 초기화 규율과 동일).
@@ -235,8 +286,12 @@ export default function AdmissionResults() {
     [setSearchParams],
   );
 
+  // 버튼이 결과 패널 하단(DetailView 히어로)에 있어, 쿼리스트링만 비우면 스크롤 위치가
+  // 그대로 남아 폼(페이지 상단)이 화면 밖으로 벗어난 빈 공간만 보인다(QA 리뷰) — 폼 쪽으로
+  // 직접 스크롤을 옮긴다.
   const handleBackToSearch = useCallback(() => {
     setSearchParams({});
+    topRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   }, [setSearchParams]);
 
   // ScrollToTop(src/App.jsx:50)은 pathname 변경에만 반응하므로 쿼리 전환 시 스크롤이 남는다.
@@ -270,35 +325,54 @@ export default function AdmissionResults() {
   return (
     <div className="min-h-screen bg-white">
       <main className="pt-16">
-        {isDetail ? (
-          <div ref={detailRef} className="scroll-mt-24">
-            {/* DetailView는 uncontrolled 모드로 쓴다 — Q3(fetchSusiResultRows) 페칭과
-                buildDetailModel 집계를 자기가 수행한다. 셸은 쿼리스트링 파싱과 뷰 스위치,
-                그리고 로딩 중 히어로에 쓸 이름 폴백만 넘긴다. */}
-            <Suspense
-              fallback={
-                <section
-                  className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-25`}
-                >
-                  <LoadingBlock />
-                </section>
-              }
-            >
-              <DetailView
-                universityKey={detailUniversityKey}
-                departmentKey={detailDepartmentKey}
-                universityName={university?.label ?? ""}
-                departmentName={department?.label ?? ""}
-                onBack={handleBackToSearch}
-              />
-            </Suspense>
-          </div>
-        ) : (
-          <SearchView
-            selector={selector}
-            trending={trendingItems}
-            onSelectTrending={handleSelectTrending}
-          />
+        {/* QA 시트(입시정보 카테고리) 반영 — 조회 버튼을 눌러도 페이지를 이동하지 않고
+            검색 폼은 그대로 둔 채 그 아래에 결과를 이어 붙인다. 딥링크(?u=&d=) 호환을 위해
+            라우트/쿼리스트링 계약은 그대로 유지하고, 뷰를 서로 바꿔치기하던 기존 삼항연산자만
+            "폼 + 조건부 결과"로 바꿨다. */}
+        <div ref={topRef} className="scroll-mt-24" />
+        <SearchView
+          selector={selector}
+          trending={trendingItems}
+          onSelectTrending={handleSelectTrending}
+          suppressTrendingBlock={isDetail}
+        />
+
+        {isDetail && (
+          <>
+            <div ref={detailRef} className="scroll-mt-24">
+              {/* DetailView는 uncontrolled 모드로 쓴다 — Q3(fetchSusiResultRows) 페칭과
+                  buildDetailModel 집계를 자기가 수행한다. 셸은 쿼리스트링 파싱과 뷰 스위치,
+                  그리고 로딩 중 히어로에 쓸 이름 폴백만 넘긴다. */}
+              <Suspense
+                fallback={
+                  <section
+                    className={`${CONTAINER} pb-20 pt-16 sm:pb-24 sm:pt-20 lg:pt-25`}
+                  >
+                    <LoadingBlock />
+                  </section>
+                }
+              >
+                {/* key로 대학·모집단위 조합이 바뀔 때마다 새로 마운트해 연속 조회 시
+                    이전 결과의 잔여 상태(스크롤·탭 선택 등) 없이 결과가 완전히 교체되게 한다. */}
+                <DetailView
+                  key={`${detailUniversityKey}::${detailDepartmentKey}`}
+                  universityKey={detailUniversityKey}
+                  departmentKey={detailDepartmentKey}
+                  universityName={detailUniversityLabel}
+                  departmentName={detailDepartmentLabel}
+                  onBack={handleBackToSearch}
+                />
+              </Suspense>
+            </div>
+
+            {/* 트렌딩 칩 블록(QA 리뷰) — 폼 바로 아래(SearchView 내부)가 아니라 결과
+                아래로 옮겨 그린다. suppressTrendingBlock으로 SearchView 쪽 렌더는 꺼져
+                있으니 여기서 한 번만 그린다. */}
+            <TrendingBlock
+              trending={trendingItems}
+              onSelectTrending={handleSelectTrending}
+            />
+          </>
         )}
       </main>
 

@@ -145,7 +145,10 @@ export default function LikertMatrix({
           {scale.map((label) => (
             <span
               key={label}
-              className="break-keep px-1 text-center text-sm font-medium leading-5 text-ink"
+              // QA 행 113 — 다른 문항 유형(OptionGroup text-xl) 대비 매트릭스 전체가 작아 보인다는
+              // 피드백. text-sm(14px)이던 척도 라벨을 한 단계(16px)만 키운다 — 992px 그리드 폭·
+              // 컬럼비(§ 상단 주석) 전제를 깨지 않는 선의 최소 증분.
+              className="break-keep px-1 text-center text-base font-medium leading-5 text-ink"
             >
               {label}
             </span>
@@ -167,7 +170,8 @@ export default function LikertMatrix({
                 className={`grid h-10 items-center rounded-lg transition-colors duration-700 ${rowHighlightClass(row.key)}`}
                 style={{ gridTemplateColumns: GRID_TEMPLATE }}
               >
-                <p className="break-keep pr-8 text-sm font-normal leading-5 text-ink">
+                {/* QA 행 113 — 위 척도 라벨과 동일 사유로 한 단계(16px)만 키운다. */}
+                <p className="break-keep pr-8 text-base font-normal leading-5 text-ink">
                   {row.text}
                 </p>
                 {scale.map((label, columnIndex) => {

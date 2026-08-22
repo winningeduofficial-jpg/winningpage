@@ -65,11 +65,37 @@ function isFieldFilled(value: FieldValue) {
   return true; // File 등 객체
 }
 
+/**
+ * 값 하나가 "제출 가능한 상태로 채워졌는가" 판정. isFieldFilled(비어있지 않음)만으로는
+ * 형식 오류(생년월일 6자리, 이메일 오타, 내신 평균 패턴 위반 등)를 잡지 못한다 — 그 결과
+ * 사이드바는 "필수항목 0개 남음"을 보여주는데 제출은 계속 "1개 항목을 확인해 주세요"로
+ * 막히는 불일치가 있었다(QA 지시 2026-08-21로 발견). 제출을 최소 1회 시도해 `errors` 맵에
+ * 값이 잡힌 필드는, 값 자체는 비어 있지 않더라도 아직 "채워짐"으로 세지 않는다.
+ *
+ * ⚠ 첫 렌더(제출 시도 전)에는 `errors` 가 비어 있으므로 형식 오류가 있어도 100% 로 보일 수
+ * 있다 — 이 폼은 타이핑 중 실시간 검증(onBlur 등)을 하지 않으므로 그 갭까지 메우려면
+ * 별도 라이브 검증 기능이 필요하다(범위 밖). 이 수정은 "제출을 한 번이라도 시도한 뒤에도
+ * 사이드바가 거짓으로 완료를 표시하는" 좁은 불일치만 닫는다.
+ */
+function isFieldValid(
+  name: string,
+  value: FieldValue,
+  errors: Record<string, string | undefined>,
+) {
+  return isFieldFilled(value) && !errors[name];
+}
+
 /** 단계 하나의 진행률. */
-function getSectionProgress(fields: string[], values: FormValues) {
+function getSectionProgress(
+  fields: string[],
+  values: FormValues,
+  errors: Record<string, string | undefined>,
+) {
   const list = Array.isArray(fields) ? fields : [];
   const total = list.length;
-  const filled = list.filter((name) => isFieldFilled(values?.[name])).length;
+  const filled = list.filter((name) =>
+    isFieldValid(name, values?.[name], errors),
+  ).length;
   // 필수 필드가 0개인 단계(전부 선택 항목)는 0으로 나누지 않고 100% 로 본다 — 남은 일이 없기 때문.
   const percent = total === 0 ? 100 : Math.round((filled / total) * 100);
   return { filled, total, percent };
@@ -83,11 +109,15 @@ function getSectionProgress(fields: string[], values: FormValues) {
  * (확인 항목 21에서 복제 실수로 확정), 같은 필드를 두 단계가 공유하게 되더라도 사용자가 채워야 할
  * "일의 개수"는 하나이기 때문이다. 단계별 percent 는 그 단계 자신의 목록으로만 계산한다.
  */
-function computeProgress(sections: ProgressSection[], values: FormValues) {
+function computeProgress(
+  sections: ProgressSection[],
+  values: FormValues,
+  errors: Record<string, string | undefined>,
+) {
   const list = Array.isArray(sections) ? sections : [];
   const steps = list.map((section) => ({
     ...section,
-    ...getSectionProgress(section.fields, values),
+    ...getSectionProgress(section.fields, values, errors),
   }));
 
   const requiredNames = new Set<string>();
@@ -100,7 +130,7 @@ function computeProgress(sections: ProgressSection[], values: FormValues) {
   const totalRequired = requiredNames.size;
   let filledRequired = 0;
   requiredNames.forEach((name) => {
-    if (isFieldFilled(values?.[name])) filledRequired += 1;
+    if (isFieldValid(name, values?.[name], errors)) filledRequired += 1;
   });
 
   return {
@@ -122,13 +152,18 @@ const REMAINING_TAIL = REMAINING_REST_RAW.slice(REMAINING_UNIT.length);
 type ProgressSidebarProps = {
   sections?: ProgressSection[];
   values?: FormValues;
+  /** MentorApplyForm 의 errors 상태 — 제출 시도 후 형식 오류가 남은 필드를 "채워짐"에서
+   * 뺀다(위 isFieldValid 주석 참고). 안 넘기면(다른 소비처가 생기는 경우) 기존처럼
+   * 값 존재 여부만으로 판정한다. */
+  errors?: Record<string, string | undefined>;
 };
 
 export default function ProgressSidebar({
   sections = [],
   values = {},
+  errors = {},
 }: ProgressSidebarProps) {
-  const { steps, remaining } = computeProgress(sections, values);
+  const { steps, remaining } = computeProgress(sections, values, errors);
 
   // 단계 배지 클릭 → 해당 폼 섹션 카드로 앵커 이동.
   // 시안에 hover/active 프레임이 없어 클릭 동작이 미확정이지만(확인 항목 34), 세로 5090px 짜리

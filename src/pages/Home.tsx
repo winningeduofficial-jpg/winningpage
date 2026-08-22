@@ -101,6 +101,7 @@ type NewsItem = {
   created_at: string;
   category?: string | null;
   sort_order?: number;
+  is_pinned?: boolean | null;
 };
 
 function preloadImage(src: string | undefined): Promise<string> {

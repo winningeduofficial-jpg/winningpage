@@ -41,7 +41,11 @@ interface PageContentRow {
 // '/services/learning-diagnosis'로 옮겨졌다. 캐시에 구 경로('/learning-diagnosis')가 남아있는
 // 사용자에게도 즉시 신 경로가 보이도록(그리고 ensureLearningDiagnosisInService가 구 경로를
 // 걸러내지 못해 중복 노출되는 것을 막기 위해) 키를 다시 bump한다.
-const HEADER_NAV_CACHE_KEY = "winning-header-nav-groups-dynamic-v4-v4-v6-v7";
+// v8: QA 리뷰(2026-08-21) — readCachedNavGroups가 캐시된 항목에 normalizeMenuLabel을 태우지
+// 않아, '수시정시합격' 치환(위 normalizeMenuLabel v7 변경) 이전에 캐싱된 재방문자에게 구
+// 라벨이 그대로 남아 있었다. 캐시 read 경로에도 normalizeMenuLabel을 적용했지만, 이미 저장된
+// 캐시는 즉시 갱신되지 않으므로 키를 한 번 더 bump해 강제로 다시 채운다.
+const HEADER_NAV_CACHE_KEY = "winning-header-nav-groups-dynamic-v4-v4-v6-v7-v8";
 
 export function cleanText(value: unknown) {
   return String(value || "").trim();
@@ -51,8 +55,14 @@ export function cleanText(value: unknown) {
 // 그대로 노출되지 않도록 상시 치환한다. DB 레코드 수정은 운영자 몫(공통 구현 규칙 — DB 수정
 // 금지)이라 PROMOTED_SLUG_ROUTES와 같은 취지로 이 훅에서 안전망을 둔다. '컬럼' 전역 치환은 이
 // 파일 밖(테이블/레이아웃 컬럼 등)에서는 절대 하면 안 되고, 메뉴 라벨 문자열에만 좁게 적용한다.
-function normalizeMenuLabel(label: unknown) {
-  return cleanText(label).replaceAll("컬럼", "칼럼");
+export function normalizeMenuLabel(label: unknown) {
+  return (
+    cleanText(label)
+      .replaceAll("컬럼", "칼럼")
+      // QA 시트 반영(입시정보 카테고리) — DB page_contents.menu_label이 구 라벨
+      // '수시정시합격'을 계속 내려줘도(DB 수정 금지 규칙) 헤더/푸터에는 항상 신 라벨을 노출한다.
+      .replaceAll("수시정시합격", "대입합격")
+  );
 }
 
 function safeJsonStringify(value: unknown) {
@@ -230,6 +240,18 @@ function insertGrowthPlanningInService(groups: NavGroup[]): NavGroup[] {
   });
 }
 
+// 캐시에 저장된 라벨도 normalizeMenuLabel을 다시 태운다 — 키 bump(v8)로 기존 캐시는 비워지지만,
+// 캐시가 쓰이는 다른 경로(직접 조작 등)에서도 구 라벨이 새어 나오지 않도록 하는 안전망이다.
+function normalizeCachedGroups(groups: NavGroup[]): NavGroup[] {
+  return groups.map((group) => ({
+    ...group,
+    items: (Array.isArray(group.items) ? group.items : []).map((item) => ({
+      ...item,
+      label: normalizeMenuLabel(item.label),
+    })),
+  }));
+}
+
 function readCachedNavGroups(): NavGroup[] | null {
   try {
     const raw = window.localStorage.getItem(HEADER_NAV_CACHE_KEY);
@@ -241,7 +263,9 @@ function readCachedNavGroups(): NavGroup[] | null {
       return null;
     }
 
-    return applyPromotedSlugRoutes(ensureLearningDiagnosisInService(parsed));
+    return applyPromotedSlugRoutes(
+      ensureLearningDiagnosisInService(normalizeCachedGroups(parsed)),
+    );
   } catch {
     return null;
   }

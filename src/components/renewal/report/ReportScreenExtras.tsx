@@ -1,23 +1,47 @@
 import { SCREEN_EXTRAS } from "@/data/diagnosisScreenCopy";
 import { templateCopy } from "@/lib/diagnosisCopyBinding";
+import ReportSection from "./ReportSection";
+import ReportSheetA4 from "./ReportSheetA4";
 
 /**
- * 화면 전용 확장 영역(F-04 · F-05) — A4 시트 2장 **아래**에 이어지는 문서형 부록.
+ * 확장 영역(F-04 · F-05) — A4 시트 3·4페이지. 영역별 상세 진단·맞춤 전략을 담는다.
  *
- * 왜 시트 밖인가(D1):
- *   시트 안에 큰 블록을 넣으면 report-responsive.css 의
- *   `margin-bottom: calc((var(--fd-sheet-scale) - 1) * 99.0588rem)` 보정이 어긋난다 —
- *   그 수식은 시트 실제 높이가 정확히 99.0588rem 이라는 전제 위에 있다. 그리고 인쇄 하단
- *   여유가 1p 71.0px · 2p 52.6px 뿐이라 108문구가 물리적으로 들어가지 않는다.
- *   시트 안에는 '해당 섹션에 붙어야만 읽히는 1문단 각주'만 남기고, 덩어리는 전부 여기로 뺀다.
+ * 2026-08-21 재구성(사용자 지시) — 종전에는 단일 flow 카드였다가, 인쇄에서 페이지 경계가
+ * 데이터量에 따라 흘러 페이지 라벨을 못 넣었다. 지금은 시트 1·2와 똑같이 `ReportSheetA4` 를
+ * 재사용한 두 장(page=3/4)이다 — 워터마크(data-watermark)·페이지 라벨·A4 카드 시각(화면
+ * lg:bg-white 등)·인쇄 패딩(.fd-report-sheet 규칙)을 전부 공짜로 물려받는다. 시트끼리의
+ * `.fd-report-sheet + .fd-report-sheet { break-before: page }` 형제 규칙이 시트2→3페이지·
+ * 3→4페이지 경계도 그대로 커버해 `fd-print-page3` 같은 전용 훅이 더 필요 없다.
  *
- * 인쇄 제외는 `fd-screen-only` 클래스 **하나**로 한다(report-print.css 가 display:none 처리).
- *   → 이 서브트리 안의 `lg:` 값들은 인쇄에서 통째로 사라지므로 §7.5 의 "새 lg: 는 인쇄 훅과
- *     함께" 규칙이 적용되지 않는다. 개별 fd-* 훅을 덧붙이지 마라(print CSS 에도 같은 주석 있음).
+ * 블록 배분(실측 기준, 2026-08-21):
+ *   3페이지 — 영역별 상세 진단(블록 A, 인쇄 2단) + 맞춤 전략 도입부(긴급도·먼저 할 일) +
+ *             focusGroups(3, 인쇄 3단). 실측 약 900px < 1122.5px(A4 1장) — 여유 충분.
+ *   4페이지 — restGroups(9, 항상 펼침, 인쇄 3단) + 해석 한계 고지 + reportBasis(문서 끝).
+ *             실측 약 600px < 1122.5px — 여유 충분.
+ *   긴급도·먼저 할 일을 3페이지에 남긴 이유: '맞춤 전략' 절 도입부라 focusGroups 앞에 있어야
+ *   자연스럽게 읽힌다(도입 문장이 4페이지로 밀리면 3페이지의 전략 그룹만 먼저 보이고 설명은
+ *   한 장 넘어가야 나온다) — 그래도 3페이지가 예산을 넘기지 않아 그대로 뒀다.
  *
- * 시각 언어(D 결정): 흰 카드 아님 · 아이콘 없음 · 중첩 카드 없음 · 접기는 페이지 전체에서 1개.
- *   시트 2장이 이미 흰 카드라 부록까지 흰 박스로 만들면 '3페이지짜리 리포트'로 읽혀 인쇄
- *   결과(2장)와 어긋난다. 배경색 위 타이포그래피 + 헤어라인만으로 위계를 만든다.
+ * 이 서브트리 안의 `lg:` 값들은 인쇄(뷰포트 794px)에서 통째로 사라진다. 각주·보조 설명
+ * 텍스트는 base 클래스만으로 A4 폭 안에서 읽히므로 훅이 필요 없다 — 원칙(2026-08-21 확정):
+ * "인쇄 레이아웃 = 화면 lg 레이아웃 재현", report-print.css 전체가 따르는 기존 관례 그대로다.
+ * 맞춤 전략(focusGroups·restGroups)은 화면 lg 자체가 다단(grid-cols-3)이라 그 값을
+ * `fd-strategy-grid` 훅으로 그대로 복사한다. 영역별 상세 진단의 2단(`fd-area-groups`)은
+ * PDF 페이지 압축 전용 결정이라 **인쇄에서만** 적용한다 — 화면(lg)은 세로 1단 그대로 둔다
+ * (별도 커밋 "영역별 상세 진단 2단 배치를 PDF 전용으로 되돌림" 확정 유지, 이번 재구성에서도
+ * 건드리지 않는다).
+ *
+ * 시각 언어(2026-08-21 개정): 시트 1·2와 동일한 A4 용지 카드. 원래 D 결정은 "흰 카드
+ * 아님"이었으나 그 근거('인쇄는 2장뿐이라 3페이지처럼 읽히면 안 된다')가 부록이 실제 PDF
+ * 3·4페이지로 인쇄되면서 소멸해 사용자 지시로 용지 시각으로 통일했다. 아이콘 없음 ·
+ * 중첩 카드 없음 · 접기는 페이지 전체에서 1개는 유지.
+ *
+ * 섹션 위계 통일(2026-08-21, 전 페이지 감사 근거 — 완료 보고 표 참고) — 블록 A·B·D 제목
+ * ("영역별 상세 진단"·"맞춤 전략"·"이 리포트를 읽을 때")은 `ReportSection`(as="h3")을
+ * 쓴다. 종전 leading-[1.4](28px)는 다른 시트 제목 전부가 쓰는 leading-5(20px)로 통일했고,
+ * lg: 값(mt-16)은 base(mt-12)와 다른 섹션들처럼 하나로 합쳐 print CSS 강제 규칙이 필요
+ * 없어졌다(제목→콘텐츠 간격도 ReportSection 기본값 mt-4로 통일 — AreaDetailGroup 자신의
+ * mt-8은 걷어내고 fd-area-groups 래퍼의 flex gap-8로 옮겼다, 아래 참고).
  *
  * 순서(학생의 질문 순서): 진단(무엇이 어떤 상태인가) → 긴급도(얼마나 급한가)
  *   → 전략(무엇부터 할까) → 고지(어디까지 믿을까).
@@ -45,7 +69,7 @@ function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
   if (visible.length === 0) return null;
 
   return (
-    <section className="mt-8">
+    <section>
       <h4 className="text-base font-semibold leading-normal text-ink">
         {title}
       </h4>
@@ -65,7 +89,9 @@ function AreaDetailGroup({ title, rows }: AreaDetailGroupProps) {
              * 두 소섹션이 각각 별개 grid 라 auto 를 쓰면 행마다 열 폭이 달라진다 — 고정폭이어야
              * 12행이 한 줄로 정렬된다.
              */
-            className="border-t border-[#e5e5e5] py-3 lg:grid lg:grid-cols-[7rem_7.5rem_1fr] lg:items-baseline lg:gap-x-4"
+            // fd-area-row — 그룹(단) 안에서 행 중간에 페이지가 끊기지 않도록
+            // report-print.css 가 break-inside:avoid 를 건다.
+            className="fd-area-row border-t border-[#e5e5e5] py-3 lg:grid lg:grid-cols-[7rem_7.5rem_1fr] lg:items-baseline lg:gap-x-4"
           >
             <div className="flex items-baseline gap-2 lg:contents">
               <span className="break-keep text-base font-medium leading-normal text-ink">
@@ -98,7 +124,9 @@ type StrategyGroupItem = {
 /** 맞춤 전략 한 묶음(영역 1개 × 4항목). ol 인 이유는 문구집 키가 '맞춤 전략 1~4'로 순번을 갖기 때문이다. */
 function StrategyGroup({ group }: { group: StrategyGroupItem }) {
   return (
-    <div>
+    // fd-strategy-item — 인쇄 3단 grid 안에서 묶음 중간에 열이 끊기지 않도록
+    // report-print.css 가 break-inside:avoid 를 건다.
+    <div className="fd-strategy-item">
       <h4 className="break-keep text-base font-semibold leading-normal text-ink">
         {group.name}
       </h4>
@@ -140,11 +168,12 @@ type ReportScreenExtrasData = {
   typeTodos?: string[];
 };
 
-type ReportScreenExtrasProps = {
-  data?: ReportScreenExtrasData | null;
-};
-
-export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
+/**
+ * data → 부록 렌더에 필요한 조건을 한 번에 계산한다. `hasReportExtras()`(부모가 totalPages를
+ * 정할 때 씀)와 이 컴포넌트의 렌더 분기가 반드시 같은 값을 봐야 하므로, 둘 다 이 함수 하나만
+ * 부른다 — 판정 로직이 두 곳으로 갈라지는 사고를 원천 차단한다.
+ */
+function deriveExtrasFlags(data?: ReportScreenExtrasData | null) {
   const { areaDetails, strategyGroups, urgency, notices, typeTodos } =
     data ?? {};
 
@@ -183,129 +212,192 @@ export default function ReportScreenExtras({ data }: ReportScreenExtrasProps) {
   // F-03 — 유형별 '먼저 할 일' 3항목. 판정 불가·직선응답이면 빈 배열이라 자리가 접힌다.
   const hasTodos = Array.isArray(typeTodos) && typeTodos.length > 0;
 
-  // 실을 것이 하나도 없으면(판정 불가 등) 섹션을 통째로 만들지 않는다 — 빈 제목만 남기지 않는다.
-  if (
-    !hasAreaDetails &&
-    !hasStrategies &&
-    !strategyLead &&
-    !hasNotice &&
-    !hasTodos
-  )
-    return null;
+  const hasAny =
+    hasAreaDetails ||
+    hasStrategies ||
+    Boolean(strategyLead) ||
+    hasNotice ||
+    hasTodos;
+
+  return {
+    detailRows,
+    hasAreaDetails,
+    focusGroups,
+    restGroups,
+    strategyLead,
+    hasStrategies,
+    hasNotice,
+    hasTodos,
+    hasAny,
+    notices,
+    typeTodos,
+    urgency,
+  };
+}
+
+/**
+ * 부록(3·4페이지)이 실제로 렌더될지 판정한다. FreeDiagnosisReport 가 totalPages(부록
+ * 있으면 4, 없으면 2)를 정할 때 이 함수 하나만 부른다 — ReportScreenExtras 자신의 렌더
+ * 분기와 반드시 같은 조건이어야 하므로 deriveExtrasFlags() 하나를 공유한다.
+ */
+export function hasReportExtras(data?: ReportScreenExtrasData | null) {
+  return deriveExtrasFlags(data).hasAny;
+}
+
+type ReportScreenExtrasProps = {
+  data?: ReportScreenExtrasData | null;
+  totalPages: number;
+};
+
+export default function ReportScreenExtras({
+  data,
+  totalPages,
+}: ReportScreenExtrasProps) {
+  const {
+    detailRows,
+    hasAreaDetails,
+    focusGroups,
+    restGroups,
+    strategyLead,
+    hasStrategies,
+    hasNotice,
+    hasTodos,
+    hasAny,
+    notices,
+    typeTodos,
+  } = deriveExtrasFlags(data);
+
+  // 실을 것이 하나도 없으면(판정 불가 등) 부록 자체를 만들지 않는다 — 빈 제목만 남기지 않는다.
+  if (!hasAny) return null;
 
   const page1Title =
     templateCopy("card_exec.title") ?? copy.areaDetailTitle.page1;
 
   return (
-    <section
-      className="fd-screen-only w-full max-w-280 px-4 lg:px-0"
-      aria-label={copy.sectionTitle}
-    >
-      <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-primary">
-        {copy.sectionTitle}
-      </h2>
-      <p className="mt-4 text-base leading-normal text-ink-sub">
-        {copy.screenOnlyNote}
-      </p>
+    <>
+      {/* 3페이지 — 영역별 상세 진단 + 맞춤 전략 도입부(긴급도·먼저 할 일) + focusGroups(3). */}
+      <ReportSheetA4 page={3} totalPages={totalPages}>
+        <h2 className="text-[1.5rem] font-semibold leading-[1.4] text-primary">
+          {copy.sectionTitle}
+        </h2>
 
-      {/* ── 블록 A — 영역별 상세 진단 12행(AREA_COPY.levels) ── */}
-      {hasAreaDetails && (
-        <section>
-          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
-            {copy.areaDetailTitle.section}
-          </h3>
-          {/*
-            skipNote 는 조건부다(리커트를 건너뛴 학생만). 영역 점수를 12개 나열하는 바로 이
-            블록이 그 문장이 실제로 작용하는 자리라 여기 둔다 — 차트 옆에 붙이면 두 번 반복해야 한다.
-            기본 픽스처에서는 보이지 않으니 '배선 누락'으로 오판하지 마라.
-          */}
-          {notices?.skipNote && (
-            <p className="mt-4 text-base leading-normal text-ink-sub">
-              {notices.skipNote}
-            </p>
-          )}
-          <AreaDetailGroup title={page1Title} rows={detailRows?.page1} />
-          <AreaDetailGroup
-            title={copy.areaDetailTitle.page2}
-            rows={detailRows?.page2}
-          />
-        </section>
-      )}
-
-      {/* ── 블록 B — 긴급도 한 줄 + 맞춤 전략(AREA_COPY.strategies) ── */}
-      {(strategyLead || hasStrategies || hasTodos) && (
-        <section>
-          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
-            {copy.strategyTitle}
-          </h3>
-          {strategyLead && (
-            <p className="mt-4 text-base leading-normal text-ink-sub">
-              {strategyLead}
-            </p>
-          )}
-
-          {/*
-            F-03 배선(2026-08-13) — TYPE_COPY.todos 3항목('먼저 할 일')을 리드 문장 다음이자 아래
-            전략 그리드 **앞**에 싣는다. 유형 기반 과제(3)가 영역 기반 전략(12)보다 상위 서사라
-            순서가 그렇다(블록 제목을 '먼저 할 일'이 아니라 '맞춤 전략'으로 잡은 이유이기도 하다).
-          */}
-          {hasTodos && (
-            <div className="mt-6">
-              <h4 className="break-keep text-base font-semibold leading-normal text-ink">
-                {copy.strategyTodosTitle}
-              </h4>
-              <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-base leading-normal text-ink">
-                {typeTodos.map((item) => (
-                  <li key={item} className="break-keep">
-                    {item}
-                  </li>
-                ))}
-              </ol>
+        {/* ── 블록 A — 영역별 상세 진단 12행(AREA_COPY.levels) ── */}
+        {hasAreaDetails && (
+          // mt-12(2026-08-21) — 섹션 상단 마진 통일(완료 보고 표 근거)로 종전 mt-12 lg:mt-16
+          // 대신 다른 섹션과 같은 값 하나(원래도 base mt-12였다 — lg: 분기만 제거).
+          <ReportSection
+            title={copy.areaDetailTitle.section}
+            as="h3"
+            className="mt-12"
+          >
+            {/*
+              skipNote 는 조건부다(리커트를 건너뛴 학생만). 영역 점수를 12개 나열하는 바로 이
+              블록이 그 문장이 실제로 작용하는 자리라 여기 둔다 — 차트 옆에 붙이면 두 번 반복해야 한다.
+              기본 픽스처에서는 보이지 않으니 '배선 누락'으로 오판하지 마라.
+            */}
+            {notices?.skipNote && (
+              <p className="mb-4 text-base leading-normal text-ink-sub">
+                {notices.skipNote}
+              </p>
+            )}
+            {/* fd-area-groups — 화면: 세로 스택(flex gap-8, 종전 AreaDetailGroup 자신의
+                mt-8과 동일 값을 컨테이너로 옮겼다 — 인쇄 2단 정렬을 두 그룹이 각자
+                떠안는 대신 이 래퍼 하나가 진다). 인쇄: 2단 그리드로 압축(PDF 전용, 화면
+                세로 1단 유지 결정 그대로) — 그리드 셀은 이 래퍼의 마진 하나로만
+                정렬되므로(2026-08-21 지시: "그리드 안이라 상단 정렬이 서로 맞아야 함")
+                두 그룹의 h4 제목이 항상 같은 y좌표에서 시작한다. */}
+            <div className="fd-area-groups flex flex-col gap-8">
+              <AreaDetailGroup title={page1Title} rows={detailRows?.page1} />
+              <AreaDetailGroup
+                title={copy.areaDetailTitle.page2}
+                rows={detailRows?.page2}
+              />
             </div>
-          )}
+          </ReportSection>
+        )}
 
-          {hasStrategies && (
-            <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
-              {focusGroups.map((group) => (
-                <StrategyGroup key={group.code} group={group} />
-              ))}
-            </div>
-          )}
+        {/* ── 블록 B 도입부 — 긴급도 한 줄 + 먼저 할 일 + focusGroups(3) ── */}
+        {(strategyLead || hasStrategies || hasTodos) && (
+          // mt-12(2026-08-21) — 섹션 상단 마진 통일(원래도 base mt-12였다 — lg: 분기만 제거).
+          <ReportSection title={copy.strategyTitle} as="h3" className="mt-12">
+            {strategyLead && (
+              <p className="mt-4 text-base leading-normal text-ink-sub">
+                {strategyLead}
+              </p>
+            )}
 
-          {restGroups.length > 0 && (
-            <details className="mt-10">
-              <summary className="cursor-pointer py-2 text-base font-medium text-performance-reportHeading underline underline-offset-4 focus:outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent">
-                {copy.strategyMoreLabel}
-              </summary>
-              {/* 접혀 있어도 DOM 에는 존재한다 — Ctrl+F 검색과 스크린리더 탐색이 그대로 된다. */}
-              <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
-                {restGroups.map((group) => (
+            {/*
+              F-03 배선(2026-08-13) — TYPE_COPY.todos 3항목('먼저 할 일')을 리드 문장 다음이자 아래
+              전략 그리드 **앞**에 싣는다. 유형 기반 과제(3)가 영역 기반 전략(12)보다 상위 서사라
+              순서가 그렇다(블록 제목을 '먼저 할 일'이 아니라 '맞춤 전략'으로 잡은 이유이기도 하다).
+            */}
+            {hasTodos && (
+              <div className="mt-6">
+                <h4 className="break-keep text-base font-semibold leading-normal text-ink">
+                  {copy.strategyTodosTitle}
+                </h4>
+                <ol className="mt-3 flex list-decimal flex-col gap-2 ps-5 text-base leading-normal text-ink">
+                  {typeTodos?.map((item) => (
+                    <li key={item} className="break-keep">
+                      {item}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {/* fd-strategy-grid — 인쇄 전용 3단 스플릿 훅(2026-08-21, 사용자 지시). 화면
+                lg 배치(grid-cols-3)와 동등하게 인쇄에도 강제한다. */}
+            {hasStrategies && (
+              <div className="fd-strategy-grid mt-6 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
+                {focusGroups.map((group) => (
                   <StrategyGroup key={group.code} group={group} />
                 ))}
               </div>
-            </details>
-          )}
-        </section>
-      )}
+            )}
+          </ReportSection>
+        )}
+      </ReportSheetA4>
 
-      {/* ── 블록 D — 해석 한계 고지 ── */}
-      {hasNotice && (
-        <section>
-          {/*
-            reportBasis(산출 근거)는 2페이지 하단에 이미 인쇄되고 있다 — 건드리지 않는다.
-            reportLimit(해석 한계)만 여기 둔다. 화면 스크롤상 시트2 각주 → 이 블록 순으로
-            연달아 읽혀 쌍이 유지되면서, 인쇄 여유(2p 52.6px)를 1px 도 쓰지 않는다.
-            새 고지가 생기면 먼저 의미상 소속 섹션을 찾아라 — 여기에 몰아넣지 않는다.
-          */}
-          <h3 className="mt-12 text-[1.25rem] font-semibold leading-[1.4] text-accent lg:mt-16">
-            {copy.noticeTitle}
-          </h3>
-          <p className="mt-4 max-w-180 break-keep text-base leading-[1.6] text-ink">
-            {/* hasNotice가 true인 분기이므로 notices?.reportLimit은 항상 truthy(동작 동일). */}
-            {notices?.reportLimit}
+      {/* 4페이지 — restGroups(9, 항상 펼침) + 해석 한계 고지 + reportBasis(문서 끝). */}
+      <ReportSheetA4 page={4} totalPages={totalPages}>
+        {restGroups.length > 0 && (
+          // 접기 폐기(2026-08-21, 사용자 지시) — 문서가 4페이지 체제로 확정되면서 화면도
+          // 인쇄와 동일하게 나머지 전략을 항상 펼쳐 보여준다. details/summary 토글과
+          // 인쇄 강제 펼침 장치(beforeprint 훅·::details-content 해제)는 함께 제거했다.
+          // fd-strategy-grid — 인쇄 3단 스플릿(3페이지 focusGroups 그리드와 동일 훅).
+          <div className="fd-strategy-grid mt-10 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:gap-x-8 lg:gap-y-10">
+            {restGroups.map((group) => (
+              <StrategyGroup key={group.code} group={group} />
+            ))}
+          </div>
+        )}
+
+        {/* ── 블록 D — 해석 한계 고지 ── */}
+        {hasNotice && (
+          // mt-12(2026-08-21) — 섹션 상단 마진 통일(원래도 base mt-12였다 — lg: 분기만 제거).
+          <ReportSection title={copy.noticeTitle} as="h3" className="mt-12">
+            {/*
+              reportBasis(산출 근거)는 이 페이지 맨 아래에 별도로 실린다 — 건드리지 않는다.
+              reportLimit(해석 한계)만 여기 둔다. 새 고지가 생기면 먼저 의미상 소속 섹션을
+              찾아라 — 여기에 몰아넣지 않는다.
+            */}
+            <p className="max-w-180 break-keep text-base leading-[1.6] text-ink">
+              {/* hasNotice가 true인 분기이므로 notices?.reportLimit은 항상 truthy(동작 동일). */}
+              {notices?.reportLimit}
+            </p>
+          </ReportSection>
+        )}
+
+        {/* reportBasis(산출 근거 고지) — 원래 2페이지 하단 각주였으나 부록이 인쇄에 포함되면서
+            문서의 끝이 여기(4페이지)로 바뀌어 구분선째 이동했다(사용자 지시, 2026-08-21).
+            문서 전체에 걸리는 신뢰성 고지라 항상 마지막에 한 번만 나온다. */}
+        {notices?.reportBasis && (
+          <p className="fd-mt-report-basis mt-12 border-t border-[#e5e5e5] pt-3 text-sm leading-[1.4] text-ink-sub lg:mt-16">
+            {notices.reportBasis}
           </p>
-        </section>
-      )}
-    </section>
+        )}
+      </ReportSheetA4>
+    </>
   );
 }

@@ -21,14 +21,14 @@ export default function ReportSincerityBanner({
   if (!message) return null;
 
   /*
-   * 색은 StatusBadge 의 amber 쌍(bg rgba(255,233,155,0.8) / text #736123)을 그대로 쓴다 —
+   * 색은 StatusBadge 의 amber 쌍(bg #F5EBCB / text #9A843F, 시안 팔레트)을 그대로 쓴다 —
    * 이 리포트에서 '주의'를 뜻하는 이미 승인된 표면이라 새 색을 만들지 않는다.
    * 결정문은 왼쪽 한 변만 굵은 색 보더를 지정했으나, 흰 카드(시트) 위 문서에서 그 형태는
    * 표면이 아니라 장식으로 읽힌다 → 같은 색 계열의 옅은 면 + 1px 테두리로 바꿨다
    * (색 출처·위계·경고 강도는 동일, 장식만 뺐다).
    */
   return (
-    <section className="fd-screen-only w-full max-w-280 rounded-xl border border-[#736123]/40 bg-[rgba(255,233,155,0.35)] px-5 py-4">
+    <section className="fd-screen-only w-full max-w-280 rounded-xl border border-[#9a843f]/40 bg-[#f5ebcb]/60 px-5 py-4">
       <p className="break-keep text-base leading-normal text-ink">{message}</p>
     </section>
   );

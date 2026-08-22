@@ -1,6 +1,8 @@
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import RefundAccountFields from "@/components/mypage/RefundAccountFields";
 import { formatKRW } from "@/data/pricingCatalog";
+import type { VirtualAccountInfo } from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
 
 // 학부모 환불 확인 모달 — 자녀가 보낸 환불 요청을 승인/반려한다.
@@ -17,12 +19,19 @@ import { supabase } from "@/lib/supabase";
 // 승인축(approval_status)과 처리축(status)은 별개다 — 여기서 승인해도 실제
 // 환불 실행은 어드민이 한다(fn_complete_refund). 승인은 "어드민이 처리해도
 // 좋다"는 잠금 해제일 뿐이다.
+//
+// 환불계좌 3필드(2026-08-22 추가) — 학생이 신청한 환불을 승인하는 화면이라,
+// 그 주문이 가상계좌 결제면 학부모가 여기서 환불계좌를 입력해야 한다
+// (fn_respond_refund가 승인 시 함께 받는다, WC058). 학부모 직접 신청 경로
+// (RefundRequestModal)와 입력 시점이 다를 뿐 필드 UI는 RefundAccountFields를
+// 공유한다.
 
 const RESPOND_ERROR_TEXT = {
   WC026: "이미 처리된 환불 요청입니다.",
   WC027: "이 환불 요청에 응답할 권한이 없습니다.",
   WC028: "이미 응답한 환불 요청입니다.",
   WC029: "반려 사유를 입력해 주세요.",
+  WC058: "가상계좌 환불은 환불계좌(은행/계좌번호/예금주) 입력이 필요합니다.",
 };
 const RESPOND_UNKNOWN_ERROR_TEXT =
   "처리에 실패했습니다. 잠시 후 다시 시도해 주세요.";
@@ -39,6 +48,7 @@ type RefundRequestRow = {
 type RefundApprovalModalProps = {
   open: boolean;
   request: RefundRequestRow | null;
+  virtualAccount?: VirtualAccountInfo | null;
   childName?: string;
   onClose: () => void;
   onResponded?: () => void;
@@ -47,6 +57,7 @@ type RefundApprovalModalProps = {
 export default function RefundApprovalModal({
   open,
   request,
+  virtualAccount,
   childName,
   onClose,
   onResponded,
@@ -57,12 +68,41 @@ export default function RefundApprovalModal({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [refundBank, setRefundBank] = useState("");
+  const [refundAccount, setRefundAccount] = useState("");
+  const [refundHolder, setRefundHolder] = useState("");
+
+  const isVirtualAccountOrder = Boolean(virtualAccount);
+
+  // request가 바뀔 때마다(다른 신청 건을 열 때) 계좌 입력을 새로 시작한다.
+  // 결제 시점에 이미 환불계좌가 있으면(가상계좌 refundReceiveAccount) 프리필한다.
+  // virtualAccount는 상위(ParentPaymentsTab)가 매 렌더 orders.find(...)로 새로
+  // 계산해 내려주는 파생값이라 deps에 넣으면 입력 중인 계좌 값이 다른 이유의
+  // 재렌더로 초기화된다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: request?.id(스칼라) 하나로 "다른 신청 건을 열었는가"만 판별한다.
+  useEffect(() => {
+    const prefill = virtualAccount?.refundReceiveAccount;
+    setRefundBank(prefill?.bank || "");
+    setRefundAccount(prefill?.accountNumber || "");
+    setRefundHolder(prefill?.holderName || "");
+  }, [request?.id]);
+
+  const accountFieldsValid =
+    !isVirtualAccountOrder ||
+    (Boolean(refundBank) &&
+      refundAccount.trim().length > 0 &&
+      refundHolder.trim().length > 0);
+
   const respond = useCallback(
     async (approve: boolean) => {
       if (!request?.id || saving) return;
       const reason = approve ? null : rejectReason.trim();
       if (!approve && !reason) {
         setErrorMsg(RESPOND_ERROR_TEXT.WC029);
+        return;
+      }
+      if (approve && !accountFieldsValid) {
+        setErrorMsg(RESPOND_ERROR_TEXT.WC058);
         return;
       }
 
@@ -73,6 +113,14 @@ export default function RefundApprovalModal({
         p_refund_request_id: request.id,
         p_approve: approve,
         p_reject_reason: reason,
+        // 가상계좌 결제 건만 실어 보낸다(RefundRequestModal과 같은 이유).
+        ...(approve && isVirtualAccountOrder
+          ? {
+              p_refund_bank: refundBank,
+              p_refund_account: refundAccount.trim(),
+              p_refund_holder: refundHolder.trim(),
+            }
+          : {}),
       });
 
       setSaving(false);
@@ -89,7 +137,17 @@ export default function RefundApprovalModal({
       setRejectReason("");
       onResponded?.();
     },
-    [request, saving, rejectReason, onResponded],
+    [
+      request,
+      saving,
+      rejectReason,
+      onResponded,
+      accountFieldsValid,
+      isVirtualAccountOrder,
+      refundBank,
+      refundAccount,
+      refundHolder,
+    ],
   );
 
   if (!open || !request) return null;
@@ -161,6 +219,17 @@ export default function RefundApprovalModal({
           )}
         </div>
 
+        {isVirtualAccountOrder && !rejecting && (
+          <RefundAccountFields
+            bank={refundBank}
+            account={refundAccount}
+            holder={refundHolder}
+            onBankChange={setRefundBank}
+            onAccountChange={setRefundAccount}
+            onHolderChange={setRefundHolder}
+          />
+        )}
+
         {rejecting && (
           <textarea
             rows={2}
@@ -212,7 +281,7 @@ export default function RefundApprovalModal({
             <button
               type="button"
               onClick={() => respond(true)}
-              disabled={saving}
+              disabled={saving || !accountFieldsValid}
               className="h-12 rounded-xl bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {saving ? "처리 중..." : "환불 승인"}

@@ -1,0 +1,33 @@
+# main 브랜치에 마이그레이션이 머지되면 prod DB(ykrpjcsubmbenfcnwlzd)에 자동 적용.
+# 배포 순서: 앱(Vercel)과 병렬로 돌므로 파괴적 변경은 expand-contract 2단계로 나눌 것.
+name: db-push-prod
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+concurrency:
+  group: db-push-prod
+  cancel-in-progress: false
+
+jobs:
+  push-prod:
+    runs-on: ubuntu-latest
+    environment: prod-db
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_PROD }}
+      PROJECT_REF: ykrpjcsubmbenfcnwlzd
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - run: supabase link --project-ref "$PROJECT_REF"
+
+      - run: supabase db push

@@ -1,14 +1,12 @@
 import type { User } from "@supabase/supabase-js";
-import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import checkboxUnselected from "@/assets/checkout/checkbox-24.svg";
-import checkboxSelected from "@/assets/checkout/checkbox-24-selected.svg";
-import sectionArrow from "@/assets/checkout/section-arrow-38.svg";
 import successCheck from "@/assets/checkout/success-check-60.svg";
 import ConfirmModal from "@/components/checkout/ConfirmModal";
+import ServiceCatalog from "@/components/pricing/ServiceCatalog";
 import { formatKRW } from "@/data/pricingCatalog";
 import { getApprovedParentLink } from "@/lib/parentLink";
-import { type ServiceProduct, useProducts } from "@/lib/products";
+import { useProducts } from "@/lib/products";
 import { supabase } from "@/lib/supabase";
 
 // 학생 — 결제 요청(수강신청) 화면. Figma 실측 재작업(2026-08-12b, 팀 리드가
@@ -21,12 +19,15 @@ import { supabase } from "@/lib/supabase";
 // 규약 주석과 짝). /pricing 도 학생 로그인 시 이 컴포넌트를 그대로 재사용한다
 // (Pricing.jsx 역할 분기 참고 — 화면을 두 벌 만들지 않는다).
 //
-// 상품 그룹핑 — 팀 리드 스펙 문구는 program_key(target/mentor/suhaeng) 기준이지만
-// 기존 조회 훅(src/lib/products.js)은 service_key(goal/mentor/suhaeng)로
-// 그룹핑한다(Pricing.jsx 가 이미 이 훅을 그렇게 쓴다). dev DB 실측 결과 이 3개
+// 상품 그룹핑 — 팀 리드 스펙 문구는 program_key(target/mentor/suhaeng/diagnose) 기준이지만
+// 기존 조회 훅(src/lib/products.js)은 service_key(goal/mentor/suhaeng/diagnose)로
+// 그룹핑한다(Pricing.jsx 가 이미 이 훅을 그렇게 쓴다). dev DB 실측 결과 이 4개
 // 서비스는 service_key ↔ program_key 가 1:1 대응이라(goal↔target, mentor↔mentor,
-// suhaeng↔suhaeng) 그룹 구성 결과가 동일하므로 기존 훅을 그대로 재사용한다.
-const ALLOWED_SERVICE_KEYS = ["goal", "mentor", "suhaeng"];
+// suhaeng↔suhaeng, diagnose↔diagnose) 그룹 구성 결과가 동일하므로 기존 훅을 그대로
+// 재사용한다. diagnose는 학습진단 유료 게이팅(20260821, 이용 요금 구조 최종본
+// 20260806)으로 추가된 4번째 서비스다 — 회원가입 시 1회 무료 이후에만 이 결제
+// 경로가 필요해진다.
+const ALLOWED_SERVICE_KEYS = ["goal", "mentor", "suhaeng", "diagnose"];
 
 // 그룹당 1개 선택 안내 — 시안 실측 문구(3921:7066, 목표관리·수행평가 섹션
 // 하단에만 있고 콜멘토엔 없다 — 아래 렌더 조건 `products.length > 1`이 이를
@@ -128,43 +129,10 @@ export default function StudentEnrollmentRequest() {
     });
   }
 
-  // Escape = 그룹 선택 해제, 화살표 = 이동+선택. Pricing.jsx radiogroup 과 동일
-  // 규약이다(전체 근거는 그쪽 handleRadioKeyDown 주석 참고 — 두 화면이 같은
-  // 상호작용을 쓰므로 여기서 반복 설명하지 않는다).
-  function handleRadioKeyDown(
-    e: KeyboardEvent<HTMLButtonElement>,
-    serviceKey: string,
-    products: ServiceProduct[],
-    currentIndex: number,
-  ) {
-    if (e.key === "Escape") {
-      if (!(serviceKey in selected)) return;
-      e.preventDefault();
-      setSelected((prev) => {
-        const next = { ...prev };
-        delete next[serviceKey];
-        return next;
-      });
-      return;
-    }
-
-    let delta = 0;
-    if (e.key === "ArrowDown" || e.key === "ArrowRight") delta = 1;
-    else if (e.key === "ArrowUp" || e.key === "ArrowLeft") delta = -1;
-    else return;
-    e.preventDefault();
-
-    const nextIndex =
-      (currentIndex + delta + products.length) % products.length;
-    const nextProduct = products[nextIndex];
-    if (!nextProduct) return;
-    setSelected((prev) => ({ ...prev, [serviceKey]: nextProduct.id }));
-
-    const group = e.currentTarget.closest('[role="radiogroup"]');
-    const nextEl =
-      group?.querySelectorAll<HTMLElement>('[role="radio"]')[nextIndex];
-    nextEl?.focus();
-  }
+  // radiogroup 키보드 처리(Escape 해제·화살표 이동·roving tabindex)는
+  // ServiceCatalog.tsx(handleRadioKeyDown)로 이전했다 — PricingSelling.tsx와
+  // 이 화면이 같은 상호작용 규약을 공유하므로 컴포넌트 하나로 통합했다
+  // (2026-08-21 ServiceCatalog 추출, 사용자 지시).
 
   const selectedItems = useMemo(() => {
     const items: SelectedItem[] = [];
@@ -284,7 +252,9 @@ export default function StudentEnrollmentRequest() {
               aria-hidden="true"
               className="size-12 lg:size-perf-inset"
             />
-            <h1 className="whitespace-nowrap text-center text-[1.75rem] font-semibold leading-[1.4] tracking-[-0.035rem] text-ink lg:text-[3.125rem] lg:tracking-[-0.0625rem]">
+            {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — 반응형 확대 제거,
+                7f072f45 h1과 동일 위계. */}
+            <h1 className="whitespace-nowrap text-center text-[2rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
               결제 요청이 완료 되었어요!
             </h1>
           </div>
@@ -367,134 +337,14 @@ export default function StudentEnrollmentRequest() {
             </div>
           )}
 
-          {!loading &&
-            !error &&
-            filteredServices.map((service) => (
-              <section key={service.key} className="mb-16">
-                {/* 섹션 헤더(3921:7075 실측) */}
-                <div className="flex flex-col items-start justify-center">
-                  <div className="flex items-center gap-3 py-2 pr-8 lg:py-5 lg:pr-12">
-                    <h2
-                      id={`plan-group-label-${service.key}`}
-                      className="text-[1.375rem] font-semibold leading-5 tracking-[-0.02em] text-ink lg:text-[2rem] lg:tracking-[-0.04rem]"
-                    >
-                      {service.name}
-                    </h2>
-                    <img
-                      src={sectionArrow}
-                      alt=""
-                      aria-hidden="true"
-                      className="h-6 w-5.75 lg:h-10 lg:w-[2.396rem]"
-                    />
-                  </div>
-                  {service.desc && (
-                    <p className="w-full pr-3 text-[0.875rem] font-medium leading-[1.4] text-ink-sub lg:text-[1.25rem] lg:tracking-[-0.025rem]">
-                      {service.desc}
-                    </p>
-                  )}
-                </div>
-
-                <div
-                  role="radiogroup"
-                  aria-labelledby={`plan-group-label-${service.key}`}
-                  className="mt-6 space-y-2 lg:mt-6.25 lg:space-y-3"
-                >
-                  {service.products.map((product, index) => {
-                    const isSelected = selected[service.key] === product.id;
-                    const hasDiscount =
-                      Number(product.listPrice) > Number(product.price);
-                    const hasSelectionInGroup = Boolean(selected[service.key]);
-                    const isRovingTabStop = hasSelectionInGroup
-                      ? isSelected
-                      : index === 0;
-                    // 할인율은 하드코딩하지 않고 정가/판매가로 계산한다(팀 리드 지시).
-                    const discountPct = hasDiscount
-                      ? Math.round(
-                          (1 -
-                            Number(product.price) / Number(product.listPrice)) *
-                            100,
-                        )
-                      : 0;
-
-                    return (
-                      // biome-ignore lint/a11y/useSemanticElements: handleRadioKeyDown이 구현한 roving tabindex + 방향키 이동 라디오그룹이다. 결제 상품 선택 UI라 input 전환의 리스크(로직 재검증 + 시각 회귀)를 감수하지 않는다 — 별도 QA 필요.
-                      <button
-                        type="button"
-                        key={product.id}
-                        role="radio"
-                        aria-checked={isSelected}
-                        tabIndex={isRovingTabStop ? 0 : -1}
-                        onClick={() => toggle(service.key, product.id)}
-                        onKeyDown={(e) =>
-                          handleRadioKeyDown(
-                            e,
-                            service.key,
-                            service.products,
-                            index,
-                          )
-                        }
-                        className="flex w-full items-center justify-between gap-4 rounded-2xl border border-line bg-white px-4 py-4 text-left transition hover:border-ink-sub lg:px-8 lg:py-7"
-                      >
-                        <span className="flex min-w-0 flex-1 items-center gap-3 lg:items-start lg:gap-5">
-                          {/* 체크박스 — TODO(design): 시안 두 후보(checkbox-24 /
-                              checkbox-24-checked)가 둘 다 회색 배경 + 흰 체크라
-                              선택 상태 시각 구분이 시안에 없다. 선택 시 배경만
-                              primary(#013262)로 바꾼 변형(checkbox-24-selected.svg)
-                              은 팀 리드 판단이며 시안 근거가 아니다. */}
-                          <img
-                            src={
-                              isSelected ? checkboxSelected : checkboxUnselected
-                            }
-                            alt=""
-                            aria-hidden="true"
-                            className="size-6 shrink-0"
-                          />
-                          <span className="break-keep text-[1rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink lg:text-[1.5rem] lg:tracking-[-0.03rem]">
-                            {product.name}
-                          </span>
-                          {product.recommended && (
-                            <span className="flex h-5.5 shrink-0 items-center justify-center rounded-md bg-primary px-2 text-[0.75rem] font-medium text-white lg:h-7.75 lg:w-13 lg:text-[1rem]">
-                              추천
-                            </span>
-                          )}
-                        </span>
-
-                        <span className="flex shrink-0 flex-col items-end gap-1">
-                          {hasDiscount ? (
-                            <>
-                              <span className="whitespace-nowrap text-[0.875rem] font-normal tracking-[-0.02em] text-line lg:text-[1.25rem] lg:tracking-[-0.025rem]">
-                                {formatKRW(product.listPrice)}
-                              </span>
-                              <span className="flex items-center gap-2">
-                                <span className="whitespace-nowrap text-[0.75rem] font-medium text-error lg:text-[1rem]">
-                                  {discountPct}% 할인
-                                </span>
-                                <span className="whitespace-nowrap text-[1rem] font-medium tracking-[-0.02em] text-ink lg:text-[1.5rem] lg:tracking-[-0.03rem]">
-                                  {formatKRW(product.price)}
-                                </span>
-                              </span>
-                            </>
-                          ) : (
-                            <span className="whitespace-nowrap text-[1rem] font-medium tracking-[-0.02em] text-ink lg:text-[1.5rem] lg:tracking-[-0.03rem]">
-                              {formatKRW(product.price)}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* 안내문(시안 3921:7066 실측) — 목표관리·수행평가에만(플랜 2개
-                    이상인 서비스에만) 나타난다. 콜멘토는 플랜이 1개뿐이라 이
-                    조건 하나로 자연스럽게 빠진다(예외 분기 아님). */}
-                {service.products.length > 1 && (
-                  <p className="mt-4 text-[0.875rem] font-medium leading-[1.4] text-ink-sub">
-                    {SINGLE_PLAN_NOTICE}
-                  </p>
-                )}
-              </section>
-            ))}
+          {!loading && !error && (
+            <ServiceCatalog
+              services={filteredServices}
+              selected={selected}
+              onToggle={toggle}
+              planNotice={SINGLE_PLAN_NOTICE}
+            />
+          )}
         </div>
       </main>
 

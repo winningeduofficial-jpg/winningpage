@@ -1,7 +1,7 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { ChevronDown, LogOut, Settings, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
 import type { useNavGroups } from "@/hooks/useNavGroups";
 import { buildMyMenu } from "./myMenuItems";
@@ -21,9 +21,13 @@ type MobileNavDrawerProps = {
   isAdmin: boolean;
   onLogout: () => void;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
+  // 현재 경로가 속한 nav 그룹 타이틀 — Header의 activePathTitle(정확 일치 → 첫 세그먼트
+  // 2단계 판정)을 그대로 받아 데스크톱 nav와 활성 표시 기준을 일치시킨다.
+  activeGroupTitle?: string | null;
 };
 
-// 헤더 nav(desktop:flex 미만)를 대체하는 전체화면 드로어.
+// 헤더 햄버거(전체메뉴) 버튼으로 여는 전체화면 드로어. 모바일 전용이 아니라 데스크톱에서도
+// nav 5개 메뉴와 병행 노출된다(전체메뉴 버튼 클릭 시 뷰포트 무관하게 항상 열린다).
 // 5개 nav 그룹 + 로그인 상태의 마이페이지/관리자/로그아웃(또는 로그인/회원가입)을 아코디언으로 노출한다.
 //
 // ESC 닫기·포커스 트랩·배경 스크롤 잠금은 shadcn Dialog(Base UI) 내장 동작이 처리한다.
@@ -47,8 +51,10 @@ export default function MobileNavDrawer({
   isAdmin,
   onLogout,
   triggerRef,
+  activeGroupTitle = null,
 }: MobileNavDrawerProps) {
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const { pathname } = useLocation();
 
   useEffect(() => {
     if (!open) {
@@ -68,7 +74,7 @@ export default function MobileNavDrawer({
       }}
     >
       <DialogPortal>
-        <DialogOverlay className="bg-black/40 desktop:hidden" />
+        <DialogOverlay className="bg-black/40" />
         <DialogPrimitive.Popup
           // Header의 햄버거 버튼이 aria-controls="mobile-nav-drawer"로 이 패널을
           // 가리킨다 — Base UI가 자동 부여하는 useId 대신 이 고정 id를 유지해야 한다.
@@ -78,7 +84,7 @@ export default function MobileNavDrawer({
           // Base UI Popup은 aria-modal을 자동 배선하지 않는다 — 리터럴로 명시.
           aria-modal="true"
           aria-label="전체 메뉴"
-          className="fixed inset-y-0 right-0 z-60 flex h-full w-[85vw] max-w-88 flex-col overflow-y-auto bg-white shadow-[-18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-closed:translate-x-full data-open:translate-x-0 desktop:hidden"
+          className="fixed inset-y-0 right-0 z-60 flex h-full w-[85vw] max-w-88 flex-col overflow-y-auto bg-white shadow-[-18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-closed:translate-x-full data-open:translate-x-0"
         >
           <div className="flex items-center justify-between border-b border-[#eeeeee] px-6 py-5">
             {shouldShowLoggedInHeader ? (
@@ -109,6 +115,7 @@ export default function MobileNavDrawer({
               const hasDropdown =
                 Array.isArray(group.items) && group.items.length > 0;
               const isOpen = openGroup === group.title;
+              const isGroupActive = activeGroupTitle === group.title;
 
               return (
                 <div key={group.title} className="border-b border-[#eeeeee]">
@@ -116,7 +123,12 @@ export default function MobileNavDrawer({
                     <Link
                       to={group.to}
                       onClick={onClose}
-                      className="flex-1 whitespace-nowrap px-4 py-4 text-lg font-medium text-[#1e293b]"
+                      aria-current={isGroupActive ? "page" : undefined}
+                      className={`flex-1 whitespace-nowrap px-4 py-4 text-lg ${
+                        isGroupActive
+                          ? "font-semibold text-primary"
+                          : "font-medium text-[#1e293b]"
+                      }`}
                     >
                       {group.title}
                     </Link>
@@ -147,16 +159,24 @@ export default function MobileNavDrawer({
                       }`}
                     >
                       <div className="min-h-0">
-                        {group.items.map((item) => (
-                          <Link
-                            key={`${group.title}-${item.to}-${item.label}`}
-                            to={item.to}
-                            onClick={onClose}
-                            className="block whitespace-nowrap px-8 py-3 text-base text-ink transition hover:text-primary"
-                          >
-                            {item.label}
-                          </Link>
-                        ))}
+                        {group.items.map((item) => {
+                          const isItemActive = item.to === pathname;
+                          return (
+                            <Link
+                              key={`${group.title}-${item.to}-${item.label}`}
+                              to={item.to}
+                              onClick={onClose}
+                              aria-current={isItemActive ? "page" : undefined}
+                              className={`block whitespace-nowrap px-8 py-3 text-base transition hover:text-primary ${
+                                isItemActive
+                                  ? "font-semibold text-primary"
+                                  : "text-ink"
+                              }`}
+                            >
+                              {item.label}
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   )}

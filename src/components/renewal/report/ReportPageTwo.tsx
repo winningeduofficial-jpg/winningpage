@@ -40,12 +40,15 @@ type ReportPageTwoProps = {
       sincerityAct?: string | null;
     };
   };
+  // ReportSheetA4 totalPages 계약(2026-08-21) — 부록 렌더 여부(hasReportExtras)로
+  // FreeDiagnosisReport 가 한 번만 계산해 전 시트·부록 페이지에 동일한 값을 내려보낸다.
+  totalPages: number;
 };
 
-// 결과 리포트 2페이지(A4-4) — 학교 생활 및 입시 준비도 / 6영역 바 그래프 /
-// 잘하고 있는 부분·보완할 부분 / 목표 대학 입결 비교 / 추천 지원 서비스.
+// 결과 리포트 2페이지(A4-4) — [학교 생활 및 입시 준비도 + 6영역 바 그래프 | 목표 대학
+// 입결 비교] 2단 스플릿 / 잘하고 있는 부분·보완할 부분 / 추천 지원 서비스.
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
-const ReportPageTwo = ({ data }: ReportPageTwoProps) => {
+const ReportPageTwo = ({ data, totalPages }: ReportPageTwoProps) => {
   const {
     readiness,
     strengths,
@@ -56,14 +59,22 @@ const ReportPageTwo = ({ data }: ReportPageTwoProps) => {
   } = data;
 
   return (
-    <ReportSheetA4 page={2}>
-      <ReadinessOverview
-        scoreLabel={readiness.scoreLabel}
-        summaryLines={readiness.summaryLines}
-      />
-      <DimensionBarChart areas={readiness.areas} />
+    <ReportSheetA4 page={2} totalPages={totalPages}>
+      {/* fd-readiness-admission-split — 2026-08-21 사용자 지시: 준비도(좌)·입결 비교(우)를
+          같은 선상의 2단으로. 새 lg: 값(grid-cols-[30.875rem_30.875rem] gap-x-4)을
+          report-print.css 가 그대로 복사하는 기존 관례(화면=인쇄 프리뷰)를 따른다.
+          InsightColumns(잘하고/보완할)는 종전대로 이 2단 아래 전폭으로 남는다. */}
+      <div className="fd-readiness-admission-split grid grid-cols-1 lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4">
+        <div>
+          <ReadinessOverview
+            scoreLabel={readiness.scoreLabel}
+            summaryLines={readiness.summaryLines}
+          />
+          <DimensionBarChart areas={readiness.areas} />
+        </div>
+        <AdmissionSection admission={admission} />
+      </div>
       <InsightColumns strengths={strengths} improvements={improvements} />
-      <AdmissionSection admission={admission} />
       {/* exactOptionalPropertyTypes 대응 — undefined일 때 leadNote 키 생략(RecommendServices 미수정 범위). */}
       <RecommendServices
         cards={recommendations}
@@ -73,22 +84,11 @@ const ReportPageTwo = ({ data }: ReportPageTwoProps) => {
       />
 
       {/*
-        R3(2026-08-11) — notices.reportBasis(§5.1 고정 안내 "조건 없음, 항상")도 urgency 와 같은
-        사정으로 렌더 슬롯이 없었다. 리포트 전체에 걸리는 신뢰성 고지라 특정 섹션이 아니라
-        2페이지(마지막 페이지) 맨 아래 각주로 한 번만 둔다.
-
-        (2026-08-11 갱신) 나머지 고지도 전부 자리를 찾았다 — probNote·admissionNote 는
-        AdmissionSection 안(값·표 바로 옆), serviceLimit 은 RecommendServices 리드,
-        skipNote·reportLimit 은 화면 전용 확장 영역(ReportScreenExtras)이다. 이 각주(reportBasis)
-        만 인쇄에 남는다. 새 고지가 생기면 여기 쌓지 말고 의미상 소속 섹션을 먼저 찾아라.
+        notices.reportBasis(산출 근거 고지)는 원래 여기(2페이지 하단) 각주였으나, 부록이
+        인쇄에 포함되면서(행 102) 2페이지가 더 이상 문서의 끝이 아니게 됐다 — 사용자 지시
+        (2026-08-21)로 문서 전체의 맨 끝(ReportScreenExtras 하단)으로 이동했다.
+        새 고지가 생기면 여기 쌓지 말고 의미상 소속 섹션을 먼저 찾아라.
       */}
-      {/* WARN-2 — urgency.message 와 동일 사유로 #6b6b6b(대비 ≈5.34:1) 재사용. 이미 있는
-          border-t 구분선과 함께 각주 위계를 색·경계선 이중으로 드러낸다. */}
-      {notices?.reportBasis && (
-        <p className="fd-mt-report-basis mt-8 border-t border-[#e5e5e5] pt-3 text-sm leading-[1.4] text-ink-sub lg:mt-6">
-          {notices.reportBasis}
-        </p>
-      )}
     </ReportSheetA4>
   );
 };

@@ -50,7 +50,7 @@ const AUDIENCE = [
   {
     image: illustrationTrial,
     imageClass: "wide:mt-8.5 wide:h-58.75",
-    titleLines: ["유료 서비스 전에 무료로", "서비스를 경험해보고 싶은 분"],
+    titleLines: ["유료 서비스 전에 무료로", "서비스를 경험해보고 싶은 학생"],
     descLines: ["내 위치를 데이터로 확인하고", "맞는 서비스를 찾고 있는 경우"],
   },
 ];
@@ -138,7 +138,10 @@ function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — SVG 리페인트 비용 절감
   // (GoalManagement.jsx HeroSection과 동일 useInView 훅 구조).
   // useInView(범위 밖 파일)가 튜플이 아닌 배열을 반환해 각 원소가 유니온으로 추론되므로 단언.
-  const [glowRef, glowInView] = useInView() as [
+  // QA 행 106 — rootMargin 없이는 요소가 뷰포트에 실제로 걸쳐야만 애니메이션이 시작돼
+  // "애니메이션이 있는지도 모르겠다"는 피드백으로 이어졌다. 하단 마진을 양수로 넓혀
+  // 화면에 닿기 전부터 in-view로 판정, 체감상 더 위(이른 스크롤 지점)에서 시작하게 한다.
+  const [glowRef, glowInView] = useInView("0px 0px 200px 0px") as [
     MutableRefObject<HTMLDivElement | null>,
     boolean,
   ];
@@ -275,12 +278,19 @@ function StepsSection() {
         <h2 className={`${SECTION_HEADING_CLASS} text-ink-title`}>
           학생부 업로드 없이,
           <br />
-          20분이면 완성하는 학습진단
+          10분이면 완성하는 학습진단
         </h2>
 
         {/* 이 카드행은 심화탐구 기준 ServiceProcessCards 로 수렴했다. 기존 학습진단 시안
             결정(B7)은 폐기. */}
-        <ServiceProcessCards items={STEPS} />
+        {/* QA 행 65 — 이미지가 너무 단순하다는 피드백이라 카드 배경에 그라데이션을 얹는다.
+            BADGE_BASE_CLASS와 동일한 톤(#F5FAFF, primary 계열)을 끝점으로 써서 이 페이지의
+            기존 배지 색과 맞춘다. 다른 5개 사용처(GoalManagement 등)는 cardClassName
+            미지정이라 기존 bg-white 그대로다. */}
+        <ServiceProcessCards
+          items={STEPS}
+          cardClassName="bg-gradient-to-b from-white to-[#F5FAFF]"
+        />
       </div>
     </section>
   );
@@ -383,7 +393,8 @@ function MacbookMockup() {
   // 이 섹션은 페이지 y2750 지점이라 대부분의 시간 화면 밖이다.
   // 뷰포트에 들어와 있는 동안만 애니메이션을 돌린다(이탈 시 정지).
   // useInView(범위 밖 파일)가 튜플이 아닌 배열을 반환해 각 원소가 유니온으로 추론되므로 단언.
-  const [chipLayerRef, chipsInView] = useInView() as [
+  // QA 행 106 — 위 glowRef와 동일 사유로 트리거 지점을 200px 앞당긴다.
+  const [chipLayerRef, chipsInView] = useInView("0px 0px 200px 0px") as [
     MutableRefObject<HTMLDivElement | null>,
     boolean,
   ];
@@ -546,7 +557,7 @@ function BottomCta() {
     <section className="bg-[#172437] py-14 md:mt-59 md:pt-35.25 md:pb-35.5">
       <div className="mx-auto flex w-full max-w-content flex-col items-center gap-8 px-5 text-center sm:gap-10 sm:px-8 md:gap-perf-inset">
         <h2 className="break-keep text-[1.5rem] font-bold leading-[1.4] tracking-[-0.02em] text-white sm:text-[1.75rem] md:text-[2.75rem]">
-          어서 학습진단을 경험해보세요
+          지금바로 학습진단을 경험해보세요
         </h2>
 
         <Link

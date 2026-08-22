@@ -1,0 +1,32 @@
+# dev 브랜치에 마이그레이션이 머지되면 dev DB(gjowqdiopinhixfivnkx)에 자동 적용.
+name: db-push-dev
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+
+concurrency:
+  group: db-push-dev
+  cancel-in-progress: false
+
+jobs:
+  push-dev:
+    runs-on: ubuntu-latest
+    environment: dev-db
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD_DEV }}
+      PROJECT_REF: gjowqdiopinhixfivnkx
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - run: supabase link --project-ref "$PROJECT_REF"
+
+      - run: supabase db push

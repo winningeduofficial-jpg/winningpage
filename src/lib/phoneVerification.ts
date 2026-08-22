@@ -44,6 +44,22 @@ export function isValidMobile(phone: unknown) {
   return /^01[0-9]{8,9}$/.test(normalizePhone(phone));
 }
 
+/**
+ * 휴대폰 번호 입력 중 자동 하이픈 포맷 — 010-1234-5678 형태로 만든다(QA 지시 2026-08-21,
+ * 멘토신청 지원서 + 프리미엄이용 문의 폼 공용). 숫자만 남기고 11자리로 자른 뒤 3-4-4 로
+ * 끊는다. 정규화(제출·비교용, 하이픈 제거)는 normalizePhone 이 이미 맡고 있으므로
+ * 이 함수는 화면 표시 전용이다 — 서버로 보낼 때는 반드시 normalizePhone 을 다시 거친다.
+ */
+export function formatPhoneInput(raw: unknown) {
+  const digits = String(raw ?? "")
+    .replace(/\D/g, "")
+    .slice(0, 11);
+
+  if (digits.length < 4) return digits;
+  if (digits.length < 8) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+  return `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`;
+}
+
 async function postJson(url: string, body: unknown) {
   try {
     const response = await fetch(url, {

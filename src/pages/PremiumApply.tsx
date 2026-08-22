@@ -10,6 +10,7 @@ import {
 } from "react";
 import BookViewer from "@/components/premiumBook/BookViewer";
 import { usePremiumBookPages } from "@/components/premiumBook/usePremiumBookPages";
+import { formatPhoneInput } from "@/lib/phoneVerification";
 
 // 이용신청 > 프리미엄 이용 (node 1882:11190) 정식 페이지.
 // 러프 구현 목표 — 픽셀 재현 아님, 섹션 구조·카피·컬러 위계만 재현한다.
@@ -317,9 +318,15 @@ export default function PremiumApply() {
                           fieldRefs.phone as React.RefObject<HTMLInputElement>
                         }
                         type="tel"
+                        inputMode="numeric"
                         value={form.phone}
-                        onChange={(e) => updateField("phone", e.target.value)}
+                        // 자동 하이픈 포맷(QA 지시 2026-08-21) — src/lib/phoneVerification.ts
+                        // formatPhoneInput, 멘토신청 지원서와 공유하는 유틸이다.
+                        onChange={(e) =>
+                          updateField("phone", formatPhoneInput(e.target.value))
+                        }
                         placeholder="010-0000-0000"
+                        maxLength={13}
                         className={`${inputClass} ${errors.phone ? inputErrorClass : ""}`}
                       />
                     </FormField>

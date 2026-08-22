@@ -20,7 +20,11 @@
 //    1번에서 입력한 번호로 5번에서 그대로 인증할 수 있다. 시안이 같은 값을 두 번 묻는
 //    구조인지(중복 결함)는 명세 미해결 항목이다.
 
-import { FORM_SECTIONS, MENTOR_REGION_OPTIONS } from "@/data/mentorApply";
+import {
+  FORM_SECTIONS,
+  GENDER_OPTIONS,
+  MENTOR_REGION_OPTIONS,
+} from "@/data/mentorApply";
 import { isValidMobile } from "@/lib/phoneVerification";
 import { isValidBirthDate, isValidEmail } from "@/lib/validators";
 import ChipGroup from "./ChipGroup";
@@ -32,15 +36,18 @@ import MentorTextField, { MentorFieldShell } from "./MentorTextField";
 export const APPLICANT_SECTION_ID = "mentor-form-section-1";
 
 // 이 섹션이 소유하는 필드 name 목록(진행률 사이드바용). 화면에 그려진 순서 그대로다.
+// `gender` 는 QA 지시(2026-08-21)로 추가한 필드다 — DB 컬럼·서버 화이트리스트까지 배선
+// 완료(src/data/mentorApply.ts GENDER_OPTIONS 주석 참고).
 export const APPLICANT_FIELDS = [
   "name",
   "birth_date",
+  "gender",
   "phone",
   "email",
   "residence_region",
 ];
 
-// 필수 필드 — 섹션 1 은 5개 전부 필수다(명세 §폼 명세 필수 항목 카운트: 필수 5 / 선택 0).
+// 필수 필드 — 섹션 1 은 6개 전부 필수다(원 명세는 5개였으나 gender 추가로 6개가 됐다).
 export const APPLICANT_REQUIRED_FIELDS = APPLICANT_FIELDS;
 
 // ⚠ [시안 부재 — 파생 카피] 에러 상태 자체가 시안에 없다(명세 §6-6: Status/Error 변수만 정의되고
@@ -49,6 +56,7 @@ export const APPLICANT_REQUIRED_FIELDS = APPLICANT_FIELDS;
 //    이 상수 한 곳만 고치면 된다.
 const ERROR_MESSAGES = {
   name: "이름을 입력해 주세요.",
+  gender: "성별을 선택해 주세요.",
   birth_date_required: "생년월일을 입력해 주세요.",
   birth_date_format: "생년월일을 숫자 8자리로 정확히 입력해 주세요.",
   phone_required: "휴대폰 번호를 입력해 주세요.",
@@ -68,6 +76,8 @@ export function validateApplicantSection(values: ApplicantValues = {}) {
   const trimmed = (key: string) => String(values[key] ?? "").trim();
 
   if (!trimmed("name")) errors.name = ERROR_MESSAGES.name;
+
+  if (!trimmed("gender")) errors.gender = ERROR_MESSAGES.gender;
 
   if (!trimmed("birth_date"))
     errors.birth_date = ERROR_MESSAGES.birth_date_required;
@@ -142,6 +152,26 @@ export default function FormSectionApplicant({
           maxLength={8}
           error={errors.birth_date}
         />
+      </FormFieldRow>
+
+      {/* 성별 — QA 지시(2026-08-21)로 추가. 다른 단일 선택 필드(입시 이력·최종 등록 전형 등)와
+          같은 ChipGroup 관행을 따른다. DB 컬럼 부재로 제출 payload 에는 담기지 않는다(파일 상단
+          APPLICANT_FIELDS 주석 참고). */}
+      <FormFieldRow>
+        <MentorFieldShell
+          fieldId="mentor-gender"
+          label="성별"
+          required
+          error={errors.gender}
+        >
+          <ChipGroup
+            name="gender"
+            ariaLabel="성별"
+            options={GENDER_OPTIONS}
+            value={values.gender ?? ""}
+            onChange={handle("gender")}
+          />
+        </MentorFieldShell>
       </FormFieldRow>
 
       {/* 1-3 휴대폰 번호 / 1-4 이메일 — 2컬럼 */}
