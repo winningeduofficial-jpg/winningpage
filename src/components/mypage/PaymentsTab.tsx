@@ -44,6 +44,7 @@ type Order = {
   paid_at?: string;
   status?: string;
   approval_status?: string;
+  reject_reason?: string | null;
   is_fake_entitlement?: boolean;
   order_items?: { name: string }[];
 };

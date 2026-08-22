@@ -24,6 +24,13 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
     cls: "bg-surface-04 text-ink-sub",
   },
 
+  // 학부모가 결제 요청(수강신청) 자체를 반려함(fn_respond_enrollment) — 돈이
+  // 들어온 적 없는 종결 상태라 refund_parent_rejected와 같은 중립 톤을 쓴다.
+  enrollment_parent_rejected: {
+    label: "학부모 반려",
+    cls: "bg-surface-04 text-ink-sub",
+  },
+
   // ── 학생 "신청 내역" 어휘 (3967:3016 실측) ───────────────────────────
   // 학생 화면은 돈이 아니라 **신청·이용** 관점이다. 같은 주문이라도 학부모는
   // '결제 완료', 학생은 '이용 중'으로 읽는다 — 그래서 키를 나눈다.

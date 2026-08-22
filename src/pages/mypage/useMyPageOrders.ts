@@ -15,6 +15,9 @@ export type Order = {
   paid_at?: string;
   status?: string;
   approval_status?: string;
+  // 학부모 반려 사유(fn_respond_enrollment) — 반려 건(approval_status='rejected')만
+  // 값이 있다(orders_reject_reason_pairing_check). 결제 상세 팝업이 표시한다.
+  reject_reason?: string | null;
   method?: string;
   vat?: number | string | null;
   // 영수증(ReceiptModal) 전용 — 토스 raw 응답의 card/virtualAccount/easyPay/
@@ -91,7 +94,7 @@ export function useMyPageOrders(user: SessionUser | null) {
         // 쿠폰명 노출용 — coupons는 public read가 is_active=true 행만 통과시키므로
         // 비활성 쿠폰이면 embed가 null로 온다(코드에서 폴백 처리).
         .select(
-          "id, order_name, amount, paid_at, status, approval_status, method, vat:raw->>vat, card:raw->card, virtual_account:raw->virtualAccount, easy_pay:raw->easyPay, approved_at:raw->>approvedAt, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
+          "id, order_name, amount, paid_at, status, approval_status, reject_reason, method, vat:raw->>vat, card:raw->card, virtual_account:raw->virtualAccount, easy_pay:raw->easyPay, approved_at:raw->>approvedAt, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
         )
         // 쌍 구조(sql/68) — orders.user_id 는 **결제한 사람(학부모)** 축이다.
         // 학생은 student_profile_id 에만 박히므로 user_id 로만 조회하면 학생

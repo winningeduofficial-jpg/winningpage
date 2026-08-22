@@ -61,6 +61,7 @@ type Order = {
   amount: number;
   status?: string;
   approval_status?: string;
+  reject_reason?: string | null;
   student_profile_id?: string;
   created_at?: string;
   paid_at?: string;
