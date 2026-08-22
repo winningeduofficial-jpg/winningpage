@@ -159,6 +159,15 @@ function FormField({
 const inputClass =
   "h-12 w-full rounded-[0.625rem] border border-line bg-white px-5 py-4 text-sm font-medium text-[#1e293b] placeholder:text-[#767676] focus:border-primary focus:outline-hidden";
 
+// <select>는 <input>과 달리 브라우저가 세로 padding을 텍스트 라인 안쪽으로 그대로
+// 적용한다(input처럼 넘치는 만큼 자동으로 다시 중앙 정렬하지 않음) — h-12(48px)에
+// inputClass의 py-4(32px)를 그대로 쓰면 남는 높이(16px)가 text-sm 줄 높이(20px)보다
+// 작아 선택된 값의 아래쪽이 잘려 보인다("이용하고 싶으신 서비스" 드롭다운 QA 지적).
+// 세로 padding 없이 h-12만으로 중앙 정렬하는 다른 네이티브 select 관례
+// (SelectField.tsx SIZE_CLASSES)를 따라 이 select만 별도 클래스를 쓴다.
+const selectClass =
+  "h-12 w-full rounded-[0.625rem] border border-line bg-white px-5 text-sm font-medium focus:border-primary focus:outline-hidden";
+
 const inputErrorClass = "border-red-400 focus:border-red-500";
 
 export default function PremiumApply() {
@@ -360,7 +369,7 @@ export default function PremiumApply() {
                           onChange={(e) =>
                             updateField("service", e.target.value)
                           }
-                          className={`${inputClass} appearance-none pr-10 ${
+                          className={`${selectClass} appearance-none pr-10 ${
                             form.service ? "text-[#1e293b]" : "text-[#767676]"
                           } ${errors.service ? inputErrorClass : ""}`}
                         >
