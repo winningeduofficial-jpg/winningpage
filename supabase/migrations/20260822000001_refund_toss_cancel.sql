@@ -59,13 +59,17 @@ begin
     -- 요구한다, api/complete-refund.ts). 화면(RefundApprovalModal)이 이미
     -- 필수 입력으로 막지만, 화면과 DB가 다른 답을 하면 안 된다는 이 저장소의
     -- 원칙(fn_refund_quote 주석 참고)에 따라 서버도 같은 판정을 반복한다.
+    --
+    -- 계좌번호는 숫자만 남긴 뒤 빈 값인지 판정한다(fn_request_refund와 동일
+    -- 판정, 20260822000002) — 하이픈만 입력해도 btrim 만으로는 "값이 있다"로
+    -- 오판된다.
     select * into v_order from public.orders where id = v_row.order_id;
     v_is_virtual_account := (v_order.raw -> 'virtualAccount') is not null
       and (v_order.raw -> 'virtualAccount') <> 'null'::jsonb;
 
     if v_is_virtual_account
        and (coalesce(btrim(p_refund_bank), '') = ''
-            or coalesce(btrim(p_refund_account), '') = ''
+            or coalesce(regexp_replace(p_refund_account, '[^0-9]', '', 'g'), '') = ''
             or coalesce(btrim(p_refund_holder), '') = '') then
       raise exception 'refund_account_required_for_virtual_account'
         using errcode = 'WC058';
