@@ -39,6 +39,7 @@ declare
   v_row                public.refund_requests;
   v_order              public.orders;
   v_is_virtual_account boolean;
+  v_normalized_account "text";
 begin
   select * into v_row from public.refund_requests where id = p_refund_request_id for update;
   if not found then
@@ -62,14 +63,18 @@ begin
     --
     -- 계좌번호는 숫자만 남긴 뒤 빈 값인지 판정한다(fn_request_refund와 동일
     -- 판정, 20260822000002) — 하이픈만 입력해도 btrim 만으로는 "값이 있다"로
-    -- 오판된다.
+    -- 오판된다. 저장도 이 정규화된 값으로 한다 — 판정에 쓴 값과 실제로
+    -- 저장되는 값이 다르면(예: 판정은 숫자만 보고 통과시켰는데 하이픈 섞인
+    -- 원본을 그대로 저장) api/complete-refund.ts가 나중에 다시 걸러야 하는
+    -- 불일치가 생긴다.
     select * into v_order from public.orders where id = v_row.order_id;
     v_is_virtual_account := (v_order.raw -> 'virtualAccount') is not null
       and (v_order.raw -> 'virtualAccount') <> 'null'::jsonb;
+    v_normalized_account := regexp_replace(p_refund_account, '[^0-9]', '', 'g');
 
     if v_is_virtual_account
        and (coalesce(btrim(p_refund_bank), '') = ''
-            or coalesce(regexp_replace(p_refund_account, '[^0-9]', '', 'g'), '') = ''
+            or coalesce(v_normalized_account, '') = ''
             or coalesce(btrim(p_refund_holder), '') = '') then
       raise exception 'refund_account_required_for_virtual_account'
         using errcode = 'WC058';
@@ -79,7 +84,7 @@ begin
        set approval_status        = 'approved',
            approval_responded_at  = now(),
            refund_bank            = coalesce(p_refund_bank, refund_bank),
-           refund_account         = coalesce(p_refund_account, refund_account),
+           refund_account         = coalesce(nullif(v_normalized_account, ''), refund_account),
            refund_holder          = coalesce(p_refund_holder, refund_holder)
      where id = p_refund_request_id
     returning * into v_row;
