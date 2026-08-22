@@ -97,7 +97,7 @@ const MENU_GROUPS = [
     items: [
       { key: "notices", label: "공지사항" },
       { key: "companyNews", label: "회사소식" },
-      { key: "admissionSusiJungsi", label: "수시정시합격" },
+      { key: "admissionSusiJungsi", label: "대입합격" },
       { key: "specialHighschool", label: "특목고합격" },
       { key: "admissionGuidelines", label: "대학별 모집요강" },
       { key: "admissionUniversities", label: "대학 목록 관리" },

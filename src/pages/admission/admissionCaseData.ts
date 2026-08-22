@@ -15,7 +15,6 @@ export interface AdmissionPostRow {
 interface HeroScopeConfig {
   ratesTable: string;
   heroLabel: string;
-  fallbackRates: { year: number; rate: number }[];
 }
 
 export const CATEGORY_LABELS: Record<CaseCategory, string> = {
@@ -32,16 +31,12 @@ export const CASE_CATEGORIES: CaseCategory[] = ["susi", "jungsi"];
  */
 // 기본 scope 설정 — Record 인덱스 접근으로 되짚으면 undefined 가능 타입이 되므로
 // 폴백용으로 별도 상수를 먼저 만들어 둔다(DEFAULT_HERO_SCOPE_CONFIG 참고).
+// 합격률 폴백 수치는 두지 않는다(QA 시트 2026-08-21 확정) — 하드코딩 폴백이
+// 특목고 페이지에 수시정시와 동일한 가짜 수치를 노출시킨 원인이었다. 숫자는
+// 각 scope의 DB 테이블 값만 신뢰하고, 없으면 아예 렌더하지 않는다.
 const DEFAULT_HERO_SCOPE_ENTRY: HeroScopeConfig = {
   ratesTable: "admission_acceptance_rates",
   heroLabel: "목표 대학 합격률",
-  fallbackRates: [
-    { year: 2021, rate: 92 },
-    { year: 2022, rate: 97 },
-    { year: 2023, rate: 95 },
-    { year: 2024, rate: 95 },
-    { year: 2025, rate: 98 },
-  ],
 };
 
 export const HERO_SCOPES: Record<string, HeroScopeConfig> = {
@@ -49,13 +44,6 @@ export const HERO_SCOPES: Record<string, HeroScopeConfig> = {
   "special-highschool": {
     ratesTable: "special_highschool_acceptance_rates",
     heroLabel: "목표 특목고 합격률",
-    fallbackRates: [
-      { year: 2021, rate: 92 },
-      { year: 2022, rate: 97 },
-      { year: 2023, rate: 95 },
-      { year: 2024, rate: 95 },
-      { year: 2025, rate: 98 },
-    ],
   },
 };
 
@@ -129,6 +117,29 @@ export async function fetchAdmissionCases(
   return data || [];
 }
 
+/**
+ * QA 시트(입시정보 카테고리) 반영 — 수시/정시 구분 탭을 숨기고 목록을 통합 노출한다.
+ * select 필터만 category 단건 → CASE_CATEGORIES 전체로 넓힌 것 외에는 fetchAdmissionCases와
+ * 동일한 정렬 규약(고정 → 순서 → 최신순)을 쓴다.
+ */
+export async function fetchAllAdmissionCases(): Promise<AdmissionPostRow[]> {
+  const { data, error } = await supabase
+    .from("admission_posts")
+    .select("*")
+    .eq("is_active", true)
+    .in("category", CASE_CATEGORIES)
+    .order("is_pinned", { ascending: false })
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("합격사례 통합 조회 실패:", error);
+    return [];
+  }
+
+  return data || [];
+}
+
 export async function fetchAdmissionCaseById(
   id: string,
 ): Promise<AdmissionPostRow | null> {
@@ -148,10 +159,11 @@ export async function fetchAdmissionCaseById(
 }
 
 /**
- * 노출 중인 연도별 합격률. 테이블 미생성/조회 실패면 폴백 상수를 반환한다.
- * 정상 응답이면 활성 행이 0건이어도(어드민이 전부 비활성화한 상태) 빈 배열을
- * 그대로 반환한다 — 호출부가 "조회 실패"와 "의도적으로 0건"을 구분해야 하므로
- * 여기서 빈 배열을 폴백으로 덮어써서는 안 된다.
+ * 노출 중인 연도별 합격률. 폴백 수치 없음 — 테이블 미생성/조회 실패면 빈 배열을
+ * 반환하고, 호출부(AcceptanceRateHero)는 숫자 블록 자체를 렌더하지 않는다.
+ * 정상 응답이면 활성 행이 0건이어도(어드민이 전부 비활성화한 상태) 마찬가지로
+ * 빈 배열이 그대로 온다 — "조회 실패"와 "의도적으로 0건"을 호출부가 구분할
+ * 필요가 없어졌으므로 반환값 형태를 굳이 나누지 않는다.
  * select('*') 고정 — 마이그레이션 미적용 환경에서도 죽지 않게 하는 규약(fetchAdmissionCases와 동일).
  * @returns {Promise<Array<{ year: number, rate: number }>>}
  */
@@ -167,18 +179,20 @@ export async function fetchAcceptanceRates(
     .order("year", { ascending: true });
 
   if (error) {
+    // 폴백 수치 없음 — 조회 실패 시 숫자 블록을 렌더하지 않는 것이 정본이다.
     console.error("연도별 합격률 조회 실패:", error);
-    return scopeConfig.fallbackRates;
+    return [];
   }
 
   return data || [];
 }
 
 /**
- * 히어로 대학 로고 스트립. 테이블 미생성/조회 실패면 null을 반환해 호출부
- * (AcceptanceRateHero)가 번들 로고 12종 폴백을 유지하게 한다. 정상 응답이면
- * 활성 행이 0건이어도(어드민이 전부 비활성화한 상태) 빈 배열을 그대로
- * 반환해 호출부가 로고 스트립 자체를 숨길 수 있게 한다.
+ * 히어로 대학 로고 스트립. 폴백 로고 없음 — 테이블 미생성/조회 실패면 null을
+ * 반환하고, 호출부(AcceptanceRateHero)는 초기 빈 상태를 그대로 유지해 로고
+ * 스트립을 렌더하지 않는다. 정상 응답이면 활성 행이 0건이어도(어드민이 전부
+ * 비활성화한 상태) 빈 배열을 그대로 반환해 호출부가 로고 스트립 자체를
+ * 숨길 수 있게 한다.
  * @returns {Promise<Array<{ id: string, name: string, logo_url: string,
  *   display_height_rem: number, opacity: number, sort_order: number }> | null>}
  */

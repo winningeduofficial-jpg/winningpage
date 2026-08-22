@@ -74,15 +74,22 @@ export default function SpecialHighschoolCases() {
 
   return (
     <main className="bg-white pt-16">
-      <AcceptanceRateHero scope="special-highschool" />
+      <AcceptanceRateHero
+        scope="special-highschool"
+        showRates={false}
+        showLogos={false}
+      />
 
       <section className="pb-20 pt-16 sm:pb-24 sm:pt-20">
         <div className="mx-auto w-full max-w-content px-5 sm:px-8">
           <h1 className="break-keep text-2xl font-semibold leading-[1.3] tracking-[-0.02em] text-ink sm:text-[2.25rem]">
-            특목고 합격 사례
+            특목고 합격 학생
           </h1>
 
-          <p className="mt-5 max-w-3xl break-keep text-base font-medium leading-[1.4] text-[#7A7A7A]">
+          {/* QA 리뷰(2026-08-21) — 문단 폭은 풀폭 그대로 유지(고객 요청)하고, 긴 줄 보상으로
+              leading만 1.4→1.6으로 늘린다. AdmissionCases.tsx도 같은 클래스를 쓰는 별도
+              문단(공유 상수 아님)이라 그쪽도 동일하게 맞췄다. */}
+          <p className="mt-5 break-keep text-base font-medium leading-[1.6] text-[#7A7A7A]">
             {SPECIAL_HS_DESCRIPTION}
           </p>
 

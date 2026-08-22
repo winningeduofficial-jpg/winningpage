@@ -80,7 +80,7 @@ export default function AdmissionCaseDetail() {
             to={listPath}
             className="w-fit text-base sm:text-xl font-semibold leading-[1.4] tracking-[-0.02em] text-accent"
           >
-            수시정시 합격 후기
+            대입합격 후기
           </Link>
 
           <h1 className="mt-2 break-keep text-2xl sm:text-[2.25rem] font-semibold leading-[1.3] tracking-[-0.02em] text-ink">
