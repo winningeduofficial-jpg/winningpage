@@ -10,6 +10,7 @@ import * as XLSX from "xlsx";
 import CouponAdmin from "@/components/admin/CouponAdmin";
 import GoalStudentsAdmin from "@/components/admin/GoalStudentsAdmin";
 import LearningDiagnosisAdmin from "@/components/admin/LearningDiagnosisAdmin";
+import MembersAdmin from "@/components/admin/MembersAdmin";
 import MentorApplicationsAdmin from "@/components/admin/MentorApplicationsAdmin";
 import PremiumBookAdmin from "@/components/admin/PremiumBookAdmin";
 import AdmissionMetaEditModal from "@/components/admission/editor/AdmissionMetaEditModal";
@@ -208,6 +209,7 @@ const CUSTOM_COMPONENT_REGISTRY = {
   premiumBookPages: PremiumBookAdmin,
   mentorApplications: MentorApplicationsAdmin,
   goalStudents: GoalStudentsAdmin,
+  members: MembersAdmin,
 };
 
 // CUSTOM_COMPONENT_REGISTRY와 같은 이유의 간접 레이어 — config.ListSummary가
