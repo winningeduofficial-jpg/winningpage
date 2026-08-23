@@ -49,16 +49,14 @@ export const ADMIN_SECTION_KEYS = [
   "winningSetukDb",
   "winningDeepReportDb",
   "winningStudentRecordDb",
-  // 서비스 관리 — 이용 현황
-  "dailyEntries",
-  "usageStatus",
   // 회원관리
   "members",
+  // 회원관리 — 이용 현황
+  "dailyEntries",
+  "usageStatus",
   // 매출·결제관리
+  "revenue",
   "enrollments",
-  "payments",
-  "settlements",
-  "dailySettlements",
   "refunds",
   "refundRequests",
   "coupons",

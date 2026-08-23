@@ -22,6 +22,7 @@ import LearningDiagnosisAdmin from "@/components/admin/LearningDiagnosisAdmin";
 import MembersAdmin from "@/components/admin/MembersAdmin";
 import MentorApplicationsAdmin from "@/components/admin/MentorApplicationsAdmin";
 import PremiumBookAdmin from "@/components/admin/PremiumBookAdmin";
+import RevenueAdmin from "@/components/admin/RevenueAdmin";
 import AdmissionMetaEditModal from "@/components/admission/editor/AdmissionMetaEditModal";
 import {
   exportAdmissionRowsToXlsx,
@@ -117,6 +118,10 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
       { key: "programCategories", label: "핵심 서비스" },
       // 기획표 라벨 변경: 멘토 성공전략 → 멘토스 소개.
       { key: "mentorStrategies", label: "멘토스 소개" },
+      // 20260823000003_premium_achievements 로 들어온 화면. CONFIGS·ADMIN_SECTION_KEYS
+      // 에는 있는데 여기에만 빠져 있어서 라우트는 살아 있고 사이드바에서는 갈 수
+      // 없는 상태였다(2026-08-23, 재편 브랜치와 나란히 머지되며 생긴 누락).
+      { key: "premiumAchievements", label: "프리미엄 실적 뱃지" },
     ],
   },
   // 입시정보 관리 — 사용자단 내비게이션의 「입시정보」 그룹(src/data/navigation.ts)과
@@ -152,7 +157,7 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
       { key: "pageContents", label: "세부 페이지 관리" },
     ],
   },
-  // 서비스 관리 — 판매 중인 서비스의 운영 화면을 전부 모은 최대 그룹(18개)이다.
+  // 서비스 관리 — 판매 중인 서비스의 운영 화면을 전부 모은 최대 그룹(16개)이다.
   // 세부메뉴가 많아 item.section(소분류 캡션)으로 한 단계 더 끊는다.
   {
     title: "서비스 관리",
@@ -209,25 +214,33 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
         label: "위닝 생기부 DB",
         section: "위닝 DB",
       },
+    ],
+  },
+  // 회원관리 — 상세(6탭)가 QA 182의 「고객조회상담」을 통째로 흡수했다.
+  // 수강 신청 내역은 결제 원장이라 매출·결제관리로 옮겼다.
+  //
+  // 일일 입장·이용 현황은 "누가 언제 들어와서 무엇을 썼나"를 보는 화면이라
+  // 서비스 운영이 아니라 **회원**에 붙는다(사용자 확정 2026-08-23). 원래는
+  // 서비스 관리 > 이용 현황에 있었다.
+  {
+    title: "회원관리",
+    items: [
+      { key: "members", label: "회원 목록" },
       { key: "dailyEntries", label: "일일 입장", section: "이용 현황" },
       { key: "usageStatus", label: "이용 현황", section: "이용 현황" },
     ],
-  },
-  // 회원관리 — 회원 목록 하나뿐이다. 상세(6탭)가 QA 182의 「고객조회상담」을
-  // 통째로 흡수했고, 수강 신청 내역은 결제 원장이라 매출·결제관리로 옮겼다.
-  {
-    title: "회원관리",
-    items: [{ key: "members", label: "회원 목록" }],
   },
   {
     title: "매출·결제관리",
     items: [
       // 납부상태·수강료·감면액·납부액 컬럼을 가진 사실상 결제 원장이라 회원관리가
       // 아니라 여기 둔다 — 회원 상세의 결제내역 탭과 역할이 겹치는 것도 피한다.
+      { key: "revenue", label: "매출 및 결제" },
       { key: "enrollments", label: "수강 신청 내역" },
-      { key: "payments", label: "매출 조정" },
-      { key: "settlements", label: "매출 정산" },
-      { key: "dailySettlements", label: "일일정산" },
+      // 「매출 조정」·「매출 정산」·「일일정산」은 2026-08-23 에 없앴다.
+      // 셋 다 운영자가 손으로 적는 수기 장부였고, 앞의 둘은 화면이 그리던 컬럼이
+      // 실제 payments 스키마에 아예 없어 빈 화면으로 떠 있었다. 실제 결제
+      // (orders/order_items)를 보는 「매출 및 결제」가 이 자리를 대신한다.
       // CONFIGS.refunds 라벨과 동일하게 유지할 것 — '환불 신청 내역'(아래)과
       // 혼동돼 있던 라벨을 2026-08-12 정정했다.
       { key: "refunds", label: "환불 수기 대장" },
@@ -291,6 +304,7 @@ const CUSTOM_COMPONENT_REGISTRY = {
   members: MembersAdmin,
   adminMembers: AdminMembersAdmin,
   adminRoles: AdminRolesAdmin,
+  revenue: RevenueAdmin,
 };
 
 // CUSTOM_COMPONENT_REGISTRY와 같은 이유의 간접 레이어 — config.ListSummary가
@@ -421,8 +435,8 @@ function AdminSidebar({ activeKey, setActiveKey }) {
                     <Fragment key={item.key}>
                       {/* 소분류 캡션 — 기획표의 3단(대분류 > 소분류 > 세부메뉴)을
                           접었다 펴는 단계를 하나 더 두지 않고 캡션으로 표현한다.
-                          「서비스 관리」가 18개로 가장 크고, 그 안에서 서비스·
-                          프리미엄·멘토·위닝 DB·이용 현황이 섞이면 훑기 어렵다.
+                          「서비스 관리」가 16개로 가장 크고, 그 안에서 서비스·
+                          프리미엄·멘토·위닝 DB가 섞이면 훑기 어렵다.
                           섹션이 바뀌는 첫 항목에서만 그린다. */}
                       {item.section &&
                         item.section !== group.items[index - 1]?.section && (
@@ -2692,12 +2706,7 @@ function AcceptanceRateSummary({ rows }) {
 }
 
 function MoneySummary({ activeKey, rows }) {
-  if (
-    !["payments", "settlements", "dailySettlements", "refunds"].includes(
-      activeKey,
-    )
-  )
-    return null;
+  if (!["refunds"].includes(activeKey)) return null;
 
   const sale = rows.reduce(
     (sum, row) => sum + Number(row.sale_amount || row.total_sale_amount || 0),
@@ -3364,13 +3373,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
                   </button>
 
                   {(config.excel ||
-                    [
-                      "members",
-                      "payments",
-                      "settlements",
-                      "dailySettlements",
-                      "refunds",
-                    ].includes(activeKey)) && (
+                    ["members", "refunds"].includes(activeKey)) && (
                     <button
                       type="button"
                       onClick={downloadExcel}
