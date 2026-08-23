@@ -38,7 +38,7 @@ export default function PremiumHero({
         <h1 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] text-ink-strong sm:text-[2rem]">
           {title}
         </h1>
-        <p className="mt-4 break-keep text-[1rem] font-medium leading-[1.5] text-ink sm:text-[1.25rem] lg:text-[1.5rem]">
+        <p className="mt-4 break-keep text-[1rem] font-medium leading-[1.6] text-ink-strong sm:text-[1.25rem] lg:text-[1.5rem]">
           {description}
         </p>
         <Link
