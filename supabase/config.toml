@@ -223,7 +223,12 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# 가입 이메일 인증(signupEmailAuth의 signUp→verifyOtp 시퀀스)을 로컬에서
+# 실제로 태우기 위해 켠다 — false면 signUp 즉시 confirmed 처리돼 OTP 메일이
+# 나가지 않아 가입 폼이 코드 입력 단계에서 영영 멈춘다(실동작 QA 2026-08-23).
+# 코드는 mailpit(54324)에서 확인한다. seed.sql QA 계정은 email_confirm을
+# 직접 세팅하므로 영향 없다.
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
@@ -412,3 +417,9 @@ enabled = true
 # declarative_schema_path = "./schemas"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# 가입 확인 메일을 코드형({{ .Token }})으로 — 기본 링크형이면 가입 폼의
+# 6자리 인증코드 입력 단계를 로컬에서 통과할 수 없다. templates/confirmation.html 참고.
+[auth.email.template.confirmation]
+subject = "위닝에듀 가입 인증코드"
+content_path = "./supabase/templates/confirmation.html"
