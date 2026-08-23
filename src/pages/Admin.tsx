@@ -1,5 +1,12 @@
 import { ChevronDown, Download, Plus, RefreshCw, Search } from "lucide-react";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import * as XLSX from "xlsx";
 import AdminMembersAdmin from "@/components/admin/AdminMembersAdmin";
@@ -44,6 +51,7 @@ import { supabase } from "@/lib/supabase";
 import {
   ADMIN_DEFAULT_SECTION_KEY,
   ADMIN_SECTION_KEYS,
+  type AdminSectionKey,
 } from "./admin/adminSectionKeys";
 import { adminSettingsConfigs } from "./admin/configs/adminSettings";
 import { admissionConfigs } from "./admin/configs/admission";
@@ -81,82 +89,142 @@ import {
 const EXPORT_CHUNK = 1000;
 const SEARCH_DEBOUNCE_MS = 300;
 
-const MENU_GROUPS = [
+// 어드민 대분류 — 노션 「관리자 페이지 > 메뉴 및 기능 정리」 기획표(2026-08-22
+// 확정분)의 재편안이다. 기획표 8개 대분류 중 화면이 있는 7개만 그린다. 화면·섹션 키·라우트는 그대로 두고 묶는 방식과 라벨만 바꾼다.
+//   - 구 「게시판 관리」 해체 → 입시정보 관리 + 고객안내 관리
+//   - 구 「위닝관리」·「프로그램 관리」·「목표관리」 흡수 → 서비스 관리 하위(소분류 캡션)
+//   - 구 「관리자 설정」 → 직원관리
+// 기획표의 「멘토용페이지」·콜멘토 하위(멘토관리·상담내역·정산·멘토카드)는 콜멘토
+// 런칭 연기로 이번 범위에서 빠졌다 — 화면이 없으므로 메뉴도 만들지 않는다.
+// ⚠️ 여기 group_title/label/정렬은 admin_resources 시드(권한 화면이 읽는 사본)와
+//    같이 움직여야 한다 — 20260823000002_admin_resources_recategorize.sql.
+type AdminMenuItem = {
+  key: AdminSectionKey;
+  label: string;
+  // 소분류 캡션. 세부메뉴가 많은 그룹에서만 채운다(지금은 서비스 관리 하나) —
+  // 사이드바는 section 이 바뀌는 첫 항목에만 캡션을 그린다(AdminSidebar).
+  section?: string;
+};
+
+const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
   {
-    title: "메인 관리",
+    title: "메인화면 관리",
     items: [
       { key: "popups", label: "팝업 관리" },
       { key: "banners", label: "메인 배너 관리" },
       { key: "sideBanners", label: "우측 소형 배너" },
       { key: "universityAcceptances", label: "합격생 대학 관리" },
       { key: "programCategories", label: "핵심 서비스" },
-      { key: "mentorStrategies", label: "멘토 성공전략" },
-      { key: "pageContents", label: "세부 페이지 관리" },
-      { key: "premiumBookPages", label: "프리미엄 책자 관리" },
-      { key: "premiumConsults", label: "프리미엄 상담 신청" },
+      // 기획표 라벨 변경: 멘토 성공전략 → 멘토스 소개.
+      { key: "mentorStrategies", label: "멘토스 소개" },
     ],
   },
+  // 입시정보 관리 — 사용자단 내비게이션의 「입시정보」 그룹(src/data/navigation.ts)과
+  // 같은 구성이다. 교육칼럼이 여기 들어가는 것도 그쪽 그룹을 따른 것.
   {
-    title: "게시판 관리",
+    title: "입시정보 관리",
     items: [
-      { key: "notices", label: "공지사항" },
-      { key: "companyNews", label: "회사소식" },
+      // 기획표 라벨 변경: 대학별 모집요강 → 대입 모집 요강.
+      { key: "admissionGuidelines", label: "대입 모집 요강" },
+      { key: "admissionUniversities", label: "대학 목록 관리" },
+      // 라벨은 「대입합격」이다. 노션 기획표(8/22)에 「수시정시합격」으로 적혀
+      // 있지만 그쪽이 더 옛날 결정이고, 정시 이용자가 거의 없어 수시·정시를
+      // 묶어 「대입합격」으로 가기로 뒤집혔다(사용자 확정 2026-08-23, QA 49행).
+      // 사용자단도 같은 라벨이다 — useNavGroups 가 DB 의 구 라벨을 런타임에
+      // '대입합격'으로 치환하고 있고(useNavGroups.ts:64) 전용 테스트도 있다.
       { key: "admissionSusiJungsi", label: "대입합격" },
       { key: "specialHighschool", label: "특목고합격" },
-      { key: "admissionGuidelines", label: "대학별 모집요강" },
-      { key: "admissionUniversities", label: "대학 목록 관리" },
+      // 기획표에 「개발 중, 우선 보류」로 적힌 둘이지만 화면은 이미 동작 중이라
+      // 그대로 둔다 — 메뉴에서 빼면 살아 있는 기능이 사라지는 회귀가 된다.
       { key: "admissionResults", label: "입결정보" },
       { key: "trendingDepartments", label: "지금 뜨고 있는 학과" },
       { key: "galleries", label: "교육칼럼" },
+    ],
+  },
+  {
+    title: "고객안내 관리",
+    items: [
+      { key: "companyNews", label: "회사소식" },
+      { key: "notices", label: "공지사항" },
       { key: "faqs", label: "자주하는질문" },
-      { key: "mentorApplyFaqs", label: "멘토신청 FAQ" },
-      { key: "mentorApplyCopy", label: "멘토신청 문구" },
-      { key: "learningDiagnosis", label: "학습진단 관리" },
+      // 세부 페이지 관리(page_contents)에 회사소개 문구가 들어 있어 회사소식과
+      // 같은 계열로 본다(2026-08-22 확정).
+      { key: "pageContents", label: "세부 페이지 관리" },
+    ],
+  },
+  // 서비스 관리 — 판매 중인 서비스의 운영 화면을 전부 모은 최대 그룹(18개)이다.
+  // 세부메뉴가 많아 item.section(소분류 캡션)으로 한 단계 더 끊는다.
+  {
+    title: "서비스 관리",
+    items: [
+      { key: "learningDiagnosis", label: "학습진단 관리", section: "서비스" },
       {
         key: "learningDiagnosisV2SurveyCopy",
         label: "학습진단(ver2) 문항 문구",
+        section: "서비스",
       },
+      // 목표관리(goal_*)는 기획표에 빠져 있었다 — 판매 중인 서비스라 누락으로
+      // 보고 「서비스」 소분류에 채운 것(2026-08-22 확정).
+      {
+        key: "goalUniversityCuts",
+        label: "목표관리 — 대학 컷",
+        section: "서비스",
+      },
+      { key: "goalStudents", label: "목표관리 — 학생 현황", section: "서비스" },
+      {
+        key: "premiumBookPages",
+        label: "프리미엄 책자 관리",
+        section: "프리미엄",
+      },
+      {
+        key: "premiumConsults",
+        label: "프리미엄 상담 신청",
+        section: "프리미엄",
+      },
+      // ⚠️ 멘토 3종은 콜멘토와 무관하게 이미 서비스 중이다(멘토 지원 접수 +
+      //    멘토신청 랜딩). 콜멘토 보류에 휩쓸어 지우지 말 것.
+      { key: "mentorApplications", label: "멘토 신청 내역", section: "멘토" },
+      { key: "mentorApplyFaqs", label: "멘토신청 FAQ", section: "멘토" },
+      { key: "mentorApplyCopy", label: "멘토신청 문구", section: "멘토" },
+      { key: "winningBaseData", label: "기초데이터추출", section: "위닝 DB" },
+      { key: "winningDbInputs", label: "위닝DB입력", section: "위닝 DB" },
+      {
+        key: "winningSuhaengTopicDb",
+        label: "위닝 수행 주제 DB",
+        section: "위닝 DB",
+      },
+      {
+        key: "winningSuhaengResourceDb",
+        label: "위닝 수행 자료 DB",
+        section: "위닝 DB",
+      },
+      { key: "winningSetukDb", label: "위닝 세특 DB", section: "위닝 DB" },
+      {
+        key: "winningDeepReportDb",
+        label: "위닝 심화보고서 DB",
+        section: "위닝 DB",
+      },
+      {
+        key: "winningStudentRecordDb",
+        label: "위닝 생기부 DB",
+        section: "위닝 DB",
+      },
+      { key: "dailyEntries", label: "일일 입장", section: "이용 현황" },
+      { key: "usageStatus", label: "이용 현황", section: "이용 현황" },
     ],
   },
+  // 회원관리 — 회원 목록 하나뿐이다. 상세(6탭)가 QA 182의 「고객조회상담」을
+  // 통째로 흡수했고, 수강 신청 내역은 결제 원장이라 매출·결제관리로 옮겼다.
   {
-    title: "회원 관리",
+    title: "회원관리",
+    items: [{ key: "members", label: "회원 목록" }],
+  },
+  {
+    title: "매출·결제관리",
     items: [
-      { key: "members", label: "회원 목록" },
+      // 납부상태·수강료·감면액·납부액 컬럼을 가진 사실상 결제 원장이라 회원관리가
+      // 아니라 여기 둔다 — 회원 상세의 결제내역 탭과 역할이 겹치는 것도 피한다.
       { key: "enrollments", label: "수강 신청 내역" },
-      { key: "mentorApplications", label: "멘토 신청 내역" },
-    ],
-  },
-  {
-    title: "프로그램 관리",
-    items: [
-      { key: "dailyEntries", label: "일일 입장" },
-      { key: "usageStatus", label: "이용 현황" },
-    ],
-  },
-  // 목표관리(goal_*) — 학생 앱의 확률 산출에 쓰이는 컷 기준표와 학생 현황.
-  // 등록 지점은 이 배열과 CONFIGS 둘뿐이다(다른 배선 없음).
-  {
-    title: "목표관리",
-    items: [
-      { key: "goalUniversityCuts", label: "대학 컷 관리" },
-      { key: "goalStudents", label: "학생 현황" },
-    ],
-  },
-  {
-    title: "위닝관리",
-    items: [
-      { key: "winningBaseData", label: "기초데이터추출" },
-      { key: "winningDbInputs", label: "위닝DB입력" },
-      { key: "winningSuhaengTopicDb", label: "위닝 수행 주제 DB" },
-      { key: "winningSuhaengResourceDb", label: "위닝 수행 자료 DB" },
-      { key: "winningSetukDb", label: "위닝 세특 DB" },
-      { key: "winningDeepReportDb", label: "위닝 심화보고서 DB" },
-      { key: "winningStudentRecordDb", label: "위닝 생기부 DB" },
-    ],
-  },
-  {
-    title: "수입·매출 관리",
-    items: [
       { key: "payments", label: "매출 조정" },
       { key: "settlements", label: "매출 정산" },
       { key: "dailySettlements", label: "일일정산" },
@@ -166,16 +234,13 @@ const MENU_GROUPS = [
       // fn_request_refund(고객 신청) 원장 — 위 refunds(관리자 수기 대장)와는
       // 다른 테이블이다. CONFIGS.refundRequests 참고.
       { key: "refundRequests", label: "환불 신청 내역" },
-      // 쿠폰은 결제 금액을 직접 깎는 손잡이라 수입·매출 그룹에 둔다
-      // (products/orders 와 같은 도메인 — sql/10_pricing_orders.sql).
       { key: "coupons", label: "쿠폰관리" },
     ],
   },
-  // 관리자 설정 — 기획 문서 「관리자 권한 체계 안내」의 신규 메뉴 그룹.
-  // 실무 관리자 묶음에는 이 그룹 권한 항목이 하나도 없어(규칙 3) 메뉴 자체가
-  // 보이지 않는다. 최고 관리자만 쓴다.
+  // 직원관리(구 「관리자 설정」) — 실무 관리자 묶음에는 이 그룹 권한 항목이
+  // 하나도 없어(규칙 3) 메뉴 자체가 보이지 않는다. 최고 관리자만 쓴다.
   {
-    title: "관리자 설정",
+    title: "직원관리",
     items: [
       { key: "adminMembers", label: "관리자 관리" },
       { key: "adminRoles", label: "관리자 권한 관리" },
@@ -352,19 +417,31 @@ function AdminSidebar({ activeKey, setActiveKey }) {
 
               {isOpen && (
                 <div className="mt-1 space-y-1">
-                  {group.items.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => setActiveKey(item.key)}
-                      className={`block w-full rounded px-4 py-2 text-left text-[13px] font-bold ${
-                        sidebarActiveKey === item.key
-                          ? 'bg-white/10 text-white before:mr-2 before:text-red-500 before:content-["•"]'
-                          : 'text-white/55 before:mr-2 before:text-white/35 before:content-["•"] hover:bg-white/5 hover:text-white'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
+                  {group.items.map((item, index) => (
+                    <Fragment key={item.key}>
+                      {/* 소분류 캡션 — 기획표의 3단(대분류 > 소분류 > 세부메뉴)을
+                          접었다 펴는 단계를 하나 더 두지 않고 캡션으로 표현한다.
+                          「서비스 관리」가 18개로 가장 크고, 그 안에서 서비스·
+                          프리미엄·멘토·위닝 DB·이용 현황이 섞이면 훑기 어렵다.
+                          섹션이 바뀌는 첫 항목에서만 그린다. */}
+                      {item.section &&
+                        item.section !== group.items[index - 1]?.section && (
+                          <div className="px-4 pb-1 pt-3 text-[11px] font-black tracking-wide text-white/35">
+                            {item.section}
+                          </div>
+                        )}
+                      <button
+                        type="button"
+                        onClick={() => setActiveKey(item.key)}
+                        className={`block w-full rounded px-4 py-2 text-left text-[13px] font-bold ${
+                          sidebarActiveKey === item.key
+                            ? 'bg-white/10 text-white before:mr-2 before:text-red-500 before:content-["•"]'
+                            : 'text-white/55 before:mr-2 before:text-white/35 before:content-["•"] hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    </Fragment>
                   ))}
                 </div>
               )}
