@@ -22,7 +22,10 @@
 //   가 비어 직원 목록에 이름이 안 뜬다. 그래서 여기서 명시적으로 upsert 한다.
 //
 // 응답 규격
-//   200 { ok: true, profileId, resent }   초대(또는 재발송) 완료.
+//   200 { ok: true, profileId, resent, emailed }
+//         emailed=true  신규 계정을 만들고 초대 메일을 보냈다.
+//         emailed=false 이미 있는 계정을 관리자로 올렸다 — 메일은 가지 않는다.
+//                       호출부가 "직접 알려주세요"를 안내해야 한다(아래 ⚠️ 참고).
 //   400 { detail }                        email/roleId 누락·형식 오류.
 //   401 { detail }                        토큰 없음/무효.
 //   403 { detail }                        최고 관리자 아님.
@@ -145,6 +148,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   let profileId = existingProfile?.id as string | undefined;
   let resent = false;
+  // 실제로 메일이 나갔는지. Supabase 가 메일을 보내주는 경로는
+  // inviteUserByEmail(신규 계정) 하나뿐이다 — 아래 ⚠️ 참고.
+  let emailed = false;
 
   if (profileId) {
     const { data: member } = await supabaseAdmin
@@ -184,6 +190,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     profileId = invited.user.id;
+    emailed = true;
   }
 
   // prod 에는 auth → profiles 트리거가 없다(파일 상단 ⚠️ 참고). 그래서 **새로
@@ -228,19 +235,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .json({ detail: `관리자 등록에 실패했습니다: ${memberError.message}` });
   }
 
-  // 기존 회원을 관리자로 올리는 경로에서도 메일을 보낸다 — 초대받은 사람이
-  // "관리자로 등록됐다"는 사실을 알 방법이 그것뿐이다. 이미 비밀번호가 있는
-  // 계정이라 invite 가 아니라 magiclink 로 보낸다.
-  if (resent || existingProfile) {
-    const { error: linkError } = await supabaseAdmin.auth.admin.generateLink({
-      type: "magiclink",
-      email,
-      options: { redirectTo },
-    });
-    if (linkError) {
-      console.error("admin/invite-member 재발송 실패:", linkError);
-    }
-  }
+  // ⚠️ 기존 계정을 관리자로 올리는 경로에는 **메일을 보내지 않는다.**
+  //   예전에는 여기서 auth.admin.generateLink({ type: 'magiclink' }) 를 불렀는데
+  //   두 가지 이유로 아무 일도 하지 않는 코드였다:
+  //     1. generateLink 는 링크를 **만들어 돌려주기만** 한다(커스텀 메일 발송기용
+  //        API). 메일을 보내지 않는데 반환된 action_link 를 쓰지도 않았다.
+  //     2. 설령 보내졌더라도 이 프로젝트의 Magic Link 템플릿은 `{{ .Token }}`
+  //        (숫자 OTP)이고(Supabase 대시보드에서 그렇게 설정돼 있다), /admin 에는 그 번호를
+  //        넣을 화면이 없다.
+  //   그래서 "보낸 척"을 지우고 emailed=false 로 사실대로 돌려준다. 이미 비밀번호가
+  //   있는 계정이라 링크 인증이 필요 없고, 필요한 건 "관리자로 등록됐다"는 통지뿐이다
+  //   — 그건 호출부가 화면에서 안내한다(AdminMembersAdmin.sendInvite).
+  //
+  //   메일로 보내려면 발송기가 따로 있어야 한다(Supabase SMTP 는 Auth 템플릿
+  //   경로로만 나간다). Resend API 를 붙이는 건 별건으로 남긴다.
 
-  return res.status(200).json({ ok: true, profileId, resent });
+  return res.status(200).json({ ok: true, profileId, resent, emailed });
 }
