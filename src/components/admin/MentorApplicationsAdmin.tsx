@@ -2,6 +2,7 @@ import { ExternalLink, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { AdminTable } from "@/pages/admin/shared/AdminEngine";
+import { getFreshSupabaseAccessTokenOrSignOut } from "@/pages/admin/shared/adminSession";
 import { normalizeArray, searchable } from "@/pages/admin/shared/csvExport";
 import {
   ActionButton,
@@ -22,6 +23,9 @@ import {
 interface MentorApplicationRow {
   id: string;
   status?: string;
+  // 승인 시 붙는 멘토 계정. 비어 있으면 아직 승인 전이다
+  // (20260823000003_mentor_account_link 의 컬럼 주석 참고).
+  user_id?: string | null;
   proof_file_path?: string;
   proof_file_name?: string;
   created_at?: string;
@@ -110,6 +114,30 @@ const MENTOR_APPLICATION_DETAIL_SECTIONS: MentorApplicationDetailSection[] = [
     ],
   },
 ];
+
+// 상태 'active'(활동중) = 합격이다. 여기서 멘토 계정이 생기고 로그인용 임시코드가
+// 메일로 나간다 — 그건 service_role 이 필요해 브라우저에서 못 하므로 서버 라우트로
+// 넘긴다(api/admin/approve-mentor). 나머지 상태 전이는 지금처럼
+// mentor_applications.status 를 직접 고치면 된다.
+const APPROVED_STATUS = "active";
+
+// 🔴 멘토 온보딩 전체가 보류 상태다 (2026-08-23).
+//
+//   기획이 아직 확정되지 않았다. 2026-08-24(월) 전체회의에서 (1) 이 경로대로
+//   갈지 (2) 멘토 쪽 개발을 지금 진행할지를 다시 확인한 뒤 켠다.
+//   특히 **멘토 로그인 진입점**(회원 로그인 화면에 칸을 따로 둘지)이 미정이다.
+//
+//   ⚠️ 켜기 전까지 이 화면은 예전처럼 mentor_applications.status 만 바꾼다.
+//     켜져 있으면 「활동중」으로 저장하는 순간 **지원자에게 실제로 메일이 나가고
+//     계정이 만들어진다** — 관리자가 모르고 상태를 바꿨다가 되돌릴 수 없는 일이
+//     벌어지므로 기본값은 false 다.
+//
+//   켤 때 같이 켜야 하는 것:
+//     - api/admin/approve-mentor.ts 의 MENTOR_APPROVAL_ENABLED
+//   확인해야 하는 것:
+//     - Supabase 대시보드의 Magic Link 템플릿이 `{{ .Token }}`(숫자 코드)인지.
+//       링크 방식이면 멘토가 받는 게 코드가 아니라 링크가 된다.
+const MENTOR_APPROVAL_ENABLED = false;
 
 function formatDateTime(value: unknown): string {
   if (!value) return "-";
@@ -206,6 +234,30 @@ export default function MentorApplicationsAdmin({
     setStatusDraft("");
   }
 
+  async function postApprove(resend: boolean) {
+    const accessToken = await getFreshSupabaseAccessTokenOrSignOut();
+
+    const response = await fetch("/api/admin/approve-mentor", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ applicationId: selected?.id, resend }),
+    });
+
+    const result = await response.json().catch(async () => {
+      const text = await response.text().catch(() => "");
+      return { detail: text || `HTTP ${response.status}` };
+    });
+
+    if (!response.ok) {
+      throw new Error(result?.detail || `HTTP ${response.status}`);
+    }
+
+    return result;
+  }
+
   async function saveStatus() {
     if (!selected || savingStatus) return;
 
@@ -214,26 +266,80 @@ export default function MentorApplicationsAdmin({
       return;
     }
 
-    setSavingStatus(true);
-
-    const { error } = await supabase
-      .from("mentor_applications")
-      .update({ status: statusDraft })
-      .eq("id", selected.id);
-
-    setSavingStatus(false);
-
-    if (error) {
-      alert(`상태 변경 실패: ${error.message}`);
-      return;
+    // 되돌리기 어려운 결정이라 한 번 되묻는다 — 계정이 만들어지고 지원자에게
+    // 메일이 나가므로, 목록에서 잘못 누른 걸 조용히 통과시키면 안 된다.
+    if (
+      MENTOR_APPROVAL_ENABLED &&
+      statusDraft === APPROVED_STATUS &&
+      !selected.user_id
+    ) {
+      if (
+        !window.confirm(
+          `${String(selected.name || "이 지원자")}님을 멘토로 승인합니다.\n\n멘토 계정이 만들어지고, 로그인용 임시코드가 지원서의 이메일로 발송됩니다.\n계속하시겠습니까?`,
+        )
+      ) {
+        return;
+      }
     }
 
-    const nextSelected = { ...selected, status: statusDraft };
-    setSelected(nextSelected);
-    setRows((prev) =>
-      prev.map((row) => (row.id === selected.id ? nextSelected : row)),
-    );
-    alert("상태를 변경했습니다.");
+    setSavingStatus(true);
+
+    try {
+      if (MENTOR_APPROVAL_ENABLED && statusDraft === APPROVED_STATUS) {
+        const result = await postApprove(false);
+        const nextSelected = {
+          ...selected,
+          status: APPROVED_STATUS,
+          user_id: result.profileId as string,
+        };
+        setSelected(nextSelected);
+        setRows((prev) =>
+          prev.map((row) => (row.id === selected.id ? nextSelected : row)),
+        );
+        // 승인은 됐는데 메일만 실패할 수 있다(서버가 승인을 되돌리지 않는다).
+        // 그 경우 detail 에 사유가 실려 오므로 그대로 보여주고 재발송을 유도한다.
+        alert(
+          result.emailed
+            ? "멘토로 승인했습니다. 로그인용 임시코드를 메일로 보냈습니다."
+            : `${result.detail || "임시코드 발송에 실패했습니다."}\n\n아래 '임시코드 재발송'으로 다시 시도할 수 있습니다.`,
+        );
+        return;
+      }
+
+      const { error } = await supabase
+        .from("mentor_applications")
+        .update({ status: statusDraft })
+        .eq("id", selected.id);
+
+      if (error) throw new Error(error.message);
+
+      const nextSelected = { ...selected, status: statusDraft };
+      setSelected(nextSelected);
+      setRows((prev) =>
+        prev.map((row) => (row.id === selected.id ? nextSelected : row)),
+      );
+      alert("상태를 변경했습니다.");
+    } catch (error) {
+      alert(`상태 변경 실패: ${(error as Error).message}`);
+    } finally {
+      setSavingStatus(false);
+    }
+  }
+
+  // 임시코드는 대시보드의 Email OTP Expiration 대로 만료된다. 승인 직후 받은
+  // 코드를 며칠 뒤에 쓰려는 멘토에게는 재발송이 필요하다.
+  async function resendLoginCode() {
+    if (!selected || savingStatus) return;
+
+    setSavingStatus(true);
+    try {
+      await postApprove(true);
+      alert("임시코드를 다시 보냈습니다.");
+    } catch (error) {
+      alert(`임시코드 재발송 실패: ${(error as Error).message}`);
+    } finally {
+      setSavingStatus(false);
+    }
   }
 
   // 비공개 버킷(mentor-applications)이라 getPublicUrl은 쓸 수 없다 — Admin.jsx의 기존
@@ -291,6 +397,18 @@ export default function MentorApplicationsAdmin({
             <ExternalLink size={14} />
             증빙 파일 열람
           </ActionButton>
+
+          {/* 승인이 끝난 지원서에만 뜬다 — user_id 가 곧 "멘토 계정이 있다"는 뜻이다.
+              멘토 온보딩이 보류라 지금은 아무에게도 보이지 않는다(위 플래그 주석). */}
+          {MENTOR_APPROVAL_ENABLED && selected.user_id && (
+            <ActionButton
+              variant="light"
+              onClick={resendLoginCode}
+              disabled={savingStatus}
+            >
+              임시코드 재발송
+            </ActionButton>
+          )}
         </div>
 
         {MENTOR_APPLICATION_DETAIL_SECTIONS.map((section) => (
