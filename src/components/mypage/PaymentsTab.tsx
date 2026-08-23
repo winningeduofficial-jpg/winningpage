@@ -71,6 +71,10 @@ function resolveStudentStatus(
   // 학부모가 다른 상품 구성으로 새로 결제하며 이 주문을 대체한 경우다.
   // status 는 canceled 로 같이 떨어지므로 아래 신청 취소 분기보다 먼저 걸러야 한다.
   if (order.approval_status === "superseded") return "student_superseded";
+  // 학부모 반려도 status 가 canceled 로 떨어진다(fn_respond_enrollment) — 신청 취소
+  // 분기가 먼저 걸리면 학생 목록만 "신청 취소"로 떠서 학부모 화면·상세 모달의
+  // "학부모 반려"와 어긋난다(실동작 QA 2026-08-23 발견).
+  if (order.approval_status === "rejected") return "enrollment_parent_rejected";
   if (order.status === "pending") return "student_waiting_parent";
   if (order.status === "canceled" || order.status === "failed")
     return "student_canceled";
