@@ -26,7 +26,7 @@
 //         emailed=true  신규 계정을 만들고 초대 메일을 보냈다.
 //         emailed=false 이미 있는 계정을 관리자로 올렸다 — 메일은 가지 않는다.
 //                       호출부가 "직접 알려주세요"를 안내해야 한다(아래 ⚠️ 참고).
-//   400 { detail }                        email/roleId 누락·형식 오류.
+//   400 { detail }                        email/name/roleId 누락·형식 오류.
 //   401 { detail }                        토큰 없음/무효.
 //   403 { detail }                        최고 관리자 아님.
 //   409 { detail }                        이미 활성 관리자다.
@@ -116,6 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const body = (req.body || {}) as {
     email?: string;
+    name?: string;
     roleId?: string;
     department?: string;
     // 기존 서비스 회원을 관리자로 올릴 때 화면이 되묻고 다시 보내는 확인 플래그.
@@ -124,11 +125,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const email = String(body.email || "")
     .trim()
     .toLowerCase();
+  const name = String(body.name || "").trim();
   const roleId = String(body.roleId || "").trim();
   const department = String(body.department || "").trim() || null;
 
   if (!email?.includes("@")) {
     return res.status(400).json({ detail: "이메일을 확인해 주세요." });
+  }
+  // ⚠️ 이름은 필수다. 초대로 만든 계정은 profiles.name 이 비는데, 그러면
+  //   ① 직원 목록의 「직원명」이 '-' 로 남고
+  //   ② 헤더가 로그인 상태를 이름 유무로 판정해서(Header.tsx) 그 사람에게는
+  //      이름 칩·마이 메뉴·「관리자」 버튼이 통째로 사라진다 — 로그인은 됐는데
+  //      화면만 비로그인처럼 보인다(2026-08-23 실측).
+  //   헤더 쪽 판정은 다른 담당 영역이라, 이름을 처음부터 채워 원인을 없앤다.
+  if (!name) {
+    return res.status(400).json({ detail: "이름을 입력해 주세요." });
   }
   if (!roleId) {
     return res.status(400).json({ detail: "권한 묶음을 선택해 주세요." });
@@ -192,7 +203,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     resent = Boolean(member);
   } else {
     const { data: invited, error: inviteError } =
-      await supabaseAdmin.auth.admin.inviteUserByEmail(email, { redirectTo });
+      await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+        redirectTo,
+        // auth 메타데이터에도 남긴다 — dev·로컬의 handle_new_user 트리거가
+        // profiles 를 먼저 만들 때 참고할 수 있고, Supabase 대시보드의 사용자
+        // 목록에서도 누구인지 보인다.
+        data: { name, full_name: name },
+      });
 
     if (inviteError || !invited?.user?.id) {
       console.error("admin/invite-member 초대 실패:", inviteError);
@@ -223,7 +240,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         //   onConflict 를 id 로 두는 게 안전한 이유: 이 분기는 existingProfile 이
         //   없을 때만 탄다. 즉 충돌할 수 있는 행은 방금 이 초대로 만들어진
         //   auth 계정의 행 하나뿐이고, 남의 이름·회원유형을 덮을 일이 없다.
-        .upsert({ id: profileId, email, role: "user" }, { onConflict: "id" });
+        .upsert(
+          { id: profileId, email, name, role: "user" },
+          { onConflict: "id" },
+        );
 
   if (profileError) {
     console.error("admin/invite-member profiles upsert 실패:", profileError);
