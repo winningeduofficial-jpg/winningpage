@@ -22,6 +22,7 @@ import goalOnboardingRoutes from "./routes/goalOnboardingRoutes";
 import homeRoutes from "./routes/homeRoutes";
 import mypageRoutes from "./routes/mypageRoutes";
 import performanceAppRoutes from "./routes/performanceAppRoutes";
+import premiumRoutes from "./routes/premiumRoutes";
 import serviceLandingRoutes from "./routes/serviceLandingRoutes";
 import standaloneRoutes from "./routes/standaloneRoutes";
 import termsRoutes from "./routes/termsRoutes";
@@ -64,6 +65,7 @@ const routes: RouteObject[] = [
           ...admissionRoutes,
           ...contentRoutes,
           ...applyRoutes,
+          ...premiumRoutes,
           ...dynamicPageRoutes,
           ...authRoutes,
           ...termsRoutes,

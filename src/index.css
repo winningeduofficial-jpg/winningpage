@@ -31,6 +31,8 @@
   --color-ink-sub: #6b6b6b;
   --color-ink-title: #181d24;
   --color-ink-strong: #191d23;
+  --color-ink-natural: #808080;
+  --color-ink-dark: #1c1a19;
 
   --color-line: #d7d7d7;
   --color-error: #eb2626;
@@ -46,6 +48,7 @@
   --color-surface-04: #f5f5f7;
   --color-surface-badge: #d1e8ff;
   --color-surface-muted: #f5f5f7;
+  --color-surface-beige: #f7f6f3;
 
   --color-goal-sidebar: #f9f8f7;
   --color-goal-card: #fbfbfa;

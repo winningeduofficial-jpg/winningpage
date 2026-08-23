@@ -1,0 +1,75 @@
+import type { ReactNode } from "react";
+import PremiumSectionHeading from "./PremiumSectionHeading";
+import {
+  PREMIUM_BEIGE_BG_CLASS,
+  PREMIUM_CARD_BORDER_CLASS,
+  PREMIUM_CARD_SHADOW_STYLE,
+  PREMIUM_CONTAINER_CLASS,
+  PREMIUM_GOLD_TEXT_CLASS,
+  PREMIUM_HEADING_GAP_CLASS,
+  PREMIUM_NATURAL_TEXT_CLASS,
+  PREMIUM_SECTION_PADDING_CLASS,
+} from "./premiumTokens";
+
+// §7 "고교 3년 내신을 끝까지 함께 관리합니다" — 세로 5카드, 좌측정렬 번호·제목·짧은
+// 구분선·본문 (폭 ~700px = 43.75rem).
+type NumberedItem = {
+  number: string;
+  title: string;
+  desc: string;
+};
+
+type PremiumNumberedListProps = {
+  heading: ReactNode;
+  sub?: ReactNode;
+  items: NumberedItem[];
+};
+
+export default function PremiumNumberedList({
+  heading,
+  sub,
+  items,
+}: PremiumNumberedListProps) {
+  if (!items || items.length === 0) return null;
+
+  return (
+    <section
+      className={`${PREMIUM_BEIGE_BG_CLASS} ${PREMIUM_SECTION_PADDING_CLASS}`}
+    >
+      <div className={PREMIUM_CONTAINER_CLASS}>
+        <PremiumSectionHeading heading={heading} sub={sub} />
+        <div
+          className={`mx-auto flex w-full max-w-[43.75rem] flex-col gap-3 ${PREMIUM_HEADING_GAP_CLASS}`}
+        >
+          {items.map((item) => (
+            <div
+              key={item.number}
+              style={PREMIUM_CARD_SHADOW_STYLE}
+              className={`flex min-h-[8.125rem] flex-col justify-center rounded-lg px-8 py-6 text-left ${PREMIUM_CARD_BORDER_CLASS}`}
+            >
+              <span
+                className={`text-[1.5rem] font-semibold leading-[1.4] ${PREMIUM_GOLD_TEXT_CLASS}`}
+              >
+                {item.number}
+              </span>
+              <p
+                className={`mt-1 break-keep text-[1rem] font-semibold leading-[1.4] ${PREMIUM_GOLD_TEXT_CLASS}`}
+              >
+                {item.title}
+              </p>
+              <span
+                className="mt-2 h-[0.09375rem] w-6 bg-gold opacity-60"
+                aria-hidden="true"
+              />
+              <p
+                className={`mt-2 break-keep text-[0.875rem] leading-[1.5] ${PREMIUM_NATURAL_TEXT_CLASS}`}
+              >
+                {item.desc}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

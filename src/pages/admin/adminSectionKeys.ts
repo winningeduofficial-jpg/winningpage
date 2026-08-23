@@ -10,6 +10,7 @@ export const ADMIN_SECTION_KEYS = [
   "banners",
   "sideBanners",
   "universityAcceptances",
+  "premiumAchievements",
   "programCategories",
   "mentorStrategies",
   // 입시정보 관리 (탭 하위 키 포함 — 사이드바에는 탭 목록의 첫 키만 뜬다)
