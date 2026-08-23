@@ -5,7 +5,7 @@ import { Link } from "react-router";
 //
 // 가독성 장치는 시안의 hero-glow.svg(흰→투명 타원, 가장자리가 너무 묽어 본문 2행이 사진
 // 어두운 영역에 걸치면 읽히지 않았음) 대신 CSS 방사형 라이트로 교체했다. 텍스트 블록
-// 범위(약 70% 지점까지)는 흰색 불투명도 0.9 이상으로 확실히 밝히고, 그 밖으로는 빠르게
+// 범위는 흰색 불투명도 0.64~0.72 로 옅게 밝히고(사진 질감이 비치도록), 넓은 반경으로 완만히
 // 투명해져 사진의 손·연필·종이 디테일이 그대로 보인다. 어두운 텍스트(ink-strong/ink)는
 // 그대로 — 라이트 위에서 AA 대비 확보.
 type PremiumHeroProps = {
@@ -32,7 +32,7 @@ export default function PremiumHero({
       {/* 방사형 라이트 — 텍스트 블록(최대 38.8rem)보다 넉넉한 타원, 모바일은 폭 대비 더 크게 */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[130%] w-[220%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.92)_0%,rgba(255,255,255,0.86)_28%,rgba(255,255,255,0.4)_46%,rgba(255,255,255,0)_62%)] sm:w-[150%] lg:h-[170%] lg:w-[110%]"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[160%] w-[260%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.72)_0%,rgba(255,255,255,0.64)_36%,rgba(255,255,255,0.32)_60%,rgba(255,255,255,0)_82%)] sm:w-[180%] lg:h-[200%] lg:w-[130%]"
       />
       <div className="relative z-10 mx-auto w-full max-w-[38.8125rem] px-5 text-center sm:px-8">
         <h1 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] text-ink-strong sm:text-[2rem]">
