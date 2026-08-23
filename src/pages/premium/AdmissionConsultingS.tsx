@@ -1,8 +1,8 @@
 import MentorSection from "@/components/landing/MentorSection";
 import {
   PREMIUM_ADMISSION_A_PATH,
-  PREMIUM_BEIGE_BG_CLASS,
   PREMIUM_CONTAINER_CLASS,
+  PREMIUM_DARK_SECTION_BG_CLASS,
   PREMIUM_SECTION_PADDING_CLASS,
   PremiumAreaCards,
   PremiumCtaBanner,
@@ -23,7 +23,8 @@ import { usePremiumAchievements } from "@/hooks/usePremiumAchievements";
 // 에셋은 전부 public/images/premium/ 배치 완료(A 페이지와 동일 step-1~4 재사용) —
 // import 없이 절대 경로 문자열로 참조.
 
-const HERO_BG = "/images/premium/hero-bg.webp";
+// S 히어로는 A 와 달리 상담 사진(시안 image 416 = cta-s-program-bg 와 동일 원본)을 쓴다.
+const HERO_BG = "/images/premium/cta-s-program-bg.webp";
 
 const ISSUE_CARDS = [
   {
@@ -174,6 +175,7 @@ export default function AdmissionConsultingS() {
       />
 
       <PremiumStatsPills
+        variant="dark"
         heading={
           <>
             실적으로 증명하는 실력,
@@ -233,16 +235,25 @@ export default function AdmissionConsultingS() {
         <MentorSection
           mentors={mentors}
           variant="premium"
-          className={`${PREMIUM_BEIGE_BG_CLASS} ${PREMIUM_SECTION_PADDING_CLASS}`}
+          className={`${PREMIUM_DARK_SECTION_BG_CLASS} ${PREMIUM_SECTION_PADDING_CLASS}`}
           headingSlot={
             <PremiumSectionHeading
               className={PREMIUM_CONTAINER_CLASS}
+              tone="dark"
               heading="함께하는 전공선배 멘토"
               sub="위닝에듀를 거쳐 합격한 선배들이 멘토로 함께합니다."
             />
           }
         />
       )}
+
+      {/* 시안(4238:2698) 그대로 — S 페이지에도 "S 프로그램 안내받기" 배너가 있다. 자기 자신
+          안내라 링크는 이용신청으로 보낸다. */}
+      <PremiumCtaBanner
+        title="대입 실전(면접·자소서)까지 대표원장의 직접 피드백이 필요하다면"
+        cta={{ label: "S 프로그램 안내받기 →", to: "/premium-apply" }}
+        variant="plain"
+      />
 
       <PremiumCtaBanner
         title="학습·탐구 관리부터 시작하고 싶다면"

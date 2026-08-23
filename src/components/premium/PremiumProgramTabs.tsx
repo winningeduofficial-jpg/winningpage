@@ -24,9 +24,9 @@ export default function PremiumProgramTabs({
   return (
     <nav
       aria-label="프리미엄 대입컨설팅 프로그램"
-      className="w-full bg-black py-8 sm:py-10"
+      className="flex h-10 w-full items-stretch bg-black"
     >
-      <div className="mx-auto flex w-full max-w-content items-center justify-center gap-8 px-5 sm:gap-[3.75rem]">
+      <div className="mx-auto flex w-full max-w-content items-stretch justify-center gap-8 px-5 sm:gap-[3.75rem]">
         {TABS.map((tab) => {
           const isActive = tab.key === active;
 
@@ -35,7 +35,7 @@ export default function PremiumProgramTabs({
               key={tab.key}
               to={tab.to}
               aria-current={isActive ? "page" : undefined}
-              className={`break-keep border-b-2 py-4 text-[1.125rem] font-semibold leading-[1.4] text-white sm:py-5 sm:text-[1.5rem] ${
+              className={`flex items-center break-keep border-b-2 text-[0.9375rem] font-semibold leading-none text-white sm:text-[1rem] ${
                 isActive ? "border-white" : "border-transparent"
               }`}
             >

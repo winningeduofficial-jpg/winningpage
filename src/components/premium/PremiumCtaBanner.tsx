@@ -11,7 +11,8 @@ type PremiumCtaBannerProps = {
   cta: { label: string; to: string };
   /** public/images/premium/cta-s-program-bg.webp — 페이지가 명시적으로 넘긴다. variant="light" 에선 불필요. */
   bgSrc?: string;
-  variant?: "light";
+  /** light: 베이지 배경+골드 pill(S→A 안내). plain: 흰 배경+텍스트 링크(시안 S 하단 첫 배너). */
+  variant?: "light" | "plain";
 };
 
 export default function PremiumCtaBanner({
@@ -20,6 +21,26 @@ export default function PremiumCtaBanner({
   bgSrc,
   variant,
 }: PremiumCtaBannerProps) {
+  if (variant === "plain") {
+    return (
+      <section
+        className={`flex w-full items-center justify-center bg-white px-5 ${PREMIUM_SECTION_PADDING_CLASS}`}
+      >
+        <div className="flex flex-col items-center gap-8 text-center">
+          <h2 className="break-keep text-[2rem] font-semibold leading-[1.4] text-ink-strong">
+            {title}
+          </h2>
+          <Link
+            to={cta.to}
+            className="rounded-sm text-[1.25rem] font-medium leading-[1.4] text-ink-strong underline-offset-4 hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+          >
+            {cta.label}
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   if (variant === "light") {
     return (
       <section
