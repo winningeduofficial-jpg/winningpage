@@ -9,6 +9,8 @@ export { default as PremiumHero } from "./PremiumHero";
 export { default as PremiumIssueCards } from "./PremiumIssueCards";
 export { default as PremiumNumberedList } from "./PremiumNumberedList";
 export { default as PremiumPhotoSteps } from "./PremiumPhotoSteps";
+export { default as PremiumProgramTabs } from "./PremiumProgramTabs";
 export { default as PremiumSectionHeading } from "./PremiumSectionHeading";
 export { default as PremiumStatsPills } from "./PremiumStatsPills";
+export * from "./premiumRoutesPaths";
 export * from "./premiumTokens";

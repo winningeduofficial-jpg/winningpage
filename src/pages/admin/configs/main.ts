@@ -544,7 +544,7 @@ export const mainConfigs: Record<string, MainConfig> = {
     searchPlaceholder: "메뉴명, 페이지명, 주소를 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `페이지 주소가 일반 문자이면 /page/주소로 연결됩니다. 예: services-record-analysis → /page/services-record-analysis / 페이지 주소가 /로 시작하면 실제 기능 페이지로 바로 연결됩니다. 예: /admission/results`,
+    guideText: `페이지 주소가 일반 문자이면 /page/주소로 연결됩니다. 예: services-record-analysis → /page/services-record-analysis / 페이지 주소가 /로 시작하면 실제 기능 페이지로 바로 연결됩니다. 예: /admission/results / 프리미엄 페이지는 premium/<이름> 형식으로 입력하세요. 예: premium/graduate-school → /page/premium/graduate-school`,
     columns: [
       { key: "menu_group_order", label: "상위 순서" },
       { key: "menu_group", label: "상위 메뉴" },

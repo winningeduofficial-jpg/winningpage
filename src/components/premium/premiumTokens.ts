@@ -1,4 +1,4 @@
-// 프리미엄(A 프로그램, /page/premium-special-highschool) 랜딩 섹션 1~10 공통 디자인 토큰.
+// 프리미엄(A 프로그램, /page/premium/admission-consulting/a) 랜딩 섹션 1~10 공통 디자인 토큰.
 //
 // 출처: docs 스펙(대입컨설팅 프리미엄 A 프로그램) Figma 1920 데스크탑 단일 시안 실측.
 // 러프 구현 목표(픽셀 재현 아님) — 모바일 램프는 시안이 없어 재량으로 잡는다.
@@ -49,3 +49,13 @@ export const PREMIUM_BEIGE_BG_CLASS = "bg-surface-beige";
 export const PREMIUM_DARK_BG_CLASS = "bg-ink-dark";
 // natural 텍스트 톤(#808080) — --color-ink-natural.
 export const PREMIUM_NATURAL_TEXT_CLASS = "text-ink-natural";
+
+// S 페이지 다크 variant 섹션 배경 — #191d23 = --color-ink-strong.
+export const PREMIUM_DARK_SECTION_BG_CLASS = "bg-ink-strong";
+
+// 다크 variant 섹션 헤딩/서브 — PREMIUM_SECTION_HEADING_CLASS/PREMIUM_SECTION_SUB_CLASS 와
+// 색만 흰색으로 반전(PremiumSectionHeading tone="dark" 가 사용).
+export const PREMIUM_SECTION_HEADING_DARK_CLASS =
+  "break-keep text-center text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-white sm:text-[1.75rem] lg:text-[2rem]";
+export const PREMIUM_SECTION_SUB_DARK_CLASS =
+  "break-keep text-center text-[1rem] font-medium leading-[1.4] text-white/80 sm:text-[1.125rem] lg:text-[1.25rem]";
