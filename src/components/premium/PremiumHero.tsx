@@ -1,17 +1,18 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
 
-// §1 히어로 — 풀폭 배경사진(hero-bg.webp) + 중앙 밝은 타원 글로우(hero-glow.svg) +
-// 중앙 텍스트 박스. glowSrc 는 흰색→투명 방사형 그라디언트라(에셋 실측) 그 위에 얹는
-// 타이틀/서브는 흰 글씨가 아니라 ink-strong/ink 어두운 톤을 쓴다 — 배경 사진이 전체적으로
-// 어두워 글로우가 없으면 어떤 텍스트색도 대비가 안 나오고, 글로우 위에서는 어두운 텍스트가
-// 시안 의도(원장 사진 위 밝은 halo)와 맞다.
+// §1 히어로 — 풀폭 배경사진(hero-bg.webp) 위 중앙 텍스트 블록.
+//
+// 가독성 장치는 시안의 hero-glow.svg(흰→투명 타원, 가장자리가 너무 묽어 본문 2행이 사진
+// 어두운 영역에 걸치면 읽히지 않았음) 대신 CSS 방사형 라이트로 교체했다. 텍스트 블록
+// 범위(약 70% 지점까지)는 흰색 불투명도 0.9 이상으로 확실히 밝히고, 그 밖으로는 빠르게
+// 투명해져 사진의 손·연필·종이 디테일이 그대로 보인다. 어두운 텍스트(ink-strong/ink)는
+// 그대로 — 라이트 위에서 AA 대비 확보.
 type PremiumHeroProps = {
   title: ReactNode;
   description: ReactNode;
   cta: { label: string; to: string };
   bgSrc: string;
-  glowSrc?: string;
 };
 
 export default function PremiumHero({
@@ -19,7 +20,6 @@ export default function PremiumHero({
   description,
   cta,
   bgSrc,
-  glowSrc,
 }: PremiumHeroProps) {
   return (
     <section className="relative flex h-[28rem] w-full items-center justify-center overflow-hidden sm:h-[36rem] lg:h-[46.9375rem]">
@@ -29,14 +29,11 @@ export default function PremiumHero({
         fetchPriority="high"
         className="absolute inset-0 h-full w-full object-cover"
       />
-      {glowSrc ? (
-        <img
-          src={glowSrc}
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-1/2 h-auto w-[240%] max-w-none -translate-x-1/2 -translate-y-1/2 sm:w-[150%] lg:w-[90%] lg:max-w-[51.75rem]"
-        />
-      ) : null}
+      {/* 방사형 라이트 — 텍스트 블록(최대 38.8rem)보다 넉넉한 타원, 모바일은 폭 대비 더 크게 */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-1/2 top-1/2 h-[130%] w-[220%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.92)_0%,rgba(255,255,255,0.86)_28%,rgba(255,255,255,0.4)_46%,rgba(255,255,255,0)_62%)] sm:w-[150%] lg:h-[170%] lg:w-[110%]"
+      />
       <div className="relative z-10 mx-auto w-full max-w-[38.8125rem] px-5 text-center sm:px-8">
         <h1 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] text-ink-strong sm:text-[2rem]">
           {title}

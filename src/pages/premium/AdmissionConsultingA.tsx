@@ -24,7 +24,6 @@ import { usePremiumAchievements } from "@/hooks/usePremiumAchievements";
 // 에셋은 전부 public/images/premium/ 배치 완료 — import 없이 절대 경로 문자열로 참조.
 
 const HERO_BG = "/images/premium/hero-bg.webp";
-const HERO_GLOW = "/images/premium/hero-glow.svg";
 const CTA_BG = "/images/premium/cta-s-program-bg.webp";
 
 const AUDIENCE_ITEMS = [
@@ -166,7 +165,6 @@ export default function AdmissionConsultingA() {
         description="매일의 내신과 탐구활동, 그 모든 산출물을 대표원장이 마지막까지 직접 검수하는 학습·탐구 관리 프로그램입니다."
         cta={{ label: "사전 인터뷰 신청", to: "/premium-apply" }}
         bgSrc={HERO_BG}
-        glowSrc={HERO_GLOW}
       />
 
       <PremiumStatsPills

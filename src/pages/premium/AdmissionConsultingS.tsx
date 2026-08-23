@@ -24,7 +24,6 @@ import { usePremiumAchievements } from "@/hooks/usePremiumAchievements";
 // import 없이 절대 경로 문자열로 참조.
 
 const HERO_BG = "/images/premium/hero-bg.webp";
-const HERO_GLOW = "/images/premium/hero-glow.svg";
 
 const ISSUE_CARDS = [
   {
@@ -172,7 +171,6 @@ export default function AdmissionConsultingS() {
         description="대표원장이 비정기 대면상담으로 학생과 직접 소통하며 대입 실전의 마지막 관문까지 함께합니다"
         cta={{ label: "VIP 사전 인터뷰 신청", to: "/premium-apply" }}
         bgSrc={HERO_BG}
-        glowSrc={HERO_GLOW}
       />
 
       <PremiumStatsPills
