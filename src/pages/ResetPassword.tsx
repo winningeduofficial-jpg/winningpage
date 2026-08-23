@@ -108,6 +108,36 @@ export default function ResetPassword() {
 
       setDone(true);
 
+      // 초대받은 관리자라면 여기서 활성화한다 — ⚠️ 이 한 줄이 빠지면 초대가
+      // 끝나지 않는다.
+      //
+      //   관리자 초대는 admin_members 에 status='invited' 행만 만든다.
+      //   profiles.role 은 아직 'user' 라서 헤더의 「관리자 페이지」 버튼이 안 뜬다
+      //   (Header.tsx 는 profiles.role 로 판정한다).
+      //   fn_activate_admin_member 가 invited → active 로 올리면
+      //   admin_members_sync_role 트리거가 profiles.role 을 'admin' 으로 올린다
+      //   (20260822000014).
+      //
+      //   원래는 초대 링크가 /admin 으로 돌아와서 requireAdminMiddleware 가 이걸
+      //   대신 불러줬다. 그런데 /admin 에는 비밀번호를 정하는 화면이 없어 링크를
+      //   눌러도 아무것도 못 하는 문제가 있었고, 도착지를 이 화면으로 옮겼다.
+      //   그러면서 활성화를 부르는 유일한 통로가 끊겼다 — 여기서 다시 잇는다.
+      //
+      //   일반 사용자가 비밀번호를 재설정할 때도 이 호출은 그대로 일어나지만
+      //   무해하다. 이 함수는 **자기 행이 invited 일 때만** 바꾸고, 그런 행이
+      //   없으면 아무것도 하지 않는다(권한이 새로 생기지 않는다).
+      //
+      //   ⚠️ signOut 보다 먼저 불러야 한다. 로그아웃한 뒤엔 auth.uid() 가 없어
+      //     함수가 not_authenticated 로 거부한다.
+      const { error: activateError } = await supabase.rpc(
+        "fn_activate_admin_member",
+      );
+      if (activateError) {
+        // 실패해도 비밀번호는 이미 바뀌었으므로 화면 흐름은 막지 않는다.
+        // 관리자라면 /admin 에 들어갈 때 미들웨어가 한 번 더 시도한다.
+        console.error("관리자 초대 활성화 실패:", activateError);
+      }
+
       // 재설정에 쓰인 임시 recovery 세션을 남겨두지 않는다 — 방금 정한
       // 비밀번호로 다시 로그인하게 한다(로그인 폼의 signInWithPassword가
       // 세션을 새로 만든다).
