@@ -1,0 +1,30 @@
+import type { RouteObject } from "react-router";
+import { useParams } from "react-router";
+import {
+  PREMIUM_ADMISSION_A_PATH,
+  PREMIUM_ADMISSION_S_PATH,
+} from "@/components/premium/premiumRoutesPaths";
+import DynamicPage from "@/pages/DynamicPage";
+import AdmissionConsultingA from "@/pages/premium/AdmissionConsultingA";
+import AdmissionConsultingS from "@/pages/premium/AdmissionConsultingS";
+
+// /page/premium/:program → page_contents.slug `premium/${program}` 조회 래퍼(특목고입학·
+// 대학원입학·해외명문대·국제학교·국제해외고 편입 5개 CMS 페이지). 대입컨설팅 A/S는 코드
+// 페이지라 이 라우트보다 먼저 매칭돼야 한다(아래 배열 순서 참고).
+function PremiumDynamicPage() {
+  const { program } = useParams();
+
+  return <DynamicPage slug={`premium/${program}`} />;
+}
+
+// 프리미엄 랜딩 — /page/premium/<program>(대입컨설팅 A·S 코드 페이지 + CMS 5종).
+// ⚠️ 반드시 dynamicPageRoutes(/page/:slug)보다 먼저 조립한다 — 아래로 내려가면
+// DynamicPage가 먼저 매칭해 신규 페이지가 뜨지 않는다(applyRoutes.tsx:7 동일 규약).
+// 구 /page/premium-* 경로는 코드 라우트·DB 행 모두 없음 → catch-all에서 자연 404.
+const premiumRoutes: RouteObject[] = [
+  { path: PREMIUM_ADMISSION_A_PATH, Component: AdmissionConsultingA },
+  { path: PREMIUM_ADMISSION_S_PATH, Component: AdmissionConsultingS },
+  { path: "/page/premium/:program", Component: PremiumDynamicPage },
+];
+
+export default premiumRoutes;

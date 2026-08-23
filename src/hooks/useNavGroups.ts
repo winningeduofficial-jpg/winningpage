@@ -100,6 +100,13 @@ const PROMOTED_SLUG_ROUTES: Record<string, string> = {
   "services-in-depth-research": "/services/research",
   "admission-special-highschool-results": "/admission/special-highschool",
   "premium-apply": "/premium-apply",
+  // 프리미엄 라우트 컨벤션(20260823000005) 적용 전 DB에도 대비 — 구 슬러그를 신 경로로.
+  "premium-a": "/page/premium/admission-consulting/a",
+  "premium-special-highschool": "/page/premium/special-highschool",
+  "premium-graduate-school": "/page/premium/graduate-school",
+  "premium-global-university": "/page/premium/global-university",
+  "premium-international-school": "/page/premium/international-school",
+  "premium-returning-student": "/page/premium/returning-student",
   "mentor-apply": "/mentor-apply",
   gallery: "/info/column",
 };

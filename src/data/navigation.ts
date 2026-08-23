@@ -36,6 +36,11 @@
 //   NAV_GUARD와 완전히 동일한 값을 그대로 재사용한다(별도 오프셋 보정 없음 — 위 피치
 //   설명 참고). 두 이름으로 나눠 export하는 이유는 순수 값이 같더라도 nav/메가 각각의
 //   의미를 코드에서 명확히 구분하기 위함이다.
+import {
+  PREMIUM_ADMISSION_A_PATH,
+  PREMIUM_PROGRAM_PATH_PREFIX,
+} from "@/components/premium/premiumRoutesPaths";
+
 export const NAV_GUARD = "max(0px, calc(6.04rem - (100vw - 72.75rem) / 2))";
 export const MEGA_GUARD = NAV_GUARD;
 export const NAV_CELL_W = "6.25rem";
@@ -60,32 +65,36 @@ export const FALLBACK_NAV_GROUPS = [
   },
   {
     title: "프리미엄",
-    to: "/page/premium-a",
+    to: PREMIUM_ADMISSION_A_PATH,
     items: [
-      { label: "대입컨설팅 프로그램", to: "/page/premium-a", sortOrder: 1 },
+      {
+        label: "대입컨설팅 프로그램",
+        to: PREMIUM_ADMISSION_A_PATH,
+        sortOrder: 1,
+      },
       {
         label: "특목고입학 프로그램",
-        to: "/page/premium-special-highschool",
+        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/special-highschool`,
         sortOrder: 2,
       },
       {
         label: "대학원입학 프로그램",
-        to: "/page/premium-graduate-school",
+        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/graduate-school`,
         sortOrder: 3,
       },
       {
         label: "해외명문대 진학컨설팅",
-        to: "/page/premium-global-university",
+        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/global-university`,
         sortOrder: 4,
       },
       {
         label: "국제학교 학습관리",
-        to: "/page/premium-international-school",
+        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/international-school`,
         sortOrder: 5,
       },
       {
         label: "국제・해외고 국내대 입학컨설팅",
-        to: "/page/premium-returning-student",
+        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/returning-student`,
         sortOrder: 6,
       },
     ],

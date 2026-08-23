@@ -11,6 +11,7 @@ import partnerChloeWinningArt from "@/assets/company/partner-chloe-winning-art.p
 import partnerJungsangLanguage from "@/assets/company/partner-jungsang-language.png";
 import partnerJungsangMath from "@/assets/company/partner-jungsang-math.png";
 import SafeHtml from "@/components/admission/SafeHtml";
+import { PREMIUM_ADMISSION_A_PATH } from "@/components/premium/premiumRoutesPaths";
 import { alertServiceNotReady } from "@/lib/paidServiceAccess";
 import { withDedupedKeys } from "@/lib/reactKeys";
 import { supabase } from "@/lib/supabase";
@@ -131,7 +132,7 @@ const HERO_CARDS = [
     title: "프리미엄",
     desc: ["전문가가 직접 관리하는", "밀착 컨설팅"],
     best: false,
-    route: "/page/premium-a",
+    route: PREMIUM_ADMISSION_A_PATH,
   },
 ];
 
