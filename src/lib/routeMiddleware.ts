@@ -1,5 +1,11 @@
 import type { MiddlewareFunction } from "react-router";
 import { redirect } from "react-router";
+import { ADMIN_SECTION_KEYS } from "@/pages/admin/adminSectionKeys";
+import {
+  canAccessSection,
+  fetchAdminPermissions,
+  fetchIsSuperAdmin,
+} from "./adminPermissions";
 import { fetchEntitlement } from "./entitlement";
 import { isOnboardingDone } from "./goalOnboarding";
 import { getCached, setCached } from "./routeMiddlewareCache";
@@ -60,6 +66,52 @@ export const requireAuthMiddleware: MiddlewareFunction = async ({
   }
 };
 
+/**
+ * /admin/<키> 에서 섹션 키를 뽑는다. /admin 자체와 /demo 계열은 null 이다
+ * (전자는 index 라우트가 기본 섹션으로 보내고, 후자는 섹션 개념이 없다).
+ */
+function adminSectionKeyFromUrl(request: Request): string | null {
+  const { pathname } = new URL(request.url);
+  const match = pathname.match(/^\/admin\/([^/]+)/);
+  return match?.[1] ?? null;
+}
+
+/**
+ * 메뉴별 권한 확인 — 사이드바에서 숨기는 것과 **같은 규칙**을 URL 직접 입력에도 건다.
+ *
+ * 접근 불가일 때 곧장 막지 않고, 들어갈 수 있는 첫 메뉴로 보낸다.
+ *   기본 섹션(popups)은 ADMIN_DEFAULT_SECTION_KEY 로 고정돼 있어서, 그 메뉴 권한이
+ *   없는 관리자는 /admin 에 들어오자마자 막힌다 — 자기가 볼 수 있는 화면이 있는데도
+ *   문 앞에서 튕기는 셈이다. 그래서 한 번은 갈 곳을 찾아준다.
+ *   볼 수 있는 메뉴가 하나도 없을 때만 AdminForbiddenError 를 던진다.
+ *
+ * 순서는 ADMIN_SECTION_KEYS 를 따른다 — MENU_GROUPS 와 같은 그룹 순서라 사이드바
+ * 맨 위에 가까운 것이 먼저 잡힌다. MENU_GROUPS 자체를 쓰지 않는 이유는 그게
+ * Admin.tsx(=CONFIGS 전체)에 있어서, 여기서 import 하면 /admin 에 들어가지 않는
+ * 사용자의 초기 번들에까지 그 무게가 얹히기 때문이다(adminSectionKeys.ts 상단 주석).
+ */
+async function assertAdminSectionAccess(request: Request, userId: string) {
+  const sectionKey = adminSectionKeyFromUrl(request);
+  if (!sectionKey) return;
+
+  const [permissions, isSuperAdmin] = await Promise.all([
+    fetchAdminPermissions(userId),
+    fetchIsSuperAdmin(userId),
+  ]);
+
+  if (canAccessSection(permissions, isSuperAdmin, sectionKey)) return;
+
+  const fallback = ADMIN_SECTION_KEYS.find((key) =>
+    canAccessSection(permissions, isSuperAdmin, key),
+  );
+
+  if (fallback && fallback !== sectionKey) {
+    throw redirect(`/admin/${fallback}`);
+  }
+
+  throw new AdminForbiddenError();
+}
+
 // 2) /admin, /demo, /demo/:demoKey — role=admin 확인(ProtectedAdmin.jsx 이관).
 export const requireAdminMiddleware: MiddlewareFunction = async ({
   request,
@@ -81,7 +133,7 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
     if (cachedRole !== "admin") {
       throw new AdminForbiddenError();
     }
-    return;
+    return assertAdminSectionAccess(request, user.id);
   }
 
   const { data: profile, error } = await supabase
@@ -98,7 +150,7 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
 
   if (role === "admin") {
     setCached(user.id, "admin-role", role);
-    return;
+    return assertAdminSectionAccess(request, user.id);
   }
 
   // 초대받은 관리자의 첫 진입 — 안전망이다.
@@ -128,7 +180,7 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
 
   if (!activateError && activated?.status === "active") {
     setCached(user.id, "admin-role", "admin");
-    return;
+    return assertAdminSectionAccess(request, user.id);
   }
 
   setCached(user.id, "admin-role", role);
