@@ -25,6 +25,11 @@ import PremiumBookAdmin from "@/components/admin/PremiumBookAdmin";
 import RevenueAdmin from "@/components/admin/RevenueAdmin";
 import AdmissionMetaEditModal from "@/components/admission/editor/AdmissionMetaEditModal";
 import {
+  canAccessSection,
+  fetchAdminPermissions,
+  fetchIsSuperAdmin,
+} from "@/lib/adminPermissions";
+import {
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
 } from "@/lib/admissionBulkXlsx";
@@ -390,6 +395,38 @@ function AdminSidebar({ activeKey, setActiveKey }) {
   const [open, setOpen] = useState(
     () => new Set(MENU_GROUPS.map((group) => group.title)),
   );
+
+  // 권한이 있는 메뉴만 그린다 — 라우트 가드(requireAdminMiddleware)와 **같은 규칙**을
+  // 쓴다(canAccessSection). 예전에는 MENU_GROUPS 를 무조건 전부 그려서, 「접근 불가」로
+  // 설정한 메뉴가 그대로 보이고 눌러도 들어가졌다(2026-08-23).
+  //
+  // 빈 목록으로 시작한다 — 전부 그렸다가 지우면 권한 없는 메뉴가 한 번 번쩍인다.
+  // 라우트 가드가 이미 같은 조회를 마친 뒤라(캐시 TTL 15초) 실제로는 즉시 채워진다.
+  const [menuGroups, setMenuGroups] = useState<typeof MENU_GROUPS>([]);
+
+  const loadMenuGroups = useEffectEvent(async () => {
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user?.id;
+    if (!userId) return;
+
+    const [permissions, isSuperAdmin] = await Promise.all([
+      fetchAdminPermissions(userId),
+      fetchIsSuperAdmin(userId),
+    ]);
+
+    setMenuGroups(
+      MENU_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.filter((item) =>
+          canAccessSection(permissions, isSuperAdmin, item.key),
+        ),
+      })).filter((group) => group.items.length > 0),
+    );
+  });
+
+  useEffect(() => {
+    loadMenuGroups();
+  }, []);
   // 자식 탭(acceptanceRates/admissionCaseLogos)에 있을 때도 사이드바에서는
   // 탭 목록의 첫 번째 key(admissionSusiJungsi)를 기준으로 활성 항목을 매칭한다.
   const sidebarActiveKey = CONFIGS[activeKey]?.tabs
@@ -412,7 +449,7 @@ function AdminSidebar({ activeKey, setActiveKey }) {
       </div>
 
       <nav className="px-4 py-5">
-        {MENU_GROUPS.map((group) => {
+        {menuGroups.map((group) => {
           const isOpen = open.has(group.title);
 
           return (
