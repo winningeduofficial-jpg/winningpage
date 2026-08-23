@@ -5,6 +5,8 @@ import MentorSection from "@/components/landing/MentorSection";
 import NewsSection from "@/components/landing/NewsSection";
 import ServicesSection from "@/components/landing/ServicesSection";
 import * as landingPreview from "@/data/landingPreview";
+import type { NormalizedMentor } from "@/hooks/useHomeMentors";
+import { useHomeMentors } from "@/hooks/useHomeMentors";
 import { supabase } from "@/lib/supabase";
 
 // 랜딩 콘텐츠(배너/대학/서비스/멘토): Supabase DB fetch 모드 (LANDING_PREVIEW=false).
@@ -57,31 +59,6 @@ type Service = {
   sort_order?: number;
 };
 
-type MentorPhotoLayout = {
-  top: number;
-  left: number;
-  width: number;
-  height: number;
-  crop?: { top: string; height: string };
-};
-
-type MentorRow = {
-  id: string | number;
-  mentor_name?: string;
-  badge?: string;
-  title_lines?: unknown;
-  photo_url?: string;
-  photo_layout?: Record<string, unknown> | null;
-  card_width?: number;
-  sort_order?: number;
-  [key: string]: unknown;
-};
-
-type NormalizedMentor = MentorRow & {
-  title_lines: string[] | null;
-  photo: MentorPhotoLayout | null;
-};
-
 type Popup = {
   id: string;
   title?: string;
@@ -113,35 +90,6 @@ function preloadImage(src: string | undefined): Promise<string> {
     img.onerror = () => resolve(src);
     img.src = src;
   });
-}
-
-// home_mentor_strategies row → MentorSection/MentorCard props 정규화
-// - photo_layout(jsonb) → photo 매핑 (컴포넌트 무수정 유지)
-// - title_lines가 문자열(JSON)로 오는 경우 방어 파싱 — 실패/비배열이면 null(카드 미노출 유도)
-function normalizeMentorRow(row: MentorRow): NormalizedMentor {
-  let titleLines = row.title_lines;
-  if (typeof titleLines === "string") {
-    try {
-      titleLines = JSON.parse(titleLines);
-    } catch {
-      titleLines = null;
-    }
-  }
-  const layout = row.photo_layout;
-  const hasValidLayout =
-    layout &&
-    ["top", "left", "width", "height"].every((key) =>
-      Number.isFinite(layout[key]),
-    );
-
-  return {
-    ...row,
-    title_lines:
-      Array.isArray(titleLines) && titleLines.length > 0
-        ? (titleLines as string[])
-        : null,
-    photo: hasValidLayout ? (layout as unknown as MentorPhotoLayout) : null,
-  };
 }
 
 function todayKstYmd() {
@@ -279,9 +227,15 @@ export default function Home() {
   const [services, setServices] = useState<Service[]>(
     LANDING_PREVIEW ? (landingPreview.services as Service[]) : [],
   );
-  const [mentors, setMentors] = useState<NormalizedMentor[]>(
-    LANDING_PREVIEW ? (landingPreview.mentors as NormalizedMentor[]) : [],
-  );
+  // 멘토 fetch+정규화는 useHomeMentors로 추출됨(프리미엄 랜딩 섹션 9와 공유) — LANDING_PREVIEW일
+  // 때는 기존과 동일하게 정적 픽스처를 쓰고, 아니면 훅이 마운트 시 자체 fetch한다(enabled 가드로
+  // LANDING_PREVIEW 중에는 fetch 자체를 건너뛰어 기존 동작과 100% 동일).
+  const { mentors: fetchedMentors } = useHomeMentors({
+    enabled: !LANDING_PREVIEW,
+  });
+  const mentors = LANDING_PREVIEW
+    ? (landingPreview.mentors as NormalizedMentor[])
+    : fetchedMentors;
   // 공지사항 섹션(회사소식/공지사항)은 실 Supabase DB 연동 완료 — 프리뷰 대상 아님.
   const [companyNews, setCompanyNews] = useState<NewsItem[]>([]);
   const [notices, setNotices] = useState<NewsItem[]>([]);
@@ -396,7 +350,7 @@ export default function Home() {
 
     async function fetchRenewalContents() {
       const today = todayKstYmd();
-      const [sideResult, universityResult, mentorResult] = await Promise.all([
+      const [sideResult, universityResult] = await Promise.all([
         supabase
           .from("home_side_banners")
           .select("*")
@@ -407,13 +361,6 @@ export default function Home() {
         supabase
           .from("university_acceptances")
           .select("*")
-          .eq("is_active", true)
-          .order("sort_order", { ascending: true }),
-        supabase
-          .from("home_mentor_strategies")
-          .select(
-            "id, mentor_name, badge, title_lines, photo_url, photo_layout, card_width, sort_order",
-          )
           .eq("is_active", true)
           .order("sort_order", { ascending: true }),
       ]);
@@ -436,15 +383,6 @@ export default function Home() {
         setUniversities([]);
       } else {
         setUniversities((universityResult.data || []) as University[]);
-      }
-
-      if (mentorResult.error) {
-        console.error("멘토 조회 오류:", mentorResult.error);
-        setMentors([]);
-      } else {
-        setMentors(
-          ((mentorResult.data || []) as MentorRow[]).map(normalizeMentorRow),
-        );
       }
     }
 

@@ -1,0 +1,60 @@
+import type { ReactNode } from "react";
+import PremiumSectionHeading from "./PremiumSectionHeading";
+import {
+  PREMIUM_CONTAINER_CLASS,
+  PREMIUM_HEADING_GAP_CLASS,
+  PREMIUM_SECTION_PADDING_CLASS,
+} from "./premiumTokens";
+
+// §5 4단계 포토 스텝 — 데스크탑 가로 연속(gap 0) 4장, 각 277×208(=17.3125rem×13rem).
+// 모바일은 시안이 없어 2×2 그리드로 재량 적응(스펙 명시).
+type PremiumPhotoStepItem = {
+  image: string;
+  label: string;
+};
+
+type PremiumPhotoStepsProps = {
+  heading: ReactNode;
+  sub?: ReactNode;
+  items: PremiumPhotoStepItem[];
+};
+
+export default function PremiumPhotoSteps({
+  heading,
+  sub,
+  items,
+}: PremiumPhotoStepsProps) {
+  if (!items || items.length === 0) return null;
+
+  return (
+    <section className={`bg-white ${PREMIUM_SECTION_PADDING_CLASS}`}>
+      <div className={PREMIUM_CONTAINER_CLASS}>
+        <PremiumSectionHeading heading={heading} sub={sub} />
+        <div
+          className={`grid grid-cols-2 sm:grid-cols-4 ${PREMIUM_HEADING_GAP_CLASS}`}
+        >
+          {items.map((item) => (
+            <div
+              key={item.label}
+              className="relative h-[10rem] w-full overflow-hidden sm:h-[13rem]"
+            >
+              <img
+                src={item.image}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <div className="absolute inset-0 flex items-center justify-center px-2">
+                <p className="break-keep text-center text-[1.4125rem] font-semibold leading-[1.4] text-white">
+                  {item.label}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}

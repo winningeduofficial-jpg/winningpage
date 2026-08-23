@@ -314,6 +314,38 @@ export const mainConfigs: Record<string, MainConfig> = {
     },
   },
 
+  premiumAchievements: {
+    title: "프리미엄 실적 뱃지",
+    table: "premium_achievements",
+    searchPlaceholder: "라벨을 검색하세요",
+    order: "sort_order",
+    homepage: true,
+    guideText: `프리미엄(A 프로그램) 랜딩 '실적으로 증명하는 실력' 영역 pill입니다. "{라벨} {건수}" 형태로 표시됩니다.`,
+    columns: [
+      { key: "label", label: "라벨" },
+      { key: "count", label: "건수" },
+      { key: "sort_order", label: "순서" },
+      { key: "is_active", label: "노출", type: "boolean" },
+    ],
+    fields: [
+      {
+        key: "is_active",
+        label: "노출 여부",
+        type: "radioBoolean",
+        required: true,
+      },
+      { key: "label", label: "라벨", type: "text", required: true },
+      { key: "count", label: "건수", type: "number", required: true },
+      { key: "sort_order", label: "순서", type: "number" },
+    ],
+    defaults: {
+      is_active: true,
+      label: "",
+      count: 0,
+      sort_order: 1,
+    },
+  },
+
   programCategories: {
     title: "핵심 서비스",
     table: "program_categories",
