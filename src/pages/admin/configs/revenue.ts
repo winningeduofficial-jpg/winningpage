@@ -85,6 +85,15 @@ interface RevenueCustomConfig {
 type RevenueConfig = RevenueCrudConfig | RevenueCustomConfig;
 
 export const revenueConfigs: Record<string, RevenueConfig> = {
+  // 매출 및 결제 — 실제 결제(orders/order_items) 기반. 원천은 admin_revenue_items
+  // 뷰(20260823000005)이고 화면은 RevenueAdmin.tsx 가 전부 그린다(제네릭 CRUD 아님).
+  revenue: {
+    title: "매출 및 결제",
+    custom: true,
+    customComponentKey: "revenue",
+    searchPlaceholder: "",
+  },
+
   // 「매출 조정」(payments) · 「매출 정산」(payments 읽기전용) · 「일일정산」
   // (daily_settlements) 은 2026-08-23 에 없앴다.
   //

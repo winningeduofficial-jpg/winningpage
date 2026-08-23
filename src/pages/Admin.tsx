@@ -22,6 +22,7 @@ import LearningDiagnosisAdmin from "@/components/admin/LearningDiagnosisAdmin";
 import MembersAdmin from "@/components/admin/MembersAdmin";
 import MentorApplicationsAdmin from "@/components/admin/MentorApplicationsAdmin";
 import PremiumBookAdmin from "@/components/admin/PremiumBookAdmin";
+import RevenueAdmin from "@/components/admin/RevenueAdmin";
 import AdmissionMetaEditModal from "@/components/admission/editor/AdmissionMetaEditModal";
 import {
   exportAdmissionRowsToXlsx,
@@ -230,6 +231,7 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
     items: [
       // 납부상태·수강료·감면액·납부액 컬럼을 가진 사실상 결제 원장이라 회원관리가
       // 아니라 여기 둔다 — 회원 상세의 결제내역 탭과 역할이 겹치는 것도 피한다.
+      { key: "revenue", label: "매출 및 결제" },
       { key: "enrollments", label: "수강 신청 내역" },
       // 「매출 조정」·「매출 정산」·「일일정산」은 2026-08-23 에 없앴다.
       // 셋 다 운영자가 손으로 적는 수기 장부였고, 앞의 둘은 화면이 그리던 컬럼이
@@ -298,6 +300,7 @@ const CUSTOM_COMPONENT_REGISTRY = {
   members: MembersAdmin,
   adminMembers: AdminMembersAdmin,
   adminRoles: AdminRolesAdmin,
+  revenue: RevenueAdmin,
 };
 
 // CUSTOM_COMPONENT_REGISTRY와 같은 이유의 간접 레이어 — config.ListSummary가
