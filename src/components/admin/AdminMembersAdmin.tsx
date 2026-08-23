@@ -592,10 +592,6 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
               취소
             </ActionButton>
           </div>
-          <p className="mt-3 text-xs font-bold text-gray-500">
-            로컬에서는 실제 메일이 나가지 않고 Mailpit(http://127.0.0.1:54324)에
-            쌓입니다.
-          </p>
         </div>
       )}
 
