@@ -101,9 +101,15 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
     return;
   }
 
-  // 초대받은 관리자의 첫 진입 — 여기가 유일한 통로다.
+  // 초대받은 관리자의 첫 진입 — 안전망이다.
   //
-  // 초대 메일 링크는 비밀번호 설정 후 /admin 으로 돌아온다. 그런데 그 시점의
+  // ⚠️ 예전에는 여기가 **유일한** 통로였다. 초대 링크가 /admin 으로 돌아왔기
+  //   때문인데, /admin 에는 비밀번호를 정하는 화면이 없어서 링크를 눌러도 아무것도
+  //   못 했다. 그래서 도착지를 /login/reset-password 로 옮겼고(api/admin/invite-member),
+  //   활성화도 그쪽에서 부른다(ResetPassword.tsx). 여기는 그 호출이 실패했거나
+  //   예전 방식으로 들어온 사람을 위해 남겨둔다.
+  //
+  // 초대 시점의
   // profiles.role 은 아직 'user' 라(초대는 admin_members 에 invited 행만 만든다)
   // 위 검사에서 그대로 막힌다. 막히면 활성화를 호출할 기회가 영영 없다 —
   // 닭과 달걀이다.
