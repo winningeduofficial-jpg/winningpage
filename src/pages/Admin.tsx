@@ -231,9 +231,10 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
       // 납부상태·수강료·감면액·납부액 컬럼을 가진 사실상 결제 원장이라 회원관리가
       // 아니라 여기 둔다 — 회원 상세의 결제내역 탭과 역할이 겹치는 것도 피한다.
       { key: "enrollments", label: "수강 신청 내역" },
-      { key: "payments", label: "매출 조정" },
-      { key: "settlements", label: "매출 정산" },
-      { key: "dailySettlements", label: "일일정산" },
+      // 「매출 조정」·「매출 정산」·「일일정산」은 2026-08-23 에 없앴다.
+      // 셋 다 운영자가 손으로 적는 수기 장부였고, 앞의 둘은 화면이 그리던 컬럼이
+      // 실제 payments 스키마에 아예 없어 빈 화면으로 떠 있었다. 실제 결제
+      // (orders/order_items)를 보는 「매출 및 결제」가 이 자리를 대신한다.
       // CONFIGS.refunds 라벨과 동일하게 유지할 것 — '환불 신청 내역'(아래)과
       // 혼동돼 있던 라벨을 2026-08-12 정정했다.
       { key: "refunds", label: "환불 수기 대장" },
@@ -2698,12 +2699,7 @@ function AcceptanceRateSummary({ rows }) {
 }
 
 function MoneySummary({ activeKey, rows }) {
-  if (
-    !["payments", "settlements", "dailySettlements", "refunds"].includes(
-      activeKey,
-    )
-  )
-    return null;
+  if (!["refunds"].includes(activeKey)) return null;
 
   const sale = rows.reduce(
     (sum, row) => sum + Number(row.sale_amount || row.total_sale_amount || 0),
@@ -3370,13 +3366,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
                   </button>
 
                   {(config.excel ||
-                    [
-                      "members",
-                      "payments",
-                      "settlements",
-                      "dailySettlements",
-                      "refunds",
-                    ].includes(activeKey)) && (
+                    ["members", "refunds"].includes(activeKey)) && (
                     <button
                       type="button"
                       onClick={downloadExcel}

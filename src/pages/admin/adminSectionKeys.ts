@@ -55,9 +55,6 @@ export const ADMIN_SECTION_KEYS = [
   "usageStatus",
   // 매출·결제관리
   "enrollments",
-  "payments",
-  "settlements",
-  "dailySettlements",
   "refunds",
   "refundRequests",
   "coupons",
