@@ -115,6 +115,7 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState("");
   const [inviteDept, setInviteDept] = useState("");
   const [inviting, setInviting] = useState(false);
@@ -290,6 +291,7 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
       },
       body: JSON.stringify({
         email: inviteEmail.trim(),
+        name: inviteName.trim(),
         roleId: inviteRole,
         department: inviteDept.trim(),
         confirmExisting,
@@ -307,8 +309,11 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
   async function sendInvite() {
     if (inviting) return;
 
-    if (!inviteEmail.trim() || !inviteRole) {
-      alert("이메일과 권한 묶음을 입력해 주세요.");
+    // 이름을 필수로 받는다 — 초대로 만든 계정은 profiles.name 이 비고, 그러면
+    // 직원 목록의 「직원명」이 '-' 로 남는다. 헤더도 이름 유무로 로그인 상태를
+    // 판정해서 그 사람에게는 헤더가 통째로 비로그인처럼 보인다(서버 라우트의 ⚠️ 참고).
+    if (!inviteEmail.trim() || !inviteName.trim() || !inviteRole) {
+      alert("이름, 이메일, 권한 묶음을 모두 입력해 주세요.");
       return;
     }
 
@@ -351,6 +356,7 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
       );
       setInviteOpen(false);
       setInviteEmail("");
+      setInviteName("");
       setInviteDept("");
       await loadAll();
     } catch (error) {
@@ -574,6 +580,9 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
         <div className="mb-4 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-lg font-black">관리자 초대</h2>
           <div className="flex flex-wrap items-end gap-3">
+            <Field label="이름">
+              <TextInput value={inviteName} onChange={setInviteName} />
+            </Field>
             <Field label="이메일">
               <TextInput value={inviteEmail} onChange={setInviteEmail} />
             </Field>
