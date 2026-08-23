@@ -57,7 +57,7 @@ export default function PremiumPhotoSteps({
                 decoding="async"
                 className="absolute inset-0 h-full w-full object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(217,217,217,0)_0%,rgba(109,109,109,0.5)_35.6%,#000_100%)]" />
               <div className="absolute inset-0 flex items-center justify-center px-2">
                 <p className="break-keep text-center text-[1.4125rem] font-semibold leading-[1.4] text-white">
                   {item.label}
