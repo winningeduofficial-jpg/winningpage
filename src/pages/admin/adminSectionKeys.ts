@@ -5,61 +5,63 @@
 // 분리돼 있는 이유와 같은 제약이라, 여기서는 문자열 키만 별도로 들고 있는다.
 // CONFIGS와의 어긋남은 Admin.tsx 모듈 스코프의 dev 전용 검증(assertAdminSectionKeysInSync)이 잡는다.
 export const ADMIN_SECTION_KEYS = [
-  // 메인 관리
+  // 메인화면 관리
   "popups",
   "banners",
   "sideBanners",
   "universityAcceptances",
   "programCategories",
   "mentorStrategies",
-  "pageContents",
-  "premiumBookPages",
-  "premiumConsults",
-  // 게시판 관리
-  "notices",
-  "companyNews",
-  "galleries",
-  "faqs",
-  "mentorApplyFaqs",
-  "mentorApplyCopy",
-  "learningDiagnosis",
-  "learningDiagnosisV2SurveyCopy",
-  // 게시판 관리 — 대입정보(수시정시합격/특목고합격/대입모집요강 계열, 탭 하위 키 포함)
-  "specialHighschool",
-  "specialHighschoolRates",
-  "acceptanceRates",
-  "admissionCaseLogos",
+  // 입시정보 관리 (탭 하위 키 포함 — 사이드바에는 탭 목록의 첫 키만 뜬다)
   "admissionGuidelines",
   "admissionUniversities",
+  "admissionSusiJungsi",
+  "acceptanceRates",
+  "admissionCaseLogos",
+  "specialHighschool",
+  "specialHighschoolRates",
   "admissionResults",
   "trendingDepartments",
-  "admissionSusiJungsi",
-  // 회원 관리
-  "members",
-  "enrollments",
+  "galleries",
+  // 고객안내 관리
+  "companyNews",
+  "notices",
+  "faqs",
+  "pageContents",
+  // 서비스 관리 — 서비스
+  "learningDiagnosis",
+  "learningDiagnosisV2SurveyCopy",
+  "goalUniversityCuts",
+  "goalStudents",
+  // 서비스 관리 — 프리미엄
+  "premiumBookPages",
+  "premiumConsults",
+  // 서비스 관리 — 멘토
   "mentorApplications",
-  // 프로그램 관리
-  "dailyEntries",
-  "usageStatus",
-  // 위닝관리
+  "mentorApplyFaqs",
+  "mentorApplyCopy",
+  // 서비스 관리 — 위닝 DB
+  "winningBaseData",
+  "winningDbInputs",
   "winningSuhaengTopicDb",
   "winningSuhaengResourceDb",
   "winningSetukDb",
   "winningDeepReportDb",
   "winningStudentRecordDb",
-  "winningBaseData",
-  "winningDbInputs",
-  // 수입·매출 관리
+  // 서비스 관리 — 이용 현황
+  "dailyEntries",
+  "usageStatus",
+  // 회원관리
+  "members",
+  // 매출·결제관리
+  "enrollments",
   "payments",
   "settlements",
   "dailySettlements",
   "refunds",
   "refundRequests",
   "coupons",
-  // 목표관리
-  "goalUniversityCuts",
-  "goalStudents",
-  // 관리자 설정 — 20260822000010_admin_permissions 의 admin_resources 시드에도
+  // 직원관리 — 20260822000010_admin_permissions 의 admin_resources 시드에도
   // 같은 키(adminMembers/adminRoles)가 들어 있다. 둘이 어긋나면 화면은 있는데
   // 권한을 못 주거나(키 누락) 권한 화면에 유령 항목이 뜬다(키 잔존).
   "adminMembers",

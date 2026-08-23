@@ -339,10 +339,15 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
         throw new Error(result?.detail || `HTTP ${response.status}`);
       }
 
+      // ⚠️ 메일이 나가는 건 신규 계정을 만든 경우뿐이다(서버가 emailed 로 알려준다).
+      //   이미 가입돼 있던 계정을 관리자로 올릴 때는 Supabase 가 보내줄 수 있는
+      //   메일 경로가 없어서 통지가 안 나간다 — 예전에는 이 경우에도 "초대 메일을
+      //   보냈습니다"라고 띄웠는데, 실제로는 아무것도 안 갔다(api/admin/invite-member
+      //   의 ⚠️ 주석). 등록은 됐으므로 실패가 아니라, 알리는 건 사람 몫이라고 말한다.
       alert(
-        result.resent
-          ? "초대 메일을 다시 보냈습니다."
-          : "초대 메일을 보냈습니다. 받은 사람이 링크를 눌러 비밀번호를 설정하면 활성화됩니다.",
+        result.emailed
+          ? "초대 메일을 보냈습니다. 받은 사람이 링크를 눌러 비밀번호를 설정하면 활성화됩니다."
+          : "관리자로 등록했습니다.\n\n이미 비밀번호가 있는 계정이라 안내 메일은 나가지 않습니다 — 등록 사실을 직접 알려주세요.",
       );
       setInviteOpen(false);
       setInviteEmail("");
