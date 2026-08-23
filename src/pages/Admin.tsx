@@ -152,7 +152,7 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
       { key: "pageContents", label: "세부 페이지 관리" },
     ],
   },
-  // 서비스 관리 — 판매 중인 서비스의 운영 화면을 전부 모은 최대 그룹(18개)이다.
+  // 서비스 관리 — 판매 중인 서비스의 운영 화면을 전부 모은 최대 그룹(16개)이다.
   // 세부메뉴가 많아 item.section(소분류 캡션)으로 한 단계 더 끊는다.
   {
     title: "서비스 관리",
@@ -209,15 +209,21 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
         label: "위닝 생기부 DB",
         section: "위닝 DB",
       },
+    ],
+  },
+  // 회원관리 — 상세(6탭)가 QA 182의 「고객조회상담」을 통째로 흡수했다.
+  // 수강 신청 내역은 결제 원장이라 매출·결제관리로 옮겼다.
+  //
+  // 일일 입장·이용 현황은 "누가 언제 들어와서 무엇을 썼나"를 보는 화면이라
+  // 서비스 운영이 아니라 **회원**에 붙는다(사용자 확정 2026-08-23). 원래는
+  // 서비스 관리 > 이용 현황에 있었다.
+  {
+    title: "회원관리",
+    items: [
+      { key: "members", label: "회원 목록" },
       { key: "dailyEntries", label: "일일 입장", section: "이용 현황" },
       { key: "usageStatus", label: "이용 현황", section: "이용 현황" },
     ],
-  },
-  // 회원관리 — 회원 목록 하나뿐이다. 상세(6탭)가 QA 182의 「고객조회상담」을
-  // 통째로 흡수했고, 수강 신청 내역은 결제 원장이라 매출·결제관리로 옮겼다.
-  {
-    title: "회원관리",
-    items: [{ key: "members", label: "회원 목록" }],
   },
   {
     title: "매출·결제관리",
@@ -421,8 +427,8 @@ function AdminSidebar({ activeKey, setActiveKey }) {
                     <Fragment key={item.key}>
                       {/* 소분류 캡션 — 기획표의 3단(대분류 > 소분류 > 세부메뉴)을
                           접었다 펴는 단계를 하나 더 두지 않고 캡션으로 표현한다.
-                          「서비스 관리」가 18개로 가장 크고, 그 안에서 서비스·
-                          프리미엄·멘토·위닝 DB·이용 현황이 섞이면 훑기 어렵다.
+                          「서비스 관리」가 16개로 가장 크고, 그 안에서 서비스·
+                          프리미엄·멘토·위닝 DB가 섞이면 훑기 어렵다.
                           섹션이 바뀌는 첫 항목에서만 그린다. */}
                       {item.section &&
                         item.section !== group.items[index - 1]?.section && (
