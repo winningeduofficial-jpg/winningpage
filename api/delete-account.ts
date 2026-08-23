@@ -38,6 +38,12 @@ export const config = { runtime: "nodejs" };
 // 받고 진짜 영구값은 없다 — 100년을 영구로 취급한다(업계 관행).
 const PERMANENT_BAN_DURATION = "876000h";
 
+// 익명화 탈퇴 시 auth.users.email 을 덮어쓸 무의미 주소. 원래 이메일을
+// 지워야 개인정보가 파기되고, 같은 이메일의 재가입도 다시 열린다.
+export function buildAnonymizedEmail(userId: string) {
+  return `deleted-${userId}@removed.invalid`;
+}
+
 function getBearerToken(req: VercelRequest) {
   return String(req.headers.authorization || "")
     .trim()
@@ -102,10 +108,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     } else {
       // anonymized — orders/refund_requests 등 보존 대상이 있어 계정을 물리
-      // 삭제할 수 없다. 로그인만 영구 차단한다.
+      // 삭제할 수 없다. 로그인을 영구 차단하고, auth.users 에 남는 개인
+      // 식별자(email·metadata의 이름 등)도 함께 파기한다(실동작 QA
+      // 2026-08-23 발견 — profiles 만 비우면 auth 쪽에 이메일이 잔존하고,
+      // 그 이메일로는 재가입이 영구히 막혀 완전삭제 경로와 비대칭이었다).
+      // 거래 기록의 당사자 식별은 법령 보관 대상인 orders.customer_email 이
+      // 담당하므로 auth 쪽은 지워도 된다. 대체 주소는 예약 TLD(.invalid)라
+      // 실제 수신자와 충돌하지 않고, uuid 를 붙여 계정끼리도 충돌하지 않는다.
+      //
+      // user_metadata 는 GoTrue 가 **merge** 하므로 {} 는 아무것도 지우지
+      // 않는다(로컬 실측 2026-08-23 — 이름이 그대로 남았다). 현재 키를 읽어
+      // 전부 null 로 덮어야 실제로 파기된다(merge 에서 null 은 키 삭제).
+      const { data: currentUser } =
+        await supabaseAdmin.auth.admin.getUserById(userId);
+      const clearedMetadata = Object.fromEntries(
+        Object.keys(currentUser?.user?.user_metadata ?? {}).map((key) => [
+          key,
+          null,
+        ]),
+      );
       const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(
         userId,
-        { ban_duration: PERMANENT_BAN_DURATION },
+        {
+          ban_duration: PERMANENT_BAN_DURATION,
+          email: buildAnonymizedEmail(userId),
+          user_metadata: clearedMetadata,
+        },
       );
       if (banError) {
         console.error(

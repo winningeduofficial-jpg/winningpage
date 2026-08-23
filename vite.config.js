@@ -33,6 +33,16 @@ export default defineConfig({
       "/api": {
         target: "http://127.0.0.1:3000",
         changeOrigin: false,
+        // api/_lib 는 서버 함수와 프론트가 계산식을 공유하는 소스 모듈이다
+        // (예: SubmissionForm → submission-chars). 브라우저가 vite 모듈 URL
+        // "/api/_lib/…"로 요청하는데 이걸 프록시로 넘기면 함수 라우트가 아니라
+        // 404가 나고, 수행평가 화면 전체가 동적 import 실패로 죽는다.
+        // bypass가 문자열(원래 URL)을 돌려주면 프록시를 타지 않고 vite가
+        // 소스 파일로 직접 서빙한다.
+        bypass(req) {
+          if (req.url?.startsWith("/api/_lib/")) return req.url;
+          return undefined;
+        },
       },
     },
   },

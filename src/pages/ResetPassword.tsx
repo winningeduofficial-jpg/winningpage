@@ -94,8 +94,14 @@ export default function ResetPassword() {
       const { error } = await supabase.auth.updateUser({ password });
 
       if (error) {
+        // supabase 에러는 영문 원문이라 그대로 내보내면 안 된다(실동작 QA
+        // 2026-08-23 — "New password should be different from the old password."
+        // 가 노출됐다). 사용자가 실제로 만나는 코드만 한글로 매핑하고, 나머지는
+        // 일반 실패 문구로 뭉뚱그린다.
         setFormError(
-          error.message || "비밀번호 변경에 실패했습니다. 다시 시도해 주세요.",
+          error.code === "same_password"
+            ? "이전과 다른 비밀번호를 입력해 주세요."
+            : "비밀번호 변경에 실패했습니다. 다시 시도해 주세요.",
         );
         return;
       }
