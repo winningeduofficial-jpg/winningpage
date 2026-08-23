@@ -1,5 +1,6 @@
 import MentorSection from "@/components/landing/MentorSection";
 import {
+  PREMIUM_ADMISSION_S_PATH,
   PREMIUM_BEIGE_BG_CLASS,
   PREMIUM_CONTAINER_CLASS,
   PREMIUM_SECTION_PADDING_CLASS,
@@ -11,18 +12,18 @@ import {
   PremiumIssueCards,
   PremiumNumberedList,
   PremiumPhotoSteps,
+  PremiumProgramTabs,
   PremiumSectionHeading,
   PremiumStatsPills,
 } from "@/components/premium";
 import { useHomeMentors } from "@/hooks/useHomeMentors";
 import { usePremiumAchievements } from "@/hooks/usePremiumAchievements";
 
-// 특목고입학 프로그램(프리미엄 A 프로그램) 랜딩 — /page/premium-special-highschool.
+// 대입컨설팅 A 프로그램(프리미엄) 랜딩 — /page/premium/admission-consulting/a.
 // 섹션 1~10 조합 + 카피 상수. 헤더/푸터는 SiteLayout이 렌더한다(개별 import 안 함).
 // 에셋은 전부 public/images/premium/ 배치 완료 — import 없이 절대 경로 문자열로 참조.
 
 const HERO_BG = "/images/premium/hero-bg.webp";
-const HERO_GLOW = "/images/premium/hero-glow.svg";
 const CTA_BG = "/images/premium/cta-s-program-bg.webp";
 
 const AUDIENCE_ITEMS = [
@@ -96,7 +97,6 @@ const AREA_CARDS = [
     bullets: [
       "모든 결과물(탐구가이드·수행평가 코칭안 등)은 대표원장이 최종 검수 후 전달됩니다",
     ],
-    variant: "dark" as const,
   },
 ];
 
@@ -146,12 +146,14 @@ const DARK_TRIO_ITEMS = [
   },
 ];
 
-export default function SpecialHighschool() {
+export default function AdmissionConsultingA() {
   const { achievements } = usePremiumAchievements();
   const { mentors } = useHomeMentors();
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-white pt-16">
+      <PremiumProgramTabs active="a" />
+
       <PremiumHero
         title={
           <>
@@ -163,7 +165,6 @@ export default function SpecialHighschool() {
         description="매일의 내신과 탐구활동, 그 모든 산출물을 대표원장이 마지막까지 직접 검수하는 학습·탐구 관리 프로그램입니다."
         cta={{ label: "사전 인터뷰 신청", to: "/premium-apply" }}
         bgSrc={HERO_BG}
-        glowSrc={HERO_GLOW}
       />
 
       <PremiumStatsPills
@@ -244,7 +245,7 @@ export default function SpecialHighschool() {
 
       <PremiumCtaBanner
         title="대입 실전(면접·자소서)까지 대표원장의 직접 피드백이 필요하다면"
-        cta={{ label: "S 프로그램 안내받기 →", to: "/premium-apply" }}
+        cta={{ label: "S 프로그램 안내받기 →", to: PREMIUM_ADMISSION_S_PATH }}
         bgSrc={CTA_BG}
       />
     </main>

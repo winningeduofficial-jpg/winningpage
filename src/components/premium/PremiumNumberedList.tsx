@@ -5,6 +5,7 @@ import {
   PREMIUM_CARD_BORDER_CLASS,
   PREMIUM_CARD_SHADOW_STYLE,
   PREMIUM_CONTAINER_CLASS,
+  PREMIUM_DARK_SECTION_BG_CLASS,
   PREMIUM_GOLD_TEXT_CLASS,
   PREMIUM_HEADING_GAP_CLASS,
   PREMIUM_NATURAL_TEXT_CLASS,
@@ -13,6 +14,8 @@ import {
 
 // §7 "고교 3년 내신을 끝까지 함께 관리합니다" — 세로 5카드, 좌측정렬 번호·제목·짧은
 // 구분선·본문 (폭 ~700px = 43.75rem).
+// variant="dark" (S 페이지) — bg-ink-strong 배경, 카드 박스 제거(보더·그림자·배경 없이
+// 텍스트만 세로 나열), 번호·제목·구분선 골드 유지, 본문 흰색.
 type NumberedItem = {
   number: string;
   title: string;
@@ -23,29 +26,41 @@ type PremiumNumberedListProps = {
   heading: ReactNode;
   sub?: ReactNode;
   items: NumberedItem[];
+  variant?: "dark";
 };
 
 export default function PremiumNumberedList({
   heading,
   sub,
   items,
+  variant,
 }: PremiumNumberedListProps) {
   if (!items || items.length === 0) return null;
 
+  const isDark = variant === "dark";
+
   return (
     <section
-      className={`${PREMIUM_BEIGE_BG_CLASS} ${PREMIUM_SECTION_PADDING_CLASS}`}
+      className={`${isDark ? PREMIUM_DARK_SECTION_BG_CLASS : PREMIUM_BEIGE_BG_CLASS} ${PREMIUM_SECTION_PADDING_CLASS}`}
     >
       <div className={PREMIUM_CONTAINER_CLASS}>
-        <PremiumSectionHeading heading={heading} sub={sub} />
+        <PremiumSectionHeading
+          heading={heading}
+          sub={sub}
+          tone={isDark ? "dark" : "light"}
+        />
         <div
-          className={`mx-auto flex w-full max-w-[43.75rem] flex-col gap-3 ${PREMIUM_HEADING_GAP_CLASS}`}
+          className={`mx-auto flex w-full max-w-[43.75rem] flex-col ${isDark ? "gap-8" : "gap-3"} ${PREMIUM_HEADING_GAP_CLASS}`}
         >
           {items.map((item) => (
             <div
               key={item.number}
-              style={PREMIUM_CARD_SHADOW_STYLE}
-              className={`flex min-h-[8.125rem] flex-col justify-center rounded-lg px-8 py-6 text-left ${PREMIUM_CARD_BORDER_CLASS}`}
+              style={isDark ? undefined : PREMIUM_CARD_SHADOW_STYLE}
+              className={
+                isDark
+                  ? "flex flex-col text-left"
+                  : `flex min-h-[8.125rem] flex-col justify-center rounded-lg px-8 py-6 text-left ${PREMIUM_CARD_BORDER_CLASS}`
+              }
             >
               <span
                 className={`text-[1.5rem] font-semibold leading-[1.4] ${PREMIUM_GOLD_TEXT_CLASS}`}
@@ -62,7 +77,7 @@ export default function PremiumNumberedList({
                 aria-hidden="true"
               />
               <p
-                className={`mt-2 break-keep text-[0.875rem] leading-[1.5] ${PREMIUM_NATURAL_TEXT_CLASS}`}
+                className={`mt-2 break-keep text-[0.875rem] leading-[1.5] ${isDark ? "text-white" : PREMIUM_NATURAL_TEXT_CLASS}`}
               >
                 {item.desc}
               </p>
