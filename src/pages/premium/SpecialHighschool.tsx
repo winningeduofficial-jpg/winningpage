@@ -17,7 +17,7 @@ import {
 import { useHomeMentors } from "@/hooks/useHomeMentors";
 import { usePremiumAchievements } from "@/hooks/usePremiumAchievements";
 
-// 대입컨설팅(프리미엄 A 프로그램) 랜딩 — /page/premium-a.
+// 특목고입학 프로그램(프리미엄 A 프로그램) 랜딩 — /page/premium-special-highschool.
 // 섹션 1~10 조합 + 카피 상수. 헤더/푸터는 SiteLayout이 렌더한다(개별 import 안 함).
 // 에셋은 전부 public/images/premium/ 배치 완료 — import 없이 절대 경로 문자열로 참조.
 
@@ -146,7 +146,7 @@ const DARK_TRIO_ITEMS = [
   },
 ];
 
-export default function AdmissionConsulting() {
+export default function SpecialHighschool() {
   const { achievements } = usePremiumAchievements();
   const { mentors } = useHomeMentors();
 
