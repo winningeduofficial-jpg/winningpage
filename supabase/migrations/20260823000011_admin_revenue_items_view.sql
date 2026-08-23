@@ -111,7 +111,7 @@ left join lateral (
 where a.order_status in ('paid', 'refunded');
 
 comment on view public.admin_revenue_items is
-  '「매출 및 결제」 화면의 원천(20260823000005). 행 = order_item 한 건이고, 주문 단위 할인은 정가 비중대로 안분한다. 환불은 refund_requests.status=''completed'' 만 센다(승인이 아니라 실제 환불 완료 기준 — 사용자 확정 2026-08-23). 매출은 net_amount 합으로 낸다. security_invoker=on 이므로 orders/order_items 의 RLS(is_admin())가 그대로 적용된다.';
+  '「매출 및 결제」 화면의 원천(20260823000011). 행 = order_item 한 건이고, 주문 단위 할인은 정가 비중대로 안분한다. 환불은 refund_requests.status=''completed'' 만 센다(승인이 아니라 실제 환불 완료 기준 — 사용자 확정 2026-08-23). 매출은 net_amount 합으로 낸다. security_invoker=on 이므로 orders/order_items 의 RLS(is_admin())가 그대로 적용된다.';
 
 grant select on public.admin_revenue_items to authenticated;
 

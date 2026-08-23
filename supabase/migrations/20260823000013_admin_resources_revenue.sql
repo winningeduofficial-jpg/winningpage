@@ -1,8 +1,8 @@
 -- ---------------------------------------------------------------------
 -- 「매출 및 결제」 메뉴를 권한 마스터에 등록한다.
 --
--- 화면은 RevenueAdmin.tsx, 원천은 admin_revenue_items 뷰(20260823000005).
--- 바로 앞 20260823000006 에서 없앤 수기 장부 3종의 자리를 대신한다.
+-- 화면은 RevenueAdmin.tsx, 원천은 admin_revenue_items 뷰(20260823000011).
+-- 바로 앞 20260823000012 에서 없앤 수기 장부 3종의 자리를 대신한다.
 --
 -- 정렬은 705 — 매출·결제관리 그룹(710~770)의 맨 앞에 온다. 이 그룹에서 제일
 -- 자주 보는 화면이라 위에 둔다.
@@ -28,7 +28,7 @@ declare
 begin
   select count(*) into n from public.admin_resources;
 
-  if n <> 46 then
-    raise exception 'admin_resources 가 % 행입니다 — 46 이 아니면 코드의 ADMIN_SECTION_KEYS 와 어긋난 것입니다.', n;
+  if n <> 47 then
+    raise exception 'admin_resources 가 % 행입니다 — 47 이 아니면 코드의 ADMIN_SECTION_KEYS 와 어긋난 것입니다.', n;
   end if;
 end $$;

@@ -15,6 +15,21 @@
 --    아래에서 회원관리 규칙(view)에 맞춘다.
 -- ---------------------------------------------------------------------
 
+-- ── 먼저: 다른 브랜치가 넣은 premiumAchievements 의 그룹명을 재편안에 맞춘다 ──
+--
+-- 20260823000003_premium_achievements 가 이 화면을 **재편 전 그룹명 '메인 관리'**로
+-- 넣었다. 그 마이그레이션은 20260823000002(대분류 재편)와 나란히 작성돼서 새 이름을
+-- 몰랐다. 그대로 두면 사이드바에는 없는 그룹이 권한 화면에만 뜨고, 아래 가드도 걸린다.
+--
+-- sort_order 도 옮긴다 — 원 주석의 의도는 "멘토스 소개 옆"인데, 재편으로 메인화면
+-- 관리가 110~160 으로 밀려서 65 는 팝업 관리보다도 앞에 서 버린다.
+update public.admin_resources
+   set group_title = '메인화면 관리',
+       sort_order  = 165
+ where key = 'premiumAchievements'
+   and group_title = '메인 관리';
+
+
 update public.admin_resources
    set group_title = '회원관리',
        sort_order  = case key

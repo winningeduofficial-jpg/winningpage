@@ -6,7 +6,7 @@
 --   화면이 그리던 컬럼(payer_name/program_name/sale_amount/paid_amount)이 **실제
 --   payments 스키마에 하나도 없어서** 빈 화면으로 떠 있었다(2026-08-23 실측).
 --   대체재는 orders/order_items 를 보는 「매출 및 결제」다
---   (admin_revenue_items 뷰 — 20260823000005).
+--   (admin_revenue_items 뷰 — 20260823000011).
 --
 --   코드 쪽에서 같은 커밋에 MENU_GROUPS·ADMIN_SECTION_KEYS·CONFIGS 에서 뺐다.
 --   admin_resources 는 그 메뉴 구성의 사본이라 여기서도 빼야 한다 — 안 빼면
@@ -32,8 +32,8 @@ declare
 begin
   select count(*) into n from public.admin_resources;
 
-  if n <> 45 then
-    raise exception 'admin_resources 가 % 행입니다 — 45 가 아니면 코드의 ADMIN_SECTION_KEYS 와 어긋난 것입니다.', n;
+  if n <> 46 then
+    raise exception 'admin_resources 가 % 행입니다 — 46 가 아니면 코드의 ADMIN_SECTION_KEYS 와 어긋난 것입니다.', n;
   end if;
 end $$;
 

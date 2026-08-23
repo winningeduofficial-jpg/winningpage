@@ -86,7 +86,7 @@ type RevenueConfig = RevenueCrudConfig | RevenueCustomConfig;
 
 export const revenueConfigs: Record<string, RevenueConfig> = {
   // 매출 및 결제 — 실제 결제(orders/order_items) 기반. 원천은 admin_revenue_items
-  // 뷰(20260823000005)이고 화면은 RevenueAdmin.tsx 가 전부 그린다(제네릭 CRUD 아님).
+  // 뷰(20260823000011)이고 화면은 RevenueAdmin.tsx 가 전부 그린다(제네릭 CRUD 아님).
   revenue: {
     title: "매출 및 결제",
     custom: true,
@@ -104,7 +104,7 @@ export const revenueConfigs: Record<string, RevenueConfig> = {
   //   같은 토스 연동용 컬럼만 갖고 있다).
   //
   //   대체재는 「매출 및 결제」다 — orders/order_items 를 보는 admin_revenue_items
-  //   뷰(20260823000005) 기반. 유저가 결제하는 DB 와 어드민이 보는 DB 가 갈라져
+  //   뷰(20260823000011) 기반. 유저가 결제하는 DB 와 어드민이 보는 DB 가 갈라져
   //   있던 것을 합치는 게 이 교체의 핵심이다.
   //
   //   ⚠️ payments·daily_settlements **테이블은 지우지 않았다.** 화면만 없앤다 —
