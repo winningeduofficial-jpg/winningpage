@@ -127,8 +127,12 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
       // 기획표 라벨 변경: 대학별 모집요강 → 대입 모집 요강.
       { key: "admissionGuidelines", label: "대입 모집 요강" },
       { key: "admissionUniversities", label: "대학 목록 관리" },
-      // 기획표 라벨 변경: 대입합격 → 수시정시합격.
-      { key: "admissionSusiJungsi", label: "수시정시합격" },
+      // 라벨은 「대입합격」이다. 노션 기획표(8/22)에 「수시정시합격」으로 적혀
+      // 있지만 그쪽이 더 옛날 결정이고, 정시 이용자가 거의 없어 수시·정시를
+      // 묶어 「대입합격」으로 가기로 뒤집혔다(사용자 확정 2026-08-23, QA 49행).
+      // 사용자단도 같은 라벨이다 — useNavGroups 가 DB 의 구 라벨을 런타임에
+      // '대입합격'으로 치환하고 있고(useNavGroups.ts:64) 전용 테스트도 있다.
+      { key: "admissionSusiJungsi", label: "대입합격" },
       { key: "specialHighschool", label: "특목고합격" },
       // 기획표에 「개발 중, 우선 보류」로 적힌 둘이지만 화면은 이미 동작 중이라
       // 그대로 둔다 — 메뉴에서 빼면 살아 있는 기능이 사라지는 회귀가 된다.
