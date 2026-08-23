@@ -135,8 +135,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // 초대 링크가 돌아올 주소. 로컬은 5173(vite), 운영은 PUBLIC_SITE_URL.
+  //
+  // ⚠️ /admin 이 아니라 /login/reset-password 로 보낸다.
+  //   초대받은 사람은 **비밀번호가 없는 계정**이다. 예전에는 /admin 으로 보냈는데,
+  //   거기엔 비밀번호를 정하는 화면이 없어서 링크를 눌러도 세션만 생기고 아무것도
+  //   할 수 없었다(2026-08-23 실측 — 해시만 붙은 빈 화면).
+  //   ResetPassword.tsx 는 getSession() 으로 **아무 세션이나** 잡아 비밀번호를
+  //   설정하므로 recovery 든 invite 든 똑같이 동작하고, 끝나면 signOut 후
+  //   /login 으로 보낸다 — 초대 메일 문구("비밀번호를 설정하고 로그인해 주세요")와도
+  //   맞는다. 로그인 후 /admin 으로 들어가면 된다.
+  //
+  // ⚠️ 이 주소는 Supabase 의 **Redirect URLs 허용 목록**에 있어야 한다. 없으면
+  //   에러 없이 조용히 Site URL 로 떨어진다(루트에 #access_token 만 붙은 화면).
   const siteUrl = getEnv("PUBLIC_SITE_URL") || "http://localhost:5173";
-  const redirectTo = `${siteUrl.replace(/\/+$/, "")}/admin`;
+  const redirectTo = `${siteUrl.replace(/\/+$/, "")}/login/reset-password`;
 
   // 이미 가입돼 있으면 초대가 422 로 떨어진다 — 그건 오류가 아니라 "재발송"
   // 또는 "기존 회원을 관리자로 올리기" 경로다. 먼저 기존 사용자를 찾아본다.
@@ -200,7 +212,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? { error: null }
     : await supabaseAdmin
         .from("profiles")
-        .insert({ id: profileId, email, role: "user" });
+        // ⚠️ insert 가 아니라 upsert 다 — **dev·로컬에는 auth → profiles 트리거가
+        //   있다**(`on_auth_user_created` → `handle_new_user`, 의도된 드리프트).
+        //   그쪽에서는 inviteUserByEmail 이 계정을 만드는 순간 트리거가 profiles
+        //   행을 먼저 넣어버려서, 뒤이은 insert 가 기본키 중복으로 죽는다.
+        //   2026-08-23 에 실제로 이것 때문에 초대가 "프로필 설정에 실패했습니다"로
+        //   끝났다 — 메일은 이미 나간 뒤라, 관리자가 다시 누르면 이번엔 그 행이
+        //   있으니 "기존 계정" 경로로 빠져 "메일이 나가지 않습니다"가 떴다.
+        //
+        //   onConflict 를 id 로 두는 게 안전한 이유: 이 분기는 existingProfile 이
+        //   없을 때만 탄다. 즉 충돌할 수 있는 행은 방금 이 초대로 만들어진
+        //   auth 계정의 행 하나뿐이고, 남의 이름·회원유형을 덮을 일이 없다.
+        .upsert({ id: profileId, email, role: "user" }, { onConflict: "id" });
 
   if (profileError) {
     console.error("admin/invite-member profiles upsert 실패:", profileError);

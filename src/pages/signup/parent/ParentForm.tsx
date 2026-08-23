@@ -40,6 +40,7 @@ import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
   sendSignupEmailCode,
+  toErrorMessage,
   verifySignupEmailCode,
 } from "@/lib/signupEmailAuth";
 import { supabase } from "@/lib/supabase";
@@ -476,8 +477,10 @@ export default function ParentForm() {
       // ⚠️ 여기서 signOut 하지 않는다 — 파일 상단 주석 참고.
       navigate("/signup/parent/link");
     } catch (error) {
+      // toErrorMessage 를 거친다 — error.message 를 그대로 붙이면 auth-js 가
+      // 폴백으로 넣은 "{}" 가 화면에 그대로 나간다(QA 33, 그 함수 위 주석).
       setFormError(
-        `가입 처리 중 오류가 발생했습니다: ${error.message || String(error)}`,
+        `가입 처리 중 오류가 발생했습니다: ${toErrorMessage(error, "잠시 후 다시 시도해 주세요.")}`,
       );
     } finally {
       setSubmitting(false);

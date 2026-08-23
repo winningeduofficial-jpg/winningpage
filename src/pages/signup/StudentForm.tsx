@@ -54,6 +54,7 @@ import {
   EMAIL_STATE,
   MESSAGES,
   sendSignupEmailCode,
+  toErrorMessage,
   verifySignupEmailCode,
 } from "@/lib/signupEmailAuth";
 import { supabase } from "@/lib/supabase";
@@ -740,8 +741,10 @@ export default function StudentForm() {
       //   요구해서 더 강하게 필요하다).
       navigate("/signup/student/complete");
     } catch (error) {
+      // toErrorMessage 를 거친다 — error.message 를 그대로 붙이면 auth-js 가
+      // 폴백으로 넣은 "{}" 가 화면에 그대로 나간다(QA 33, 그 함수 위 주석).
       setFormError(
-        `가입 처리 중 오류가 발생했습니다: ${error.message || String(error)}`,
+        `가입 처리 중 오류가 발생했습니다: ${toErrorMessage(error, "잠시 후 다시 시도해 주세요.")}`,
       );
     } finally {
       setLoading(false);

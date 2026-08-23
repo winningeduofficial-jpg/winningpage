@@ -34,21 +34,51 @@
 import { supabase } from "./supabase";
 
 /**
+ * 사람에게 읽히지 않는 message 값들. 형식은 문자열이라 truthy 검사를 통과하지만
+ * 내용이 없어서 화면에 그대로 나가면 안 되는 것들이다.
+ *
+ * "{}" 는 어디서 오나 — ⚠️ 우리 코드가 아니다
+ *   @supabase/auth-js 의 _getErrorMessage(dist/main/lib/fetch.js)는 응답 본문에서
+ *   msg / message / error_description / error 를 차례로 찾고, **넷 다 없으면
+ *   `JSON.stringify(err)` 로 폴백**한다. 본문이 빈 객체면 그 결과가 문자열 "{}" 고,
+ *   그게 AuthError.message 에 그대로 박힌 채 우리 화면까지 내려온다(QA 33).
+ *
+ *   "[object Object]" 는 같은 값을 템플릿 리터럴이나 String() 으로 감쌌을 때 나온다.
+ */
+const UNREADABLE_MESSAGES = new Set([
+  "{}",
+  "[]",
+  "null",
+  "undefined",
+  "[object Object]",
+]);
+
+function isReadableMessage(message: string): boolean {
+  const trimmed = message.trim();
+  if (!trimmed) return false;
+  return !UNREADABLE_MESSAGES.has(trimmed);
+}
+
+/**
  * 어떤 값이 오든(Error, 문자열, undefined, 예상 밖의 객체) 사용자에게 보여줄 수 있는
- * 문자열로 정규화한다(QA 2026-08-21 "{}" 노출 버그 대응).
+ * 문자열로 정규화한다(QA 2026-08-21 / QA 33 "{}" 노출 버그 대응).
  *
  * 왜 필요한가
  *   호출부는 지금까지 error.message를 그대로 읽었다. Supabase의 AuthError/
  *   PostgrestError는 항상 문자열 message를 채워 던지지만, 예상 밖의 예외(네트워크
  *   스택이 던진 순수 객체, message가 빈 문자열인 경우 등)가 섞이면 message가
  *   비거나 존재하지 않는 값으로 남는다. 그 값을 그대로 화면에 내리면 helperText가
- *   빈 문자열이 되어 아무 안내도 없이 막히거나, 호출부가 JSON.stringify 등으로
- *   감싸는 순간 "{}"(빈 객체 직렬화)가 그대로 노출된다. 여기서 한 곳으로 좁혀
- *   막는다 — Error가 아니거나 message가 비어 있으면 항상 fallback 문구로 대체한다.
+ *   빈 문자열이 되어 아무 안내도 없이 막힌다. 여기서 한 곳으로 좁혀 막는다.
+ *
+ *   ⚠️ "비어 있음"만 막는 걸로는 부족했다 — auth-js 가 넘기는 "{}" 는 길이 2짜리
+ *   멀쩡한 문자열이라 truthy 검사를 통과해 화면까지 그대로 나갔다(위 상수 주석).
+ *   그래서 "형식은 문자열인데 내용이 없는" 값도 fallback 으로 돌린다.
  */
 export function toErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error && error.message) return error.message;
-  if (typeof error === "string" && error) return error;
+  if (error instanceof Error && isReadableMessage(error.message)) {
+    return error.message;
+  }
+  if (typeof error === "string" && isReadableMessage(error)) return error;
   return fallback;
 }
 
