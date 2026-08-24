@@ -5,3 +5,4 @@
 export const PREMIUM_PROGRAM_PATH_PREFIX = "/page/premium";
 export const PREMIUM_ADMISSION_A_PATH = "/page/premium/admission-consulting/a";
 export const PREMIUM_ADMISSION_S_PATH = "/page/premium/admission-consulting/s";
+export const PREMIUM_GRADUATE_SCHOOL_PATH = `${PREMIUM_PROGRAM_PATH_PREFIX}/graduate-school`;

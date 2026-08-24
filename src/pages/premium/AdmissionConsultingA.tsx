@@ -26,6 +26,11 @@ import { usePremiumAchievements } from "@/hooks/usePremiumAchievements";
 const HERO_BG = "/images/premium/hero-bg.webp";
 const CTA_BG = "/images/premium/cta-s-program-bg.webp";
 
+// A 히어로 방사형 라이트 — Tailwind는 소스의 완성된 리터럴 클래스만 스캔하므로
+// `bg-[${...}]` 런타임 조합은 컴파일되지 않는다. 클래스 문자열을 통째로 보관할 것.
+const HERO_GLOW_CLASS =
+  "bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_5%,rgba(255,255,255,0.65)_10%,rgba(255,255,255,0.35)_15%,rgba(255,255,255,0.175)_30%,rgba(255,255,255,0)_60%)]";
+
 const AUDIENCE_ITEMS = [
   {
     image: "/images/premium/audience-highschool.webp",
@@ -155,7 +160,6 @@ export default function AdmissionConsultingA() {
       <PremiumProgramTabs active="a" />
 
       <PremiumHero
-        active="a"
         title={
           <>
             전공선배 멘토가 곁에 서고
@@ -166,6 +170,7 @@ export default function AdmissionConsultingA() {
         description="매일의 내신과 탐구활동, 그 모든 산출물을 대표원장이 마지막까지 직접 검수하는 학습·탐구 관리 프로그램입니다."
         cta={{ label: "사전 인터뷰 신청", to: "/premium-apply" }}
         bgSrc={HERO_BG}
+        glowClassName={HERO_GLOW_CLASS}
       />
 
       <PremiumStatsPills

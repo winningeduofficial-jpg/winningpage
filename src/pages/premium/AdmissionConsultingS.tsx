@@ -26,6 +26,11 @@ import { usePremiumAchievements } from "@/hooks/usePremiumAchievements";
 // S 히어로는 A 와 달리 상담 사진(시안 image 416 = cta-s-program-bg 와 동일 원본)을 쓴다.
 const HERO_BG = "/images/premium/cta-s-program-bg.webp";
 
+// S 히어로 방사형 라이트 — Tailwind는 소스의 완성된 리터럴 클래스만 스캔하므로
+// `bg-[${...}]` 런타임 조합은 컴파일되지 않는다. 클래스 문자열을 통째로 보관할 것.
+const HERO_GLOW_CLASS =
+  "bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_5%,rgba(255,255,255,0.85)_10%,rgba(255,255,255,0.5)_25%,rgba(255,255,255,0.16)_45%,rgba(255,255,255,0.08)_66%,rgba(255,255,255,0)_88%)]";
+
 const ISSUE_CARDS = [
   {
     title: "대표원장 비정기 대면상담",
@@ -162,7 +167,6 @@ export default function AdmissionConsultingS() {
       <PremiumProgramTabs active="s" />
 
       <PremiumHero
-        active="s"
         title={
           <>
             대표원장과 대표멘토가
@@ -173,6 +177,7 @@ export default function AdmissionConsultingS() {
         description="대표원장이 비정기 대면상담으로 학생과 직접 소통하며 대입 실전의 마지막 관문까지 함께합니다"
         cta={{ label: "VIP 사전 인터뷰 신청", to: "/premium-apply" }}
         bgSrc={HERO_BG}
+        glowClassName={HERO_GLOW_CLASS}
       />
 
       <PremiumStatsPills
