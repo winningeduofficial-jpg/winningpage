@@ -25,7 +25,7 @@ const HERO_BG = "/images/premium/hero-teukmok-bg.webp";
 // text-ink-strong 텍스트 + bg-ink-strong pill 버튼). glowClassName만 좌측정렬에 맞춰
 // 좌→우로 옅어지는 흰 그라디언트로 재정의한다.
 const HERO_GLOW_CLASS =
-  "bg-gradient-to-r from-white/85 via-white/45 to-transparent";
+  "bg-gradient-to-r from-white/55 via-white/35 to-transparent";
 
 // 학교 유형별 5카드 — §2("학교 유형별로 다른 전형방식...")와 §6("15년간 쌓아온 고입
 // 컨설팅의 기록...") 두 섹션에서 완전히 동일한 카드 세트를 그대로 재사용한다. 시안 원문이
