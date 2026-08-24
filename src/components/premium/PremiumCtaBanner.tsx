@@ -12,18 +12,34 @@ import {
 // sub / secondaryCta — 대학원입학 시안: 채움 버튼("이용 신청하기") + 아웃라인 버튼(tel: 전화상담)
 // 2개 구성. 둘 다 옵셔널이라 기존 단일 CTA 사용처(A/S 페이지)는 렌더 결과가 그대로다.
 // primaryTone — light variant 주 버튼 색. 기본 "gold"(기존 A/S 렌더 그대로), "brand"는
-// 대학원입학 시안의 진초록(PREMIUM_GRADUATE_GREEN) 필 버튼.
+// 대학원입학 시안의 진초록(PREMIUM_GRADUATE_GREEN) 필 버튼, "navy"는 특목고입학 시안의
+// --color-primary(#013262) 필 버튼.
+// cta.href — 특목고입학 시안의 "카카오톡 상담" 버튼처럼 외부 링크(카카오 채널 등)로 보내야
+// 하는 주 CTA용. href가 있으면 내부 라우팅 Link 대신 새 탭 <a target="_blank"> 로 렌더한다.
+// 기존 사용처는 전부 to만 넘기므로 렌더 결과가 그대로다.
 type PremiumCtaBannerProps = {
   title: ReactNode;
   sub?: ReactNode;
-  cta: { label: string; to: string };
+  cta: { label: string; to?: string; href?: string };
   secondaryCta?: { label: string; href: string };
   /** public/images/premium/cta-s-program-bg.webp — 페이지가 명시적으로 넘긴다. variant="light" 에선 불필요. */
   bgSrc?: string;
   /** light: 베이지 배경+pill(S→A 안내). plain: 흰 배경+텍스트 링크(시안 S 하단 첫 배너). */
   variant?: "light" | "plain";
   /** light variant 전용. 기본 "gold" — 지정하지 않으면 기존 렌더와 완전히 동일하다. */
-  primaryTone?: "gold" | "brand";
+  primaryTone?: "gold" | "brand" | "navy";
+};
+
+// tone별 주 버튼 클래스 — brand는 배경을 style(PREMIUM_GRADUATE_GREEN)로 별도 적용하므로
+// 여기엔 배경색 유틸을 넣지 않는다(bg-gold/bg-primary만 각자 tone 클래스에 포함).
+const PRIMARY_CTA_CLASS_BY_TONE: Record<
+  NonNullable<PremiumCtaBannerProps["primaryTone"]>,
+  string
+> = {
+  gold: "rounded-full bg-gold px-[3.75rem] py-[1.5rem] text-[1.25rem] font-semibold leading-[1.4] text-ink-strong transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none",
+  brand:
+    "rounded-full px-[3.75rem] py-[1.5rem] text-[1.25rem] font-semibold leading-[1.4] text-white transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none",
+  navy: "rounded-full bg-primary px-[3.75rem] py-[1.5rem] text-[1.25rem] font-semibold leading-[1.4] text-white transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none",
 };
 
 export default function PremiumCtaBanner({
@@ -45,7 +61,7 @@ export default function PremiumCtaBanner({
             {title}
           </h2>
           <Link
-            to={cta.to}
+            to={cta.to ?? "#"}
             className="rounded-sm text-[1.25rem] font-medium leading-[1.4] text-ink-strong underline-offset-4 hover:underline focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
           >
             {cta.label}
@@ -72,18 +88,29 @@ export default function PremiumCtaBanner({
             ) : null}
           </div>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            {primaryTone === "brand" ? (
-              <Link
-                to={cta.to}
-                style={{ backgroundColor: PREMIUM_GRADUATE_GREEN }}
-                className="rounded-full px-[3.75rem] py-[1.5rem] text-[1.25rem] font-semibold leading-[1.4] text-white transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none"
+            {cta.href ? (
+              <a
+                href={cta.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={
+                  primaryTone === "brand"
+                    ? { backgroundColor: PREMIUM_GRADUATE_GREEN }
+                    : undefined
+                }
+                className={PRIMARY_CTA_CLASS_BY_TONE[primaryTone]}
               >
                 {cta.label}
-              </Link>
+              </a>
             ) : (
               <Link
-                to={cta.to}
-                className="rounded-full bg-gold px-[3.75rem] py-[1.5rem] text-[1.25rem] font-semibold leading-[1.4] text-ink-strong transition hover:opacity-90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none"
+                to={cta.to ?? "#"}
+                style={
+                  primaryTone === "brand"
+                    ? { backgroundColor: PREMIUM_GRADUATE_GREEN }
+                    : undefined
+                }
+                className={PRIMARY_CTA_CLASS_BY_TONE[primaryTone]}
               >
                 {cta.label}
               </Link>
@@ -119,7 +146,7 @@ export default function PremiumCtaBanner({
           {title}
         </h2>
         <Link
-          to={cta.to}
+          to={cta.to ?? "#"}
           className="text-[1.25rem] font-medium leading-[1.4] text-white underline-offset-4 hover:underline rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none"
         >
           {cta.label}
