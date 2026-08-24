@@ -1,5 +1,4 @@
 import {
-  PREMIUM_BEIGE_BG_CLASS,
   PREMIUM_CONTAINER_CLASS,
   PREMIUM_HEADING_GAP_CLASS,
   PREMIUM_NATURAL_TEXT_CLASS,
@@ -38,8 +37,14 @@ const COMPARE_ROWS = [
   {
     label: "서류명",
     cells: [
-      { primary: "자기소개서 및 수학계획서", secondary: "전 모집단위 공통 필수" },
-      { primary: "자기소개서 및 수학계획서", secondary: "전 모집단위 공통 필수" },
+      {
+        primary: "자기소개서 및 수학계획서",
+        secondary: "전 모집단위 공통 필수",
+      },
+      {
+        primary: "자기소개서 및 수학계획서",
+        secondary: "전 모집단위 공통 필수",
+      },
       { primary: "학업 및 연구계획서", secondary: "전 과정 필수・최대 3만자" },
     ],
   },
@@ -179,8 +184,8 @@ export default function GraduateSchoolAdmission() {
           </div>
           <p className="mt-10 break-keep text-center text-[1rem] font-semibold leading-[1.6] text-ink-strong sm:text-[1.125rem]">
             서류명과 세부요건은 학교·학과마다 다르지만, ① 학업·연구계획서로
-            방향성을 증명하고 ② 구술고사로 이를 실제 검증받는다는 2단계
-            구조는 3개교 모두 동일합니다.
+            방향성을 증명하고 ② 구술고사로 이를 실제 검증받는다는 2단계 구조는
+            3개교 모두 동일합니다.
           </p>
         </div>
       </section>
@@ -192,7 +197,7 @@ export default function GraduateSchoolAdmission() {
         footnotes={FOCUS_FOOTNOTES}
       />
 
-      <section className={`${PREMIUM_BEIGE_BG_CLASS} ${PREMIUM_SECTION_PADDING_CLASS}`}>
+      <section className={`bg-white ${PREMIUM_SECTION_PADDING_CLASS}`}>
         <div className={PREMIUM_CONTAINER_CLASS}>
           <PremiumSectionHeading
             heading="위닝에듀만의 서비스"
@@ -243,8 +248,12 @@ export default function GraduateSchoolAdmission() {
         }
         sub="평일·주말 10:00~22:00 (주말 상담 가능)"
         cta={{ label: "이용 신청하기", to: "/premium-apply" }}
-        secondaryCta={{ label: "전화 상담 051.902.0080", href: "tel:0519020080" }}
+        secondaryCta={{
+          label: "전화 상담 051.902.0080",
+          href: "tel:0519020080",
+        }}
         variant="light"
+        primaryTone="brand"
       />
     </main>
   );
