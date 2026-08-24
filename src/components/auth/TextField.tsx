@@ -12,7 +12,7 @@
 // 재생하지 않음 — 매 렌더 반복 재생은 피로도를 유발). 헬퍼/에러/성공 메시지는 등장 시
 // auth-message-enter로 살짝 페이드-라이즈한다. 두 클래스 모두 index.css에서
 // prefers-reduced-motion: reduce 시 애니메이션이 꺼진다.
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type InputHTMLAttributes } from "react";
 
 type TextFieldSize = "default" | "lg" | "perf";
 type TextFieldStatus = "default" | "error" | "success";
@@ -33,15 +33,16 @@ const STATUS_TEXT_CLASSES: Record<TextFieldStatus, string> = {
   success: "text-accent", // 파랑(유효)
 };
 
-interface TextFieldProps {
+// 커스텀 prop. size/onChange/value/className은 네이티브 <input> 속성과 이름이 겹치되
+// 타입·시맨틱이 다르므로(size: variant 문자열 vs number, onChange: (value: string) => void
+// vs ChangeEventHandler, value: string 단일 vs 네이티브의 string|number|readonly string[],
+// className: wrapper div용 vs input용) 아래 TextFieldProps에서 네이티브 쪽을 Omit하고
+// 이 인터페이스로 덮어쓴다.
+interface TextFieldOwnProps {
   label?: string;
-  id?: string;
-  name?: string;
-  type?: string;
+  size?: TextFieldSize;
   value?: string;
   onChange?: (value: string) => void;
-  placeholder?: string;
-  size?: TextFieldSize;
   labelClassName?: string;
   active?: boolean;
   actionLabel?: string;
@@ -49,16 +50,17 @@ interface TextFieldProps {
   actionDisabled?: boolean;
   helperText?: string;
   status?: TextFieldStatus;
-  disabled?: boolean;
-  readOnly?: boolean;
-  autoComplete?: string;
-  autoCapitalize?: string;
-  spellCheck?: boolean;
-  required?: boolean;
+  /** wrapper(가장 바깥 div)에 적용되는 className. `<input>` 자체의 클래스는 컴포넌트가
+   *  내부에서 계산한다(SIZE_CLASSES 등) — 그래서 네이티브 className과 시맨틱이 다르다. */
   className?: string;
-  /** 네이티브 `maxLength` — 초과분은 브라우저가 입력 자체를 막는다(잘라내기가 아니다). */
-  maxLength?: number;
 }
+
+// placeholder, type, disabled, readOnly, autoComplete, autoCapitalize, spellCheck,
+// required, maxLength, pattern, onBlur, onKeyDown 등 나머지 네이티브 <input> 속성은
+// 전부 여기서 상속돼 {...rest}로 그대로 흐른다(수동 재선언 불필요). maxLength는 네이티브
+// 그대로 — 초과분은 브라우저가 입력 자체를 막는다(잘라내기가 아니다).
+type TextFieldProps = TextFieldOwnProps &
+  Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "onChange" | "value" | "className">;
 
 // auth-field-shake(index.css)가 --duration-slow(320ms) 토큰으로 재생되는 애니메이션이라
 // shake 클래스를 떼는 타이밍도 같은 값이어야 한다 — 어긋나면 애니메이션이 끝나기 전에
@@ -69,10 +71,8 @@ export default function TextField({
   label,
   id,
   name,
-  type = "text",
   value,
   onChange,
-  placeholder,
   size = "default", // 'default' | 'lg' | 'perf'(인앱 2.5rem/40px)
   // 라벨 텍스트 색 오버라이드. 기본값이 기존 전 호출부의 하드코딩(text-ink)과 동일해
   // 이 prop을 안 주는 기존 화면은 전혀 영향받지 않는다. 수행평가 STEP1 폼(§5.5 단정
@@ -85,15 +85,8 @@ export default function TextField({
   helperText,
   status = "default", // 'default' | 'error' | 'success'
   disabled = false,
-  readOnly = false,
-  autoComplete,
-  // 연결코드처럼 대문자 영숫자만 받는 필드용. 모바일 자동 대문자화와 맞춤법
-  // 밑줄이 오히려 방해가 되는 경우가 있어 호출부가 끌 수 있게 둔다.
-  autoCapitalize,
-  spellCheck,
-  required = false,
   className = "",
-  maxLength,
+  ...rest
 }: TextFieldProps) {
   const fieldId = id || name;
   const [shake, setShake] = useState(false);
@@ -122,19 +115,12 @@ export default function TextField({
       )}
 
       <input
+        {...rest}
         id={fieldId}
         name={name}
-        type={type}
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        autoComplete={autoComplete}
-        autoCapitalize={autoCapitalize}
-        spellCheck={spellCheck}
         disabled={disabled}
-        readOnly={readOnly}
-        required={required}
         aria-describedby={helperText ? `${fieldId}-helper` : undefined}
         aria-invalid={status === "error"}
         className={`w-full border text-ink outline-hidden transition placeholder:text-ink-sub focus:border-primary disabled:cursor-not-allowed disabled:bg-surface-footer ${SIZE_CLASSES[size] || SIZE_CLASSES.default} ${active ? "border-primary" : ""} ${shake ? "auth-field-shake" : ""}`}
