@@ -10,13 +10,15 @@ type TrackKey = (typeof TRACK_TABS)[number]["key"];
 
 // university_acceptances 활성 row(sort_order asc). 서브라벨은 subtitle 우선(예: '7명 합격',
 // '의예과'), 없으면 count 기반 'N명 합격' 폴백.
+// track 은 이 컴포넌트가 다루는 두 탭(TrackKey) 외에 "graduate"(대학원입학 프리미엄 전용,
+// PremiumAcceptanceMarquee)도 DB 체크 제약상 허용된다 — 여기선 항상 걸러지고 렌더되지 않는다.
 type University = {
   id: string;
   name: string;
   emblem_url?: string;
   subtitle?: string;
   count?: number | null;
-  track: TrackKey;
+  track: TrackKey | "graduate";
   sort_order?: number;
 };
 

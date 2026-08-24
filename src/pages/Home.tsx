@@ -45,7 +45,9 @@ type University = {
   emblem_url?: string;
   subtitle?: string;
   count?: number | null;
-  track: "general" | "medical_special";
+  // "graduate" 는 대학원입학 프리미엄 랜딩(PremiumAcceptanceMarquee) 전용 트랙 — 홈 화면
+  // AcceptanceSection 은 general/medical_special 두 탭만 다뤄 graduate 행은 그대로 걸러진다.
+  track: "general" | "medical_special" | "graduate";
   sort_order?: number;
 };
 
