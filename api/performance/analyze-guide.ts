@@ -96,7 +96,7 @@
 //    3회가 사라졌다. 응답의 `charged:false`는 그 사실을 계약으로 못박은 것이다.
 //    모델 호출이 재시도로 3번 나가도 마찬가지다(재시도는 gemini.js 계층 안, 차감은 밖).
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
 import { callVision, PERFORMANCE_MODEL } from "../_lib/performance/gemini.js";
 import {
   buildGuideExtractionUserPrompt,
@@ -104,11 +104,12 @@ import {
   GUIDE_PROMPT_VERSION,
 } from "../_lib/performance/prompts.js";
 import {
-  getBearerToken,
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
 import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { defineHandler } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   ALLOWED_MIME_EXT,
   BUCKET,
@@ -177,7 +178,7 @@ function fail(
   message: string,
   extra?: Record<string, unknown>,
 ) {
-  return res.status(status).json({ error: { code, message }, ...extra });
+  sendError(res, "coded", status, message, code, extra);
 }
 
 /** STEP2 완료 반영 패치. 이미 더 앞서 있는 세션을 되돌리지 않는다(session.js와 같은 규칙). */
@@ -232,38 +233,29 @@ function readAttachmentIds(
   return { present: true, ok: true, ids };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
-  }
+export default defineHandler({
+  methods: ["POST"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "POST만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "안내문 분석에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/analyze-guide",
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = ctx.userId!;
 
-  res.setHeader("Cache-Control", "no-store");
+    // 모델 호출이 터졌을 때 첨부를 failed로 되돌리기 위해 catch 바깥에서 들고 있는다.
+    let analyzedIds: string[] | null = null;
 
-  let supabaseAdmin: SupabaseAdmin;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/analyze-guide 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  // 모델 호출이 터졌을 때 첨부를 failed로 되돌리기 위해 catch 바깥에서 들고 있는다.
-  let analyzedIds: string[] | null = null;
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
-
+    // 아래 본문 처리 중 던져지는 예외는 원래(마이그레이션 전)와 동일하게
+    // analyzedIds가 잡혀 있으면 markAttachmentsFailed로 되돌린 뒤 500을 내야
+    // 한다 — 공통 defineHandler 최상위 catch는 이 정리 로직을 모른다. 그래서
+    // 로컬 try/catch로 감싸 기존 catch 블록의 동작을 그대로 재현한다
+    // (배치-2 이슈로 별도 기록).
+    try {
     // 이용권 재판정 — §8.6 공통 규약. 클라이언트 가드 통과 여부를 신뢰하지 않는다.
     const { allowed: hasAccess } = await hasPaidServiceAccess(
       supabaseAdmin,
@@ -366,13 +358,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (manualError)
         throw new Error(`세션 갱신 실패: ${manualError.message}`);
 
-      return res.status(200).json({
+      res.status(200).json({
         guide: { mode: "manual", text: freetext },
         attachments: [],
         promptVersion: null, // 모델을 부르지 않았으므로 프롬프트 버전도 없다
         model: null,
         charged: false,
       });
+      return;
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -431,7 +424,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const alreadyAnalyzed = rows.every((row) => row.ocr_status === "done");
 
     if (!force && alreadyAnalyzed && storedGuide?.mode === "upload") {
-      return res.status(200).json({
+      res.status(200).json({
         guide: storedGuide,
         attachments: rows.map((row) => ({
           attachmentId: row.id,
@@ -443,6 +436,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // 저장분을 그대로 돌려줬다는 표시. 호출부가 "다시 분석됐다"고 오해하지 않게 한다.
         reused: true,
       });
+      return;
     }
 
     // ── 호출 상한 (무차감 엔드포인트의 비용 증폭 차단, sql/55 (3))
@@ -662,7 +656,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (markError) throw new Error(`첨부 상태 갱신 실패: ${markError.message}`);
 
-    return res.status(200).json({
+    res.status(200).json({
       guide,
       // `deleted`는 행의 `deleted_at`을 비춘 값이다. 위에서 원본 생존을 이미 확인했으므로
       // 여기서는 전부 false다 — **이 API는 원본을 지우지 않는다**(§8.8, 파일 상단 주석).
@@ -675,13 +669,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       charged: false,
       reused: false,
     });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/analyze-guide error:", error);
-    if (analyzedIds) await markAttachmentsFailed(supabaseAdmin, analyzedIds);
-    return fail(res, 500, "INTERNAL", "안내문 분석에 실패했습니다.");
-  }
-}
+    } catch (error) {
+      // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
+      console.error("performance/analyze-guide error:", error);
+      if (analyzedIds) await markAttachmentsFailed(supabaseAdmin, analyzedIds);
+      return fail(res, 500, "INTERNAL", "안내문 분석에 실패했습니다.");
+    }
+  },
+});
 
 /**
  * 각 첨부의 **실제** Storage 메타데이터를 읽는다(`api/mentor-apply.js:536-575` 절차).

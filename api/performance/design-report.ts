@@ -163,7 +163,7 @@
 //   그리고 **텍스트 파서 폴백을 만들지 않는다**(§8.4). 이 파일의 유일한 파싱은
 //   `JSON.parse` 한 줄이고, 형식 강제는 `responseSchema`가 한다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
@@ -198,12 +198,13 @@ import {
 } from "../_lib/performance/prompts.js";
 import {
   findProgramAccessRow,
-  getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
 import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { defineHandler } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -355,7 +356,7 @@ function fail(
   message: string,
   extra?: Record<string, unknown>,
 ) {
-  return res.status(status).json({ error: { code, message }, ...extra });
+  sendError(res, "coded", status, message, code, extra);
 }
 
 const trimmed = (value: unknown): string => String(value ?? "").trim();
@@ -893,35 +894,26 @@ function toClientReport(reportRow: ReportRow | null | undefined) {
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
-  }
+export default defineHandler({
+  methods: ["POST"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "POST만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "설계 리포트 생성에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/design-report",
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = ctx.userId!;
 
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/design-report 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
-
+    // 아래 본문 처리 중 던져지는 예외는 원래(마이그레이션 전)와 동일하게
+    // `{charged:false}` extra를 실은 채 500으로 응답해야 한다 — 공통
+    // defineHandler 최상위 catch는 그 extra를 모른다. 그래서 이 지점부터는
+    // 로컬 try/catch로 감싸 기존 catch 블록의 동작을 그대로 재현한다
+    // (배치-2 이슈로 별도 기록).
+    try {
     // ── 이용권 재판정(§8.6 공통 규약). 클라이언트 가드 통과 여부를 신뢰하지 않는다.
     //    잔여 회차는 보지 않는다 — 설계 리포트는 무차감이고(§9.3), 이미 차감된 세션은
     //    소진·만료 뒤에도 계속 진행하는 것이 규정이다(§9.3 정정 「막는 것은 새 세션
@@ -1039,7 +1031,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!regenerate) {
         const quota = await readQuota(supabaseAdmin, userId);
 
-        return res.status(200).json({
+        res.status(200).json({
           ...toClientReport(existingReport),
           quotaRemaining: quota.quotaRemaining,
           charged: false,
@@ -1047,6 +1039,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           generationCount: Number(sessionRow.design_generation_count) || 0,
           maxGenerations: MAX_DESIGN_GENERATIONS,
         });
+        return;
       }
     }
 
@@ -1494,7 +1487,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const quota = await readQuota(supabaseAdmin, userId);
 
-    return res.status(200).json({
+    res.status(200).json({
       reportId: commit.report_id,
       topicId: topicRow.id,
       structure: structureForClient,
@@ -1520,14 +1513,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ),
       },
     });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/design-report error:", error);
-    return fail(res, 500, "INTERNAL", "설계 리포트 생성에 실패했습니다.", {
-      charged: false,
-    });
-  }
-}
+    } catch (error) {
+      // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
+      console.error("performance/design-report error:", error);
+      return fail(res, 500, "INTERNAL", "설계 리포트 생성에 실패했습니다.", {
+        charged: false,
+      });
+    }
+  },
+});
 
 // ── 실행 시간 (형제 라우트와 동일)
 //    `MODEL_TIMEOUT_MS`(50초)는 **`maxDuration: 60`을 전제로 잡은 총 예산**이다. 이 선언이

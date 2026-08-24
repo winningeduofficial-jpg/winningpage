@@ -48,28 +48,18 @@
 //   행별로 try/catch를 감싸 실패를 격리한다. 실패 기록(`embedding_status='error'`)
 //   자체가 또 실패해도 로그만 남기고 원래 루프는 계속 돈다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isAuthorizedCron } from "../_lib/cronAuth.js";
 import {
   embedText,
   getEmbeddingModel,
 } from "../_lib/performance/embeddings.js";
 import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { defineHandler } from "../_lib/handler.js";
 
 const TABLE = "performance_session_vectors";
 
 // admin-embed.js DEFAULT_BACKFILL_LIMIT / MAX_BACKFILL_LIMIT과 같은 근거(파일 상단 주석).
 const DEFAULT_BATCH = 30;
 const MAX_BATCH = 50;
-
-function fail(
-  res: VercelResponse,
-  status: number,
-  code: string,
-  message: string,
-) {
-  return res.status(status).json({ error: { code, message } });
-}
 
 function clampLimit(value: unknown) {
   const parsed = Number(value);
@@ -155,24 +145,20 @@ async function embedOne(
   }
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default defineHandler({
   // Vercel Cron은 GET으로 호출한다. POST는 운영자가 손으로 두드릴 때를 위한 것이며
   // 인증은 동일하다(cleanup-attachments.js와 같은 규약).
-  if (req.method !== "GET" && req.method !== "POST") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "GET 또는 POST만 허용됩니다.");
-  }
-
-  if (
-    !isAuthorizedCron(req as { headers: Record<string, string | undefined> })
-  ) {
-    // 무엇이 틀렸는지(시크릿 미설정 / 불일치) 알려주지 않는다.
-    return fail(res, 401, "UNAUTHORIZED", "인증이 필요합니다.");
-  }
-
-  const batch = clampLimit(req.query?.limit);
-
-  try {
-    const supabaseAdmin = createSupabaseAdmin();
+  methods: ["GET", "POST"],
+  auth: "cron",
+  errorShape: "coded",
+  methodNotAllowedMessage: "GET 또는 POST만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "세션 벡터 임베딩에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/embed-session-vectors",
+  handler: async (req, res, ctx) => {
+    const batch = clampLimit(req.query?.limit);
+    const supabaseAdmin = ctx.supabaseAdmin;
     const now = Date.now();
 
     // pending만 대상 — content_hash 게이팅은 upsert 쪽(RPC) 책임이고 여기는 신호만
@@ -214,7 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       ok: failed === 0,
       ranAt: new Date(now).toISOString(),
       batchLimit: batch,
@@ -223,11 +209,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       failed,
       results,
     });
-  } catch (error) {
-    console.error("performance/embed-session-vectors error:", error);
-    return fail(res, 500, "INTERNAL", "세션 벡터 임베딩에 실패했습니다.");
-  }
-}
+  },
+});
 
 // Gemini 호출이 붙어 있어 기본 10초로는 배치가 잘린다(1건당 수백ms~수초 × 최대
 // 50건). maxDuration은 Vercel Hobby 상한 60초를 그대로 쓴다(admin-embed.js와 동일).

@@ -48,11 +48,12 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
-  getBearerToken,
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
 import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { defineHandler } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -160,7 +161,7 @@ function fail(
   code: string,
   message: string,
 ) {
-  return res.status(status).json({ error: { code, message } });
+  sendError(res, "coded", status, message, code);
 }
 
 function toListItem(row: ListRow) {
@@ -412,36 +413,21 @@ async function handleDetail(
   });
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "GET만 허용됩니다.");
-  }
-
+export default defineHandler({
+  methods: ["GET"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "GET만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "저장 리포트를 불러오지 못했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/reports",
   // 개인화된 저장 산출물 응답이다. 중간 캐시에 남으면 다른 사용자에게 새어 나갈 수
   // 있으므로 저장 자체를 금지한다(bootstrap.js와 동일).
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/reports 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = ctx.userId!;
 
     // ── 이용권 재판정. 클라이언트 가드 통과 여부는 신뢰하지 않는다(§8.6 공통 규약).
     const { allowed: hasAccess } = await hasPaidServiceAccess(
@@ -463,16 +449,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       typeof req.query.sessionId === "string" ? req.query.sessionId.trim() : "";
 
     if (sessionId) {
-      return await handleDetail(req, res, supabaseAdmin, userId, sessionId);
+      await handleDetail(req, res, supabaseAdmin, userId, sessionId);
+      return;
     }
 
-    return await handleList(req, res, supabaseAdmin, userId);
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/reports error:", error);
-    return fail(res, 500, "INTERNAL", "저장 리포트를 불러오지 못했습니다.");
-  }
-}
+    await handleList(req, res, supabaseAdmin, userId);
+  },
+});
 
 // 실행 시간: 모델을 부르지 않으므로 형제 라우트의 `maxDuration: 60`이 필요 없다.
 export const config = { runtime: "nodejs" };

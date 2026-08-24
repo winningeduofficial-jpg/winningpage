@@ -43,15 +43,15 @@
 //    언제나 `consume_performance_credit` RPC를 감싼 응답(409 QUOTA_EXHAUSTED)이다
 //    (sql/54_performance_app.sql (4), 명세서 §9.3).
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
 import {
   findProgramAccessRow,
-  getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { defineHandler } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 // 이용권 조회 키. 신규 자산은 performance 네이밍이지만 이 값은 운영 DB의
 // `program_access.program_key`와 `SERVICE_CONFIGS`에 이미 박혀 있어 개명
@@ -121,15 +121,6 @@ type SessionSummaryContext = {
   topicTitle: string | null | undefined;
   reportTypes: Set<string>;
 };
-
-function fail(
-  res: VercelResponse,
-  status: number,
-  code: string,
-  message: string,
-) {
-  return res.status(status).json({ error: { code, message } });
-}
 
 /**
  * 재개 지점. 명세서 §5.4 제안은 `session.last_completed_step + 1`인데,
@@ -216,36 +207,30 @@ function toSessionSummary(session: SessionRow, ctx: SessionSummaryContext) {
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "GET만 허용됩니다.");
-  }
+function fail(
+  res: VercelResponse,
+  status: number,
+  code: string,
+  message: string,
+) {
+  sendError(res, "coded", status, message, code);
+}
 
+export default defineHandler({
+  methods: ["GET"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "GET만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "초기 정보를 불러오지 못했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/bootstrap",
   // 이용권·진행 상태가 담긴 개인화 응답이다. 중간 캐시에 남으면 다른 사용자에게
   // 새어 나갈 수 있으므로 저장 자체를 금지한다.
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/bootstrap 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = ctx.userId!;
     // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
     const serviceConfig = SERVICE_CONFIGS[SERVICE_KEY]!;
 
@@ -392,7 +377,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const latestDraftRow =
       sessions.find((row) => !chargedSessionIds.has(row.id)) || null;
 
-    return res.status(200).json({
+    res.status(200).json({
       profile: {
         id: userId,
         name: profileRow?.name || null,
@@ -412,13 +397,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       lastSession: lastSessionRow ? summaryOf(lastSessionRow) : null,
       latestDraft: latestDraftRow ? summaryOf(latestDraftRow) : null,
     });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다 — 외부 앱은 `{detail, error_message}`로
-    // 내부 오류를 그대로 노출했다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/bootstrap error:", error);
-    return fail(res, 500, "INTERNAL", "초기 정보를 불러오지 못했습니다.");
-  }
-}
+  },
+});
 
 // 실행 시간: 모델을 부르지 않으므로 형제 라우트의 `maxDuration: 60`이 필요 없다.
 export const config = { runtime: "nodejs" };
