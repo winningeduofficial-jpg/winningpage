@@ -22,16 +22,15 @@
 //   서브아이템 라벨이 줄바꿈된다). gap은 140+8=148px로 nav 피치와 일치시키기 위한 8px(0.5rem)
 //   고정값 — nav와 임의로 다른 값을 쓰면 컬럼-셀 좌측선 정렬이 뷰포트에 따라 어긋난다.
 //
-// NAV_GUARD (좁은 데스크톱 충돌 가드, 로고용, 유지):
-//   marginLeft: max(0px, calc(6.04rem − (100vw − 72.75rem) / 2))
-//   6.04rem = 밴드 패딩(px-8=2rem) + LOGO_W(4.04rem, 0729 시안 35px 높이 로고) = 로고 우측
-//   끝까지의 안전영역. 72.75rem은 max-w-content 토큰(2026-07-29 1200px→1164px 축소 반영,
-//   과거 75rem 참조는 스테일이었다 — 이번에 함께 수정).
-//   이 가드는 100vw ≈ 84.83rem(1357px) 이상에서 0으로 수렴한다 — desktop 브레이크포인트(90rem)가
-//   그보다 크므로 nav가 보이는 범위 전역에서 항상 0으로 평가된다(로고 충돌 가드는 실질적으로
-//   비활성). 밴드 패딩이 2xl(96rem)에서 7.5rem으로 확장되지만, 그 시점엔 이미 가드가 0으로
-//   수렴한 지 오래(84.83rem)라 이 가드 공식은 32px 패딩 구간 기준으로 유지해도 안전하다.
-//   그래도 향후 breakpoint를 다시 낮추는 변경에 대비한 안전망으로 제거하지 않고 유지한다.
+// NAV_GUARD (좁은 데스크톱 충돌 가드, 로고용):
+//   marginLeft: max(0px, calc(19.375rem − (100vw − 72.75rem) / 2))
+//   19.375rem = 2xl 밴드 패딩(px-30=7.5rem) + LOGO_W(11.875rem, 브랜드 리뉴얼 가로형 로고
+//   h-6=24px) = 2xl 기준 로고 우측 끝까지의 안전영역. 72.75rem은 max-w-content 토큰.
+//   가로형 로고는 세로형(4.04rem)보다 훨씬 넓어 가드가 90rem~111.5rem(1784px) 구간에서
+//   실제로 활성화된다. 패딩이 2rem(<2xl)/7.5rem(2xl+)로 갈리지만 인라인 calc에는 미디어쿼리를
+//   넣을 수 없어 더 넓은 2xl 패딩 기준(19.375rem)으로 통일했다 — <2xl 구간에서는 로고와 nav
+//   사이에 5.5rem 여백이 추가로 생기는 보수적 동작이고, 어느 구간에서도 겹치지 않는다.
+//   (nav 총폭 43.25rem + 가드 최대 16.2rem = 59.45rem < 72.75rem이라 우측 침범도 없다.)
 // MEGA_GUARD: 좌측선 정렬 기준에서는 컬럼 0의 시작이 nav 셀 0의 시작과 같아야 하므로
 //   NAV_GUARD와 완전히 동일한 값을 그대로 재사용한다(별도 오프셋 보정 없음 — 위 피치
 //   설명 참고). 두 이름으로 나눠 export하는 이유는 순수 값이 같더라도 nav/메가 각각의
@@ -41,7 +40,7 @@ import {
   PREMIUM_PROGRAM_PATH_PREFIX,
 } from "@/components/premium/premiumRoutesPaths";
 
-export const NAV_GUARD = "max(0px, calc(6.04rem - (100vw - 72.75rem) / 2))";
+export const NAV_GUARD = "max(0px, calc(19.375rem - (100vw - 72.75rem) / 2))";
 export const MEGA_GUARD = NAV_GUARD;
 export const NAV_CELL_W = "6.25rem";
 export const NAV_CELL_GAP = "3rem";

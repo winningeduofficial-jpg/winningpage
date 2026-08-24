@@ -34,7 +34,7 @@ export default function SiteFooter() {
             className="inline-flex shrink-0 items-center"
           >
             <img
-              src="/images/winning-logo.png"
+              src="/images/winning-logo-stacked.svg"
               alt="위닝에듀"
               className="h-25 w-auto object-contain"
             />
