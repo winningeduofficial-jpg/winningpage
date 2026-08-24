@@ -110,7 +110,6 @@ const SERVICE_CARDS = [
     title: "특허출원 기반 면접 프레임워크",
     description:
       "암기가 아닌 답변 설계 훈련으로 어떤 질문에도 자기 언어로 답합니다.",
-    highlighted: true,
   },
   {
     number: "03",
@@ -132,7 +131,6 @@ const SIMULTANEOUS_CARDS = [
     title: "학교별 차별화 전략",
     description:
       "지원 대학 각각의 교육 목표·강점에 맞춰 지원동기 문단을 다르게 설계",
-    highlighted: true,
   },
   {
     number: "03",

@@ -79,7 +79,6 @@ const DIFFERENCE_CARDS = [
     number: "02",
     title: "합격 데이터 기반",
     description: "유사한 합격 사례를 분석해 세운 검증된 전략",
-    highlighted: true,
   },
   {
     number: "03",
