@@ -22,13 +22,14 @@
 //    consume_diagnosis_attempt RPC 하나뿐이다(check-service-access.ts와 동일 원칙).
 //    프런트(diagnosisAccess.ts)는 네트워크/5xx 실패를 fail-open으로 처리한다 —
 //    이 라우트는 그 계약을 흔들지 않고 그냥 실패를 그대로 던진다.
+
+import { defineHandler, requireUserId } from "../_lib/handler.js";
 import {
   findProgramAccessRow,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { defineHandler } from "../_lib/handler.js";
 
 const DIAGNOSE_CONFIG = SERVICE_CONFIGS.diagnose!;
 
@@ -39,7 +40,7 @@ export default defineHandler({
   unhandledMessage: "학습진단 이용 가능 여부 확인 중 오류가 발생했습니다.",
   logLabel: "diagnosis/access",
   handler: async (req, res, ctx) => {
-    const userId = ctx.userId!;
+    const userId = requireUserId(ctx);
 
     // 무료 1회 판정 — diagnosis_attempts에 kind='free' 행이 있으면 이미 썼다는 뜻이다
     // (부분 유니크 인덱스가 프로필당 1행을 보장한다). service role로 직접 조회한다 —

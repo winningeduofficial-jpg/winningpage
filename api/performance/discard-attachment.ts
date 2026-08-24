@@ -37,12 +37,12 @@
 //    정리한다(remove는 이미 없는 객체에 대해 에러가 아니다).
 
 import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { defineHandler } from "../_lib/handler.js";
-import { sendError } from "../_lib/httpResponse.js";
 import { BUCKET } from "./upload-url.js";
 
 const SERVICE_KEY = "suhaeng";
@@ -71,7 +71,7 @@ export default defineHandler({
   logLabel: "performance/discard-attachment",
   headers: { "Cache-Control": "no-store" },
   handler: async (req, res, ctx) => {
-    const userId = ctx.userId!;
+    const userId = requireUserId(ctx);
 
     // 이용권 재판정 — §8.6 공통 규약(다른 performance 라우트와 같은 관례).
     const { allowed: hasAccess } = await hasPaidServiceAccess(
@@ -135,12 +135,13 @@ export default defineHandler({
 
     // 첨부 조회는 **세션에 묶어서** 한다(analyze-guide.js와 같은 IDOR 차단 방식).
     // 없는 id와 남의 첨부를 같은 403으로 합친다(존재 오라클 방지).
-    const { data: attachmentRow, error: attachmentError } = await ctx.supabaseAdmin
-      .from("performance_attachments")
-      .select("id,storage_path,ocr_status,deleted_at")
-      .eq("id", attachmentId)
-      .eq("session_id", sessionRow.id)
-      .maybeSingle();
+    const { data: attachmentRow, error: attachmentError } =
+      await ctx.supabaseAdmin
+        .from("performance_attachments")
+        .select("id,storage_path,ocr_status,deleted_at")
+        .eq("id", attachmentId)
+        .eq("session_id", sessionRow.id)
+        .maybeSingle();
 
     if (attachmentError)
       throw new Error(`첨부 조회 실패: ${attachmentError.message}`);

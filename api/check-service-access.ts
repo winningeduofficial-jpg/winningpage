@@ -41,6 +41,9 @@
 // `allowed` 하나만 읽는다. 위 4필드는 **추가**일 뿐이며 allowed의 의미·타입은
 // 바뀌지 않았다. 회차 개념이 없는 서비스(goal)는 4필드가 전부 null로 나간다.
 
+import { defineHandler } from "./_lib/handler.js";
+import { resolveUser } from "./_lib/httpAuth.js";
+import { sendError } from "./_lib/httpResponse.js";
 import {
   clean,
   findProgramAccessRow,
@@ -48,12 +51,14 @@ import {
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "./_lib/serviceAccess.js";
-import { defineHandler } from "./_lib/handler.js";
-import { sendError } from "./_lib/httpResponse.js";
 
+// auth:"none"으로 두고 인증을 handler 내부에서 수행한다(change-phone.ts·
+// create-service-ticket.ts와 같은 패턴) — dev 원본은 400(알 수 없는 service_key)
+// 판정이 401(토큰)보다 먼저다. defineHandler의 auth:"user"는 handler 진입 전에
+// 무조건 401을 걸어 이 순서를 재현할 수 없다.
 export default defineHandler({
   methods: ["POST"],
-  auth: "user",
+  auth: "none",
   errorShape: "detail",
   unhandledMessage: "이용권 확인 중 오류가 발생했습니다.",
   logLabel: "check-service-access",
@@ -66,7 +71,12 @@ export default defineHandler({
       return;
     }
 
-    const userId = ctx.userId!;
+    const authed = await resolveUser(req);
+    if (!authed) {
+      sendError(res, "detail", 401, "로그인이 필요합니다.");
+      return;
+    }
+    const userId = authed.userId;
     // hasPaidServiceAccess는 이제 { allowed, reason } 을 돌려준다(기간만료
     // 사유를 create-service-ticket.js가 구분해 응답하기 위함) — 여기서는
     // 조회 응답 규격이 boolean 이므로 allowed만 뽑아 쓴다.

@@ -24,6 +24,7 @@
 //   같은 구멍이며, 가입 RPC에서 identity_verifications를 consume 하도록
 //   함께 막아야 한다.
 
+import { defineHandler } from "./_lib/handler.js";
 import {
   generateRequestNo,
   issueAuthUrl,
@@ -31,9 +32,8 @@ import {
   SVC_TYPE_MOBILE,
 } from "./_lib/niceIdentity.js";
 import { getClientIp } from "./_lib/phoneCode.js";
-import { getEnv } from "./_lib/supabaseAdmin.js";
 import { getBearerToken } from "./_lib/serviceAccess.js";
-import { defineHandler } from "./_lib/handler.js";
+import { getEnv } from "./_lib/supabaseAdmin.js";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
 export const config = { runtime: "nodejs" };
@@ -73,99 +73,100 @@ export default defineHandler({
   methods: ["POST"],
   auth: "none",
   errorShape: "okDetail",
-  unhandledMessage: "본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.",
+  unhandledMessage:
+    "본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.",
   logLabel: "nice-identity-start",
   handler: async (req, res, ctx) => {
-  const purpose: string = ALLOWED_PURPOSES.includes(req.body?.purpose)
-    ? req.body.purpose
-    : "signup";
-  const ip = getClientIp(req);
+    const purpose: string = ALLOWED_PURPOSES.includes(req.body?.purpose)
+      ? req.body.purpose
+      : "signup";
+    const ip = getClientIp(req);
 
-  try {
-    const supabase = ctx.supabaseAdmin;
+    try {
+      const supabase = ctx.supabaseAdmin;
 
-    // 로그인 상태면 user_id를 붙인다. 실패해도 진행한다 — 가입 전 호출이 정상이다.
-    let userId: string | null = null;
-    const token = getBearerToken(req);
+      // 로그인 상태면 user_id를 붙인다. 실패해도 진행한다 — 가입 전 호출이 정상이다.
+      let userId: string | null = null;
+      const token = getBearerToken(req);
 
-    if (token) {
-      const { data } = await supabase.auth.getUser(token);
-      userId = data?.user?.id || null;
-    }
+      if (token) {
+        const { data } = await supabase.auth.getUser(token);
+        userId = data?.user?.id || null;
+      }
 
-    const { count, error: countError } = await supabase
-      .from("identity_verifications")
-      .select("id", { count: "exact", head: true })
-      .eq("request_ip", ip)
-      .gte("requested_at", new Date(Date.now() - 3600 * 1000).toISOString());
+      const { count, error: countError } = await supabase
+        .from("identity_verifications")
+        .select("id", { count: "exact", head: true })
+        .eq("request_ip", ip)
+        .gte("requested_at", new Date(Date.now() - 3600 * 1000).toISOString());
 
-    if (countError) throw countError;
+      if (countError) throw countError;
 
-    if ((count || 0) >= MAX_STARTS_PER_HOUR_PER_IP) {
-      return void res.status(429).json({
-        ok: false,
-        reason: "rate_limited",
-        detail: "본인확인 요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+      if ((count || 0) >= MAX_STARTS_PER_HOUR_PER_IP) {
+        return void res.status(429).json({
+          ok: false,
+          reason: "rate_limited",
+          detail: "본인확인 요청이 많습니다. 잠시 후 다시 시도해 주세요.",
+        });
+      }
+
+      const requestNo = generateRequestNo();
+
+      const auth = await issueAuthUrl({
+        requestNo,
+        returnUrl: buildReturnUrl(requestNo),
+        svcTypes: [SVC_TYPE_MOBILE],
       });
-    }
 
-    const requestNo = generateRequestNo();
+      // 표준창을 열기 전에 저장한다. 순서를 바꾸면 사용자가 인증을 마쳤는데
+      // 우리 쪽에 행이 없어 결과를 버리는 경우가 생긴다.
+      const { error: insertError } = await supabase
+        .from("identity_verifications")
+        .insert({
+          request_id: auth.requestNo,
+          user_id: userId,
+          purpose,
+          status: "pending",
+          transaction_id: auth.transactionId,
+          auth_ticket: auth.ticket,
+          auth_iterators: auth.iterators,
+          request_ip: ip,
+          expires_at: new Date(
+            Date.now() + REQUEST_TTL_SECONDS * 1000,
+          ).toISOString(),
+        });
 
-    const auth = await issueAuthUrl({
-      requestNo,
-      returnUrl: buildReturnUrl(requestNo),
-      svcTypes: [SVC_TYPE_MOBILE],
-    });
+      if (insertError) throw insertError;
 
-    // 표준창을 열기 전에 저장한다. 순서를 바꾸면 사용자가 인증을 마쳤는데
-    // 우리 쪽에 행이 없어 결과를 버리는 경우가 생긴다.
-    const { error: insertError } = await supabase
-      .from("identity_verifications")
-      .insert({
+      return void res.status(200).json({
+        ok: true,
+        // 프론트는 이 URL을 window.open으로 연다. 파라미터를 따로 싣지 않는다.
+        auth_url: auth.authUrl,
         request_id: auth.requestNo,
-        user_id: userId,
-        purpose,
-        status: "pending",
-        transaction_id: auth.transactionId,
-        auth_ticket: auth.ticket,
-        auth_iterators: auth.iterators,
-        request_ip: ip,
-        expires_at: new Date(
-          Date.now() + REQUEST_TTL_SECONDS * 1000,
-        ).toISOString(),
+        expires_in: REQUEST_TTL_SECONDS,
       });
+    } catch (error) {
+      console.error("[nice-identity-start] 오류:", error);
 
-    if (insertError) throw insertError;
+      // 설정 오류 / NICE가 거절 / NICE에 닿지 못함을 구분한다. 앞의 둘은
+      // 재시도해도 그대로라 "잠시 후 다시"라고 안내하면 안 된다.
+      const isConfigError = /환경변수|너무 깁니다/.test(
+        String(error?.message || ""),
+      );
+      const reason = isConfigError
+        ? "server_misconfigured"
+        : error?.niceResultCode
+          ? "vendor_rejected"
+          : "vendor_unavailable";
 
-    return void res.status(200).json({
-      ok: true,
-      // 프론트는 이 URL을 window.open으로 연다. 파라미터를 따로 싣지 않는다.
-      auth_url: auth.authUrl,
-      request_id: auth.requestNo,
-      expires_in: REQUEST_TTL_SECONDS,
-    });
-  } catch (error) {
-    console.error("[nice-identity-start] 오류:", error);
-
-    // 설정 오류 / NICE가 거절 / NICE에 닿지 못함을 구분한다. 앞의 둘은
-    // 재시도해도 그대로라 "잠시 후 다시"라고 안내하면 안 된다.
-    const isConfigError = /환경변수|너무 깁니다/.test(
-      String(error?.message || ""),
-    );
-    const reason = isConfigError
-      ? "server_misconfigured"
-      : error?.niceResultCode
-        ? "vendor_rejected"
-        : "vendor_unavailable";
-
-    return void res.status(500).json({
-      ok: false,
-      reason,
-      detail:
-        reason === "vendor_unavailable"
-          ? "본인확인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요."
-          : "본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.",
-    });
-  }
+      return void res.status(500).json({
+        ok: false,
+        reason,
+        detail:
+          reason === "vendor_unavailable"
+            ? "본인확인을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요."
+            : "본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.",
+      });
+    }
   },
 });

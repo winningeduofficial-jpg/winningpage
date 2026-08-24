@@ -121,6 +121,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VercelResponse } from "@vercel/node";
+import { defineHandler } from "./_lib/handler.js";
 import {
   getClientIp,
   isValidMobile,
@@ -128,7 +129,6 @@ import {
   normalizePhone,
 } from "./_lib/phoneCode.js";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
-import { defineHandler } from "./_lib/handler.js";
 
 // service_role 클라이언트·타이밍에 민감한 인증 소비 로직 등 Node 전용 API 를 쓰는
 // 이 저장소 api/* 형제 파일들과 런타임을 맞춘다.
@@ -950,144 +950,150 @@ export default defineHandler({
   methods: ["POST"],
   auth: "none",
   errorShape: "okDetail",
-  // mentor-apply-upload-url.ts와 같은 이유로 405 응답의 reason 필드는
-  // 공유 assertMethod 경유 시 소실된다 — api/docs/batch-3-issues.md 참고.
-  unhandledMessage: "지원서 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+  // dev 원본 405는 { ok:false, reason:"method_not_allowed", detail } 였다 —
+  // methodNotAllowedExtra로 reason을 되살린다(batch-8, W7 해소).
+  methodNotAllowedMessage: "Method not allowed",
+  methodNotAllowedExtra: { reason: "method_not_allowed" },
+  unhandledMessage:
+    "지원서 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
   logLabel: "mentor-apply",
   handler: async (req, res, ctx) => {
-  const contentType = String(req.headers["content-type"] || "");
+    const contentType = String(req.headers["content-type"] || "");
 
-  if (!contentType.includes("application/json")) {
-    return fail(
-      res,
-      415,
-      "invalid_content_type",
-      "application/json 으로 보내 주세요.",
-    );
-  }
-
-  // 본문을 실제로 펼치기 전에 헤더로 먼저 거른다. 첨부가 더 이상 이 요청에
-  // 실리지 않으므로(파일 상단 주석) 여기 걸리는 요청은 거의 항상 오작동·악용이다.
-  const contentLength = Number(req.headers["content-length"] || 0);
-
-  if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
-    return fail(res, 413, "payload_too_large", "요청 크기가 너무 큽니다.");
-  }
-
-  const body = req.body;
-
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return fail(res, 400, "invalid_payload", "요청 본문을 읽을 수 없습니다.");
-  }
-
-  const phone = normalizePhone(body.phone);
-
-  if (!isValidMobile(phone)) {
-    return fail(
-      res,
-      400,
-      "invalid_phone",
-      "휴대폰 번호 형식이 올바르지 않습니다.",
-      {
-        field: "phone",
-      },
-    );
-  }
-
-  const ip = getClientIp(req);
-  // verifyUploadedProof 가 위반 객체를 스스로 지우므로, 여기서 추적하는 건 "검증까지
-  // 통과했는데 그 뒤(insert) 단계가 실패한" 경우뿐이다 — 이때만 고아가 남는다.
-  let objectPath: string | undefined;
-  let objectVerified = false;
-
-  // 이 아래로는 값싼 검사부터 비싼 검사 순으로 배치한다:
-  //   rate limit(DB 카운트 조회) → 필드 화이트리스트 검증(메모리) → 휴대폰 인증
-  //   확인(DB, 성공/실패 불문 소비) → Storage 객체 재검증(외부 API 호출 2회 —
-  //   info() 조회 + 위반 시 remove()) → insert.
-  // 인증 확인을 객체 검증보다 앞에 두는 이유는 이전 버전(base64 디코딩)과 같다 —
-  // 인증 없는 공개 엔드포인트에서 비싼 외부 호출을 반복시키는 값싼 공격 경로를
-  // 막는다. consumePhoneVerification 을 통과해야만(=phoneCode.js 의 발송 rate
-  // limit 을 거쳐 실제로 인증한 번호여야만) Storage 조회에 도달한다.
-  try {
-    const supabase = ctx.supabaseAdmin;
-
-    const limits = await checkSubmitLimits(supabase, { phone, ip });
-
-    if (!limits.allowed) {
-      return fail(res, 429, limits.reason, "잠시 후 다시 시도해 주세요.", {
-        retry_after: limits.retryAfter,
-      });
+    if (!contentType.includes("application/json")) {
+      return fail(
+        res,
+        415,
+        "invalid_content_type",
+        "application/json 으로 보내 주세요.",
+      );
     }
 
-    const { error: fieldError, values } = validateFields(body);
+    // 본문을 실제로 펼치기 전에 헤더로 먼저 거른다. 첨부가 더 이상 이 요청에
+    // 실리지 않으므로(파일 상단 주석) 여기 걸리는 요청은 거의 항상 오작동·악용이다.
+    const contentLength = Number(req.headers["content-length"] || 0);
 
-    if (fieldError) {
-      const { status, ...rest } = fieldError;
-      return void res.status(status).json({ ok: false, ...rest });
+    if (Number.isFinite(contentLength) && contentLength > MAX_BODY_BYTES) {
+      return fail(res, 413, "payload_too_large", "요청 크기가 너무 큽니다.");
     }
 
-    const verification = await consumePhoneVerification(supabase, phone);
+    const body = req.body;
 
-    if (verification.error) {
-      const { status, ...rest } = verification.error;
-      return void res.status(status).json({ ok: false, ...rest });
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return fail(res, 400, "invalid_payload", "요청 본문을 읽을 수 없습니다.");
     }
 
-    // 인증된 번호만 여기 도달한다. 이제부터 비싼 작업(Storage 조회)을 한다.
-    objectPath = (values as Record<string, unknown>).proof_file_path as string;
+    const phone = normalizePhone(body.phone);
 
-    const proof = await verifyUploadedProof(supabase, objectPath);
-
-    if (proof.error) {
-      const { status, ...rest } = proof.error;
-      return void res.status(status).json({ ok: false, ...rest });
+    if (!isValidMobile(phone)) {
+      return fail(
+        res,
+        400,
+        "invalid_phone",
+        "휴대폰 번호 형식이 올바르지 않습니다.",
+        {
+          field: "phone",
+        },
+      );
     }
 
-    objectVerified = true;
+    const ip = getClientIp(req);
+    // verifyUploadedProof 가 위반 객체를 스스로 지우므로, 여기서 추적하는 건 "검증까지
+    // 통과했는데 그 뒤(insert) 단계가 실패한" 경우뿐이다 — 이때만 고아가 남는다.
+    let objectPath: string | undefined;
+    let objectVerified = false;
 
-    const { data: inserted, error: insertError } = await supabase
-      .from("mentor_applications")
-      .insert({
-        ...values,
-        phone,
-        phone_verified_at: verification.verifiedAt,
-        request_ip: ip,
-      })
-      .select("id")
-      .single();
+    // 이 아래로는 값싼 검사부터 비싼 검사 순으로 배치한다:
+    //   rate limit(DB 카운트 조회) → 필드 화이트리스트 검증(메모리) → 휴대폰 인증
+    //   확인(DB, 성공/실패 불문 소비) → Storage 객체 재검증(외부 API 호출 2회 —
+    //   info() 조회 + 위반 시 remove()) → insert.
+    // 인증 확인을 객체 검증보다 앞에 두는 이유는 이전 버전(base64 디코딩)과 같다 —
+    // 인증 없는 공개 엔드포인트에서 비싼 외부 호출을 반복시키는 값싼 공격 경로를
+    // 막는다. consumePhoneVerification 을 통과해야만(=phoneCode.js 의 발송 rate
+    // limit 을 거쳐 실제로 인증한 번호여야만) Storage 조회에 도달한다.
+    try {
+      const supabase = ctx.supabaseAdmin;
 
-    if (insertError) throw insertError;
+      const limits = await checkSubmitLimits(supabase, { phone, ip });
 
-    return void res.status(200).json({ ok: true, application_id: inserted.id });
-  } catch (error) {
-    // insert 가 실패했는데 검증까지 끝낸 파일만 남으면 아무도 참조하지 않는
-    // 고아가 된다. 정리 자체가 또 실패할 수 있으므로 실패해도 원래 에러 응답은
-    // 그대로 낸다.
-    if (objectVerified) {
-      const supabase = createSupabaseAdmin();
-      const { error: removeError } = await supabase.storage
-        .from(BUCKET)
-        .remove([objectPath!]);
-
-      if (removeError) {
-        console.error(
-          "[mentor-apply] 고아 파일 정리 실패:",
-          objectPath,
-          removeError,
-        );
+      if (!limits.allowed) {
+        return fail(res, 429, limits.reason, "잠시 후 다시 시도해 주세요.", {
+          retry_after: limits.retryAfter,
+        });
       }
+
+      const { error: fieldError, values } = validateFields(body);
+
+      if (fieldError) {
+        const { status, ...rest } = fieldError;
+        return void res.status(status).json({ ok: false, ...rest });
+      }
+
+      const verification = await consumePhoneVerification(supabase, phone);
+
+      if (verification.error) {
+        const { status, ...rest } = verification.error;
+        return void res.status(status).json({ ok: false, ...rest });
+      }
+
+      // 인증된 번호만 여기 도달한다. 이제부터 비싼 작업(Storage 조회)을 한다.
+      objectPath = (values as Record<string, unknown>)
+        .proof_file_path as string;
+
+      const proof = await verifyUploadedProof(supabase, objectPath);
+
+      if (proof.error) {
+        const { status, ...rest } = proof.error;
+        return void res.status(status).json({ ok: false, ...rest });
+      }
+
+      objectVerified = true;
+
+      const { data: inserted, error: insertError } = await supabase
+        .from("mentor_applications")
+        .insert({
+          ...values,
+          phone,
+          phone_verified_at: verification.verifiedAt,
+          request_ip: ip,
+        })
+        .select("id")
+        .single();
+
+      if (insertError) throw insertError;
+
+      return void res
+        .status(200)
+        .json({ ok: true, application_id: inserted.id });
+    } catch (error) {
+      // insert 가 실패했는데 검증까지 끝낸 파일만 남으면 아무도 참조하지 않는
+      // 고아가 된다. 정리 자체가 또 실패할 수 있으므로 실패해도 원래 에러 응답은
+      // 그대로 낸다.
+      if (objectVerified) {
+        const supabase = createSupabaseAdmin();
+        const { error: removeError } = await supabase.storage
+          .from(BUCKET)
+          .remove([objectPath!]);
+
+        if (removeError) {
+          console.error(
+            "[mentor-apply] 고아 파일 정리 실패:",
+            objectPath,
+            removeError,
+          );
+        }
+      }
+
+      // 로그에도 번호를 그대로 남기지 않는다(phoneCode.js maskPhone 관례).
+      // 경로·파일명 같은 내부 식별자는 응답에 넣지 않는다.
+      console.error("[mentor-apply] 제출 실패:", maskPhone(phone), error);
+
+      return fail(
+        res,
+        500,
+        "unknown",
+        "지원서 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      );
     }
-
-    // 로그에도 번호를 그대로 남기지 않는다(phoneCode.js maskPhone 관례).
-    // 경로·파일명 같은 내부 식별자는 응답에 넣지 않는다.
-    console.error("[mentor-apply] 제출 실패:", maskPhone(phone), error);
-
-    return fail(
-      res,
-      500,
-      "unknown",
-      "지원서 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
-    );
-  }
   },
 });

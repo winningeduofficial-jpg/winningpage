@@ -7,7 +7,7 @@
 // 가장 흔한 문구("Method not allowed")로 fall back한다.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { sendError, type ErrorShape } from "./httpResponse.js";
+import { type ErrorShape, sendError } from "./httpResponse.js";
 
 export function assertMethod(
   req: VercelRequest,
@@ -16,8 +16,9 @@ export function assertMethod(
   shape: ErrorShape,
   message = "Method not allowed",
   code?: string,
+  extra?: Record<string, unknown>,
 ): boolean {
   if (req.method && methods.includes(req.method)) return true;
-  sendError(res, shape, 405, message, code);
+  sendError(res, shape, 405, message, code, extra);
   return false;
 }

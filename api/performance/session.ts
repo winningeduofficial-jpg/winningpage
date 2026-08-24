@@ -43,15 +43,15 @@
 //    quotaRemaining은 안내용 스냅샷으로만 응답에 싣는다.
 
 import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   findProgramAccessRow,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import { defineHandler } from "../_lib/handler.js";
-import { sendError } from "../_lib/httpResponse.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -293,7 +293,7 @@ export default defineHandler({
   headers: { "Cache-Control": "no-store" },
   handler: async (req, res, ctx) => {
     const supabaseAdmin = ctx.supabaseAdmin;
-    const userId = ctx.userId!;
+    const userId = requireUserId(ctx);
     // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
     const serviceConfig = SERVICE_CONFIGS[SERVICE_KEY]!;
 

@@ -47,13 +47,13 @@
 //    매칭한다(추가 조인 없이 봉투에 이미 들어있는 값, evaluate.js `buildReportEnvelope`).
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import { defineHandler } from "../_lib/handler.js";
-import { sendError } from "../_lib/httpResponse.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -427,7 +427,7 @@ export default defineHandler({
   headers: { "Cache-Control": "no-store" },
   handler: async (req, res, ctx) => {
     const supabaseAdmin = ctx.supabaseAdmin;
-    const userId = ctx.userId!;
+    const userId = requireUserId(ctx);
 
     // ── 이용권 재판정. 클라이언트 가드 통과 여부는 신뢰하지 않는다(§8.6 공통 규약).
     const { allowed: hasAccess } = await hasPaidServiceAccess(

@@ -11,7 +11,6 @@
 // 실패는 건별로 삼킨다 — 한 명이 실패했다고 나머지가 멈추면 안 된다.
 // 집계 결과를 응답으로 돌려주고, 상세는 alimtalk_send_logs 에 남는다.
 
-import { defineHandler } from "../_lib/handler.js";
 import { sendAndLog } from "../_lib/alimtalkSend.js";
 import {
   achievementRate,
@@ -20,6 +19,7 @@ import {
   resolveParentRecipients,
   toYmd,
 } from "../_lib/goalReportNotify.js";
+import { defineHandler } from "../_lib/handler.js";
 // 라벨 정본은 저장 라우트가 들고 있다 — 여기서 다시 적으면 두 벌이 되고,
 // 어긋나면 학부모 문자에 코드값('normal', 'concept')이 그대로 찍힌다.
 // 클라이언트 studyRecordOptions.ts 와의 패리티는 그쪽 테스트가 단언한다.
@@ -42,6 +42,10 @@ export default defineHandler({
   methods: ["GET"],
   auth: "cron",
   errorShape: "detail",
+  // dev 원본은 { detail: "Unauthorized" }였다 — 공통 CRON_REQUIRED_MESSAGE
+  // ("인증이 필요합니다.")는 performance/cleanup-attachments 등 다른 cron 라우트
+  // 기준이라 여기서만 override한다.
+  authFailureMessage: "Unauthorized",
   unhandledMessage: "일간 학습 보고서 발송 중 오류가 발생했습니다.",
   logLabel: "cron/daily-report",
   handler: async (req, res, ctx) => {
@@ -70,7 +74,9 @@ export default defineHandler({
       return;
     }
 
-    const studentIds = Array.from(new Set(rows.map((r) => String(r.profile_id))));
+    const studentIds = Array.from(
+      new Set(rows.map((r) => String(r.profile_id))),
+    );
 
     // 계획 달성 — 같은 날짜의 goal_plan_tasks 를 한 번에 받아 학생별로 센다.
     // 학생 수만큼 쿼리를 날리면 크론이 느려지고 타임아웃에 걸린다.

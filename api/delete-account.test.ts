@@ -10,9 +10,9 @@ import { buildAnonymizedEmail } from "./delete-account.js";
 
 describe("buildAnonymizedEmail", () => {
   test("userId를 로컬 파트에 넣어 계정끼리 충돌하지 않는다", () => {
-    expect(
-      buildAnonymizedEmail("98af95da-47bf-4cee-8a2e-7d70d07fb1c9"),
-    ).toBe("deleted-98af95da-47bf-4cee-8a2e-7d70d07fb1c9@removed.invalid");
+    expect(buildAnonymizedEmail("98af95da-47bf-4cee-8a2e-7d70d07fb1c9")).toBe(
+      "deleted-98af95da-47bf-4cee-8a2e-7d70d07fb1c9@removed.invalid",
+    );
   });
 
   test("도메인은 예약 TLD(.invalid)라 실제 수신자와 충돌하지 않는다", () => {

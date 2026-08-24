@@ -30,9 +30,7 @@ export function sendError(
       res.status(status).json({ detail: message, ...(extra || {}) });
       return;
     case "okDetail":
-      res
-        .status(status)
-        .json({ ok: false, detail: message, ...(extra || {}) });
+      res.status(status).json({ ok: false, detail: message, ...(extra || {}) });
       return;
     case "error":
       res.status(status).json({ error: message, ...(extra || {}) });

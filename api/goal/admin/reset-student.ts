@@ -25,10 +25,9 @@
 //   405 { detail }                POST 아님.
 //   500 { detail }                RPC 실패, 서버 설정 누락 등.
 //
-// ⚠ createSupabaseAdmin() 설정 오류(500) 문구는 defineHandler로 옮기며
-//   "서버 설정이 올바르지 않습니다."에서 unhandledMessage("처리 중 오류가
-//   발생했습니다.")로 바뀐다 — api/docs/batch-2-issues.md 이슈 1과 동일한,
-//   정상 배포에서는 도달 불가능한 방어 코드의 문구 뭉개짐이다(api/docs/batch-4-issues.md 기록).
+// createSupabaseAdmin() 설정 오류(500) 문구는 defineHandler(api/_lib/handler.ts)
+// 최상위 catch가 식별해 "서버 설정이 올바르지 않습니다."로 복원한다 — 라우트별
+// unhandledMessage로 뭉개지던 문제는 batch-8에서 해소됐다.
 //
 // goal-admin 앱의 리셋 버튼 UI는 이번 범위 밖이다(PR #63, 이 브랜치엔 미포함) —
 // 이 엔드포인트는 백엔드만 완성한다.

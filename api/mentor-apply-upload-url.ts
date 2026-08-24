@@ -23,13 +23,13 @@
 
 import crypto from "node:crypto";
 import type { VercelResponse } from "@vercel/node";
+import { defineHandler } from "./_lib/handler.js";
 import {
   getClientIp,
   isValidMobile,
   maskPhone,
   normalizePhone,
 } from "./_lib/phoneCode.js";
-import { defineHandler } from "./_lib/handler.js";
 import {
   ALLOWED_FILE_TYPES,
   BUCKET,
@@ -135,193 +135,194 @@ export default defineHandler({
   methods: ["POST"],
   auth: "none",
   errorShape: "okDetail",
-  // 원본은 405도 { ok:false, reason:'method_not_allowed', detail } 형태였다.
-  // 공유 assertMethod(_lib/httpMethod.ts)는 okDetail 형태에 reason 필드를
-  // 실을 방법이 없어(sendError 호출부에 extra 훅이 없음), 405 응답만
-  // reason 키가 빠진다 — api/docs/batch-3-issues.md에 기록.
-  unhandledMessage: "업로드 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+  // dev 원본 405는 { ok:false, reason:"method_not_allowed", detail } 였다 —
+  // methodNotAllowedExtra로 reason을 되살린다(batch-8, W7 해소).
+  methodNotAllowedMessage: "Method not allowed",
+  methodNotAllowedExtra: { reason: "method_not_allowed" },
+  unhandledMessage:
+    "업로드 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
   logLabel: "mentor-apply-upload-url",
   handler: async (req, res, ctx) => {
-  const contentType = String(req.headers["content-type"] || "");
+    const contentType = String(req.headers["content-type"] || "");
 
-  if (!contentType.includes("application/json")) {
-    return fail(
-      res,
-      415,
-      "invalid_content_type",
-      "application/json 으로 보내 주세요.",
-    );
-  }
-
-  const body = req.body;
-
-  if (!body || typeof body !== "object" || Array.isArray(body)) {
-    return fail(res, 400, "invalid_payload", "요청 본문을 읽을 수 없습니다.");
-  }
-
-  const phone = normalizePhone(body.phone);
-
-  if (!isValidMobile(phone)) {
-    return fail(
-      res,
-      400,
-      "invalid_phone",
-      "휴대폰 번호 형식이 올바르지 않습니다.",
-      {
-        field: "phone",
-      },
-    );
-  }
-
-  const ip = getClientIp(req);
-
-  // 1) rate limit — 가장 값싼 검사부터. DB 를 열기 전에 반복 요청을 끊는다.
-  const localLimit = checkLocalRateLimit({ phone, ip });
-
-  if (!localLimit.allowed) {
-    return fail(res, 429, localLimit.reason!, "잠시 후 다시 시도해 주세요.", {
-      retry_after: localLimit.retryAfter,
-    });
-  }
-
-  recordAttempt(`phone:${phone}`);
-  if (ip) recordAttempt(`ip:${ip}`);
-
-  const fileName = clean(body.fileName);
-  const declaredType = clean(body.contentType).toLowerCase();
-  const size = Number(body.size);
-
-  try {
-    const supabase = ctx.supabaseAdmin;
-
-    // 2) 휴대폰 인증 확인 — 이게 이 엔드포인트의 유일한 실질 남용 방어선이다.
-    // consumed_at 을 찍지 않는다(findValidPhoneVerification 함수 주석 참고) —
-    // 실제 제출(api/mentor-apply.js)에서만 소비한다.
-    const verification = await findValidPhoneVerification(supabase, phone);
-
-    if (verification.error) {
-      const { status, ...rest } = verification.error;
-      return void res.status(status).json({ ok: false, ...rest });
-    }
-
-    // 3) 확장자·MIME 화이트리스트 — api/mentor-apply.js 와 같은 상수를 그대로 쓴다.
-    if (!fileName) {
-      return fail(
-        res,
-        400,
-        "file_required",
-        "재학 증빙 서류를 첨부해 주세요.",
-        {
-          field: "proof_file",
-        },
-      );
-    }
-
-    const extension = fileName.toLowerCase().split(".").pop();
-
-    if (!fileName.includes(".") || !ALLOWED_FILE_TYPES[extension!]) {
+    if (!contentType.includes("application/json")) {
       return fail(
         res,
         415,
-        "file_type_not_allowed",
-        "PDF · PNG · JPG · HWP 파일만 첨부할 수 있습니다.",
-        {
-          field: "proof_file",
-        },
+        "invalid_content_type",
+        "application/json 으로 보내 주세요.",
       );
     }
 
-    const allowedMimes = ALLOWED_FILE_TYPES[extension!];
+    const body = req.body;
 
-    if (
-      !NEUTRAL_MIME_TYPES.includes(declaredType) &&
-      !allowedMimes.includes(declaredType)
-    ) {
-      return fail(
-        res,
-        415,
-        "file_type_not_allowed",
-        "파일 형식이 확장자와 일치하지 않습니다.",
-        {
-          field: "proof_file",
-        },
-      );
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return fail(res, 400, "invalid_payload", "요청 본문을 읽을 수 없습니다.");
     }
 
-    // 4) 선언된 size 검증 — **1차 필터일 뿐이다.** 클라이언트가 실제 파일보다
-    // 작게 선언하고 더 큰 파일을 PUT 할 수 있으므로, 실제 크기는
-    // api/mentor-apply.js 의 verifyUploadedProof 가 제출 시 service_role 로
-    // Storage 객체를 직접 읽어 재검증한다. 여기서는 명백히 잘못된 요청만 조기에
-    // 걸러 불필요한 signed URL 발급·업로드 시도를 막는다.
-    if (!Number.isFinite(size) || size <= 0) {
+    const phone = normalizePhone(body.phone);
+
+    if (!isValidMobile(phone)) {
       return fail(
         res,
         400,
-        "invalid_payload",
-        "파일 크기 정보를 확인할 수 없습니다.",
+        "invalid_phone",
+        "휴대폰 번호 형식이 올바르지 않습니다.",
         {
-          field: "proof_file",
+          field: "phone",
         },
       );
     }
 
-    if (size > MAX_FILE_BYTES) {
-      return fail(
-        res,
-        413,
-        "file_too_large",
-        `첨부파일은 ${MAX_FILE_MB_LABEL}MB 이하만 올릴 수 있습니다.`,
-        {
-          field: "proof_file",
-        },
-      );
+    const ip = getClientIp(req);
+
+    // 1) rate limit — 가장 값싼 검사부터. DB 를 열기 전에 반복 요청을 끊는다.
+    const localLimit = checkLocalRateLimit({ phone, ip });
+
+    if (!localLimit.allowed) {
+      return fail(res, 429, localLimit.reason!, "잠시 후 다시 시도해 주세요.", {
+        retry_after: localLimit.retryAfter,
+      });
     }
 
-    // 5) 경로는 서버가 생성한다 — 클라이언트가 준 파일명을 경로에 쓰면 `../` 나
-    // 제어문자로 다른 객체를 덮어쓰거나, 파일명 자체가 경로에 개인정보로 남는다.
-    // 날짜 폴더는 어드민이 스토리지에서 눈으로 찾을 때와, 후속 과제인 고아 파일
-    // 정리 배치가 보존기간을 판정할 때 쓰인다(api/mentor-apply.js 상단 "고아
-    // 파일" 절 참고). 형식은 api/mentor-apply.js 의 PROOF_PATH_PATTERN 과
-    // 정확히 맞아야 한다.
-    const dateFolder = new Date().toISOString().slice(0, 10);
-    const objectPath = `${dateFolder}/${crypto.randomUUID()}.${extension}`;
+    recordAttempt(`phone:${phone}`);
+    if (ip) recordAttempt(`ip:${ip}`);
 
-    const { data: signed, error: signError } = await supabase.storage
-      .from(BUCKET)
-      .createSignedUploadUrl(objectPath);
+    const fileName = clean(body.fileName);
+    const declaredType = clean(body.contentType).toLowerCase();
+    const size = Number(body.size);
 
-    if (signError || !signed) {
+    try {
+      const supabase = ctx.supabaseAdmin;
+
+      // 2) 휴대폰 인증 확인 — 이게 이 엔드포인트의 유일한 실질 남용 방어선이다.
+      // consumed_at 을 찍지 않는다(findValidPhoneVerification 함수 주석 참고) —
+      // 실제 제출(api/mentor-apply.js)에서만 소비한다.
+      const verification = await findValidPhoneVerification(supabase, phone);
+
+      if (verification.error) {
+        const { status, ...rest } = verification.error;
+        return void res.status(status).json({ ok: false, ...rest });
+      }
+
+      // 3) 확장자·MIME 화이트리스트 — api/mentor-apply.js 와 같은 상수를 그대로 쓴다.
+      if (!fileName) {
+        return fail(
+          res,
+          400,
+          "file_required",
+          "재학 증빙 서류를 첨부해 주세요.",
+          {
+            field: "proof_file",
+          },
+        );
+      }
+
+      const extension = fileName.toLowerCase().split(".").pop();
+
+      if (!fileName.includes(".") || !ALLOWED_FILE_TYPES[extension!]) {
+        return fail(
+          res,
+          415,
+          "file_type_not_allowed",
+          "PDF · PNG · JPG · HWP 파일만 첨부할 수 있습니다.",
+          {
+            field: "proof_file",
+          },
+        );
+      }
+
+      const allowedMimes = ALLOWED_FILE_TYPES[extension!];
+
+      if (
+        !NEUTRAL_MIME_TYPES.includes(declaredType) &&
+        !allowedMimes.includes(declaredType)
+      ) {
+        return fail(
+          res,
+          415,
+          "file_type_not_allowed",
+          "파일 형식이 확장자와 일치하지 않습니다.",
+          {
+            field: "proof_file",
+          },
+        );
+      }
+
+      // 4) 선언된 size 검증 — **1차 필터일 뿐이다.** 클라이언트가 실제 파일보다
+      // 작게 선언하고 더 큰 파일을 PUT 할 수 있으므로, 실제 크기는
+      // api/mentor-apply.js 의 verifyUploadedProof 가 제출 시 service_role 로
+      // Storage 객체를 직접 읽어 재검증한다. 여기서는 명백히 잘못된 요청만 조기에
+      // 걸러 불필요한 signed URL 발급·업로드 시도를 막는다.
+      if (!Number.isFinite(size) || size <= 0) {
+        return fail(
+          res,
+          400,
+          "invalid_payload",
+          "파일 크기 정보를 확인할 수 없습니다.",
+          {
+            field: "proof_file",
+          },
+        );
+      }
+
+      if (size > MAX_FILE_BYTES) {
+        return fail(
+          res,
+          413,
+          "file_too_large",
+          `첨부파일은 ${MAX_FILE_MB_LABEL}MB 이하만 올릴 수 있습니다.`,
+          {
+            field: "proof_file",
+          },
+        );
+      }
+
+      // 5) 경로는 서버가 생성한다 — 클라이언트가 준 파일명을 경로에 쓰면 `../` 나
+      // 제어문자로 다른 객체를 덮어쓰거나, 파일명 자체가 경로에 개인정보로 남는다.
+      // 날짜 폴더는 어드민이 스토리지에서 눈으로 찾을 때와, 후속 과제인 고아 파일
+      // 정리 배치가 보존기간을 판정할 때 쓰인다(api/mentor-apply.js 상단 "고아
+      // 파일" 절 참고). 형식은 api/mentor-apply.js 의 PROOF_PATH_PATTERN 과
+      // 정확히 맞아야 한다.
+      const dateFolder = new Date().toISOString().slice(0, 10);
+      const objectPath = `${dateFolder}/${crypto.randomUUID()}.${extension}`;
+
+      const { data: signed, error: signError } = await supabase.storage
+        .from(BUCKET)
+        .createSignedUploadUrl(objectPath);
+
+      if (signError || !signed) {
+        console.error(
+          "[mentor-apply-upload-url] signed URL 발급 실패:",
+          signError,
+        );
+        return fail(
+          res,
+          500,
+          "upload_url_failed",
+          "업로드 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+      }
+
+      return void res.status(200).json({
+        ok: true,
+        path: signed.path,
+        token: signed.token,
+        signedUrl: signed.signedUrl,
+      });
+    } catch (error) {
       console.error(
-        "[mentor-apply-upload-url] signed URL 발급 실패:",
-        signError,
+        "[mentor-apply-upload-url] 발급 실패:",
+        maskPhone(phone),
+        error,
       );
+
       return fail(
         res,
         500,
-        "upload_url_failed",
+        "unknown",
         "업로드 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
       );
     }
-
-    return void res.status(200).json({
-      ok: true,
-      path: signed.path,
-      token: signed.token,
-      signedUrl: signed.signedUrl,
-    });
-  } catch (error) {
-    console.error(
-      "[mentor-apply-upload-url] 발급 실패:",
-      maskPhone(phone),
-      error,
-    );
-
-    return fail(
-      res,
-      500,
-      "unknown",
-      "업로드 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
-    );
-  }
   },
 });

@@ -44,14 +44,14 @@
 //    (sql/54_performance_app.sql (4), 명세서 §9.3).
 
 import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   findProgramAccessRow,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { defineHandler } from "../_lib/handler.js";
-import { sendError } from "../_lib/httpResponse.js";
 
 // 이용권 조회 키. 신규 자산은 performance 네이밍이지만 이 값은 운영 DB의
 // `program_access.program_key`와 `SERVICE_CONFIGS`에 이미 박혀 있어 개명
@@ -230,7 +230,7 @@ export default defineHandler({
   headers: { "Cache-Control": "no-store" },
   handler: async (req, res, ctx) => {
     const supabaseAdmin = ctx.supabaseAdmin;
-    const userId = ctx.userId!;
+    const userId = requireUserId(ctx);
     // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
     const serviceConfig = SERVICE_CONFIGS[SERVICE_KEY]!;
 

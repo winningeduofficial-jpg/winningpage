@@ -17,8 +17,8 @@
 // 다르다(check-service-access.js는 target_url/SSO_SECRET을 아예 요구하지
 // 않는다).
 
-import type { SupabaseClient } from "@supabase/supabase-js";
 import type { IncomingHttpHeaders } from "node:http";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ServiceConfig = {
   service_key: string;

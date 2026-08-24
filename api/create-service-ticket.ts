@@ -1,7 +1,11 @@
 import crypto from "node:crypto";
 import { defineHandler } from "./_lib/handler.js";
 import { resolveUser } from "./_lib/httpAuth.js";
-import { clean, hasPaidServiceAccess, SERVICE_CONFIGS } from "./_lib/serviceAccess.js";
+import {
+  clean,
+  hasPaidServiceAccess,
+  SERVICE_CONFIGS,
+} from "./_lib/serviceAccess.js";
 
 const PAID_MESSAGE = "유료결제이후 이용해주세요!";
 // 기간 만료 전용 안내(api/_lib/serviceAccess.js의 checkProgramAccessTable 참고).
@@ -114,7 +118,11 @@ export default defineHandler({
     }
 
     const { userId, user } = authed;
-    const access = await hasPaidServiceAccess(ctx.supabaseAdmin, userId, config);
+    const access = await hasPaidServiceAccess(
+      ctx.supabaseAdmin,
+      userId,
+      config,
+    );
 
     if (!access.allowed) {
       const detail =

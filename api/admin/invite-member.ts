@@ -36,9 +36,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VercelRequest } from "@vercel/node";
 import { getBearerToken } from "../_lib/adminAuth.js";
-import { getEnv } from "../_lib/supabaseAdmin.js";
 import { defineHandler } from "../_lib/handler.js";
 import { sendError } from "../_lib/httpResponse.js";
+import { getEnv } from "../_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -110,9 +110,9 @@ export default defineHandler({
   methods: ["POST"],
   auth: "none",
   errorShape: "detail",
-  // ⚠ createSupabaseAdmin() 설정 오류(500) 문구는 이 래퍼로 옮기며 "서버
-  //   설정이 올바르지 않습니다."에서 아래 문구로 바뀐다 — 정상 배포에서는
-  //   도달 불가능한 방어 코드라 batch-2~4와 동일한 뭉개짐이다(batch-5-issues.md).
+  // createSupabaseAdmin() 설정 오류(500)는 defineHandler(api/_lib/handler.ts)
+  // 최상위 catch가 식별해 "서버 설정이 올바르지 않습니다."로 복원한다 — 아래
+  // unhandledMessage로 뭉개지던 문제는 batch-8에서 해소됐다.
   unhandledMessage: "관리자 초대 처리 중 오류가 발생했습니다.",
   logLabel: "admin/invite-member",
   handler: async (req, res, ctx) => {

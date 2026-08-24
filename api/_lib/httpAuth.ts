@@ -5,8 +5,9 @@
 // 이 함수가 그걸 한 곳으로 수렴한다. 401 응답 자체는 여기서 만들지 않는다 —
 // 라우트마다 에러 바디 형태(ErrorShape)가 다르므로, 그 판단은 호출부
 // (`defineHandler`)에 남긴다.
-import type { VercelRequest } from "@vercel/node";
+
 import type { User } from "@supabase/supabase-js";
+import type { VercelRequest } from "@vercel/node";
 import { getBearerToken } from "./serviceAccess.js";
 import { createSupabaseAdmin } from "./supabaseAdmin.js";
 

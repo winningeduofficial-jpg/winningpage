@@ -17,8 +17,8 @@
 //      값이 갈린다(설계 문서 §4 "결정적 근거").
 //   3) 응답 필드명은 카멜 케이스다. DB 스네이크를 그대로 노출하지 않는다(§9-2).
 
-import type { VercelRequest } from "@vercel/node";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { VercelRequest } from "@vercel/node";
 import { kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
 import { resolveUser } from "./httpAuth.js";
 import {

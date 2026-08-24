@@ -10,9 +10,13 @@
 // 대상: **지난 달**에 기록이 하나라도 있는 학생의 연결된 학부모.
 // 링크의 reportId: 월간 키 = 'YYYY-MM' (api/goal/report).
 
-import { defineHandler } from "../_lib/handler.js";
 import { sendAndLog } from "../_lib/alimtalkSend.js";
-import { kstNow, resolveParentRecipients, toYmd } from "../_lib/goalReportNotify.js";
+import {
+  kstNow,
+  resolveParentRecipients,
+  toYmd,
+} from "../_lib/goalReportNotify.js";
+import { defineHandler } from "../_lib/handler.js";
 
 export const config = { runtime: "nodejs", maxDuration: 300 };
 
@@ -20,23 +24,31 @@ export default defineHandler({
   methods: ["GET"],
   auth: "cron",
   errorShape: "detail",
+  // dev 원본은 { detail: "Unauthorized" }였다 — 공통 CRON_REQUIRED_MESSAGE
+  // ("인증이 필요합니다.")는 performance/cleanup-attachments 등 다른 cron 라우트
+  // 기준이라 여기서만 override한다.
+  authFailureMessage: "Unauthorized",
   unhandledMessage: "월간 학습 리포트 발송 중 오류가 발생했습니다.",
   logLabel: "cron/monthly-report",
   handler: async (req, res, ctx) => {
-    const supabaseAdmin = ctx.supabaseAdmin;
-
     const now = kstNow();
     const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
     const forcedMonth =
       typeof req.query.month === "string" ? req.query.month : null;
 
     // 손으로 메우는 경우(?month=2026-07)가 아니면, 내일이 1일일 때만 돈다.
+    // ctx.supabaseAdmin은 여기서 아직 건드리지 않는다 — dev 원본이 이 skip
+    // 분기를 createSupabaseAdmin() 호출보다 먼저 두어, env 미설정이어도 이
+    // 경로는 그대로 200을 낸다(ctx.supabaseAdmin은 lazy getter라 실제로 접근할
+    // 때만 클라이언트를 만든다).
     if (!forcedMonth && tomorrow.getUTCDate() !== 1) {
       res
         .status(200)
         .json({ ok: true, skipped: "not_month_end", today: toYmd(now) });
       return;
     }
+
+    const supabaseAdmin = ctx.supabaseAdmin;
 
     // 지난 달 = 지금(=말일 밤) 이 속한 달. 발송 시점이 1일 아침이지만 KST 로는
     // 아직 말일이므로 now 의 달이 곧 대상 달이다.

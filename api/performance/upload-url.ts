@@ -73,12 +73,12 @@
 
 import crypto from "node:crypto";
 import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { defineHandler } from "../_lib/handler.js";
-import { sendError } from "../_lib/httpResponse.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -138,7 +138,7 @@ export default defineHandler({
   headers: { "Cache-Control": "no-store" },
   handler: async (req, res, ctx) => {
     const supabaseAdmin = ctx.supabaseAdmin;
-    const userId = ctx.userId!;
+    const userId = requireUserId(ctx);
 
     // 이용권 재판정 — §8.6 공통 규약. 클라이언트 가드 통과 여부를 신뢰하지 않는다.
     const { allowed: hasAccess } = await hasPaidServiceAccess(

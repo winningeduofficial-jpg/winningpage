@@ -11,7 +11,6 @@
 //   (api/goal/report). 그래서 지난 주 월요일을 그대로 넣는다. 이렇게 해야 2주
 //   뒤에 링크를 눌러도 그 주 리포트가 열린다.
 
-import { defineHandler } from "../_lib/handler.js";
 import { sendAndLog } from "../_lib/alimtalkSend.js";
 import {
   kstNow,
@@ -20,6 +19,7 @@ import {
   toYmd,
   weekOfMonth,
 } from "../_lib/goalReportNotify.js";
+import { defineHandler } from "../_lib/handler.js";
 
 export const config = { runtime: "nodejs", maxDuration: 300 };
 
@@ -27,6 +27,10 @@ export default defineHandler({
   methods: ["GET"],
   auth: "cron",
   errorShape: "detail",
+  // dev 원본은 { detail: "Unauthorized" }였다 — 공통 CRON_REQUIRED_MESSAGE
+  // ("인증이 필요합니다.")는 performance/cleanup-attachments 등 다른 cron 라우트
+  // 기준이라 여기서만 override한다.
+  authFailureMessage: "Unauthorized",
   unhandledMessage: "주간 학습 리포트 발송 중 오류가 발생했습니다.",
   logLabel: "cron/weekly-report",
   handler: async (req, res, ctx) => {

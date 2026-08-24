@@ -26,14 +26,14 @@
 //   405 { detail }        POST 아님.
 //   500 { detail }        임베딩 실패, 서버 설정 누락 등.
 
+import { defineHandler } from "../_lib/handler.js";
 import {
   buildKnowledgeSearchText,
   embedText,
   getEmbeddingDimension,
   getEmbeddingModel,
 } from "../_lib/performance/embeddings.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import { defineHandler } from "../_lib/handler.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const KNOWLEDGE_TABLE = "winning_assessment_knowledge_items";
 

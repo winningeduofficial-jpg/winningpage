@@ -28,9 +28,10 @@
 //    포함하지 않으므로, 아래 fail()에서 extra에 `ok: false`를 얹어 기존 바이트를
 //    그대로 재현한다(키 순서만 error가 먼저 오도록 바뀌는데, JSON 파싱 결과는
 //    동일하다 — api/docs/batch-1-issues.md 기록).
-import { defineHandler } from "../_lib/handler.js";
-import { sendError } from "../_lib/httpResponse.js";
+
 import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -51,12 +52,17 @@ export default defineHandler({
   errorShape: "coded",
   methodNotAllowedMessage: "POST만 허용됩니다.",
   methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  // dev 원본의 로컬 fail()은 401·미처리 500을 포함한 모든 에러 바디에 ok:false를
+  // 얹었다. 여기 handler 내부의 fail()은 이미 그렇게 하지만(위 주석), defineHandler
+  // 공통 경로(auth 401 / 미처리 500)는 opts로 지정하지 않으면 그 필드가 빠진다.
+  authFailureExtra: { ok: false },
   unhandledMessage: "학습진단 제출 처리에 실패했습니다.",
   unhandledCode: "INTERNAL",
+  unhandledExtra: { ok: false },
   logLabel: "diagnosis/consume",
   headers: { "Cache-Control": "no-store" },
   handler: async (req, res, ctx) => {
-    const userId = ctx.userId!;
+    const userId = requireUserId(ctx);
 
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const attemptId =

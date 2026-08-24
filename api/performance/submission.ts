@@ -66,6 +66,8 @@
 //    따라 회차가 아니라 상한으로 막는다.
 
 import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   EMPTY_SUBMISSION_MESSAGE,
   SUBMISSION_TOO_SHORT_MESSAGE,
@@ -80,9 +82,7 @@ import {
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
-import { defineHandler } from "../_lib/handler.js";
-import { sendError } from "../_lib/httpResponse.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -349,7 +349,7 @@ export default defineHandler({
   headers: { "Cache-Control": "no-store" },
   handler: async (req, res, ctx) => {
     const supabaseAdmin = ctx.supabaseAdmin;
-    const userId = ctx.userId!;
+    const userId = requireUserId(ctx);
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const sessionId =
       req.method === "GET"
