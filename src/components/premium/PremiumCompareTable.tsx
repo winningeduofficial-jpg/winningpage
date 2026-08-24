@@ -1,15 +1,14 @@
 import type { ReactNode } from "react";
 import {
   PREMIUM_BEIGE_BG_CLASS,
+  PREMIUM_GRADUATE_GREEN,
   PREMIUM_NATURAL_TEXT_CLASS,
 } from "./premiumTokens";
 
-// 3개 대학 비교표 — 진초록(#1b5141, 시안 실측) 헤더 행 + 첫 열은 행 라벨(서류명/평가내용/
-// 추천서 등), 셀은 본문+보조 텍스트 2줄. 모바일은 페이지 자체가 가로 스크롤되지 않도록
-// overflow-x-auto 컨테이너 안에서 표만 스크롤하고, 첫 열을 sticky 로 고정한다.
-// 헤더 진초록은 이 페이지(대학원입학) 전용 브랜드 색으로, 기존 premiumTokens 에 없는
-// 색이라 리터럴 hex 로 둔다(시안 실측 #1b5141 — 표 헤더·2가지 집중 섹션 뱃지와 동일).
-export const PREMIUM_GRADUATE_GREEN = "#1b5141";
+// 3개 대학 비교표 — 진초록(PREMIUM_GRADUATE_GREEN, 시안 실측) 헤더 행 + 첫 열은 행 라벨
+// (서류명/평가내용/추천서 등), 셀은 본문+보조 텍스트 2줄. 모바일은 페이지 자체가 가로
+// 스크롤되지 않도록 overflow-x-auto 컨테이너 안에서 표만 스크롤하고, 첫 열을 sticky 로
+// 고정한다.
 
 type CompareTableCell = {
   primary: string;

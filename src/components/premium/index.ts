@@ -4,10 +4,7 @@
 export { default as PremiumAcceptanceMarquee } from "./PremiumAcceptanceMarquee";
 export { default as PremiumAreaCards } from "./PremiumAreaCards";
 export { default as PremiumAudience } from "./PremiumAudience";
-export {
-  default as PremiumCompareTable,
-  PREMIUM_GRADUATE_GREEN,
-} from "./PremiumCompareTable";
+export { default as PremiumCompareTable } from "./PremiumCompareTable";
 export { default as PremiumCtaBanner } from "./PremiumCtaBanner";
 export { default as PremiumDarkTrio } from "./PremiumDarkTrio";
 export { default as PremiumFocusColumns } from "./PremiumFocusColumns";

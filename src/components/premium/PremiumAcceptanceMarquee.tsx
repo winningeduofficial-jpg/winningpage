@@ -25,7 +25,10 @@ export default function PremiumAcceptanceMarquee({
     : universities.map((_, index) => index);
 
   return (
-    <section aria-label="대학원입학 합격생" className="overflow-hidden bg-white">
+    <section
+      aria-label="대학원입학 합격생"
+      className="overflow-hidden bg-white"
+    >
       <div className="pb-0 pt-16 sm:pt-20 lg:pt-[7.5rem]">
         <h2 className="break-keep text-center text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-ink-strong sm:text-[1.75rem] lg:text-[2rem]">
           {heading}

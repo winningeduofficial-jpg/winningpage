@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import PremiumSectionHeading from "./PremiumSectionHeading";
-import { PREMIUM_GRADUATE_GREEN } from "./PremiumCompareTable";
 import {
   PREMIUM_CONTAINER_CLASS,
+  PREMIUM_GRADUATE_GREEN,
   PREMIUM_HEADING_GAP_CLASS,
   PREMIUM_NATURAL_TEXT_CLASS,
   PREMIUM_SECTION_PADDING_CLASS,
@@ -10,7 +10,7 @@ import {
 
 // "위닝에듀는 이 2가지에만 집중합니다" 섹션 — 흰 패널 위 2컬럼, 각 컬럼은 제목(+옵션
 // 뱃지) + 밑줄 + 불릿 리스트 + 옵션 하단 문단. 패널 아래 각주 리스트를 별도로 둔다.
-// 시안 실측: 뱃지 배경은 표 헤더와 같은 진초록(#1b5141) — PremiumCompareTable 과 공유.
+// 시안 실측: 뱃지 배경은 표 헤더와 같은 진초록(PREMIUM_GRADUATE_GREEN) — premiumTokens 공유.
 type FocusColumn = {
   title: string;
   badge?: string;
@@ -57,10 +57,7 @@ export default function PremiumFocusColumns({
                     </span>
                   ) : null}
                 </div>
-                <span
-                  className="mt-4 h-px w-full bg-line"
-                  aria-hidden="true"
-                />
+                <span className="mt-4 h-px w-full bg-line" aria-hidden="true" />
                 <ul className="mt-6 flex flex-col gap-3">
                   {column.bullets.map((bullet) => (
                     <li

@@ -59,3 +59,9 @@ export const PREMIUM_SECTION_HEADING_DARK_CLASS =
   "break-keep text-center text-[1.5rem] font-semibold leading-[1.4] tracking-[-0.02em] text-white sm:text-[1.75rem] lg:text-[2rem]";
 export const PREMIUM_SECTION_SUB_DARK_CLASS =
   "break-keep text-center text-[1rem] font-medium leading-[1.4] text-white/80 sm:text-[1.125rem] lg:text-[1.25rem]";
+
+// 대학원입학 프로그램(/page/premium/graduate-school) 전용 브랜드 진초록 — 시안 실측(픽셀
+// 샘플) #1b5141. Tailwind 완성 리터럴 클래스 제약과 무관하게 style={{ backgroundColor }}로
+// 쓰는 hex 상수라 여기(다른 프리미엄 토큰과 같은 위치)에서 정식 관리한다. 비교표 헤더·
+// 2가지 집중 섹션 뱃지·CTA 배너(primaryTone="brand") 3곳이 공유한다.
+export const PREMIUM_GRADUATE_GREEN = "#1b5141";
