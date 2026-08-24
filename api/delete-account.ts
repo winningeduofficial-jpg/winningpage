@@ -28,8 +28,10 @@
 // 1)이 성공한 뒤 2)가 실패해도(네트워크 등) 데이터는 이미 정리돼 있고,
 // 이 라우트를 재호출하면 fn_delete_account 는 멱등(이미 지워진/익명화된
 // 행에 대해 다시 실행해도 안전)하게 같은 결과를 반환한다.
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import type { VercelResponse } from "@vercel/node";
+import { getBearerToken } from "./_lib/serviceAccess.js";
+import { defineHandler } from "./_lib/handler.js";
+import { sendError } from "./_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -44,34 +46,38 @@ export function buildAnonymizedEmail(userId: string) {
   return `deleted-${userId}@removed.invalid`;
 }
 
-function getBearerToken(req: VercelRequest) {
-  return String(req.headers.authorization || "")
-    .trim()
-    .replace(/^Bearer\s+/i, "");
+function fail(
+  res: VercelResponse,
+  status: number,
+  reason: string,
+  message: string,
+) {
+  sendError(res, "okDetail", status, message, undefined, { reason });
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, detail: "Method not allowed" });
-  }
-
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  unhandledMessage: "탈퇴 처리 중 오류가 발생했습니다.",
+  logLabel: "delete-account",
+  handler: async (req, res, ctx) => {
+  // change-phone.ts와 같은 이유로 auth:"none" + 공유 getBearerToken을 쓴다 —
+  // 이 라우트도 "로그인이 필요합니다."/"로그인이 만료되었습니다..." 두 문구를
+  // 구분한다(api/docs/batch-3-issues.md 참고).
   const token = getBearerToken(req);
   if (!token) {
-    return res.status(401).json({
-      ok: false,
-      reason: "not_authenticated",
-      detail: "로그인이 필요합니다.",
-    });
+    return fail(res, 401, "not_authenticated", "로그인이 필요합니다.");
   }
 
   try {
-    const supabaseAdmin = createSupabaseAdmin();
+    const supabaseAdmin = ctx.supabaseAdmin;
 
     const { data: userData, error: userError } =
       await supabaseAdmin.auth.getUser(token);
     const userId = userData?.user?.id ?? null;
     if (userError || !userId) {
-      return res.status(401).json({
+      return void res.status(401).json({
         ok: false,
         reason: "not_authenticated",
         detail: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
@@ -85,7 +91,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (rpcError) {
       console.error("[delete-account] fn_delete_account 실패:", rpcError);
-      return res.status(500).json({
+      return void res.status(500).json({
         ok: false,
         reason: "unknown",
         detail: "탈퇴 처리 중 오류가 발생했습니다.",
@@ -100,7 +106,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "[delete-account] auth.admin.deleteUser 실패(데이터는 이미 삭제됨, 재시도 가능):",
           authDeleteError,
         );
-        return res.status(500).json({
+        return void res.status(500).json({
           ok: false,
           reason: "unknown",
           detail: "탈퇴 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
@@ -140,7 +146,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           "[delete-account] auth.admin.updateUserById(ban) 실패(데이터는 이미 익명화됨, 재시도 가능):",
           banError,
         );
-        return res.status(500).json({
+        return void res.status(500).json({
           ok: false,
           reason: "unknown",
           detail: "탈퇴 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
@@ -148,13 +154,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    return res.status(200).json({ ok: true, mode });
+    return void res.status(200).json({ ok: true, mode });
   } catch (error) {
     console.error("[delete-account] 오류:", error);
-    return res.status(500).json({
+    return void res.status(500).json({
       ok: false,
       reason: "unknown",
       detail: "탈퇴 처리 중 오류가 발생했습니다.",
     });
   }
-}
+  },
+});

@@ -14,8 +14,8 @@
 //   WINNING_SUPABASE_SERVICE_ROLE_KEY / SUPABASE_SERVICE_ROLE_KEY
 
 import crypto from "node:crypto";
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { getBearerToken } from "./_lib/serviceAccess.js";
+import { defineHandler } from "./_lib/handler.js";
 
 // products 테이블에서 조회한 행 중 이 라우트가 실제로 읽는 필드만 담는다.
 type ProductRow = {
@@ -33,21 +33,24 @@ function clean(value: unknown) {
   return String(value || "").trim();
 }
 
-function getBearerToken(req: VercelRequest) {
-  return clean(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
-}
-
 function buildOrderName(products: ProductRow[]) {
   if (products.length === 0) return "위닝에듀 서비스";
   const first = products[0]!.name || "위닝에듀 서비스";
   return products.length === 1 ? first : `${first} 외 ${products.length - 1}건`;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
+export default defineHandler({
+  methods: ["POST"],
+  // 이 라우트는 상품 미선택(400)을 토큰 검사보다 먼저 하고, 401도 문구가 두
+  // 가지(로그인 필요/만료)로 갈린다 — defineHandler auth:"user"는 이 순서와
+  // 문구를 보존할 수 없어(_lib/handler.ts는 auth를 항상 handler보다 먼저
+  // 해석하고 401 문구도 하나로 고정한다) auth:"none" + 공유 getBearerToken을
+  // 쓴다(api/docs/batch-3-issues.md 참고).
+  auth: "none",
+  errorShape: "error",
+  unhandledMessage: "결제요청에 실패했습니다.",
+  logLabel: "request-enrollment",
+  handler: async (req, res, ctx) => {
   try {
     const body = req.body || {};
     const rawItems = Array.isArray(body.items) ? body.items : [];
@@ -56,22 +59,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ...new Set(rawItems.map((it) => clean(it?.id)).filter(Boolean)),
     ];
     if (productIds.length === 0) {
-      return res.status(400).json({ error: "선택된 상품이 없습니다." });
+      return void res.status(400).json({ error: "선택된 상품이 없습니다." });
     }
 
-    const supabaseAdmin = createSupabaseAdmin();
+    const supabaseAdmin = ctx.supabaseAdmin;
 
     // 1) 학생 확정 — 요청 토큰으로만 신원을 정한다(body 의 studentProfileId 는 없다).
     const token = getBearerToken(req);
     if (!token) {
-      return res.status(401).json({ error: "로그인이 필요합니다." });
+      return void res.status(401).json({ error: "로그인이 필요합니다." });
     }
     const { data: userData, error: userError } =
       await supabaseAdmin.auth.getUser(token);
     const studentId = userData?.user?.id ?? null;
     const customerEmail = userData?.user?.email ?? null;
     if (userError || !studentId) {
-      return res
+      return void res
         .status(401)
         .json({ error: "로그인이 만료되었습니다. 다시 로그인해 주세요." });
     }
@@ -85,10 +88,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (profileError) {
       console.error("profiles 조회 오류:", profileError);
-      return res.status(500).json({ error: "결제요청에 실패했습니다." });
+      return void res.status(500).json({ error: "결제요청에 실패했습니다." });
     }
     if (profile?.member_type !== "student") {
-      return res.status(403).json({ error: "학생 회원만 이용할 수 있습니다." });
+      return void res.status(403).json({ error: "학생 회원만 이용할 수 있습니다." });
     }
 
     // 3) 학부모 연결 재조회 — body 의 parentProfileId 는 신뢰하지 않고 무시한다.
@@ -102,10 +105,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (linkError) {
       console.error("parent_child_links 조회 오류:", linkError);
-      return res.status(500).json({ error: "결제요청에 실패했습니다." });
+      return void res.status(500).json({ error: "결제요청에 실패했습니다." });
     }
     if (!link?.parent_id) {
-      return res.status(409).json({ error: "no_linked_parent" });
+      return void res.status(409).json({ error: "no_linked_parent" });
     }
 
     // 4) 상품 조회 (서버 신뢰 가격) — api/create-order.js:73-88 패턴 이식. is_orderable
@@ -120,12 +123,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (productError) {
       console.error("products 조회 오류:", productError);
-      return res
+      return void res
         .status(500)
         .json({ error: "상품 정보를 불러오지 못했습니다." });
     }
     if (!products || products.length !== productIds.length) {
-      return res
+      return void res
         .status(400)
         .json({ error: "판매 중이 아닌 상품이 포함되어 있습니다." });
     }
@@ -169,28 +172,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // WC042/WC043 은 sql/71 이 fn_request_enrollment 에 추가하는 신규 게이트
       // (advisory lock + fn_is_linked_pair 판정 + 중복 open 요청 검사)의 코드다.
       if (rpcError.code === "WC043") {
-        return res.status(409).json({ error: "duplicate_open_request" });
+        return void res.status(409).json({ error: "duplicate_open_request" });
       }
       if (rpcError.code === "WC042") {
-        return res.status(409).json({ error: "no_linked_parent" });
+        return void res.status(409).json({ error: "no_linked_parent" });
       }
       if (rpcError.code === "WC001") {
-        return res
+        return void res
           .status(400)
           .json({ error: "결제 금액이 올바르지 않습니다." });
       }
       console.error("fn_request_enrollment 오류:", rpcError);
-      return res.status(500).json({ error: "결제요청에 실패했습니다." });
+      return void res.status(500).json({ error: "결제요청에 실패했습니다." });
     }
 
     const row = rows?.[0] ?? {};
     const amount = Number(row.amount ?? 0);
     if (!amount) {
       console.error("fn_request_enrollment 응답에 amount 없음:", rows);
-      return res.status(500).json({ error: "결제요청에 실패했습니다." });
+      return void res.status(500).json({ error: "결제요청에 실패했습니다." });
     }
 
-    return res.status(200).json({
+    return void res.status(200).json({
       orderId: row.order_id ?? orderId,
       orderName,
       listAmount: listTotal,
@@ -199,6 +202,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (err) {
     console.error("request-enrollment error:", err);
-    return res.status(500).json({ error: "결제요청에 실패했습니다." });
+    return void res.status(500).json({ error: "결제요청에 실패했습니다." });
   }
-}
+  },
+});

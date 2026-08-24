@@ -16,7 +16,6 @@
 // 최종 판정은 아니다 — 동시 가입 경합은 profiles의 unique 인덱스와 가입 RPC의
 // duplicate_phone이 잡는다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getChannel, isDryRun, sendVerificationCode } from "./_lib/aligo.js";
 import {
   CODE_TTL_SECONDS,
@@ -30,6 +29,9 @@ import {
   normalizePhone,
 } from "./_lib/phoneCode.js";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { defineHandler } from "./_lib/handler.js";
+import { sendError } from "./_lib/httpResponse.js";
+import type { VercelResponse } from "@vercel/node";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
 export const config = { runtime: "nodejs" };
@@ -105,28 +107,36 @@ const LIMIT_MESSAGES = {
     "일시적으로 인증번호 발송이 어렵습니다. 고객센터로 문의해 주세요.",
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, detail: "Method not allowed" });
-  }
+function fail(
+  res: VercelResponse,
+  status: number,
+  reason: string,
+  message: string,
+  extra: Record<string, unknown> = {},
+) {
+  sendError(res, "okDetail", status, message, undefined, { reason, ...extra });
+}
 
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  unhandledMessage: "인증번호 발송 중 오류가 발생했습니다.",
+  logLabel: "send-phone-code",
+  handler: async (req, res, ctx) => {
   const phone = normalizePhone(req.body?.phone);
   const purpose: string = ALLOWED_PURPOSES.includes(req.body?.purpose)
     ? req.body.purpose
     : "signup";
 
   if (!isValidMobile(phone)) {
-    return res.status(400).json({
-      ok: false,
-      reason: "invalid_phone",
-      detail: "휴대폰 번호 형식이 올바르지 않습니다.",
-    });
+    return fail(res, 400, "invalid_phone", "휴대폰 번호 형식이 올바르지 않습니다.");
   }
 
   const ip = getClientIp(req);
 
   try {
-    const supabase = createSupabaseAdmin();
+    const supabase = ctx.supabaseAdmin;
 
     // 한도 검사보다 먼저 본다. 어차피 가입할 수 없는 번호에 문자 요금과
     // 쿨타임을 쓸 이유가 없다.
@@ -134,7 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       SIGNUP_PURPOSES.includes(purpose) &&
       (await isPhoneTaken(supabase, phone))
     ) {
-      return res.status(409).json({
+      return void res.status(409).json({
         ok: false,
         reason: "phone_taken",
         detail: "중복된 전화번호입니다.",
@@ -150,7 +160,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         String(limit.retryAfter || COOLDOWN_SECONDS),
       );
 
-      return res.status(429).json({
+      return void res.status(429).json({
         ok: false,
         reason: limit.reason,
         retry_after: limit.retryAfter || COOLDOWN_SECONDS,
@@ -173,7 +183,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           `code=${result.providerCode} message=${result.providerMessage}`,
       );
 
-      return res.status(502).json({
+      return void res.status(502).json({
         ok: false,
         reason: "send_failed",
         detail: "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
@@ -195,14 +205,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 검증할 수 없으므로 재발송을 유도한다.
       console.error("[send-phone-code] 인증 기록 저장 실패:", insertError);
 
-      return res.status(500).json({
+      return void res.status(500).json({
         ok: false,
         reason: "store_failed",
         detail: "인증번호 처리 중 문제가 발생했습니다. 다시 시도해 주세요.",
       });
     }
 
-    return res.status(200).json({
+    return void res.status(200).json({
       ok: true,
       expires_in: CODE_TTL_SECONDS,
       cooldown: COOLDOWN_SECONDS,
@@ -219,10 +229,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         String(error?.message || ""),
       ) && !isDryRun();
 
-    return res.status(500).json({
+    return void res.status(500).json({
       ok: false,
       reason: isConfigError ? "server_misconfigured" : "unknown",
       detail: "인증번호 발송 중 오류가 발생했습니다.",
     });
   }
-}
+  },
+});

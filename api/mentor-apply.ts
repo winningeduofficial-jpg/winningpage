@@ -120,7 +120,7 @@
 // 충분한 규모다.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
 import {
   getClientIp,
   isValidMobile,
@@ -128,6 +128,7 @@ import {
   normalizePhone,
 } from "./_lib/phoneCode.js";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { defineHandler } from "./_lib/handler.js";
 
 // service_role 클라이언트·타이밍에 민감한 인증 소비 로직 등 Node 전용 API 를 쓰는
 // 이 저장소 api/* 형제 파일들과 런타임을 맞춘다.
@@ -438,7 +439,7 @@ function fail(
   detail: string,
   extra: Record<string, unknown> = {},
 ) {
-  return res.status(status).json({ ok: false, reason, detail, ...extra });
+  return void res.status(status).json({ ok: false, reason, detail, ...extra });
 }
 
 /** 생년월일 8자리 + 실제 존재하는 날짜인지. src/lib/validators.js isValidBirthDate 와 동일 규칙. */
@@ -945,11 +946,15 @@ async function consumePhoneVerification(
 // 핸들러
 // ---------------------------------------------------------------------------
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return fail(res, 405, "method_not_allowed", "Method not allowed");
-  }
-
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  // mentor-apply-upload-url.ts와 같은 이유로 405 응답의 reason 필드는
+  // 공유 assertMethod 경유 시 소실된다 — api/docs/batch-3-issues.md 참고.
+  unhandledMessage: "지원서 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+  logLabel: "mentor-apply",
+  handler: async (req, res, ctx) => {
   const contentType = String(req.headers["content-type"] || "");
 
   if (!contentType.includes("application/json")) {
@@ -1004,7 +1009,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 막는다. consumePhoneVerification 을 통과해야만(=phoneCode.js 의 발송 rate
   // limit 을 거쳐 실제로 인증한 번호여야만) Storage 조회에 도달한다.
   try {
-    const supabase = createSupabaseAdmin();
+    const supabase = ctx.supabaseAdmin;
 
     const limits = await checkSubmitLimits(supabase, { phone, ip });
 
@@ -1018,14 +1023,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (fieldError) {
       const { status, ...rest } = fieldError;
-      return res.status(status).json({ ok: false, ...rest });
+      return void res.status(status).json({ ok: false, ...rest });
     }
 
     const verification = await consumePhoneVerification(supabase, phone);
 
     if (verification.error) {
       const { status, ...rest } = verification.error;
-      return res.status(status).json({ ok: false, ...rest });
+      return void res.status(status).json({ ok: false, ...rest });
     }
 
     // 인증된 번호만 여기 도달한다. 이제부터 비싼 작업(Storage 조회)을 한다.
@@ -1035,7 +1040,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (proof.error) {
       const { status, ...rest } = proof.error;
-      return res.status(status).json({ ok: false, ...rest });
+      return void res.status(status).json({ ok: false, ...rest });
     }
 
     objectVerified = true;
@@ -1053,7 +1058,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (insertError) throw insertError;
 
-    return res.status(200).json({ ok: true, application_id: inserted.id });
+    return void res.status(200).json({ ok: true, application_id: inserted.id });
   } catch (error) {
     // insert 가 실패했는데 검증까지 끝낸 파일만 남으면 아무도 참조하지 않는
     // 고아가 된다. 정리 자체가 또 실패할 수 있으므로 실패해도 원래 에러 응답은
@@ -1084,4 +1089,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       "지원서 제출 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     );
   }
-}
+  },
+});

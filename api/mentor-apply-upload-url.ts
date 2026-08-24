@@ -22,14 +22,14 @@
 // (메모리) → 경로 생성 → createSignedUploadUrl(외부 API 호출).
 
 import crypto from "node:crypto";
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
 import {
   getClientIp,
   isValidMobile,
   maskPhone,
   normalizePhone,
 } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { defineHandler } from "./_lib/handler.js";
 import {
   ALLOWED_FILE_TYPES,
   BUCKET,
@@ -50,7 +50,7 @@ function fail(
   detail: string,
   extra: Record<string, unknown> = {},
 ) {
-  return res.status(status).json({ ok: false, reason, detail, ...extra });
+  return void res.status(status).json({ ok: false, reason, detail, ...extra });
 }
 
 // ---------------------------------------------------------------------------
@@ -131,11 +131,17 @@ function checkLocalRateLimit({
 // 핸들러
 // ---------------------------------------------------------------------------
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return fail(res, 405, "method_not_allowed", "Method not allowed");
-  }
-
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  // 원본은 405도 { ok:false, reason:'method_not_allowed', detail } 형태였다.
+  // 공유 assertMethod(_lib/httpMethod.ts)는 okDetail 형태에 reason 필드를
+  // 실을 방법이 없어(sendError 호출부에 extra 훅이 없음), 405 응답만
+  // reason 키가 빠진다 — api/docs/batch-3-issues.md에 기록.
+  unhandledMessage: "업로드 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+  logLabel: "mentor-apply-upload-url",
+  handler: async (req, res, ctx) => {
   const contentType = String(req.headers["content-type"] || "");
 
   if (!contentType.includes("application/json")) {
@@ -186,7 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const size = Number(body.size);
 
   try {
-    const supabase = createSupabaseAdmin();
+    const supabase = ctx.supabaseAdmin;
 
     // 2) 휴대폰 인증 확인 — 이게 이 엔드포인트의 유일한 실질 남용 방어선이다.
     // consumed_at 을 찍지 않는다(findValidPhoneVerification 함수 주석 참고) —
@@ -195,7 +201,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (verification.error) {
       const { status, ...rest } = verification.error;
-      return res.status(status).json({ ok: false, ...rest });
+      return void res.status(status).json({ ok: false, ...rest });
     }
 
     // 3) 확장자·MIME 화이트리스트 — api/mentor-apply.js 와 같은 상수를 그대로 쓴다.
@@ -297,7 +303,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    return res.status(200).json({
+    return void res.status(200).json({
       ok: true,
       path: signed.path,
       token: signed.token,
@@ -317,4 +323,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       "업로드 준비 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
     );
   }
-}
+  },
+});

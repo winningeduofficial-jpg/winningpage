@@ -11,8 +11,7 @@
 // 여기가 최종 방어선이다 — 클라이언트(PremiumApply.jsx) 검증은 UX용일
 // 뿐 신뢰하지 않는다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { defineHandler } from "./_lib/handler.js";
 
 // PremiumApply.jsx SERVICE_OPTIONS 와 글자 단위로 동일해야 한다.
 // 목록 밖 값은 위조된 요청으로 보고 거절한다.
@@ -49,56 +48,58 @@ function isValidEmail(value: string) {
   return /^\S+@\S+$/.test(value);
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ error: "Method not allowed" });
-  }
-
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "error",
+  unhandledMessage: "상담 신청 처리 중 오류가 발생했습니다.",
+  logLabel: "create-consult-request",
+  handler: async (req, res, ctx) => {
   const body = req.body || {};
 
   const name = clean(body.name);
   if (!name || name.length > NAME_MAX_LENGTH) {
-    return res.status(400).json({ error: "이름을 정확히 입력해 주세요." });
+    return void res.status(400).json({ error: "이름을 정확히 입력해 주세요." });
   }
 
   const phoneInput = clean(body.phone);
   if (!phoneInput || !/^[0-9-]+$/.test(phoneInput)) {
-    return res
+    return void res
       .status(400)
       .json({ error: "휴대폰 번호 형식이 올바르지 않습니다." });
   }
   const phone = phoneInput.replace(/-/g, "");
   if (!isValidPhoneDigits(phone)) {
-    return res
+    return void res
       .status(400)
       .json({ error: "휴대폰 번호 형식이 올바르지 않습니다." });
   }
 
   const email = clean(body.email);
   if (email && (email.length > EMAIL_MAX_LENGTH || !isValidEmail(email))) {
-    return res.status(400).json({ error: "이메일 형식이 올바르지 않습니다." });
+    return void res.status(400).json({ error: "이메일 형식이 올바르지 않습니다." });
   }
 
   const service = clean(body.service);
   if (!SERVICE_OPTIONS.includes(service)) {
-    return res.status(400).json({ error: "상담 분야를 선택해 주세요." });
+    return void res.status(400).json({ error: "상담 분야를 선택해 주세요." });
   }
 
   const message = clean(body.message);
   if (message.length > MESSAGE_MAX_LENGTH) {
-    return res
+    return void res
       .status(400)
       .json({ error: "문의 내용은 1000자 이내로 입력해 주세요." });
   }
 
   if (body.agree !== true) {
-    return res
+    return void res
       .status(400)
       .json({ error: "개인정보 수집·이용에 동의해 주세요." });
   }
 
   try {
-    const supabase = createSupabaseAdmin();
+    const supabase = ctx.supabaseAdmin;
 
     // serverless라 인스턴스별 메모리 카운터는 무의미하다 — DB 조회로
     // 최근 제출 여부를 직접 확인한다.
@@ -114,7 +115,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (dupError) throw dupError;
 
     if ((count || 0) > 0) {
-      return res.status(429).json({ error: "잠시 후 다시 시도해 주세요." });
+      return void res.status(429).json({ error: "잠시 후 다시 시도해 주세요." });
     }
 
     // status는 기본값('new')에 맡긴다 — 명시적으로 넣지 않는다.
@@ -130,11 +131,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (insertError) throw insertError;
 
-    return res.status(200).json({ ok: true });
+    return void res.status(200).json({ ok: true });
   } catch (error) {
     console.error("[create-consult-request] 오류:", error);
-    return res
+    return void res
       .status(500)
       .json({ error: "상담 신청 처리 중 오류가 발생했습니다." });
   }
-}
+  },
+});

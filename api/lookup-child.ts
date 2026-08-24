@@ -17,9 +17,12 @@
 //   학생 가입(StudentForm)은 가입 직후 signOut 하는 AS-IS 정책을 따르지만,
 //   학부모는 가입 → 자녀 연결로 흐름이 이어지므로 세션을 유지해야 한다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getClientIp } from "./_lib/phoneCode.js";
 import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { getBearerToken } from "./_lib/serviceAccess.js";
+import { defineHandler } from "./_lib/handler.js";
+import { sendError } from "./_lib/httpResponse.js";
+import type { VercelResponse } from "@vercel/node";
 
 export const config = { runtime: "nodejs" };
 
@@ -53,17 +56,24 @@ async function countLookups(
   return count || 0;
 }
 
-function getBearerToken(req: VercelRequest) {
-  return String(req.headers.authorization || "")
-    .replace(/^Bearer\s+/i, "")
-    .trim();
+function fail(
+  res: VercelResponse,
+  status: number,
+  reason: string,
+  message: string,
+) {
+  sendError(res, "okDetail", status, message, undefined, { reason });
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, detail: "Method not allowed" });
-  }
-
+export default defineHandler({
+  methods: ["POST"],
+  // change-phone.ts와 같은 이유(401 문구가 두 가지로 갈린다)로 auth:"none" +
+  // 공유 getBearerToken을 쓴다(api/docs/batch-3-issues.md 참고).
+  auth: "none",
+  errorShape: "okDetail",
+  unhandledMessage: "연결코드 조회 중 오류가 발생했습니다.",
+  logLabel: "lookup-child",
+  handler: async (req, res, ctx) => {
   // 입력 코드는 대문자로만 저장되므로 소문자 입력도 받아준다.
   const code = String(req.body?.code || "")
     .trim()
@@ -72,22 +82,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const token = getBearerToken(req);
 
   if (!token) {
-    return res.status(401).json({
-      ok: false,
-      reason: "not_authenticated",
-      detail: "로그인이 필요합니다.",
-    });
+    return fail(res, 401, "not_authenticated", "로그인이 필요합니다.");
   }
 
   try {
-    const supabase = createSupabaseAdmin();
+    const supabase = ctx.supabaseAdmin;
 
     const { data: userData, error: userError } =
       await supabase.auth.getUser(token);
     const actorId = userData?.user?.id;
 
     if (userError || !actorId) {
-      return res.status(401).json({
+      return void res.status(401).json({
         ok: false,
         reason: "not_authenticated",
         detail: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
@@ -104,7 +110,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (actorError) throw actorError;
 
     if (actor?.member_type !== "parent") {
-      return res.status(403).json({
+      return void res.status(403).json({
         ok: false,
         reason: "not_a_parent",
         detail: "학부모 회원만 이용할 수 있습니다.",
@@ -114,7 +120,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 형식 검사는 인증·권한 확인 뒤에 한다. 그래야 로그인하지 않은 쪽에서
     // 형식만으로 코드 규칙을 떠보는 것을 막을 수 있다.
     if (!CODE_PATTERN.test(code)) {
-      return res.status(400).json({
+      return void res.status(400).json({
         ok: false,
         reason: "invalid_code_format",
         detail: "연결코드 6자리를 정확히 입력해 주세요.",
@@ -125,7 +131,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       (await countLookups(supabase, actorId, { onlyFailed: true })) >=
       MAX_FAILED_PER_HOUR
     ) {
-      return res.status(429).json({
+      return void res.status(429).json({
         ok: false,
         reason: "too_many_failed_lookups",
         detail: "조회 실패가 많습니다. 잠시 후 다시 시도해 주세요.",
@@ -133,7 +139,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if ((await countLookups(supabase, actorId)) >= MAX_LOOKUPS_PER_HOUR) {
-      return res.status(429).json({
+      return void res.status(429).json({
         ok: false,
         reason: "too_many_lookups",
         detail: "조회 횟수가 많습니다. 잠시 후 다시 시도해 주세요.",
@@ -161,7 +167,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     if (!codeRow) {
-      return res.status(404).json({
+      return void res.status(404).json({
         ok: false,
         reason: "link_code_not_found",
         detail: "일치하는 연결코드가 없습니다.",
@@ -186,7 +192,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (linkedError) throw linkedError;
 
-    return res.status(200).json({
+    return void res.status(200).json({
       ok: true,
       child: {
         name: student?.name || "",
@@ -201,10 +207,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error("[lookup-child] 오류:", error);
 
-    return res.status(500).json({
+    return void res.status(500).json({
       ok: false,
       reason: "unknown",
       detail: "연결코드 조회 중 오류가 발생했습니다.",
     });
   }
-}
+  },
+});

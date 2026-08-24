@@ -24,7 +24,6 @@
 //   같은 구멍이며, 가입 RPC에서 identity_verifications를 consume 하도록
 //   함께 막아야 한다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   generateRequestNo,
   issueAuthUrl,
@@ -32,7 +31,9 @@ import {
   SVC_TYPE_MOBILE,
 } from "./_lib/niceIdentity.js";
 import { getClientIp } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
+import { getEnv } from "./_lib/supabaseAdmin.js";
+import { getBearerToken } from "./_lib/serviceAccess.js";
+import { defineHandler } from "./_lib/handler.js";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
 export const config = { runtime: "nodejs" };
@@ -41,12 +42,6 @@ const ALLOWED_PURPOSES = ["signup", "under14_guardian", "phone_change"];
 
 // 본인확인은 건당 과금이다. 정상 사용이라면 몇 번이면 끝나므로 좁게 잡는다.
 const MAX_STARTS_PER_HOUR_PER_IP = 10;
-
-function getBearerToken(req: VercelRequest) {
-  return String(req.headers.authorization || "")
-    .replace(/^Bearer\s+/i, "")
-    .trim();
-}
 
 /**
  * 콜백이 우리 pending 행을 찾을 수 있도록 return_url에 rid를 붙인다.
@@ -68,18 +63,26 @@ function buildReturnUrl(requestNo: string) {
   return built;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, detail: "Method not allowed" });
-  }
-
+// 인증이 선택인 엔드포인트다(가입 전 본인확인 포함) — defineHandler auth:"user"는
+// 토큰이 없거나 무효하면 401로 막아버려 가입 전 호출을 깨뜨린다. 그래서
+// auth:"none"으로 두고, 공유 getBearerToken(_lib/serviceAccess.js)만 재사용해
+// "있으면 붙이고 없거나 무효해도 통과"하는 원래 동작을 그대로 유지한다
+// (api/docs/batch-3-issues.md — 명세 대조표는 이 파일을 auth:user로 적었지만
+// 실제 동작은 auth:none이다).
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  unhandledMessage: "본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.",
+  logLabel: "nice-identity-start",
+  handler: async (req, res, ctx) => {
   const purpose: string = ALLOWED_PURPOSES.includes(req.body?.purpose)
     ? req.body.purpose
     : "signup";
   const ip = getClientIp(req);
 
   try {
-    const supabase = createSupabaseAdmin();
+    const supabase = ctx.supabaseAdmin;
 
     // 로그인 상태면 user_id를 붙인다. 실패해도 진행한다 — 가입 전 호출이 정상이다.
     let userId: string | null = null;
@@ -99,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (countError) throw countError;
 
     if ((count || 0) >= MAX_STARTS_PER_HOUR_PER_IP) {
-      return res.status(429).json({
+      return void res.status(429).json({
         ok: false,
         reason: "rate_limited",
         detail: "본인확인 요청이 많습니다. 잠시 후 다시 시도해 주세요.",
@@ -134,7 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (insertError) throw insertError;
 
-    return res.status(200).json({
+    return void res.status(200).json({
       ok: true,
       // 프론트는 이 URL을 window.open으로 연다. 파라미터를 따로 싣지 않는다.
       auth_url: auth.authUrl,
@@ -155,7 +158,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ? "vendor_rejected"
         : "vendor_unavailable";
 
-    return res.status(500).json({
+    return void res.status(500).json({
       ok: false,
       reason,
       detail:
@@ -164,4 +167,5 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           : "본인확인을 시작하지 못했습니다. 문제가 계속되면 고객센터로 문의해 주세요.",
     });
   }
-}
+  },
+});

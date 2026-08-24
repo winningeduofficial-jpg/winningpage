@@ -16,9 +16,8 @@
 //   OTP로 이미 증명한 뒤이기 때문이다. "이 번호로 가입한 계정이 없다"는 답은 그
 //   번호를 실제로 가진 사람에게만 의미 있는 정보다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { isValidMobile, normalizePhone } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { defineHandler } from "./_lib/handler.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -61,15 +60,17 @@ function maskEmail(email: string): string {
   return `${maskedLocal}@${maskedDomain}${tld}`;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, detail: "Method not allowed" });
-  }
-
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  unhandledMessage: "계정 조회 중 오류가 발생했습니다.",
+  logLabel: "find-account-by-phone",
+  handler: async (req, res, ctx) => {
   const phone = normalizePhone(req.body?.phone);
 
   if (!isValidMobile(phone)) {
-    return res.status(400).json({
+    return void res.status(400).json({
       ok: false,
       reason: "invalid_phone",
       detail: "휴대폰 번호 형식이 올바르지 않습니다.",
@@ -77,7 +78,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const supabase = createSupabaseAdmin();
+    const supabase = ctx.supabaseAdmin;
 
     // 이 번호로 최근에 통과한 find_account 목적의 인증이 남아 있는지 본다.
     // consumed_at이 이미 찍혀 있으면 그 인증은 다른 조회에 이미 쓰인 것이다.
@@ -99,7 +100,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       : 0;
 
     if (!verification || Date.now() - verifiedAtMs > VERIFICATION_WINDOW_MS) {
-      return res.status(401).json({
+      return void res.status(401).json({
         ok: false,
         reason: "phone_not_verified",
         detail: "휴대폰 인증을 먼저 완료해 주세요.",
@@ -126,14 +127,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (profileError) throw profileError;
 
     if (!profile?.email) {
-      return res.status(200).json({
+      return void res.status(200).json({
         ok: true,
         found: false,
         detail: "해당 번호로 등록된 계정이 없습니다.",
       });
     }
 
-    return res.status(200).json({
+    return void res.status(200).json({
       ok: true,
       found: true,
       masked_email: maskEmail(profile.email),
@@ -141,10 +142,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   } catch (error) {
     console.error("[find-account-by-phone] 오류:", error);
 
-    return res.status(500).json({
+    return void res.status(500).json({
       ok: false,
       reason: "unknown",
       detail: "계정 조회 중 오류가 발생했습니다.",
     });
   }
-}
+  },
+});

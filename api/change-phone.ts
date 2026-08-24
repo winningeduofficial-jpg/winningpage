@@ -18,51 +18,55 @@
 //   엔드포인트를 부른다(자리를 비운 사이 남이 번호를 바꾸는 것을 막는 목적,
 //   ChangePasswordModal.jsx 와 동일 근거).
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
 import { isValidMobile, normalizePhone } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { getBearerToken } from "./_lib/serviceAccess.js";
+import { defineHandler } from "./_lib/handler.js";
+import { sendError } from "./_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
-function getBearerToken(req: VercelRequest) {
-  return String(req.headers.authorization || "")
-    .trim()
-    .replace(/^Bearer\s+/i, "");
+function fail(
+  res: VercelResponse,
+  status: number,
+  reason: string,
+  message: string,
+) {
+  sendError(res, "okDetail", status, message, undefined, { reason });
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, detail: "Method not allowed" });
-  }
-
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  unhandledMessage: "번호 변경 중 오류가 발생했습니다.",
+  logLabel: "change-phone",
+  handler: async (req, res, ctx) => {
   const rawPhone = String(req.body?.phone || "").trim();
   const normalized = normalizePhone(rawPhone);
 
   if (!isValidMobile(normalized)) {
-    return res.status(400).json({
-      ok: false,
-      reason: "invalid_phone",
-      detail: "휴대폰 번호 형식이 올바르지 않습니다.",
-    });
+    return fail(res, 400, "invalid_phone", "휴대폰 번호 형식이 올바르지 않습니다.");
   }
 
+  // 이 라우트는 개별 401 사유마다 문구가 다르다("로그인이 필요합니다." vs
+  // "로그인이 만료되었습니다...") — defineHandler auth:"user"는 두 경우 모두
+  // 단일 문구로 통일하므로(_lib/handler.ts AUTH_REQUIRED_MESSAGE), 그 문구
+  // 손실을 피하기 위해 auth:"none" + _lib/serviceAccess.js의 getBearerToken을
+  // 그대로 재사용해 여기서 직접 판정한다(api/docs/batch-3-issues.md 참고).
   const token = getBearerToken(req);
   if (!token) {
-    return res.status(401).json({
-      ok: false,
-      reason: "not_authenticated",
-      detail: "로그인이 필요합니다.",
-    });
+    return fail(res, 401, "not_authenticated", "로그인이 필요합니다.");
   }
 
   try {
-    const supabaseAdmin = createSupabaseAdmin();
+    const supabaseAdmin = ctx.supabaseAdmin;
 
     const { data: userData, error: userError } =
       await supabaseAdmin.auth.getUser(token);
     const userId = userData?.user?.id ?? null;
     if (userError || !userId) {
-      return res.status(401).json({
+      return void res.status(401).json({
         ok: false,
         reason: "not_authenticated",
         detail: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
@@ -84,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (verificationError) {
       console.error("[change-phone] 인증 이력 조회 실패:", verificationError);
-      return res.status(500).json({
+      return void res.status(500).json({
         ok: false,
         reason: "unknown",
         detail: "처리 중 오류가 발생했습니다.",
@@ -95,7 +99,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       !verification ||
       new Date(verification.expires_at).getTime() < Date.now()
     ) {
-      return res.status(400).json({
+      return void res.status(400).json({
         ok: false,
         reason: "not_verified",
         detail: "인증번호 확인을 먼저 완료해 주세요.",
@@ -112,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (updateError) {
       console.error("[change-phone] profiles.phone 갱신 실패:", updateError);
-      return res.status(500).json({
+      return void res.status(500).json({
         ok: false,
         reason: "unknown",
         detail: "번호 변경에 실패했습니다.",
@@ -134,13 +138,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    return res.status(200).json({ ok: true, phone: rawPhone });
+    return void res.status(200).json({ ok: true, phone: rawPhone });
   } catch (error) {
     console.error("[change-phone] 오류:", error);
-    return res.status(500).json({
+    return void res.status(500).json({
       ok: false,
       reason: "unknown",
       detail: "번호 변경 중 오류가 발생했습니다.",
     });
   }
-}
+  },
+});
