@@ -29,8 +29,9 @@ const MS_PER_DAY = 86400000;
 //   로고는 밴드 좌측 끝, 계정 그룹은 밴드 우측 끝.
 // 좌표계 2 (nav 5개 + 메가 컬럼): max-w-content(72.75rem) 컨텐츠 영역, px-8(2rem) 패딩.
 //   nav 기준점은 로고가 아니라 "컨텐츠 영역 시작"(뷰포트 중앙정렬 기준)이며, 좌표계 1과 완전히 독립이다.
-// LOGO_W: 세로형 로고(SVG, h-8.75=35px 고정, viewBox 96:52) 실렌더 폭 4.0385rem(64.6px)
-//   → 4.04rem로 반올림(0729 시안, 기존 40px/74px에서 축소 — 프리헤더 로고도 동일 크기로 축소).
+// LOGO_W: 가로형 로고(SVG, h-6=24px 고정, viewBox 1037:131) 실렌더 폭 11.875rem(190px)
+//   (브랜드 리뉴얼 가로형 시안 — 프리헤더 로고도 동일 크기 유지. 세로형 시절 35px 높이를
+//   가로형에 그대로 쓰면 폭 277px로 nav 좌표계를 침범해 24px로 낮췄다.)
 // NAV_GUARD·MEGA_GUARD·NAV_CELL_W·NAV_CELL_GAP·MEGA_COL_W·MEGA_COL_GAP: 헤더 nav·메가 컬럼이
 // 공유하는 컨텐츠 격자 상수. 산정 근거 및 상세 주석은 src/data/navigation.js에 있다.
 // 표준 상태(로그인/관리자, 배지+마이페이지+관리자+로그아웃) 우측 그룹 실측폭
@@ -38,7 +39,7 @@ const MS_PER_DAY = 86400000;
 //   이후 이름 truncate 상한을 제거해(이름 전체 노출 정책) 계정 그룹 폭은 이름 길이에 따라
 //   가변이 되었다 — 위 실측치는 상한 존재 당시 기준값이며, 긴 이름에서의 유동 gap·90rem
 //   전환점 상호작용은 Playwright 실측으로 별도 검증한다.
-const LOGO_W = "4.04rem";
+const LOGO_W = "11.875rem";
 // 프로모 카드 폭: Figma 1483:926 실측 460×478 → 컴팩트 스케일 0.8 적용 = 368px = 23rem.
 // (get_design_context 1483:926 실값 기준으로 재확인 완료 — 패딩 p-[32px], 요소간 gap-[32px],
 // radius-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px, 버튼 68px 도 모두
@@ -618,9 +619,9 @@ export default function Header() {
           onClick={() => setActiveMega(null)}
         >
           <img
-            src="/images/winning-logo-stacked.svg"
+            src="/images/winning-logo-horizontal.svg"
             alt="위닝에듀"
-            className="h-8.75 w-auto object-contain"
+            className="h-6 w-auto object-contain"
           />
         </Link>
 
