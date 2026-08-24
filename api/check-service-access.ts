@@ -41,54 +41,37 @@
 // `allowed` 하나만 읽는다. 위 4필드는 **추가**일 뿐이며 allowed의 의미·타입은
 // 바뀌지 않았다. 회차 개념이 없는 서비스(goal)는 4필드가 전부 null로 나간다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   clean,
   findProgramAccessRow,
-  getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "./_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import { defineHandler } from "./_lib/handler.js";
+import { sendError } from "./_lib/httpResponse.js";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ detail: "Method not allowed" });
-  }
-
-  try {
+export default defineHandler({
+  methods: ["POST"],
+  auth: "user",
+  errorShape: "detail",
+  unhandledMessage: "이용권 확인 중 오류가 발생했습니다.",
+  logLabel: "check-service-access",
+  handler: async (req, res, ctx) => {
     const { service_key } = req.body || {};
     const config = SERVICE_CONFIGS[clean(service_key)];
 
     if (!config) {
-      return res.status(400).json({ detail: "알 수 없는 서비스입니다." });
+      sendError(res, "detail", 400, "알 수 없는 서비스입니다.");
+      return;
     }
 
-    // serviceAccess.ts는 req.headers를 Record<string, string>으로 선언한다 —
-    // VercelRequest.headers(IncomingHttpHeaders)와는 형태만 다를 뿐 실사용(단일
-    // 문자열 헤더 읽기)은 호환된다(reset-student.ts와 같은 패턴).
-    const token = getBearerToken(
-      req as unknown as { headers: Record<string, string> },
-    );
-    if (!token) {
-      return res.status(401).json({ detail: "로그인이 필요합니다." });
-    }
-
-    const supabaseAdmin = createSupabaseAdmin();
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-
-    if (userError || !userData?.user?.id) {
-      return res.status(401).json({ detail: "로그인이 필요합니다." });
-    }
-
-    const userId = userData.user.id;
+    const userId = ctx.userId!;
     // hasPaidServiceAccess는 이제 { allowed, reason } 을 돌려준다(기간만료
     // 사유를 create-service-ticket.js가 구분해 응답하기 위함) — 여기서는
     // 조회 응답 규격이 boolean 이므로 allowed만 뽑아 쓴다.
     const { allowed } = await hasPaidServiceAccess(
-      supabaseAdmin,
+      ctx.supabaseAdmin,
       userId,
       config,
     );
@@ -97,14 +80,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 부가 정보를 못 읽었다고 결제 완료 사용자를 미보유로 떨어뜨리면 안 된다.
     // (allowed:true인데 회차가 null이면 클라이언트는 "무제한"으로 읽으므로,
     //  안내가 과하게 관대해질 뿐 차단은 서버 RPC가 그대로 한다.)
-    let quota = await readQuotaSnapshot(supabaseAdmin, userId, null);
+    let quota = await readQuotaSnapshot(ctx.supabaseAdmin, userId, null);
     try {
       const accessRow = await findProgramAccessRow(
-        supabaseAdmin,
+        ctx.supabaseAdmin,
         userId,
         config,
       );
-      quota = await readQuotaSnapshot(supabaseAdmin, userId, accessRow);
+      quota = await readQuotaSnapshot(ctx.supabaseAdmin, userId, accessRow);
     } catch (quotaError) {
       console.error(
         "check-service-access quota lookup 실패(무시):",
@@ -112,17 +95,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       allowed,
       quotaRemaining: quota.quotaRemaining,
       quotaTotal: quota.quotaTotal,
       planEndsAt: quota.planEndsAt,
       planLabel: quota.planLabel,
     });
-  } catch (error) {
-    console.error("check-service-access error:", error);
-    return res
-      .status(500)
-      .json({ detail: "이용권 확인 중 오류가 발생했습니다." });
-  }
-}
+  },
+});
