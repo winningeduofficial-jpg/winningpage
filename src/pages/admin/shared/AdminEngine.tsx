@@ -782,9 +782,11 @@ export function AdminForm<T extends AdminRow = AdminRow>({
     );
   }
 
-  function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
+  // 저장 본체. DOM <form>에 의존하지 않는 순수 상태 기반 경로다 — required
+  // 검사도 form state를 읽지 네이티브 검증이 아니다. 그래서 <form>이 아예
+  // 렌더되지 않는 모드 A(아래 origin === 'list' 조기 반환)에서도 모달이 이
+  // 함수를 직접 호출해 폼 하단 [저장]과 같은 검증·저장을 태울 수 있다.
+  function saveForm() {
     if (readonly) {
       onCancel();
       return;
@@ -835,10 +837,64 @@ export function AdminForm<T extends AdminRow = AdminRow>({
     onSave(merged);
   }
 
+  // <form onSubmit> 어댑터 — 모드 B의 requestSubmit()이 HTML 검증을 태운 뒤
+  // 도달하는 지점. 저장 로직 자체는 saveForm 한 벌이다.
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    saveForm();
+  }
+
   // 모달 본문에 넣을 카테고리 필드 3개(문서 json / 원문 raw / html 미러).
   const groupFields = (config.fields || []).filter(
     (field) => field.group === modalSection,
   );
+
+  // 편집 다이얼로그(shadcn Dialog 셸). 두 렌더 경로(모드 A 조기 반환 / 모드 B
+  // 폼 화면)가 공유한다.
+  //   모드 A(origin === 'list'): 목록 [수정] 직행. <form>이 렌더되지 않으므로
+  //     저장은 saveForm 직접 호출 — requestSubmit과 달리 네이티브 HTML 검증이
+  //     없지만, 이 모드의 폼 값은 rowToForm(row)이 채운 기존 행 값 그대로라
+  //     required 검사는 saveForm의 상태 기반 검사로 충분하다.
+  //   모드 B(origin === 'form'): 기존 계약 유지 — requestSubmit()이 HTML 검증을
+  //     정상적으로 태워 폼 하단 [저장]과 완전히 동일한 경로가 된다(:660 주석).
+  const sectionEditModal = (
+    <AdmissionSectionEditModal
+      open={Boolean(modalSection)}
+      {...(modalSection !== null ? { sectionKey: modalSection } : {})}
+      {...(modalSection !== null
+        ? {
+            sectionLabel:
+              HWP_SECTION_LABELS[modalSection as SectionKey] || modalSection,
+          }
+        : {})}
+      universityName={form.university_name}
+      dirty={dirty}
+      origin={origin}
+      onClose={closeSectionModal}
+      onSave={
+        origin === "list" ? saveForm : () => formRef.current?.requestSubmit()
+      }
+    >
+      {groupFields.map((field) => (
+        <AdmissionGroupField key={field.key} field={field}>
+          <AdmissionDocFieldEditor
+            field={field}
+            form={form}
+            onPatch={patch}
+            onDirty={() => setDirty(true)}
+          />
+        </AdmissionGroupField>
+      ))}
+    </AdmissionSectionEditModal>
+  );
+
+  // 모드 A: 목록 [수정] 진입은 **모달만** 화면에 존재한다. 예전엔 여기서도
+  // 전체 편집 폼 화면을 렌더하고 그 위에 모달을 얹었는데(반투명 백드롭 뒤로
+  // 사용자가 본 적 없는 폼 UI가 비쳐 보이는 문제), AdminForm은 이제 이 모드
+  // 에서 상태·저장 엔진으로만 살고 화면 JSX는 만들지 않는다 — 뒤에는 목록
+  // 라우트 화면이 그대로 남는다... 는 아니고 AdminTable이 언마운트된 빈
+  // 섹션 배경 위에 모달이 뜬다(목록 유지는 Admin.tsx 렌더 분기 소관).
+  if (origin === "list") return sectionEditModal;
 
   return (
     // 모달을 <form>의 **형제**로 둔다. 편집 input이 <form> 안에 있으면 셀에서
@@ -1284,39 +1340,9 @@ export function AdminForm<T extends AdminRow = AdminRow>({
         />
       </form>
 
-      {/* 공개 모달과 **같은 껍데기**(AdmissionModalShell)를 쓰는 편집
-          다이얼로그. 본문만 뷰어 대신 편집 필드를 넣는다. */}
-      <AdmissionSectionEditModal
-        open={Boolean(modalSection)}
-        {...(modalSection !== null ? { sectionKey: modalSection } : {})}
-        {...(modalSection !== null
-          ? {
-              sectionLabel:
-                HWP_SECTION_LABELS[modalSection as SectionKey] || modalSection,
-            }
-          : {})}
-        universityName={form.university_name}
-        dirty={dirty}
-        origin={origin}
-        onClose={closeSectionModal}
-        // 저장은 폼 하단 [저장]과 **완전히 같은 단일 경로**다: requestSubmit →
-        // submit(required 검사 → config.validate confirm) → onSave(merged) →
-        // saveRow → formToPayload → update().eq('id') → setMode('list').
-        // AdminForm이 언마운트되면서 모달도 함께 사라지고 목록으로 돌아간다 —
-        // 공개 모달(닫으면 목록)과 같은 루프다. 부분 저장 경로는 만들지 않는다.
-        onSave={() => formRef.current?.requestSubmit()}
-      >
-        {groupFields.map((field) => (
-          <AdmissionGroupField key={field.key} field={field}>
-            <AdmissionDocFieldEditor
-              field={field}
-              form={form}
-              onPatch={patch}
-              onDirty={() => setDirty(true)}
-            />
-          </AdmissionGroupField>
-        ))}
-      </AdmissionSectionEditModal>
+      {/* 모드 B(폼 화면의 ✏️ 진입) 편집 다이얼로그 — 정의는 위 sectionEditModal.
+          저장은 requestSubmit 경유라 폼 하단 [저장]과 완전히 같은 단일 경로다. */}
+      {sectionEditModal}
     </>
   );
 }
