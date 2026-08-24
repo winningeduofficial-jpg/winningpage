@@ -15,9 +15,9 @@ export type PremiumGraduateAcceptance = {
 };
 
 export function usePremiumGraduateAcceptances() {
-  const [universities, setUniversities] = useState<
-    PremiumGraduateAcceptance[]
-  >([]);
+  const [universities, setUniversities] = useState<PremiumGraduateAcceptance[]>(
+    [],
+  );
 
   useEffect(() => {
     let mounted = true;
