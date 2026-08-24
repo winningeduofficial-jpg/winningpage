@@ -39,7 +39,7 @@ export default function OnlineInquiry() {
           <span className="text-[#013262]">카카오톡으로 문의 할 수 있어요</span>
         </h1>
 
-        <div className="mx-auto mt-14 flex max-w-[54rem] flex-col items-center gap-10 lg:mt-20 lg:max-w-none lg:flex-row lg:items-start lg:justify-center lg:gap-16">
+        <div className="mx-auto mt-14 flex max-w-[54rem] flex-col items-center gap-8 lg:max-w-none lg:flex-row lg:justify-center">
           <img
             src={kakaoChatPhone}
             alt="위닝에듀 카카오톡 채널 상담 화면 예시"
@@ -47,7 +47,7 @@ export default function OnlineInquiry() {
           />
 
           <div className="flex w-full max-w-[28rem] flex-col items-center gap-8 lg:max-w-[45.5rem] lg:items-start">
-            <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid w-full grid-cols-1 gap-8 sm:grid-cols-2">
               {FEATURE_CARDS.map((card) => (
                 <div
                   key={card.title}
