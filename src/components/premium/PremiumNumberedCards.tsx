@@ -9,6 +9,10 @@ import {
 // 불릿 목록 대신 단일 설명 문단을 받고, 카드 1개를 베이지 틴트로 강조할 수 있다(시안: 서비스
 // 3카드 가운데 카드, 동시합격 4카드 두번째 카드). 헤딩은 섹션마다 배치가 달라(중앙 vs
 // 좌측제목+우측설명) 이 컴포넌트에 포함하지 않고 페이지가 감싼다.
+//
+// tone="dark"(해외명문대 6단계 시안 전용) — 개별 카드 배경/보더 대신 3열×N행 그리드에
+// 얇은 구분선(border)만 두르고, 텍스트를 흰색/골드로 반전한다. 3열 고정 전제라 columns
+// 상수를 그대로 쓴다(다른 개수로 쓰게 되면 일반화 필요 — 지금은 6개 단일 용도).
 type NumberedCardItem = {
   number: string;
   title: string;
@@ -18,12 +22,56 @@ type NumberedCardItem = {
 
 type PremiumNumberedCardsProps = {
   items: NumberedCardItem[];
+  tone?: "light" | "dark";
 };
+
+const DARK_GRID_COLUMNS = 3;
 
 export default function PremiumNumberedCards({
   items,
+  tone = "light",
 }: PremiumNumberedCardsProps) {
   if (!items || items.length === 0) return null;
+
+  if (tone === "dark") {
+    const rows = Math.ceil(items.length / DARK_GRID_COLUMNS);
+
+    return (
+      <div className="grid grid-cols-1 border border-white/15 sm:grid-cols-3">
+        {items.map((item, index) => {
+          const row = Math.floor(index / DARK_GRID_COLUMNS);
+          const isLastColumn =
+            (index + 1) % DARK_GRID_COLUMNS === 0 || index === items.length - 1;
+          const isLastRow = row === rows - 1;
+
+          return (
+            <div
+              key={item.number}
+              className={`flex flex-col px-6 py-7 sm:px-8 ${
+                isLastRow ? "" : "border-b border-white/15"
+              } ${isLastColumn ? "" : "sm:border-r sm:border-white/15"}`}
+            >
+              <span
+                className={`text-[1.5rem] font-semibold leading-[1.4] ${PREMIUM_GOLD_TEXT_CLASS}`}
+              >
+                {item.number}
+              </span>
+              <p className="mt-2 break-keep text-[1rem] font-semibold leading-[1.4] text-white">
+                {item.title}
+              </p>
+              <span
+                className="mt-3 h-[0.09375rem] w-8 bg-gold opacity-60"
+                aria-hidden="true"
+              />
+              <p className="mt-4 break-keep text-[0.875rem] leading-[1.6] text-white/70">
+                {item.description}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:flex-row">
