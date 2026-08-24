@@ -11,7 +11,7 @@ import {
   PremiumNumberedCards,
   PremiumSectionHeading,
 } from "@/components/premium";
-import { usePremiumGraduateAcceptances } from "@/hooks/usePremiumGraduateAcceptances";
+import { PREMIUM_GRADUATE_ACCEPTANCES } from "@/components/premium/premiumStaticData";
 
 // 대학원입학 프로그램(프리미엄) 랜딩 — /page/premium/graduate-school.
 // 대입컨설팅 A/S와 같은 컴포넌트 조합 방식의 코드 페이지(구 CMS DynamicPage 대체).
@@ -147,8 +147,6 @@ const SIMULTANEOUS_CARDS = [
 ];
 
 export default function GraduateSchoolAdmission() {
-  const { universities } = usePremiumGraduateAcceptances();
-
   return (
     <main className="min-h-screen bg-white pt-16">
       <PremiumHero
@@ -209,7 +207,7 @@ export default function GraduateSchoolAdmission() {
 
       <PremiumAcceptanceMarquee
         heading="2026년 지원자 전원합격"
-        universities={universities}
+        universities={PREMIUM_GRADUATE_ACCEPTANCES}
       />
 
       <section className={PREMIUM_SECTION_PADDING_CLASS}>

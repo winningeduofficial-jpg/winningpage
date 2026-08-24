@@ -123,10 +123,9 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
       { key: "programCategories", label: "핵심 서비스" },
       // 기획표 라벨 변경: 멘토 성공전략 → 멘토스 소개.
       { key: "mentorStrategies", label: "멘토스 소개" },
-      // 20260823000003_premium_achievements 로 들어온 화면. CONFIGS·ADMIN_SECTION_KEYS
-      // 에는 있는데 여기에만 빠져 있어서 라우트는 살아 있고 사이드바에서는 갈 수
-      // 없는 상태였다(2026-08-23, 재편 브랜치와 나란히 머지되며 생긴 누락).
-      { key: "premiumAchievements", label: "프리미엄 실적 뱃지" },
+      // premiumAchievements(프리미엄 실적 뱃지) 화면은 premium-db-decouple로 제거했다 —
+      // premium_achievements 테이블 자체가 drop되고(20260824000008), 프리미엄 랜딩은
+      // premiumStaticData.ts 코드 상수를 쓴다.
     ],
   },
   // 입시정보 관리 — 사용자단 내비게이션의 「입시정보」 그룹(src/data/navigation.ts)과

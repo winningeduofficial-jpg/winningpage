@@ -16,8 +16,10 @@ import {
   PremiumSectionHeading,
   PremiumStatsPills,
 } from "@/components/premium";
-import { useHomeMentors } from "@/hooks/useHomeMentors";
-import { usePremiumAchievements } from "@/hooks/usePremiumAchievements";
+import {
+  PREMIUM_ACHIEVEMENTS,
+  PREMIUM_MENTORS,
+} from "@/components/premium/premiumStaticData";
 
 // 대입컨설팅 A 프로그램(프리미엄) 랜딩 — /page/premium/admission-consulting/a.
 // 섹션 1~10 조합 + 카피 상수. 헤더/푸터는 SiteLayout이 렌더한다(개별 import 안 함).
@@ -152,9 +154,6 @@ const DARK_TRIO_ITEMS = [
 ];
 
 export default function AdmissionConsultingA() {
-  const { achievements } = usePremiumAchievements();
-  const { mentors } = useHomeMentors();
-
   return (
     <main className="min-h-screen bg-white pt-16">
       <PremiumProgramTabs active="a" />
@@ -181,10 +180,7 @@ export default function AdmissionConsultingA() {
             합격생 선배들의 추천
           </>
         }
-        items={achievements.map((item) => ({
-          label: item.label,
-          count: item.count,
-        }))}
+        items={PREMIUM_ACHIEVEMENTS}
       />
 
       <PremiumAudience
@@ -234,9 +230,9 @@ export default function AdmissionConsultingA() {
         items={DARK_TRIO_ITEMS}
       />
 
-      {mentors.length > 0 && (
+      {PREMIUM_MENTORS.length > 0 && (
         <MentorSection
-          mentors={mentors}
+          mentors={PREMIUM_MENTORS}
           variant="premium"
           className={`${PREMIUM_BEIGE_BG_CLASS} ${PREMIUM_SECTION_PADDING_CLASS}`}
           headingSlot={

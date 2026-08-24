@@ -47,8 +47,50 @@ export const NAV_CELL_GAP = "3rem";
 export const MEGA_COL_W = "8.75rem";
 export const MEGA_COL_GAP = "0.5rem";
 
+// 프리미엄 메뉴 그룹 — DB(page_contents) 소유가 아니라 이 상수가 정본이다(premium-db-decouple:
+// 프리미엄 프로그램 페이지 전체가 DB 조회 0건으로 전환되며 메뉴도 함께 코드 소유로 옮겼다).
+// useNavGroups.ts가 DB에서 파생된 그룹 트리에 이 그룹을 항상 주입한다(제목 '프리미엄'인 DB
+// 그룹은 있어도 무시하고 이 상수로 교체) — page_contents에 프리미엄 프로그램 행이 아예
+// 없어져도(20260824000007 마이그레이션) 메뉴가 사라지지 않는다.
+export const PREMIUM_NAV_GROUP = {
+  title: "프리미엄",
+  to: PREMIUM_ADMISSION_A_PATH,
+  items: [
+    {
+      label: "대입컨설팅 프로그램",
+      to: PREMIUM_ADMISSION_A_PATH,
+      sortOrder: 1,
+    },
+    {
+      label: "특목고입학 프로그램",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/special-highschool`,
+      sortOrder: 2,
+    },
+    {
+      label: "대학원입학 프로그램",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/graduate-school`,
+      sortOrder: 3,
+    },
+    {
+      label: "해외명문대 진학컨설팅",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/global-university`,
+      sortOrder: 4,
+    },
+    {
+      label: "국제학교 학습관리",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/international-school`,
+      sortOrder: 5,
+    },
+    {
+      label: "국제・해외고 국내대 입학컨설팅",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/returning-student`,
+      sortOrder: 6,
+    },
+  ],
+};
+
 // 헤더 메가메뉴·푸터 공용 fallback — DB(page_contents)가 우선, 이 상수는 오프라인/최초 페인트용.
-// 시안 2016:1796 기준.
+// 시안 2016:1796 기준. '프리미엄' 그룹은 PREMIUM_NAV_GROUP을 그대로 참조한다(위 주석 참고).
 export const FALLBACK_NAV_GROUPS = [
   {
     title: "서비스",
@@ -62,42 +104,7 @@ export const FALLBACK_NAV_GROUPS = [
       { label: "심화탐구", to: "/services/research", sortOrder: 6 },
     ],
   },
-  {
-    title: "프리미엄",
-    to: PREMIUM_ADMISSION_A_PATH,
-    items: [
-      {
-        label: "대입컨설팅 프로그램",
-        to: PREMIUM_ADMISSION_A_PATH,
-        sortOrder: 1,
-      },
-      {
-        label: "특목고입학 프로그램",
-        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/special-highschool`,
-        sortOrder: 2,
-      },
-      {
-        label: "대학원입학 프로그램",
-        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/graduate-school`,
-        sortOrder: 3,
-      },
-      {
-        label: "해외명문대 진학컨설팅",
-        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/global-university`,
-        sortOrder: 4,
-      },
-      {
-        label: "국제학교 학습관리",
-        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/international-school`,
-        sortOrder: 5,
-      },
-      {
-        label: "국제・해외고 국내대 입학컨설팅",
-        to: `${PREMIUM_PROGRAM_PATH_PREFIX}/returning-student`,
-        sortOrder: 6,
-      },
-    ],
-  },
+  PREMIUM_NAV_GROUP,
   {
     title: "입시정보",
     to: "/admission/guidelines",
