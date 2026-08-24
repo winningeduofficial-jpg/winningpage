@@ -13,10 +13,10 @@
 // getEffectiveScheduleTarget(calc/schedule.js, 동결 순수 함수)이 그 경계 안의
 // 요일별 목표(월~토, 일요일 제외)를 합산한다. 새 요일 합산 로직을 이 파일에 만들지 않는다.
 
-import { GRADE_PERCENTILE } from "@/lib/goal/calc/jeongsi.js";
-import type { DaySchedule } from "@/lib/goal/calc/schedule.js";
-import { getEffectiveScheduleTarget } from "@/lib/goal/calc/schedule.js";
-import { addDaysYMD, getMondayYMD } from "@/lib/goal/calc/virtualDate.js";
+import { GRADE_PERCENTILE } from "../calc/jeongsi.js";
+import type { DaySchedule } from "../calc/schedule.js";
+import { getEffectiveScheduleTarget } from "../calc/schedule.js";
+import { addDaysYMD, getMondayYMD } from "../calc/virtualDate.js";
 
 const MS_PER_DAY = 86400000;
 
