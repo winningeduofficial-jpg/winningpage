@@ -13,7 +13,8 @@
 // 어드민 판정은 resolveAdmin(is_admin, uid 단일)이 아니라 resolveWinningAdmin
 // (is_winning_admin, uid∨email + role 4종)을 쓴다 — goal_students의 기존 RLS
 // 정책(goal_students_admin_select)이 is_winning_admin()을 쓰므로 이 API도 같은
-// 기준이어야 정합적이다(api/_lib/adminAuth.js 상단 주석).
+// 기준이어야 정합적이다(api/_lib/adminAuth.js 상단 주석). defineHandler의
+// auth:"winningAdmin"이 이 resolveWinningAdmin을 그대로 호출한다(api/_lib/handler.ts).
 //
 // 응답 규격
 //   200 { ok: true }              리셋 완료.
@@ -24,67 +25,50 @@
 //   405 { detail }                POST 아님.
 //   500 { detail }                RPC 실패, 서버 설정 누락 등.
 //
+// ⚠ createSupabaseAdmin() 설정 오류(500) 문구는 defineHandler로 옮기며
+//   "서버 설정이 올바르지 않습니다."에서 unhandledMessage("처리 중 오류가
+//   발생했습니다.")로 바뀐다 — api/docs/batch-2-issues.md 이슈 1과 동일한,
+//   정상 배포에서는 도달 불가능한 방어 코드의 문구 뭉개짐이다(api/docs/batch-4-issues.md 기록).
+//
 // goal-admin 앱의 리셋 버튼 UI는 이번 범위 밖이다(PR #63, 이 브랜치엔 미포함) —
 // 이 엔드포인트는 백엔드만 완성한다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { resolveWinningAdmin } from "../../_lib/adminAuth.js";
-import { createSupabaseAdmin } from "../../_lib/supabaseAdmin.js";
+import { defineHandler } from "../../_lib/handler.js";
+import { sendError } from "../../_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
-type WinningAdminResult =
-  | { ok: true; userId: string }
-  | { ok: false; status: number; detail: string };
+export default defineHandler({
+  methods: ["POST"],
+  auth: "winningAdmin",
+  errorShape: "detail",
+  unhandledMessage: "처리 중 오류가 발생했습니다.",
+  logLabel: "goal/admin/reset-student",
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ detail: "Method not allowed" });
-  }
+    const { profileId } = req.body || {};
+    if (!profileId || typeof profileId !== "string") {
+      return void sendError(res, "detail", 400, "profileId가 필요합니다.");
+    }
 
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("goal/admin/reset-student 설정 오류:", error);
-    return res.status(500).json({ detail: "서버 설정이 올바르지 않습니다." });
-  }
-
-  // adminAuth.js는 JSDoc에서 req.headers를 Record<string, string>으로 선언한다 —
-  // VercelRequest.headers(IncomingHttpHeaders)와는 형태만 다를 뿐 실사용(단일 문자열
-  // 헤더 읽기)은 호환된다.
-  const auth: WinningAdminResult = await resolveWinningAdmin(
-    supabaseAdmin,
-    req as unknown as { headers: Record<string, string> },
-  );
-  if (auth.ok === false) {
-    return res.status(auth.status).json({ detail: auth.detail });
-  }
-
-  const { profileId } = req.body || {};
-  if (!profileId || typeof profileId !== "string") {
-    return res.status(400).json({ detail: "profileId가 필요합니다." });
-  }
-
-  try {
     const { error } = await supabaseAdmin.rpc("fn_goal_reset_student", {
       p_profile_id: profileId,
     });
 
     if (error) {
       if (String(error.message || "").includes("goal_student_not_found")) {
-        return res
-          .status(404)
-          .json({ detail: "해당 학생을 찾을 수 없습니다." });
+        return void sendError(
+          res,
+          "detail",
+          404,
+          "해당 학생을 찾을 수 없습니다.",
+        );
       }
       console.error("goal/admin/reset-student RPC 오류:", error);
-      return res.status(500).json({ detail: "리셋 처리에 실패했습니다." });
+      return void sendError(res, "detail", 500, "리셋 처리에 실패했습니다.");
     }
 
-    return res.status(200).json({ ok: true });
-  } catch (error) {
-    console.error("goal/admin/reset-student error:", error);
-    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
-  }
-}
+    return void res.status(200).json({ ok: true });
+  },
+});

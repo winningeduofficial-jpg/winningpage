@@ -70,6 +70,7 @@ import {
   narrowGoalSession,
   openGoalSession,
 } from "../_lib/goalRepo.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -204,9 +205,6 @@ async function buildGrowthReport({
   );
   if (!endLog) endLog = startLog;
 
-  // src/lib/goal/report/aggregate.js(다른 배치 소유, 이 작업 범위 밖)의
-  // computeAdmissionDelta는 파라미터 타입이 없어 사용 기반 추론이 실제 인자
-  // shape(targets 래핑)과 어긋난다(pre-existing) — 이 호출 인자만 any로 넘긴다.
   const admissionArgs = {
     targets: {
       ideal: {
@@ -221,8 +219,7 @@ async function buildGrowthReport({
     startLog,
     endLog,
   };
-  // biome-ignore lint/suspicious/noExplicitAny: 위 사유 — aggregate.js 파라미터 타입 추론 결함(범위 밖).
-  const admission = computeAdmissionDelta(admissionArgs as any);
+  const admission = computeAdmissionDelta(admissionArgs);
 
   const heroNarrative = buildHeroNarrative({
     period: type,
@@ -563,13 +560,18 @@ function percentileGradeAverage(subjectsRaw) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
-    return res.status(405).json({ detail: "Method not allowed" });
+    return sendError(res, "detail", 405, "Method not allowed");
   }
 
   try {
     const session = await openGoalSession(req);
     if (session.error) {
-      return res.status(session.error.status).json(session.error.body);
+      return sendError(
+        res,
+        "detail",
+        session.error.status,
+        session.error.body.detail as string,
+      );
     }
 
     const { allowed } = session;
@@ -621,6 +623,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, report });
   } catch (error) {
     console.error("goal/report error:", error);
-    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
+    return sendError(res, "detail", 500, "처리 중 오류가 발생했습니다.");
   }
 }
