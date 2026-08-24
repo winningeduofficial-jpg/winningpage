@@ -17,8 +17,11 @@ import {
 // cta.href — 특목고입학 시안의 "카카오톡 상담" 버튼처럼 외부 링크(카카오 채널 등)로 보내야
 // 하는 주 CTA용. href가 있으면 내부 라우팅 Link 대신 새 탭 <a target="_blank"> 로 렌더한다.
 // 기존 사용처는 전부 to만 넘기므로 렌더 결과가 그대로다.
+// eyebrow — 국제・해외고 국내대 입학컨설팅 시안의 "STUDY ABROAD, WIN HOME" 같은 title 위
+// 영문 스몰캡스 라벨. light variant 전용, 옵셔널이라 기존 사용처는 렌더 결과가 그대로다.
 type PremiumCtaBannerProps = {
   title: ReactNode;
+  eyebrow?: ReactNode;
   sub?: ReactNode;
   cta: { label: string; to?: string; href?: string };
   secondaryCta?: { label: string; href: string };
@@ -44,6 +47,7 @@ const PRIMARY_CTA_CLASS_BY_TONE: Record<
 
 export default function PremiumCtaBanner({
   title,
+  eyebrow,
   sub,
   cta,
   secondaryCta,
@@ -78,6 +82,11 @@ export default function PremiumCtaBanner({
       >
         <div className="flex flex-col items-center gap-8 text-center">
           <div>
+            {eyebrow ? (
+              <p className="mb-2 break-keep text-[0.875rem] font-medium uppercase leading-[1.4] tracking-[0.08em] text-ink-natural [font-variant:small-caps]">
+                {eyebrow}
+              </p>
+            ) : null}
             <h2 className="break-keep text-[2rem] font-semibold leading-[1.4] text-ink-strong">
               {title}
             </h2>
