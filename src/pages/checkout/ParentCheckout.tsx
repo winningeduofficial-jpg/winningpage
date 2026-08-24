@@ -20,12 +20,6 @@ import { ANONYMOUS, getTossPayments } from "@/lib/toss";
 import { useEnrollmentOrder } from "./useEnrollmentOrder";
 import { usePaymentAgreementHistory } from "./usePaymentAgreementHistory";
 
-// StudentEnrollmentRequest.tsx 와 동일 필터(목표관리/콜멘토/수행평가/학습진단만
-// 결제 카탈로그에 노출) — 정본 근거는 그 파일 상단 주석 참고, 여기서 반복하지 않는다.
-// diagnose 가 빠지면 학생이 학습진단을 신청한 주문이 missingOrderItem 으로 결제가
-// 막힌다 — 학생 쪽 목록과 반드시 함께 갱신할 것.
-const ALLOWED_SERVICE_KEYS = ["goal", "mentor", "suhaeng", "diagnose"];
-
 interface CouponRow {
   id: string;
   title: string;
@@ -337,17 +331,15 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   const [payError, setPayError] = useState<string | null>(null);
 
   // 카탈로그 — 학생이 이미 고른 상품을 학부모가 바꿀 수 있게(StudentEnrollmentRequest.tsx
-  // 와 동일 패턴). productsLoading/productsError 로 이름을 바꿔 위 결제 loading
-  // state 와 충돌하지 않게 한다.
+  // 와 동일 패턴). orderableOnly=true 로 셀프서브 결제 카탈로그(products.is_orderable)만
+  // 받는다 — 예전 ALLOWED_SERVICE_KEYS 하드코딩 상수는 제거했다(드리프트로 diagnose
+  // 누락 버그, is_orderable 컬럼 도입 배경). productsLoading/productsError 로 이름을
+  // 바꿔 위 결제 loading state 와 충돌하지 않게 한다.
   const {
-    services,
+    services: filteredServices,
     loading: productsLoading,
     error: productsError,
-  } = useProducts();
-  const filteredServices = useMemo(
-    () => services.filter((s) => ALLOWED_SERVICE_KEYS.includes(s.key)),
-    [services],
-  );
+  } = useProducts(undefined, { orderableOnly: true });
   const hasNoServices = Boolean(productsError) || filteredServices.length === 0;
 
   // 서비스별 단일 선택: { [serviceKey]: productId }. 초기값은 orderItems(학생이

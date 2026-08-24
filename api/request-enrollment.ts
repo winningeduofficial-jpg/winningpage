@@ -26,6 +26,7 @@ type ProductRow = {
   list_price: number | null;
   price: number | null;
   is_active: boolean;
+  is_orderable: boolean;
 };
 
 function clean(value: unknown) {
@@ -107,12 +108,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(409).json({ error: "no_linked_parent" });
     }
 
-    // 4) 상품 조회 (서버 신뢰 가격) — api/create-order.js:73-88 패턴 이식.
+    // 4) 상품 조회 (서버 신뢰 가격) — api/create-order.js:73-88 패턴 이식. is_orderable
+    //    은 셀프서브 결제 카탈로그(products.is_orderable, 20260825 도입) 전용 게이트다
+    //    — is_active(판매 중)와 별개로 학생 수강신청 흐름에서 제외할 상품을 막는다.
     const { data: products, error: productError } = await supabaseAdmin
       .from("products")
-      .select("id, slug, service_key, name, list_price, price, is_active")
+      .select("id, slug, service_key, name, list_price, price, is_active, is_orderable")
       .in("id", productIds)
-      .eq("is_active", true);
+      .eq("is_active", true)
+      .eq("is_orderable", true);
 
     if (productError) {
       console.error("products 조회 오류:", productError);
