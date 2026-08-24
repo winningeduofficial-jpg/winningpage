@@ -155,6 +155,7 @@ export default function AdmissionConsultingA() {
       <PremiumProgramTabs active="a" />
 
       <PremiumHero
+        active="a"
         title={
           <>
             전공선배 멘토가 곁에 서고

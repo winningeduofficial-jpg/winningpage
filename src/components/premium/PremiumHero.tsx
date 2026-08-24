@@ -9,13 +9,22 @@ import { Link } from "react-router";
 // 투명해져 사진의 손·연필·종이 디테일이 그대로 보인다. 어두운 텍스트(ink-strong/ink)는
 // 그대로 — 라이트 위에서 AA 대비 확보.
 type PremiumHeroProps = {
+  active: "a" | "s";
   title: ReactNode;
   description: ReactNode;
   cta: { label: string; to: string };
   bgSrc: string;
 };
 
+// 탭별 방사형 라이트 — Tailwind는 소스의 완성된 리터럴 클래스만 스캔하므로
+// `bg-[${...}]` 런타임 조합은 컴파일되지 않는다. 클래스 문자열을 통째로 보관할 것.
+const RADIAL_GRADIENT: Record<PremiumHeroProps["active"], string> = {
+  a: "bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_5%,rgba(255,255,255,0.65)_10%,rgba(255,255,255,0.35)_15%,rgba(255,255,255,0.175)_30%,rgba(255,255,255,0)_60%)]",
+  s: "bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,1)_5%,rgba(255,255,255,0.85)_10%,rgba(255,255,255,0.5)_25%,rgba(255,255,255,0.16)_45%,rgba(255,255,255,0.08)_66%,rgba(255,255,255,0)_88%)]",
+};
+
 export default function PremiumHero({
+  active,
   title,
   description,
   cta,
@@ -32,7 +41,7 @@ export default function PremiumHero({
       {/* 방사형 라이트 — 텍스트 블록(최대 38.8rem)보다 넉넉한 타원, 모바일은 폭 대비 더 크게 */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 h-[160%] w-[260%] -translate-x-1/2 -translate-y-1/2 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.34)_0%,rgba(255,255,255,0.28)_40%,rgba(255,255,255,0.12)_66%,rgba(255,255,255,0)_88%)] sm:w-[180%] lg:h-[200%] lg:w-[130%]"
+        className={`pointer-events-none absolute left-1/2 top-1/2 h-[160%] w-[260%] -translate-x-1/2 -translate-y-1/2 ${RADIAL_GRADIENT[active]} sm:w-[180%] lg:h-[200%] lg:w-[130%]`}
       />
       <div className="relative z-10 mx-auto w-full max-w-[38.8125rem] px-5 text-center sm:px-8">
         <h1 className="break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] text-ink-strong sm:text-[2rem]">

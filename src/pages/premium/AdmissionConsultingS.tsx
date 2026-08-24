@@ -162,6 +162,7 @@ export default function AdmissionConsultingS() {
       <PremiumProgramTabs active="s" />
 
       <PremiumHero
+        active="s"
         title={
           <>
             대표원장과 대표멘토가
