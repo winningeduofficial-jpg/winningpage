@@ -27,7 +27,11 @@ import { supabase } from "@/lib/supabase";
 // 재사용한다. diagnose는 학습진단 유료 게이팅(20260821, 이용 요금 구조 최종본
 // 20260806)으로 추가된 4번째 서비스다 — 회원가입 시 1회 무료 이후에만 이 결제
 // 경로가 필요해진다.
-const ALLOWED_SERVICE_KEYS = ["goal", "mentor", "suhaeng", "diagnose"];
+//
+// 카탈로그 필터 — 예전엔 여기 ALLOWED_SERVICE_KEYS 하드코딩 상수를 뒀는데
+// ParentCheckout.tsx 가 같은 상수를 별도로 들고 있다 드리프트로 diagnose 가
+// 한쪽에서 빠지는 버그가 났다(결제 차단). 이제 useProducts(orderableOnly: true)로
+// DB 컬럼 products.is_orderable 을 정본으로 쓴다(supabase/migrations/20260825000000).
 
 // 그룹당 1개 선택 안내 — 시안 실측 문구(3921:7066, 목표관리·수행평가 섹션
 // 하단에만 있고 콜멘토엔 없다 — 아래 렌더 조건 `products.length > 1`이 이를
@@ -87,7 +91,12 @@ interface CompletedOrder {
 
 export default function StudentEnrollmentRequest() {
   const navigate = useNavigate();
-  const { services, loading, error, refetch } = useProducts();
+  const {
+    services: filteredServices,
+    loading,
+    error,
+    refetch,
+  } = useProducts(undefined, { orderableOnly: true });
 
   // 서비스별 단일 선택: { [serviceKey]: productId } — Pricing.jsx 와 동일 규칙
   // (그룹당 1개, 서로 다른 그룹은 동시 선택 가능).
@@ -114,10 +123,6 @@ export default function StudentEnrollmentRequest() {
     };
   }, []);
 
-  const filteredServices = useMemo(
-    () => services.filter((s) => ALLOWED_SERVICE_KEYS.includes(s.key)),
-    [services],
-  );
   const hasNoServices = Boolean(error) || filteredServices.length === 0;
 
   function toggle(serviceKey: string, productId: string) {
