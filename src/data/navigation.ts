@@ -129,7 +129,7 @@ export const FALLBACK_NAV_GROUPS = [
       { label: "회사소개", to: "/company-news", sortOrder: 1 },
       { label: "공지사항", to: "/events", sortOrder: 2 },
       { label: "자주하는 질문", to: "/faq", sortOrder: 3 },
-      { label: "온라인문의", to: "/page/online-inquiry", sortOrder: 4 },
+      { label: "온라인문의", to: "/online-inquiry", sortOrder: 4 },
     ],
   },
 ];
