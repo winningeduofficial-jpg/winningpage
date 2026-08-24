@@ -3055,13 +3055,15 @@ export function AdminSectionRoute({ section }: { section: string }) {
     setMode("edit");
   }
 
-  // 목록 셀 [수정] → 폼을 마운트하되 곧바로 그 섹션의 편집 다이얼로그를 연다.
-  // 진입 경로는 editRow와 같고(같은 AdminForm, 같은 저장 경로), 다른 것은
-  // "어느 섹션 모달을 들고 시작하느냐"와 "닫으면 목록으로 돌아가느냐"뿐이다.
+  // 목록 셀 [수정] → **목록을 그대로 둔 채** 그 섹션의 편집 다이얼로그만 연다.
+  // mode는 'list'를 유지한다 — AdminTable이 언마운트되지 않고, 아래 목록 분기가
+  // pendingSection을 보고 엔진 전용 AdminForm(origin='list', 모달만 렌더)을
+  // 오버레이로 함께 마운트한다. 저장 경로는 editRow와 동일(같은 saveRow).
+  // 예전엔 setMode('edit')로 폼 화면 전체를 마운트하고 그 위에 모달을 얹었는데,
+  // 반투명 백드롭 뒤로 사용자가 본 적 없는 폼 UI가 비쳐 보였다.
   function openRowSection(row, sectionKey) {
     setEditingRow(row);
     setPendingSection(sectionKey);
-    setMode("edit");
   }
 
   async function saveRow(form) {
@@ -3143,8 +3145,9 @@ export function AdminSectionRoute({ section }: { section: string }) {
       const { data, error } = await supabase
         .from(config.table)
         .update(payload)
-        // mode !== 'create'인 이 분기는 openEdit/openMetaEditFromRow가 setEditingRow(row)와
-        // setMode('edit')를 항상 함께 호출하는 계약 위에서만 도달한다 — editingRow는 항상 채워져 있다.
+        // mode !== 'create'인 이 분기는 editRow/openMetaEditFromRow(setMode('edit'))와
+        // openRowSection(mode 'list' 유지, 섹션 모달 오버레이)이 전부 setEditingRow(row)를
+        // 먼저 호출하는 계약 위에서만 도달한다 — editingRow는 항상 채워져 있다.
         .eq("id", editingRow!.id)
         .select("*")
         .single();
@@ -3540,6 +3543,27 @@ export function AdminSectionRoute({ section }: { section: string }) {
                 onSave={(form) => saveAdmissionMeta(metaEditRow, form)}
               />
             )}
+
+            {/* 목록 셀 [수정](openRowSection) → 섹션 편집 모달. AdminForm은
+                origin='list'에서 화면 JSX 없이 상태·저장 엔진 + 모달만 렌더
+                하므로(AdminEngine의 조기 반환), 목록 위에 다이얼로그만 뜬다.
+                mode는 'list' 그대로 — saveRow의 update 분기는 mode !== 'create'
+                조건이라 editingRow.id로 정상 저장된다. */}
+            {pendingSection && editingRow && (
+              <AdminForm
+                config={config}
+                mode={mode}
+                row={editingRow}
+                origin="list"
+                initialSection={pendingSection}
+                onCancel={() => {
+                  setEditingRow(null);
+                  setPendingSection(null);
+                }}
+                onSave={saveRow}
+                onUpload={uploadImage}
+              />
+            )}
           </>
         )
       ) : (
@@ -3547,8 +3571,11 @@ export function AdminSectionRoute({ section }: { section: string }) {
           config={config}
           mode={mode}
           row={editingRow}
-          origin={pendingSection ? "list" : "form"}
-          initialSection={pendingSection}
+          // 폼 화면 진입(editRow/createRow)은 항상 pendingSection이 null이다 —
+          // 목록 [수정] 직행(openRowSection)은 이제 mode를 'list'로 둔 채 위
+          // 목록 분기의 오버레이 AdminForm으로 렌더된다.
+          origin="form"
+          initialSection={null}
           createDefaults={pendingCreateDefaults}
           onCancel={() => {
             setMode("list");
