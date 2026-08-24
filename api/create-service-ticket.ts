@@ -1,12 +1,7 @@
 import crypto from "node:crypto";
-import { createClient } from "@supabase/supabase-js";
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import {
-  clean,
-  getBearerToken,
-  hasPaidServiceAccess,
-  SERVICE_CONFIGS,
-} from "./_lib/serviceAccess.js";
+import { defineHandler } from "./_lib/handler.js";
+import { resolveUser } from "./_lib/httpAuth.js";
+import { clean, hasPaidServiceAccess, SERVICE_CONFIGS } from "./_lib/serviceAccess.js";
 
 const PAID_MESSAGE = "유료결제이후 이용해주세요!";
 // 기간 만료 전용 안내(api/_lib/serviceAccess.js의 checkProgramAccessTable 참고).
@@ -42,30 +37,6 @@ function signTicket(payload: Record<string, unknown>, secret: string) {
   return `${body}.${signature}`;
 }
 
-function createSupabaseAdmin() {
-  const url = getEnv(
-    "WINNING_SUPABASE_URL",
-    "SUPABASE_URL",
-    "VITE_SUPABASE_URL",
-  );
-  const key = getEnv(
-    "WINNING_SUPABASE_SERVICE_ROLE_KEY",
-    "SUPABASE_SERVICE_ROLE_KEY",
-    "WINNING_SUPABASE_KEY",
-    "SUPABASE_KEY",
-  );
-
-  if (!url || !key) {
-    throw new Error(
-      "WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.",
-    );
-  }
-
-  return createClient(url, key, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
 function getUserName(
   user:
     | { user_metadata?: Record<string, unknown>; email?: string | null }
@@ -78,12 +49,19 @@ function getUserName(
   );
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ detail: "Method not allowed" });
-  }
-
-  try {
+// auth:"none"으로 두고 인증을 handler 내부에서 수행한다(goal/openGoalSession과
+// 같은 패턴, api/docs/refactor-plan.md 배치 4 참고) — service_key==='suhaeng'
+// 분기는 원래 토큰 검사보다 먼저 실행되어 무인증으로도 200을 낸다
+// (defineHandler의 auth:"user"는 handler 진입 전에 무조건 401을 걸어 이 순서를
+// 재현할 수 없다). 나머지 config는 원래 순서(400 → target_url 500 → SSO_SECRET
+// 500 → 인증 401 → 이용권 403)를 그대로 유지한다.
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "detail",
+  unhandledMessage: "서비스 입장권 생성 중 오류가 발생했습니다.",
+  logLabel: "create-service-ticket",
+  handler: async (req, res, ctx) => {
     const { service_key } = req.body || {};
 
     // 수행평가 인앱 전환(하드 전환, 2026-08-13 사용자 확정) — 외부 앱은 고객사
@@ -99,58 +77,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 소비 코드(src/lib/paidServiceAccess.js의 `window.location.href =
     // result.redirect_url`)가 절대/상대 경로를 가리지 않아 그대로 호환된다.
     if (clean(service_key) === "suhaeng") {
-      return res.status(200).json({
+      res.status(200).json({
         ok: true,
         service_key: "suhaeng",
         redirect_url: "/app/performance",
       });
+      return;
     }
 
     const config = SERVICE_CONFIGS[clean(service_key)];
 
     if (!config) {
-      return res.status(400).json({ detail: "알 수 없는 서비스입니다." });
+      res.status(400).json({ detail: "알 수 없는 서비스입니다." });
+      return;
     }
 
     if (!config.target_url) {
-      return res.status(500).json({
+      res.status(500).json({
         detail: `${config.service_name} target_url 환경변수가 필요합니다.`,
       });
+      return;
     }
 
     const secret = getEnv("SSO_SECRET");
     if (!secret || secret.length < 32) {
-      return res.status(500).json({
+      res.status(500).json({
         detail: "SSO_SECRET 환경변수가 필요합니다. 32자 이상으로 설정해주세요.",
       });
+      return;
     }
 
-    // serviceAccess.ts는 req.headers를 Record<string, string>으로 선언한다 —
-    // VercelRequest.headers(IncomingHttpHeaders)와는 형태만 다를 뿐 실사용(단일
-    // 문자열 헤더 읽기)은 호환된다(reset-student.ts와 같은 패턴).
-    const token = getBearerToken(
-      req as unknown as { headers: Record<string, string> },
-    );
-    if (!token) {
-      return res.status(401).json({ detail: PAID_MESSAGE });
+    const authed = await resolveUser(req);
+    if (!authed) {
+      res.status(401).json({ detail: PAID_MESSAGE });
+      return;
     }
 
-    const supabaseAdmin = createSupabaseAdmin();
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-
-    if (userError || !userData?.user?.id) {
-      return res.status(401).json({ detail: PAID_MESSAGE });
-    }
-
-    const user = userData.user;
-    const userId = user.id;
-    const access = await hasPaidServiceAccess(supabaseAdmin, userId, config);
+    const { userId, user } = authed;
+    const access = await hasPaidServiceAccess(ctx.supabaseAdmin, userId, config);
 
     if (!access.allowed) {
       const detail =
         access.reason === "period_expired" ? EXPIRED_MESSAGE : PAID_MESSAGE;
-      return res.status(403).json({ detail });
+      res.status(403).json({ detail });
+      return;
     }
 
     const now = Date.now();
@@ -174,7 +144,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const ticket = signTicket(payload, secret);
     const ticketHash = sha256(ticket);
 
-    const { error: insertError } = await supabaseAdmin
+    const { error: insertError } = await ctx.supabaseAdmin
       .from("sso_tickets")
       .insert({
         ticket_id: ticketId,
@@ -188,25 +158,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (insertError) {
       console.error("sso_tickets insert error:", insertError);
-      return res.status(500).json({
+      res.status(500).json({
         detail:
           "sso_tickets 테이블이 없거나 저장 권한이 없습니다. 추가 SQL 적용이 필요합니다.",
       });
+      return;
     }
 
     const redirectUrl = new URL(config.target_url);
     redirectUrl.searchParams.set("sso_ticket", ticket);
 
-    return res.status(200).json({
+    res.status(200).json({
       ok: true,
       service_key: config.service_key,
       redirect_url: redirectUrl.toString(),
       expires_at: expiresAt,
     });
-  } catch (error) {
-    console.error("create-service-ticket error:", error);
-    return res
-      .status(500)
-      .json({ detail: "서비스 입장권 생성 중 오류가 발생했습니다." });
-  }
-}
+  },
+});
