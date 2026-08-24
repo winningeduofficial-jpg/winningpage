@@ -1,5 +1,12 @@
 import type { ReactNode, RefObject } from "react";
-import { forwardRef, useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  forwardRef,
+  useEffect,
+  useEffectEvent,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 import { useParams } from "react-router";
 import AiLoadingBubble from "@/components/performance/chat/AiLoadingBubble";
 import ChatTimeline, {
@@ -391,6 +398,69 @@ type FinalizeActionKind = "confirm" | "new_assessment";
 type FinalizeResultState = { action: FinalizeActionKind; keptPointer: boolean };
 type FinalizeErrorState = { action: FinalizeActionKind; message: string };
 
+// ── §5.4 재방문 분기 상태 — `entryMode`/`resumeBusy`/`resumeError`/`resumeContinueNotice`
+// 4종을 하나의 리듀서로 묶는다. 전이 지점이 여러 핸들러에 흩어져 있던 탓에
+// `handleBackToResumeChoice`가 재개 선택 카드로 돌아가면서 지난 `resolveSessionEntry`
+// 실패의 `resumeError`/`resumeContinueNotice`를 지우지 않는 버그가 있었다 — `backToChoice`
+// 액션이 그 두 값을 명시적으로 초기화해 원천 차단한다.
+type EntryState = {
+  mode: "pending" | "choice" | "chat";
+  resumeBusy: boolean;
+  resumeError: string | null;
+  resumeContinueNotice: string | null;
+};
+
+type EntryAction =
+  | { type: "enterChoice" }
+  | { type: "enterChat" }
+  | { type: "resumeStart" }
+  | { type: "resumeSuccess" }
+  | { type: "resumeFail"; message: string; hasLastSession: boolean }
+  | { type: "backToChoice" }
+  | { type: "setContinueNotice"; notice: string | null }
+  | { type: "clearContinueNotice" };
+
+const initialEntryState: EntryState = {
+  mode: "pending",
+  resumeBusy: false,
+  resumeError: null,
+  resumeContinueNotice: null,
+};
+
+function entryReducer(state: EntryState, action: EntryAction): EntryState {
+  switch (action.type) {
+    case "enterChoice":
+      return { ...state, mode: "choice" };
+    case "enterChat":
+      return { ...state, mode: "chat" };
+    case "resumeStart":
+      return { ...state, resumeBusy: true, resumeError: null };
+    case "resumeSuccess":
+      return { ...state, mode: "chat", resumeBusy: false, resumeError: null };
+    case "resumeFail":
+      return {
+        ...state,
+        resumeBusy: false,
+        resumeError: action.message,
+        mode: action.hasLastSession ? "choice" : "chat",
+      };
+    case "backToChoice":
+      // B1 수정 — 재개 선택 카드로 돌아갈 때 지난 재개 실패의 잔여 상태를 지운다.
+      return {
+        ...state,
+        mode: "choice",
+        resumeError: null,
+        resumeContinueNotice: null,
+      };
+    case "setContinueNotice":
+      return { ...state, resumeContinueNotice: action.notice };
+    case "clearContinueNotice":
+      return { ...state, resumeContinueNotice: null };
+    default:
+      return state;
+  }
+}
+
 export default function PerformanceChatPage() {
   // quotaRemaining은 SessionContext가 정본이다(§5.20 (A) 배너 판정, P15 [FIX]) —
   // recommend-topics 응답 등 채팅 진행 중 값과 이원화하지 않는다. null=무제한/판정 불가.
@@ -414,16 +484,15 @@ export default function PerformanceChatPage() {
   // 미리 판정하는 근거다(`handleResumeRestart` 참고). `lastSessionSummary`와 별개 질문에
   // 답한다(bootstrap.js 주석: lastSession="이어서 할 게 있는가", latestDraft="새로 시작해도 되는가").
   const [latestDraft, setLatestDraft] = useState<unknown>(null);
-  const [entryMode, setEntryMode] = useState<"pending" | "choice" | "chat">(
-    "pending",
+  // STEP1/2를 이미 지난 재개일 때만 `resumeContinueNotice`가 채워진다(아래
+  // `RESUME_CONTINUE_COPY` 주석) — 그 값이 STEP1 그리팅·STEP2 블록을 다리 안내 한 줄로
+  // 갈음하는 스위치다.
+  const [entryState, entryDispatch] = useReducer(
+    entryReducer,
+    initialEntryState,
   );
-  const [resumeBusy, setResumeBusy] = useState(false);
-  const [resumeError, setResumeError] = useState<string | null>(null);
-  // STEP1/2를 이미 지난 재개일 때만 채워진다(위 `RESUME_CONTINUE_COPY` 주석) — 그 값이
-  // STEP1 그리팅·STEP2 블록을 다리 안내 한 줄로 갈음하는 스위치다.
-  const [resumeContinueNotice, setResumeContinueNotice] = useState<
-    string | null
-  >(null);
+  const { mode: entryMode, resumeBusy, resumeError, resumeContinueNotice } =
+    entryState;
   const entryResolvedRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);
@@ -760,7 +829,7 @@ export default function PerformanceChatPage() {
       return;
     }
 
-    setEntryMode(lastSessionSummary ? "choice" : "chat");
+    entryDispatch({ type: lastSessionSummary ? "enterChoice" : "enterChat" });
   });
 
   useEffect(() => {
@@ -1496,7 +1565,7 @@ export default function PerformanceChatPage() {
     setGuideDone(false);
     setUploadedCount(0);
     setManualText("");
-    setResumeContinueNotice(null);
+    entryDispatch({ type: "clearContinueNotice" });
 
     setTopicPhase("idle");
     setTopicRegenerating(false);
@@ -1585,7 +1654,7 @@ export default function PerformanceChatPage() {
 
     setGuideMode(s.guideInputMode === "manual" ? "manual" : "upload");
     setGuideDone(true);
-    setResumeContinueNotice(RESUME_CONTINUE_COPY);
+    entryDispatch({ type: "setContinueNotice", notice: RESUME_CONTINUE_COPY });
 
     if (s.selectedTopicId) {
       // ⓐ 주제 확정까지 끝남 → STEP5로. `requestDesign`은 같은 `topicId` 재요청을 멱등
@@ -1620,8 +1689,7 @@ export default function PerformanceChatPage() {
    * `'pending'`인 상태에서 부른다.
    */
   async function resolveSessionEntry(sessionId) {
-    setResumeBusy(true);
-    setResumeError(null);
+    entryDispatch({ type: "resumeStart" });
 
     try {
       // 이 함수는 bootstrapLoading이 false로 바뀐 뒤(§5.4 진입 분기 판정 이펙트)에만
@@ -1632,18 +1700,18 @@ export default function PerformanceChatPage() {
         sessionId,
       });
       applyResumedSession(data);
-      setEntryMode("chat");
+      entryDispatch({ type: "resumeSuccess" });
     } catch (error) {
       console.error("[performance] 세션 이어가기 실패:", error?.code, error);
       // 딥링크 진입 실패는 재개 선택 카드가 있으면 그리로, 없으면(=이 세션이 유일한
       // 후보였는데도 조회가 죽은 경우) STEP1부터 새로 시작하는 것 말고는 출구가 없다.
-      setResumeError(
-        error?.userMessage ||
+      entryDispatch({
+        type: "resumeFail",
+        message:
+          error?.userMessage ||
           "이전 진행 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
-      );
-      setEntryMode(lastSessionSummary ? "choice" : "chat");
-    } finally {
-      setResumeBusy(false);
+        hasLastSession: Boolean(lastSessionSummary),
+      });
     }
   }
 
@@ -1661,7 +1729,7 @@ export default function PerformanceChatPage() {
   function handleBackToResumeChoice() {
     setSubmitError(null);
     setSubmitErrorCode(null);
-    setEntryMode("choice");
+    entryDispatch({ type: "backToChoice" });
   }
 
   /**
@@ -1681,7 +1749,7 @@ export default function PerformanceChatPage() {
       hasNextSession: Boolean(latestDraft),
       notice: null,
     });
-    setEntryMode("chat");
+    entryDispatch({ type: "enterChat" });
   }
 
   /** `다른 주제 다시 추천`(§5.10) — 같은 엔드포인트 재호출. 회차는 깎이지 않는다(§9.3). */
