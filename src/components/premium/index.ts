@@ -5,11 +5,13 @@ export { default as PremiumAcceptanceMarquee } from "./PremiumAcceptanceMarquee"
 export { default as PremiumAreaCards } from "./PremiumAreaCards";
 export { default as PremiumAudience } from "./PremiumAudience";
 export { default as PremiumCompareTable } from "./PremiumCompareTable";
+export { default as PremiumConcernSection } from "./PremiumConcernSection";
 export { default as PremiumCtaBanner } from "./PremiumCtaBanner";
 export { default as PremiumDarkTrio } from "./PremiumDarkTrio";
 export { default as PremiumFocusColumns } from "./PremiumFocusColumns";
 export { default as PremiumHero } from "./PremiumHero";
 export { default as PremiumIssueCards } from "./PremiumIssueCards";
+export { default as PremiumMentorReviews } from "./PremiumMentorReviews";
 export { default as PremiumNumberedCards } from "./PremiumNumberedCards";
 export { default as PremiumNumberedList } from "./PremiumNumberedList";
 export { default as PremiumPhotoSteps } from "./PremiumPhotoSteps";
