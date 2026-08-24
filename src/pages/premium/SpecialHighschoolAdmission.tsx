@@ -19,13 +19,19 @@ import { COMPANY } from "@/data/company";
 // 탭바(PremiumProgramTabs) 없음, 대학 마퀴·비교표 없음 — 시안에 없다.
 
 const HERO_BG = "/images/premium/hero-teukmok-bg.webp";
-// 이 히어로는 A/S와 마찬가지로 밝은 사진 위 어두운 텍스트다(다른 프리미엄 페이지 좌측정렬
-// 히어로들과 달리 다크 오버레이가 아니라 흰 라이트) — 그래서 titleClassName/
-// descriptionClassName/ctaClassName은 전부 생략(PremiumHero 기본값이 이미 정확히 일치:
-// text-ink-strong 텍스트 + bg-ink-strong pill 버튼). glowClassName만 좌측정렬에 맞춰
-// 좌→우로 옅어지는 흰 그라디언트로 재정의한다.
+// 해외명문대(GlobalUniversityConsulting)와 동일한 방식 — 사진 위 다크(네이비 계열)
+// 오버레이 + 흰 텍스트. 좌→우로 어두워지는 그라디언트라 텍스트가 앉는 왼쪽은 진하게
+// 가려주고 오른쪽(사진)은 그대로 보인다. 검정만 쓰면 밋밋해 이 페이지의 브랜드 네이비
+// (--color-primary, #013262)를 섞는다. CTA 버튼은 다크 배경 위라 기본 ink-strong 필
+// 대신 반투명 화이트 아웃라인으로 바꾼다(밝은 사진 전제의 기본값과 겹치면 거의 안 보임).
 const HERO_GLOW_CLASS =
-  "bg-gradient-to-r from-white/85 via-white/45 to-transparent";
+  "bg-gradient-to-r from-black/70 via-[rgba(1,50,98,0.55)] to-transparent";
+const HERO_TITLE_CLASS =
+  "break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] text-white sm:text-[2rem]";
+const HERO_DESCRIPTION_CLASS =
+  "mt-4 break-keep text-[1rem] font-medium leading-[1.6] text-white/90 sm:text-[1.125rem] lg:text-[1.25rem]";
+const HERO_CTA_CLASS =
+  "mt-8 inline-flex items-center justify-center rounded-full border border-white/50 bg-white/10 px-[3.75rem] py-[1.5rem] text-[1.25rem] font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 motion-reduce:transition-none";
 
 // 학교 유형별 5카드 — §2("학교 유형별로 다른 전형방식...")와 §6("15년간 쌓아온 고입
 // 컨설팅의 기록...") 두 섹션에서 완전히 동일한 카드 세트를 그대로 재사용한다. 시안 원문이
@@ -186,6 +192,9 @@ export default function SpecialHighschoolAdmission() {
         cta={{ label: "상담 신청하기", to: "/premium-apply" }}
         bgSrc={HERO_BG}
         glowClassName={HERO_GLOW_CLASS}
+        titleClassName={HERO_TITLE_CLASS}
+        descriptionClassName={HERO_DESCRIPTION_CLASS}
+        ctaClassName={HERO_CTA_CLASS}
       />
 
       <PremiumAreaCards
