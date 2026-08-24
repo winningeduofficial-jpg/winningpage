@@ -46,18 +46,18 @@ export default function OnlineInquiry() {
             className="w-[15rem] shrink-0 sm:w-[18rem] lg:w-[21.8125rem]"
           />
 
-          <div className="flex w-full max-w-[28rem] flex-col items-center gap-8 lg:items-start">
+          <div className="flex w-full max-w-[28rem] flex-col items-center gap-8 lg:max-w-[45.5rem] lg:items-start">
             <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2">
               {FEATURE_CARDS.map((card) => (
                 <div
                   key={card.title}
-                  className="rounded-2xl bg-[#F9FAFB] px-10 py-5 shadow-[0_2px_2px_rgba(213,213,213,0.25)]"
+                  className="rounded-2xl bg-[#F9FAFB] px-6 py-5 shadow-[0_2px_2px_rgba(213,213,213,0.25)] lg:px-10"
                 >
                   <div className="flex items-center gap-2">
                     <span className="text-[2rem] leading-none">
                       {card.emoji}
                     </span>
-                    <span className="text-xl font-semibold text-[#525252]">
+                    <span className="whitespace-nowrap text-xl font-semibold text-[#525252]">
                       {card.title}
                     </span>
                   </div>
