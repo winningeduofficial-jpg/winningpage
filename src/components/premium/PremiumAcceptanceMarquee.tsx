@@ -1,5 +1,5 @@
 import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
-import type { PremiumGraduateAcceptance } from "@/hooks/usePremiumGraduateAcceptances";
+import type { PremiumGraduateAcceptance } from "./premiumStaticData";
 
 // §5 대학 합격 마퀴 — landing/AcceptanceSection.tsx 와 같은 useInfiniteMarquee 훅·카드
 // 마크업을 쓰되, 탭(일반계열/의약학·특수계열) 없이 단일 트랙(track='graduate')만 렌더한다.

@@ -1,5 +1,9 @@
 import { useEffect, useId, useState } from "react";
-import { FALLBACK_NAV_GROUPS, MENU_GROUP_ORDER } from "@/data/navigation";
+import {
+  FALLBACK_NAV_GROUPS,
+  MENU_GROUP_ORDER,
+  PREMIUM_NAV_GROUP,
+} from "@/data/navigation";
 import { supabase } from "@/lib/supabase";
 
 interface NavItem {
@@ -45,7 +49,14 @@ interface PageContentRow {
 // 않아, '수시정시합격' 치환(위 normalizeMenuLabel v7 변경) 이전에 캐싱된 재방문자에게 구
 // 라벨이 그대로 남아 있었다. 캐시 read 경로에도 normalizeMenuLabel을 적용했지만, 이미 저장된
 // 캐시는 즉시 갱신되지 않으므로 키를 한 번 더 bump해 강제로 다시 채운다.
-const HEADER_NAV_CACHE_KEY = "winning-header-nav-groups-dynamic-v4-v4-v6-v7-v8";
+// v9: 프리미엄 DB 완전 분리(premium-db-decouple) — '프리미엄' 메뉴 그룹이 DB(page_contents)
+// 소유에서 코드(PREMIUM_NAV_GROUP) 소유로 바뀌었다. replacePremiumNavGroup은 최종 반환값에만
+// 적용되므로 캐시 자체는 여전히 구 DB 파생 트리를 담을 수 있지만, 그 캐시에 구 '프리미엄'
+// 그룹이 남아 있어도 항상 교체되므로(멱등) 기존 캐시를 지울 필요는 원래 없다 — 다만 CMS
+// 프리미엄 행 삭제(20260824000007) 이후에도 예전 캐시가 이번 마이그레이션 이전 라벨/순서를
+// 잠깐 보여줄 수 있어 다른 버전들과 동일하게 안전하게 bump해 둔다.
+const HEADER_NAV_CACHE_KEY =
+  "winning-header-nav-groups-dynamic-v4-v4-v6-v7-v8-v9";
 
 export function cleanText(value: unknown) {
   return String(value || "").trim();
@@ -93,6 +104,10 @@ function resolveMenuLink(slug: unknown) {
 // 푸터・캐시가 항상 신규 라우트를 가리키도록 이 훅에서 일괄 치환한다. GNB DB 값 자체를
 // /services/* 로 바꾸는 것은 운영자 몫(공통 구현 규칙 — DB 수정 금지) — 이 매핑은 그 전까지의
 // 안전망이다. 직접 구 경로로 진입한 경우의 리다이렉트는 App.jsx의 <Navigate replace> 라우트가 담당.
+// 프리미엄 프로그램 6종 슬러그(premium-a, premium-special-highschool 등)는 여기 있었으나
+// premium-db-decouple로 제거했다 — '프리미엄' 그룹 자체가 이제 PREMIUM_NAV_GROUP(코드
+// 소유)이라 DB slug를 신 경로로 승격할 필요가 없다(page_contents 프리미엄 프로그램 행도
+// 20260824000007에서 삭제). premium-apply(이용신청 메뉴, 프리미엄 프로그램 아님)는 그대로 유지.
 const PROMOTED_SLUG_ROUTES: Record<string, string> = {
   "services-goal": "/services/goal",
   "services-ai-performance": "/services/performance",
@@ -100,13 +115,6 @@ const PROMOTED_SLUG_ROUTES: Record<string, string> = {
   "services-in-depth-research": "/services/research",
   "admission-special-highschool-results": "/admission/special-highschool",
   "premium-apply": "/premium-apply",
-  // 프리미엄 라우트 컨벤션(20260823000005) 적용 전 DB에도 대비 — 구 슬러그를 신 경로로.
-  "premium-a": "/page/premium/admission-consulting/a",
-  "premium-special-highschool": "/page/premium/special-highschool",
-  "premium-graduate-school": "/page/premium/graduate-school",
-  "premium-global-university": "/page/premium/global-university",
-  "premium-international-school": "/page/premium/international-school",
-  "premium-returning-student": "/page/premium/returning-student",
   "mentor-apply": "/mentor-apply",
   gallery: "/info/column",
 };
@@ -245,6 +253,34 @@ function insertGrowthPlanningInService(groups: NavGroup[]): NavGroup[] {
       items: nextItems,
     };
   });
+}
+
+// '프리미엄' 그룹을 DB(page_contents) 파생 트리에서 항상 PREMIUM_NAV_GROUP(코드 소유)으로
+// 교체한다 — insertGrowthPlanningInService와 같은 이유로 최종 반환값에만 적용한다(캐시·DB
+// 파생 경로에는 섞지 않음, 멱등성은 title '프리미엄'을 먼저 제거한 뒤 다시 삽입해 보장).
+// page_contents에 프리미엄 프로그램 행이 남아 있어도(마이그레이션 전 과도기) 무시하고 이
+// 상수로 덮어쓴다. 삽입 위치는 MENU_GROUP_ORDER 기준(프리미엄=2) — 필터링된 목록에서 order가
+// 프리미엄보다 큰 첫 그룹 앞에 끼워 넣고, 그런 그룹이 없으면(다른 그룹이 전부 order<2 등
+// 비정상 데이터) 맨 끝에 붙인다.
+function replacePremiumNavGroup(groups: NavGroup[]): NavGroup[] {
+  const source = Array.isArray(groups) ? groups : [];
+  const withoutPremium = source.filter(
+    (group) => cleanText(group?.title) !== "프리미엄",
+  );
+
+  const insertIndex = withoutPremium.findIndex((group) => {
+    const order = MENU_GROUP_ORDER[cleanText(group?.title)] || 99;
+    return order > MENU_GROUP_ORDER.프리미엄;
+  });
+
+  const next = [...withoutPremium];
+  if (insertIndex === -1) {
+    next.push(PREMIUM_NAV_GROUP);
+  } else {
+    next.splice(insertIndex, 0, PREMIUM_NAV_GROUP);
+  }
+
+  return next;
 }
 
 // 캐시에 저장된 라벨도 normalizeMenuLabel을 다시 태운다 — 키 bump(v8)로 기존 캐시는 비워지지만,
@@ -438,6 +474,8 @@ export function useNavGroups() {
     };
   }, [instanceId]);
 
-  // '성장설계' 주입은 여기(최종 반환값)에만 적용한다 — 위 insertGrowthPlanningInService 주석 참고.
-  return insertGrowthPlanningInService(navGroups);
+  // '성장설계' 주입・'프리미엄' 그룹 교체는 여기(최종 반환값)에만 적용한다 — 위
+  // insertGrowthPlanningInService/replacePremiumNavGroup 주석 참고. 서로 다른 그룹을
+  // 다루므로(서비스 vs 프리미엄) 적용 순서는 결과에 영향 없다.
+  return replacePremiumNavGroup(insertGrowthPlanningInService(navGroups));
 }

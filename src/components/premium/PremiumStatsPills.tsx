@@ -7,8 +7,9 @@ import {
   PREMIUM_SECTION_PADDING_CLASS,
 } from "./premiumTokens";
 
-// §2 실적 pill 목록 — 데이터는 premium_achievements 테이블에서 페이지가 조회해
-// items 로 내려준다. 0행이면 폴백 없이 섹션 자체를 렌더하지 않는다(no-fallback-constants).
+// §2 실적 pill 목록 — 데이터는 페이지가 premiumStaticData.ts의 PREMIUM_ACHIEVEMENTS를 그대로
+// items로 내려준다(premium-db-decouple 이전엔 premium_achievements 테이블 조회였으나 테이블
+// 자체가 drop됨). 0행이면 폴백 없이 섹션 자체를 렌더하지 않는다(no-fallback-constants).
 type PremiumStatsPillsProps = {
   heading: ReactNode;
   items: { label: string; count: number }[];
