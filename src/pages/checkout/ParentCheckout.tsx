@@ -20,9 +20,11 @@ import { ANONYMOUS, getTossPayments } from "@/lib/toss";
 import { useEnrollmentOrder } from "./useEnrollmentOrder";
 import { usePaymentAgreementHistory } from "./usePaymentAgreementHistory";
 
-// StudentEnrollmentRequest.tsx 와 동일 필터(목표관리/콜멘토/수행평가만 결제
-// 카탈로그에 노출) — 정본 근거는 그 파일 상단 주석 참고, 여기서 반복하지 않는다.
-const ALLOWED_SERVICE_KEYS = ["goal", "mentor", "suhaeng"];
+// StudentEnrollmentRequest.tsx 와 동일 필터(목표관리/콜멘토/수행평가/학습진단만
+// 결제 카탈로그에 노출) — 정본 근거는 그 파일 상단 주석 참고, 여기서 반복하지 않는다.
+// diagnose 가 빠지면 학생이 학습진단을 신청한 주문이 missingOrderItem 으로 결제가
+// 막힌다 — 학생 쪽 목록과 반드시 함께 갱신할 것.
+const ALLOWED_SERVICE_KEYS = ["goal", "mentor", "suhaeng", "diagnose"];
 
 interface CouponRow {
   id: string;
