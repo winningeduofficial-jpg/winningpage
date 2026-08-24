@@ -25,7 +25,7 @@ import {
 const HERO_BG = "/images/premium/hero-returning-student-bg.webp";
 // 해외명문대/특목고입학과 같은 방식 — 사진 위 좌→우 다크 그라디언트 + 흰 텍스트.
 const HERO_GLOW_CLASS =
-  "bg-gradient-to-r from-black/75 via-black/45 to-transparent";
+  "bg-gradient-to-r from-black/70 via-black/45 to-transparent";
 const HERO_TITLE_CLASS =
   "break-keep text-[1.75rem] font-bold leading-[1.4] tracking-[-0.02em] text-white sm:text-[2rem]";
 // description은 배경색을 지정하지 않는다 — 아래 페이지 JSX가 gold 강조 줄과 흰 줄을
