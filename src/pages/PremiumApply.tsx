@@ -402,7 +402,7 @@ export default function PremiumApply() {
                   </FormField>
 
                   <div className="flex flex-col gap-1.5">
-                    {/* 동의 문구에 수집 항목·이용 목적·보유 기간을 모두 명시 — legalDocs.js 「4. 보유 및 이용기간」과 표현 일치 */}
+                    {/* 동의 문구에 수집 항목·이용 목적·보유 기간을 모두 명시 — 개인정보처리방침(terms.privacy_policy) 「4. 개인정보의 보유 및 이용기간」과 표현 일치 */}
                     <label className="flex items-start gap-2 text-sm font-normal leading-5 text-ink">
                       <input
                         ref={
