@@ -39,7 +39,7 @@ alter table public.coupon_grants
   add column if not exists valid_until date;
 
 comment on column public.coupon_grants.valid_until is
-  '이 발급분의 사용 기한(포함, Asia/Seoul 날짜). NULL = 무기한. 쿠폰 전체 기한인 coupons.valid_until 과 별개 축이며, 실제 사용 가능 여부는 둘 중 이른 날짜가 정한다. fn_coupon_is_granted 가 이 값을 본다(20260825000001).';
+  '이 발급분의 사용 기한(포함, Asia/Seoul 날짜). NULL = 무기한. 쿠폰 전체 기한인 coupons.valid_until 과 별개 축이며, 실제 사용 가능 여부는 둘 중 이른 날짜가 정한다. fn_coupon_is_granted 가 이 값을 본다(20260825000010).';
 
 -- ---------------------------------------------------------------------
 -- 2) 정책 리터럴 — 발급일로부터 몇 개월인가
@@ -87,7 +87,7 @@ as $$
             and p_user_id is not null
             and g.user_id = p_user_id
             and g.revoked_at is null
-            -- 발급분 기한(20260825000001). NULL 이면 무기한 — 이 컬럼이
+            -- 발급분 기한(20260825000010). NULL 이면 무기한 — 이 컬럼이
             -- 생기기 전 발급분과 관리자 수기 발급이 여기 해당한다.
             and (g.valid_until is null
                  or g.valid_until >= (now() at time zone 'Asia/Seoul')::date)
@@ -99,7 +99,7 @@ as $$
 $$;
 
 comment on function public.fn_coupon_is_granted(uuid, uuid) is
-  '발급 판정 정본. 조건형(grant_type=auto)은 항상 true. 발급형은 coupon_grants 에 회수되지 않고 **기한이 지나지 않은** 발급 행이 있어야 true(coupon_grants.valid_until, 20260825000001). 게스트(user_id NULL)는 발급형에서 항상 false. 없는 쿠폰은 false(fail-closed).';
+  '발급 판정 정본. 조건형(grant_type=auto)은 항상 true. 발급형은 coupon_grants 에 회수되지 않고 **기한이 지나지 않은** 발급 행이 있어야 true(coupon_grants.valid_until, 20260825000010). 게스트(user_id NULL)는 발급형에서 항상 false. 없는 쿠폰은 false(fail-closed).';
 
 -- ---------------------------------------------------------------------
 -- 4) 표시용 기한 — 이 쌍이 이 쿠폰을 쓸 수 있는 마지막 날
@@ -133,7 +133,7 @@ as $$
 $$;
 
 comment on function public.fn_coupon_grant_valid_until(uuid, uuid) is
-  '표시 전용(20260825000001). 그 사용자의 살아있는 발급분 기한(coupon_grants.valid_until)을 돌려준다. NULL = 무기한이거나 발급분 없음. 만료된 발급분도 그대로 돌려준다 — fn_usable_coupons 가 사유를 expired 로 그리기 위해서다. 사용 가능 여부 판정에는 쓰지 말 것(정본은 fn_coupon_is_granted).';
+  '표시 전용(20260825000010). 그 사용자의 살아있는 발급분 기한(coupon_grants.valid_until)을 돌려준다. NULL = 무기한이거나 발급분 없음. 만료된 발급분도 그대로 돌려준다 — fn_usable_coupons 가 사유를 expired 로 그리기 위해서다. 사용 가능 여부 판정에는 쓰지 말 것(정본은 fn_coupon_is_granted).';
 
 revoke all on function public.fn_coupon_grant_valid_until(uuid, uuid) from public, anon;
 grant execute on function public.fn_coupon_grant_valid_until(uuid, uuid)
@@ -186,7 +186,7 @@ end;
 $$;
 
 comment on function public.fn_grant_signup_coupons_for_user(uuid) is
-  '가입 쿠폰 발급 본문(20260825000001). coupons.grant_on_signup 인 발급형 쿠폰을 한 사용자에게 발급하고 발급 건수를 돌려준다. 멱등 — 살아있는 발급이 이미 있으면 0건. 발급분 기한은 오늘(KST) + fn_coupon_grant_valid_months() 개월. 호출자는 둘이다: dev·로컬의 auth.users 트리거(fn_grant_signup_coupons)와 prod 를 포함한 서버(api/signup-welcome.ts, service_role) — prod 에는 트리거가 없어서 서버 호출이 유일한 발급 경로다.';
+  '가입 쿠폰 발급 본문(20260825000010). coupons.grant_on_signup 인 발급형 쿠폰을 한 사용자에게 발급하고 발급 건수를 돌려준다. 멱등 — 살아있는 발급이 이미 있으면 0건. 발급분 기한은 오늘(KST) + fn_coupon_grant_valid_months() 개월. 호출자는 둘이다: dev·로컬의 auth.users 트리거(fn_grant_signup_coupons)와 prod 를 포함한 서버(api/signup-welcome.ts, service_role) — prod 에는 트리거가 없어서 서버 호출이 유일한 발급 경로다.';
 
 revoke all on function public.fn_grant_signup_coupons_for_user(uuid) from public, anon, authenticated;
 grant execute on function public.fn_grant_signup_coupons_for_user(uuid) to service_role;
@@ -278,7 +278,7 @@ end;
 $$;
 
 comment on function public.fn_grant_coupon(uuid, uuid) is
-  '관리자 전용. 발급형 쿠폰을 한 사용자에게 발급한다(멱등 — 이미 살아있는 발급이 있으면 그 행을 그대로 반환). 발급분 기한은 오늘(KST) + fn_coupon_grant_valid_months() 개월(20260825000001). 이 사용자가 해당 쿠폰 정책을 이미 max_uses_per_user 만큼 사용 완료했으면 errcode=WC005(재발급 차단, 2026-08-20). 조건형이거나 없는 쿠폰이면 errcode=WC004. 관리자가 아니면 42501.';
+  '관리자 전용. 발급형 쿠폰을 한 사용자에게 발급한다(멱등 — 이미 살아있는 발급이 있으면 그 행을 그대로 반환). 발급분 기한은 오늘(KST) + fn_coupon_grant_valid_months() 개월(20260825000010). 이 사용자가 해당 쿠폰 정책을 이미 max_uses_per_user 만큼 사용 완료했으면 errcode=WC005(재발급 차단, 2026-08-20). 조건형이거나 없는 쿠폰이면 errcode=WC004. 관리자가 아니면 42501.';
 
 revoke all on function public.fn_grant_coupon(uuid, uuid) from public, anon;
 grant execute on function public.fn_grant_coupon(uuid, uuid) to authenticated, service_role;
@@ -406,7 +406,7 @@ end;
 $$;
 
 comment on function public.fn_usable_coupons(integer, uuid) is
-  '쿠폰 판정 정본(활성 쿠폰만, sql/68 5-h절 쌍 축 재작성). p_student_profile_id 가 NULL 이면 호출자를 학생으로 보고 approved 학부모를 도출한다 — 값이 있으면 호출자가 그 학생 본인/학부모인지 검증한다(WC030). 쌍(학생+학부모)이 없으면 빈 목록. eligible/reason 은 5-d절 fn_respond_enrollment 와 동일 규칙(granted=쌍 OR+학생 우선, auto=소유 판정 없음). 반환 valid_until 은 쿠폰 기한과 발급분 기한(coupon_grants.valid_until) 중 이른 날이다(20260825000001) — 발급일 기준 기한이 붙은 쿠폰이 "무기한"으로 표시되지 않게 한다. owner_profile_id/owner_is_student 로 "누구 보유분"인지 알려준다(auto 는 owner_profile_id NULL). 한국어 라벨은 만들지 않는다 — 표기는 프론트 책임.';
+  '쿠폰 판정 정본(활성 쿠폰만, sql/68 5-h절 쌍 축 재작성). p_student_profile_id 가 NULL 이면 호출자를 학생으로 보고 approved 학부모를 도출한다 — 값이 있으면 호출자가 그 학생 본인/학부모인지 검증한다(WC030). 쌍(학생+학부모)이 없으면 빈 목록. eligible/reason 은 5-d절 fn_respond_enrollment 와 동일 규칙(granted=쌍 OR+학생 우선, auto=소유 판정 없음). 반환 valid_until 은 쿠폰 기한과 발급분 기한(coupon_grants.valid_until) 중 이른 날이다(20260825000010) — 발급일 기준 기한이 붙은 쿠폰이 "무기한"으로 표시되지 않게 한다. owner_profile_id/owner_is_student 로 "누구 보유분"인지 알려준다(auto 는 owner_profile_id NULL). 한국어 라벨은 만들지 않는다 — 표기는 프론트 책임.';
 
 create or replace function public.fn_coupon_by_code(
   p_code text,
@@ -516,7 +516,7 @@ end;
 $$;
 
 comment on function public.fn_coupon_by_code(text, integer, uuid) is
-  '코드 직접 입력 조회 전용(sql/68 5-h절 쌍 축 재작성). code 를 입력으로만 받고 반환하지 않는다(sql/55 P1-1 유지). 학생/학부모 판정 축과 owner_profile_id/owner_is_student 는 fn_usable_coupons 와 동일 규칙(WC030 포함). 반환 valid_until 도 동일하게 쿠폰 기한과 발급분 기한 중 이른 날이다(20260825000001). 못 찾으면 0행.';
+  '코드 직접 입력 조회 전용(sql/68 5-h절 쌍 축 재작성). code 를 입력으로만 받고 반환하지 않는다(sql/55 P1-1 유지). 학생/학부모 판정 축과 owner_profile_id/owner_is_student 는 fn_usable_coupons 와 동일 규칙(WC030 포함). 반환 valid_until 도 동일하게 쿠폰 기한과 발급분 기한 중 이른 날이다(20260825000010). 못 찾으면 0행.';
 
 revoke all on function public.fn_usable_coupons(integer, uuid) from public;
 grant execute on function public.fn_usable_coupons(integer, uuid)
@@ -566,7 +566,7 @@ create or replace view public.coupon_wallet_state
      join public.coupons c on ((c.id = g.coupon_id)));
 
 comment on view public.coupon_wallet_state is
-  '보유 쿠폰 지갑 표시용(근사치) — 결제 판정의 정본은 판정 함수(fn_coupon_is_redeemed 등)다. coupon_grants 에 행이 없는 auto 쿠폰은 나오지 않는다(정의상 보유물이 아님). remaining_count NULL=무제한. used_count 는 voided_at is null 만 세고 실패/시간창 제외 로직은 복제하지 않는다(sql/68 6절). valid_until 은 쿠폰 전체 기한, grant_valid_until 은 이 발급분의 기한이다 — 실제 사용 가능 기한은 둘 중 이른 날(20260825000001).';
+  '보유 쿠폰 지갑 표시용(근사치) — 결제 판정의 정본은 판정 함수(fn_coupon_is_redeemed 등)다. coupon_grants 에 행이 없는 auto 쿠폰은 나오지 않는다(정의상 보유물이 아님). remaining_count NULL=무제한. used_count 는 voided_at is null 만 세고 실패/시간창 제외 로직은 복제하지 않는다(sql/68 6절). valid_until 은 쿠폰 전체 기한, grant_valid_until 은 이 발급분의 기한이다 — 실제 사용 가능 기한은 둘 중 이른 날(20260825000010).';
 
 -- ---------------------------------------------------------------------
 -- 9) 기존 데이터 정정
