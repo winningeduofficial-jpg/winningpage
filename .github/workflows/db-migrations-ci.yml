@@ -27,6 +27,32 @@ jobs:
             echo "supabase/ 변경 없음 — 리허설 생략"
           fi
 
+      # 새 마이그레이션 파일명의 타임스탬프 검사 — `supabase migration new`가 찍는 실제
+      # 생성 시각(UTC)만 허용한다. (1) 미래 시각 금지, (2) 베이스 브랜치에 이미 있는
+      # 모든 파일보다 큰 번호여야 한다. 손으로 미래 날짜를 매기면 다른 브랜치의 정상
+      # 번호가 뒤로 밀려 push가 막힌다(2026-08-24 사고, db-push-*.yml 주석 참고).
+      - name: Check new migration timestamps
+        if: steps.changes.outputs.supabase == 'true'
+        run: |
+          now=$(date -u +%Y%m%d%H%M%S)
+          base_max=$(git ls-tree --name-only "origin/$GITHUB_BASE_REF" supabase/migrations/ \
+            | sed -E 's#.*/([0-9]{14})_.*#\1#' | grep -E '^[0-9]{14}$' | sort | tail -1)
+          fail=0
+          for f in $(git diff --name-only --diff-filter=A "origin/$GITHUB_BASE_REF"...HEAD -- supabase/migrations/); do
+            name=$(basename "$f")
+            ts=$(echo "$name" | sed -E 's/^([0-9]{14})_.*/\1/')
+            if ! echo "$ts" | grep -qE '^[0-9]{14}$'; then
+              echo "::error file=$f::파일명이 <YYYYMMDDHHMMSS>_<설명>.sql 형식이 아님 — supabase migration new 로 생성할 것"; fail=1; continue
+            fi
+            if [ "$ts" -gt "$now" ]; then
+              echo "::error file=$f::타임스탬프 $ts 가 현재 UTC $now 보다 미래 — 실제 생성 시각만 허용"; fail=1
+            fi
+            if [ -n "$base_max" ] && [ "$ts" -le "$base_max" ]; then
+              echo "::error file=$f::타임스탬프 $ts 가 $GITHUB_BASE_REF 의 마지막 마이그레이션 $base_max 이하 — 베이스 최신화 후 supabase migration new 로 다시 생성할 것"; fail=1
+            fi
+          done
+          exit $fail
+
       - uses: supabase/setup-cli@v1
         if: steps.changes.outputs.supabase == 'true'
         with:

@@ -26,14 +26,25 @@ supabase migration new <설명>    # migrations/에 타임스탬프 파일 생�
 supabase db reset                # 로컬에서 재생 검증
 ```
 
+### 마이그레이션 파일명 규칙 (CI `Check new migration timestamps` 강제)
+
+- 파일명은 **반드시 `supabase migration new <설명>`으로 생성** — 접두사는 실제 생성 시각(UTC, `YYYYMMDDHHMMSS`).
+  손으로 번호를 매기지 말 것. 특히 **미래 날짜·`000000` 같은 가짜 시각 금지**.
+- 새 파일의 타임스탬프는 베이스 브랜치의 마지막 마이그레이션보다 커야 한다. 베이스가 앞서갔으면
+  베이스 최신화 후 파일을 다시 생성(내용 복사)한다.
+- 왜: 2026-08-24에 한 브랜치가 다음 날 접두사(`20260825…`)를 먼저 적용시키자, 같은 날 다른 브랜치의
+  정상 번호(`20260824000007/8`)가 원격 마지막 버전보다 작아져 `supabase db push`가 거부했고 이후
+  모든 push가 연쇄 실패했다. push 워크플로는 이제 `--include-all`로 순서 역전도 적용하지만,
+  파일명은 여전히 생성 시각과 일치시켜 재발을 막는다.
+
 QA 계정(로컬 전용): `devadmin@gmail.com`/`LocalAdmin2026!`(admin),
 `qa-student@winning.test`·`qa-parent@winning.test`/`WinningQA2026!`(연결 승인 상태).
 
 ## 반영 경로 (수동 SQL Editor 실행 금지)
 
 - PR: `db-migrations-ci.yml`이 로컬 스택 전체 재생 리허설 (`rehearse-migrations` check)
-- dev 브랜치 머지 → `db-push-dev.yml`이 dev DB에 `supabase db push`
-- main 브랜치 머지 → `db-push-prod.yml`이 prod DB에 `supabase db push`
+- dev 브랜치 머지 → `db-push-dev.yml`이 dev DB에 `supabase db push --include-all`
+- main 브랜치 머지 → `db-push-prod.yml`이 prod DB에 `supabase db push --include-all`
 - 필요 secrets: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD_DEV`, `SUPABASE_DB_PASSWORD_PROD` (등록 완료)
 
 앱 배포(Vercel)와 DB push는 같은 push 이벤트에 병렬로 돌므로, 파괴적 변경(컬럼 삭제·
