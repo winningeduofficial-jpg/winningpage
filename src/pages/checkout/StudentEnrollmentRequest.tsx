@@ -5,6 +5,7 @@ import successCheck from "@/assets/checkout/success-check-60.svg";
 import ConfirmModal from "@/components/checkout/ConfirmModal";
 import ServiceCatalog from "@/components/pricing/ServiceCatalog";
 import { formatKRW } from "@/data/pricingCatalog";
+import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 import { getApprovedParentLink } from "@/lib/parentLink";
 import { useProducts } from "@/lib/products";
 import { supabase } from "@/lib/supabase";
@@ -183,9 +184,8 @@ export default function StudentEnrollmentRequest() {
         return;
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) {
+      const authHeader = await getAuthHeader();
+      if (!authHeader) {
         setShowFailModal(true);
         return;
       }
@@ -195,11 +195,11 @@ export default function StudentEnrollmentRequest() {
         | { error?: string; orderId?: string; amount?: number }
         | undefined;
       try {
-        response = await fetch("/api/request-enrollment", {
+        response = await apiFetch("/api/request-enrollment", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            ...authHeader,
           },
           // id 만 보낸다 — parentProfileId·금액류는 서버가 신뢰하지 않고 무시한다
           // (api/request-enrollment.js 신뢰 경계 주석 참고).

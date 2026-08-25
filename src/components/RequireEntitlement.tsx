@@ -202,7 +202,7 @@ export default function RequireEntitlement({
           className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-[#0D1B2A]/10 bg-white px-6 py-8 text-center shadow-[0_18px_45px_rgba(13,27,42,0.10)]"
         >
           <p className="text-sm font-extrabold">
-            이용 가능 여부를 확인하지 못했습니다.
+            연결이 느립니다. 이용 가능 여부를 확인하지 못했습니다.
           </p>
           <p className="text-xs text-[#0D1B2A]/60">
             네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 결제하셨다면 곧

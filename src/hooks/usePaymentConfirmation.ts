@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
+import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 import { clearCart } from "@/lib/cart";
-import { supabase } from "@/lib/supabase";
 
 export interface CardInfo {
   cardType?: string;
@@ -88,14 +88,13 @@ export function usePaymentConfirmation({
     let cancelled = false;
     (async () => {
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
+        const authHeader = await getAuthHeader();
 
-        const res = await fetch("/api/confirm-payment", {
+        const res = await apiFetch("/api/confirm-payment", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            ...authHeader,
           },
           body: JSON.stringify({ paymentKey, orderId, amount }),
         });

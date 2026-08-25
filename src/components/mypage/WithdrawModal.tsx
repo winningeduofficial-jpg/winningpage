@@ -10,6 +10,7 @@
 // 누르면 그 뒤에 안내(notice) → 최종 재확인(confirm) 두 단계를 추가로 거친다. 실제
 // 삭제(api/delete-account.ts → fn_delete_account)는 confirm 단계에서만 호출된다.
 import { useEffect, useState } from "react";
+import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 import { supabase } from "@/lib/supabase";
 
 const ETC_REASON = "기타 사유 (직접 입력)";
@@ -93,20 +94,19 @@ export default function WithdrawModal({ open, onClose }: WithdrawModalProps) {
     setSubmitting(true);
     setErrorMsg("");
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
-    if (!token) {
+    const authHeader = await getAuthHeader();
+    if (!authHeader) {
       setSubmitting(false);
       setErrorMsg("로그인 정보를 확인할 수 없어요. 다시 로그인해 주세요.");
       return;
     }
 
     try {
-      const res = await fetch("/api/delete-account", {
+      const res = await apiFetch("/api/delete-account", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...authHeader,
         },
         // 탈퇴 사유는 참고용 — 서버는 신원 확인만 토큰으로 하고 사유는 저장하지
         // 않는다(정책상 사유 보존 테이블이 없다, 판단 필요 시 후속 작업).

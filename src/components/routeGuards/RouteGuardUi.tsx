@@ -63,14 +63,17 @@ export function GoalAccessCheckingFallback() {
   );
 }
 
+// apiFetch(B-1) 도입 이후 이 판정 불가 상태는 대부분 15초 타임아웃이 원인이다
+// (그 전에는 응답이 오지 않으면 무한 대기였다) — 문구에 "연결이 느립니다"를
+// 실어 사용자가 재시도 버튼의 의미를 바로 알 수 있게 한다.
 const GOAL_CHECK_FAILED_COPY = {
   entitlement: {
-    title: "이용 가능 여부를 확인하지 못했습니다.",
+    title: "연결이 느립니다. 이용 가능 여부를 확인하지 못했습니다.",
     body: "네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 결제하셨다면 곧 다시 확인됩니다.",
     role: "alert" as const,
   },
   onboarding: {
-    title: "온보딩 완료 여부를 확인하지 못했습니다.",
+    title: "연결이 느립니다. 온보딩 완료 여부를 확인하지 못했습니다.",
     body: "네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 온보딩을 마치셨다면 곧 다시 확인됩니다.",
     role: undefined,
   },

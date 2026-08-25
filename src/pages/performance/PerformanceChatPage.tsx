@@ -37,6 +37,7 @@ import SubmissionForm, {
 import { usePerformanceShell } from "@/context/PerformanceShellContext";
 import { useSession } from "@/context/SessionContext";
 import { useToast } from "@/context/ToastContext";
+import { apiFetch } from "@/lib/apiFetch";
 import { requestDesignReport } from "@/lib/performance/designReport";
 import {
   finalizeSubmission,
@@ -789,7 +790,7 @@ export default function PerformanceChatPage() {
 
     (async () => {
       try {
-        const response = await fetch("/api/performance/bootstrap", {
+        const response = await apiFetch("/api/performance/bootstrap", {
           headers: { Authorization: `Bearer ${accessToken}` },
         });
         const data = await response.json().catch(() => null);
@@ -926,7 +927,7 @@ export default function PerformanceChatPage() {
 
   /** 세션 생성/이어받기 1회. `action`은 `sessionStartMode`가 정한다(아래 주석). */
   async function postSession(values, action) {
-    const response = await fetch("/api/performance/session", {
+    const response = await apiFetch("/api/performance/session", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

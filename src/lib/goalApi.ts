@@ -12,7 +12,7 @@
 // row.status: 'active' | 'awaiting_cuts') 이름이 겹치면 혼동되므로, 이 래퍼의 판별자는
 // 의도적으로 `status`가 아니라 `kind`로 둔다.
 
-import { supabase } from "./supabase";
+import { apiFetch, getAuthHeader } from "./apiFetch";
 
 // ---------------------------------------------------------------------------
 // 응답 payload 타입 — api/_lib/goalRepo.js buildXxxPayload()/api/goal/*.ts 응답 조립과
@@ -170,18 +170,6 @@ interface GoalGradeRecord {
   recordedAt: string;
 }
 
-/**
- * 현재 세션을 조회해 Authorization 헤더를 만든다.
- * 세션이 없으면 null을 반환한다 — 호출부는 이를 즉시 '세션 없음'으로 처리해야 한다.
- */
-async function getAuthHeader(): Promise<{ Authorization: string } | null> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData?.session;
-  if (!session?.user || !session?.access_token) return null;
-
-  return { Authorization: `Bearer ${session.access_token}` };
-}
-
 // 응답 본문 shape은 엔드포인트별로 다르고 파싱 실패 시 {}로 접히므로 any로 둔다 —
 // 각 호출부가 옵셔널 체이닝으로 안전하게 좁혀 쓴다(아래 discriminated union 반환
 // 타입이 실제 계약이고, 여기서는 그 값을 만드는 재료일 뿐이다).
@@ -250,7 +238,7 @@ export async function fetchGoalStudent(): Promise<FetchGoalStudentResult> {
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/student", {
+    response = await apiFetch("/api/goal/student", {
       method: "GET",
       headers: authHeader,
     });
@@ -327,7 +315,7 @@ export async function submitGoalIntake(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/intake", {
+    response = await apiFetch("/api/goal/intake", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -396,7 +384,7 @@ export async function fetchTodayGoalRecord(): Promise<FetchTodayGoalRecordResult
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/daily-record", {
+    response = await apiFetch("/api/goal/daily-record", {
       method: "GET",
       headers: authHeader,
     });
@@ -485,7 +473,7 @@ export async function submitDailyRecord(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/daily-record", {
+    response = await apiFetch("/api/goal/daily-record", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -561,7 +549,7 @@ async function goalWorkbooksRequest(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/workbooks", {
+    response = await apiFetch("/api/goal/workbooks", {
       method,
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -667,7 +655,7 @@ export async function fetchGoalSchedules(): Promise<FetchGoalSchedulesResult> {
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/schedules", {
+    response = await apiFetch("/api/goal/schedules", {
       method: "GET",
       headers: authHeader,
     });
@@ -715,7 +703,7 @@ async function submitGoalSchedule(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/schedules", {
+    response = await apiFetch("/api/goal/schedules", {
       method,
       headers: {
         "Content-Type": "application/json",
@@ -811,7 +799,7 @@ async function requestPlanTasks(
 
   let response: Response;
   try {
-    response = await fetch(`/api/goal/plan-tasks${qs}`, {
+    response = await apiFetch(`/api/goal/plan-tasks${qs}`, {
       method,
       headers: {
         ...(body ? { "Content-Type": "application/json" } : {}),
@@ -947,7 +935,7 @@ export async function fetchGoalRanking(): Promise<FetchGoalRankingResult> {
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/ranking", {
+    response = await apiFetch("/api/goal/ranking", {
       method: "GET",
       headers: authHeader,
     });
@@ -1010,7 +998,7 @@ export async function fetchGoalGrades(): Promise<FetchGoalGradesResult> {
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/grades", {
+    response = await apiFetch("/api/goal/grades", {
       method: "GET",
       headers: authHeader,
     });
@@ -1077,7 +1065,7 @@ export async function addGoalGrade(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/grades", {
+    response = await apiFetch("/api/goal/grades", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeader },
       body: JSON.stringify({ type, entry }),
@@ -1151,7 +1139,7 @@ async function requestGoalTimer(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/timer", {
+    response = await apiFetch("/api/goal/timer", {
       method,
       headers: {
         ...(body ? { "Content-Type": "application/json" } : {}),
@@ -1296,7 +1284,7 @@ export async function fetchGoalReport(
 
   let response: Response;
   try {
-    response = await fetch(`/api/goal/report?${params.toString()}`, {
+    response = await apiFetch(`/api/goal/report?${params.toString()}`, {
       method: "GET",
       headers: authHeader,
     });

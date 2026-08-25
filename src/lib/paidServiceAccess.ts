@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { apiFetch, getAuthHeader } from "./apiFetch";
 
 // 로컬 QA 전용 결제 게이트 우회 플래그.
 // 사용법: .env.local에 VITE_DISABLE_PAID_GATE=true 를 추가하고 개발 서버를 재시작한다.
@@ -185,19 +185,18 @@ export async function openPaidServiceOrAlert(
   setButtonLoading(targetEl, true, "입장 확인 중...");
 
   try {
-    const { data } = await supabase.auth.getSession();
-    const session = data?.session;
+    const authHeader = await getAuthHeader();
 
-    if (!session?.user || !session?.access_token) {
+    if (!authHeader) {
       window.alert(PAID_MESSAGE);
       return true;
     }
 
-    const response = await fetch("/api/create-service-ticket", {
+    const response = await apiFetch("/api/create-service-ticket", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
+        ...authHeader,
       },
       body: JSON.stringify({ service_key: config.serviceKey }),
     });

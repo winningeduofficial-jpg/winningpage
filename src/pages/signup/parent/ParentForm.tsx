@@ -25,6 +25,7 @@ import {
 } from "@/components/auth";
 import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
+import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 import {
   DUPLICATE_PHONE_MESSAGE,
   formatPhoneInput,
@@ -481,13 +482,12 @@ export default function ParentForm() {
       // (api/signup-welcome.ts 상단 주석).
       void (async () => {
         try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const token = sessionData?.session?.access_token;
-          if (!token) return;
+          const authHeader = await getAuthHeader();
+          if (!authHeader) return;
 
-          await fetch("/api/signup-welcome", {
+          await apiFetch("/api/signup-welcome", {
             method: "POST",
-            headers: { Authorization: `Bearer ${token}` },
+            headers: authHeader,
           });
         } catch (error) {
           // 화면에 띄우지 않는다 — 사용자가 할 수 있는 게 없다.

@@ -45,7 +45,7 @@ export function getMockPaidOrders(): MockPaidOrder[] {
   ];
 }
 
-import { supabase } from "./supabase";
+import { apiFetch, getAuthHeader } from "./apiFetch";
 
 // 이용권 판정은 서버 한 곳(api/_lib/serviceAccess.js hasPaidServiceAccess, program_access +
 // admin_enrollments 조회)이 정본이다. 이 모듈은 그 판정을 다시 구현하지 않고
@@ -115,20 +115,22 @@ export async function fetchEntitlement(
   // 둔다. 소진 UI를 로컬에서 보려면 플래그를 끄고 vercel dev로 실제 응답을 받아야 한다.
   if (FAKE_ENTITLEMENT_ENABLED) return { allowed: true, ...empty };
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData?.session;
-  if (!session?.user || !session?.access_token)
-    return { allowed: null, ...empty };
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { allowed: null, ...empty };
 
   try {
-    const response = await fetch("/api/check-service-access", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
+    const response = await apiFetch(
+      "/api/check-service-access",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader,
+        },
+        body: JSON.stringify({ service_key: serviceKey }),
       },
-      body: JSON.stringify({ service_key: serviceKey }),
-    });
+      { timeoutMs: 15000 },
+    );
 
     let result: {
       allowed?: boolean;
