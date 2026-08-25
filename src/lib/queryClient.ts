@@ -51,8 +51,14 @@ const ENTITLEMENT_STALE_MS = 15_000;
 // queryKey에 userId를 반드시 포함한다(리뷰 CRITICAL C1) — 계정 A로 조회해 캐싱된
 // entitlement가, 로그아웃 없이 계정 B로 전환된 세션에서도 같은 키('entitlement',
 // serviceKey)로 재사용되면 B가 A의 이용권 판정을 그대로 받는 캐시 오염이 발생한다.
-// userId가 없으면(게스트) 호출부가 애초에 이 쿼리를 실행하지 않아야 한다
-// (SessionContext의 enabled 가드, RequireEntitlement의 guest 조기 반환 참고).
+//
+// enabled: !!userId를 팩토리 자체에 둔다(재검증 MEDIUM) — 이전엔 SessionContext
+// 하나만 개별로 enabled를 얹었는데, 그 방식은 다음 소비처가 똑같이 얹는 것을
+// 잊으면 게스트 상태에서도 useQuery가 관찰자를 만들어 조회를 시도하는 사고가
+// 재발할 수 있다. 팩토리에 두면 모든 useQuery 소비처가 자동 상속한다.
+// ⚠️ ensureQueryData(routeMiddleware.ts, RequireEntitlement의 standalone 경로)는
+// enabled를 무시하고 항상 조회한다 — 두 호출부 모두 그 전에 이미 세션/userId
+// 존재를 직접 확인한 뒤에만 이 함수를 부르므로 영향이 없다.
 export function entitlementQueryOptions(
   serviceKey: string,
   userId: string | null,
@@ -62,14 +68,22 @@ export function entitlementQueryOptions(
     queryFn: async () => {
       const result = await fetchEntitlement(serviceKey);
       // allowed===null(판정 불가)은 성공 데이터로 캐싱하지 않는다 — throw해서
-      // TanStack Query가 error 상태로 다루게 한다(retry 1 후 확정). 호출부는
-      // ensureQueryData/useQuery의 실패를 각자의 check-failed 분기로 매핑한다.
+      // TanStack Query가 error 상태로 다루게 한다. 호출부는 ensureQueryData/
+      // useQuery의 실패를 각자의 check-failed 분기로 매핑한다.
       if (result.allowed === null) {
         throw new EntitlementCheckFailedError();
       }
       return result;
     },
     staleTime: ENTITLEMENT_STALE_MS,
+    enabled: !!userId,
+    // 판정 불가는 재시도로 회복시키지 않는다(재검증 MEDIUM) — 전역 기본값(retry:1)을
+    // 여기서 0으로 덮어 즉시 error(check-failed)로 떨어지게 한다. 자동 재시도가
+    // 아니라 "다시 시도" 버튼(RequireEntitlement.retry/GoalAccessBoundary.retry)이
+    // invalidateQueries로 다시 조회하는 것이 회복 경로다 — retry:1이던 시절엔
+    // 15초 타임아웃 실패가 재시도 1회를 더 거쳐 최대 31초까지 사용자를 기다리게
+    // 했는데, 이제 15초로 줄어든다.
+    retry: 0,
   });
 }
 
@@ -88,6 +102,10 @@ export function entitlementQueryOptions(
 const GOAL_STUDENT_STALE_MS = 15_000;
 
 // entitlement와 동일한 이유로 queryKey에 userId를 포함한다(리뷰 CRITICAL C1).
+// enabled: !!userId·retry: 0도 entitlementQueryOptions와 동일한 이유(재검증
+// MEDIUM 둘 다) — 위 주석 참고. ensureQueryData(routeMiddleware.ts의
+// requireGoalOnboardingDoneMiddleware 경유, goalOnboarding.isOnboardingDone)도
+// enabled를 무시하지만 호출부가 이미 userId 존재를 확인한 뒤에만 부른다.
 export function goalStudentQueryOptions(userId: string | null) {
   return queryOptions({
     queryKey: ["goal", "student", userId] as const,
@@ -99,6 +117,8 @@ export function goalStudentQueryOptions(userId: string | null) {
       return result;
     },
     staleTime: GOAL_STUDENT_STALE_MS,
+    enabled: !!userId,
+    retry: 0,
   });
 }
 

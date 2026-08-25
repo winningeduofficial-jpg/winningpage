@@ -29,44 +29,74 @@ interface AuthContextValue {
   // "비로그인 확정"이 아니라 "아직 모름" — 소비처가 두 상태를 반드시 구분해야
   // guest 오탐(로그인 사용자가 잠깐 guest로 보이는 깜빡임)을 막는다.
   isReady: boolean;
+  // 초기 getSession()이 SESSION_TIMEOUT_MS 안에 응답하지 못해 fail-open(session:null,
+  // isReady:true)으로 확정됐는지. 현재 소비처는 없다 — 세션 판정 자체는 isReady/session
+  // 두 값만으로 이미 충분하기 때문이다. 이 값은 "그 세션 없음 판정이 진짜 비로그인인지,
+  // 아니면 네트워크 hang 때문에 추정한 것인지"를 구분해야 하는 미래 소비처(예: 재시도
+  // 안내 배너)를 위한 상태 노출용이다(재검증 MEDIUM).
+  didTimeout: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// 구 Header.tsx가 초기 세션 조회에 쓰던 fail-open 타임아웃(1200ms, B-3 리팩터 전
-// syncSession())을 그대로 복원한다(리뷰 H1) — getSession()이 응답 없이 멈추면
-// 이 시간 뒤 "세션 없음"으로 확정해, 이 값을 구독하는 모든 표면(Header 등)이
-// 함께 무한 로딩에 빠지지 않게 한다.
-const INITIAL_SESSION_TIMEOUT_MS = 1200;
+// 구 Header.tsx가 초기 세션 조회에 쓰던 fail-open 타임아웃은 1200ms였다(B-3
+// 리팩터 전 syncSession()) — 다만 그때는 Header 하나의 렌더만 이 값에 의존하는
+// "장식"에 가까웠다. 이제는 AuthProvider가 세션의 전역 유일 권위라 모든 가드
+// (RequireEntitlement 등)가 이 값을 그대로 신뢰한다. 1200ms는 진짜 hang이 아니어도
+// (만료 토큰 refresh, 다른 탭이 잡은 supabase-js LockManager 대기 등 정상적으로도
+// 1초를 넘길 수 있는 경로) 로그인된 사용자를 guest로 오판해 /login으로 튕기는
+// 회귀를 낳는다(재검증 HIGH). 그래서 8000ms로 올린다 — 목적을 "정상 지연도
+// 흡수하는 임계값"이 아니라 "응답 자체가 없는 진짜 hang에서 탈출하는 안전망"으로
+// 좁힌다(§apiFetch 기본 타임아웃 15000ms보다는 짧게, 체감 무한 로딩보다는 길게).
+const SESSION_TIMEOUT_MS = 8000;
 
-function withTimeout<T>(
+/** promise가 ms 안에 끝나지 않으면 fallbackValue로 대신 resolve한다. 어느 쪽이
+ * 먼저 끝나든 남은 타이머는 반드시 정리한다(재검증 LOW — 이전 버전은 promise가
+ * 먼저 끝나도 setTimeout 핸들을 그대로 남겨뒀다). */
+async function withTimeout<T>(
   promise: Promise<T>,
   ms: number,
   fallbackValue: T,
-): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((resolve) => window.setTimeout(() => resolve(fallbackValue), ms)),
+): Promise<{ value: T; timedOut: boolean }> {
+  let timeoutId: number | undefined;
+
+  const timeoutPromise = new Promise<{ value: T; timedOut: boolean }>(
+    (resolve) => {
+      timeoutId = window.setTimeout(
+        () => resolve({ value: fallbackValue, timedOut: true }),
+        ms,
+      );
+    },
+  );
+
+  const result = await Promise.race([
+    promise.then((value) => ({ value, timedOut: false })),
+    timeoutPromise,
   ]);
+
+  if (timeoutId !== undefined) window.clearTimeout(timeoutId);
+  return result;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [didTimeout, setDidTimeout] = useState(false);
 
   useEffect(() => {
     let alive = true;
 
     withTimeout(
       supabase.auth.getSession(),
-      INITIAL_SESSION_TIMEOUT_MS,
+      SESSION_TIMEOUT_MS,
       { data: { session: null } } as Awaited<
         ReturnType<typeof supabase.auth.getSession>
       >,
-    ).then(({ data }) => {
+    ).then(({ value, timedOut }) => {
       if (!alive) return;
-      setSession(data?.session || null);
+      setSession(value?.data?.session || null);
       setIsReady(true);
+      if (timedOut) setDidTimeout(true);
     });
 
     // ⚠️ 콜백 안에서 supabase 비동기 API를 부르지 않는다 — supabase-js가 내부
@@ -92,8 +122,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const userId = user?.id || null;
 
   const value = useMemo<AuthContextValue>(
-    () => ({ session, user, userId, isReady }),
-    [session, user, userId, isReady],
+    () => ({ session, user, userId, isReady, didTimeout }),
+    [session, user, userId, isReady, didTimeout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

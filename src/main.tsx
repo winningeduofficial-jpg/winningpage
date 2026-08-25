@@ -9,10 +9,16 @@ import "./styles/fonts.css"; // 우리 선언(GraceSerif 1블록)
 import "./index.css"; // 사용 — 등록 → 사용 순서
 
 // 정적 import(`import { ReactQueryDevtools } from "@tanstack/react-query-devtools"`)는
-// import.meta.env.DEV로 렌더를 막아도 모듈 자체는 번들에 포함된다 — 프로덕션
-// 번들에 devtools 코드가 실리거나, `npm ci --omit=dev`처럼 devDependencies 없이
-// 설치된 환경에서 빌드가 깨질 위험이 있다(리뷰 M4). React.lazy + Suspense로
-// import 시점 자체를 DEV 가드 뒤로 미룬다.
+// import.meta.env.DEV로 렌더를 막아도 모듈 자체는 메인 번들에 함께 실린다 —
+// 프로덕션 사용자가 devtools 코드까지 내려받는 문제가 있었다(리뷰 M4). React.lazy로
+// 별도 청크로 분리하면 그 문제는 해결된다: import.meta.env.DEV가 false면 이
+// 컴포넌트를 렌더하지 않으므로(43번째 줄 아래) 그 청크는 아예 요청되지 않는다.
+//
+// ⚠️ 다만 이 조치가 `npm ci --omit=dev`처럼 devDependencies 없이 설치된 환경의
+// 빌드 실패까지 막아주지는 않는다(재검증 LOW, 이전 주석의 부정확한 서술 정정) —
+// Vite/Rollup은 동적 `import()`도 빌드 시점에 정적으로 해석해 청크를 만들어야
+// 하므로, `@tanstack/react-query-devtools`가 devDependency로 실제 설치돼 있다는
+// 전제는 여전히 필요하다(이 저장소의 CI/배포가 이미 그 전제를 따른다).
 const ReactQueryDevtools = lazy(() =>
   import("@tanstack/react-query-devtools").then((mod) => ({
     default: mod.ReactQueryDevtools,

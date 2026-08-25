@@ -542,13 +542,15 @@ export default function Header() {
       console.error("로그아웃 오류:", error);
     }
 
-    // 이전 유저의 entitlement/goal 캐시(src/lib/queryClient.ts, staleTime 최대
-    // 15초)가 다음 로그인 세션에 잔존하면 안 된다. supabase의 SIGNED_OUT
-    // 이벤트로도 같은 정리가 걸리지만(queryClient.ts), 이 페이지 이동
-    // (window.location.replace 아래)까지 사이 창을 남기지 않기 위해 여기서도
-    // 명시적으로 비운다. signOut 시도가 끝난 뒤로 미룬 이유(리뷰 LOW) — signOut
-    // 요청이 아직 진행 중인데 먼저 캐시를 비우면, 그 사이 진행 중이던 다른
-    // in-flight 쿼리가 비워진 캐시에 다시 값을 채워 넣는 경합 창이 생긴다.
+    // 1차 정리는 supabase의 SIGNED_OUT 이벤트 구독(queryClient.ts)이 담당한다 —
+    // 위 signOut() 호출이 성공하면 그 구독이 이미 queryClient.clear()를 부른다.
+    // 여기 있는 호출은 그 위에 얹는 중복 안전장치다(주석 정정, 재검증 LOW) —
+    // signOut()이 LOGOUT_FALLBACK_TIMEOUT_MS 안에 응답하지 않아 이벤트 자체가
+    // 아직 안 왔거나, 이 페이지 이동(window.location.replace 아래)까지 SIGNED_OUT
+    // 처리보다 먼저 도달하는 경우를 대비한다. signOut 시도가 끝난 뒤로 미룬
+    // 이유는 별도다 — signOut 요청이 아직 진행 중인데 먼저 캐시를 비우면, 그
+    // 사이 진행 중이던 다른 in-flight 쿼리가 비워진 캐시에 다시 값을 채워 넣는
+    // 경합 창이 생긴다.
     queryClient.clear();
 
     clearSupabaseAuthStorage();
