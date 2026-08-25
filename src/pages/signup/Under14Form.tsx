@@ -89,6 +89,19 @@ function getSignupRpcMessage(raw?: string) {
     return "본인 인증을 위한 정보 수집 동의가 필요합니다.";
   }
 
+  // T8(QA 2026-08-22): 이 화면은 생년월일·성별을 보내지 않는다(PASS 값이 정본이라
+  // RPC가 identity_verifications에서 직접 읽는다) — 그래도 서버 스키마가 최신이
+  // 아닌 배포이거나 예외적인 경합을 대비해 메시지를 함께 둔다.
+  if (message.includes("birth_date_required")) {
+    return "생년월일 확인에 실패했습니다. 본인확인을 다시 진행해 주세요.";
+  }
+  if (message.includes("invalid_gender")) {
+    return "성별 값이 올바르지 않습니다. 본인확인을 다시 진행해 주세요.";
+  }
+  if (message.includes("gender_required")) {
+    return "성별 확인에 실패했습니다. 본인확인을 다시 진행해 주세요.";
+  }
+
   // ── D-2 전용 ──
   // 본인확인은 30분이 지나면 소비할 수 없다. 폼을 오래 열어둔 경우가 대부분이라
   // 처음부터가 아니라 D-1으로만 돌려보낸다.
@@ -502,6 +515,9 @@ export default function Under14Form() {
           p_guardian_phone: normalizePhone(formData.guardianPhone),
           p_guardian_consent: formData.guardianConsent,
           p_identity_request_id: verification.pass.requestId ?? "",
+          // T8(QA 2026-08-22): p_birth_date/p_gender는 보내지 않는다 — RPC가
+          // identity_verifications에서 PASS 값을 직접 읽어 정본으로 쓴다.
+          p_org_code: formData.orgCode.trim() || null,
         },
       );
 
@@ -688,6 +704,19 @@ export default function Under14Form() {
           value={formData.schoolName}
           onChange={(v) => updateFormData({ schoolName: v })}
           placeholder="학교명 입력"
+        />
+
+        {/* T8(QA 2026-08-22): 소속코드 — 선택 입력, 검증 규칙 없음. 생년월일·성별은
+            PASS 본인확인 값이 정본이라 이 화면에 입력칸을 두지 않는다(파일 상단 주석). */}
+        <TextField
+          label="소속코드 (선택)"
+          id="under14-org-code"
+          name="orgCode"
+          size="lg"
+          value={formData.orgCode}
+          onChange={(v) => updateFormData({ orgCode: v })}
+          placeholder="소속코드가 없으면 입력하지 마세요"
+          helperText="소속코드가 없으면 입력하지 마세요"
         />
       </section>
 

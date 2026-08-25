@@ -31,6 +31,13 @@ interface SignupFormData {
   schoolName: string;
   guardianPhone: string;
   guardianConsent: boolean;
+  // T8(QA 2026-08-22): 성별(SelectField '남'/'여')·소속코드(선택)는 학생·학부모 공통
+  // 필드로 formData에 둔다. 학부모는 생년월일 입력칸이 따로 필요한데 상위 birthDate는
+  // 학생 흐름(StudentBirth 단계 → isUnder14 분기)이 이미 점유하고 있어 재사용하면
+  // 학부모가 학생 판정 로직을 오염시킨다 — parentBirthDate로 분리한다.
+  gender: string;
+  orgCode: string;
+  parentBirthDate: string; // 'YYYYMMDD' 8자리
 }
 
 interface SignupAgreements {
@@ -87,6 +94,9 @@ const INITIAL_FORM_DATA: SignupFormData = {
   schoolName: "",
   guardianPhone: "", // D-2 학부모 정보 섹션
   guardianConsent: false, // D-2: '법정대리인 정보를 학부모 정보로 수집합니다'
+  gender: "", // T8: 성별(학생·학부모 공통, 14세 미만은 PASS 값이 정본이라 입력칸 없음)
+  orgCode: "", // T8: 소속코드(선택, 학생·학부모·14세 미만 공통)
+  parentBirthDate: "", // T8: 학부모 생년월일 8자리(학생 birthDate와 별개)
 };
 
 // 학생 폼(C-1) 6항목 기준 — 학부모 폼(E-1)은 4항목(identityRequired/ads 미사용)만 쓰면 된다.
