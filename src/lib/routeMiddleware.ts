@@ -6,8 +6,8 @@ import {
   fetchAdminPermissions,
   fetchIsSuperAdmin,
 } from "./adminPermissions";
-import { fetchEntitlement } from "./entitlement";
 import { isOnboardingDone } from "./goalOnboarding";
+import { entitlementQueryOptions, queryClient } from "./queryClient";
 import { getCached, setCached } from "./routeMiddlewareCache";
 import { supabase } from "./supabase";
 
@@ -191,6 +191,12 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
 // 즉 RequireEntitlement의 standalone 분기 이관). 두 라우트 그룹(온보딩 그룹 +
 // GoalAppLayout 대시보드 그룹) 모두에 건다 — 원본과 동일하게 온보딩 경로도
 // 로그인・이용권 판정은 적용받는다.
+//
+// 이용권 판정 캐시는 routeMiddlewareCache(TTL 15초, userId별)가 아니라
+// queryClient(entitlementQueryOptions, staleTime 5분)가 맡는다 — Dashboard.tsx가
+// 소비하는 useQuery(['entitlement','goal'])와 같은 키를 공유해야 "이 미들웨어가
+// 이미 물어본 값"을 화면이 다시 조회하지 않는다(명세 B-2 §5). ensureQueryData는
+// 캐시가 fresh하면 네트워크를 타지 않고, 없거나 stale이면 조회 후 캐싱한다.
 export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
   request,
 }) => {
@@ -201,15 +207,10 @@ export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
     throw loginRedirect(request);
   }
 
-  const cachedAllowed = getCached<boolean>(user.id, "goal-entitlement");
-  const allowed =
-    cachedAllowed !== undefined
-      ? cachedAllowed
-      : (await fetchEntitlement("goal")).allowed;
-
-  if (cachedAllowed === undefined && allowed !== null) {
-    setCached(user.id, "goal-entitlement", allowed);
-  }
+  const entitlement = await queryClient.ensureQueryData(
+    entitlementQueryOptions("goal"),
+  );
+  const allowed = entitlement.allowed;
 
   if (allowed === true) return;
 
@@ -233,20 +234,13 @@ export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
 // 온보딩 그룹은 애초에 이 미들웨어를 안 거치므로 "자기 자신으로 리다이렉트"가
 // 구조적으로 발생할 수 없다(런타임 체크가 필요 없어짐). 최종 판정 결과(누가
 // 어디로 가는지)는 원본과 동일하다 — App.jsx의 라우트 배선 주석 참고.
+// 온보딩 완료 판정 캐시도 routeMiddlewareCache가 아니라 queryClient가 맡는다 —
+// isOnboardingDone()(goalOnboarding.ts)이 내부에서 goalStudentQueryOptions()를
+// ensureQueryData로 조회하므로, 이 미들웨어와 Dashboard.tsx의 useQuery(['goal','student'])가
+// 같은 캐시를 공유한다(명세 B-2 §5·§7 — goal 진입 시 GET /api/goal/student 1회 수렴).
 export const requireGoalOnboardingDoneMiddleware: MiddlewareFunction =
   async () => {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
-
-    const cachedDone = user
-      ? getCached<boolean>(user.id, "goal-onboarding-done")
-      : undefined;
-    const onboardingDone =
-      cachedDone !== undefined ? cachedDone : await isOnboardingDone();
-
-    if (user && cachedDone === undefined && onboardingDone !== null) {
-      setCached(user.id, "goal-onboarding-done", onboardingDone);
-    }
+    const onboardingDone = await isOnboardingDone();
 
     if (onboardingDone === true) return;
 

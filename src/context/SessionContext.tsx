@@ -1,4 +1,5 @@
 import type { Session, User } from "@supabase/supabase-js";
+import { useQuery } from "@tanstack/react-query";
 import {
   createContext,
   type ReactNode,
@@ -9,7 +10,7 @@ import {
   useState,
 } from "react";
 import { Outlet } from "react-router";
-import { fetchEntitlement } from "@/lib/entitlement";
+import { entitlementQueryOptions } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 
 // 인앱 셸 공유 세션 컨텍스트 — 명세서 §2.3.
@@ -113,11 +114,6 @@ export function SessionProvider({
 }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isSessionReady, setIsSessionReady] = useState(false);
-  const [entitlement, setEntitlement] =
-    useState<Entitlement>(EMPTY_ENTITLEMENT);
-  const [isEntitlementReady, setIsEntitlementReady] = useState(false);
-  // 재조회 트리거. 차감 후 잔여 회차 갱신·"다시 시도" 버튼이 이 값을 올린다.
-  const [refreshToken, setRefreshToken] = useState(0);
 
   const user = session?.user || null;
   const userId = user?.id || null;
@@ -149,37 +145,37 @@ export function SessionProvider({
     };
   }, []);
 
-  // ── 이용권·회차 조회. userId가 바뀌거나 refresh가 걸릴 때만 돈다.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) refreshToken은 effect 안에서 읽지 않는 재조회 트리거 전용 카운터다.
-  useEffect(() => {
-    let alive = true;
+  // ── 이용권·회차 조회. queryClient(src/lib/queryClient.ts)의 ['entitlement', serviceKey]
+  // 캐시를 그대로 구독한다 — RequireEntitlement의 standalone 조회, goal 미들웨어와
+  // 같은 캐시를 공유해 같은 세션 안에서 5분 내 재호출을 막는다(명세 B-2 §4).
+  // 세션이 없으면(비로그인) 아예 조회하지 않는다 — "이용권 없음"이 아니라
+  // "물어볼 대상이 없음"이라 allowed:false로 내리면 가드가 guest 대신 forbidden으로
+  // 잘못 분기한다(아래 entitlement 파생 참고).
+  const entitlementQuery = useQuery({
+    ...entitlementQueryOptions(serviceKey),
+    enabled: isSessionReady && !!userId,
+  });
 
-    if (!isSessionReady) return undefined;
+  const entitlement: Entitlement = userId
+    ? (entitlementQuery.data ?? EMPTY_ENTITLEMENT)
+    : EMPTY_ENTITLEMENT;
 
-    if (!userId) {
-      // 비로그인은 "이용권 없음"이 아니라 "물어볼 대상이 없음"이다.
-      // allowed:false로 내리면 가드가 guest 대신 forbidden으로 분기한다.
-      setEntitlement(EMPTY_ENTITLEMENT);
-      setIsEntitlementReady(true);
-      return undefined;
-    }
+  // 세션 확인 전에는 항상 로딩. 세션은 있는데 로그인하지 않았으면 물어볼 게
+  // 없으므로 즉시 준비 완료. 로그인 상태면 쿼리가 아직 첫 응답을 못 받은
+  // 동안만(isPending) 로딩으로 본다 — enabled:false인 쿼리는 isPending이 계속
+  // true로 남으므로 비로그인 분기를 반드시 먼저 걸러야 한다.
+  const isEntitlementReady = !isSessionReady
+    ? false
+    : !userId
+      ? true
+      : !entitlementQuery.isPending;
 
-    setIsEntitlementReady(false);
-
-    fetchEntitlement(serviceKey).then((result) => {
-      if (!alive) return;
-      setEntitlement(result);
-      setIsEntitlementReady(true);
-    });
-
-    return () => {
-      alive = false;
-    };
-  }, [serviceKey, userId, isSessionReady, refreshToken]);
-
+  // 차감 후 잔여 회차 갱신·"다시 시도" 버튼이 부르는 강제 재조회. staleTime(5분)을
+  // 우회해 즉시 새로 조회해야 하므로 refetch()를 쓴다(invalidateQueries만으로는
+  // "즉시" 재요청을 보장하지 않는다 — 다음 마운트/포커스까지 미뤄질 수 있다).
   const refreshEntitlement = useCallback(() => {
-    setRefreshToken((v) => v + 1);
-  }, []);
+    entitlementQuery.refetch();
+  }, [entitlementQuery.refetch]);
 
   const value = useMemo(() => {
     // 가드 4상태(명세서 §2.2) + 판정 불가 1상태를 여기서 한 번만 계산한다.

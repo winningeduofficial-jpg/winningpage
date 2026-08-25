@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import AchievementChart from "@/components/goal/dashboard/AchievementChart";
 import AdviceCard from "@/components/goal/dashboard/AdviceCard";
@@ -26,12 +27,12 @@ import {
 import {
   fetchGoalRanking,
   fetchGoalSchedules,
-  fetchGoalStudent,
   fetchGoalTimer,
   fetchTodayGoalRecord,
 } from "@/lib/goalApi";
 import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
 import { formatTodayDateLabel } from "@/lib/goalPlanUtils";
+import { goalStudentQueryOptions } from "@/lib/queryClient";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -354,10 +355,15 @@ function mapNaesin(student: GoalStudent) {
 export default function Dashboard() {
   // fetchGoalStudent() 결과를 discriminated union 그대로 보관한다(재가공하지 않는다 —
   // goalApi.js의 kind 계약을 이 컴포넌트가 다시 해석하는 지점을 하나로 좁혀 둔다).
-  // null = 아직 응답 도착 전(로딩 중). RequireGoalAccess가 이미 onboarded:true만
-  // 통과시키므로 정상 경로에선 result.kind는 항상 'onboarded'다 — 그 외 kind는
-  // 전부 직접 URL 진입·세션 경쟁 상태 같은 방어적 분기다.
-  const [result, setResult] = useState<GoalStudentResult | null>(null);
+  // useQuery(['goal','student'])는 requireGoalOnboardingDoneMiddleware(routeMiddleware.ts →
+  // goalOnboarding.ts의 isOnboardingDone)가 이 라우트 진입 시 이미 채워 둔 캐시를
+  // 그대로 읽는다(staleTime 15초, queryClient.ts) — 이 컴포넌트가 마운트되며 GET
+  // /api/goal/student를 다시 부르지 않는다(명세 B-2 §7). data === undefined = 아직
+  // 응답 도착 전(로딩 중, 캐시 미스로 직접 접근한 경우에만 발생). RequireGoalAccess가
+  // 이미 onboarded:true만 통과시키므로 정상 경로에선 kind는 항상 'onboarded'다 —
+  // 그 외 kind는 전부 직접 URL 진입·세션 경쟁 상태 같은 방어적 분기다.
+  const { data: goalStudentData } = useQuery(goalStudentQueryOptions());
+  const result = (goalStudentData ?? null) as GoalStudentResult | null;
   // null = 로딩 중. kind가 'ok'가 아닌 나머지(no-session/not-allowed/error)는
   // mapRankingRows가 빈 배열로 접어 RankingRail의 빈 상태 문구로 흡수한다 —
   // 이 카드 하나 때문에 대시보드 전체를 에러 화면으로 떨어뜨리지 않는다.
@@ -390,9 +396,6 @@ export default function Dashboard() {
   };
   useEffect(() => {
     let alive = true;
-    fetchGoalStudent().then((r) => {
-      if (alive) setResult(r as GoalStudentResult);
-    });
     fetchTodayGoalRecord().then((r) => {
       if (alive) setDailyRecordResult(r as DailyRecordResult);
     });

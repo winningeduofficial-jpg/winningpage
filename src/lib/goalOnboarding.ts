@@ -11,7 +11,7 @@
 // 전혀 읽지 않는다 — localStorage 플래그를 세우거나 지워도 서버 판정 결과는 바뀌지
 // 않는다. Onboarding.jsx의 handleFinish()도 더 이상 markOnboardingDone()을 호출하지
 // 않는다(서버가 진실이므로 클라이언트 완료 플래그를 세울 이유가 없다).
-import { fetchGoalStudent } from "./goalApi";
+import { goalStudentQueryOptions, queryClient } from "./queryClient";
 
 const ONBOARDING_DONE_KEY = "winning-goal-onboarding-done-v1";
 
@@ -39,10 +39,15 @@ const FAKE_ONBOARDING_DONE_ENABLED =
 //     끊기거나 이용권을 잃은 사용자를 엉뚱한 화면(온보딩)으로 보내는 오탐이 된다.
 //     그 판정은 1・2단계의 책임이므로 이 함수는 세 경우 모두 null로 접어 호출부가
 //     재시도 UI로 연결하게 한다(false로 단정하지 않는다).
+// GET /api/goal/student 조회는 queryClient(entitlementQueryOptions와 같은 계열,
+// src/lib/queryClient.ts)의 ensureQueryData를 거친다 — requireGoalOnboardingDoneMiddleware와
+// Dashboard.tsx가 같은 ['goal','student'] 캐시를 공유해야 goal 진입 시 이 엔드포인트가
+// 한 번만 불린다(명세 B-2 §5·§7). fetchGoalStudent() 자체의 discriminated union
+// 계약(예외를 던지지 않음)은 그대로다 — queryClient는 그 결과를 캐싱만 한다.
 export async function isOnboardingDone() {
   if (FAKE_ONBOARDING_DONE_ENABLED) return true;
 
-  const result = await fetchGoalStudent();
+  const result = await queryClient.ensureQueryData(goalStudentQueryOptions());
 
   if (result.kind === "onboarded") return true;
   if (result.kind === "not-onboarded" || result.kind === "awaiting-cuts")
