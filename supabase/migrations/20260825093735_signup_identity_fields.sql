@@ -32,8 +32,9 @@ alter table public.profiles
 
 comment on constraint profiles_gender_check on public.profiles is
   'not valid로 추가 — 과거에 채워졌을 수 있는 레거시 값이 있으면 일반 add constraint가
-   기존 행 전수검사에서 실패하기 때문이다. 신규/갱신 행부터는 즉시 적용된다. 기존 행
-   백필 후 validate constraint profiles_gender_check로 완전 적용할 것(별도 작업).';
+   기존 행 전수검사에서 실패하기 때문이다. 신규/갱신 행부터는 즉시 적용된다. validate는
+   바로 다음 마이그레이션(20260825113811)이 따로 수행한다 — 한 파일에 두면 레거시 값
+   하나 때문에 RPC 교체까지 통째로 실패한다.';
 
 -- ── 2. complete_signup_profile RPC 확장 ────────────────────────────
 -- 기존 17개 파라미터의 순서·이름은 그대로 두고 끝에 3개만 DEFAULT NULL로 추가한다.
@@ -144,7 +145,10 @@ begin
   -- identity_verifications 값으로 덮어쓴다.
   v_birth_date := p_birth_date;
   v_gender     := nullif(trim(coalesce(p_gender, '')), '');
-  v_org_code   := nullif(trim(coalesce(p_org_code, '')), '');
+  -- 소속코드는 지금 자유 문자열(검증 규칙 없음 — 향후 기관 마스터 FK 전환 예정). 대소문자·
+  -- 앞뒤 공백만 정규화해 두면 나중에 마스터와 맞출 때 'org-01'/'ORG-01 ' 같은 변형을
+  -- 따로 정리하지 않아도 된다.
+  v_org_code   := nullif(upper(trim(coalesce(p_org_code, ''))), '');
 
   if v_gender is not null and v_gender not in ('남', '여') then
     raise exception 'invalid_gender';
