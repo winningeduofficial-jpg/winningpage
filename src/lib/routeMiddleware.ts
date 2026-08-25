@@ -6,8 +6,8 @@ import {
   fetchAdminPermissions,
   fetchIsSuperAdmin,
 } from "./adminPermissions";
-import { fetchEntitlement } from "./entitlement";
 import { isOnboardingDone } from "./goalOnboarding";
+import { entitlementQueryOptions, queryClient } from "./queryClient";
 import { getCached, setCached } from "./routeMiddlewareCache";
 import { supabase } from "./supabase";
 
@@ -191,6 +191,14 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
 // 즉 RequireEntitlement의 standalone 분기 이관). 두 라우트 그룹(온보딩 그룹 +
 // GoalAppLayout 대시보드 그룹) 모두에 건다 — 원본과 동일하게 온보딩 경로도
 // 로그인・이용권 판정은 적용받는다.
+//
+// 이용권 판정 캐시는 routeMiddlewareCache(TTL 15초, userId별)가 아니라
+// queryClient(entitlementQueryOptions, staleTime 15초)가 맡는다 — Dashboard.tsx가
+// 소비하는 useQuery(['entitlement', userId, 'goal'])와 같은 키를 공유해야 "이
+// 미들웨어가 이미 물어본 값"을 화면이 다시 조회하지 않는다(명세 B-2 §5).
+// ensureQueryData는 캐시가 fresh하면 네트워크를 타지 않고, 없거나 stale이면
+// 조회 후 캐싱한다. queryKey에 user.id를 넣는 이유는 queryClient.ts 상단 주석
+// (리뷰 C1) 참고 — 계정 전환 시 캐시 오염을 막는다.
 export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
   request,
 }) => {
@@ -201,27 +209,26 @@ export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
     throw loginRedirect(request);
   }
 
-  const cachedAllowed = getCached<boolean>(user.id, "goal-entitlement");
-  const allowed =
-    cachedAllowed !== undefined
-      ? cachedAllowed
-      : (await fetchEntitlement("goal")).allowed;
-
-  if (cachedAllowed === undefined && allowed !== null) {
-    setCached(user.id, "goal-entitlement", allowed);
-  }
-
-  if (allowed === true) return;
-
-  if (allowed === false) {
-    const redirectPath = currentPathWithQuery(request);
-    throw redirect(
-      `/pricing?service=goal&redirect=${encodeURIComponent(redirectPath)}`,
+  // 판정 불가(allowed===null)는 이제 ensureQueryData가 throw한다(queryClient.ts
+  // EntitlementCheckFailedError, 리뷰 H2) — middleware 밖으로 그대로 새면
+  // RouteCheckFailedError가 아니라서 GoalAccessBoundary가 못 잡고 다시 던진다.
+  // 여기서 잡아 기존과 동일한 RouteCheckFailedError("entitlement")로 변환한다.
+  let allowed: boolean;
+  try {
+    const entitlement = await queryClient.ensureQueryData(
+      entitlementQueryOptions("goal", user.id),
     );
+    allowed = entitlement.allowed === true;
+  } catch {
+    throw new RouteCheckFailedError("entitlement");
   }
 
-  // allowed === null(판정 불가) — 결제 페이지로 단정해 보내지 않고 그 자리에 머문다.
-  throw new RouteCheckFailedError("entitlement");
+  if (allowed) return;
+
+  const redirectPath = currentPathWithQuery(request);
+  throw redirect(
+    `/pricing?service=goal&redirect=${encodeURIComponent(redirectPath)}`,
+  );
 };
 
 // 4) /app/goal/* 대시보드(GoalAppLayout) 그룹 전용 — 온보딩 완료 여부
@@ -233,20 +240,24 @@ export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
 // 온보딩 그룹은 애초에 이 미들웨어를 안 거치므로 "자기 자신으로 리다이렉트"가
 // 구조적으로 발생할 수 없다(런타임 체크가 필요 없어짐). 최종 판정 결과(누가
 // 어디로 가는지)는 원본과 동일하다 — App.jsx의 라우트 배선 주석 참고.
+// 온보딩 완료 판정 캐시도 routeMiddlewareCache가 아니라 queryClient가 맡는다 —
+// isOnboardingDone()(goalOnboarding.ts)이 내부에서 goalStudentQueryOptions()를
+// ensureQueryData로 조회하므로, 이 미들웨어와 Dashboard.tsx의
+// useQuery(['goal','student', userId])가 같은 캐시를 공유한다(명세 B-2 §5·§7 —
+// goal 진입 시 GET /api/goal/student 1회 수렴). 캐시 키에 userId가 필요해
+// (리뷰 C1) 이 미들웨어도 getSession()으로 직접 조회한다 — requireGoalAccessMiddleware가
+// 같은 요청 체인에서 이미 세션을 확인했지만, getSession()은 로컬 저장소 기반이라
+// 여기서 한 번 더 불러도 비용이 낮다.
 export const requireGoalOnboardingDoneMiddleware: MiddlewareFunction =
   async () => {
     const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData.session?.user;
+    const userId = sessionData.session?.user?.id ?? null;
 
-    const cachedDone = user
-      ? getCached<boolean>(user.id, "goal-onboarding-done")
-      : undefined;
-    const onboardingDone =
-      cachedDone !== undefined ? cachedDone : await isOnboardingDone();
-
-    if (user && cachedDone === undefined && onboardingDone !== null) {
-      setCached(user.id, "goal-onboarding-done", onboardingDone);
-    }
+    // userId 없음(세션 경쟁 상태) — requireGoalAccessMiddleware가 이미 통과시킨
+    // 요청이라 정상 경로에선 거의 발생하지 않는다. 온보딩 여부를 알 수 없으므로
+    // 곧장 check-failed로 접는다(과거 fetchGoalStudent의 kind:'no-session'이
+    // null로 접혀 여기 도달하던 것과 동일한 결과).
+    const onboardingDone = userId ? await isOnboardingDone(userId) : null;
 
     if (onboardingDone === true) return;
 

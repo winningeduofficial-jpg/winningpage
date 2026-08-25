@@ -14,6 +14,7 @@
 //   (api/lookup-child.js 주석). 그래서 학부모 가입 직후 세션을 유지해야 한다 —
 //   가입 후 signOut 하면 이 화면에서 not_authenticated로 떨어진다.
 
+import { apiFetch, getAuthHeader } from "./apiFetch";
 import { supabase } from "./supabase";
 
 // 서버가 발급하는 코드 알파벳. 헷갈리는 0·1·I·L·O를 뺀 31종이다
@@ -88,20 +89,15 @@ function fail(reason: string, detail?: string): ParentLinkFail {
   };
 }
 
-async function getAccessToken() {
-  const { data } = await supabase.auth.getSession();
-  return data?.session?.access_token || "";
-}
-
 /**
  * 연결코드로 자녀를 미리 조회한다. 연결을 만들지는 않는다.
  */
 export async function lookupChild(code: string): Promise<LookupChildResult> {
   const normalized = normalizeLinkCode(code);
-  const token = await getAccessToken();
+  const authHeader = await getAuthHeader();
 
   // 토큰이 없으면 서버가 401을 줄 게 뻔하다. 한도만 축내지 않도록 미리 끊는다.
-  if (!token) return fail("not_authenticated");
+  if (!authHeader) return fail("not_authenticated");
 
   let response: Response;
   let payload: {
@@ -118,11 +114,11 @@ export async function lookupChild(code: string): Promise<LookupChildResult> {
   };
 
   try {
-    response = await fetch("/api/lookup-child", {
+    response = await apiFetch("/api/lookup-child", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        ...authHeader,
       },
       body: JSON.stringify({ code: normalized }),
     });

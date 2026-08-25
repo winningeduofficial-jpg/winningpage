@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { useCooldown } from "@/hooks/useCooldown";
+import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 import {
   isValidMobile,
   normalizePhone,
@@ -158,9 +159,8 @@ export default function ChangePhoneModal({
     setConfirming(true);
     setErrorMsg("");
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
-    if (!token) {
+    const authHeader = await getAuthHeader();
+    if (!authHeader) {
       setConfirming(false);
       setStep("verify");
       setErrorMsg("로그인 정보를 확인할 수 없어요. 다시 로그인해 주세요.");
@@ -168,11 +168,11 @@ export default function ChangePhoneModal({
     }
 
     try {
-      const res = await fetch("/api/change-phone", {
+      const res = await apiFetch("/api/change-phone", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
+          ...authHeader,
         },
         body: JSON.stringify({ phone: nextPhone }),
       });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
+import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 import { clearCart } from "@/lib/cart";
-import { supabase } from "@/lib/supabase";
+import { queryClient } from "@/lib/queryClient";
 
 export interface CardInfo {
   cardType?: string;
@@ -88,14 +89,13 @@ export function usePaymentConfirmation({
     let cancelled = false;
     (async () => {
       try {
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData?.session?.access_token;
+        const authHeader = await getAuthHeader();
 
-        const res = await fetch("/api/confirm-payment", {
+        const res = await apiFetch("/api/confirm-payment", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+            ...authHeader,
           },
           body: JSON.stringify({ paymentKey, orderId, amount }),
         });
@@ -116,6 +116,16 @@ export function usePaymentConfirmation({
           setPayment(result);
           setStatus("done");
           clearCart();
+          // 결제 직후 이용권 상태가 바뀌었으므로(예: goal 미보유 → 보유), 캐시된
+          // entitlement(staleTime 15초, queryClient.ts)를 즉시 무효화한다 — 그대로
+          // 두면 방금 결제한 사용자가 최대 15초간 "이용권 없음" 판정을 그대로 받을
+          // 수 있다. serviceKey별로 나누지 않고 'entitlement' 전체를 무효화한다 —
+          // (invalidateQueries는 부분 키 매칭이라 ['entitlement', userId, serviceKey]
+          // 형태의 실제 키도 이 짧은 키로 전부 걸린다.)
+          // 이 응답(access.granted)이 어떤 서비스에 권한을 부여했는지는 알지만,
+          // 결제 완료 시점의 무효화 비용은 낮고 실수로 한 서비스를 빠뜨릴 위험이
+          // 더 크다.
+          queryClient.invalidateQueries({ queryKey: ["entitlement"] });
         }
       } catch (err) {
         if (cancelled) return;

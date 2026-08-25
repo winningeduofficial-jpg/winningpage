@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import GoalPageHeader from "@/components/goal/GoalPageHeader";
 import SessionRecordPanel from "@/components/goal/study/SessionRecordPanel";
@@ -5,19 +6,20 @@ import SubjectTimerCard from "@/components/goal/study/SubjectTimerCard";
 import TimerSummaryBar from "@/components/goal/study/TimerSummaryBar";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
 import { TIMER_SUBJECT_ORDER } from "@/components/goal/studyRecordOptions";
+import { useAuth } from "@/context/AuthProvider";
 import {
   getDayIndexFromYMDServer,
   kstYMD,
   VIRTUAL_DAY_NAMES,
 } from "@/lib/goal/calc/index.js";
 import {
-  fetchGoalStudent,
   fetchGoalTimer,
   heartbeatGoalTimer,
   setGoalTimerTarget,
   startGoalTimer,
   stopGoalTimer,
 } from "@/lib/goalApi";
+import { goalStudentQueryOptions } from "@/lib/queryClient";
 
 const POLL_INTERVAL_MS = 20 * 1000; // GET 폴링 15~30초 범위(임무 지시)
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
@@ -86,29 +88,35 @@ export default function Timer() {
     }
   }, [applySummary]);
 
-  // 최초 로드 + 오늘 요일 이상 목표 총합(과목별 목표 기본값 산출용, 저장하지 않는 파생값).
+  // 최초 로드(타이머 요약)는 reload()가, 오늘 요일 이상 목표 총합(과목별 목표
+  // 기본값 산출용, 저장하지 않는 파생값)은 ['goal','student'] 쿼리 캐시(아래
+  // useQuery)가 각각 맡는다.
   useEffect(() => {
     reload();
-
-    fetchGoalStudent().then((result) => {
-      if (result.kind !== "onboarded") return;
-      // goalApi.ts는 weeklySchedule을 Record<string, unknown>으로만 선언한다(넓은 계약) —
-      // 실제 값 모양은 Dashboard.tsx가 이미 쓰는 {ideal, min} 레코드와 같다.
-      const weeklySchedule = (result.student?.weeklySchedule || {}) as Record<
-        string,
-        { ideal: number; min: number } | undefined
-      >;
-      // getDayIndexFromYMDServer는 항상 0~6을 반환하고 VIRTUAL_DAY_NAMES는 7개 고정이다.
-      const dayName =
-        VIRTUAL_DAY_NAMES[getDayIndexFromYMDServer(kstYMD(new Date()))]!;
-      const idealToday = weeklySchedule?.[dayName]?.ideal;
-      setDefaultTargetHours(
-        typeof idealToday === "number"
-          ? idealToday / TIMER_SUBJECT_ORDER.length
-          : null,
-      );
-    });
   }, [reload]);
+
+  // 캐시(src/lib/queryClient.ts)를 그대로 구독한다 — goal 진입 시 미들웨어·
+  // Dashboard.tsx가 이미 채워둔 응답을 재사용해 이 페이지 전용 재요청을 없앤다
+  // (명세 B-3 §5, 캐시 키의 userId는 리뷰 C1).
+  const { userId } = useAuth();
+  const { data: goalStudentResult } = useQuery(goalStudentQueryOptions(userId));
+
+  useEffect(() => {
+    if (goalStudentResult?.kind !== "onboarded") return;
+    // goalApi.ts는 weeklySchedule을 Record<string, unknown>으로만 선언한다(넓은 계약) —
+    // 실제 값 모양은 Dashboard.tsx가 이미 쓰는 {ideal, min} 레코드와 같다.
+    const weeklySchedule = (goalStudentResult.student?.weeklySchedule ||
+      {}) as Record<string, { ideal: number; min: number } | undefined>;
+    // getDayIndexFromYMDServer는 항상 0~6을 반환하고 VIRTUAL_DAY_NAMES는 7개 고정이다.
+    const dayName =
+      VIRTUAL_DAY_NAMES[getDayIndexFromYMDServer(kstYMD(new Date()))]!;
+    const idealToday = weeklySchedule?.[dayName]?.ideal;
+    setDefaultTargetHours(
+      typeof idealToday === "number"
+        ? idealToday / TIMER_SUBJECT_ORDER.length
+        : null,
+    );
+  }, [goalStudentResult]);
 
   // GET 폴링(15~30초) + 탭 복귀 시 refetch.
   useEffect(() => {

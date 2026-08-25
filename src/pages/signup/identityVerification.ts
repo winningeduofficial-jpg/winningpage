@@ -19,7 +19,7 @@
 //     PUBLIC_SITE_URL=http://localhost:3000
 //   NICE는 return_url을 사전 등록 없이 받으므로 localhost도 그대로 통과한다(확인 완료).
 
-import { supabase } from "@/lib/supabase";
+import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 
 const POPUP_NAME = "niceIdentity";
 const POPUP_FEATURES =
@@ -111,8 +111,8 @@ function fail(reason: string): IdentityFailResult {
 }
 
 async function requestAuthUrl(purpose: string): Promise<AuthUrlResult> {
-  const { data } = await supabase.auth.getSession();
-  const token = data?.session?.access_token;
+  // 가입 전 호출이 정상이라 토큰이 없어도 보낸다. 있으면 서버가 user_id를 붙인다.
+  const authHeader = await getAuthHeader();
 
   let response: Response;
   let payload: {
@@ -123,12 +123,11 @@ async function requestAuthUrl(purpose: string): Promise<AuthUrlResult> {
   };
 
   try {
-    response = await fetch("/api/nice-identity-start", {
+    response = await apiFetch("/api/nice-identity-start", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        // 가입 전 호출이 정상이라 토큰이 없어도 보낸다. 있으면 서버가 user_id를 붙인다.
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...authHeader,
       },
       body: JSON.stringify({ purpose }),
     });

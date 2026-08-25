@@ -10,7 +10,7 @@
  * 경우(이용권 없음/만료/회차 소진/attempt 충돌)는 절대 fail-open하지 않는다 —
  * 그건 판정이 됐다는 뜻이라 관대할 이유가 없다.
  */
-import { supabase } from "./supabase";
+import { apiFetch, getAuthHeader } from "./apiFetch";
 
 export type DiagnosisAccessResult = {
   allowed: boolean;
@@ -36,9 +36,8 @@ function normalizeQuota(value: unknown): number | null {
 /** 진입 게이트. SurveyStepShell 마운트 시 1회 호출한다. */
 export async function checkDiagnosisAccess(): Promise<DiagnosisAccessResult> {
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
-    if (!token) {
+    const authHeader = await getAuthHeader();
+    if (!authHeader) {
       // /app/learning-diagnosis/survey는 requireAuthMiddleware가 이미 비회원을
       // /login으로 보내므로 정상 흐름에서는 여기 도달하지 않는다. 세션 조회
       // 자체가 실패하는 경합만 흡수한다.
@@ -48,9 +47,9 @@ export async function checkDiagnosisAccess(): Promise<DiagnosisAccessResult> {
       return ACCESS_FAIL_OPEN;
     }
 
-    const response = await fetch("/api/diagnosis/access", {
+    const response = await apiFetch("/api/diagnosis/access", {
       method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
+      headers: authHeader,
     });
 
     let result: Partial<DiagnosisAccessResult> & { detail?: string } = {};
@@ -110,20 +109,19 @@ export async function consumeDiagnosisAttempt(
   attemptId: string,
 ): Promise<DiagnosisConsumeResult> {
   try {
-    const { data: sessionData } = await supabase.auth.getSession();
-    const token = sessionData?.session?.access_token;
-    if (!token) {
+    const authHeader = await getAuthHeader();
+    if (!authHeader) {
       console.warn(
         "[diagnosisAccess] consume 호출 시 세션 없음 — fail-open으로 제출 진행",
       );
       return { outcome: "fail-open" };
     }
 
-    const response = await fetch("/api/diagnosis/consume", {
+    const response = await apiFetch("/api/diagnosis/consume", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        ...authHeader,
       },
       body: JSON.stringify({ attemptId }),
     });

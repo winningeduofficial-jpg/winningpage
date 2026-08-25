@@ -34,6 +34,8 @@
 // 거절"이 생긴다(§8.3 「시안 카운터와 동일 계산식 공유」). `submission-chars.js`는 의존이
 // 0인 잎 모듈이라 브라우저 번들에 들어가도 서버 코드를 끌고 오지 않는다 — 그 파일 상단
 // 주석이 "import를 추가하지 마라"로 그 성질을 계약으로 못박고 있다.
+import { apiFetch } from "../apiFetch";
+
 export {
   checkFieldsMinLength,
   countFieldChars,
@@ -166,7 +168,7 @@ export async function fetchSubmissionForm({
   let response: Response;
 
   try {
-    response = await fetch(
+    response = await apiFetch(
       `/api/performance/submission?sessionId=${encodeURIComponent(sessionId)}`,
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
@@ -206,7 +208,7 @@ export async function saveSubmission({
   let response: Response;
 
   try {
-    response = await fetch("/api/performance/submission", {
+    response = await apiFetch("/api/performance/submission", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",

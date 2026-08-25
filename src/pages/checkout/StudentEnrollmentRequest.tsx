@@ -1,13 +1,13 @@
-import type { User } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 import successCheck from "@/assets/checkout/success-check-60.svg";
 import ConfirmModal from "@/components/checkout/ConfirmModal";
 import ServiceCatalog from "@/components/pricing/ServiceCatalog";
+import { useAuth } from "@/context/AuthProvider";
 import { formatKRW } from "@/data/pricingCatalog";
+import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 import { getApprovedParentLink } from "@/lib/parentLink";
 import { useProducts } from "@/lib/products";
-import { supabase } from "@/lib/supabase";
 
 // 학생 — 결제 요청(수강신청) 화면. Figma 실측 재작업(2026-08-12b, 팀 리드가
 // get_design_context 로 직접 뽑은 전문 기준 — 이전 라운드는 Figma 접근 없이
@@ -101,7 +101,8 @@ export default function StudentEnrollmentRequest() {
   // 서비스별 단일 선택: { [serviceKey]: productId } — Pricing.jsx 와 동일 규칙
   // (그룹당 1개, 서로 다른 그룹은 동시 선택 가능).
   const [selected, setSelected] = useState<Record<string, string>>({});
-  const [user, setUser] = useState<User | null>(null);
+  // 세션은 AuthProvider(전역 단일 구독)에서 읽는다(명세 B-3 §4).
+  const { user } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [showFailModal, setShowFailModal] = useState(false);
   // { title, body } | null — 학부모 미연결 이외의 서버 제출 실패(일반 오류/중복 요청).
@@ -110,18 +111,6 @@ export default function StudentEnrollmentRequest() {
   const [completedOrder, setCompletedOrder] = useState<CompletedOrder | null>(
     null,
   );
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!alive) return;
-      setUser(data?.session?.user ?? null);
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   const hasNoServices = Boolean(error) || filteredServices.length === 0;
 
@@ -183,9 +172,8 @@ export default function StudentEnrollmentRequest() {
         return;
       }
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData?.session?.access_token;
-      if (!token) {
+      const authHeader = await getAuthHeader();
+      if (!authHeader) {
         setShowFailModal(true);
         return;
       }
@@ -195,11 +183,11 @@ export default function StudentEnrollmentRequest() {
         | { error?: string; orderId?: string; amount?: number }
         | undefined;
       try {
-        response = await fetch("/api/request-enrollment", {
+        response = await apiFetch("/api/request-enrollment", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            ...authHeader,
           },
           // id 만 보낸다 — parentProfileId·금액류는 서버가 신뢰하지 않고 무시한다
           // (api/request-enrollment.js 신뢰 경계 주석 참고).

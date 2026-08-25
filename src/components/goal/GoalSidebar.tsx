@@ -1,14 +1,11 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router";
+import { useAuth } from "@/context/AuthProvider";
 import { kstYMD } from "@/lib/goal/calc/index.js";
-import {
-  fetchGoalSchedules,
-  fetchGoalStudent,
-  fetchGoalTimer,
-} from "@/lib/goalApi";
+import { fetchGoalSchedules, fetchGoalTimer } from "@/lib/goalApi";
+import { goalStudentQueryOptions } from "@/lib/queryClient";
 import { GOAL_NAV_FOOTER, GOAL_NAV_GROUPS } from "./goalNavItems";
-
-type SidebarProfile = { name: string | null; grade: string; schoolType: string };
 
 // "진행중" 뱃지 폴링 간격 — Timer.jsx 본문 폴링(20초)보다 느슨하게 둔다. 사이드바는
 // GoalAppLayout에 상주해 어느 목표관리 화면에 있어도 계속 폴링되므로 과한 빈도는 낭비다.
@@ -21,22 +18,17 @@ const TIMER_BADGE_POLL_MS = 45 * 1000;
 export default function GoalSidebar() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [scheduleCount, setScheduleCount] = useState(0);
-  // null = 로딩 중(사용자 블록 이름·학년 줄 비움). fetchGoalStudent()가 실패하거나
-  // kind가 'onboarded'가 아니면(방어적 분기, Dashboard.jsx와 동일 사유) 로딩 상태로
-  // 남겨 "나의 목표관리" 폴백 문구만 보여준다.
-  const [profile, setProfile] = useState<SidebarProfile | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    fetchGoalStudent().then((result) => {
-      if (!alive || result.kind !== "onboarded") return;
-      const { name, grade, schoolType } = result.student.profile;
-      setProfile({ name, grade, schoolType });
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // ['goal','student', userId] 쿼리 캐시(src/lib/queryClient.ts)를 그대로 구독한다 —
+  // 목표관리 진입 시 미들웨어·Dashboard.tsx가 이미 채워둔 캐시를 재사용해 사이드바
+  // 전용 재요청을 없앤다(명세 B-3 §5). 캐시 키의 userId는 리뷰 C1(계정 전환 캐시
+  // 오염 방지). data가 없거나 kind가 'onboarded'가 아니면(방어적 분기, Dashboard.jsx와
+  // 동일 사유) "나의 목표관리" 폴백 문구만 보여준다.
+  const { userId } = useAuth();
+  const { data: goalStudentResult } = useQuery(goalStudentQueryOptions(userId));
+  const profile =
+    goalStudentResult?.kind === "onboarded"
+      ? goalStudentResult.student.profile
+      : null;
 
   useEffect(() => {
     let cancelled = false;

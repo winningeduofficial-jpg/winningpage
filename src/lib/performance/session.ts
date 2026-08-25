@@ -8,6 +8,8 @@
 //   실패  400 INVALID_SESSION_ID · 401 UNAUTHENTICATED · 403 NO_ENTITLEMENT/
 //         NOT_SESSION_OWNER · 500 INTERNAL
 
+import { apiFetch } from "../apiFetch";
+
 const NETWORK_ERROR =
   "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";
 
@@ -55,7 +57,7 @@ export async function fetchSessionDetail({
   let response: Response;
 
   try {
-    response = await fetch(
+    response = await apiFetch(
       `/api/performance/session?sessionId=${encodeURIComponent(sessionId)}`,
       {
         headers: { Authorization: `Bearer ${accessToken}` },
