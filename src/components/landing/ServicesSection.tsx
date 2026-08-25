@@ -25,17 +25,20 @@ type Service = {
   sort_order?: number;
 };
 
-// DB(program_categories) link 컬럼이 죽은 값(레거시 '/services' 스텁 페이지 — 헤더/푸터 없는
-// 플레이스홀더, 실 목적지 아님)이거나 비어있을 때의 최종 폴백. 이름 매칭도 실패하면 여기로.
-const DEAD_SERVICE_LINK_FALLBACK = "/services/learning-diagnosis";
-const MAX_VISIBLE_SERVICES = 6;
+// 레거시 '/services' 스텁 페이지(헤더/푸터 없는 플레이스홀더, 실 목적지 아님) — DB
+// link 컬럼에 남아 있는 죽은 값. 이 값은 링크 없음과 동일하게 취급한다.
+const DEAD_SERVICE_LINK = "/services";
 
 // service.link 해석 순서: 1) 서비스명이 SERVICE_NAME_ROUTES에 있으면 그 정본 내부 라우트를
 // 최우선 사용(상단 메뉴/메가패널과 동일한 라우트·동일한 전환 방식을 강제 — DB link 컬럼에
 // 실수로 외부 절대 URL이 들어가 있어도 새 탭으로 튀지 않는다) 2) 없으면 /page/services-*
-// 구슬러그를 신규 라우트로 승격(useNavGroups와 동일 매핑 재사용) 3) 그래도 죽은
-// 값('/services')·빈 값이면 학습진단으로 폴백.
-function resolveServiceLink(service: Service) {
+// 구슬러그를 신규 라우트로 승격(useNavGroups와 동일 매핑 재사용, 일반 경로는 그대로 통과)
+// 3) 그래도 죽은 값('/services')·빈 값이면 null — 카드는 뜨되 클릭할 수 없다.
+//
+// 종전에는 3)에서 학습진단으로 폴백했다(QA 2026-08-25 제거). 어드민이 새 서비스를
+// 등록하면서 link 를 아직 안 채웠을 때 엉뚱한 페이지로 보내는 것보다, 카드가 비활성인 게
+// 눈에 띄어 어드민이 link 를 채우게 만드는 편이 맞다 — 데이터가 없으면 동작도 없다.
+function resolveServiceLink(service: Service): string | null {
   const knownRoute =
     SERVICE_NAME_ROUTES[
       String(service?.name || "").trim() as keyof typeof SERVICE_NAME_ROUTES
@@ -43,11 +46,12 @@ function resolveServiceLink(service: Service) {
   if (knownRoute) return knownRoute;
 
   const raw = String(service?.link || "").trim();
+  if (!raw) return null;
+
   const promoted = resolvePromotedSlugLink(raw);
+  if (!promoted || promoted === DEAD_SERVICE_LINK) return null;
 
-  if (promoted && promoted !== "/services") return promoted;
-
-  return DEAD_SERVICE_LINK_FALLBACK;
+  return promoted;
 }
 
 const ICON_SHADOW_SRC = "/images/landing/services/icon-shadow.png";
@@ -186,7 +190,7 @@ function ServiceCard({
   layout?: IllustrationLayout;
 }) {
   const link = resolveServiceLink(service);
-  const isExternal = /^https?:\/\//i.test(link);
+  const isExternal = link !== null && /^https?:\/\//i.test(link);
   // serviceIconMap.default 키는 항상 정의돼 있는 최종 폴백.
   const FallbackIcon =
     serviceIconMap[service.icon ?? "default"] || serviceIconMap.default!;
@@ -265,6 +269,12 @@ function ServiceCard({
     </>
   );
 
+  // 링크가 없는 카드(어드민이 link 를 아직 안 채운 신규 서비스) — 클릭 영역 없이 카드만
+  // 보여준다. hover/focus 스타일은 링크형 카드와 같은 CARD_CLASS 를 쓰되 커서만 기본값.
+  if (link === null) {
+    return <div className={`${CARD_CLASS} cursor-default`}>{content}</div>;
+  }
+
   if (isExternal) {
     return (
       <a
@@ -300,17 +310,18 @@ type ServicesSectionProps = {
  *   (0729 시안 2207:12970, 1100 캔버스, 카드 352×179px÷16=rem)
  * - 카드: 좌측 텍스트(제목/설명) + 우측 3D 일러스트(icon_image_url, 없으면 lucide 폴백)
  * - 일러스트: lg 미만은 세로 중앙, lg는 시안 카드별 상단 기준 배치(크기·여백·회전 차등)
- * - 카드 전체가 link 필드로 이동하는 클릭 영역 (resolveServiceLink — 죽은 값/공백은
- *   서비스명 매칭 후 최종 /services/learning-diagnosis로 폴백)
+ * - 카드 전체가 link 필드로 이동하는 클릭 영역 (resolveServiceLink — 서비스명 매칭도
+ *   안 되고 link 도 죽은 값/공백이면 링크 없는 카드로 렌더, 폴백 목적지 없음)
  */
 export default function ServicesSection({
   services = [],
 }: ServicesSectionProps) {
+  // 노출 개수는 DB(program_categories 활성 행)가 정한다 — 종전의 6개 상한(0729 시안의
+  // 3×2 그리드 기준)은 QA 2026-08-25 로 제거했다. 7개 이상이면 3열 그리드가 자연히
+  // 다음 행으로 흘러간다.
   const visibleServices = useMemo(
     () =>
-      [...services]
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-        .slice(0, MAX_VISIBLE_SERVICES),
+      [...services].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
     [services],
   );
 
@@ -343,8 +354,10 @@ export default function ServicesSection({
             <li key={service.id} className="w-full max-w-[28.0938rem]">
               <ServiceCard
                 service={service}
-                // ILLUSTRATION_LAYOUTS는 비어있지 않은 상수 배열이라 [0] 폴백은 항상 존재.
-                layout={ILLUSTRATION_LAYOUTS[index] ?? ILLUSTRATION_LAYOUTS[0]!}
+                // 시안 일러스트 배치는 6장 기준 — 7장째부터는 같은 배치를 순환한다.
+                layout={
+                  ILLUSTRATION_LAYOUTS[index % ILLUSTRATION_LAYOUTS.length]!
+                }
               />
             </li>
           ))}
