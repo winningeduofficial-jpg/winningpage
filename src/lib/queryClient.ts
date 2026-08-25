@@ -7,6 +7,7 @@
 // 그래서 QueryClient를 컴포넌트가 아니라 모듈 top-level에 싱글턴으로 둔다
 // (routeMiddlewareCache.ts의 모듈 레벨 Map과 동일한 이유).
 import { QueryClient, queryOptions } from "@tanstack/react-query";
+import { apiFetch, getAuthHeader } from "./apiFetch";
 import { fetchEntitlement } from "./entitlement";
 import { fetchGoalStudent } from "./goalApi";
 import { supabase } from "./supabase";
@@ -119,6 +120,67 @@ export function goalStudentQueryOptions(userId: string | null) {
     staleTime: GOAL_STUDENT_STALE_MS,
     enabled: !!userId,
     retry: 0,
+  });
+}
+
+// 킥(다른 기기 로그인으로 인한 강제 세션 종료) 감지 — 탭 focus 시
+// api/session-check를 물어본다(전역 기본값 refetchOnWindowFocus:true, 위
+// QueryClient 참고). 폴링·Realtime은 쓰지 않는다 — focus 시점에만 확인해도
+// "킥당한 채로 화면을 계속 보고 있다가 조작하는" 사고를 막기엔 충분하고, 그
+// 이상은 이 라우트를 부르는 비용(매 세션마다 auth.getUser 호출)을 정당화하지
+// 못한다.
+//
+// 반환값은 예외가 아니라 3값 문자열이다(entitlement/goalStudent와 달리
+// "판정 불가"를 error로 승격하지 않는다) — 오탐 방지가 최우선이라, 네트워크
+// 실패·서버 오류까지도 전부 "unknown"(조용히 무시)으로 뭉개고 "kicked" 단
+// 하나만 소비처(SessionKickGuard)가 반응해야 하는 신호로 남긴다.
+//   ok      — 세션 유효.
+//   kicked  — 서버가 이 세션을 명시적으로 폐기함(api/session-check.ts의
+//             SESSION_REVOKED). 이것만 킥 확정.
+//   unknown — 그 외 전부(토큰 없음, 일반 401, 네트워크 오류, 타임아웃 등).
+export type SessionCheckResult = "ok" | "kicked" | "unknown";
+
+// queryKey에 userId를 포함하는 이유는 entitlement/goalStudent와 같다(계정 전환
+// 시 이전 계정의 캐시된 판정이 새 계정에 새어나가지 않도록). staleTime:0 —
+// 이 판정은 "지금 이 순간 유효한가"만 의미가 있고, 잠깐이라도 stale한 값을
+// 재사용하면 이미 킥당한 상태를 다음 focus까지 놓칠 수 있다. retry:0 — 재시도로
+// "kicked"가 회복되는 상황은 없고(진짜 킥이면 계속 401), 일시적 실패는 다음
+// focus 때 다시 물어보면 된다.
+export function sessionCheckQueryOptions(userId: string | null) {
+  return queryOptions({
+    queryKey: ["session-check", userId] as const,
+    queryFn: async (): Promise<SessionCheckResult> => {
+      const authHeader = await getAuthHeader();
+      // 로컬에 세션 자체가 없으면 물어볼 대상이 없다 — enabled:!!userId로 보통
+      // 걸러지지만, userId와 getAuthHeader() 사이에 짧은 경쟁(세션 만료 등)이
+      // 있을 수 있어 한 번 더 방어한다.
+      if (!authHeader) return "unknown";
+
+      try {
+        const response = await apiFetch("/api/session-check", {
+          method: "GET",
+          headers: { ...authHeader },
+        });
+
+        if (response.ok) return "ok";
+        if (response.status !== 401) return "unknown";
+
+        let body: { error?: { code?: string } } = {};
+        try {
+          body = await response.json();
+        } catch {
+          body = {};
+        }
+        return body?.error?.code === "SESSION_REVOKED" ? "kicked" : "unknown";
+      } catch (error) {
+        console.error("[session-check] 호출 오류(무시):", error);
+        return "unknown";
+      }
+    },
+    enabled: !!userId,
+    retry: 0,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
 }
 
