@@ -474,6 +474,27 @@ export default function ParentForm() {
 
       setParentSignupCompleted(true);
 
+      // 가입 축하 쿠폰 발급 + 안내 알림톡 (학부모 가입에만 있는 단계,
+      // 2026-08-25 회의 확정). 기다리지 않는다 — 알리고 왕복이 몇 초 걸릴 수
+      // 있고, 문자가 늦거나 실패해도 가입은 이미 끝났다. 서버가 member_type 을
+      // 한 번 더 확인하고 중복 발송도 막으므로 여기서 조건을 더 걸지 않는다
+      // (api/signup-welcome.ts 상단 주석).
+      void (async () => {
+        try {
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token;
+          if (!token) return;
+
+          await fetch("/api/signup-welcome", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+        } catch (error) {
+          // 화면에 띄우지 않는다 — 사용자가 할 수 있는 게 없다.
+          console.error("가입 축하 알림톡 요청 실패:", error);
+        }
+      })();
+
       // ⚠️ 여기서 signOut 하지 않는다 — 파일 상단 주석 참고.
       navigate("/signup/parent/link");
     } catch (error) {
