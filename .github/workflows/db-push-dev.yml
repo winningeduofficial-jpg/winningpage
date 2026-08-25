@@ -29,4 +29,8 @@ jobs:
 
       - run: supabase link --project-ref "$PROJECT_REF"
 
-      - run: supabase db push
+      # --include-all: 원격 마지막 적용 버전보다 작은 타임스탬프의 미적용 파일도 적용한다.
+      # 병렬 브랜치가 각자 번호를 매기면 머지 순서와 파일명 순서가 어긋날 수 있고, 기본
+      # 동작은 그 경우 push 자체를 거부해 이후 모든 마이그레이션이 연쇄 차단된다
+      # (2026-08-24 #159가 0825 접두사로 먼저 적용된 뒤 #165의 0824000007/8이 막힌 사고).
+      - run: supabase db push --include-all
