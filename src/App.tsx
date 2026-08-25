@@ -7,6 +7,7 @@ import {
   RouterProvider,
   useLocation,
 } from "react-router";
+import SessionKickGuard from "./components/SessionKickGuard";
 import SiteLayout from "./components/SiteLayout";
 import adminRoutes from "./routes/adminRoutes";
 import admissionRoutes from "./routes/admissionRoutes";
@@ -46,6 +47,9 @@ function RootLayout() {
   return (
     <>
       <ScrollToTop />
+      {/* 어드민 포함 전 계정 대상 킥 감지 — 특정 라우트 그룹이 아니라 모든
+          라우트의 공통 조상인 여기 둔다(SessionKickGuard.tsx 헤더 주석 참고). */}
+      <SessionKickGuard />
       <Outlet />
     </>
   );
