@@ -92,12 +92,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { data: { session: null } } as Awaited<
         ReturnType<typeof supabase.auth.getSession>
       >,
-    ).then(({ value, timedOut }) => {
-      if (!alive) return;
-      setSession(value?.data?.session || null);
-      setIsReady(true);
-      if (timedOut) setDidTimeout(true);
-    });
+    )
+      .then(({ value, timedOut }) => {
+        if (!alive) return;
+        setSession(value?.data?.session || null);
+        setIsReady(true);
+        if (timedOut) setDidTimeout(true);
+      })
+      // getSession()이 hang이 아니라 reject하는 경우(스토리지 접근 차단,
+      // LockManager 오류 등)에도 isReady를 확정해야 전역 무한 로딩에 빠지지
+      // 않는다 — 구 Header.tsx의 try/catch fail-open과 같은 의미.
+      .catch(() => {
+        if (!alive) return;
+        setSession(null);
+        setIsReady(true);
+        setDidTimeout(true);
+      });
 
     // ⚠️ 콜백 안에서 supabase 비동기 API를 부르지 않는다 — supabase-js가 내부
     //    락을 잡고 있어 교착할 수 있다(SessionContext.tsx의 동일 주석, 기존
