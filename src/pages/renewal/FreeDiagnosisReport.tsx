@@ -14,10 +14,7 @@ import { useAuth } from "@/context/AuthProvider";
 import { loadDiagnosisInput } from "@/lib/diagnosisInputStorage";
 import { buildReport } from "@/lib/diagnosisReport";
 import { supabase } from "@/lib/supabase";
-
-// QA 행 103 — PDF(인쇄) 파일명 "{학생이름}_위닝학습진단리포트"의 기본 접미어.
-// 이름을 못 구하면(세션 없음·profiles.name 미기재) 접두어 없이 이 문구만 쓴다.
-const REPORT_FILE_SUFFIX = "위닝학습진단리포트";
+import { buildReportFileName } from "./reportFileName";
 
 // 입력 없이 이 URL 로 진입했을 때 되돌려보낼 설문 시작점. 라우트 정본(App.jsx)과 같은 경로다.
 const SURVEY_ENTRY_PATH = "/app/learning-diagnosis/survey";
@@ -143,17 +140,18 @@ export default function FreeDiagnosisReport() {
   // (ReportSheetA4가 더 이상 totalPages 기본값을 추정하지 않는 이유).
   const totalPages = hasReportExtras(data) ? 4 : 2;
 
-  // QA 행 103 — 브라우저 인쇄 다이얼로그가 제안하는 기본 파일명은 document.title을 따른다
-  // (PDF 저장 시 이 값이 그대로 파일명이 된다). SPA라 페이지 자체를 이동하지 않으므로, 인쇄
-  // 직전에만 문서 제목을 바꾸고 다이얼로그가 닫힌 뒤 원복한다. window.print()는 다이얼로그가
-  // 닫힐 때까지 호출 스레드를 막으므로 이 동기 순서로 충분하다(SPA 내 다른 print 진입점이
-  // 없어 전역 상태로 관리할 필요가 없다). 데스크톱 시트 하단 버튼과 모바일 안내 카드 버튼이
-  // 이 하나의 핸들러를 공유한다.
+  // QA 행 103 → 2026-08-22 형식 교체 — 브라우저 인쇄 다이얼로그가 제안하는 기본 파일명은
+  // document.title을 따른다(PDF 저장 시 이 값이 그대로 파일명이 된다). SPA라 페이지 자체를
+  // 이동하지 않으므로, 인쇄 직전에만 문서 제목을 바꾸고 다이얼로그가 닫힌 뒤 원복한다.
+  // window.print()는 다이얼로그가 닫힐 때까지 호출 스레드를 막으므로 이 동기 순서로 충분하다
+  // (SPA 내 다른 print 진입점이 없어 전역 상태로 관리할 필요가 없다). 데스크톱 시트 하단
+  // 버튼과 모바일 안내 카드 버튼이 이 하나의 핸들러를 공유한다. 파일명 규칙은 reportFileName.ts.
   const handlePdfDownload = () => {
     const originalTitle = document.title;
-    document.title = studentName
-      ? `${studentName}_${REPORT_FILE_SUFFIX}`
-      : REPORT_FILE_SUFFIX;
+    document.title = buildReportFileName({
+      studentName,
+      diagnosedAt: data.student?.diagnosedAt ?? null,
+    });
     window.print();
     document.title = originalTitle;
   };
@@ -200,7 +198,8 @@ export default function FreeDiagnosisReport() {
           report-print.css 가 인쇄에서 항상 숨긴다(모바일에서 인쇄해도 A4가 나가야 한다). */}
       <div className="fd-mobile-notice flex flex-col items-center gap-6 px-6 py-20 text-center lg:hidden">
         <p className="max-w-70 text-base leading-[1.6] text-ink-sub">
-          학습진단 리포트는 A4 인쇄용 문서로 제공됩니다. PDF 파일로 다운로드해 확인해 주세요.
+          학습진단 리포트는 A4 인쇄용 문서로 제공됩니다. PDF 파일로 다운로드해
+          확인해 주세요.
         </p>
         <button
           type="button"
