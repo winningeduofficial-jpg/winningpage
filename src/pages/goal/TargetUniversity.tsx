@@ -3,6 +3,7 @@ import GoalCard from "@/components/goal/GoalCard";
 import GoalPageHeader from "@/components/goal/GoalPageHeader";
 import GapToTargetCard from "@/components/goal/study/GapToTargetCard";
 import TargetUniversityCard from "@/components/goal/study/TargetUniversityCard";
+import { useAuth } from "@/context/AuthProvider";
 import { buildGapRows } from "@/lib/goal/gapToTarget";
 import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
 import type { GoalStudentPayload } from "@/lib/goalApi";
@@ -31,13 +32,14 @@ type GoalStudentResult =
     };
 
 export default function TargetUniversity() {
-  // ['goal','student'] 쿼리 캐시(src/lib/queryClient.ts)를 그대로 구독한다 — goal
-  // 진입 시 미들웨어·Dashboard.tsx가 이미 채워둔 응답을 재사용해 이 페이지 전용
-  // 재요청을 없앤다(명세 B-3 §5). RequireGoalAccess가 이미 onboarded:true만
-  // 통과시키므로 정상 경로에선 kind는 항상 'onboarded'다 — 그 외 kind는
-  // Dashboard.jsx와 동일하게 방어적 분기다. isPending 동안은 로딩 중과 동일하게
-  // result === null로 취급한다.
-  const goalStudentQuery = useQuery(goalStudentQueryOptions());
+  // ['goal','student', userId] 쿼리 캐시(src/lib/queryClient.ts)를 그대로 구독한다 —
+  // goal 진입 시 미들웨어·Dashboard.tsx가 이미 채워둔 응답을 재사용해 이 페이지
+  // 전용 재요청을 없앤다(명세 B-3 §5). 캐시 키의 userId는 리뷰 C1. RequireGoalAccess가
+  // 이미 onboarded:true만 통과시키므로 정상 경로에선 kind는 항상 'onboarded'다 —
+  // 그 외 kind는 Dashboard.jsx와 동일하게 방어적 분기다. isPending 동안은 로딩 중과
+  // 동일하게 result === null로 취급한다.
+  const { userId } = useAuth();
+  const goalStudentQuery = useQuery(goalStudentQueryOptions(userId));
   const result = goalStudentQuery.isPending
     ? null
     : ((goalStudentQuery.data as GoalStudentResult | undefined) ?? null);

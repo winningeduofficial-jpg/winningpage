@@ -119,7 +119,7 @@ export function SessionProvider({
   // "물어볼 대상이 없음"이라 allowed:false로 내리면 가드가 guest 대신 forbidden으로
   // 잘못 분기한다(아래 entitlement 파생 참고).
   const entitlementQuery = useQuery({
-    ...entitlementQueryOptions(serviceKey),
+    ...entitlementQueryOptions(serviceKey, userId),
     enabled: isSessionReady && !!userId,
   });
 

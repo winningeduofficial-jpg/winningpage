@@ -6,6 +6,7 @@ import AddMockExamGradeModal from "@/components/goal/modals/AddMockExamGradeModa
 import AddNaesinGradeModal from "@/components/goal/modals/AddNaesinGradeModal";
 import GoalGaugeCard from "@/components/goal/report/GoalGaugeCard";
 import GoalTable from "@/components/goal/report/GoalTable";
+import { useAuth } from "@/context/AuthProvider";
 import {
   addGoalGrade,
   fetchGoalGrades,
@@ -69,12 +70,14 @@ export default function Grades() {
   const [naesinModalOpen, setNaesinModalOpen] = useState(false);
   const [mockModalOpen, setMockModalOpen] = useState(false);
 
-  // 목표 대학 컷·온보딩 베이스라인은 ['goal','student'] 쿼리 캐시(src/lib/queryClient.ts)를
-  // 그대로 구독한다 — goal 진입 시 미들웨어·Dashboard.tsx가 이미 채워둔 응답을
-  // 재사용해 이 페이지 전용 재요청을 없앤다(명세 B-3 §5). 회차 기록(fetchGoalGrades)은
-  // 이 페이지 전용 데이터라 이번 배치 전환 대상이 아니다(계획서 B-3 범위는
+  // 목표 대학 컷·온보딩 베이스라인은 ['goal','student', userId] 쿼리
+  // 캐시(src/lib/queryClient.ts)를 그대로 구독한다 — goal 진입 시 미들웨어·
+  // Dashboard.tsx가 이미 채워둔 응답을 재사용해 이 페이지 전용 재요청을 없앤다
+  // (명세 B-3 §5, 캐시 키의 userId는 리뷰 C1). 회차 기록(fetchGoalGrades)은 이
+  // 페이지 전용 데이터라 이번 배치 전환 대상이 아니다(계획서 B-3 범위는
   // fetchGoalStudent만) — 기존처럼 로컬 상태로 직접 조회한다.
-  const goalStudentQuery = useQuery(goalStudentQueryOptions());
+  const { userId } = useAuth();
+  const goalStudentQuery = useQuery(goalStudentQueryOptions(userId));
   const [gradesResult, setGradesResult] =
     useState<FetchGoalGradesResult | null>(null);
 

@@ -530,12 +530,6 @@ export default function Header() {
     setProfile(null);
     writeCachedProfile(null);
     clearSupabaseAuthStorage();
-    // 이전 유저의 entitlement/goal 캐시(src/lib/queryClient.ts, staleTime 최대
-    // 5분)가 다음 로그인 세션에 잔존하면 안 된다. supabase의 SIGNED_OUT
-    // 이벤트로도 같은 정리가 걸리지만(queryClient.ts), 이 페이지 이동
-    // (window.location.replace 아래)까지 사이 창을 남기지 않기 위해 여기서도
-    // 명시적으로 비운다.
-    queryClient.clear();
 
     try {
       await Promise.race([
@@ -547,6 +541,15 @@ export default function Header() {
     } catch (error) {
       console.error("로그아웃 오류:", error);
     }
+
+    // 이전 유저의 entitlement/goal 캐시(src/lib/queryClient.ts, staleTime 최대
+    // 15초)가 다음 로그인 세션에 잔존하면 안 된다. supabase의 SIGNED_OUT
+    // 이벤트로도 같은 정리가 걸리지만(queryClient.ts), 이 페이지 이동
+    // (window.location.replace 아래)까지 사이 창을 남기지 않기 위해 여기서도
+    // 명시적으로 비운다. signOut 시도가 끝난 뒤로 미룬 이유(리뷰 LOW) — signOut
+    // 요청이 아직 진행 중인데 먼저 캐시를 비우면, 그 사이 진행 중이던 다른
+    // in-flight 쿼리가 비워진 캐시에 다시 값을 채워 넣는 경합 창이 생긴다.
+    queryClient.clear();
 
     clearSupabaseAuthStorage();
     window.dispatchEvent(new Event("winning-profile-updated"));

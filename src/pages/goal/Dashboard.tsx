@@ -15,6 +15,7 @@ import GoalCard from "@/components/goal/GoalCard";
 import { QUICK_ADD_HOURS } from "@/components/goal/goalFormOptions";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
 import { TIMER_SUBJECT_ORDER } from "@/components/goal/studyRecordOptions";
+import { useAuth } from "@/context/AuthProvider";
 import {
   getDayIndexFromYMDServer,
   kstYMD,
@@ -357,12 +358,14 @@ export default function Dashboard() {
   // goalApi.js의 kind 계약을 이 컴포넌트가 다시 해석하는 지점을 하나로 좁혀 둔다).
   // useQuery(['goal','student'])는 requireGoalOnboardingDoneMiddleware(routeMiddleware.ts →
   // goalOnboarding.ts의 isOnboardingDone)가 이 라우트 진입 시 이미 채워 둔 캐시를
-  // 그대로 읽는다(staleTime 15초, queryClient.ts) — 이 컴포넌트가 마운트되며 GET
-  // /api/goal/student를 다시 부르지 않는다(명세 B-2 §7). data === undefined = 아직
-  // 응답 도착 전(로딩 중, 캐시 미스로 직접 접근한 경우에만 발생). RequireGoalAccess가
-  // 이미 onboarded:true만 통과시키므로 정상 경로에선 kind는 항상 'onboarded'다 —
-  // 그 외 kind는 전부 직접 URL 진입·세션 경쟁 상태 같은 방어적 분기다.
-  const { data: goalStudentData } = useQuery(goalStudentQueryOptions());
+  // 그대로 읽는다(staleTime 15초, queryClient.ts, 캐시 키의 userId는 리뷰 C1) —
+  // 이 컴포넌트가 마운트되며 GET /api/goal/student를 다시 부르지 않는다(명세
+  // B-2 §7). data === undefined = 아직 응답 도착 전(로딩 중, 캐시 미스로 직접
+  // 접근한 경우에만 발생). RequireGoalAccess가 이미 onboarded:true만 통과시키므로
+  // 정상 경로에선 kind는 항상 'onboarded'다 — 그 외 kind는 전부 직접 URL 진입·
+  // 세션 경쟁 상태 같은 방어적 분기다.
+  const { userId } = useAuth();
+  const { data: goalStudentData } = useQuery(goalStudentQueryOptions(userId));
   const result = (goalStudentData ?? null) as GoalStudentResult | null;
   // null = 로딩 중. kind가 'ok'가 아닌 나머지(no-session/not-allowed/error)는
   // mapRankingRows가 빈 배열로 접어 RankingRail의 빈 상태 문구로 흡수한다 —

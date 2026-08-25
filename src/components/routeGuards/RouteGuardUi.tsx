@@ -94,7 +94,7 @@ export function GoalAccessBoundary() {
   const copy = GOAL_CHECK_FAILED_COPY[reason];
 
   // "다시 시도"는 middleware(routeMiddleware.ts)가 쓰는 query 캐시(entitlementQueryOptions/
-  // goalStudentQueryOptions, staleTime 5분·15초)를 먼저 무효화한다 — 그냥
+  // goalStudentQueryOptions, staleTime 둘 다 15초)를 먼저 무효화한다 — 그냥
   // revalidate()만 하면 middleware의 ensureQueryData가 아직 fresh한 캐시를 그대로
   // 돌려줘 실제로는 재조회 없이 같은 실패가 반복될 수 있다.
   function retry() {

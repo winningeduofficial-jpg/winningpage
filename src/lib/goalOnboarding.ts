@@ -41,20 +41,32 @@ const FAKE_ONBOARDING_DONE_ENABLED =
 //     재시도 UI로 연결하게 한다(false로 단정하지 않는다).
 // GET /api/goal/student 조회는 queryClient(entitlementQueryOptions와 같은 계열,
 // src/lib/queryClient.ts)의 ensureQueryData를 거친다 — requireGoalOnboardingDoneMiddleware와
-// Dashboard.tsx가 같은 ['goal','student'] 캐시를 공유해야 goal 진입 시 이 엔드포인트가
-// 한 번만 불린다(명세 B-2 §5·§7). fetchGoalStudent() 자체의 discriminated union
-// 계약(예외를 던지지 않음)은 그대로다 — queryClient는 그 결과를 캐싱만 한다.
-export async function isOnboardingDone() {
+// Dashboard.tsx가 같은 ['goal','student', userId] 캐시를 공유해야 goal 진입 시 이
+// 엔드포인트가 한 번만 불린다(명세 B-2 §5·§7, 캐시 키의 userId는 리뷰 C1). userId는
+// 호출부(requireGoalOnboardingDoneMiddleware)가 이미 확인한 세션에서 넘겨받는다.
+//
+// ⚠️ fetchGoalStudent() 자체의 discriminated union 계약(예외를 던지지 않음)은
+// 그대로다 — 다만 queryClient.ts의 goalStudentQueryOptions가 kind:'error'만은
+// 예외로 승격해 던지므로(리뷰 H2, 판정 불가를 성공 데이터로 캐싱하지 않기 위해),
+// 여기서 다시 잡아 이 함수의 기존 계약(null=판정 불가)으로 되돌린다.
+export async function isOnboardingDone(userId: string) {
   if (FAKE_ONBOARDING_DONE_ENABLED) return true;
 
-  const result = await queryClient.ensureQueryData(goalStudentQueryOptions());
+  try {
+    const result = await queryClient.ensureQueryData(
+      goalStudentQueryOptions(userId),
+    );
 
-  if (result.kind === "onboarded") return true;
-  if (result.kind === "not-onboarded" || result.kind === "awaiting-cuts")
-    return false;
+    if (result.kind === "onboarded") return true;
+    if (result.kind === "not-onboarded" || result.kind === "awaiting-cuts")
+      return false;
 
-  // 'no-session' | 'not-allowed' | 'error' — 전부 판정 불가.
-  return null;
+    // 'no-session' | 'not-allowed' — 전부 판정 불가.
+    return null;
+  } catch {
+    // kind:'error'(queryClient.ts GoalStudentCheckFailedError) — 판정 불가.
+    return null;
+  }
 }
 
 export function markOnboardingDone() {

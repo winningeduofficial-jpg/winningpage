@@ -81,19 +81,28 @@ function useStandaloneEntitlement(
     setState("loading");
 
     (async () => {
-      // queryClient(src/lib/queryClient.ts)의 ['entitlement', serviceKey] 캐시를 그대로
-      // 쓴다 — goal 미들웨어(routeMiddleware.ts)·SessionContext와 같은 키를 공유해
-      // 5분 내 재호출을 막는다(명세 B-2 §4·§6). "다시 시도" 버튼(retry())이
-      // invalidateQueries로 stale 처리한 뒤 이 effect를 다시 태우므로, staleTime이
-      // 남아 있어도 재시도는 항상 새로 조회한다.
-      const { allowed } = await queryClient.ensureQueryData(
-        entitlementQueryOptions(serviceKey),
-      );
-      if (!alive) return;
+      // queryClient(src/lib/queryClient.ts)의 ['entitlement', userId, serviceKey] 캐시를
+      // 그대로 쓴다 — goal 미들웨어(routeMiddleware.ts)·SessionContext와 같은 키를
+      // 공유해 staleTime(15초) 내 재호출을 막는다(명세 B-2 §4·§6). "다시 시도"
+      // 버튼(retry())이 invalidateQueries로 stale 처리한 뒤 이 effect를 다시
+      // 태우므로, staleTime이 남아 있어도 재시도는 항상 새로 조회한다.
+      //
+      // ⚠️ 판정 불가(allowed===null)는 이제 ensureQueryData가 성공 데이터로 돌려주지
+      // 않고 throw한다(queryClient.ts EntitlementCheckFailedError, 리뷰 H2) —
+      // 캐치하지 않으면 이 Promise가 reject된 채로 끝나 loading 상태에 고착된다
+      // (리뷰 M2). try/catch로 잡아 check-failed로 매핑한다.
+      try {
+        const { allowed } = await queryClient.ensureQueryData(
+          entitlementQueryOptions(serviceKey, userId),
+        );
+        if (!alive) return;
 
-      if (allowed === true) setState("ok");
-      else if (allowed === false) setState("forbidden");
-      else setState("check-failed");
+        if (allowed === true) setState("ok");
+        else setState("forbidden");
+      } catch {
+        if (!alive) return;
+        setState("check-failed");
+      }
     })();
 
     return () => {
@@ -130,6 +139,10 @@ export default function RequireEntitlement({
 }: RequireEntitlementProps) {
   const location = useLocation();
   const sessionCtx = useSessionOptional();
+  // retry()가 무효화할 캐시 키(['entitlement', userId, serviceKey], 리뷰 C1)를
+  // 만들기 위해서만 필요하다 — 세션 판정 자체는 useStandaloneEntitlement 내부의
+  // useAuth()가 담당한다.
+  const { userId } = useAuth();
   const [retryToken, setRetryToken] = useState(0);
 
   // 키가 일치하는 컨텍스트만 채택한다(위 「데이터 출처 2경로」 ⚠️ 참고).
@@ -147,10 +160,12 @@ export default function RequireEntitlement({
       ctx.refreshEntitlement();
       return;
     }
-    // staleTime(5분) 안에 재시도를 눌러도 캐시가 아니라 항상 새로 조회하도록
+    // staleTime(15초) 안에 재시도를 눌러도 캐시가 아니라 항상 새로 조회하도록
     // 먼저 무효화한다 — retryToken만 올리면 ensureQueryData가 여전히 fresh한
     // 캐시를 그대로 돌려줘 재시도가 아무 효과도 없어 보일 수 있다.
-    queryClient.invalidateQueries({ queryKey: ["entitlement", serviceKey] });
+    queryClient.invalidateQueries({
+      queryKey: ["entitlement", userId, serviceKey],
+    });
     setRetryToken((v) => v + 1);
   }
 

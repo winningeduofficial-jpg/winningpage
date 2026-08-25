@@ -10,6 +10,12 @@
 // getAuthHeader()가 반환하는 모양(Authorization 헤더 객체 | null)과 세션 없음
 // 판정(session.user + session.access_token 둘 다 있어야 유효)은 이 저장소가
 // 이미 곳곳에서 쓰던 관례(예: goalApi.ts의 구 getAuthHeader)를 그대로 옮긴 것이다.
+//
+// getAuthHeader()는 apiFetch()가 자동으로 부르지 않는다 — 각 호출부(entitlement.ts,
+// goalApi.ts 등)가 apiFetch() 호출 전에 직접 await한다. 그 덕에 인증 헤더 조회
+// 시간이 apiFetch()의 타임아웃 예산을 갉아먹지 않는다(타이머는 apiFetch() 호출
+// 시점에만 시작된다) — 리뷰에서 지적된 "타임아웃이 getAuthHeader() 대기 시간까지
+// 포함한다" 문제는 자동 첨부 기능 자체를 없애 구조적으로 해소했다.
 
 import { supabase } from "./supabase";
 
@@ -43,50 +49,55 @@ export async function getAuthHeader(): Promise<{
 export interface ApiFetchOptions {
   /** 기본 15000ms. AI 호출처럼 서버 처리 시간이 긴 엔드포인트는 넉넉히 늘려 넘긴다. */
   timeoutMs?: number;
-  /** true면 getAuthHeader()로 조회한 Authorization 헤더를 자동으로 붙인다(세션이
-   * 있을 때만 — 없으면 헤더 없이 그대로 진행하고, 세션 필요 여부 판정은 호출부 몫이다). */
-  auth?: boolean;
 }
 
 /**
- * 타임아웃이 있는 fetch. AbortSignal.timeout()으로 시간 초과를 걸고, 호출부가
- * 이미 signal을 넘겼으면 AbortSignal.any()로 두 신호를 결합한다(둘 중 먼저
- * 도착하는 사유가 그대로 전파된다). 타임아웃으로 중단되면 ApiFetchTimeoutError를
- * 던진다 — 호출부의 외부 signal이 스스로 중단한 경우(AbortError)는 그대로 둔다.
+ * 타임아웃이 있는 fetch. `AbortController` + `setTimeout`으로 직접 구현한다
+ * (`AbortSignal.timeout()`/`AbortSignal.any()`는 iOS 15 Safari에 없어 그 사용자층에서
+ * apiFetch 자체가 항상 예외를 던지는 회귀가 생긴다 — 리뷰 지적, 이 저장소가 iOS 15를
+ * 지원 대상에서 제외한 적이 없다).
+ *
+ * 타임아웃 타이머는 `fetch()`가 성공/실패로 settle되는 즉시(`finally`) 정리한다 —
+ * `AbortSignal.timeout()`은 타이머가 fetch 완료 후에도 계속 살아있어, 호출부가 응답을
+ * 받은 뒤 `res.json()`을 파싱하는 도중에 타임아웃이 발화해 파싱 자체를 중단시킬 수
+ * 있었다(리뷰 지적) — 이 함수가 반환하는 순간부터는 그 위험이 없다.
+ *
+ * 호출부가 이미 signal을 넘겼으면 리스너로 결합한다(`AbortSignal.any()`와 동일한
+ * 효과, Safari 15 호환). 타임아웃으로 중단되면 ApiFetchTimeoutError를 던진다 —
+ * 호출부의 외부 signal이 스스로 중단한 경우는 그대로 원래 에러를 전파한다.
  */
 export async function apiFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
   opts: ApiFetchOptions = {},
 ): Promise<Response> {
-  const { timeoutMs = DEFAULT_TIMEOUT_MS, auth = false } = opts;
+  const { timeoutMs = DEFAULT_TIMEOUT_MS } = opts;
 
-  const timeoutSignal = AbortSignal.timeout(timeoutMs);
-  const signal = init.signal
-    ? AbortSignal.any([init.signal, timeoutSignal])
-    : timeoutSignal;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
 
-  let headers = init.headers;
-  if (auth) {
-    const authHeader = await getAuthHeader();
-    if (authHeader) {
-      headers = { ...authHeader, ...(init.headers as Record<string, string>) };
-    }
+  const externalSignal = init.signal;
+  const onExternalAbort = () => controller.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort();
+    else externalSignal.addEventListener("abort", onExternalAbort);
   }
 
-  const requestInit: RequestInit = { ...init, signal };
-  if (headers !== undefined) requestInit.headers = headers;
-
   try {
-    return await fetch(input, requestInit);
+    return await fetch(input, { ...init, signal: controller.signal });
   } catch (error) {
-    // AbortSignal.timeout()이 중단시키면 DOMException("TimeoutError")를 사유로 싣는다
-    // (표준 동작) — 외부에서 넘긴 signal 자체의 abort(기본 사유 "AbortError")와 구분된다.
-    if (error instanceof DOMException && error.name === "TimeoutError") {
+    if (timedOut) {
       const timeoutError = new ApiFetchTimeoutError();
       timeoutError.cause = error;
       throw timeoutError;
     }
     throw error;
+  } finally {
+    clearTimeout(timeoutId);
+    externalSignal?.removeEventListener("abort", onExternalAbort);
   }
 }

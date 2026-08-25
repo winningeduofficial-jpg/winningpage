@@ -33,6 +33,23 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// 구 Header.tsx가 초기 세션 조회에 쓰던 fail-open 타임아웃(1200ms, B-3 리팩터 전
+// syncSession())을 그대로 복원한다(리뷰 H1) — getSession()이 응답 없이 멈추면
+// 이 시간 뒤 "세션 없음"으로 확정해, 이 값을 구독하는 모든 표면(Header 등)이
+// 함께 무한 로딩에 빠지지 않게 한다.
+const INITIAL_SESSION_TIMEOUT_MS = 1200;
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  fallbackValue: T,
+): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => window.setTimeout(() => resolve(fallbackValue), ms)),
+  ]);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [isReady, setIsReady] = useState(false);
@@ -40,7 +57,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let alive = true;
 
-    supabase.auth.getSession().then(({ data }) => {
+    withTimeout(
+      supabase.auth.getSession(),
+      INITIAL_SESSION_TIMEOUT_MS,
+      { data: { session: null } } as Awaited<
+        ReturnType<typeof supabase.auth.getSession>
+      >,
+    ).then(({ data }) => {
       if (!alive) return;
       setSession(data?.session || null);
       setIsReady(true);

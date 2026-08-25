@@ -20,16 +20,55 @@ export const queryClient = new QueryClient({
   },
 });
 
-// 이용권 판정 — 5분 staleTime(명세 B-2 §4). 체제 안(같은 세션에서 goal 진입 →
-// 대시보드 이동 → 다른 goal 하위 페이지 이동)에서는 5분 안에 재호출하지 않는다.
-// 결제 완료(usePaymentConfirmation) 시점에는 invalidateQueries(['entitlement'])로
-// 이 staleTime을 우회해 즉시 재조회하게 한다.
-const ENTITLEMENT_STALE_MS = 5 * 60 * 1000;
+/** entitlement queryFn이 판정 불가(allowed===null) 상태를 캐싱하지 않도록 던지는
+ * 전용 에러 — 리뷰 CRITICAL/H2 대응. 성공 데이터로 캐싱되면 서버 장애 중인
+ * 결제 사용자가 최대 staleTime만큼 "판정 불가"를 그대로 재사용받을 위험이 있다. */
+export class EntitlementCheckFailedError extends Error {
+  constructor() {
+    super("entitlement-check-failed");
+    this.name = "EntitlementCheckFailedError";
+  }
+}
 
-export function entitlementQueryOptions(serviceKey: string) {
+/** goalStudent queryFn이 kind:'error'(판정 불가) 상태를 캐싱하지 않도록 던지는
+ * 전용 에러 — EntitlementCheckFailedError와 동일한 이유. kind:'no-session'/
+ * 'not-allowed'는 정상 판정이라 여기 해당하지 않는다(그대로 캐싱). */
+export class GoalStudentCheckFailedError extends Error {
+  constructor() {
+    super("goal-student-check-failed");
+    this.name = "GoalStudentCheckFailedError";
+  }
+}
+
+// 이용권 판정 — staleTime 15초. 예전엔 5분이었으나, dev의 routeMiddlewareCache TTL과
+// 맞추기 위해 15초로 낮췄다(리뷰 H3) — 5분이면 학부모 대리결제·어드민 수동 부여
+// 시점부터 최대 5분간 화면이 옛 판정을 들고 있을 수 있어 dev 대비 회귀였다.
+// 결제 완료(usePaymentConfirmation) 시점에는 invalidateQueries(['entitlement'])로
+// 이 staleTime을 우회해 즉시 재조회하게 한다(본인 탭 즉시 반영, 그 외 시나리오는
+// 15초 창을 그대로 둔다 — dev와 동등 수준).
+const ENTITLEMENT_STALE_MS = 15_000;
+
+// queryKey에 userId를 반드시 포함한다(리뷰 CRITICAL C1) — 계정 A로 조회해 캐싱된
+// entitlement가, 로그아웃 없이 계정 B로 전환된 세션에서도 같은 키('entitlement',
+// serviceKey)로 재사용되면 B가 A의 이용권 판정을 그대로 받는 캐시 오염이 발생한다.
+// userId가 없으면(게스트) 호출부가 애초에 이 쿼리를 실행하지 않아야 한다
+// (SessionContext의 enabled 가드, RequireEntitlement의 guest 조기 반환 참고).
+export function entitlementQueryOptions(
+  serviceKey: string,
+  userId: string | null,
+) {
   return queryOptions({
-    queryKey: ["entitlement", serviceKey] as const,
-    queryFn: () => fetchEntitlement(serviceKey),
+    queryKey: ["entitlement", userId, serviceKey] as const,
+    queryFn: async () => {
+      const result = await fetchEntitlement(serviceKey);
+      // allowed===null(판정 불가)은 성공 데이터로 캐싱하지 않는다 — throw해서
+      // TanStack Query가 error 상태로 다루게 한다(retry 1 후 확정). 호출부는
+      // ensureQueryData/useQuery의 실패를 각자의 check-failed 분기로 매핑한다.
+      if (result.allowed === null) {
+        throw new EntitlementCheckFailedError();
+      }
+      return result;
+    },
     staleTime: ENTITLEMENT_STALE_MS,
   });
 }
@@ -40,32 +79,60 @@ export function entitlementQueryOptions(serviceKey: string) {
 // "미들웨어 판정 직후 컴포넌트가 마운트되는 그 찰나"만 재조회를 막으면 되는
 // 목적이 같기 때문이다(§7 효과 확인: goal 진입 시 1회로 수렴).
 //
-// ⚠️ fetchEntitlement/fetchGoalStudent는 예외를 던지지 않고 실패도 discriminated
-// union(kind/allowed:null)으로 돌려주는 이 저장소의 관례를 따른다(goalApi.ts 헤더
-// 주석). 그래서 이 query들도 "판정 불가" 상태를 에러가 아니라 성공 데이터로
-// 캐싱한다 — 즉시 재시도가 필요한 지점(GoalAccessBoundary·RequireEntitlement의
-// "다시 시도" 버튼)은 캐시를 신뢰하지 않고 invalidateQueries/refetch로 staleTime을
+// ⚠️ fetchGoalStudent는 예외를 던지지 않고 실패도 discriminated union(kind)으로
+// 돌려주는 이 저장소의 관례를 따른다(goalApi.ts 헤더 주석) — 다만 kind:'error'만은
+// entitlement의 allowed===null과 동일한 "판정 불가"라 예외로 승격해 던진다(리뷰 H2).
+// kind:'no-session'/'not-allowed'는 서버가 내린 정상 판정이므로 그대로 성공 데이터로
+// 캐싱한다. "다시 시도" 버튼(GoalAccessBoundary)은 invalidateQueries로 staleTime을
 // 우회해 강제로 새로 조회한다(각 호출부 주석 참고).
 const GOAL_STUDENT_STALE_MS = 15_000;
 
-export function goalStudentQueryOptions() {
+// entitlement와 동일한 이유로 queryKey에 userId를 포함한다(리뷰 CRITICAL C1).
+export function goalStudentQueryOptions(userId: string | null) {
   return queryOptions({
-    queryKey: ["goal", "student"] as const,
-    queryFn: () => fetchGoalStudent(),
+    queryKey: ["goal", "student", userId] as const,
+    queryFn: async () => {
+      const result = await fetchGoalStudent();
+      if (result.kind === "error") {
+        throw new GoalStudentCheckFailedError();
+      }
+      return result;
+    },
     staleTime: GOAL_STUDENT_STALE_MS,
   });
 }
 
 // 로그아웃 시 이전 유저의 이용권·목표관리 데이터가 다음 유저 세션에 잔존하면
-// 안 된다(쿼리 캐시 키에 userId가 없다 — entitlement/goal 판정은 항상 "현재
-// 세션"을 전제하므로 굳이 넣지 않았다). routeMiddlewareCache.ts와 동일한 이유로
-// SIGNED_OUT 시점에 전체를 비운다.
+// 안 된다. 위에서 queryKey에 userId를 넣어 계정별로 캐시가 이미 분리되지만,
+// 그것만으로는 끝나지 않는다 — SIGNED_OUT 시점에 전체를 비우는 것은 여전히
+// 유효한 안전장치이고(같은 이유로 routeMiddlewareCache.ts도 그렇게 한다), 추가로
+// SIGNED_IN에서도 "직전 로그인 유저와 다른 유저로 전환됐는지"를 확인해 다르면
+// 한 번 더 비운다(리뷰 CRITICAL C1 추가 안전장치) — 키가 항상 정확히 갱신된
+// 상태로만 소비된다는 가정이 어딘가 깨지더라도(예: 컴포넌트가 stale한 userId
+// 클로저를 들고 있는 경쟁 상태) 계정 전환 시점에 한 번 더 청소해 오염을 막는다.
 //
 // ⚠️ 이 콜백 안에서는 supabase 비동기 API를 부르지 않는다(SessionContext.tsx의
-// 동일 주석 참고 — supabase-js가 내부 락을 잡고 있어 교착할 수 있다). queryClient.clear()는
-// 동기 호출이다.
-supabase.auth.onAuthStateChange((event) => {
+// 동일 주석 참고 — supabase-js가 내부 락을 잡고 있어 교착할 수 있다). session
+// 인자는 이벤트와 함께 동기로 전달되는 값이라 추가 조회가 필요 없다.
+// queryClient.clear()는 동기 호출이다.
+let lastSignedInUserId: string | null = null;
+
+supabase.auth.onAuthStateChange((event, session) => {
   if (event === "SIGNED_OUT") {
+    lastSignedInUserId = null;
     queryClient.clear();
+    return;
+  }
+
+  if (event === "SIGNED_IN") {
+    const nextUserId = session?.user?.id ?? null;
+    if (
+      nextUserId &&
+      lastSignedInUserId &&
+      nextUserId !== lastSignedInUserId
+    ) {
+      queryClient.clear();
+    }
+    lastSignedInUserId = nextUserId;
   }
 });

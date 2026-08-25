@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router";
+import { useAuth } from "@/context/AuthProvider";
 import { kstYMD } from "@/lib/goal/calc/index.js";
 import { fetchGoalSchedules, fetchGoalTimer } from "@/lib/goalApi";
 import { goalStudentQueryOptions } from "@/lib/queryClient";
@@ -17,11 +18,13 @@ const TIMER_BADGE_POLL_MS = 45 * 1000;
 export default function GoalSidebar() {
   const [timerRunning, setTimerRunning] = useState(false);
   const [scheduleCount, setScheduleCount] = useState(0);
-  // ['goal','student'] 쿼리 캐시(src/lib/queryClient.ts)를 그대로 구독한다 —
+  // ['goal','student', userId] 쿼리 캐시(src/lib/queryClient.ts)를 그대로 구독한다 —
   // 목표관리 진입 시 미들웨어·Dashboard.tsx가 이미 채워둔 캐시를 재사용해 사이드바
-  // 전용 재요청을 없앤다(명세 B-3 §5). data가 없거나 kind가 'onboarded'가 아니면
-  // (방어적 분기, Dashboard.jsx와 동일 사유) "나의 목표관리" 폴백 문구만 보여준다.
-  const { data: goalStudentResult } = useQuery(goalStudentQueryOptions());
+  // 전용 재요청을 없앤다(명세 B-3 §5). 캐시 키의 userId는 리뷰 C1(계정 전환 캐시
+  // 오염 방지). data가 없거나 kind가 'onboarded'가 아니면(방어적 분기, Dashboard.jsx와
+  // 동일 사유) "나의 목표관리" 폴백 문구만 보여준다.
+  const { userId } = useAuth();
+  const { data: goalStudentResult } = useQuery(goalStudentQueryOptions(userId));
   const profile =
     goalStudentResult?.kind === "onboarded"
       ? goalStudentResult.student.profile

@@ -6,6 +6,7 @@ import SubjectTimerCard from "@/components/goal/study/SubjectTimerCard";
 import TimerSummaryBar from "@/components/goal/study/TimerSummaryBar";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
 import { TIMER_SUBJECT_ORDER } from "@/components/goal/studyRecordOptions";
+import { useAuth } from "@/context/AuthProvider";
 import {
   getDayIndexFromYMDServer,
   kstYMD,
@@ -96,8 +97,9 @@ export default function Timer() {
 
   // 캐시(src/lib/queryClient.ts)를 그대로 구독한다 — goal 진입 시 미들웨어·
   // Dashboard.tsx가 이미 채워둔 응답을 재사용해 이 페이지 전용 재요청을 없앤다
-  // (명세 B-3 §5).
-  const { data: goalStudentResult } = useQuery(goalStudentQueryOptions());
+  // (명세 B-3 §5, 캐시 키의 userId는 리뷰 C1).
+  const { userId } = useAuth();
+  const { data: goalStudentResult } = useQuery(goalStudentQueryOptions(userId));
 
   useEffect(() => {
     if (goalStudentResult?.kind !== "onboarded") return;
