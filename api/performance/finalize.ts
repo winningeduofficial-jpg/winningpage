@@ -71,14 +71,15 @@
 // 실패하면 `nextSessionId:null`로 돌려주고 클라이언트가 `POST /api/performance/session`
 // 으로 이어가면 된다(아래 「실패 경로별 잔여 상태」).
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import { resolveSessionSubmissionSchema } from "../_lib/performance/submission-schema.js";
 import {
-  getBearerToken,
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -121,7 +122,7 @@ function fail(
   message: string,
   extra?: Record<string, unknown>,
 ) {
-  return res.status(status).json({ error: { code, message }, ...extra });
+  sendError(res, "coded", status, message, code, extra);
 }
 
 const trimmed = (value: unknown) => String(value ?? "").trim();
@@ -239,34 +240,19 @@ async function resolveNextSession(
   return { sessionId: created.id, created: true };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
-  }
-
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/finalize 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
+export default defineHandler({
+  methods: ["POST"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "POST만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "최종본 저장에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/finalize",
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = requireUserId(ctx);
 
     // ── 이용권 재판정(§8.6 공통 규약). 잔여 회차는 보지 않는다(§9.3 정정).
     const { allowed: hasAccess } = await hasPaidServiceAccess(
@@ -284,236 +270,248 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    const body = req.body && typeof req.body === "object" ? req.body : {};
-    const sessionId =
-      typeof body.sessionId === "string" ? body.sessionId.trim() : "";
-    const submissionId =
-      typeof body.submissionId === "string" ? body.submissionId.trim() : "";
-    const action =
-      typeof body.action === "string" ? body.action.trim() : "confirm";
+    // 아래 본문 처리 중 던져지는 예외는 원래(마이그레이션 전)와 동일하게
+    // `{charged:false}` extra를 실은 채 500으로 응답해야 한다 — 공통
+    // defineHandler 최상위 catch는 그 extra를 모른다(고정 unhandledMessage/
+    // unhandledCode만 보냄). 그래서 이 지점부터는 로컬 try/catch로 감싸
+    // 기존 catch 블록의 동작을 그대로 재현한다(배치-2 이슈로 별도 기록).
+    try {
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const sessionId =
+        typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+      const submissionId =
+        typeof body.submissionId === "string" ? body.submissionId.trim() : "";
+      const action =
+        typeof body.action === "string" ? body.action.trim() : "confirm";
 
-    if (!UUID_RE.test(sessionId)) {
-      return fail(
-        res,
-        400,
-        "INVALID_SESSION_ID",
-        "sessionId가 올바르지 않습니다.",
-        { charged: false },
-      );
-    }
-    if (!UUID_RE.test(submissionId)) {
-      return fail(
-        res,
-        400,
-        "INVALID_SUBMISSION_ID",
-        "submissionId가 올바르지 않습니다.",
-        { charged: false },
-      );
-    }
-    if (!FINALIZE_ACTIONS.has(action)) {
-      return fail(
-        res,
-        400,
-        "INVALID_ACTION",
-        "action은 'confirm' 또는 'new_assessment'여야 합니다.",
-        {
-          charged: false,
-        },
-      );
-    }
-
-    // ── 세션 소유권. 없는 세션과 남의 세션을 같은 응답으로 묶는다.
-    const { data: sessionRow, error: sessionError } = await supabaseAdmin
-      .from("performance_sessions")
-      .select(SESSION_COLUMNS)
-      .eq("id", sessionId)
-      .eq("profile_id", userId)
-      .maybeSingle();
-
-    if (sessionError)
-      throw new Error(`세션 조회 실패: ${sessionError.message}`);
-    if (!sessionRow) {
-      return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
-        charged: false,
-      });
-    }
-
-    // `SESSION_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반
-    // 열 추론을 못 하고 `GenericStringError`로 떨어진다 — select 목록과 SessionRow
-    // 필드는 위 상수와 정확히 대응하므로 안전한 캐스트다.
-    const session = sessionRow as unknown as SessionRow;
-
-    // ── 제출본 소유권. **세션 id로 묶어서** 조회하므로 남의 제출본 id는 행이 나오지 않는다.
-    const { data: submissionRow, error: submissionError } = await supabaseAdmin
-      .from("performance_submissions")
-      .select(
-        "id,revision,fields,is_draft,is_final,finalized_at,finalize_reason,submitted_at",
-      )
-      .eq("id", submissionId)
-      .eq("session_id", session.id)
-      .maybeSingle();
-
-    if (submissionError)
-      throw new Error(`제출본 조회 실패: ${submissionError.message}`);
-    if (!submissionRow) {
-      return fail(
-        res,
-        404,
-        "SUBMISSION_NOT_IN_SESSION",
-        "이 수행평가의 제출물이 아니에요.",
-        {
-          charged: false,
-        },
-      );
-    }
-
-    // ── 확정 주제(최종 리포트 첫 섹션). 없으면 그 섹션만 빠진다.
-    let topicTitle = "";
-    if (session.selected_topic_id) {
-      const { data: topicRow, error: topicError } = await supabaseAdmin
-        .from("performance_topics")
-        .select("title")
-        .eq("id", session.selected_topic_id)
-        .eq("session_id", session.id)
-        .maybeSingle();
-
-      if (topicError) throw new Error(`주제 조회 실패: ${topicError.message}`);
-      topicTitle = trimmed(topicRow?.title);
-    }
-
-    // session은 SubmissionSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다.
-    const { schema } = resolveSessionSubmissionSchema(
-      session as Parameters<typeof resolveSessionSubmissionSchema>[0],
-    );
-    const sections = buildFinalSections({
-      schema,
-      fields: submissionRow.fields,
-      topicTitle,
-    });
-
-    // ─────────────────────────────────────────────────────────────────
-    // 커밋 — 최종본 고정 + 최종 리포트 저장 + 세션 종료 + rag_use 승격이
-    // **한 트랜잭션**이다(sql/58 (5)). 평가 선행 조건(`NO_EVALUATION_YET`)도
-    // 그 안에서 판정한다 — 핸들러가 미리 조회해 판정하면 그 사이에 평가 리포트가
-    // 다른 제출본으로 덮어써질 수 있다(재평가 동시 진행).
-    // ─────────────────────────────────────────────────────────────────
-    const { data: commitRaw, error: commitError } = await supabaseAdmin.rpc(
-      "finalize_performance_submission",
-      {
-        p_session_id: session.id,
-        p_profile_id: userId,
-        p_submission_id: submissionRow.id,
-        p_reason: action,
-        p_sections: { v: 1, type: "final_submission", sections },
-      },
-    );
-
-    if (commitError) {
-      console.error("performance/finalize 커밋 RPC 실패:", commitError);
-      return fail(res, 500, "INTERNAL", "최종본 저장에 실패했습니다.", {
-        charged: false,
-      });
-    }
-
-    const commit = (
-      commitRaw && typeof commitRaw === "object" ? commitRaw : {}
-    ) as Record<string, unknown>;
-    const commitStatus = String(commit.status || "");
-
-    if (commitStatus === "session_not_found") {
-      return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
-        charged: false,
-      });
-    }
-    if (commitStatus === "submission_not_in_session") {
-      return fail(
-        res,
-        404,
-        "SUBMISSION_NOT_IN_SESSION",
-        "이 수행평가의 제출물이 아니에요.",
-        {
-          charged: false,
-        },
-      );
-    }
-    if (commitStatus === "no_evaluation") {
-      // §8.6 `400 NO_EVALUATION_YET`. 평가 리포트가 **이 제출본을 대상으로** 있어야 한다
-      // (sql/58 (1) `submission_id`). 다른 revision을 평가한 리포트로는 확정할 수 없다.
-      return fail(
-        res,
-        400,
-        "NO_EVALUATION_YET",
-        "평가 리포트를 먼저 받아 주세요.",
-        {
-          charged: false,
-        },
-      );
-    }
-    if (commitStatus === "already_finalized_other") {
-      // §8.6 `409 ALREADY_FINALIZED_OTHER`. Q67 결정의 뒷부분 — 최종본은 1건만 고정된다.
-      return fail(
-        res,
-        409,
-        "ALREADY_FINALIZED_OTHER",
-        "이미 다른 제출본을 최종본으로 확정했어요.",
-        {
-          finalSubmissionId: commit.submission_id ?? null,
-          charged: false,
-        },
-      );
-    }
-    if (commitStatus !== "finalized" && commitStatus !== "already_final") {
-      console.error("performance/finalize 알 수 없는 커밋 상태:", commitStatus);
-      return fail(res, 500, "INTERNAL", "최종본 저장에 실패했습니다.", {
-        charged: false,
-      });
-    }
-
-    // ── `추가 수행평가 진행하기`의 다음 세션. **확정은 이미 성립했으므로** 여기서
-    //    실패해도 요청 전체를 실패시키지 않는다(위 「nextSessionId」 주석).
-    let nextSessionId: string | null = null;
-    let nextSessionCreated = false;
-
-    if (action === "new_assessment") {
-      try {
-        const next = await resolveNextSession(supabaseAdmin, userId);
-        nextSessionId = next.sessionId;
-        nextSessionCreated = next.created;
-      } catch (nextError) {
-        console.error(
-          "performance/finalize 다음 세션 준비 실패(확정은 성립):",
-          nextError,
+      if (!UUID_RE.test(sessionId)) {
+        return fail(
+          res,
+          400,
+          "INVALID_SESSION_ID",
+          "sessionId가 올바르지 않습니다.",
+          { charged: false },
         );
       }
-    }
+      if (!UUID_RE.test(submissionId)) {
+        return fail(
+          res,
+          400,
+          "INVALID_SUBMISSION_ID",
+          "submissionId가 올바르지 않습니다.",
+          { charged: false },
+        );
+      }
+      if (!FINALIZE_ACTIONS.has(action)) {
+        return fail(
+          res,
+          400,
+          "INVALID_ACTION",
+          "action은 'confirm' 또는 'new_assessment'여야 합니다.",
+          {
+            charged: false,
+          },
+        );
+      }
 
-    return res.status(200).json({
-      submission: {
-        submissionId: submissionRow.id,
-        revision: commit.revision ?? submissionRow.revision,
-        isFinal: true,
-        finalizedAt: commit.finalized_at ?? null,
-        finalizeReason: commit.finalize_reason ?? action,
-      },
-      finalReportId: commit.report_id ?? null,
-      // 같은 제출본 재확정(멱등)인지 이번에 확정된 것인지 구분해 화면이 토스트를
-      // 두 번 띄우지 않게 한다. 상태코드는 §8.6대로 둘 다 200이다.
-      reused: commitStatus === "already_final",
-      ...(action === "new_assessment"
-        ? { nextSessionId, nextSessionCreated }
-        : {}),
-      // §9.3 「`추가 수행평가 진행하기` | 신규 세션 → 다음 주제 추천 성공 시 1회 차감」.
-      // 이 요청 자체는 무차감이다.
-      charged: false,
-    });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/finalize error:", error);
-    return fail(res, 500, "INTERNAL", "최종본 저장에 실패했습니다.", {
-      charged: false,
-    });
-  }
-}
+      // ── 세션 소유권. 없는 세션과 남의 세션을 같은 응답으로 묶는다.
+      const { data: sessionRow, error: sessionError } = await supabaseAdmin
+        .from("performance_sessions")
+        .select(SESSION_COLUMNS)
+        .eq("id", sessionId)
+        .eq("profile_id", userId)
+        .maybeSingle();
+
+      if (sessionError)
+        throw new Error(`세션 조회 실패: ${sessionError.message}`);
+      if (!sessionRow) {
+        return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
+          charged: false,
+        });
+      }
+
+      // `SESSION_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반
+      // 열 추론을 못 하고 `GenericStringError`로 떨어진다 — select 목록과 SessionRow
+      // 필드는 위 상수와 정확히 대응하므로 안전한 캐스트다.
+      const session = sessionRow as unknown as SessionRow;
+
+      // ── 제출본 소유권. **세션 id로 묶어서** 조회하므로 남의 제출본 id는 행이 나오지 않는다.
+      const { data: submissionRow, error: submissionError } =
+        await supabaseAdmin
+          .from("performance_submissions")
+          .select(
+            "id,revision,fields,is_draft,is_final,finalized_at,finalize_reason,submitted_at",
+          )
+          .eq("id", submissionId)
+          .eq("session_id", session.id)
+          .maybeSingle();
+
+      if (submissionError)
+        throw new Error(`제출본 조회 실패: ${submissionError.message}`);
+      if (!submissionRow) {
+        return fail(
+          res,
+          404,
+          "SUBMISSION_NOT_IN_SESSION",
+          "이 수행평가의 제출물이 아니에요.",
+          {
+            charged: false,
+          },
+        );
+      }
+
+      // ── 확정 주제(최종 리포트 첫 섹션). 없으면 그 섹션만 빠진다.
+      let topicTitle = "";
+      if (session.selected_topic_id) {
+        const { data: topicRow, error: topicError } = await supabaseAdmin
+          .from("performance_topics")
+          .select("title")
+          .eq("id", session.selected_topic_id)
+          .eq("session_id", session.id)
+          .maybeSingle();
+
+        if (topicError)
+          throw new Error(`주제 조회 실패: ${topicError.message}`);
+        topicTitle = trimmed(topicRow?.title);
+      }
+
+      // session은 SubmissionSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다.
+      const { schema } = resolveSessionSubmissionSchema(
+        session as Parameters<typeof resolveSessionSubmissionSchema>[0],
+      );
+      const sections = buildFinalSections({
+        schema,
+        fields: submissionRow.fields,
+        topicTitle,
+      });
+
+      // ─────────────────────────────────────────────────────────────────
+      // 커밋 — 최종본 고정 + 최종 리포트 저장 + 세션 종료 + rag_use 승격이
+      // **한 트랜잭션**이다(sql/58 (5)). 평가 선행 조건(`NO_EVALUATION_YET`)도
+      // 그 안에서 판정한다 — 핸들러가 미리 조회해 판정하면 그 사이에 평가 리포트가
+      // 다른 제출본으로 덮어써질 수 있다(재평가 동시 진행).
+      // ─────────────────────────────────────────────────────────────────
+      const { data: commitRaw, error: commitError } = await supabaseAdmin.rpc(
+        "finalize_performance_submission",
+        {
+          p_session_id: session.id,
+          p_profile_id: userId,
+          p_submission_id: submissionRow.id,
+          p_reason: action,
+          p_sections: { v: 1, type: "final_submission", sections },
+        },
+      );
+
+      if (commitError) {
+        console.error("performance/finalize 커밋 RPC 실패:", commitError);
+        return fail(res, 500, "INTERNAL", "최종본 저장에 실패했습니다.", {
+          charged: false,
+        });
+      }
+
+      const commit = (
+        commitRaw && typeof commitRaw === "object" ? commitRaw : {}
+      ) as Record<string, unknown>;
+      const commitStatus = String(commit.status || "");
+
+      if (commitStatus === "session_not_found") {
+        return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
+          charged: false,
+        });
+      }
+      if (commitStatus === "submission_not_in_session") {
+        return fail(
+          res,
+          404,
+          "SUBMISSION_NOT_IN_SESSION",
+          "이 수행평가의 제출물이 아니에요.",
+          {
+            charged: false,
+          },
+        );
+      }
+      if (commitStatus === "no_evaluation") {
+        // §8.6 `400 NO_EVALUATION_YET`. 평가 리포트가 **이 제출본을 대상으로** 있어야 한다
+        // (sql/58 (1) `submission_id`). 다른 revision을 평가한 리포트로는 확정할 수 없다.
+        return fail(
+          res,
+          400,
+          "NO_EVALUATION_YET",
+          "평가 리포트를 먼저 받아 주세요.",
+          {
+            charged: false,
+          },
+        );
+      }
+      if (commitStatus === "already_finalized_other") {
+        // §8.6 `409 ALREADY_FINALIZED_OTHER`. Q67 결정의 뒷부분 — 최종본은 1건만 고정된다.
+        return fail(
+          res,
+          409,
+          "ALREADY_FINALIZED_OTHER",
+          "이미 다른 제출본을 최종본으로 확정했어요.",
+          {
+            finalSubmissionId: commit.submission_id ?? null,
+            charged: false,
+          },
+        );
+      }
+      if (commitStatus !== "finalized" && commitStatus !== "already_final") {
+        console.error(
+          "performance/finalize 알 수 없는 커밋 상태:",
+          commitStatus,
+        );
+        return fail(res, 500, "INTERNAL", "최종본 저장에 실패했습니다.", {
+          charged: false,
+        });
+      }
+
+      // ── `추가 수행평가 진행하기`의 다음 세션. **확정은 이미 성립했으므로** 여기서
+      //    실패해도 요청 전체를 실패시키지 않는다(위 「nextSessionId」 주석).
+      let nextSessionId: string | null = null;
+      let nextSessionCreated = false;
+
+      if (action === "new_assessment") {
+        try {
+          const next = await resolveNextSession(supabaseAdmin, userId);
+          nextSessionId = next.sessionId;
+          nextSessionCreated = next.created;
+        } catch (nextError) {
+          console.error(
+            "performance/finalize 다음 세션 준비 실패(확정은 성립):",
+            nextError,
+          );
+        }
+      }
+
+      res.status(200).json({
+        submission: {
+          submissionId: submissionRow.id,
+          revision: commit.revision ?? submissionRow.revision,
+          isFinal: true,
+          finalizedAt: commit.finalized_at ?? null,
+          finalizeReason: commit.finalize_reason ?? action,
+        },
+        finalReportId: commit.report_id ?? null,
+        // 같은 제출본 재확정(멱등)인지 이번에 확정된 것인지 구분해 화면이 토스트를
+        // 두 번 띄우지 않게 한다. 상태코드는 §8.6대로 둘 다 200이다.
+        reused: commitStatus === "already_final",
+        ...(action === "new_assessment"
+          ? { nextSessionId, nextSessionCreated }
+          : {}),
+        // §9.3 「`추가 수행평가 진행하기` | 신규 세션 → 다음 주제 추천 성공 시 1회 차감」.
+        // 이 요청 자체는 무차감이다.
+        charged: false,
+      });
+    } catch (error) {
+      // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
+      console.error("performance/finalize error:", error);
+      return fail(res, 500, "INTERNAL", "최종본 저장에 실패했습니다.", {
+        charged: false,
+      });
+    }
+  },
+});
 
 // ─────────────────────────────────────────────────────────────────────
 // 실패 경로별 잔여 상태 (전부 무차감 — 이 파일에는 차감 코드가 없다)

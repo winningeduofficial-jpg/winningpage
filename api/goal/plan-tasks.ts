@@ -33,6 +33,7 @@ import {
   SUBJECT_LABEL_TO_CODE,
   updatePlanTask,
 } from "../_lib/goalRepo.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -310,13 +311,18 @@ async function handleDelete(
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!["GET", "POST", "PUT", "DELETE"].includes(req.method || "")) {
-    return res.status(405).json({ detail: "Method not allowed" });
+    return sendError(res, "detail", 405, "Method not allowed");
   }
 
   try {
     const session = await openGoalSession(req);
     if (session.error) {
-      return res.status(session.error.status).json(session.error.body);
+      return sendError(
+        res,
+        "detail",
+        session.error.status,
+        session.error.body.detail as string,
+      );
     }
 
     switch (req.method) {
@@ -330,10 +336,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return await handleDelete(req, res, session);
       default:
         // 위 405 가드가 이미 걸렀다 — 도달하지 않는다.
-        return res.status(405).json({ detail: "Method not allowed" });
+        return sendError(res, "detail", 405, "Method not allowed");
     }
   } catch (error) {
     console.error("goal/plan-tasks error:", error);
-    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
+    return sendError(res, "detail", 500, "처리 중 오류가 발생했습니다.");
   }
 }

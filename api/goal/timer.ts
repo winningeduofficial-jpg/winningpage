@@ -34,6 +34,7 @@ import {
   touchTimerHeartbeat,
   upsertSubjectTarget,
 } from "../_lib/goalRepo.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -63,7 +64,12 @@ function runningPayload(row: TimerSessionRow) {
 async function handleGet(req: VercelRequest, res: VercelResponse) {
   const session = await openGoalSession(req);
   if (session.error) {
-    return res.status(session.error.status).json(session.error.body);
+    return sendError(
+      res,
+      "detail",
+      session.error.status,
+      session.error.body.detail as string,
+    );
   }
 
   const { allowed } = session;
@@ -93,7 +99,12 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
 async function handlePost(req: VercelRequest, res: VercelResponse) {
   const session = await openGoalSession(req);
   if (session.error) {
-    return res.status(session.error.status).json(session.error.body);
+    return sendError(
+      res,
+      "detail",
+      session.error.status,
+      session.error.body.detail as string,
+    );
   }
 
   const { allowed } = session;
@@ -164,9 +175,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === "POST") {
       return await handlePost(req, res);
     }
-    return res.status(405).json({ detail: "Method not allowed" });
+    return sendError(res, "detail", 405, "Method not allowed");
   } catch (error) {
     console.error("goal/timer error:", error);
-    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
+    return sendError(res, "detail", 500, "처리 중 오류가 발생했습니다.");
   }
 }

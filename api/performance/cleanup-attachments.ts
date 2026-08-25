@@ -94,9 +94,8 @@
 //     backoff가 아니라 상한을 쓰는 이유: cron이 하루 1회라 실행 간격 자체가 이미 24시간
 //     backoff다. 여기에 시간 조건을 더 얹으면 재시도가 며칠씩 늦어지기만 한다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { isAuthorizedCron } from "../_lib/cronAuth.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import { defineHandler } from "../_lib/handler.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import { BUCKET } from "./upload-url.js";
 
 /** §8.8 「보관 기간 — 90일」 */
@@ -127,15 +126,6 @@ type AttachmentRow = {
   storage_path: string | null;
   cleanup_attempts: number | null;
 };
-
-function fail(
-  res: VercelResponse,
-  status: number,
-  code: string,
-  message: string,
-) {
-  return res.status(status).json({ error: { code, message } });
-}
 
 function clampBatch(raw: unknown) {
   const value = Number.parseInt(String(raw ?? ""), 10);
@@ -351,24 +341,20 @@ async function countStuck(
   return count ?? 0;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default defineHandler({
   // Vercel Cron은 GET으로 호출한다. POST는 운영자가 `vercel crons run` 대신 손으로
   // 두드릴 때를 위한 것이며 인증은 동일하다.
-  if (req.method !== "GET" && req.method !== "POST") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "GET만 허용됩니다.");
-  }
-
-  if (
-    !isAuthorizedCron(req as { headers: Record<string, string | undefined> })
-  ) {
-    // 무엇이 틀렸는지(시크릿 미설정 / 불일치) 알려주지 않는다.
-    return fail(res, 401, "UNAUTHORIZED", "인증이 필요합니다.");
-  }
-
-  const batch = clampBatch(req.query?.limit);
-
-  try {
-    const supabaseAdmin = createSupabaseAdmin();
+  methods: ["GET", "POST"],
+  auth: "cron",
+  errorShape: "coded",
+  methodNotAllowedMessage: "GET만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "첨부 정리에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/cleanup-attachments",
+  handler: async (req, res, ctx) => {
+    const batch = clampBatch(req.query?.limit);
+    const supabaseAdmin = ctx.supabaseAdmin;
     const now = Date.now();
 
     // ── A. 90일 보관 정책 집행 (§8.8 「결정 (cron 인프라 신설)」)
@@ -426,7 +412,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 부분 실패는 200이다 — 재시도가 이미 설계돼 있어 cron 자체를 실패로 표시할 이유가
     // 없다. 판단 재료는 응답 본문(`ok`/`hasMore`)과 위 로그다.
-    return res.status(200).json({
+    res.status(200).json({
       // `stuck`이 있으면 ok가 아니다 — 실패 건이 0이어도 그만큼의 90일 삭제가 멈춰 있다.
       ok: failed === 0 && !stuck,
       ranAt: new Date(now).toISOString(),
@@ -440,11 +426,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       orphan: { ...orphan, cutoff: orphanCutoff, ttlHours: ORPHAN_TTL_HOURS },
     });
-  } catch (error) {
-    console.error("performance/cleanup-attachments error:", error);
-    return fail(res, 500, "INTERNAL", "첨부 정리에 실패했습니다.");
-  }
-}
+  },
+});
 
 // Storage remove + DB update가 배치로 도는 데다 만기가 몰린 날은 상한까지 꽉 찬다.
 // 기본 10초로는 잘리므로 Vercel Hobby 상한인 60초를 그대로 쓴다(`admin-embed.js`와 동일).

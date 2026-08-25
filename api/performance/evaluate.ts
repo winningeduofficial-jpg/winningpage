@@ -84,7 +84,9 @@
 //   그리고 **텍스트 파서 폴백을 만들지 않는다**(§8.4, §12.4가 `index.html:1769-1851`
 //   전량을 폐기로 지정). 이 파일의 유일한 파싱은 `JSON.parse` 한 줄이다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
@@ -119,12 +121,11 @@ import {
 } from "../_lib/performance/submission-schema.js";
 import {
   findProgramAccessRow,
-  getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -224,7 +225,7 @@ function fail(
   message: string,
   extra?: Record<string, unknown>,
 ) {
-  return res.status(status).json({ error: { code, message }, ...extra });
+  sendError(res, "coded", status, message, code, extra);
 }
 
 const trimmed = (value: unknown): string => String(value ?? "").trim();
@@ -436,648 +437,650 @@ function toClientReport(reportRow: ReportRow | null | undefined) {
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
-  }
+export default defineHandler({
+  methods: ["POST"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "POST만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "평가 리포트 생성에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/evaluate",
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = requireUserId(ctx);
 
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/evaluate 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
-
-    // ── 이용권 재판정(§8.6 공통 규약). 잔여 회차는 보지 않는다 — 이미 차감된 세션은
-    //    소진·만료 뒤에도 계속 진행하는 것이 규정이다(§9.3 정정).
-    const { allowed: hasAccess } = await hasPaidServiceAccess(
-      supabaseAdmin,
-      userId,
-      // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
-      SERVICE_CONFIGS[SERVICE_KEY]!,
-    );
-    if (!hasAccess) {
-      return fail(
-        res,
-        403,
-        "NO_ENTITLEMENT",
-        "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+    // 아래 본문 처리 중 던져지는 예외는 원래(마이그레이션 전)와 동일하게
+    // `{charged:false}` extra를 실은 채 500으로 응답해야 한다 — 공통
+    // defineHandler 최상위 catch는 그 extra를 모른다. 그래서 이 지점부터는
+    // 로컬 try/catch로 감싸 기존 catch 블록의 동작을 그대로 재현한다
+    // (배치-2 이슈로 별도 기록).
+    try {
+      // ── 이용권 재판정(§8.6 공통 규약). 잔여 회차는 보지 않는다 — 이미 차감된 세션은
+      //    소진·만료 뒤에도 계속 진행하는 것이 규정이다(§9.3 정정).
+      const { allowed: hasAccess } = await hasPaidServiceAccess(
+        supabaseAdmin,
+        userId,
+        // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
+        SERVICE_CONFIGS[SERVICE_KEY]!,
       );
-    }
+      if (!hasAccess) {
+        return fail(
+          res,
+          403,
+          "NO_ENTITLEMENT",
+          "유료 이용권을 결제하신 뒤 이용할 수 있습니다.",
+        );
+      }
 
-    const body = req.body && typeof req.body === "object" ? req.body : {};
-    const sessionId =
-      typeof body.sessionId === "string" ? body.sessionId.trim() : "";
-    const submissionId =
-      typeof body.submissionId === "string" ? body.submissionId.trim() : "";
-    const regenerate = body.regenerate === true;
+      const body = req.body && typeof req.body === "object" ? req.body : {};
+      const sessionId =
+        typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+      const submissionId =
+        typeof body.submissionId === "string" ? body.submissionId.trim() : "";
+      const regenerate = body.regenerate === true;
 
-    if (!UUID_RE.test(sessionId)) {
-      return fail(
-        res,
-        400,
-        "INVALID_SESSION_ID",
-        "sessionId가 올바르지 않습니다.",
-        { charged: false },
-      );
-    }
-    if (!UUID_RE.test(submissionId)) {
-      return fail(
-        res,
-        400,
-        "INVALID_SUBMISSION_ID",
-        "submissionId가 올바르지 않습니다.",
-        { charged: false },
-      );
-    }
+      if (!UUID_RE.test(sessionId)) {
+        return fail(
+          res,
+          400,
+          "INVALID_SESSION_ID",
+          "sessionId가 올바르지 않습니다.",
+          { charged: false },
+        );
+      }
+      if (!UUID_RE.test(submissionId)) {
+        return fail(
+          res,
+          400,
+          "INVALID_SUBMISSION_ID",
+          "submissionId가 올바르지 않습니다.",
+          { charged: false },
+        );
+      }
 
-    // ── 게이트 ① 세션 소유권. 없는 세션과 남의 세션을 같은 응답으로 묶는다.
-    const { data: sessionRowRaw, error: sessionError } = await supabaseAdmin
-      .from("performance_sessions")
-      .select(SESSION_COLUMNS)
-      .eq("id", sessionId)
-      .eq("profile_id", userId)
-      .maybeSingle();
+      // ── 게이트 ① 세션 소유권. 없는 세션과 남의 세션을 같은 응답으로 묶는다.
+      const { data: sessionRowRaw, error: sessionError } = await supabaseAdmin
+        .from("performance_sessions")
+        .select(SESSION_COLUMNS)
+        .eq("id", sessionId)
+        .eq("profile_id", userId)
+        .maybeSingle();
 
-    if (sessionError)
-      throw new Error(`세션 조회 실패: ${sessionError.message}`);
-    if (!sessionRowRaw) {
-      return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
-        charged: false,
-      });
-    }
-
-    // `SESSION_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반 열
-    // 추론을 못 하고 `GenericStringError`로 떨어진다(recommend-topics.ts와 같은 사유).
-    const sessionRow = sessionRowRaw as unknown as SessionRow;
-
-    // ── 게이트 ② 제출본 소유권. **세션 id로 묶어서** 조회하므로 남의 세션 제출본 id를
-    //    넣으면 애초에 행이 나오지 않는다(§8.6 소유권 규약 + sql/54 RLS 이중 방어).
-    const { data: submissionRow, error: submissionError } = await supabaseAdmin
-      .from("performance_submissions")
-      .select("id,revision,fields,char_counts,is_draft,is_final,submitted_at")
-      .eq("id", submissionId)
-      .eq("session_id", sessionRow.id)
-      .maybeSingle();
-
-    if (submissionError)
-      throw new Error(`제출본 조회 실패: ${submissionError.message}`);
-    if (!submissionRow) {
-      return fail(
-        res,
-        404,
-        "SUBMISSION_NOT_IN_SESSION",
-        "이 수행평가의 제출물이 아니에요.",
-        {
+      if (sessionError)
+        throw new Error(`세션 조회 실패: ${sessionError.message}`);
+      if (!sessionRowRaw) {
+        return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
           charged: false,
-        },
-      );
-    }
+        });
+      }
 
-    // ── 기존 평가 리포트(세션당 최대 1행, sql/58 (2)).
-    const { data: existingReport, error: existingError } = await supabaseAdmin
-      .from("performance_reports")
-      .select(REPORT_COLUMNS)
-      .eq("session_id", sessionRow.id)
-      .eq("report_type", "evaluation")
-      .maybeSingle();
+      // `SESSION_COLUMNS`가 런타임 조립 문자열이라 supabase-js가 리터럴 파싱 기반 열
+      // 추론을 못 하고 `GenericStringError`로 떨어진다(recommend-topics.ts와 같은 사유).
+      const sessionRow = sessionRowRaw as unknown as SessionRow;
 
-    if (existingError)
-      throw new Error(`평가 리포트 조회 실패: ${existingError.message}`);
+      // ── 게이트 ② 제출본 소유권. **세션 id로 묶어서** 조회하므로 남의 세션 제출본 id를
+      //    넣으면 애초에 행이 나오지 않는다(§8.6 소유권 규약 + sql/54 RLS 이중 방어).
+      const { data: submissionRow, error: submissionError } =
+        await supabaseAdmin
+          .from("performance_submissions")
+          .select(
+            "id,revision,fields,char_counts,is_draft,is_final,submitted_at",
+          )
+          .eq("id", submissionId)
+          .eq("session_id", sessionRow.id)
+          .maybeSingle();
 
-    // 같은 제출본 재요청 = 더블클릭·새로고침·응답 유실. **모델을 부르지 않는다.**
-    if (
-      existingReport &&
-      existingReport.submission_id === submissionRow.id &&
-      !regenerate
-    ) {
-      const quota = await readQuota(supabaseAdmin, userId);
+      if (submissionError)
+        throw new Error(`제출본 조회 실패: ${submissionError.message}`);
+      if (!submissionRow) {
+        return fail(
+          res,
+          404,
+          "SUBMISSION_NOT_IN_SESSION",
+          "이 수행평가의 제출물이 아니에요.",
+          {
+            charged: false,
+          },
+        );
+      }
 
-      return res.status(200).json({
-        report: toClientReport(existingReport),
-        submissionId: submissionRow.id,
-        submissionRevision: submissionRow.revision,
-        quotaRemaining: quota.quotaRemaining,
-        charged: false,
-        reused: true,
-        evaluationCount: Number(sessionRow.evaluation_count) || 0,
-        maxEvaluations: MAX_EVALUATIONS,
-      });
-    }
+      // ── 기존 평가 리포트(세션당 최대 1행, sql/58 (2)).
+      const { data: existingReport, error: existingError } = await supabaseAdmin
+        .from("performance_reports")
+        .select(REPORT_COLUMNS)
+        .eq("session_id", sessionRow.id)
+        .eq("report_type", "evaluation")
+        .maybeSingle();
 
-    // ── 게이트 ③ 차감된 세션인가. `performance_credit_ledger.session_id`가 UNIQUE라
-    //    행 존재 = 차감 완료다(sql/54 1-7). 이 파일은 차감하지 않으므로 **읽기만** 한다.
-    //    정상 흐름에서 제출본이 있는 세션은 반드시 차감을 거쳤다 — 방어선이다.
-    const { data: ledgerRow, error: ledgerError } = await supabaseAdmin
-      .from("performance_credit_ledger")
-      .select("id")
-      .eq("session_id", sessionRow.id)
-      .maybeSingle();
+      if (existingError)
+        throw new Error(`평가 리포트 조회 실패: ${existingError.message}`);
 
-    if (ledgerError)
-      throw new Error(`차감 원장 조회 실패: ${ledgerError.message}`);
-    if (!ledgerRow) {
-      return fail(
-        res,
-        409,
-        "SESSION_NOT_CHARGED",
-        "주제 추천을 먼저 받아 주세요.",
-        {
-          step: 3,
+      // 같은 제출본 재요청 = 더블클릭·새로고침·응답 유실. **모델을 부르지 않는다.**
+      if (
+        existingReport &&
+        existingReport.submission_id === submissionRow.id &&
+        !regenerate
+      ) {
+        const quota = await readQuota(supabaseAdmin, userId);
+
+        res.status(200).json({
+          report: toClientReport(existingReport),
+          submissionId: submissionRow.id,
+          submissionRevision: submissionRow.revision,
+          quotaRemaining: quota.quotaRemaining,
           charged: false,
-        },
-      );
-    }
-
-    // ── 게이트 ④ 설계 리포트 선행 조건.
-    //    두 가지가 여기서만 나온다: ⓐ §12.2 3행이 「판정 결과를 구조체로 리포트 JSON에
-    //    저장해 **STEP5가 재판정하지 않게** 한다」고 규정한 안내문 구조 판정,
-    //    ⓑ 확정된 주제(프롬프트 `[선택 주제]`). 설계 리포트 없이 평가에 들어오면 둘 다
-    //    없으므로 §8.6 표에 없는 코드지만 형제 라우트 관례대로 `SESSION_INCOMPLETE`로 막는다.
-    const { data: designReport, error: designError } = await supabaseAdmin
-      .from("performance_reports")
-      .select("id,sections,topic_id")
-      .eq("session_id", sessionRow.id)
-      .eq("report_type", "design")
-      .maybeSingle();
-
-    if (designError)
-      throw new Error(`설계 리포트 조회 실패: ${designError.message}`);
-    if (!designReport) {
-      return fail(
-        res,
-        400,
-        "SESSION_INCOMPLETE",
-        "설계 리포트를 먼저 받아 주세요.",
-        {
-          step: 4,
-          charged: false,
-        },
-      );
-    }
-
-    // ── 제출 스키마. 세션에 영속화된 값이 정본이고(§8.3 「서버 소유로 승격」) 없으면
-    //    판정한다. 판정 결과를 여기서 저장하지는 않는다 — 저장 지점은 `submission.js`
-    //    하나로 둔다(두 곳에서 쓰면 어느 쪽이 먼저 도느냐로 값이 갈릴 수 있다).
-    // sessionRow는 SubmissionSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다.
-    const { schema } = resolveSessionSubmissionSchema(
-      sessionRow as Parameters<typeof resolveSessionSubmissionSchema>[0],
-    );
-    const fields =
-      submissionRow.fields && typeof submissionRow.fields === "object"
-        ? submissionRow.fields
-        : {};
-    const gate = checkSubmissionMinLength(schema, fields);
-
-    // ── 게이트 ⑤ 제출물 게이트(§8.6 400 3종). 상한 게이트보다 **먼저** 본다 —
-    //    형식 미달 요청이 재평가 슬롯을 태우면 안 된다.
-    if (gate.total === 0) {
-      return fail(res, 400, "EMPTY_SUBMISSION", EMPTY_SUBMISSION_MESSAGE, {
-        charged: false,
-      });
-    }
-    if (gate.missingRequired.length) {
-      return fail(
-        res,
-        400,
-        "REQUIRED_FIELD_EMPTY",
-        "필수 항목을 모두 작성해 주세요.",
-        {
-          field: gate.missingRequired[0],
-          missingRequired: gate.missingRequired,
-          charged: false,
-        },
-      );
-    }
-    if (gate.total < gate.threshold) {
-      // 문구는 원문 그대로다(`evaluate-text.js:39`).
-      return fail(
-        res,
-        400,
-        "SUBMISSION_TOO_SHORT",
-        SUBMISSION_TOO_SHORT_MESSAGE,
-        {
-          total: gate.total,
-          threshold: gate.threshold,
-          charged: false,
-        },
-      );
-    }
-
-    // ── 게이트 ⑥ 재평가 상한(§9.2). 사용자에게 보이는 상한이며 **성공한 생성만** 센다.
-    //    ⚠ read-then-write다 — 실제 +1은 커밋 RPC 안에서 일어나므로(sql/58 (4)) 같은
-    //    세션 동시 요청 2건은 둘 다 통과한 뒤 각각 +1 할 수 있다(fail-safe 방향: 덜
-    //    세지 않고 더 센다). 리포트 행이 2개가 되지는 않는다 — 부분 UNIQUE + upsert가
-    //    세션당 evaluation 1행을 강제한다(sql/58 (2)).
-    //    **모델 호출이 실제로 몇 번 나가느냐를 막는 것은 게이트 ⑦이다** — 아래 시도
-    //    카운터가 원자적 CAS라 동시 요청 중 한 건만 통과한다(검토 P11).
-    const evaluationCount = Number(sessionRow.evaluation_count) || 0;
-    if (evaluationCount >= MAX_EVALUATIONS) {
-      return fail(
-        res,
-        409,
-        "REEVALUATION_LIMIT",
-        `평가는 최대 ${MAX_REEVALUATIONS}번까지 다시 받을 수 있어요.`,
-        {
-          limit: MAX_REEVALUATIONS,
+          reused: true,
+          evaluationCount: Number(sessionRow.evaluation_count) || 0,
           maxEvaluations: MAX_EVALUATIONS,
-          evaluationCount,
-          reportId: existingReport?.id ?? null,
-          charged: false,
-        },
-      );
-    }
+        });
+        return;
+      }
 
-    // ── 게이트 ⑦ 세션당 모델 시도 상한(sql/58 (3)). 게이트 ⑥이 세지 못하는 축이다.
-    const attemptCount = Number(sessionRow.evaluation_attempt_count) || 0;
-    if (attemptCount >= MAX_MODEL_ATTEMPTS_PER_SESSION) {
-      return fail(
-        res,
-        429,
-        "EVALUATION_ATTEMPT_LIMIT",
-        "이 수행평가에서 평가를 너무 여러 번 요청했어요. 잠시 후 새 수행평가로 다시 시작해 주세요.",
-        { maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION, charged: false },
-      );
-    }
-
-    // 모델을 실제로 부르기 **직전**에 올린다. 실패도 세야 상한이 의미를 갖는다.
-    //
-    // ⚠️ **낙관적 잠금(CAS)이다**(검토 P11). `attemptCount + 1`을 조건 없이 덮어쓰면
-    //    동시 요청 N건이 전부 같은 스냅샷을 읽고 같은 값을 써서 카운터가 1만 오르고,
-    //    게이트 ⑥·⑦이 함께 무력화된다. 평가는 **무차감**이라(§9.3) 회차가 억제 수단이
-    //    아니고, evaluate 1회는 최대 6회(과부하 재시도 3 × 구조 재시도 2)의 생성 호출에
-    //    최대 `MAX_TOTAL_CHARS` 분량 프롬프트를 싣는다 — 이 두 상한이 유일한 방어선이다.
-    //    `.eq('evaluation_attempt_count', attemptCount)`를 붙여 **읽은 값 그대로일 때만**
-    //    쓰고, 0행이면 그 사이 다른 요청이 선점했다는 뜻이라 429로 떨어뜨린다(같은 코드다 —
-    //    사용자에게는 "지금은 다시 요청할 수 없다"로 동일하고, 클라이언트 분기도
-    //    §5.20 code 기준이라 갈리지 않는다).
-    const { data: attemptRow, error: attemptCounterError } = await supabaseAdmin
-      .from("performance_sessions")
-      .update({ evaluation_attempt_count: attemptCount + 1 })
-      .eq("id", sessionRow.id)
-      .eq("evaluation_attempt_count", attemptCount)
-      .select("id")
-      .maybeSingle();
-
-    if (attemptCounterError) {
-      throw new Error(
-        `평가 시도 횟수 갱신 실패: ${attemptCounterError.message}`,
-      );
-    }
-
-    if (!attemptRow) {
-      // 경합에서 졌다 — 모델을 부르지 않고 끝낸다. 여기서 그냥 진행하면 상한이
-      // 있으나 마나가 된다(위 ⚠️).
-      return fail(
-        res,
-        429,
-        "EVALUATION_ATTEMPT_LIMIT",
-        "평가 요청이 이미 진행 중이에요. 잠시 후 다시 시도해 주세요.",
-        {
-          maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION,
-          concurrent: true,
-          charged: false,
-        },
-      );
-    }
-
-    // ── 확정 주제. 설계 리포트가 있으면 반드시 확정돼 있다(sql/57 (4)가 한 트랜잭션으로
-    //    묶는다). 그래도 조회 실패를 프롬프트 붕괴로 만들지 않고 `미입력`으로 축퇴시킨다.
-    let selectedTopic = "";
-    const topicId = sessionRow.selected_topic_id || designReport.topic_id;
-    if (topicId) {
-      const { data: topicRow, error: topicError } = await supabaseAdmin
-        .from("performance_topics")
-        .select("title")
-        .eq("id", topicId)
+      // ── 게이트 ③ 차감된 세션인가. `performance_credit_ledger.session_id`가 UNIQUE라
+      //    행 존재 = 차감 완료다(sql/54 1-7). 이 파일은 차감하지 않으므로 **읽기만** 한다.
+      //    정상 흐름에서 제출본이 있는 세션은 반드시 차감을 거쳤다 — 방어선이다.
+      const { data: ledgerRow, error: ledgerError } = await supabaseAdmin
+        .from("performance_credit_ledger")
+        .select("id")
         .eq("session_id", sessionRow.id)
         .maybeSingle();
 
-      if (topicError) throw new Error(`주제 조회 실패: ${topicError.message}`);
-      selectedTopic = trimmed(topicRow?.title);
-    }
-
-    // ── Q68 제출 형식 주입에 쓸 판정. **설계 리포트가 저장해 둔 값을 그대로 읽는다**
-    //    (§12.2 3행). 같은 세션에서 두 번 판정하면 안내문이 그대로여도 결과가 갈릴
-    //    여지가 생기기 때문이다. 옛 배포본이 만든 리포트 등 봉투에 판정이 없는 경우에만
-    //    현장 판정으로 축퇴한다(프롬프트를 비우지 않는다).
-    const designEnvelope =
-      designReport.sections && typeof designReport.sections === "object"
-        ? designReport.sections
-        : {};
-    const storedStructure = designEnvelope.structure;
-    // sessionRow는 GuideSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다(unknown 캐스트 경유).
-    const structure =
-      storedStructure && trimmed(storedStructure.type)
-        ? storedStructure
-        : inferGuideStructure(
-            sessionRow as Parameters<typeof inferGuideStructure>[0],
-          );
-
-    const assessmentText = guideTextFromSession(
-      sessionRow as Parameters<typeof guideTextFromSession>[0],
-    );
-    const submissionText = buildSubmissionText(selectedTopic, schema, fields);
-
-    const system = buildEvaluationSystem({
-      structureType: structure.type,
-      structureReason: structure.reason,
-      writingFrame: structure.writingFrame,
-    });
-
-    // ⚠ `buildEvaluationUser`는 RAG 텍스트 인자를 **아예 받지 않는다**(시그니처가 계약).
-    //   원문 작업 지시 `내부 위닝DB 자료는 사용하지 말고`(`evaluate-text.js:151`)가
-    //   평가 단계의 계약이라, 여기서 자료를 끌어오면 채점이 오염된다. 설계 리포트와
-    //   정반대 방향이므로 `loadDynamicAssessmentKnowledge`를 import조차 하지 않는다.
-    // buildEvaluationUser는 값을 `|| ""`로 다루므로 null→"" 치환은 결과에 영향 없다.
-    const userMsg = buildEvaluationUser({
-      assessmentText,
-      selectedTopic,
-      career: sessionRow.career_goal || "",
-      gradeLabel: sessionRow.grade_label || "",
-      semester: sessionRow.semester || "",
-      schoolType: sessionRow.school_type || "",
-      subjectGroup: sessionRow.subject_group || "",
-      subject: sessionRow.subject || "",
-      previousTopic:
-        trimmed(sessionRow.previous_topic) || NO_PREVIOUS_TOPIC_TEXT,
-      submissionText,
-    });
-
-    // ── 모델 호출. 실패 형태 3가지를 각각 다르게 다룬다(§8.4 ⓑ·ⓒ·ⓓ).
-    const abortController = new AbortController();
-    const abortTimer = setTimeout(
-      () => abortController.abort(),
-      MODEL_TIMEOUT_MS,
-    );
-
-    let payload: EvaluationPayload | null = null;
-    let score: number | null = null;
-    let lastFailure = "unknown";
-
-    try {
-      for (let attempt = 0; attempt <= STRUCTURE_RETRY; attempt++) {
-        const isRetry = attempt > 0;
-
-        let response: Awaited<ReturnType<typeof generateWithRetry>>;
-        try {
-          response = await generateWithRetry({
-            model: PERFORMANCE_MODEL,
-            contents: userMsg,
-            config: {
-              systemInstruction: system,
-              // 재시도는 원문 재시도와 같은 취지로 온도를 낮춘다
-              // (`suhaengpyeong/api/recommend-topics.js:221` — 0.25 → 0.2).
-              temperature: isRetry
-                ? 0.2
-                : EVALUATION_GENERATION_DEFAULTS.temperature,
-              // 같은 상한으로 다시 부르면 같은 자리에서 다시 잘린다 → 올려서 재시도.
-              maxOutputTokens: isRetry
-                ? EVALUATION_MAX_OUTPUT_TOKENS_RETRY
-                : EVALUATION_GENERATION_DEFAULTS.maxOutputTokens,
-              thinkingConfig: { thinkingBudget: 0 },
-              responseMimeType: "application/json",
-              responseSchema: EVALUATION_REPORT_SCHEMA,
-              abortSignal: abortController.signal,
-            },
-          });
-        } catch (modelError) {
-          // 과부하 재시도(700ms×2^n, 2회)는 generateWithRetry가 이미 소진했다.
-          // §8.6이 이 엔드포인트에 정의한 실패 코드는 `502 MODEL_FAILED` 하나뿐이라
-          // 상류 장애도 구조 위반도 같은 코드로 나간다(형제 라우트의 503/422 2분할과
-          // 다른 점이며, 계약 표를 따른 결과다). **무차감**.
-          console.error("performance/evaluate 모델 호출 실패:", modelError);
-          return fail(
-            res,
-            502,
-            "MODEL_FAILED",
-            "평가 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
-            {
-              charged: false,
-            },
-          );
-        }
-
-        const finishReason = response?.candidates?.[0]?.finishReason;
-
-        // ⓒ — 절단된 응답은 **파싱하지 않는다.**
-        if (finishReason === "MAX_TOKENS") {
-          lastFailure = "finish-reason:MAX_TOKENS";
-          console.warn(
-            `performance/evaluate MAX_TOKENS 절단 (attempt ${attempt + 1})`,
-          );
-          continue;
-        }
-
-        if (finishReason && finishReason !== "STOP") {
-          lastFailure = `finish-reason:${finishReason}`;
-          console.warn(
-            `performance/evaluate 비정상 종료 ${finishReason} (attempt ${attempt + 1})`,
-          );
-          continue;
-        }
-
-        const rawText = trimmed(response?.text);
-        if (!rawText) {
-          lastFailure = "empty-response";
-          continue;
-        }
-
-        let parsed: unknown;
-        try {
-          // 유일한 파싱이다. `responseMimeType:'application/json'`이 형식을 보장하므로
-          // 코드펜스 제거·헤더 보정 같은 전처리를 두지 않는다(§8.4).
-          parsed = JSON.parse(rawText);
-        } catch (parseError) {
-          lastFailure = "json-parse-failed";
-          // ⓓ — 원문은 서버 로그에만 남긴다.
-          console.error(
-            "performance/evaluate JSON 파싱 실패:",
-            parseError?.message,
-            rawText.slice(0, 400),
-          );
-          continue;
-        }
-
-        const check = validateEvaluationPayload(parsed);
-        if (!check.ok) {
-          // tsconfig strict:false(strictNullChecks 꺼짐)에서 이 boolean 판별
-          // 유니온이 `!check.ok`만으로 좁혀지지 않는다(recommend-topics.ts와 같은
-          // 격리 재현 결과) — 그래서 여기서만 명시적으로 좁힌다.
-          const { reason } = check as { ok: false; reason: string };
-          lastFailure = `contract:${reason}`;
-          console.warn(
-            `performance/evaluate 계약 위반 ${reason} (attempt ${attempt + 1})`,
-          );
-          continue;
-        }
-
-        payload = parsed as EvaluationPayload;
-        score = (check as { ok: true; score: number }).score;
-        break;
+      if (ledgerError)
+        throw new Error(`차감 원장 조회 실패: ${ledgerError.message}`);
+      if (!ledgerRow) {
+        return fail(
+          res,
+          409,
+          "SESSION_NOT_CHARGED",
+          "주제 추천을 먼저 받아 주세요.",
+          {
+            step: 3,
+            charged: false,
+          },
+        );
       }
-    } finally {
-      clearTimeout(abortTimer);
-    }
 
-    if (!payload) {
-      // 재시도까지 실패. **무차감**이고 제출본 상태도 그대로다(RPC를 부르지 않았다).
-      console.error(`performance/evaluate 계약 위반 확정: ${lastFailure}`);
-      return fail(
-        res,
-        502,
-        "MODEL_FAILED",
-        "평가 리포트를 정리하지 못했어요. 다시 시도해 주세요.",
-        {
-          charged: false,
-        },
+      // ── 게이트 ④ 설계 리포트 선행 조건.
+      //    두 가지가 여기서만 나온다: ⓐ §12.2 3행이 「판정 결과를 구조체로 리포트 JSON에
+      //    저장해 **STEP5가 재판정하지 않게** 한다」고 규정한 안내문 구조 판정,
+      //    ⓑ 확정된 주제(프롬프트 `[선택 주제]`). 설계 리포트 없이 평가에 들어오면 둘 다
+      //    없으므로 §8.6 표에 없는 코드지만 형제 라우트 관례대로 `SESSION_INCOMPLETE`로 막는다.
+      const { data: designReport, error: designError } = await supabaseAdmin
+        .from("performance_reports")
+        .select("id,sections,topic_id")
+        .eq("session_id", sessionRow.id)
+        .eq("report_type", "design")
+        .maybeSingle();
+
+      if (designError)
+        throw new Error(`설계 리포트 조회 실패: ${designError.message}`);
+      if (!designReport) {
+        return fail(
+          res,
+          400,
+          "SESSION_INCOMPLETE",
+          "설계 리포트를 먼저 받아 주세요.",
+          {
+            step: 4,
+            charged: false,
+          },
+        );
+      }
+
+      // ── 제출 스키마. 세션에 영속화된 값이 정본이고(§8.3 「서버 소유로 승격」) 없으면
+      //    판정한다. 판정 결과를 여기서 저장하지는 않는다 — 저장 지점은 `submission.js`
+      //    하나로 둔다(두 곳에서 쓰면 어느 쪽이 먼저 도느냐로 값이 갈릴 수 있다).
+      // sessionRow는 SubmissionSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다.
+      const { schema } = resolveSessionSubmissionSchema(
+        sessionRow as Parameters<typeof resolveSessionSubmissionSchema>[0],
       );
-    }
+      const fields =
+        submissionRow.fields && typeof submissionRow.fields === "object"
+          ? submissionRow.fields
+          : {};
+      const gate = checkSubmissionMinLength(schema, fields);
 
-    const sections = buildEvaluationSections(payload);
-    const summary = trimmed(payload.summary);
+      // ── 게이트 ⑤ 제출물 게이트(§8.6 400 3종). 상한 게이트보다 **먼저** 본다 —
+      //    형식 미달 요청이 재평가 슬롯을 태우면 안 된다.
+      if (gate.total === 0) {
+        return fail(res, 400, "EMPTY_SUBMISSION", EMPTY_SUBMISSION_MESSAGE, {
+          charged: false,
+        });
+      }
+      if (gate.missingRequired.length) {
+        return fail(
+          res,
+          400,
+          "REQUIRED_FIELD_EMPTY",
+          "필수 항목을 모두 작성해 주세요.",
+          {
+            field: gate.missingRequired[0],
+            missingRequired: gate.missingRequired,
+            charged: false,
+          },
+        );
+      }
+      if (gate.total < gate.threshold) {
+        // 문구는 원문 그대로다(`evaluate-text.js:39`).
+        return fail(
+          res,
+          400,
+          "SUBMISSION_TOO_SHORT",
+          SUBMISSION_TOO_SHORT_MESSAGE,
+          {
+            total: gate.total,
+            threshold: gate.threshold,
+            charged: false,
+          },
+        );
+      }
 
-    // ── 학생 과거 수행 RAG용 벡터 메타데이터 upsert. **커밋 RPC보다 반드시 먼저** 한다 —
-    //    RPC(sql/58_performance_submission.sql 약 289-293행)가
-    //    `performance_session_vectors.rag_use`를 `where v.session_id = p_session_id`로
-    //    승격하는데, 그 시점에 이 세션의 벡터 행이 이미 있어야 **첫 평가 커밋에서도**
-    //    승격이 즉시 일어난다. 순서를 뒤집으면 첫 커밋에서는 행이 없어 그 UPDATE가
-    //    0행에 적중하고 승격이 다음 평가나 finalize까지 늦어진다.
-    //    실패해도 평가 리포트 저장 자체는 막지 않는다(부가 기능).
-    try {
-      await upsertSessionVectorMetadata({
-        supabase: supabaseAdmin,
-        sessionId: sessionRow.id,
-        profileId: userId,
-        // upsertSessionVectorMetadata 내부는 `|| null`로 저장하므로 null→"" 치환은 결과에 영향 없다.
+      // ── 게이트 ⑥ 재평가 상한(§9.2). 사용자에게 보이는 상한이며 **성공한 생성만** 센다.
+      //    ⚠ read-then-write다 — 실제 +1은 커밋 RPC 안에서 일어나므로(sql/58 (4)) 같은
+      //    세션 동시 요청 2건은 둘 다 통과한 뒤 각각 +1 할 수 있다(fail-safe 방향: 덜
+      //    세지 않고 더 센다). 리포트 행이 2개가 되지는 않는다 — 부분 UNIQUE + upsert가
+      //    세션당 evaluation 1행을 강제한다(sql/58 (2)).
+      //    **모델 호출이 실제로 몇 번 나가느냐를 막는 것은 게이트 ⑦이다** — 아래 시도
+      //    카운터가 원자적 CAS라 동시 요청 중 한 건만 통과한다(검토 P11).
+      const evaluationCount = Number(sessionRow.evaluation_count) || 0;
+      if (evaluationCount >= MAX_EVALUATIONS) {
+        return fail(
+          res,
+          409,
+          "REEVALUATION_LIMIT",
+          `평가는 최대 ${MAX_REEVALUATIONS}번까지 다시 받을 수 있어요.`,
+          {
+            limit: MAX_REEVALUATIONS,
+            maxEvaluations: MAX_EVALUATIONS,
+            evaluationCount,
+            reportId: existingReport?.id ?? null,
+            charged: false,
+          },
+        );
+      }
+
+      // ── 게이트 ⑦ 세션당 모델 시도 상한(sql/58 (3)). 게이트 ⑥이 세지 못하는 축이다.
+      const attemptCount = Number(sessionRow.evaluation_attempt_count) || 0;
+      if (attemptCount >= MAX_MODEL_ATTEMPTS_PER_SESSION) {
+        return fail(
+          res,
+          429,
+          "EVALUATION_ATTEMPT_LIMIT",
+          "이 수행평가에서 평가를 너무 여러 번 요청했어요. 잠시 후 새 수행평가로 다시 시작해 주세요.",
+          { maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION, charged: false },
+        );
+      }
+
+      // 모델을 실제로 부르기 **직전**에 올린다. 실패도 세야 상한이 의미를 갖는다.
+      //
+      // ⚠️ **낙관적 잠금(CAS)이다**(검토 P11). `attemptCount + 1`을 조건 없이 덮어쓰면
+      //    동시 요청 N건이 전부 같은 스냅샷을 읽고 같은 값을 써서 카운터가 1만 오르고,
+      //    게이트 ⑥·⑦이 함께 무력화된다. 평가는 **무차감**이라(§9.3) 회차가 억제 수단이
+      //    아니고, evaluate 1회는 최대 6회(과부하 재시도 3 × 구조 재시도 2)의 생성 호출에
+      //    최대 `MAX_TOTAL_CHARS` 분량 프롬프트를 싣는다 — 이 두 상한이 유일한 방어선이다.
+      //    `.eq('evaluation_attempt_count', attemptCount)`를 붙여 **읽은 값 그대로일 때만**
+      //    쓰고, 0행이면 그 사이 다른 요청이 선점했다는 뜻이라 429로 떨어뜨린다(같은 코드다 —
+      //    사용자에게는 "지금은 다시 요청할 수 없다"로 동일하고, 클라이언트 분기도
+      //    §5.20 code 기준이라 갈리지 않는다).
+      const { data: attemptRow, error: attemptCounterError } =
+        await supabaseAdmin
+          .from("performance_sessions")
+          .update({ evaluation_attempt_count: attemptCount + 1 })
+          .eq("id", sessionRow.id)
+          .eq("evaluation_attempt_count", attemptCount)
+          .select("id")
+          .maybeSingle();
+
+      if (attemptCounterError) {
+        throw new Error(
+          `평가 시도 횟수 갱신 실패: ${attemptCounterError.message}`,
+        );
+      }
+
+      if (!attemptRow) {
+        // 경합에서 졌다 — 모델을 부르지 않고 끝낸다. 여기서 그냥 진행하면 상한이
+        // 있으나 마나가 된다(위 ⚠️).
+        return fail(
+          res,
+          429,
+          "EVALUATION_ATTEMPT_LIMIT",
+          "평가 요청이 이미 진행 중이에요. 잠시 후 다시 시도해 주세요.",
+          {
+            maxAttempts: MAX_MODEL_ATTEMPTS_PER_SESSION,
+            concurrent: true,
+            charged: false,
+          },
+        );
+      }
+
+      // ── 확정 주제. 설계 리포트가 있으면 반드시 확정돼 있다(sql/57 (4)가 한 트랜잭션으로
+      //    묶는다). 그래도 조회 실패를 프롬프트 붕괴로 만들지 않고 `미입력`으로 축퇴시킨다.
+      let selectedTopic = "";
+      const topicId = sessionRow.selected_topic_id || designReport.topic_id;
+      if (topicId) {
+        const { data: topicRow, error: topicError } = await supabaseAdmin
+          .from("performance_topics")
+          .select("title")
+          .eq("id", topicId)
+          .eq("session_id", sessionRow.id)
+          .maybeSingle();
+
+        if (topicError)
+          throw new Error(`주제 조회 실패: ${topicError.message}`);
+        selectedTopic = trimmed(topicRow?.title);
+      }
+
+      // ── Q68 제출 형식 주입에 쓸 판정. **설계 리포트가 저장해 둔 값을 그대로 읽는다**
+      //    (§12.2 3행). 같은 세션에서 두 번 판정하면 안내문이 그대로여도 결과가 갈릴
+      //    여지가 생기기 때문이다. 옛 배포본이 만든 리포트 등 봉투에 판정이 없는 경우에만
+      //    현장 판정으로 축퇴한다(프롬프트를 비우지 않는다).
+      const designEnvelope =
+        designReport.sections && typeof designReport.sections === "object"
+          ? designReport.sections
+          : {};
+      const storedStructure = designEnvelope.structure;
+      // sessionRow는 GuideSession이 실제로 읽는 필드를 전부 포함하는 DB 행이다(unknown 캐스트 경유).
+      const structure =
+        storedStructure && trimmed(storedStructure.type)
+          ? storedStructure
+          : inferGuideStructure(
+              sessionRow as Parameters<typeof inferGuideStructure>[0],
+            );
+
+      const assessmentText = guideTextFromSession(
+        sessionRow as Parameters<typeof guideTextFromSession>[0],
+      );
+      const submissionText = buildSubmissionText(selectedTopic, schema, fields);
+
+      const system = buildEvaluationSystem({
+        structureType: structure.type,
+        structureReason: structure.reason,
+        writingFrame: structure.writingFrame,
+      });
+
+      // ⚠ `buildEvaluationUser`는 RAG 텍스트 인자를 **아예 받지 않는다**(시그니처가 계약).
+      //   원문 작업 지시 `내부 위닝DB 자료는 사용하지 말고`(`evaluate-text.js:151`)가
+      //   평가 단계의 계약이라, 여기서 자료를 끌어오면 채점이 오염된다. 설계 리포트와
+      //   정반대 방향이므로 `loadDynamicAssessmentKnowledge`를 import조차 하지 않는다.
+      // buildEvaluationUser는 값을 `|| ""`로 다루므로 null→"" 치환은 결과에 영향 없다.
+      const userMsg = buildEvaluationUser({
+        assessmentText,
+        selectedTopic,
+        career: sessionRow.career_goal || "",
         gradeLabel: sessionRow.grade_label || "",
+        semester: sessionRow.semester || "",
+        schoolType: sessionRow.school_type || "",
         subjectGroup: sessionRow.subject_group || "",
         subject: sessionRow.subject || "",
-        careerGoal: sessionRow.career_goal || "",
-        topicTitle: selectedTopic,
-        summaryText: `평가 총평: ${summary}\n설계 리포트: ${flattenReportSectionsToText(designEnvelope.sections)}`,
+        previousTopic:
+          trimmed(sessionRow.previous_topic) || NO_PREVIOUS_TOPIC_TEXT,
+        submissionText,
       });
-    } catch (vectorError) {
-      // 학생 과거 수행 RAG는 부가 기능이다 — 실패해도 평가 리포트 저장 자체를 막지 않는다.
-      console.error(
-        "performance/evaluate 학생 과거 수행 벡터 갱신 실패:",
-        vectorError,
+
+      // ── 모델 호출. 실패 형태 3가지를 각각 다르게 다룬다(§8.4 ⓑ·ⓒ·ⓓ).
+      const abortController = new AbortController();
+      const abortTimer = setTimeout(
+        () => abortController.abort(),
+        MODEL_TIMEOUT_MS,
       );
-    }
 
-    const structureForClient = {
-      type: structure.type,
-      reason: structure.reason,
-      writingFrame: structure.writingFrame,
-    };
+      let payload: EvaluationPayload | null = null;
+      let score: number | null = null;
+      let lastFailure = "unknown";
 
-    // ─────────────────────────────────────────────────────────────────
-    // 커밋 — 제출 확정 + 리포트 저장 + 진행 단계 + rag_use 승격이 **한 트랜잭션**이다
-    // (sql/58 (4)). 이 지점까지 오지 못하면 아무것도 남지 않는다.
-    // ─────────────────────────────────────────────────────────────────
-    const { data: commitRaw, error: commitError } = await supabaseAdmin.rpc(
-      "commit_performance_evaluation_report",
-      {
-        p_session_id: sessionRow.id,
-        p_profile_id: userId,
-        p_submission_id: submissionRow.id,
-        p_sections: buildReportEnvelope({
-          // payload가 non-null이면(위 가드 통과) score도 같은 블록에서 함께 설정됐다.
-          score: score!,
-          summary,
-          sections,
-          structure: structureForClient,
-          submissionId: submissionRow.id,
-          revision: submissionRow.revision,
-        }),
-        p_score: score,
-        p_summary: summary,
-        p_model: PERFORMANCE_MODEL,
-        p_prompt_version: EVALUATION_PROMPT_VERSION,
-      },
-    );
+      try {
+        for (let attempt = 0; attempt <= STRUCTURE_RETRY; attempt++) {
+          const isRetry = attempt > 0;
 
-    if (commitError) {
-      console.error("performance/evaluate 커밋 RPC 실패:", commitError);
-      return fail(res, 500, "INTERNAL", "평가 리포트 저장에 실패했습니다.", {
-        charged: false,
-      });
-    }
+          let response: Awaited<ReturnType<typeof generateWithRetry>>;
+          try {
+            response = await generateWithRetry({
+              model: PERFORMANCE_MODEL,
+              contents: userMsg,
+              config: {
+                systemInstruction: system,
+                // 재시도는 원문 재시도와 같은 취지로 온도를 낮춘다
+                // (`suhaengpyeong/api/recommend-topics.js:221` — 0.25 → 0.2).
+                temperature: isRetry
+                  ? 0.2
+                  : EVALUATION_GENERATION_DEFAULTS.temperature,
+                // 같은 상한으로 다시 부르면 같은 자리에서 다시 잘린다 → 올려서 재시도.
+                maxOutputTokens: isRetry
+                  ? EVALUATION_MAX_OUTPUT_TOKENS_RETRY
+                  : EVALUATION_GENERATION_DEFAULTS.maxOutputTokens,
+                thinkingConfig: { thinkingBudget: 0 },
+                responseMimeType: "application/json",
+                responseSchema: EVALUATION_REPORT_SCHEMA,
+                abortSignal: abortController.signal,
+              },
+            });
+          } catch (modelError) {
+            // 과부하 재시도(700ms×2^n, 2회)는 generateWithRetry가 이미 소진했다.
+            // §8.6이 이 엔드포인트에 정의한 실패 코드는 `502 MODEL_FAILED` 하나뿐이라
+            // 상류 장애도 구조 위반도 같은 코드로 나간다(형제 라우트의 503/422 2분할과
+            // 다른 점이며, 계약 표를 따른 결과다). **무차감**.
+            console.error("performance/evaluate 모델 호출 실패:", modelError);
+            return fail(
+              res,
+              502,
+              "MODEL_FAILED",
+              "평가 리포트를 만들지 못했어요. 잠시 후 다시 시도해 주세요.",
+              {
+                charged: false,
+              },
+            );
+          }
 
-    const commit = commitRaw && typeof commitRaw === "object" ? commitRaw : {};
-    const commitStatus = String(commit.status || "");
+          const finishReason = response?.candidates?.[0]?.finishReason;
 
-    // 소유권은 위에서 이미 확인했으므로 아래 두 상태는 경합(세션·제출본이 그 사이에
-    // 지워짐)에서만 나온다. RPC가 판정 권위를 갖는 지점이라 그대로 전달한다.
-    if (commitStatus === "session_not_found") {
-      return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
-        charged: false,
-      });
-    }
-    if (commitStatus === "submission_not_in_session") {
-      return fail(
-        res,
-        404,
-        "SUBMISSION_NOT_IN_SESSION",
-        "이 수행평가의 제출물이 아니에요.",
+          // ⓒ — 절단된 응답은 **파싱하지 않는다.**
+          if (finishReason === "MAX_TOKENS") {
+            lastFailure = "finish-reason:MAX_TOKENS";
+            console.warn(
+              `performance/evaluate MAX_TOKENS 절단 (attempt ${attempt + 1})`,
+            );
+            continue;
+          }
+
+          if (finishReason && finishReason !== "STOP") {
+            lastFailure = `finish-reason:${finishReason}`;
+            console.warn(
+              `performance/evaluate 비정상 종료 ${finishReason} (attempt ${attempt + 1})`,
+            );
+            continue;
+          }
+
+          const rawText = trimmed(response?.text);
+          if (!rawText) {
+            lastFailure = "empty-response";
+            continue;
+          }
+
+          let parsed: unknown;
+          try {
+            // 유일한 파싱이다. `responseMimeType:'application/json'`이 형식을 보장하므로
+            // 코드펜스 제거·헤더 보정 같은 전처리를 두지 않는다(§8.4).
+            parsed = JSON.parse(rawText);
+          } catch (parseError) {
+            lastFailure = "json-parse-failed";
+            // ⓓ — 원문은 서버 로그에만 남긴다.
+            console.error(
+              "performance/evaluate JSON 파싱 실패:",
+              parseError?.message,
+              rawText.slice(0, 400),
+            );
+            continue;
+          }
+
+          const check = validateEvaluationPayload(parsed);
+          if (!check.ok) {
+            // tsconfig strict:false(strictNullChecks 꺼짐)에서 이 boolean 판별
+            // 유니온이 `!check.ok`만으로 좁혀지지 않는다(recommend-topics.ts와 같은
+            // 격리 재현 결과) — 그래서 여기서만 명시적으로 좁힌다.
+            const { reason } = check as { ok: false; reason: string };
+            lastFailure = `contract:${reason}`;
+            console.warn(
+              `performance/evaluate 계약 위반 ${reason} (attempt ${attempt + 1})`,
+            );
+            continue;
+          }
+
+          payload = parsed as EvaluationPayload;
+          score = (check as { ok: true; score: number }).score;
+          break;
+        }
+      } finally {
+        clearTimeout(abortTimer);
+      }
+
+      if (!payload) {
+        // 재시도까지 실패. **무차감**이고 제출본 상태도 그대로다(RPC를 부르지 않았다).
+        console.error(`performance/evaluate 계약 위반 확정: ${lastFailure}`);
+        return fail(
+          res,
+          502,
+          "MODEL_FAILED",
+          "평가 리포트를 정리하지 못했어요. 다시 시도해 주세요.",
+          {
+            charged: false,
+          },
+        );
+      }
+
+      const sections = buildEvaluationSections(payload);
+      const summary = trimmed(payload.summary);
+
+      // ── 학생 과거 수행 RAG용 벡터 메타데이터 upsert. **커밋 RPC보다 반드시 먼저** 한다 —
+      //    RPC(sql/58_performance_submission.sql 약 289-293행)가
+      //    `performance_session_vectors.rag_use`를 `where v.session_id = p_session_id`로
+      //    승격하는데, 그 시점에 이 세션의 벡터 행이 이미 있어야 **첫 평가 커밋에서도**
+      //    승격이 즉시 일어난다. 순서를 뒤집으면 첫 커밋에서는 행이 없어 그 UPDATE가
+      //    0행에 적중하고 승격이 다음 평가나 finalize까지 늦어진다.
+      //    실패해도 평가 리포트 저장 자체는 막지 않는다(부가 기능).
+      try {
+        await upsertSessionVectorMetadata({
+          supabase: supabaseAdmin,
+          sessionId: sessionRow.id,
+          profileId: userId,
+          // upsertSessionVectorMetadata 내부는 `|| null`로 저장하므로 null→"" 치환은 결과에 영향 없다.
+          gradeLabel: sessionRow.grade_label || "",
+          subjectGroup: sessionRow.subject_group || "",
+          subject: sessionRow.subject || "",
+          careerGoal: sessionRow.career_goal || "",
+          topicTitle: selectedTopic,
+          summaryText: `평가 총평: ${summary}\n설계 리포트: ${flattenReportSectionsToText(designEnvelope.sections)}`,
+        });
+      } catch (vectorError) {
+        // 학생 과거 수행 RAG는 부가 기능이다 — 실패해도 평가 리포트 저장 자체를 막지 않는다.
+        console.error(
+          "performance/evaluate 학생 과거 수행 벡터 갱신 실패:",
+          vectorError,
+        );
+      }
+
+      const structureForClient = {
+        type: structure.type,
+        reason: structure.reason,
+        writingFrame: structure.writingFrame,
+      };
+
+      // ─────────────────────────────────────────────────────────────────
+      // 커밋 — 제출 확정 + 리포트 저장 + 진행 단계 + rag_use 승격이 **한 트랜잭션**이다
+      // (sql/58 (4)). 이 지점까지 오지 못하면 아무것도 남지 않는다.
+      // ─────────────────────────────────────────────────────────────────
+      const { data: commitRaw, error: commitError } = await supabaseAdmin.rpc(
+        "commit_performance_evaluation_report",
         {
-          charged: false,
+          p_session_id: sessionRow.id,
+          p_profile_id: userId,
+          p_submission_id: submissionRow.id,
+          p_sections: buildReportEnvelope({
+            // payload가 non-null이면(위 가드 통과) score도 같은 블록에서 함께 설정됐다.
+            score: score!,
+            summary,
+            sections,
+            structure: structureForClient,
+            submissionId: submissionRow.id,
+            revision: submissionRow.revision,
+          }),
+          p_score: score,
+          p_summary: summary,
+          p_model: PERFORMANCE_MODEL,
+          p_prompt_version: EVALUATION_PROMPT_VERSION,
         },
       );
-    }
-    if (commitStatus !== "committed" || !commit.report_id) {
-      console.error("performance/evaluate 알 수 없는 커밋 상태:", commitStatus);
-      return fail(res, 500, "INTERNAL", "평가 리포트 저장에 실패했습니다.", {
+
+      if (commitError) {
+        console.error("performance/evaluate 커밋 RPC 실패:", commitError);
+        return fail(res, 500, "INTERNAL", "평가 리포트 저장에 실패했습니다.", {
+          charged: false,
+        });
+      }
+
+      const commit =
+        commitRaw && typeof commitRaw === "object" ? commitRaw : {};
+      const commitStatus = String(commit.status || "");
+
+      // 소유권은 위에서 이미 확인했으므로 아래 두 상태는 경합(세션·제출본이 그 사이에
+      // 지워짐)에서만 나온다. RPC가 판정 권위를 갖는 지점이라 그대로 전달한다.
+      if (commitStatus === "session_not_found") {
+        return fail(res, 403, "NOT_SESSION_OWNER", "세션을 찾을 수 없습니다.", {
+          charged: false,
+        });
+      }
+      if (commitStatus === "submission_not_in_session") {
+        return fail(
+          res,
+          404,
+          "SUBMISSION_NOT_IN_SESSION",
+          "이 수행평가의 제출물이 아니에요.",
+          {
+            charged: false,
+          },
+        );
+      }
+      if (commitStatus !== "committed" || !commit.report_id) {
+        console.error(
+          "performance/evaluate 알 수 없는 커밋 상태:",
+          commitStatus,
+        );
+        return fail(res, 500, "INTERNAL", "평가 리포트 저장에 실패했습니다.", {
+          charged: false,
+        });
+      }
+
+      const quota = await readQuota(supabaseAdmin, userId);
+
+      res.status(200).json({
+        report: {
+          id: commit.report_id,
+          sections,
+          score,
+          summary,
+          structure: structureForClient,
+          model: PERFORMANCE_MODEL,
+          promptVersion: EVALUATION_PROMPT_VERSION,
+        },
+        submissionId: submissionRow.id,
+        submissionRevision: submissionRow.revision,
+        charCounts: gate.perField,
+        quotaRemaining: quota.quotaRemaining,
+        // §8.6이 이 엔드포인트 응답에 못박은 값이다. 이 파일에는 차감 코드가 없다.
+        charged: false,
+        evaluationCount: Number(commit.evaluation_count) || evaluationCount + 1,
+        maxEvaluations: MAX_EVALUATIONS,
+      });
+    } catch (error) {
+      // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
+      console.error("performance/evaluate error:", error);
+      return fail(res, 500, "INTERNAL", "평가 리포트 생성에 실패했습니다.", {
         charged: false,
       });
     }
-
-    const quota = await readQuota(supabaseAdmin, userId);
-
-    return res.status(200).json({
-      report: {
-        id: commit.report_id,
-        sections,
-        score,
-        summary,
-        structure: structureForClient,
-        model: PERFORMANCE_MODEL,
-        promptVersion: EVALUATION_PROMPT_VERSION,
-      },
-      submissionId: submissionRow.id,
-      submissionRevision: submissionRow.revision,
-      charCounts: gate.perField,
-      quotaRemaining: quota.quotaRemaining,
-      // §8.6이 이 엔드포인트 응답에 못박은 값이다. 이 파일에는 차감 코드가 없다.
-      charged: false,
-      evaluationCount: Number(commit.evaluation_count) || evaluationCount + 1,
-      maxEvaluations: MAX_EVALUATIONS,
-    });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/evaluate error:", error);
-    return fail(res, 500, "INTERNAL", "평가 리포트 생성에 실패했습니다.", {
-      charged: false,
-    });
-  }
-}
+  },
+});
 
 // ─────────────────────────────────────────────────────────────────────
 // 실패 경로별 잔여 상태 (전부 무차감)

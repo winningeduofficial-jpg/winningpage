@@ -57,6 +57,7 @@ import {
   PAID_MESSAGE,
   upsertStudentRow,
 } from "../_lib/goalRepo.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -577,14 +578,19 @@ function readBody(req: VercelRequest) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
-    return res.status(405).json({ detail: "Method not allowed" });
+    return sendError(res, "detail", 405, "Method not allowed");
   }
 
   try {
     // 1) 게이트 — 405 → 401 → 403 (§9-1)
     const session = await openGoalSession(req);
     if (session.error) {
-      return res.status(session.error.status).json(session.error.body);
+      return sendError(
+        res,
+        "detail",
+        session.error.status,
+        session.error.body.detail as string,
+      );
     }
 
     const { allowed } = session;
@@ -867,6 +873,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error("goal/intake error:", error);
-    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
+    return sendError(res, "detail", 500, "처리 중 오류가 발생했습니다.");
   }
 }

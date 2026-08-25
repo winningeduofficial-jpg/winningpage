@@ -16,8 +16,10 @@
 // 최종 판정은 아니다 — 동시 가입 경합은 profiles의 unique 인덱스와 가입 RPC의
 // duplicate_phone이 잡는다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
 import { getChannel, isDryRun, sendVerificationCode } from "./_lib/aligo.js";
+import { defineHandler } from "./_lib/handler.js";
+import { sendError } from "./_lib/httpResponse.js";
 import {
   CODE_TTL_SECONDS,
   COOLDOWN_SECONDS,
@@ -29,7 +31,7 @@ import {
   maskPhone,
   normalizePhone,
 } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import type { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 // Fixie 프록시(undici ProxyAgent)를 쓰므로 Edge 런타임에서는 동작하지 않는다.
 export const config = { runtime: "nodejs" };
@@ -105,124 +107,138 @@ const LIMIT_MESSAGES = {
     "일시적으로 인증번호 발송이 어렵습니다. 고객센터로 문의해 주세요.",
 };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, detail: "Method not allowed" });
-  }
-
-  const phone = normalizePhone(req.body?.phone);
-  const purpose: string = ALLOWED_PURPOSES.includes(req.body?.purpose)
-    ? req.body.purpose
-    : "signup";
-
-  if (!isValidMobile(phone)) {
-    return res.status(400).json({
-      ok: false,
-      reason: "invalid_phone",
-      detail: "휴대폰 번호 형식이 올바르지 않습니다.",
-    });
-  }
-
-  const ip = getClientIp(req);
-
-  try {
-    const supabase = createSupabaseAdmin();
-
-    // 한도 검사보다 먼저 본다. 어차피 가입할 수 없는 번호에 문자 요금과
-    // 쿨타임을 쓸 이유가 없다.
-    if (
-      SIGNUP_PURPOSES.includes(purpose) &&
-      (await isPhoneTaken(supabase, phone))
-    ) {
-      return res.status(409).json({
-        ok: false,
-        reason: "phone_taken",
-        detail: "중복된 전화번호입니다.",
-      });
-    }
-
-    const limit = await checkSendLimits(supabase, { phone, ip });
-
-    if (!limit.allowed) {
-      // Retry-After는 초 단위 표준 헤더다. 프론트가 쿨타임 표시에 쓸 수 있다.
-      res.setHeader(
-        "Retry-After",
-        String(limit.retryAfter || COOLDOWN_SECONDS),
-      );
-
-      return res.status(429).json({
-        ok: false,
-        reason: limit.reason,
-        retry_after: limit.retryAfter || COOLDOWN_SECONDS,
-        detail:
-          LIMIT_MESSAGES[limit.reason!] || "잠시 후에 다시 시도해 주세요.",
-      });
-    }
-
-    const code = generateCode();
-    const expiresAt = new Date(
-      Date.now() + CODE_TTL_SECONDS * 1000,
-    ).toISOString();
-
-    // 발송을 먼저 시도한다. 저장부터 하면 발송이 실패했을 때 쿨타임만 소모된다.
-    const result = await sendVerificationCode({ phone, code });
-
-    if (!result.ok) {
-      console.error(
-        `[send-phone-code] 발송 실패 ${maskPhone(phone)} channel=${result.channel} ` +
-          `code=${result.providerCode} message=${result.providerMessage}`,
-      );
-
-      return res.status(502).json({
-        ok: false,
-        reason: "send_failed",
-        detail: "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
-      });
-    }
-
-    const { error: insertError } = await supabase
-      .from("phone_verifications")
-      .insert({
-        phone,
-        code_hash: hashCode(phone, code),
-        purpose,
-        expires_at: expiresAt,
-        request_ip: ip,
-      });
-
-    if (insertError) {
-      // 문자는 이미 나갔는데 기록이 안 된 상태다. 사용자는 코드를 받았지만
-      // 검증할 수 없으므로 재발송을 유도한다.
-      console.error("[send-phone-code] 인증 기록 저장 실패:", insertError);
-
-      return res.status(500).json({
-        ok: false,
-        reason: "store_failed",
-        detail: "인증번호 처리 중 문제가 발생했습니다. 다시 시도해 주세요.",
-      });
-    }
-
-    return res.status(200).json({
-      ok: true,
-      expires_in: CODE_TTL_SECONDS,
-      cooldown: COOLDOWN_SECONDS,
-      // 운영에서는 항상 false여야 한다. true면 문자가 실제로 안 나간 것이다.
-      dry_run: Boolean(result.dryRun),
-      channel: getChannel(),
-    });
-  } catch (error) {
-    console.error("[send-phone-code] 오류:", error);
-
-    // 설정 누락(프록시·키·시크릿)은 개발자가 봐야 할 오류라 구분해 남긴다.
-    const isConfigError =
-      /환경변수|FIXIE_URL|PHONE_CODE_SECRET/.test(
-        String(error?.message || ""),
-      ) && !isDryRun();
-
-    return res.status(500).json({
-      ok: false,
-      reason: isConfigError ? "server_misconfigured" : "unknown",
-      detail: "인증번호 발송 중 오류가 발생했습니다.",
-    });
-  }
+function fail(
+  res: VercelResponse,
+  status: number,
+  reason: string,
+  message: string,
+  extra: Record<string, unknown> = {},
+) {
+  sendError(res, "okDetail", status, message, undefined, { reason, ...extra });
 }
+
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  unhandledMessage: "인증번호 발송 중 오류가 발생했습니다.",
+  logLabel: "send-phone-code",
+  handler: async (req, res, ctx) => {
+    const phone = normalizePhone(req.body?.phone);
+    const purpose: string = ALLOWED_PURPOSES.includes(req.body?.purpose)
+      ? req.body.purpose
+      : "signup";
+
+    if (!isValidMobile(phone)) {
+      return fail(
+        res,
+        400,
+        "invalid_phone",
+        "휴대폰 번호 형식이 올바르지 않습니다.",
+      );
+    }
+
+    const ip = getClientIp(req);
+
+    try {
+      const supabase = ctx.supabaseAdmin;
+
+      // 한도 검사보다 먼저 본다. 어차피 가입할 수 없는 번호에 문자 요금과
+      // 쿨타임을 쓸 이유가 없다.
+      if (
+        SIGNUP_PURPOSES.includes(purpose) &&
+        (await isPhoneTaken(supabase, phone))
+      ) {
+        return void res.status(409).json({
+          ok: false,
+          reason: "phone_taken",
+          detail: "중복된 전화번호입니다.",
+        });
+      }
+
+      const limit = await checkSendLimits(supabase, { phone, ip });
+
+      if (!limit.allowed) {
+        // Retry-After는 초 단위 표준 헤더다. 프론트가 쿨타임 표시에 쓸 수 있다.
+        res.setHeader(
+          "Retry-After",
+          String(limit.retryAfter || COOLDOWN_SECONDS),
+        );
+
+        return void res.status(429).json({
+          ok: false,
+          reason: limit.reason,
+          retry_after: limit.retryAfter || COOLDOWN_SECONDS,
+          detail:
+            LIMIT_MESSAGES[limit.reason!] || "잠시 후에 다시 시도해 주세요.",
+        });
+      }
+
+      const code = generateCode();
+      const expiresAt = new Date(
+        Date.now() + CODE_TTL_SECONDS * 1000,
+      ).toISOString();
+
+      // 발송을 먼저 시도한다. 저장부터 하면 발송이 실패했을 때 쿨타임만 소모된다.
+      const result = await sendVerificationCode({ phone, code });
+
+      if (!result.ok) {
+        console.error(
+          `[send-phone-code] 발송 실패 ${maskPhone(phone)} channel=${result.channel} ` +
+            `code=${result.providerCode} message=${result.providerMessage}`,
+        );
+
+        return void res.status(502).json({
+          ok: false,
+          reason: "send_failed",
+          detail: "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+        });
+      }
+
+      const { error: insertError } = await supabase
+        .from("phone_verifications")
+        .insert({
+          phone,
+          code_hash: hashCode(phone, code),
+          purpose,
+          expires_at: expiresAt,
+          request_ip: ip,
+        });
+
+      if (insertError) {
+        // 문자는 이미 나갔는데 기록이 안 된 상태다. 사용자는 코드를 받았지만
+        // 검증할 수 없으므로 재발송을 유도한다.
+        console.error("[send-phone-code] 인증 기록 저장 실패:", insertError);
+
+        return void res.status(500).json({
+          ok: false,
+          reason: "store_failed",
+          detail: "인증번호 처리 중 문제가 발생했습니다. 다시 시도해 주세요.",
+        });
+      }
+
+      return void res.status(200).json({
+        ok: true,
+        expires_in: CODE_TTL_SECONDS,
+        cooldown: COOLDOWN_SECONDS,
+        // 운영에서는 항상 false여야 한다. true면 문자가 실제로 안 나간 것이다.
+        dry_run: Boolean(result.dryRun),
+        channel: getChannel(),
+      });
+    } catch (error) {
+      console.error("[send-phone-code] 오류:", error);
+
+      // 설정 누락(프록시·키·시크릿)은 개발자가 봐야 할 오류라 구분해 남긴다.
+      const isConfigError =
+        /환경변수|FIXIE_URL|PHONE_CODE_SECRET/.test(
+          String(error?.message || ""),
+        ) && !isDryRun();
+
+      return void res.status(500).json({
+        ok: false,
+        reason: isConfigError ? "server_misconfigured" : "unknown",
+        detail: "인증번호 발송 중 오류가 발생했습니다.",
+      });
+    }
+  },
+});

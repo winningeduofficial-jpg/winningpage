@@ -18,10 +18,11 @@
 //   3) 응답 필드명은 카멜 케이스다. DB 스네이크를 그대로 노출하지 않는다(§9-2).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { VercelRequest } from "@vercel/node";
 import { kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
+import { resolveUser } from "./httpAuth.js";
 import {
   clean,
-  getBearerToken,
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "./serviceAccess.js";
@@ -38,10 +39,10 @@ import { createSupabaseAdmin } from "./supabaseAdmin.js";
 type Row = any;
 
 // VercelRequest.headers 의 실제 타입(IncomingHttpHeaders)과 구조적으로 맞춘다 —
-// getBearerToken() 이 요구하는 { headers: Record<string,string> } 보다 넓게 잡아야
 // 실제 VercelRequest 를 넘기는 8개 api/goal/*.ts 호출부가 타입 에러 없이 그대로 쓸 수
-// 있다(getBearerToken 호출부에서만 아래 캐스트로 좁힌다 — 그 함수 시그니처는
-// api/_lib/serviceAccess.ts 소유라 여기서 바꾸지 않는다).
+// 있게 openGoalSession 의 파라미터를 이만큼만 넓게 잡는다(openGoalSession 내부에서
+// _lib/httpAuth.js 의 resolveUser(req: VercelRequest) 로 넘길 때만 캐스트한다 —
+// resolveUser 시그니처는 api/_lib/httpAuth.ts 소유라 여기서 바꾸지 않는다).
 type VercelLikeRequest = {
   headers: Record<string, string | string[] | undefined>;
 };
@@ -136,20 +137,19 @@ export type GoalSessionResult = {
 export async function openGoalSession(
   req: VercelLikeRequest,
 ): Promise<GoalSessionResult> {
-  const token = getBearerToken(req as { headers: Record<string, string> });
-  if (!token) {
+  // _lib/httpAuth.js의 resolveUser()로 수렴 — 토큰 없음/무효 두 경우 모두 null을
+  // 돌려주는데, 원본도 두 경우 모두 같은 401 LOGIN_MESSAGE였으므로 동작 동일
+  // (api/docs/refactor-plan.md 배치4). resolveUser는 내부에서 별도
+  // createSupabaseAdmin()을 호출하지만 그 함수는 모듈 스코프 캐시 싱글턴이라
+  // 아래에서 다시 부르는 것과 같은 인스턴스를 돌려준다(api/docs/batch-1-issues.md
+  // 이슈 3과 동일 패턴).
+  const authed = await resolveUser(req as unknown as VercelRequest);
+  if (!authed) {
     return { error: { status: 401, body: { detail: LOGIN_MESSAGE } } };
   }
 
   const supabaseAdmin = createSupabaseAdmin();
-  const { data: userData, error: userError } =
-    await supabaseAdmin.auth.getUser(token);
-
-  if (userError || !userData?.user?.id) {
-    return { error: { status: 401, body: { detail: LOGIN_MESSAGE } } };
-  }
-
-  const profileId = userData.user.id;
+  const profileId = authed.userId;
   // hasPaidServiceAccess는 { allowed, reason } 을 돌려준다(api/_lib/serviceAccess.js
   // 참고) — 이 함수의 반환 계약(allowed:boolean, 위 JSDoc)을 지키기 위해 여기서
   // 뽑아 쓴다. 객체를 그대로 내려보내면 호출부의 `if (!allowed)` 가 항상

@@ -28,8 +28,10 @@
 // 1)이 성공한 뒤 2)가 실패해도(네트워크 등) 데이터는 이미 정리돼 있고,
 // 이 라우트를 재호출하면 fn_delete_account 는 멱등(이미 지워진/익명화된
 // 행에 대해 다시 실행해도 안전)하게 같은 결과를 반환한다.
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
+import type { VercelResponse } from "@vercel/node";
+import { defineHandler } from "./_lib/handler.js";
+import { sendError } from "./_lib/httpResponse.js";
+import { getBearerToken } from "./_lib/serviceAccess.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -44,117 +46,120 @@ export function buildAnonymizedEmail(userId: string) {
   return `deleted-${userId}@removed.invalid`;
 }
 
-function getBearerToken(req: VercelRequest) {
-  return String(req.headers.authorization || "")
-    .trim()
-    .replace(/^Bearer\s+/i, "");
+function fail(
+  res: VercelResponse,
+  status: number,
+  reason: string,
+  message: string,
+) {
+  sendError(res, "okDetail", status, message, undefined, { reason });
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, detail: "Method not allowed" });
-  }
-
-  const token = getBearerToken(req);
-  if (!token) {
-    return res.status(401).json({
-      ok: false,
-      reason: "not_authenticated",
-      detail: "로그인이 필요합니다.",
-    });
-  }
-
-  try {
-    const supabaseAdmin = createSupabaseAdmin();
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    const userId = userData?.user?.id ?? null;
-    if (userError || !userId) {
-      return res.status(401).json({
-        ok: false,
-        reason: "not_authenticated",
-        detail: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
-      });
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  unhandledMessage: "탈퇴 처리 중 오류가 발생했습니다.",
+  logLabel: "delete-account",
+  handler: async (req, res, ctx) => {
+    // change-phone.ts와 같은 이유로 auth:"none" + 공유 getBearerToken을 쓴다 —
+    // 이 라우트도 "로그인이 필요합니다."/"로그인이 만료되었습니다..." 두 문구를
+    // 구분한다(api/docs/batch-3-issues.md 참고).
+    const token = getBearerToken(req);
+    if (!token) {
+      return fail(res, 401, "not_authenticated", "로그인이 필요합니다.");
     }
 
-    const { data: mode, error: rpcError } = await supabaseAdmin.rpc(
-      "fn_delete_account",
-      { p_user_id: userId },
-    );
+    try {
+      const supabaseAdmin = ctx.supabaseAdmin;
 
-    if (rpcError) {
-      console.error("[delete-account] fn_delete_account 실패:", rpcError);
-      return res.status(500).json({
+      const { data: userData, error: userError } =
+        await supabaseAdmin.auth.getUser(token);
+      const userId = userData?.user?.id ?? null;
+      if (userError || !userId) {
+        return void res.status(401).json({
+          ok: false,
+          reason: "not_authenticated",
+          detail: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
+        });
+      }
+
+      const { data: mode, error: rpcError } = await supabaseAdmin.rpc(
+        "fn_delete_account",
+        { p_user_id: userId },
+      );
+
+      if (rpcError) {
+        console.error("[delete-account] fn_delete_account 실패:", rpcError);
+        return void res.status(500).json({
+          ok: false,
+          reason: "unknown",
+          detail: "탈퇴 처리 중 오류가 발생했습니다.",
+        });
+      }
+
+      if (mode === "deleted") {
+        const { error: authDeleteError } =
+          await supabaseAdmin.auth.admin.deleteUser(userId);
+        if (authDeleteError) {
+          console.error(
+            "[delete-account] auth.admin.deleteUser 실패(데이터는 이미 삭제됨, 재시도 가능):",
+            authDeleteError,
+          );
+          return void res.status(500).json({
+            ok: false,
+            reason: "unknown",
+            detail: "탈퇴 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
+          });
+        }
+      } else {
+        // anonymized — orders/refund_requests 등 보존 대상이 있어 계정을 물리
+        // 삭제할 수 없다. 로그인을 영구 차단하고, auth.users 에 남는 개인
+        // 식별자(email·metadata의 이름 등)도 함께 파기한다(실동작 QA
+        // 2026-08-23 발견 — profiles 만 비우면 auth 쪽에 이메일이 잔존하고,
+        // 그 이메일로는 재가입이 영구히 막혀 완전삭제 경로와 비대칭이었다).
+        // 거래 기록의 당사자 식별은 법령 보관 대상인 orders.customer_email 이
+        // 담당하므로 auth 쪽은 지워도 된다. 대체 주소는 예약 TLD(.invalid)라
+        // 실제 수신자와 충돌하지 않고, uuid 를 붙여 계정끼리도 충돌하지 않는다.
+        //
+        // user_metadata 는 GoTrue 가 **merge** 하므로 {} 는 아무것도 지우지
+        // 않는다(로컬 실측 2026-08-23 — 이름이 그대로 남았다). 현재 키를 읽어
+        // 전부 null 로 덮어야 실제로 파기된다(merge 에서 null 은 키 삭제).
+        const { data: currentUser } =
+          await supabaseAdmin.auth.admin.getUserById(userId);
+        const clearedMetadata = Object.fromEntries(
+          Object.keys(currentUser?.user?.user_metadata ?? {}).map((key) => [
+            key,
+            null,
+          ]),
+        );
+        const { error: banError } =
+          await supabaseAdmin.auth.admin.updateUserById(userId, {
+            ban_duration: PERMANENT_BAN_DURATION,
+            email: buildAnonymizedEmail(userId),
+            user_metadata: clearedMetadata,
+          });
+        if (banError) {
+          console.error(
+            "[delete-account] auth.admin.updateUserById(ban) 실패(데이터는 이미 익명화됨, 재시도 가능):",
+            banError,
+          );
+          return void res.status(500).json({
+            ok: false,
+            reason: "unknown",
+            detail: "탈퇴 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
+          });
+        }
+      }
+
+      return void res.status(200).json({ ok: true, mode });
+    } catch (error) {
+      console.error("[delete-account] 오류:", error);
+      return void res.status(500).json({
         ok: false,
         reason: "unknown",
         detail: "탈퇴 처리 중 오류가 발생했습니다.",
       });
     }
-
-    if (mode === "deleted") {
-      const { error: authDeleteError } =
-        await supabaseAdmin.auth.admin.deleteUser(userId);
-      if (authDeleteError) {
-        console.error(
-          "[delete-account] auth.admin.deleteUser 실패(데이터는 이미 삭제됨, 재시도 가능):",
-          authDeleteError,
-        );
-        return res.status(500).json({
-          ok: false,
-          reason: "unknown",
-          detail: "탈퇴 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
-        });
-      }
-    } else {
-      // anonymized — orders/refund_requests 등 보존 대상이 있어 계정을 물리
-      // 삭제할 수 없다. 로그인을 영구 차단하고, auth.users 에 남는 개인
-      // 식별자(email·metadata의 이름 등)도 함께 파기한다(실동작 QA
-      // 2026-08-23 발견 — profiles 만 비우면 auth 쪽에 이메일이 잔존하고,
-      // 그 이메일로는 재가입이 영구히 막혀 완전삭제 경로와 비대칭이었다).
-      // 거래 기록의 당사자 식별은 법령 보관 대상인 orders.customer_email 이
-      // 담당하므로 auth 쪽은 지워도 된다. 대체 주소는 예약 TLD(.invalid)라
-      // 실제 수신자와 충돌하지 않고, uuid 를 붙여 계정끼리도 충돌하지 않는다.
-      //
-      // user_metadata 는 GoTrue 가 **merge** 하므로 {} 는 아무것도 지우지
-      // 않는다(로컬 실측 2026-08-23 — 이름이 그대로 남았다). 현재 키를 읽어
-      // 전부 null 로 덮어야 실제로 파기된다(merge 에서 null 은 키 삭제).
-      const { data: currentUser } =
-        await supabaseAdmin.auth.admin.getUserById(userId);
-      const clearedMetadata = Object.fromEntries(
-        Object.keys(currentUser?.user?.user_metadata ?? {}).map((key) => [
-          key,
-          null,
-        ]),
-      );
-      const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(
-        userId,
-        {
-          ban_duration: PERMANENT_BAN_DURATION,
-          email: buildAnonymizedEmail(userId),
-          user_metadata: clearedMetadata,
-        },
-      );
-      if (banError) {
-        console.error(
-          "[delete-account] auth.admin.updateUserById(ban) 실패(데이터는 이미 익명화됨, 재시도 가능):",
-          banError,
-        );
-        return res.status(500).json({
-          ok: false,
-          reason: "unknown",
-          detail: "탈퇴 처리 중 오류가 발생했습니다. 다시 시도해 주세요.",
-        });
-      }
-    }
-
-    return res.status(200).json({ ok: true, mode });
-  } catch (error) {
-    console.error("[delete-account] 오류:", error);
-    return res.status(500).json({
-      ok: false,
-      reason: "unknown",
-      detail: "탈퇴 처리 중 오류가 발생했습니다.",
-    });
-  }
-}
+  },
+});

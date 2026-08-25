@@ -7,7 +7,7 @@
 // 무차별 대입 방어는 해시가 아니라 시도 횟수가 담당한다. 6자리 숫자는 경우의
 // 수가 100만뿐이라 해시를 어떻게 걸든 시도를 막지 않으면 뚫린다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { defineHandler } from "./_lib/handler.js";
 import {
   hashCode,
   isValidMobile,
@@ -15,114 +15,116 @@ import {
   normalizePhone,
   safeCompareHash,
 } from "./_lib/phoneCode.js";
-import { createSupabaseAdmin } from "./_lib/supabaseAdmin.js";
 
 export const config = { runtime: "nodejs" };
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, detail: "Method not allowed" });
-  }
+export default defineHandler({
+  methods: ["POST"],
+  auth: "none",
+  errorShape: "okDetail",
+  unhandledMessage: "인증번호 확인 중 오류가 발생했습니다.",
+  logLabel: "verify-phone-code",
+  handler: async (req, res, ctx) => {
+    const phone = normalizePhone(req.body?.phone);
+    const code = String(req.body?.code || "").trim();
 
-  const phone = normalizePhone(req.body?.phone);
-  const code = String(req.body?.code || "").trim();
-
-  if (!isValidMobile(phone)) {
-    return res.status(400).json({
-      ok: false,
-      reason: "invalid_phone",
-      detail: "휴대폰 번호 형식이 올바르지 않습니다.",
-    });
-  }
-
-  if (!/^[0-9]{6}$/.test(code)) {
-    return res.status(400).json({
-      ok: false,
-      reason: "invalid_code_format",
-      detail: "인증번호 6자리를 입력해 주세요.",
-    });
-  }
-
-  try {
-    const supabase = createSupabaseAdmin();
-
-    // 아직 사용되지 않은 가장 최근 발송 건만 대상으로 한다.
-    // 재발송했다면 이전 코드는 자동으로 무효가 된다.
-    const { data: row, error: selectError } = await supabase
-      .from("phone_verifications")
-      .select(
-        "id, code_hash, attempt_count, expires_at, verified_at, consumed_at",
-      )
-      .eq("phone", phone)
-      .is("consumed_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (selectError) throw selectError;
-
-    if (!row) {
-      return res.status(400).json({
+    if (!isValidMobile(phone)) {
+      return void res.status(400).json({
         ok: false,
-        reason: "code_not_found",
-        detail: "인증번호를 먼저 요청해 주세요.",
+        reason: "invalid_phone",
+        detail: "휴대폰 번호 형식이 올바르지 않습니다.",
       });
     }
 
-    if (new Date(row.expires_at).getTime() < Date.now()) {
-      return res.status(400).json({
+    if (!/^[0-9]{6}$/.test(code)) {
+      return void res.status(400).json({
         ok: false,
-        reason: "code_expired",
-        detail: "인증번호가 만료되었습니다. 다시 요청해 주세요.",
+        reason: "invalid_code_format",
+        detail: "인증번호 6자리를 입력해 주세요.",
       });
     }
 
-    if (row.attempt_count >= MAX_VERIFY_ATTEMPTS) {
-      return res.status(429).json({
+    try {
+      const supabase = ctx.supabaseAdmin;
+
+      // 아직 사용되지 않은 가장 최근 발송 건만 대상으로 한다.
+      // 재발송했다면 이전 코드는 자동으로 무효가 된다.
+      const { data: row, error: selectError } = await supabase
+        .from("phone_verifications")
+        .select(
+          "id, code_hash, attempt_count, expires_at, verified_at, consumed_at",
+        )
+        .eq("phone", phone)
+        .is("consumed_at", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (selectError) throw selectError;
+
+      if (!row) {
+        return void res.status(400).json({
+          ok: false,
+          reason: "code_not_found",
+          detail: "인증번호를 먼저 요청해 주세요.",
+        });
+      }
+
+      if (new Date(row.expires_at).getTime() < Date.now()) {
+        return void res.status(400).json({
+          ok: false,
+          reason: "code_expired",
+          detail: "인증번호가 만료되었습니다. 다시 요청해 주세요.",
+        });
+      }
+
+      if (row.attempt_count >= MAX_VERIFY_ATTEMPTS) {
+        return void res.status(429).json({
+          ok: false,
+          reason: "too_many_attempts",
+          detail: "시도 횟수를 초과했습니다. 인증번호를 다시 요청해 주세요.",
+        });
+      }
+
+      // 비교 전에 시도 횟수를 먼저 올린다. 나중에 올리면 요청을 중단하는 방식으로
+      // 카운트를 회피하면서 무제한으로 대입할 수 있다.
+      const { error: bumpError } = await supabase
+        .from("phone_verifications")
+        .update({ attempt_count: row.attempt_count + 1 })
+        .eq("id", row.id);
+
+      if (bumpError) throw bumpError;
+
+      if (!safeCompareHash(row.code_hash, hashCode(phone, code))) {
+        return void res.status(400).json({
+          ok: false,
+          reason: "code_mismatch",
+          remaining_attempts: Math.max(
+            0,
+            MAX_VERIFY_ATTEMPTS - (row.attempt_count + 1),
+          ),
+          detail: "인증번호가 일치하지 않습니다.",
+        });
+      }
+
+      // verified_at만 찍는다. consumed_at은 실제 가입 완료 시점에 찍어야
+      // "인증은 했지만 가입은 안 한" 상태를 구분할 수 있다.
+      const { error: updateError } = await supabase
+        .from("phone_verifications")
+        .update({ verified_at: new Date().toISOString() })
+        .eq("id", row.id);
+
+      if (updateError) throw updateError;
+
+      return void res.status(200).json({ ok: true, verified: true });
+    } catch (error) {
+      console.error("[verify-phone-code] 오류:", error);
+
+      return void res.status(500).json({
         ok: false,
-        reason: "too_many_attempts",
-        detail: "시도 횟수를 초과했습니다. 인증번호를 다시 요청해 주세요.",
+        reason: "unknown",
+        detail: "인증번호 확인 중 오류가 발생했습니다.",
       });
     }
-
-    // 비교 전에 시도 횟수를 먼저 올린다. 나중에 올리면 요청을 중단하는 방식으로
-    // 카운트를 회피하면서 무제한으로 대입할 수 있다.
-    const { error: bumpError } = await supabase
-      .from("phone_verifications")
-      .update({ attempt_count: row.attempt_count + 1 })
-      .eq("id", row.id);
-
-    if (bumpError) throw bumpError;
-
-    if (!safeCompareHash(row.code_hash, hashCode(phone, code))) {
-      return res.status(400).json({
-        ok: false,
-        reason: "code_mismatch",
-        remaining_attempts: Math.max(
-          0,
-          MAX_VERIFY_ATTEMPTS - (row.attempt_count + 1),
-        ),
-        detail: "인증번호가 일치하지 않습니다.",
-      });
-    }
-
-    // verified_at만 찍는다. consumed_at은 실제 가입 완료 시점에 찍어야
-    // "인증은 했지만 가입은 안 한" 상태를 구분할 수 있다.
-    const { error: updateError } = await supabase
-      .from("phone_verifications")
-      .update({ verified_at: new Date().toISOString() })
-      .eq("id", row.id);
-
-    if (updateError) throw updateError;
-
-    return res.status(200).json({ ok: true, verified: true });
-  } catch (error) {
-    console.error("[verify-phone-code] 오류:", error);
-
-    return res.status(500).json({
-      ok: false,
-      reason: "unknown",
-      detail: "인증번호 확인 중 오류가 발생했습니다.",
-    });
-  }
-}
+  },
+});

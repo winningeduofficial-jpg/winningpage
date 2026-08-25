@@ -26,15 +26,14 @@
 //   405 { detail }        POST 아님.
 //   500 { detail }        임베딩 실패, 서버 설정 누락 등.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { resolveAdmin } from "../_lib/adminAuth.js";
+import { defineHandler } from "../_lib/handler.js";
 import {
   buildKnowledgeSearchText,
   embedText,
   getEmbeddingDimension,
   getEmbeddingModel,
 } from "../_lib/performance/embeddings.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const KNOWLEDGE_TABLE = "winning_assessment_knowledge_items";
 
@@ -322,63 +321,52 @@ async function backfill(
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ detail: "Method not allowed" });
-  }
+export default defineHandler({
+  methods: ["POST"],
+  auth: "admin",
+  errorShape: "detail",
+  unhandledMessage: "임베딩 처리 중 오류가 발생했습니다.",
+  logLabel: "admin-embed",
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const { action = "embed-one", id, limit, force = false } = req.body || {};
+    const forceFlag = force === true || force === "true";
 
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
+    try {
+      if (action === "embed-one") {
+        if (!id) {
+          res.status(400).json({ detail: "id가 필요합니다." });
+          return;
+        }
 
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("admin-embed 설정 오류:", error);
-    return res.status(500).json({ detail: "서버 설정이 올바르지 않습니다." });
-  }
-
-  const auth = await resolveAdmin(
-    supabaseAdmin,
-    req as { headers: Record<string, string> },
-  );
-
-  if (auth.ok === false) {
-    return res.status(auth.status).json({ detail: auth.detail });
-  }
-
-  const { action = "embed-one", id, limit, force = false } = req.body || {};
-  const forceFlag = force === true || force === "true";
-
-  try {
-    if (action === "embed-one") {
-      if (!id) {
-        return res.status(400).json({ detail: "id가 필요합니다." });
+        const result = await embedOne(supabaseAdmin, id, { force: forceFlag });
+        res.status(200).json({ action, ...result });
+        return;
       }
 
-      const result = await embedOne(supabaseAdmin, id, { force: forceFlag });
-      return res.status(200).json({ action, ...result });
-    }
+      if (action === "backfill") {
+        const result = await backfill(supabaseAdmin, {
+          limit: clampLimit(limit ?? DEFAULT_BACKFILL_LIMIT),
+          force: forceFlag,
+        });
 
-    if (action === "backfill") {
-      const result = await backfill(supabaseAdmin, {
-        limit: clampLimit(limit ?? DEFAULT_BACKFILL_LIMIT),
-        force: forceFlag,
+        res.status(200).json({
+          action,
+          embedding_dimension: getEmbeddingDimension(),
+          ...result,
+        });
+        return;
+      }
+
+      res.status(400).json({
+        detail: "알 수 없는 action입니다. 'embed-one' 또는 'backfill'.",
       });
-
-      return res.status(200).json({
-        action,
-        embedding_dimension: getEmbeddingDimension(),
-        ...result,
-      });
+    } catch (error) {
+      console.error("admin-embed error:", error);
+      res.status(500).json({ detail: errorMessage(error) });
     }
-
-    return res.status(400).json({
-      detail: "알 수 없는 action입니다. 'embed-one' 또는 'backfill'.",
-    });
-  } catch (error) {
-    console.error("admin-embed error:", error);
-    return res.status(500).json({ detail: errorMessage(error) });
-  }
-}
+  },
+});
 
 // Gemini 호출이 붙어 있어 기본 10초로는 백필이 잘린다(1건당 수백ms~수초 ×
 // 최대 50건). maxDuration은 Vercel Hobby 상한이 60초다 — 그 이상이 필요하면

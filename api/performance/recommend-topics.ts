@@ -55,7 +55,9 @@
 //    회차를 태우는 프롬프트를 클라이언트가 조작할 수 있었다. 여기서 바디로 받는 것은
 //    `sessionId`와 `round`뿐이고 나머지는 전부 세션 행에서 읽는다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
@@ -80,12 +82,10 @@ import {
 } from "../_lib/performance/prompts.js";
 import {
   findProgramAccessRow,
-  getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -198,7 +198,7 @@ function fail(
   message: string,
   extra?: Record<string, unknown>,
 ) {
-  return res.status(status).json({ error: { code, message }, ...extra });
+  sendError(res, "coded", status, message, code, extra);
 }
 
 /**
@@ -324,34 +324,19 @@ function toClientTopic(row: TopicRow) {
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
-  }
-
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/recommend-topics 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
+export default defineHandler({
+  methods: ["POST"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "POST만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "주제 추천에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/recommend-topics",
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = requireUserId(ctx);
 
     // ── 이용권 재판정(§8.6 공통 규약). 클라이언트 가드 통과 여부를 신뢰하지 않는다.
     //    회차 **잔여**는 여기서 보지 않는다 — 잔여 판정과 차감은 RPC가 한 트랜잭션에서
@@ -510,7 +495,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       }
 
-      return res.status(200).json({
+      res.status(200).json({
         round: requestedRound,
         topics: replay,
         quotaRemaining: quota.quotaRemaining,
@@ -518,6 +503,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         reused: true,
         maxRounds: MAX_ROUNDS,
       });
+      return;
     }
 
     if (requestedRound !== null && requestedRound !== nextRound) {
@@ -1017,7 +1003,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       round: nextRound,
       topics: (insertedRows || [])
         .sort((a, b) => a.idx - b.idx)
@@ -1037,12 +1023,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ),
       },
     });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/recommend-topics error:", error);
-    return fail(res, 500, "INTERNAL", "주제 추천에 실패했습니다.");
-  }
-}
+  },
+});
 
 // ── 실행 시간 (형제 라우트와 동일)
 //    `MODEL_TIMEOUT_MS`(50초)는 **`maxDuration: 60`을 전제로 잡은 총 예산**이다. 이 선언이
