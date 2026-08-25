@@ -1,4 +1,4 @@
-// 가입 화면 3종(StudentForm / UnifiedSignupForm / Under14Form)이 공유하는
+// 가입 화면 3종(StudentForm / Under14Form / parent/ParentForm)이 공유하는
 // 이메일 인증 시퀀스.
 //
 // 왜 공용으로 뽑았나
@@ -172,7 +172,7 @@ export async function sendSignupEmailCode({
   // 이 함수 안에서 무엇이 던져지든(네트워크 예외, 예상 밖의 비-Error 값 등) 호출부에는
   // 항상 message가 채워진 Error만 넘긴다 — QA 2026-08-21 "이메일 인증번호 보내기"가
   // 붉은 "{}"만 남기던 버그 대응. 호출부 네 화면(StudentForm/ParentForm/Under14Form/
-  // UnifiedSignupForm)이 error.message를 그대로 읽으므로, 정규화를 여기 한 곳에 두면
+  // ParentForm)이 error.message를 그대로 읽으므로, 정규화를 여기 한 곳에 두면
   // 화면마다 다시 방어할 필요가 없다.
   try {
     const { state, error: stateError } = await checkEmailSignupState(email);

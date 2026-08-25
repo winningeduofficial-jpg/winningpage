@@ -19,13 +19,6 @@ import StudentComplete from "@/pages/signup/StudentComplete";
 import StudentForm from "@/pages/signup/StudentForm";
 import Under14Form from "@/pages/signup/Under14Form";
 import Under14Verify from "@/pages/signup/Under14Verify";
-import UnifiedSignupForm from "@/pages/signup/UnifiedSignupForm";
-
-// 신규 노드 2516-1974('통합 가입 폼', docs/impl-status-recheck.md §4) — 시안 미확정(손그림
-// 낙서) 임시 라우트라 플래그가 켜져 있을 때만 등록한다. 꺼져 있으면 라우트 자체가 없으므로
-// 직접 URL 진입도 자연히 막힌다(UnifiedSignupForm.jsx 내부의 이중 방어 useEffect와 함께).
-const UNIFIED_SIGNUP_ENABLED =
-  import.meta.env.VITE_UNIFIED_SIGNUP_ENABLED === "true";
 
 // /signup 하위 라우트 전용 컨텍스트 경계 — 유형 선택부터 완료/온보딩까지 단계 간 데이터
 // (memberType/birthDate/폼데이터/인증 상태)를 SignupProvider(§5.3)로 공유한다.
@@ -58,9 +51,10 @@ const authRoutes: RouteObject[] = [
         Component: Under14Verify,
       },
       { path: "/signup/student/under14", Component: Under14Form },
-      ...(UNIFIED_SIGNUP_ENABLED
-        ? [{ path: "/signup/unified", Component: UnifiedSignupForm }]
-        : []),
+      // 통합 가입 폼(/signup/unified, VITE_UNIFIED_SIGNUP_ENABLED)은 2026-08-25 폐기 —
+      // 시안 미확정 임시 라우트였고, 정식 폼 3종(학생/14세 미만/학부모)이 가입 필수 항목
+      // (생년월일·성별)을 받도록 확장되면서 레거시 폼은 필수값을 보내지 못해 가입 자체가
+      // 불가능한 죽은 코드가 됐다.
       { path: "/signup/student/complete", Component: StudentComplete },
       { path: "/signup/parent", Component: ParentForm },
       { path: "/signup/parent/link", Component: LinkChoice },
