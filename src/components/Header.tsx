@@ -1,8 +1,9 @@
-import type { Session, User } from "@supabase/supabase-js";
+import type { User } from "@supabase/supabase-js";
 import { ChevronDown, Menu, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import megaPromoDiagnosisImg from "@/assets/mega/promo-diagnosis.png";
+import { useAuth } from "@/context/AuthProvider";
 import {
   MEGA_COL_GAP,
   MEGA_COL_W,
@@ -270,11 +271,13 @@ const CSAT_DDAY_REFRESH_MS = 60 * 60 * 1000;
 const LOGOUT_FALLBACK_TIMEOUT_MS = 1800;
 
 export default function Header() {
-  const [session, setSession] = useState<Session | null>(null);
+  // 세션 구독 자체는 AuthProvider(전역 단일 구독, src/context/AuthProvider.tsx)에
+  // 위임한다(명세서 B-3) — 이 컴포넌트는 세션이 확정된 뒤 프로필(profiles 테이블)만
+  // 별도로 조회한다.
+  const { session, user, isReady: isAuthReady } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(() =>
     readCachedProfile(),
   );
-  const [isAuthReady, setIsAuthReady] = useState(false);
   const [csatDDay, setCsatDDay] = useState(getCsatDay());
   const [activeMega, setActiveMega] = useState<string | null>(null);
   // 메가 패널 애니메이션 상태(open/closed 3-phase state machine, 사용자 확정 스펙).
@@ -413,70 +416,39 @@ export default function Header() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // 세션이 아니라 프로필(profiles 테이블)만 조회한다 — 세션 확정은 AuthProvider가
+  // 이미 끝냈으므로(위 useAuth()), user가 바뀔 때만 프로필을 다시 가져오면 된다.
+  // "winning-profile-updated" 커스텀 이벤트(마이페이지 등에서 이름 변경 후 발행)도
+  // 같은 재조회 트리거로 남겨둔다.
   useEffect(() => {
     let alive = true;
     let seq = 0;
 
-    async function syncSession(nextSession?: Session | null) {
+    async function syncProfile() {
       const currentSeq = ++seq;
 
+      if (!user) {
+        setProfile(null);
+        writeCachedProfile(null);
+        return;
+      }
+
       try {
-        const sessionResult =
-          nextSession !== undefined
-            ? nextSession
-            : await withTimeout(supabase.auth.getSession(), 1200, {
-                data: { session: null },
-              } as Awaited<ReturnType<typeof supabase.auth.getSession>>);
-
-        if (!alive || currentSeq !== seq) return;
-
-        const currentSession: Session | null =
-          nextSession !== undefined
-            ? (sessionResult as Session | null)
-            : (
-                sessionResult as Awaited<
-                  ReturnType<typeof supabase.auth.getSession>
-                >
-              )?.data?.session || null;
-
-        if (!currentSession?.user) {
-          setSession(null);
-          setProfile(null);
-          writeCachedProfile(null);
-          setIsAuthReady(true);
-          return;
-        }
-
         const cachedProfile = readCachedProfile();
         let nextProfile: Profile | null = null;
 
-        if (isSameUserProfile(cachedProfile, currentSession.user)) {
+        if (isSameUserProfile(cachedProfile, user)) {
           nextProfile = cachedProfile;
         }
 
-        const fetchedProfile = await withTimeout(
-          fetchProfile(currentSession.user),
-          1800,
-          null,
-        );
+        const fetchedProfile = await withTimeout(fetchProfile(user), 1800, null);
 
         if (!alive || currentSeq !== seq) return;
 
-        if (
-          fetchedProfile &&
-          isSameUserProfile(fetchedProfile, currentSession.user)
-        ) {
+        if (fetchedProfile && isSameUserProfile(fetchedProfile, user)) {
           nextProfile = fetchedProfile;
           writeCachedProfile(fetchedProfile);
         }
-
-        setSession((prev) => {
-          if (prev?.user?.id === currentSession?.user?.id) {
-            return prev;
-          }
-
-          return currentSession;
-        });
 
         setProfile((prev) => {
           if (isSameObject(prev, nextProfile)) {
@@ -485,32 +457,22 @@ export default function Header() {
 
           return nextProfile;
         });
-
-        setIsAuthReady(true);
       } catch (error) {
-        console.error("헤더 세션 동기화 오류:", error);
+        console.error("헤더 프로필 동기화 오류:", error);
 
         if (!alive || currentSeq !== seq) return;
 
-        setSession(null);
         setProfile(null);
-        setIsAuthReady(true);
       }
     }
 
-    syncSession();
+    syncProfile();
 
     const handleProfileUpdated = () => {
-      syncSession();
+      syncProfile();
     };
 
     window.addEventListener("winning-profile-updated", handleProfileUpdated);
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
-        syncSession(nextSession || null);
-      },
-    );
 
     return () => {
       alive = false;
@@ -518,9 +480,8 @@ export default function Header() {
         "winning-profile-updated",
         handleProfileUpdated,
       );
-      authListener?.subscription?.unsubscribe?.();
     };
-  }, []);
+  }, [user]);
 
   function clearSupabaseAuthStorage() {
     try {
@@ -564,7 +525,8 @@ export default function Header() {
   }
 
   async function handleLogout() {
-    setSession(null);
+    // 세션 자체는 AuthProvider가 SIGNED_OUT 이벤트로 곧 null로 갱신하지만(비동기),
+    // 프로필은 이 컴포넌트가 로컬로 들고 있으므로 여기서 즉시 비운다.
     setProfile(null);
     writeCachedProfile(null);
     clearSupabaseAuthStorage();

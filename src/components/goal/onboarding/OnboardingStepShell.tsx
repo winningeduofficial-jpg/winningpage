@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthProvider";
 import OnboardingProgress from "./OnboardingProgress";
 
 type OnboardingUser = {
@@ -41,21 +40,11 @@ export default function OnboardingStepShell({
 }: OnboardingStepShellProps) {
   // 이 라우트는 RequireGoalAccess가 로그인 세션을 이미 검증한 뒤에만 마운트되므로 세션 부재
   // 자체는 여기서 다시 방어하지 않는다 — 그래도 이름을 못 읽는 경우(메타데이터 미기재 등)를
-  // 대비해 userName은 빈 문자열로 시작하고, 비어 있으면 기존 "학생님" 문구로 폴백한다.
-  const [userName, setUserName] = useState("");
-
-  useEffect(() => {
-    let alive = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!alive) return;
-      setUserName(getUserDisplayName(data?.session?.user));
-    });
-
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // 대비해 userName은 빈 문자열이면 기존 "학생님" 문구로 폴백한다.
+  // 세션은 AuthProvider(전역 단일 구독)에서 읽는다 — 이 컴포넌트가 따로 getSession()을
+  // 부르지 않는다(명세 B-3 §4).
+  const { user } = useAuth();
+  const userName = getUserDisplayName(user);
 
   // 페이지 배경(surface-04)은 부모(Onboarding.jsx의 전체 폭 루트 div)가 담당한다 — 이 div는
   // 콘텐츠 폭 제한(max-w-68.75rem) 전용이라 여기 배경을 주면 회색 패널이 페이지 위에 떠 보인다.

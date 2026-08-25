@@ -11,6 +11,7 @@ import {
 import ReceiptModal from "@/components/mypage/ReceiptModal";
 import RefundNoticeModal from "@/components/mypage/RefundNoticeModal";
 import RefundRequestModal from "@/components/mypage/RefundRequestModal";
+import { useAuth } from "@/context/AuthProvider";
 import { formatKRW } from "@/data/pricingCatalog";
 import type {
   CardInfo,
@@ -126,12 +127,13 @@ export default function ParentPaymentsTab({
     null,
   );
 
+  // 세션은 AuthProvider(전역 단일 구독)에서 읽는다(명세 B-3 §4).
+  const { userId: uid } = useAuth();
+
   // 결제 대기 주문은 상위(MyPage)가 내려주는 orders 에도 포함되어 있지만
   // (학생 화면이 필요로 함), 이 섹션은 여기서 직접 최신 상태로 다시 읽는다.
   // historyOrders(아래)는 이 pending 주문과 안 겹치도록 필터링한다.
   const reloadPending = useCallback(async () => {
-    const { data: session } = await supabase.auth.getSession();
-    const uid = session?.session?.user?.id;
     if (!uid) return;
 
     const [pend, children] = await Promise.all([
@@ -156,7 +158,7 @@ export default function ParentPaymentsTab({
         map[child.student_profile_id] = child.student_name;
       setNameById(map);
     }
-  }, []);
+  }, [uid]);
 
   useEffect(() => {
     reloadPending();

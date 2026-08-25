@@ -8,6 +8,7 @@ import ReportScreenExtras, {
   hasReportExtras,
 } from "@/components/renewal/report/ReportScreenExtras";
 import ReportSincerityBanner from "@/components/renewal/report/ReportSincerityBanner";
+import { useAuth } from "@/context/AuthProvider";
 // 저장 키·스키마 검증은 storage 모듈이 소유한다 — 저장 주체(설문 CTA)와 읽기 주체(이 페이지)가
 // 다른 파일이라 리터럴을 양쪽에 두면 조용히 갈라진다.
 import { loadDiagnosisInput } from "@/lib/diagnosisInputStorage";
@@ -70,15 +71,14 @@ export default function FreeDiagnosisReport() {
   // 상시 null이다. 이 페이지 진입은 이제 로그인 필수(비회원 가드, diagnosisRoutes.tsx)라
   // profiles.name으로 대신 채운다 — PaymentsTab.tsx와 동일한 조회 패턴.
   const [studentName, setStudentName] = useState("");
+  // 세션은 AuthProvider(전역 단일 구독)에서 읽는다(명세 B-3 §4).
+  const { userId: uid } = useAuth();
 
   useEffect(() => {
     let alive = true;
+    if (!uid) return undefined;
 
     (async () => {
-      const { data: session } = await supabase.auth.getSession();
-      const uid = session?.session?.user?.id;
-      if (!uid) return;
-
       const { data: profile } = await supabase
         .from("profiles")
         .select("name")
@@ -92,7 +92,7 @@ export default function FreeDiagnosisReport() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [uid]);
 
   const data = useMemo(() => {
     const input = loadDiagnosisInput(location.state);

@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import GoalCard from "@/components/goal/GoalCard";
 import GoalPageHeader from "@/components/goal/GoalPageHeader";
 import GapToTargetCard from "@/components/goal/study/GapToTargetCard";
 import TargetUniversityCard from "@/components/goal/study/TargetUniversityCard";
 import { buildGapRows } from "@/lib/goal/gapToTarget";
 import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
-import { fetchGoalStudent, type GoalStudentPayload } from "@/lib/goalApi";
+import type { GoalStudentPayload } from "@/lib/goalApi";
+import { goalStudentQueryOptions } from "@/lib/queryClient";
 
 // 내 목표 대학(#24) — 이상/최소 목표 대학 2카드(680×348) + "목표까지 남은 격차" 3행.
 // 대시보드 우측 레일과 같은 mapTargetUniversities()(src/lib/goal/targetUniversities.ts)로
@@ -30,19 +31,16 @@ type GoalStudentResult =
     };
 
 export default function TargetUniversity() {
-  // null = 로딩 중. RequireGoalAccess가 이미 onboarded:true만 통과시키므로 정상 경로에선
-  // result.kind는 항상 'onboarded'다 — 그 외 kind는 Dashboard.jsx와 동일하게 방어적 분기다.
-  const [result, setResult] = useState<GoalStudentResult | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    fetchGoalStudent().then((r) => {
-      if (alive) setResult(r as GoalStudentResult);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // ['goal','student'] 쿼리 캐시(src/lib/queryClient.ts)를 그대로 구독한다 — goal
+  // 진입 시 미들웨어·Dashboard.tsx가 이미 채워둔 응답을 재사용해 이 페이지 전용
+  // 재요청을 없앤다(명세 B-3 §5). RequireGoalAccess가 이미 onboarded:true만
+  // 통과시키므로 정상 경로에선 kind는 항상 'onboarded'다 — 그 외 kind는
+  // Dashboard.jsx와 동일하게 방어적 분기다. isPending 동안은 로딩 중과 동일하게
+  // result === null로 취급한다.
+  const goalStudentQuery = useQuery(goalStudentQueryOptions());
+  const result = goalStudentQuery.isPending
+    ? null
+    : ((goalStudentQuery.data as GoalStudentResult | undefined) ?? null);
 
   if (result === null || result.kind !== "onboarded") {
     const message =

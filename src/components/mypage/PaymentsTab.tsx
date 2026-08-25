@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthProvider";
 import { formatKRW } from "@/data/pricingCatalog";
 import { supabase } from "@/lib/supabase";
 import PaymentStatusBadge from "./PaymentStatusBadge";
@@ -106,18 +107,18 @@ export default function PaymentsTab({
     Record<string, boolean>
   >({});
 
+  // 세션은 AuthProvider(전역 단일 구독)에서 읽는다(명세 B-3 §4).
+  const { userId: uid } = useAuth();
+
   // 신청 상세 모달이 "신청자 / 결제담당"을 보여주려면 두 이름이 필요하다.
   // 본인 이름은 profiles 에서 바로 읽지만, 학부모 이름은 못 읽는다 —
   // profiles_select_own 이 본인 행만 열어 주기 때문이다. 그래서 학부모는
   // fn_student_parent(sql/77)로 받는다(fn_parent_children 의 반대 방향).
   useEffect(() => {
     let alive = true;
+    if (!uid) return undefined;
 
     (async () => {
-      const { data: session } = await supabase.auth.getSession();
-      const uid = session?.session?.user?.id;
-      if (!uid) return;
-
       const [me, parent] = await Promise.all([
         supabase.from("profiles").select("name").eq("id", uid).maybeSingle(),
         supabase.rpc("fn_student_parent"),
@@ -138,7 +139,7 @@ export default function PaymentsTab({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [uid]);
 
   // 이용 완료 판정 — 그 주문의 살아있는 부여가 하나도 남지 않았으면 완료다.
   //   기간권: expires_at 이 지났으면 만료(배타 상한 — sql/64).
@@ -148,12 +149,9 @@ export default function PaymentsTab({
   // 근거 없이 '이용 완료'라고 하면 멀쩡한 이용권을 끝난 것처럼 보이게 한다.
   useEffect(() => {
     let alive = true;
+    if (!uid) return undefined;
 
     (async () => {
-      const { data: session } = await supabase.auth.getSession();
-      const uid = session?.session?.user?.id;
-      if (!uid) return;
-
       const [grants, ledger] = await Promise.all([
         supabase
           .from("program_access_grants")
@@ -202,7 +200,7 @@ export default function PaymentsTab({
     return () => {
       alive = false;
     };
-  }, []);
+  }, [uid]);
 
   const detailStatus = detailOrder
     ? resolveStudentStatus(detailOrder, refunds, finishedByOrder)

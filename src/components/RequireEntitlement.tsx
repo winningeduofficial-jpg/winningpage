@@ -1,8 +1,8 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { type Location, Navigate, Outlet, useLocation } from "react-router";
+import { useAuth } from "@/context/AuthProvider";
 import { useSessionOptional } from "@/context/SessionContext";
 import { entitlementQueryOptions, queryClient } from "@/lib/queryClient";
-import { supabase } from "@/lib/supabase";
 import PerformanceSkeleton from "./performance/PerformanceSkeleton";
 
 // 유료 서비스 진입 가드 — 명세서 §2.2의 4상태(`loading`/`guest`/`forbidden`/`ok`)
@@ -58,24 +58,29 @@ function useStandaloneEntitlement(
   disabled: boolean,
   retryToken: number,
 ): GuardState {
+  // 세션은 AuthProvider(전역 단일 구독)에서 읽는다 — 이 훅이 따로 getSession()을
+  // 부르지 않아도 된다(명세 B-3 §4, 왕복 1회 절감).
+  const { userId, isReady: isAuthReady } = useAuth();
   const [state, setState] = useState<GuardState>("loading");
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) retryToken은 effect 안에서 읽지 않는 재시도 트리거 전용 값이다.
   useEffect(() => {
     if (disabled) return undefined;
 
+    if (!isAuthReady) {
+      setState("loading");
+      return undefined;
+    }
+
+    if (!userId) {
+      setState("guest");
+      return undefined;
+    }
+
     let alive = true;
     setState("loading");
 
     (async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!alive) return;
-
-      if (!sessionData?.session?.user) {
-        setState("guest");
-        return;
-      }
-
       // queryClient(src/lib/queryClient.ts)의 ['entitlement', serviceKey] 캐시를 그대로
       // 쓴다 — goal 미들웨어(routeMiddleware.ts)·SessionContext와 같은 키를 공유해
       // 5분 내 재호출을 막는다(명세 B-2 §4·§6). "다시 시도" 버튼(retry())이
@@ -94,7 +99,7 @@ function useStandaloneEntitlement(
     return () => {
       alive = false;
     };
-  }, [serviceKey, disabled, retryToken]);
+  }, [serviceKey, disabled, retryToken, isAuthReady, userId]);
 
   return state;
 }

@@ -5,13 +5,11 @@ import {
   type ReactNode,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useState,
 } from "react";
 import { Outlet } from "react-router";
+import { useAuth } from "@/context/AuthProvider";
 import { entitlementQueryOptions } from "@/lib/queryClient";
-import { supabase } from "@/lib/supabase";
 
 // 인앱 셸 공유 세션 컨텍스트 — 명세서 §2.3.
 //
@@ -22,10 +20,9 @@ import { supabase } from "@/lib/supabase";
 // 왕복도 표면 수만큼 늘어난다. 그래서 판정을 여기 한 곳에서만 하고 나머지는
 // 읽기만 한다.
 //
-// 구독 패턴의 출처: `src/components/Header.jsx`의 세션 동기화 블록
-// (초기 `getSession()` → `onAuthStateChange` 구독 → cleanup에서
-// `subscription.unsubscribe()`)을 그대로 컨텍스트로 승격한 것이다.
-// Header는 그 결과를 컴포넌트 로컬 state에만 두고 공유하지 않는다.
+// 세션 구독 자체는 AuthProvider(src/context/AuthProvider.tsx, 전역 단일 구독)에
+// 위임한다(명세서 B-3) — 이 컨텍스트는 그 값을 읽어 entitlement 판정·guardState
+// 계산만 얹는다. Header도 동일하게 AuthProvider를 구독한다(중복 구독 제거).
 //
 // ⚠️ 적용 범위는 `/app/performance/*` 하위로 **한정**한다(§2.3).
 //    Header.jsx / LearningDiagnosis.jsx의 기존 중복 구독을 이 컨텍스트로
@@ -112,38 +109,8 @@ export function SessionProvider({
   serviceKey: string;
   children?: ReactNode;
 }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [isSessionReady, setIsSessionReady] = useState(false);
-
-  const user = session?.user || null;
-  const userId = user?.id || null;
-
-  // ── 세션 구독 (Header.jsx 패턴 승격)
-  useEffect(() => {
-    let alive = true;
-
-    supabase.auth.getSession().then(({ data }) => {
-      if (!alive) return;
-      setSession(data?.session || null);
-      setIsSessionReady(true);
-    });
-
-    // ⚠️ 콜백 안에서 supabase 비동기 API를 부르지 않는다(supabase-js가 내부
-    //    락을 잡고 있어 교착할 수 있다). 여기서는 state만 갱신하고, 이용권
-    //    조회는 아래 별도 effect가 userId 변화에 반응해 수행한다.
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
-        if (!alive) return;
-        setSession(nextSession || null);
-        setIsSessionReady(true);
-      },
-    );
-
-    return () => {
-      alive = false;
-      authListener?.subscription?.unsubscribe?.();
-    };
-  }, []);
+  // ── 세션은 AuthProvider(전역 단일 구독)에서 읽기만 한다.
+  const { session, user, userId, isReady: isSessionReady } = useAuth();
 
   // ── 이용권·회차 조회. queryClient(src/lib/queryClient.ts)의 ['entitlement', serviceKey]
   // 캐시를 그대로 구독한다 — RequireEntitlement의 standalone 조회, goal 미들웨어와
