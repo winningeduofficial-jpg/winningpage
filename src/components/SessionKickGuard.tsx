@@ -147,10 +147,17 @@ export default function SessionKickGuard() {
   // 버튼(onConfirm 생략 시 onClose와 동일 동작)·ESC/오버레이 닫기는 Base UI
   // Dialog가 내장 제공한다(role="dialog"도 자동 배선). 문구는 사용자 확정
   // 카피 — 변경 금지.
+  //
+  // elevated: 킥은 무조건 메인("/")으로 보내는데, 홈 프로모션 팝업
+  // (Home.tsx의 HomePopupLayer, z-9999)이 떠 있으면 ConfirmModal 기본
+  // z-100(오버레이 z-50)이 그 아래 깔려 확인 버튼을 클릭할 수 없었다(E2E
+  // 실버그). 이 다이얼로그는 어떤 페이지 레이어보다도 위에 있어야 하는
+  // 전역 안내라 elevated로 z-10000까지 끌어올린다.
   return (
     <ConfirmModal
       title="다른 기기에서 로그인되었습니다"
       onClose={() => setShowKickedDialog(false)}
+      elevated
     >
       동일 계정으로 다른 기기에서 로그인되어 이 기기에서는 로그아웃되었습니다.
       본인이 아닌 경우 비밀번호를 변경해 주세요.
