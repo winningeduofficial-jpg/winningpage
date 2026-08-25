@@ -25,17 +25,25 @@ const homeRoutes: RouteObject[] = [
     HydrateFallback: AuthCheckingFallback,
   },
 
-  // 법적 문서 (카드사·PG 심사 필수)
-  { path: "/terms", Component: () => <Legal docKey="terms" /> },
-  { path: "/privacy", Component: () => <Legal docKey="privacy" /> },
-  { path: "/refund", Component: () => <Legal docKey="refund" /> },
-  {
-    path: "/payment-terms",
-    Component: () => <Legal docKey="payment-terms" />,
-  },
+  // 법적 문서 (카드사·PG 심사 필수) — 본문은 public.terms(code) 단일 원본.
+  { path: "/terms", Component: () => <Legal code="service_fulltext" /> },
+  { path: "/privacy", Component: () => <Legal code="privacy_policy" /> },
+  { path: "/refund", Component: () => <Legal code="refund_policy" /> },
+  { path: "/payment-terms", Component: () => <Legal code="payment_terms" /> },
   {
     path: "/payment-consent",
-    Component: () => <Legal docKey="payment-consent" />,
+    Component: () => <Legal code="payment_consent" />,
+  },
+  // 2026-08-24 수령 동의서 2종 — 서비스별 이용 동의서(학업·입시자료/본인인증/녹취/
+  // 학부모-학생 연동), 맞춤 추천용 추가 개인정보 수집·이용 동의서. 앱 내 진입 링크는
+  // 아직 없고(/refund 등과 같은 직접 URL 열람용) 서비스별 동의 화면은 별도 작업.
+  {
+    path: "/service-consent",
+    Component: () => <Legal code="service_consent" />,
+  },
+  {
+    path: "/privacy-additional",
+    Component: () => <Legal code="privacy_additional" />,
   },
 
   { path: "/payment/success", Component: PaymentSuccess },

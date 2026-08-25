@@ -12,8 +12,8 @@ import checkboxUnselected from "@/assets/checkout/checkbox-24.svg";
 import checkboxSelected from "@/assets/checkout/checkbox-24-selected.svg";
 import sectionArrow from "@/assets/checkout/section-arrow-38.svg";
 import ConfirmModal from "@/components/checkout/ConfirmModal";
-import { CHECKOUT_AGREEMENTS } from "@/data/legalDocs";
 import { formatKRW } from "@/data/pricingCatalog";
+import { useTermsDocs } from "@/hooks/useTermsDocs";
 import { type ServiceProduct, useProducts } from "@/lib/products";
 import { supabase } from "@/lib/supabase";
 import { ANONYMOUS, getTossPayments } from "@/lib/toss";
@@ -194,11 +194,20 @@ function mapCreateEnrollmentError(
   return GENERIC_FAIL_TEXT;
 }
 
+// 결제 화면에서 동의받는 문서 3종 — public.terms 단일 원본(fn_agree_payment_terms·
+// usePaymentAgreementHistory와 같은 code). refund_notice는 이용약관 제33조(환불 규정)
+// 사본, payment_terms·payment_consent는 한 체크박스로 묶어 이어 붙여 보여준다.
+const PAYMENT_TERM_CODES = [
+  "refund_notice",
+  "payment_terms",
+  "payment_consent",
+] as const;
+
 // 결제 약관 동의 체크박스 1행 — Figma 1882:10111 실측("[구매 전 안내사항]" /
 // "결제 서비스 이용 약관, 개인정보 처리 동의", 둘 다 필수 + 펼침 화살표 +
 // "위 내용을 모두 확인하였습니다."). 본문은 펼쳐야 보이는 아코디언 — 페이지
-// 이동(AgreementRow, 가입 화면용)이 아니라 CHECKOUT_AGREEMENTS 상수를 그
-// 자리에서 보여주는 방식으로 시안 화살표를 그대로 재현한다.
+// 이동(AgreementRow, 가입 화면용)이 아니라 DB에서 읽은 본문을 그 자리에서
+// 보여주는 방식으로 시안 화살표를 그대로 재현한다.
 function AgreementCheckRow({
   label,
   body,
@@ -325,6 +334,22 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   const [amountMismatch, setAmountMismatch] = useState(false);
 
   const [paymentAgreed, setPaymentAgreed] = usePaymentAgreementHistory();
+  // 동의 문서 본문. 로드 전/실패 시에는 체크할 수 없다 — 무엇에 동의하는지 보여주지
+  // 못한 채 동의를 받지 않는다(하드코딩 폴백 없음).
+  const {
+    docs: paymentDocs,
+    loading: paymentDocsLoading,
+    error: paymentDocsError,
+  } = useTermsDocs(PAYMENT_TERM_CODES);
+  const paymentDocsStatus =
+    paymentDocsError ?? (paymentDocsLoading ? "문서를 불러오는 중…" : null);
+  const purchaseNoticeBody =
+    paymentDocsStatus ?? paymentDocs?.refund_notice.content ?? "";
+  const paymentAgreementBody =
+    paymentDocsStatus ??
+    (paymentDocs
+      ? `[${paymentDocs.payment_terms.title}]\n${paymentDocs.payment_terms.content}\n\n[${paymentDocs.payment_consent.title}]\n${paymentDocs.payment_consent.content}`
+      : "");
   const [checkedRefund, setCheckedRefund] = useState(false);
   const [checkedPayment, setCheckedPayment] = useState(false);
   const [expandedRefund, setExpandedRefund] = useState(false);
@@ -1010,17 +1035,19 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
 
           {/* 우측: 결제수단/쿠폰/금액 — Checkout.jsx 아래쪽 aside 와 같은 골격. */}
           <aside className="mx-auto w-full max-w-142.5 space-y-10">
-            {/* 구매 전 확인사항(환불 규정) — sql/78 refund_notice. 이미 동의
+            {/* 구매 전 확인사항(환불 규정) — terms.refund_notice. 이미 동의
                 이력이 있으면(재구매 등) 섹션 자체를 감춘다. */}
             {paymentAgreed === false && (
               <div>
                 <h3 className={`mb-4 ${SECTION_HEADING}`}>구매 전 확인사항</h3>
                 <AgreementCheckRow
                   label="위 내용을 모두 확인하였습니다."
-                  body={CHECKOUT_AGREEMENTS.purchaseNotice}
+                  body={purchaseNoticeBody}
                   checked={checkedRefund}
                   expanded={expandedRefund}
-                  onToggleCheck={() => setCheckedRefund((prev) => !prev)}
+                  onToggleCheck={() =>
+                    paymentDocs && setCheckedRefund((prev) => !prev)
+                  }
                   onToggleExpand={() => setExpandedRefund((prev) => !prev)}
                 />
               </div>
@@ -1046,17 +1073,18 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
               </div>
 
               {/* 결제 서비스 이용약관 + 결제 관련 개인정보 수집·이용 동의 —
-                  sql/78 payment_terms·payment_consent, 한 체크박스로 묶어
-                  동의 처리한다(CHECKOUT_AGREEMENTS.paymentAgreement 가 이미
-                  두 문서를 이 순서로 이어붙인 텍스트다). */}
+                  terms.payment_terms·payment_consent, 한 체크박스로 묶어
+                  동의 처리한다(두 문서를 이 순서로 이어붙여 보여준다). */}
               {paymentAgreed === false && (
                 <div className="mt-4">
                   <AgreementCheckRow
                     label="결제 서비스 이용 약관, 개인정보 처리 동의"
-                    body={CHECKOUT_AGREEMENTS.paymentAgreement}
+                    body={paymentAgreementBody}
                     checked={checkedPayment}
                     expanded={expandedPayment}
-                    onToggleCheck={() => setCheckedPayment((prev) => !prev)}
+                    onToggleCheck={() =>
+                      paymentDocs && setCheckedPayment((prev) => !prev)
+                    }
                     onToggleExpand={() => setExpandedPayment((prev) => !prev)}
                   />
                 </div>
