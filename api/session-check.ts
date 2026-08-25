@@ -32,7 +32,10 @@
 // 응답의 전부이므로 resolveUser를 쓸 수 없고, getUser 호출을 직접 해서 에러
 // 객체를 들여다봐야 한다.
 
-import { isAuthApiError } from "@supabase/supabase-js";
+import {
+  isAuthApiError,
+  isAuthSessionMissingError,
+} from "@supabase/supabase-js";
 import { defineHandler } from "./_lib/handler.js";
 import { sendError } from "./_lib/httpResponse.js";
 import { getBearerToken } from "./_lib/serviceAccess.js";
@@ -41,20 +44,40 @@ export const config = { runtime: "nodejs" };
 
 export const SESSION_REVOKED_CODE = "SESSION_REVOKED";
 export const UNAUTHENTICATED_CODE = "UNAUTHENTICATED";
+// 미처리 예외(500) 전용 — 401 두 코드(위)와 섞이면 클라이언트가 "인증 실패
+// 계열"로 오분류할 수 있어 중립 코드로 분리한다.
+const UNEXPECTED_CODE = "UNEXPECTED";
 
 /**
- * auth.getUser()가 던진(정확히는 { error }로 돌려준) 에러를 킥 판정 코드로
- * 분류한다. supabase-js는 GoTrue REST가 응답한 error_code를 AuthApiError.code에
- * 그대로 실어온다 — "session_not_found"는 그 세션이 서버에서 이미 폐기됐다는
- * 뜻(예: "single session per user" 토글이 새 로그인으로 이전 세션을 지운 경우)
- * 이다. 그 문자열 하나만 SESSION_REVOKED로 승격하고, AuthApiError가 아니거나
- * 다른 code(만료·서명 불일치 등)·네트워크 예외는 전부 UNAUTHENTICATED로
- * 뭉뚱그린다 — 킥 오탐을 만들 바에야 조용한 로그아웃 쪽으로 기울인다(배정
- * 메시지의 "그 외는 현행대로 조용히" 원칙).
+ * auth.getUser(jwt)가 던진(정확히는 { error }로 돌려준) 에러를 킥 판정 코드로
+ * 분류한다.
+ *
+ * ⚠️ supabase-js(설치 버전 2.110.0 기준) auth-js의 handleError는 GoTrue REST가
+ * 응답한 error_code "session_not_found"를 가로채 AuthApiError가 아니라
+ * `AuthSessionMissingError`로 재포장해 던진다(auth-js dist/main/lib/fetch.js의
+ * handleError, `errorCode === 'session_not_found'` 분기 — code/name 모두
+ * AuthApiError와 다르고 isAuthApiError()도 false를 반환한다). 그래서
+ * `isAuthSessionMissingError(error)`를 1차 판정으로 쓴다 — 이 라우트는 항상
+ * `getUser(token)`처럼 jwt 인자를 직접 넘겨 호출하므로(토큰이 없으면 이 함수를
+ * 부르기 전에 이미 401로 반환한다), AuthSessionMissingError가 나올 수 있는
+ * 유일한 경로가 이 session_not_found 분기다 — jwt 없이 호출할 때만 타는 "세션
+ * 자체가 없음" 분기(_getUser의 `_useSession` 경로)는 여기서 아예 발생하지
+ * 않는다.
+ *
+ * `isAuthApiError(error) && error.code === "session_not_found"` 체크는 폴백으로
+ * 남겨둔다 — 위 가로채기는 auth-js 내부 구현이라 버전에 따라 없을 수 있고,
+ * 그런 버전에서는 원래 AuthApiError가 그대로 넘어온다.
+ *
+ * 이 두 갈래 중 어느 쪽에도 걸리지 않으면(만료·서명 불일치·네트워크 예외 등)
+ * 전부 UNAUTHENTICATED로 뭉뚱그린다 — 킥 오탐을 만들 바에야 조용한 로그아웃
+ * 쪽으로 기울인다(배정 메시지의 "그 외는 현행대로 조용히" 원칙).
  */
 export function classifyAuthError(
   error: unknown,
 ): typeof SESSION_REVOKED_CODE | typeof UNAUTHENTICATED_CODE {
+  if (isAuthSessionMissingError(error)) {
+    return SESSION_REVOKED_CODE;
+  }
   if (isAuthApiError(error) && error.code === "session_not_found") {
     return SESSION_REVOKED_CODE;
   }
@@ -65,13 +88,23 @@ export default defineHandler({
   methods: ["GET"],
   auth: "none",
   errorShape: "coded",
+  // 이 응답은 매 focus마다 최신 판정이어야 한다 — 프록시·브라우저 캐시가 이전
+  // 200(또는 이전 401)을 재사용하면 킥 감지가 그 캐시 수명만큼 지연된다
+  // (api/performance/evaluate.ts와 같은 관례).
+  headers: { "Cache-Control": "no-store" },
   unhandledMessage: "세션 확인 중 오류가 발생했습니다.",
-  unhandledCode: UNAUTHENTICATED_CODE,
+  unhandledCode: UNEXPECTED_CODE,
   logLabel: "session-check",
   handler: async (req, res, ctx) => {
     const token = getBearerToken(req);
     if (!token) {
-      sendError(res, "coded", 401, "로그인이 필요합니다.", UNAUTHENTICATED_CODE);
+      sendError(
+        res,
+        "coded",
+        401,
+        "로그인이 필요합니다.",
+        UNAUTHENTICATED_CODE,
+      );
       return;
     }
 

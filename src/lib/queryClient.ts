@@ -173,7 +173,10 @@ export function sessionCheckQueryOptions(userId: string | null) {
         }
         return body?.error?.code === "SESSION_REVOKED" ? "kicked" : "unknown";
       } catch (error) {
-        console.error("[session-check] 호출 오류(무시):", error);
+        // 이 실패는 "unknown"으로 조용히 삼켜지고 킥 판정에 영향을 주지
+        // 않는다(오탐 방지가 최우선) — 그 무해함을 로그 레벨에도 반영해
+        // error가 아니라 warn으로 남긴다.
+        console.warn("[session-check] 호출 오류(무시):", error);
         return "unknown";
       }
     },

@@ -27,6 +27,40 @@ import { supabase } from "@/lib/supabase";
 // 각자 감지·각자 안내).
 const KICKED_FLAG_KEY = "kicked-by-other-device";
 
+// signOut(scope:'local')은 GoTrue에 revoke 요청을 태우는 네트워크 호출이다 —
+// 서버가 응답하지 않으면 무한 대기할 수 있다(리뷰 MEDIUM). 리다이렉트를
+// `.finally()`에 의존시키면 그 hang 동안 킥당한 화면에 계속 머무르게 되므로,
+// 이 타이머와 race시켜 어느 쪽이 먼저 끝나든 반드시 진행한다.
+const SIGN_OUT_TIMEOUT_MS = 2000;
+
+/** sessionStorage 접근 3종(읽기/쓰기/삭제) — 시크릿 모드 등에서 접근 자체가
+ * 던질 수 있어 전부 try/catch로 감싼다(src/context/SignupContext.tsx의
+ * readStoredFlow/writeStoredFlow와 같은 관례, `window.sessionStorage`로 표기). */
+function readKickedFlag(): boolean {
+  try {
+    return window.sessionStorage.getItem(KICKED_FLAG_KEY) === "1";
+  } catch (error) {
+    console.warn("[SessionKickGuard] sessionStorage 읽기 실패(무시):", error);
+    return false;
+  }
+}
+
+function writeKickedFlag(): void {
+  try {
+    window.sessionStorage.setItem(KICKED_FLAG_KEY, "1");
+  } catch (error) {
+    console.warn("[SessionKickGuard] sessionStorage 쓰기 실패(무시):", error);
+  }
+}
+
+function clearKickedFlag(): void {
+  try {
+    window.sessionStorage.removeItem(KICKED_FLAG_KEY);
+  } catch (error) {
+    console.warn("[SessionKickGuard] sessionStorage 삭제 실패(무시):", error);
+  }
+}
+
 export default function SessionKickGuard() {
   const { userId } = useAuth();
   const [showKickedDialog, setShowKickedDialog] = useState(false);
@@ -40,8 +74,17 @@ export default function SessionKickGuard() {
   useEffect(() => {
     if (sessionState !== "kicked") return;
 
-    sessionStorage.setItem(KICKED_FLAG_KEY, "1");
-    supabase.auth.signOut({ scope: "local" }).finally(() => {
+    // signOut이 성공하든 타임아웃으로 포기하든 이후 동작은 같다 — 그래서
+    // 플래그 쓰기는 이 race가 끝난 뒤, replace 바로 직전에만 한다(리뷰 LOW:
+    // 그 사이 어느 시점에 실패해도 플래그 없이 리로드되는 경로를 만들지
+    // 않는다).
+    Promise.race([
+      supabase.auth.signOut({ scope: "local" }).catch(() => {}),
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, SIGN_OUT_TIMEOUT_MS);
+      }),
+    ]).then(() => {
+      writeKickedFlag();
       window.location.replace("/");
     });
   }, [sessionState]);
@@ -49,8 +92,8 @@ export default function SessionKickGuard() {
   // 마운트 1회 — 리로드 직후에만 플래그를 소비한다(읽는 즉시 제거해 다음
   // 새로고침·재방문에서는 다시 뜨지 않게 한다).
   useEffect(() => {
-    if (sessionStorage.getItem(KICKED_FLAG_KEY) !== "1") return;
-    sessionStorage.removeItem(KICKED_FLAG_KEY);
+    if (!readKickedFlag()) return;
+    clearKickedFlag();
     setShowKickedDialog(true);
   }, []);
 
@@ -59,7 +102,8 @@ export default function SessionKickGuard() {
   // ConfirmModal은 "마운트 자체가 열림"인 관례(open prop 없음, checkout/
   // ConfirmModal.tsx 헤더 주석)라 조건부 렌더로 표시를 제어한다. 단일 [확인]
   // 버튼(onConfirm 생략 시 onClose와 동일 동작)·ESC/오버레이 닫기는 Base UI
-  // Dialog가 내장 제공한다(role="dialog"도 자동 배선).
+  // Dialog가 내장 제공한다(role="dialog"도 자동 배선). 문구는 사용자 확정
+  // 카피 — 변경 금지.
   return (
     <ConfirmModal
       title="다른 기기에서 로그인되었습니다"
