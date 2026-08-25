@@ -145,30 +145,41 @@ export default function AdmissionResults() {
   const universitiesUnavailable =
     universitiesLoading || universitiesError || universityKeySet.size === 0;
 
-  // 큐레이션 칩(trending_departments)은 키 체계가 슬러그 → 한글(Q3 확정)로 바뀌기 전에
-  // 입력된 행이 남아 있을 수 있다. 키가 살아 있는지 보지 않고 존재만 확인하면
-  // 눌러도 빈 상세로 떨어지는 칩이 정상 칩처럼 보이므로, 대학 인덱스에 없는 키는 칩째 내린다.
+  // 큐레이션 칩(trending_departments) — 어드민이 등록한 행은 전부 칩으로 띄우되, 상세로
+  // 딥링크할 수 있는지(linkable)만 여기서 판정한다. 어드민 안내문("키값을 비워두면 칩이
+  // 비활성으로 표시")과 TrendingChips 의 disabled 칩 렌더가 이미 그 계약인데, 종전엔 이
+  // 필터가 키 없는 행·인덱스에 없는 키의 행을 통째로 걷어내 어드민이 등록해도 화면에 아무것도
+  // 안 뜨는 불일치가 있었다(QA 2026-08-22 "지금 뜨는 학과 게시 안 됨").
+  //
+  // linkable 조건: 대학 키·모집단위 키가 모두 있고, 대학 키가 살아 있는 인덱스 키여야 한다.
+  // 키 체계가 슬러그 → 한글(Q3 확정)로 바뀌기 전에 입력된 행은 인덱스에 없으므로 눌러도
+  // 빈 상세로 떨어진다 — 그런 행은 정상 칩처럼 보이면 안 되니 비활성 칩으로 내린다.
   // 모집단위 키까지는 여기서 못 본다(대학별 추가 조회가 필요) — 그쪽은 상세 화면의
   // DetailEmptyBlock("다른 모집단위 선택하기")이 받는다.
-  // 목록 로딩 중에는 아예 렌더하지 않는다. 먼저 그렸다가 걷어내면 깜빡임이 되고,
-  // 트렌딩은 부가 정보라 조금 늦게 나타나는 편이 낫다.
+  // 대학 인덱스 로딩 중에는 아예 렌더하지 않는다. 먼저 비활성으로 그렸다가 활성으로 바꾸면
+  // 깜빡임이 되고, 트렌딩은 부가 정보라 조금 늦게 나타나는 편이 낫다.
   const trendingItems = useMemo(() => {
     if (universitiesUnavailable) return [];
-    return trending
-      .filter(
-        (row) =>
-          row.university_key &&
+    return trending.map((row, index) => {
+      const linkable = Boolean(
+        row.university_key &&
           row.department_key &&
           universityKeySet.has(row.university_key),
-      )
-      .map((row, index) => ({
-        key: `${row.university_key}:${row.department_key}:${index}`,
+      );
+      return {
+        key: `${row.university_key ?? ""}:${row.department_key ?? ""}:${index}`,
         label:
           `${row.university_name ?? ""} ${row.department_name ?? ""}`.trim(),
-        universityKey: row.university_key,
-        departmentKey: row.department_key,
+        // 비활성 칩은 키를 넘기지 않는다 — TrendingChips 가 키 유무로 disabled 를 정한다.
+        ...(linkable
+          ? {
+              universityKey: row.university_key,
+              departmentKey: row.department_key,
+            }
+          : {}),
         logoUrl: row.logo_url ?? "",
-      }));
+      };
+    });
   }, [trending, universityKeySet, universitiesUnavailable]);
 
   // 목록이 아직 없어도(딥링크 직후) 필드에 키라도 보여 준다.
