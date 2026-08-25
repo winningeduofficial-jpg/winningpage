@@ -121,6 +121,8 @@ interface GrantRow {
   user_id: string;
   granted_at: string;
   granted_by: string;
+  // 발급분 자체의 사용 기한(20260825000001). NULL = 무기한.
+  valid_until: string | null;
   revoked_at: string | null;
   revoke_reason?: string | null;
   [key: string]: unknown;
@@ -1527,7 +1529,9 @@ export default function CouponAdmin() {
 
           {/* 어느 쿠폰의 발급인지 — 사용이력 헤더와 같은 형태. valid_until 을
               함께 보여준다: 발급받아도 쿠폰 자신의 기한이 지나면 못 쓰기
-              때문이다(발급별 만료일은 두지 않았다 — sql/55 1-h절). */}
+              때문이다. 발급분에도 별도 기한이 있고(coupon_grants.valid_until,
+              20260825000001) 그건 아래 목록의 「사용 기한」 칼럼이다 — 실제로
+              쓸 수 있는 마지막 날은 이 둘 중 이른 쪽이다. */}
           {grantCoupon && (
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold">
               <span className="font-mono text-[0.8125rem]">
@@ -1657,6 +1661,7 @@ export default function CouponAdmin() {
                       "user",
                       "granted_by",
                       "granted_at",
+                      "valid_until",
                       "revoked_at",
                       "revoke_reason",
                     ].map((key) => (
@@ -1672,7 +1677,7 @@ export default function CouponAdmin() {
                   {grantRows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="py-12 text-center text-gray-400"
                       >
                         등록된 데이터가 없습니다.
@@ -1706,6 +1711,11 @@ export default function CouponAdmin() {
                           </td>
                           <td className="px-3 py-3">
                             {dateTimeText(row.granted_at)}
+                          </td>
+                          {/* 쿠폰 자신의 기한(위 헤더)과 별개 축이다 — 실제로
+                              쓸 수 있는 마지막 날은 둘 중 이른 쪽이다. */}
+                          <td className="px-3 py-3">
+                            {row.valid_until ?? UNLIMITED_LABEL}
                           </td>
                           <td className="px-3 py-3">
                             {dateTimeText(row.revoked_at)}

@@ -12,7 +12,11 @@ import { Navigate, useParams } from "react-router";
 //   승인 링크                                          실제
 //   /services/goal/reports/weekly/{reportId}    →  /app/goal/reports/growth?period=weekly&at=…
 //   /services/goal/reports/monthly/{reportId}   →  /app/goal/reports/growth?period=monthly&at=…
-//   /mypage/coupons                             →  (쿠폰함 화면 확정 전까지 /mypage)
+//
+// 가입 축하 알림톡의 /mypage/coupons 리다이렉트는 걷어냈다(2026-08-25) —
+// 쿠폰함 화면을 만들지 않기로 하면서 그 템플릿을 **버튼 없는 문안으로
+// 재심사**했기 때문이다. 그 버튼으로 들어온 사람은 한 명도 없다(알림톡이
+// 배선되기 전이라 signupCoupon 은 한 번도 발송된 적이 없다).
 //
 // ⚠️ /services/goal 은 원래 마케팅 랜딩이다(serviceLandingRoutes). 그 아래
 //   /reports/* 만 이 파일이 가로채므로 랜딩 자체는 영향이 없다.
@@ -52,14 +56,6 @@ const alimtalkLinkRoutes: RouteObject[] = [
   {
     path: "/services/goal/reports/:period",
     Component: GoalReportRedirect,
-  },
-  // 쿠폰함 — 회원가입 축하 알림톡의 '쿠폰함 바로가기' 버튼.
-  // TODO(2026-08-22): 쿠폰함 화면이 확정되면 그쪽으로 바꾼다. 지금은 MyPage 에
-  //   쿠폰 탭이 없어서 도착해도 쿠폰이 보이지 않는다 — 링크를 죽이지 않으려고
-  //   임시로 /mypage 로 보낸다.
-  {
-    path: "/mypage/coupons",
-    Component: () => <Navigate to="/mypage" replace />,
   },
 ];
 
