@@ -27,6 +27,15 @@ import { supabase } from "@/lib/supabase";
 // 각자 감지·각자 안내).
 const KICKED_FLAG_KEY = "kicked-by-other-device";
 
+// 리로드 루프 차단기(리뷰 MEDIUM). signOut의 /logout 네트워크 호출이 실패하면
+// auth-js가 로컬 세션을 지우지 않은 채 리로드되고, 새 마운트에서 쿼리가 다시
+// "kicked"를 판정해 replace가 반복될 수 있다(토큰 만료까지 최대 ~5분). 이 탭이
+// 이미 킥을 한 번 처리했다는 표식을 sessionStorage(탭 단위)에 남겨, 표식이 있는
+// 동안은 다이얼로그 표시만 하고 signOut/replace를 다시 하지 않는다. 정상 세션
+// ("ok")이 확인되면 — 이 탭에서 새로 로그인한 경우 — 표식을 지워 다음 킥을 다시
+// 처리할 수 있게 한다.
+const KICK_HANDLED_KEY = "kicked-handled";
+
 // signOut(scope:'local')은 GoTrue에 revoke 요청을 태우는 네트워크 호출이다 —
 // 서버가 응답하지 않으면 무한 대기할 수 있다(리뷰 MEDIUM). 리다이렉트를
 // `.finally()`에 의존시키면 그 hang 동안 킥당한 화면에 계속 머무르게 되므로,
@@ -61,6 +70,31 @@ function clearKickedFlag(): void {
   }
 }
 
+function readKickHandled(): boolean {
+  try {
+    return window.sessionStorage.getItem(KICK_HANDLED_KEY) === "1";
+  } catch (error) {
+    console.warn("[SessionKickGuard] sessionStorage 읽기 실패(무시):", error);
+    return false;
+  }
+}
+
+function writeKickHandled(): void {
+  try {
+    window.sessionStorage.setItem(KICK_HANDLED_KEY, "1");
+  } catch (error) {
+    console.warn("[SessionKickGuard] sessionStorage 쓰기 실패(무시):", error);
+  }
+}
+
+function clearKickHandled(): void {
+  try {
+    window.sessionStorage.removeItem(KICK_HANDLED_KEY);
+  } catch (error) {
+    console.warn("[SessionKickGuard] sessionStorage 삭제 실패(무시):", error);
+  }
+}
+
 export default function SessionKickGuard() {
   const { userId } = useAuth();
   const [showKickedDialog, setShowKickedDialog] = useState(false);
@@ -72,7 +106,16 @@ export default function SessionKickGuard() {
   // "리로드 후 플래그를 읽어 띄우는" 두 번째 effect가 유일한 표시 경로다(같은
   // 탭이 리로드 없이 다이얼로그만 보는 경로는 없다 — 배정 메시지의 플로우 그대로).
   useEffect(() => {
+    if (sessionState === "ok") {
+      clearKickHandled();
+      return;
+    }
     if (sessionState !== "kicked") return;
+    // 이 탭이 이미 킥을 처리하고 리로드된 상태 — signOut 실패로 로컬 세션이
+    // 남아 쿼리가 또 "kicked"를 내더라도 재처리(리로드 루프)하지 않는다.
+    // 잔존 세션은 토큰 만료 시 auto-refresh 실패로 정리된다.
+    if (readKickHandled()) return;
+    writeKickHandled();
 
     // signOut이 성공하든 타임아웃으로 포기하든 이후 동작은 같다 — 그래서
     // 플래그 쓰기는 이 race가 끝난 뒤, replace 바로 직전에만 한다(리뷰 LOW:
