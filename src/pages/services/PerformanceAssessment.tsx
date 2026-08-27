@@ -165,12 +165,12 @@ const COACHING_CONTENT = {
     {
       icon: coachWriting,
       title: "논리적 탐구 흐름 설계",
-      desc: "가설 → 검증 → 해석 → 한계의 탐구 흐름을 설계합니다.",
+      desc: "선정한 주제에 맞춰 수행의 흐름을 제시합니다.",
     },
     {
       icon: coachTreadmill,
-      title: "목차・세부 구성 제안",
-      desc: "보고서 목차와 문단 구성을 제안합니다.",
+      title: "세부 구성 제안",
+      desc: "문단의 구성과 그에 따른 내용의 방향을 제시합니다.",
     },
     {
       icon: coachLightbulb,
@@ -507,7 +507,7 @@ export default function PerformanceAssessment() {
       <ServicePricingSection
         id={PRICING_ANCHOR_ID}
         serviceKey="suhaeng"
-        heading="위닝 수행평가 이용권 구매하기"
+        heading="위닝 수행평가 이용권 안내"
         cta={{
           label: "이용권 구매하기",
           to: "/pricing",

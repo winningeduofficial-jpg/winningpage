@@ -90,17 +90,17 @@ const AUDIENCE_CARDS = [
   {
     image: audienceTopic,
     title: "주제가 막막한 학생",
-    desc: "관심사에서 탐구 주제를 잡기 어려운 학생.",
+    desc: "관심사에서 탐구 주제를 잡기 어려운 학생",
   },
   {
     image: audienceDesign,
     title: "설계가 어려운 학생",
-    desc: "가설・방법・계획을 세우기 어려운 학생.",
+    desc: "가설・방법・계획을 세우기 어려운 학생",
   },
   {
     image: audienceData,
     title: "자료 정리가 필요한 학생",
-    desc: "자료를 모으고 해석하는 데 어려움을 겪는 학생.",
+    desc: "자료를 모으고 해석하는 데 어려움을 겪는 학생",
   },
   {
     // 시안(1907:21486)은 카드1(1907:21476)과 imageRef·scaleMode·imageTransform까지 완전히 동일한
@@ -108,7 +108,7 @@ const AUDIENCE_CARDS = [
     // 그대로 옮기고 임의로 새 이미지를 지어내지 않았다.
     image: audienceTopic,
     title: "완성도를 높이고 싶은 학생",
-    desc: "초안은 있으나 더 다듬고 싶은 학생.",
+    desc: "초안은 있으나 더 다듬고 싶은 학생",
   },
 ];
 
