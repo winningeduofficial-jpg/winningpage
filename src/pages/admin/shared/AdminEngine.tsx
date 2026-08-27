@@ -174,6 +174,8 @@ export type AdminConfig<T extends AdminRow = AdminRow> = {
   hideRowEdit?: boolean;
   showMetaEdit?: boolean;
   excel?: boolean;
+  // 저장 직전 재확인 문구(QA A13) — Admin.tsx saveRow 가 window.confirm 으로 묻는다.
+  confirmBeforeSave?: string;
   noCreate?: boolean;
   readOnly?: boolean;
   fixedCategories?: string[];
