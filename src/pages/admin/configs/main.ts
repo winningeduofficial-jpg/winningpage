@@ -148,12 +148,13 @@ export const mainConfigs: Record<string, MainConfig> = {
     searchPlaceholder: "배너 제목을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `랜딩에는 활성 배너 중 sort_order 최상위 1건만 노출됩니다. 969×429px 통이미지(헤드라인·버튼 텍스트 포함)를 업로드하세요. 이동 URL을 입력하면 배너 전체가 클릭됩니다. 형식: JPG 또는 PNG / 2MB 이하`,
+    guideText: `활성 배너가 sort_order 순으로 캐러셀 자동 전환되며, 각 배너의 노출 시간(초)만큼 머뭅니다. 969×429px 통이미지(헤드라인·버튼 텍스트 포함)를 업로드하세요. 이동 URL을 입력하면 배너 전체가 클릭됩니다. 형식: JPG 또는 PNG / 2MB 이하`,
     columns: [
       { key: "image_url", label: "이미지", type: "image" },
       { key: "title", label: "제목" },
       { key: "button_link", label: "배너 클릭 시 이동 URL" },
       { key: "sort_order", label: "순서" },
+      { key: "display_seconds", label: "노출 시간(초)" },
       { key: "is_active", label: "노출", type: "boolean" },
     ],
     fields: [
@@ -177,6 +178,12 @@ export const mainConfigs: Record<string, MainConfig> = {
         cacheControl: "31536000, immutable",
       },
       { key: "sort_order", label: "순서", type: "number" },
+      {
+        key: "display_seconds",
+        label: "노출 시간(초)",
+        type: "number",
+        required: true,
+      },
     ],
     defaults: {
       is_active: true,
@@ -187,6 +194,7 @@ export const mainConfigs: Record<string, MainConfig> = {
       button_link: "",
       image_url: "",
       sort_order: 1,
+      display_seconds: 10,
     },
   },
 
@@ -196,13 +204,14 @@ export const mainConfigs: Record<string, MainConfig> = {
     searchPlaceholder: "배너 제목을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `PC 권장: 321px × 429px / 형식: PNG / 2MB 이하 / 여러 장 등록 시 6초 간격 자동 전환되며 이미지 하단 인디케이터로 이동할 수 있습니다`,
+    guideText: `PC 권장: 321px × 429px / 형식: PNG / 2MB 이하 / 여러 장 등록 시 각 배너의 노출 시간(초)만큼 머문 뒤 자동 전환되며 이미지 하단 인디케이터로 이동할 수 있습니다`,
     columns: [
       { key: "image_url", label: "PC 이미지", type: "image" },
       { key: "title", label: "제목" },
       { key: "subtitle", label: "설명" },
       { key: "link_url", label: "연결 주소" },
       { key: "sort_order", label: "순서" },
+      { key: "display_seconds", label: "노출 시간(초)" },
       { key: "is_active", label: "노출", type: "boolean" },
     ],
     fields: [
@@ -237,6 +246,12 @@ export const mainConfigs: Record<string, MainConfig> = {
       { key: "start_date", label: "노출 시작일", type: "date" },
       { key: "end_date", label: "노출 종료일", type: "date" },
       { key: "sort_order", label: "순서", type: "number" },
+      {
+        key: "display_seconds",
+        label: "노출 시간(초)",
+        type: "number",
+        required: true,
+      },
     ],
     defaults: {
       is_active: true,
@@ -249,6 +264,7 @@ export const mainConfigs: Record<string, MainConfig> = {
       start_date: null,
       end_date: null,
       sort_order: 1,
+      display_seconds: 5,
     },
   },
 

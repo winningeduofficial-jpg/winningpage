@@ -26,6 +26,7 @@ type Banner = {
   link_url?: string;
   sort_order?: number;
   is_active?: boolean;
+  display_seconds?: number | null;
 };
 
 type SideBanner = {
@@ -251,7 +252,7 @@ export default function Home() {
       const { data, error } = await supabase
         .from("banners")
         .select(
-          "id, title, highlight, image_url, button_text, button_link, sort_order, is_active",
+          "id, title, highlight, image_url, button_text, button_link, sort_order, is_active, display_seconds",
         )
         .eq("is_active", true)
         .order("sort_order", { ascending: true });
