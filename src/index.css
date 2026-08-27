@@ -68,12 +68,18 @@
   --color-goal-subject-math: #e3f2fd;
   --color-goal-subject-english: #fff8e1;
   --color-goal-subject-science: #e8f5e9;
+  --color-goal-subject-social: #ede7f6;
+  --color-goal-subject-history: #fbe9e7;
+  --color-goal-subject-second_lang: #e0f7fa;
   --color-goal-subject-etc: #f1ede7;
 
   --color-goal-subjectStrong-korean: #f48fb1;
   --color-goal-subjectStrong-math: #64b5f6;
   --color-goal-subjectStrong-english: #ffd54f;
   --color-goal-subjectStrong-science: #81c784;
+  --color-goal-subjectStrong-social: #9575cd;
+  --color-goal-subjectStrong-history: #ff8a65;
+  --color-goal-subjectStrong-second_lang: #4dd0e1;
   --color-goal-subjectStrong-etc: #bcafa0;
 
   --color-goal-weekday-mon: #fce7ee;

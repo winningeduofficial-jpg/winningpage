@@ -434,6 +434,9 @@ const SUBJECT_LABELS: Record<string, string> = {
   math: "수학",
   english: "영어",
   science: "탐구",
+  social: "사회",
+  history: "한국사",
+  second_lang: "제2외국어",
   etc: "기타",
 };
 
