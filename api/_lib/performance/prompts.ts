@@ -1279,10 +1279,12 @@ export const DESIGN_REPORT_SCHEMA = {
         steps: {
           type: "array",
           // 문항형 안내문은 문항 수만큼 단계가 늘고, `그 외` 형식은 원문이 `3~5개`로
-          // 못박는다(`find-resources.js:482`). 상한 12는 그 사이를 덮으면서
-          // `maxOutputTokens` 안에 들어오는 값이다.
+          // 못박는다(`find-resources.js:482`). 상한은 두지 않는다 — `steps`·`rows`처럼
+          // 중첩된 배열에 `maxItems`를 걸면 Gemini가 스키마 컴파일 단계에서
+          // `400 INVALID_ARGUMENT "schema produces a constraint that has too many
+          // states"`로 거부해 설계 리포트가 한 번도 생성되지 않았다(2026-08-27 dev 실측).
+          // 분량 상한은 `maxOutputTokens`가 맡는다.
           minItems: 1,
-          maxItems: 12,
           items: {
             type: "object",
             properties: {
@@ -1291,7 +1293,6 @@ export const DESIGN_REPORT_SCHEMA = {
               rows: {
                 type: "array",
                 minItems: 1,
-                maxItems: 8,
                 items: {
                   type: "object",
                   properties: {
