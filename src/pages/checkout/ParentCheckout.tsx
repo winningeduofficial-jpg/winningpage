@@ -195,7 +195,7 @@ function mapCreateEnrollmentError(
 }
 
 // 결제 화면에서 동의받는 문서 3종 — public.terms 단일 원본(fn_agree_payment_terms·
-// usePaymentAgreementHistory와 같은 code). refund_notice는 이용약관 제33조(환불 규정)
+// usePaymentAgreementHistory와 같은 code). refund_notice는 이용약관 제33조의1(환불 규정)
 // 사본, payment_terms·payment_consent는 한 체크박스로 묶어 이어 붙여 보여준다.
 const PAYMENT_TERM_CODES = [
   "refund_notice",
