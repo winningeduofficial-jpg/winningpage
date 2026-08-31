@@ -12,7 +12,9 @@
 //   dev(소스)  — .env.seed.local (없으면 .env.local, 로컬 URL이면 중단)
 //   prod(타깃) — env SEED_TARGET_URL / SEED_TARGET_SERVICE_ROLE_KEY,
 //                없으면 .env.seed.prod.local 파일(gitignore됨, 이 저장소엔 없음 — 직접 생성)
-//   관리자 계정 — env SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD (없으면 계정 생성 단계 스킵)
+//   관리자 계정 — env SEED_ADMIN_EMAIL (없으면 계정 생성 단계 스킵). 비밀번호는
+//   랜덤으로 채워 아무도 모르게 두고, 관리자가 로그인 화면의 비밀번호 재설정으로
+//   직접 설정한다 — 시드 env·터미널에 실사용 비밀번호를 남기지 않기 위해서다.
 //
 // 안전장치:
 //   - 기본 드라이런. 실제 반영은 --apply + SEED_CONFIRM=<타깃 프로젝트 ref> 일치 시에만.
@@ -35,6 +37,7 @@
 //       기존 scripts/seed-from-dev.mjs가 2026-08-21에 이미 같은 이유로 화이트리스트에서
 //       뺐다(주석 참고) — 세션당 생성되는 유저 데이터이지 마스터가 아니다.
 
+import { randomBytes } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -440,14 +443,18 @@ async function mirrorBanner(devUrl, prodUrl, prodKey, relPath) {
 
 async function createAdminMaster(prodClient) {
   const email = process.env.SEED_ADMIN_EMAIL;
-  const password = process.env.SEED_ADMIN_PASSWORD;
-  if (!email || !password) {
+  if (!email) {
     console.log(
-      "\n관리자 계정 생성: SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD 미설정 — 스킵. " +
-        "필요하면 두 env를 설정하고 다시 실행하십시오(비밀번호는 코드에 절대 넣지 않음).",
+      "\n관리자 계정 생성: SEED_ADMIN_EMAIL 미설정 — 스킵. " +
+        "필요하면 env를 설정하고 다시 실행하십시오.",
     );
     return;
   }
+
+  // 비밀번호는 아무도 모르는 랜덤값으로 채운다 — 출력·저장하지 않는다.
+  // 관리자는 로그인 화면의 비밀번호 재설정(복구 메일)으로 본인 비밀번호를 만든다.
+  // Supabase createUser가 비밀번호를 요구해서 채울 뿐, 이 값으로 로그인할 일은 없다.
+  const password = randomBytes(32).toString("base64url");
 
   const { data: roleRow, error: roleErr } = await prodClient
     .from("admin_roles")
@@ -485,7 +492,9 @@ async function createAdminMaster(prodClient) {
     throw new Error(`admin_members 행 생성 실패: ${memberErr.message}`);
 
   console.log(
-    `\n✓ 관리자 계정 생성 완료: ${email} (최고 관리자, profile_id=${userId})`,
+    `\n✓ 관리자 계정 생성 완료: ${email} (최고 관리자, profile_id=${userId})\n` +
+      "  비밀번호는 설정되지 않았습니다(랜덤값, 미출력). " +
+      "로그인 화면 → 비밀번호 재설정으로 본인 비밀번호를 설정하십시오.",
   );
 }
 
