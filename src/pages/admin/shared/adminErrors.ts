@@ -35,6 +35,8 @@ interface AdminErrorLike {
   message?: string;
   code?: string;
   details?: string;
+  // Supabase StorageError 는 code 대신 statusCode("403" 등)를 실어 온다.
+  statusCode?: string | number;
 }
 
 /** 컬럼 키 → 화면에 쓰는 한국어 라벨. config.fields/columns 에서 만들어 넘긴다. */
@@ -75,6 +77,26 @@ const ADMIN_ERROR_MESSAGE_MAP: Array<{ pattern: RegExp; message: string }> = [
     message: "필수 값이 비어 있습니다. 항목을 모두 입력해 주세요.",
   },
   { pattern: /23505/, message: "이미 등록된 값입니다(중복)." },
+  // ── storage 계열 — 업로드 실패가 전부 일반 문구로 뭉개져 원인 판별이 불가능했다
+  //    (2026-08-31 dev 어드민 업로드 분석). RLS 403은 어드민 라우트 가드가 진입
+  //    시점에만 돌아서 세션 만료 후 업로드하면 여기로 온다.
+  {
+    pattern: /row-level security|invalid JWT|JWT expired|Unauthorized|403/i,
+    message: "권한이 없거나 로그인이 만료됐습니다. 다시 로그인해 주세요.",
+  },
+  {
+    pattern: /payload too large|exceeded the maximum allowed size|413/i,
+    message: "파일이 너무 큽니다. 용량을 줄여 다시 시도해 주세요.",
+  },
+  {
+    pattern: /resource already exists|409/,
+    message: "같은 경로의 파일이 이미 있습니다. 다시 시도해 주세요.",
+  },
+  {
+    pattern: /failed to fetch|networkerror|fetch failed/i,
+    message:
+      "네트워크 문제로 요청하지 못했습니다. 연결 상태나 차단 프로그램을 확인해 주세요.",
+  },
 ];
 
 /**
@@ -166,20 +188,26 @@ function describeConstraint(
   return null;
 }
 
+const GENERIC_FAILURE = "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+
 function mapAdminErrorMessage(
   error: AdminErrorLike | null | undefined,
   labels: AdminFieldLabels = {},
 ): string {
-  if (!error) return "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  if (!error) return GENERIC_FAILURE;
 
   const detailed = describeConstraint(error, labels);
   if (detailed) return detailed;
 
-  const raw = `${error.message || ""} ${error.code || ""}`;
+  const raw = `${error.message || ""} ${error.code || ""} ${error.statusCode ?? ""}`;
   const hit = ADMIN_ERROR_MESSAGE_MAP.find(({ pattern }) => pattern.test(raw));
-  return hit
-    ? hit.message
-    : "요청을 처리하지 못했습니다. 잠시 후 다시 시도해 주세요.";
+  if (hit) return hit.message;
+
+  // 매핑에 없는 오류는 코드만 병기한다 — 원문 message 는 개인정보·DB 내부가 섞일 수
+  // 있어 alert 에 싣지 않는다(파일 상단 위생 규칙). 코드 하나만 있어도 다음 사용자
+  // 보고에서 원인 계열을 즉시 좁힐 수 있다.
+  const codeTag = error.code || error.statusCode;
+  return codeTag ? `${GENERIC_FAILURE} (코드: ${codeTag})` : GENERIC_FAILURE;
 }
 
 export function reportAdminError(
