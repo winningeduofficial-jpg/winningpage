@@ -116,10 +116,14 @@ export const memberConfigs: Record<string, MemberConfig> = {
       { key: "class_name", label: "클래스" },
       { key: "guardian_name", label: "보호자" },
       { key: "student_name", label: "수강생" },
+      { key: "phone", label: "연락처", type: "maskedPhone" },
       { key: "payment_status", label: "납부상태" },
       { key: "price", label: "수강료", type: "money" },
       { key: "discount_amount", label: "감면액", type: "money" },
       { key: "paid_amount", label: "납부액", type: "money" },
+      // QA 행272·227 — 결제방식/승인번호 컬럼 추가(20260901000000 마이그레이션 신설 컬럼).
+      { key: "payment_method", label: "결제방식" },
+      { key: "approval_no", label: "승인번호" },
       { key: "created_at", label: "신청일", type: "date" },
     ],
     fields: [
@@ -141,6 +145,8 @@ export const memberConfigs: Record<string, MemberConfig> = {
       { key: "price", label: "수강료", type: "number" },
       { key: "discount_amount", label: "감면액", type: "number" },
       { key: "paid_amount", label: "납부액", type: "number" },
+      { key: "payment_method", label: "결제방식", type: "text" },
+      { key: "approval_no", label: "승인번호", type: "text" },
       { key: "memo", label: "비고", type: "textarea" },
     ],
     defaults: {
