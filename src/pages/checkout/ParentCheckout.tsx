@@ -82,6 +82,9 @@ const COUPON_REASON_TEXT: Record<string, string> = {
   login_required: "로그인 후 사용할 수 있습니다.",
   sold_out: "발급 수량이 모두 소진되었습니다.",
   not_granted: "발급받지 않은 쿠폰입니다.",
+  // 단체 쿠폰(coupons.org_code, 20260827010205) — 학생·학부모 둘 다 소속
+  // 코드가 일치하지 않을 때.
+  org_mismatch: "소속 코드가 일치하는 회원만 사용할 수 있는 단체 쿠폰입니다.",
 };
 const CODE_NOT_FOUND_TEXT = "유효하지 않은 쿠폰 코드입니다.";
 // Checkout.jsx:184 와 동일 문구(표시가/서버 청구가 불일치 안내) — fn_respond_enrollment 가
