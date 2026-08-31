@@ -1,5 +1,8 @@
 import { Download, RefreshCw } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import RevenueDashboard, {
+  type RevenuePending,
+} from "@/components/admin/RevenueDashboard";
 import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
 import { supabase } from "@/lib/supabase";
 import { downloadCsv } from "@/pages/admin/shared/csvExport";
@@ -163,6 +166,14 @@ export default function RevenueAdmin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // QA 274 「처리 필요 항목」 — 환불 원장에서 대기 건수만 센다. 목록을 통째로
+  // 받지 않고 count 만 받는다(화면이 쓰는 건 숫자뿐이고, 환불 신청에는
+  // 계좌·사유 같은 개인정보가 들어 있어 필요 없는 걸 끌어오지 않는다).
+  const [pending, setPending] = useState<RevenuePending>({
+    approvalWaiting: 0,
+    processWaiting: 0,
+  });
+
   // 개인정보 반출 게이트 (QA 271).
   const { requestAccess, gate } = useSensitiveActionGate();
 
@@ -210,9 +221,40 @@ export default function RevenueAdmin() {
     }
   }
 
+  async function loadPending() {
+    try {
+      const [approval, process] = await Promise.all([
+        // 아직 승인/반려가 안 난 신청.
+        supabase
+          .from("refund_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("approval_status", "requested"),
+        // 승인은 났는데 실제 환불이 안 끝난 건. status='completed' 가 실제 환불
+        // 완료라(admin_revenue_items 주석) 그 전 단계를 센다.
+        supabase
+          .from("refund_requests")
+          .select("id", { count: "exact", head: true })
+          .eq("approval_status", "approved")
+          .in("status", ["requested", "processing"]),
+      ]);
+
+      if (approval.error) throw approval.error;
+      if (process.error) throw process.error;
+
+      setPending({
+        approvalWaiting: approval.count ?? 0,
+        processWaiting: process.count ?? 0,
+      });
+    } catch (pendingError) {
+      // 대시보드 보조 지표라 실패해도 화면 전체를 막지 않는다 — 0으로 두고 넘어간다.
+      console.error("환불 대기 건수 조회 실패:", pendingError);
+    }
+  }
+
   const onMountLoad = useEffectEvent(() => {
     loadServices();
     loadRows();
+    loadPending();
   });
 
   useEffect(() => {
@@ -377,6 +419,17 @@ export default function RevenueAdmin() {
           </p>
         )}
       </div>
+
+      {/* QA 274 총괄 대시보드 — 파일18 「정산관리」의 정산 총괄표. 선택 기간과
+          서비스 탭이 적용된 행(filteredPeriod)을 그대로 본다. */}
+      {!loading && (
+        <RevenueDashboard
+          rows={filteredPeriod}
+          pending={pending}
+          toKstYmd={toKstYmd}
+          periodLabel={`${fromYmd} ~ ${toYmd}`}
+        />
+      )}
 
       {loading ? (
         <div className="bg-white p-12 text-center text-sm font-bold text-gray-500 shadow-sm">
