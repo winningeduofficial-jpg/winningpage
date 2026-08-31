@@ -1,5 +1,13 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router";
+import {
+  checkDiagnosisAccess,
+  type DiagnosisAccessResult,
+} from "@/lib/diagnosisAccess";
+import {
+  SURVEY_FIRST_STEP_PATH,
+  SURVEY_REPORT_PATH,
+} from "@/lib/renewalSurvey";
 import ServiceCard from "./ServiceCard";
 
 /**
@@ -72,6 +80,8 @@ type ServiceCardAction = {
   kind: "link" | "outline-solid" | "solid";
   label: string;
   href: string;
+  disabled?: boolean;
+  disabledReason?: string;
 };
 
 type ServiceCardViewModel = {
@@ -222,7 +232,14 @@ function parseOrder(order: Order): ParsedOrder {
   };
 }
 
-function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
+// 학습진단 재검사 문구 — SurveyStepShell 진입 게이트 alert(QA 행 27 안내문)와 톤을 맞춘다.
+const DIAGNOSIS_RETAKE_BLOCKED_REASON =
+  "1회 이용권을 모두 사용했습니다. 이용권을 구매하시면 다시 이용하실 수 있습니다.";
+
+function toViewModel(
+  parsed: ParsedOrder,
+  diagnosisAccess: DiagnosisAccessResult | null,
+): ServiceCardViewModel {
   const {
     category,
     serviceName,
@@ -274,13 +291,28 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
     const label = category === "session" ? "상담 기록 보기" : "프로그램 가기";
     actions = [{ kind: "link", label, href }];
   } else if (category === "diagnosis") {
+    // fail-open 정책 유지 — 조회 전(null)이거나 서버가 판정 불가면 활성 상태로 둔다.
+    // 서버가 명시적으로 allowed:false를 준 경우에만 비활성화한다.
+    const retakeBlocked = diagnosisAccess !== null && !diagnosisAccess.allowed;
     actions = [
-      { kind: "outline-solid", label: "결과 리포트 보기", href },
       {
-        kind: "solid",
-        label: "다시 검사하기",
-        href: "/app/learning-diagnosis/survey",
+        kind: "outline-solid",
+        label: "결과 리포트 보기",
+        href: SURVEY_REPORT_PATH,
       },
+      retakeBlocked
+        ? {
+            kind: "solid",
+            label: "다시 검사하기",
+            href: SURVEY_FIRST_STEP_PATH,
+            disabled: true,
+            disabledReason: DIAGNOSIS_RETAKE_BLOCKED_REASON,
+          }
+        : {
+            kind: "solid",
+            label: "다시 검사하기",
+            href: SURVEY_FIRST_STEP_PATH,
+          },
     ];
   } else if (category === "session") {
     actions = [
@@ -347,6 +379,21 @@ function Section({
 }
 
 export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
+  // "다시 검사하기" 활성 여부 판정 — 서버가 정본(diagnosisAccess.ts 참고). 조회 전엔
+  // null(활성 취급)로 두고, 응답이 오면 완료 카드의 재검사 버튼에 반영한다.
+  const [diagnosisAccess, setDiagnosisAccess] =
+    useState<DiagnosisAccessResult | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    checkDiagnosisAccess().then((result) => {
+      if (alive) setDiagnosisAccess(result);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // 상위(MyPage)는 표시·환불 판정을 위해 waiting_deposit(가상계좌 미입금) 주문도 함께
   // 내려준다. 하지만 이용 권한은 결제 확정(paid) 시점에만 부여된다(api/confirm-payment.js
   // — 가상계좌는 계좌만 발급됐고 돈은 아직 안 들어왔으므로 권한을 주지 않는다). 여기서
@@ -365,7 +412,9 @@ export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
   }
 
   const displayOrders = usableOrders.flatMap(expandOrder);
-  const cards = displayOrders.map((order) => toViewModel(parseOrder(order)));
+  const cards = displayOrders.map((order) =>
+    toViewModel(parseOrder(order), diagnosisAccess),
+  );
   const ongoing = cards.filter((card) => card.isOngoing);
   const completed = cards.filter((card) => !card.isOngoing);
 
