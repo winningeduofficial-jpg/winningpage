@@ -182,7 +182,7 @@ export default function ServicePricingSection({
       </div>
 
       {serviceKey === "suhaeng" && (
-        <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-ink lg:mt-2.25">
+        <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-ink lg:mt-2.25 lg:mx-auto lg:max-w-231.5">
           1회 = 수행평가 1건 (주제 추천 → 설계 리포트 → 평가 리포트 전 과정)
         </p>
       )}
@@ -190,9 +190,13 @@ export default function ServicePricingSection({
       {/* 이 목록의 항목은 실제로는 선택할 수 없는 정보 표시용 카드다(체크 아이콘은 장식이고
           onClick이 없다) — "여러 플랜을 동시 선택할 수 없다"는 기존 안내문은 존재하지 않는
           선택 동작을 설명하고 있어 오히려 혼란을 줬다(QA 지적으로 삭제).
-          대신 CTA가 실제로 하는 일(다른 페이지로 이동 후 구매)을 안내한다. */}
+          대신 CTA가 실제로 하는 일(다른 페이지로 이동 후 구매)을 안내한다.
+          lg:mx-auto lg:max-w-231.5 — 폭 제한이 없는 문단이라 다상품 기본 케이스(text-left)에서
+          중앙 정렬된 상품 행(위 max-w-231.5)보다 좌측선이 밖으로 어긋났다(QA 지적).
+          같은 폭·중앙 제약을 걸어 좌측선을 맞춘다 — isSingleProduct일 땐 어차피 text-center라
+          박스가 좁아져도 시각적으로 그대로 가운데다. */}
       <p
-        className={`mt-4 break-keep text-[0.875rem] font-medium text-ink lg:mt-2.25 ${isSingleProduct ? "text-center" : "text-left"}`}
+        className={`mt-4 break-keep text-[0.875rem] font-medium text-ink lg:mt-2.25 lg:mx-auto lg:max-w-231.5 ${isSingleProduct ? "text-center" : "text-left"}`}
       >
         이 페이지에서는 결제가 진행되지 않으며, 버튼을 누르면 이동하는
         페이지에서 이용권을 구매하실 수 있습니다.
