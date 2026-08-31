@@ -3,11 +3,13 @@
 // 로컬 Supabase 스택에 dev 데이터를 주입한다 (그때그때 추출 방식 — 커밋되는 시드 없음).
 //
 // 사용법:
-//   1) supabase start           (로컬 스택 기동)
-//   2) supabase db reset        (마이그레이션 + supabase/seed.sql 재생)
-//   3) node scripts/seed-from-dev.mjs
+//   npm run db:reseed           (supabase db reset + 이 스크립트. 스택은 미리 기동)
+//   node scripts/seed-from-dev.mjs   (reset 없이 주입만)
 //
-// 필요: .env.local에 SUPABASE_URL(dev), SUPABASE_SERVICE_ROLE_KEY(dev)
+// 필요: dev 접속 정보(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)를
+//   1순위 .env.seed.local  — dev 전용 파일(gitignore됨). .env.local을 로컬 스택
+//                            기본값으로 둔 채 재시드하려면 이 파일을 만들어 둔다.
+//   2순위 .env.local       — 원격 dev 블록이 활성일 때만 유효.
 // 로컬 접속 정보는 `supabase status`에서 자동으로 읽는다.
 //
 // 화이트리스트 테이블만 복사한다 — 유저 데이터(profiles/orders 등)는 절대 포함 금지.
@@ -71,20 +73,32 @@ const PAGE = 1000;
 // dev 값으로 맞춰진다.
 const PK_OVERRIDE = { app_settings: "key", terms: "code,version" };
 
-function loadDevEnv() {
-  const envPath = path.join(repoRoot, ".env.local");
+function readEnvFile(name) {
   const env = {};
-  for (const line of readFileSync(envPath, "utf8").split("\n")) {
+  let raw;
+  try {
+    raw = readFileSync(path.join(repoRoot, name), "utf8");
+  } catch {
+    return null;
+  }
+  for (const line of raw.split("\n")) {
     const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
     if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
   }
   const url = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
   const key = env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key)
+  return url && key ? { url, key, source: name } : null;
+}
+
+function loadDevEnv() {
+  // .env.seed.local(dev 전용)이 있으면 우선한다 — .env.local을 로컬 스택
+  // 기본값으로 유지한 채 재시드할 수 있게 한다.
+  const found = readEnvFile(".env.seed.local") ?? readEnvFile(".env.local");
+  if (!found)
     throw new Error(
-      ".env.local에 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 필요",
+      ".env.seed.local 또는 .env.local에 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 필요",
     );
-  return { url, key };
+  return found;
 }
 
 function loadLocalEnv() {
@@ -155,7 +169,8 @@ async function main() {
   const local = loadLocalEnv();
   if (dev.url.includes("127.0.0.1") || dev.url.includes("localhost")) {
     throw new Error(
-      ".env.local의 SUPABASE_URL이 로컬을 가리킴 — dev URL이어야 한다",
+      `${dev.source}의 SUPABASE_URL이 로컬을 가리킴 — dev URL이어야 한다. ` +
+        "dev 접속 정보만 담은 .env.seed.local을 만들면 .env.local을 건드리지 않아도 된다.",
     );
   }
 

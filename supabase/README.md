@@ -16,10 +16,13 @@
 ```bash
 # 로컬 스택 (Docker 필요)
 supabase start            # 첫 기동 시 이미지 다운로드
-supabase db reset         # 마이그레이션 + seed.sql 전체 재생
 
-# 콘텐츠·카탈로그 데이터 주입 (dev에서 그때그때 추출, 커밋 안 함)
-node scripts/seed-from-dev.mjs   # .env.local의 dev service key 필요
+# 로컬 DB를 dev와 정합시키기 — reset(마이그레이션+seed.sql 재생) 후 dev 데이터 주입
+npm run db:reseed
+
+# 개별 실행이 필요하면
+supabase db reset                # 마이그레이션 + seed.sql 전체 재생
+node scripts/seed-from-dev.mjs   # 콘텐츠·카탈로그만 dev에서 추출 주입(커밋 안 함)
 
 # 새 마이그레이션
 supabase migration new <설명>    # migrations/에 타임스탬프 파일 생성
@@ -58,3 +61,10 @@ rename)은 expand-contract 2단계로 나눠서 이전 코드가 새 스키마�
   dev·로컬에만 존재하고 **prod에는 절대 적용 금지**(사용자 확정 2026-08-21). 마이그레이션이
   아닌 `seed.sql`에서 생성하는 이유다. prod로 가는 마이그레이션에 이 트리거를 넣지 말 것.
 - 시드 화이트리스트(`scripts/seed-from-dev.mjs`)에 유저 데이터 테이블 추가 금지.
+- `db:reseed`의 dev 접속 정보는 **`.env.seed.local`**(gitignore됨)에 둔다 —
+  `SUPABASE_URL=https://<dev>.supabase.co`와 `SUPABASE_SERVICE_ROLE_KEY=<dev service key>`
+  두 줄. 이 파일이 없으면 `.env.local`을 읽는데, 기본 상태(로컬 블록 활성)에서는
+  안전 가드에 걸려 시드가 중단된다.
+- **로컬 스택은 워크트리별로 격리되지 않는 공유 자원**이다. `supabase db reset`(=
+  `db:reseed`의 첫 단계)은 다른 워크트리·세션이 로컬 DB에 만들어 둔 데이터까지 전부
+  지운다 — 병렬 작업 중에는 실행 전에 반드시 확인할 것(2026-08-24 광역 피해 사례).
