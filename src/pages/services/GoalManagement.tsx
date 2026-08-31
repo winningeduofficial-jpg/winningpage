@@ -381,7 +381,7 @@ const FAQ_ITEMS = [
 function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 큰 PNG(1600x1200) 리페인트 비용 절감
   // (PhoneReportSection과 동일 훅 구조. 서비스 랜딩 4종 + LearningDiagnosisLanding 공통 useInView).
-  const [auraRef, auraInView] = useInView() as [
+  const [auraRef, auraInView] = useInView("0px 0px 200px 0px") as [
     MutableRefObject<HTMLDivElement | null>,
     boolean,
   ];
@@ -555,7 +555,7 @@ function OutcomesSection() {
 function PhoneReportSection() {
   // 이 섹션도 스크롤 상당히 아래(lg:pt-[16.125rem])라 뷰포트에 들어와 있는 동안만
   // 애니메이션을 돌린다(LearningDiagnosisLanding MacbookMockup과 동일 훅 구조).
-  const [chipLayerRef, chipsInView] = useInView() as [
+  const [chipLayerRef, chipsInView] = useInView("0px 0px 200px 0px") as [
     MutableRefObject<HTMLDivElement | null>,
     boolean,
   ];
