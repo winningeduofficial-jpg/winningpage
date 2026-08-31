@@ -57,6 +57,9 @@ interface RevenueField {
   label: string;
   type: "text" | "number" | "textarea" | "select" | "date";
   required?: boolean;
+  // 상세 폼에서 값만 보여주고 편집은 막는다. 환불 처리 대장처럼 원장 전체가
+  // 읽기 전용인 화면에서 쓴다(QA 275).
+  readOnly?: boolean;
   options?: FieldOption[];
 }
 
@@ -68,6 +71,8 @@ interface RevenueCrudConfig {
   excel?: boolean;
   readOnly?: boolean;
   noCreate?: boolean;
+  // 개인정보 반출 게이트 대상(AdminConfig.sensitiveDownload 와 같은 뜻) — QA 271 계열.
+  sensitiveDownload?: boolean;
   columns: RevenueColumn[];
   fields?: RevenueField[];
   defaults?: Record<string, unknown>;
@@ -211,7 +216,12 @@ export const revenueConfigs: Record<string, RevenueConfig> = {
         type: "select",
         options: REFUND_REQUEST_STATUS_OPTIONS,
       },
-      { key: "created_at", label: "신청 일시", type: "date" },
+      { key: "created_at", label: "환불 신청일", type: "date" },
+      // QA 273 — 신청일만 있고 처리일이 없어 일자별 환불 집계도 정산 대사도 할 수
+      // 없었다. fn_complete_refund 가 완료 시점에 찍는다(20260831081100).
+      // 그 컬럼이 생기기 전에 처리된 건은 빈 칸이다 — 실제 시각을 알 수 없어
+      // 소급하지 않았다.
+      { key: "completed_at", label: "환불 처리일", type: "date" },
     ],
     fields: [
       { key: "user_id", label: "신청자", type: "text" },
@@ -242,5 +252,59 @@ export const revenueConfigs: Record<string, RevenueConfig> = {
     custom: true,
     customComponentKey: "coupons",
     searchPlaceholder: "",
+  },
+
+  // QA 275 — 파일18 「환불 처리 대장」. 완료된 환불만 보는 결과 원장이라 신청
+  // 단계(refundRequests)와 화면을 나눈다. 원천은 admin_refund_ledger 뷰
+  // (20260831081100) — 학생·처리자 이름과 소속코드를 조인해 평면화했다.
+  //
+  // 읽기 전용이다. 완료 처리는 fn_complete_refund RPC 전용이고(WC038 트리거가
+  // 제네릭 PATCH 로의 completed 전환을 막는다), 대장을 손으로 고칠 수 있으면
+  // 감사 기록이 되지 못한다.
+  //
+  // ⚠️ 수강자명·소속코드가 함께 나가므로 다운로드는 게이트를 탄다(QA 268 계열).
+  refundLedger: {
+    title: "환불 처리 대장",
+    table: "admin_refund_ledger",
+    searchPlaceholder: "수강자명, 주문번호, 소속코드 검색",
+    order: "completed_at",
+    readOnly: true,
+    noCreate: true,
+    excel: true,
+    sensitiveDownload: true,
+    columns: [
+      { key: "completed_at", label: "처리일", type: "date" },
+      { key: "student_name", label: "수강자명" },
+      { key: "program_name", label: "프로그램" },
+      { key: "org_code", label: "소속코드" },
+      { key: "paid_amount", label: "납부금액", type: "money" },
+      { key: "refund_amount", label: "환불금액", type: "money" },
+      { key: "refund_method", label: "환불방법" },
+      { key: "processed_by_name", label: "처리자" },
+      { key: "reason", label: "사유" },
+    ],
+    fields: [
+      { key: "completed_at", label: "처리일", type: "text", readOnly: true },
+      { key: "order_id", label: "주문번호", type: "text", readOnly: true },
+      { key: "student_name", label: "수강자명", type: "text", readOnly: true },
+      { key: "org_code", label: "소속코드", type: "text", readOnly: true },
+      { key: "program_name", label: "프로그램", type: "text", readOnly: true },
+      { key: "paid_amount", label: "납부금액", type: "text", readOnly: true },
+      { key: "refund_amount", label: "환불금액", type: "text", readOnly: true },
+      { key: "refund_method", label: "환불방법", type: "text", readOnly: true },
+      {
+        key: "processed_by_name",
+        label: "처리자",
+        type: "text",
+        readOnly: true,
+      },
+      { key: "reason", label: "신청 사유", type: "textarea", readOnly: true },
+      {
+        key: "admin_memo",
+        label: "처리 메모",
+        type: "textarea",
+        readOnly: true,
+      },
+    ],
   },
 };

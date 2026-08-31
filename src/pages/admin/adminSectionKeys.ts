@@ -57,6 +57,7 @@ export const ADMIN_SECTION_KEYS = [
   "enrollments",
   "refunds",
   "refundRequests",
+  "refundLedger",
   "coupons",
   // 직원관리 — 20260822000010_admin_permissions 의 admin_resources 시드에도
   // 같은 키(adminMembers/adminRoles)가 들어 있다. 둘이 어긋나면 화면은 있는데
