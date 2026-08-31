@@ -5,12 +5,15 @@
 # scripts/storage-gc.mjs가 "DB 참조 집합 vs 스토리지 실파일"을 대조해
 # 미참조·유예기간(7일) 경과 파일만 Storage API로 삭제한다.
 #
-# 대상: dev 프로젝트만. prod 확장은 dev에서 2-3주 무사고 확인 +
-# 어드민 근본 수정(저장 시 구 파일 삭제) main 배포 이후 별도 결정.
+# 대상 환경은 matrix로 dev/prod 둘 다 배선돼 있고, secrets 존재가 활성화
+# 스위치다:
+#   - dev:  SEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY (scheduled.yml과 공유,
+#           등록됨) — 미등록이면 실패 처리(배선 사고 감지).
+#   - prod: PROD_SUPABASE_URL / PROD_SERVICE_ROLE_KEY — 미등록이면 조용히
+#           skip. dev에서 2-3주 무사고 확인 후 secrets를 등록하는 행위가
+#           곧 prod 가동이다. 머지 타이밍과 무관하게 사람이 켠다.
 #
-# 필요 secrets (scheduled.yml과 공유 — dev 프로젝트 접속 정보):
-#   - SEED_SUPABASE_URL
-#   - SEED_SERVICE_ROLE_KEY
+# schedule은 default 브랜치(main)의 워크플로만 실행된다 — main 반영 후 가동.
 #
 # 안전장치는 스크립트에 내장돼 있다: KEEP 목록(코드 소유 보관 파일),
 # 참조 0건·테이블 스캔 실패·버킷 전체 미참조 시 삭제 거부, 유저 업로드
@@ -37,6 +40,19 @@ jobs:
   gc:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: dev
+            url_secret: SEED_SUPABASE_URL
+            key_secret: SEED_SERVICE_ROLE_KEY
+            required: true
+          - target: prod
+            url_secret: PROD_SUPABASE_URL
+            key_secret: PROD_SERVICE_ROLE_KEY
+            required: false
+    name: gc-${{ matrix.target }}
     steps:
       - uses: actions/checkout@v4
 
@@ -45,14 +61,18 @@ jobs:
           node-version: 22
 
       # 스크립트는 의존성이 없어 npm install 불필요.
-      - name: Run storage GC
+      - name: Run storage GC (${{ matrix.target }})
         env:
-          SUPABASE_URL: ${{ secrets.SEED_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SEED_SERVICE_ROLE_KEY }}
+          SUPABASE_URL: ${{ secrets[matrix.url_secret] }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets[matrix.key_secret] }}
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
-            echo "::error::SEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY secrets 미등록"
-            exit 1
+            if [ "${{ matrix.required }}" = "true" ]; then
+              echo "::error::${{ matrix.target }} secrets(${{ matrix.url_secret }}/${{ matrix.key_secret }}) 미등록"
+              exit 1
+            fi
+            echo "::notice::${{ matrix.target }} secrets 미등록 — skip. 등록이 곧 활성화 스위치다."
+            exit 0
           fi
           printf 'SUPABASE_URL=%s\nSUPABASE_SERVICE_ROLE_KEY=%s\n' \
             "$SUPABASE_URL" "$SUPABASE_SERVICE_ROLE_KEY" > /tmp/gc.env
