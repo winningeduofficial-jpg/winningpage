@@ -878,9 +878,17 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                         className="rounded-2xl border border-line p-5"
                       >
                         <div className="flex items-start justify-between gap-4">
-                          <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink">
-                            {item.name}
-                          </p>
+                          <div className="min-w-0">
+                            <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink">
+                              {item.name}
+                            </p>
+                            {/* ⚠ 신규 카피 — 승인 필요. 약관 제33조의2 ③ 1·2호 —
+                                구성 서비스별 정가·수량 표시. 수량은 화면에 존재하는
+                                order_items에 quantity 개념이 없어 항상 1이다. */}
+                            <p className="mt-1 text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
+                              정가 {formatKRW(item.list_price)} · 수량 1
+                            </p>
+                          </div>
                           <div className="flex shrink-0 flex-col items-end">
                             {hasDiscount && (
                               <span className="text-[0.75rem] font-medium leading-5 tracking-[-0.02em] text-line line-through">
@@ -1249,12 +1257,18 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
             <div>
               <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 금액</h3>
               <dl className="space-y-3 text-[0.875rem] font-medium leading-5 text-ink">
+                {/* ⚠ 신규 카피 — 승인 필요. 레이블 "판매가"→"정가 합계"
+                    (약관 제33조의2 ③ 3호 — displayListAmount가 개별 정가의
+                    합계임을 레이블에서 드러낸다). */}
                 <div className="flex justify-between">
-                  <dt>판매가</dt>
+                  <dt>정가 합계</dt>
                   <dd>{formatKRW(displayListAmount)}</dd>
                 </div>
+                {/* ⚠ 신규 카피 — 승인 필요. 레이블 "할인 금액"→"장기이용 할인
+                    금액" (약관 제33조의2 ③ 4호 — 상품 자체 장기이용 할인임을
+                    명시해 아래 쿠폰 할인과 구분한다). */}
                 <div className="flex justify-between">
-                  <dt>할인 금액</dt>
+                  <dt>장기이용 할인 금액</dt>
                   <dd className="text-primary">
                     {displayDiscountAmount > 0
                       ? `-${formatKRW(displayDiscountAmount)}`
@@ -1274,6 +1288,13 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                   <dd>{formatKRW(displayAmount)}</dd>
                 </div>
               </dl>
+
+              {/* ⚠ 신규 카피 — 승인 필요. 약관 제33조의2 ③ 2호 — 개별 정가가
+                  부분해지 환불 산정 기준임을 결제 이전 화면에 고지. */}
+              <p className="mt-3 text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
+                각 구성 서비스의 개별 정가는 부분해지 시 환불액 산정의 기준이
+                됩니다.
+              </p>
 
               {missingOrderItem && (
                 <p
