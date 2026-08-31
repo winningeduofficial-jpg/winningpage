@@ -4,10 +4,13 @@ import {
   isValidElement,
   type ReactElement,
   type ReactNode,
+  useEffect,
   useId,
   useRef,
   useState,
 } from "react";
+import { useLocation } from "react-router";
+import { PREMIUM_APPLY_FORM_ANCHOR_ID } from "@/components/premium/premiumRoutesPaths";
 import BookViewer from "@/components/premiumBook/BookViewer";
 import { usePremiumBookPages } from "@/components/premiumBook/usePremiumBookPages";
 import { formatPhoneInput } from "@/lib/phoneVerification";
@@ -177,6 +180,29 @@ export default function PremiumApply() {
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const { pages, loading, error, retry } = usePremiumBookPages();
+  const location = useLocation();
+
+  // 대입A・S 히어로 CTA(/premium-apply#premium-apply-form, QA 행251)로 들어왔을 때 상담
+  // 신청 섹션까지 스크롤한다. React Router 데이터 라우터(ScrollToTop, src/App.tsx)는 해시가
+  // 있으면 스크롤을 건드리지 않고 물러나는데, 이건 페이지 내 앵커 클릭(브라우저 네이티브
+  // 스크롤)만 전제한 것이라 크로스 라우트 진입에는 아무도 스크롤을 옮기지 않는다 — 이 훅이
+  // 그 빈틈을 채운다. BookViewer 로딩이 끝나기 전에 스크롤하면 플립북 높이가 나중에
+  // 자리잡으며 목표 위치가 밀리므로 loading이 꺼진 다음에만 시도한다.
+  useEffect(() => {
+    if (loading) return;
+    if (location.hash !== `#${PREMIUM_APPLY_FORM_ANCHOR_ID}`) return;
+
+    const target = document.getElementById(PREMIUM_APPLY_FORM_ANCHOR_ID);
+    if (!target) return;
+
+    const prefersReduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    target.scrollIntoView({
+      behavior: prefersReduced ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [loading, location.hash]);
 
   const fieldRefs: Record<
     keyof FormState,
@@ -267,8 +293,12 @@ export default function PremiumApply() {
         onRetry={retry}
       />
 
-      {/* 상담 신청 섹션 */}
-      <section className="bg-[#f7f7f7] py-20">
+      {/* 상담 신청 섹션 — id/scroll-mt는 대입A・S 히어로 CTA 앵커 타깃이다(위 useEffect,
+          BoardListPage.jsx:198 scroll-mt-24 선례와 동일하게 fixed 헤더 h-16을 보정한다). */}
+      <section
+        id={PREMIUM_APPLY_FORM_ANCHOR_ID}
+        className="scroll-mt-24 bg-[#f7f7f7] py-20"
+      >
         <div className="mx-auto flex max-w-content flex-col gap-10 px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-16">
           <div className="max-w-130 shrink-0 lg:pt-4">
             <p className="text-sm font-medium leading-5 text-primary">문의</p>

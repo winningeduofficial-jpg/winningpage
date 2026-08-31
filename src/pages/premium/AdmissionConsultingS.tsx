@@ -1,6 +1,8 @@
 import MentorSection from "@/components/landing/MentorSection";
 import {
   PREMIUM_ADMISSION_A_PATH,
+  PREMIUM_APPLY_FORM_ANCHOR_ID,
+  PREMIUM_APPLY_PATH,
   PREMIUM_CONTAINER_CLASS,
   PREMIUM_DARK_SECTION_BG_CLASS,
   PREMIUM_SECTION_PADDING_CLASS,
@@ -174,7 +176,10 @@ export default function AdmissionConsultingS() {
           </>
         }
         description="대표원장이 비정기 대면상담으로 학생과 직접 소통하며 대입 실전의 마지막 관문까지 함께합니다"
-        cta={{ label: "VIP 사전 인터뷰 신청", to: "/premium-apply" }}
+        cta={{
+          label: "VIP 사전 인터뷰 신청",
+          to: `${PREMIUM_APPLY_PATH}#${PREMIUM_APPLY_FORM_ANCHOR_ID}`,
+        }}
         bgSrc={HERO_BG}
         glowClassName={HERO_GLOW_CLASS}
       />

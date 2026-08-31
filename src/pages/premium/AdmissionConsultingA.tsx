@@ -1,6 +1,8 @@
 import MentorSection from "@/components/landing/MentorSection";
 import {
   PREMIUM_ADMISSION_S_PATH,
+  PREMIUM_APPLY_FORM_ANCHOR_ID,
+  PREMIUM_APPLY_PATH,
   PREMIUM_BEIGE_BG_CLASS,
   PREMIUM_CONTAINER_CLASS,
   PREMIUM_SECTION_PADDING_CLASS,
@@ -167,7 +169,10 @@ export default function AdmissionConsultingA() {
           </>
         }
         description="매일의 내신과 탐구활동, 그 모든 산출물을 대표원장이 마지막까지 직접 검수하는 학습·탐구 관리 프로그램입니다."
-        cta={{ label: "사전 인터뷰 신청", to: "/premium-apply" }}
+        cta={{
+          label: "사전 인터뷰 신청",
+          to: `${PREMIUM_APPLY_PATH}#${PREMIUM_APPLY_FORM_ANCHOR_ID}`,
+        }}
         bgSrc={HERO_BG}
         glowClassName={HERO_GLOW_CLASS}
       />
