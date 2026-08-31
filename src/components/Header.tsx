@@ -1,5 +1,5 @@
 import type { User } from "@supabase/supabase-js";
-import { ChevronDown, Menu, Settings } from "lucide-react";
+import { Menu, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import megaPromoDiagnosisImg from "@/assets/mega/promo-diagnosis.png";
@@ -16,7 +16,6 @@ import { cleanText, isSameObject, useNavGroups } from "@/hooks/useNavGroups";
 import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import MobileNavDrawer from "./MobileNavDrawer";
-import { buildMyMenu } from "./myMenuItems";
 
 const CSAT_DATE = "2026-11-19";
 const HEADER_PROFILE_CACHE_KEY = "winning-header-profile";
@@ -291,7 +290,6 @@ export default function Header() {
     "closed" | "open" | "closing"
   >("closed");
   const megaPanelAnimTimerRef = useRef<number | null>(null);
-  const [myOpen, setMyOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
   const navGroups = useNavGroups();
@@ -567,11 +565,10 @@ export default function Header() {
   const shouldShowLoggedInHeader = isLoggedIn && hasProfile;
   const displayName = cleanText(profile?.name) || "";
   const memberLabel = getMemberLabel(profile);
-  // 학부모는 '수강신청·결제'가 /pricing 이 아니라 마이페이지 결제 내역으로 간다
-  // (myMenuItems.js buildMyMenu 주석 참고).
+  // isParentMember는 MobileNavDrawer의 드로어 마이페이지 메뉴(buildMyMenu) 분기에
+  // 쓰인다 — 헤더 데스크톱 버튼은 QA 행253·254로 단독 버튼이 돼 더는 쓰지 않는다.
   const isParentMember =
     cleanText(profile?.member_type).toLowerCase() === "parent";
-  const myMenu = buildMyMenu(isParentMember);
   const isAdmin = cleanText(profile?.role).toLowerCase() === "admin";
 
   // 메가 패널 콘텐츠(모든 navGroups 컬럼 + 프로모 카드)는 activeMega와 무관하게 항상 동일하다
@@ -627,46 +624,14 @@ export default function Header() {
                       {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
                     </div>
 
-                    {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
-                    <div
-                      className="relative flex items-center"
-                      onMouseEnter={() => setMyOpen(true)}
-                      onMouseLeave={() => setMyOpen(false)}
+                    {/* QA 행253·254 — 호버 드롭다운(내정보/수강신청·결제/환불) 제거,
+                        /mypage로 바로 가는 단독 버튼으로 단순화한다. */}
+                    <Link
+                      to="/mypage"
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
                     >
-                      <button
-                        type="button"
-                        onClick={() => setMyOpen((prev) => !prev)}
-                        className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
-                      >
-                        마이페이지
-                        <ChevronDown
-                          size={14}
-                          className={`transition ${myOpen ? "rotate-180" : ""}`}
-                        />
-                      </button>
-
-                      {myOpen && (
-                        <div className="absolute right-0 top-full z-50 w-[16rem]">
-                          <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                            {myMenu.map((item) => {
-                              const Icon = item.icon;
-
-                              return (
-                                <Link
-                                  key={item.label}
-                                  to={item.to}
-                                  onClick={() => setMyOpen(false)}
-                                  className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
-                                >
-                                  <Icon size={18} />
-                                  {item.label}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      마이페이지
+                    </Link>
 
                     {isAdmin && (
                       <Link
@@ -690,46 +655,13 @@ export default function Header() {
               if (isLoggedIn)
                 return (
                   <>
-                    {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
-                    <div
-                      className="relative flex items-center"
-                      onMouseEnter={() => setMyOpen(true)}
-                      onMouseLeave={() => setMyOpen(false)}
+                    {/* QA 행253·254 — 호버 드롭다운 제거, /mypage로 바로 가는 단독 버튼. */}
+                    <Link
+                      to="/mypage"
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
                     >
-                      <button
-                        type="button"
-                        onClick={() => setMyOpen((prev) => !prev)}
-                        className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
-                      >
-                        마이페이지
-                        <ChevronDown
-                          size={14}
-                          className={`transition ${myOpen ? "rotate-180" : ""}`}
-                        />
-                      </button>
-
-                      {myOpen && (
-                        <div className="absolute right-0 top-full z-50 w-[16rem]">
-                          <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                            {myMenu.map((item) => {
-                              const Icon = item.icon;
-
-                              return (
-                                <Link
-                                  key={item.label}
-                                  to={item.to}
-                                  onClick={() => setMyOpen(false)}
-                                  className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
-                                >
-                                  <Icon size={18} />
-                                  {item.label}
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      마이페이지
+                    </Link>
 
                     <button
                       type="button"
