@@ -40,9 +40,9 @@ test("권한·네트워크 실패는 객체 부재가 아니다 — 원문을 �
   expect(isObjectNotFound({ statusCode: "403", message: "Unauthorized" })).toBe(
     false,
   );
-  expect(isObjectNotFound({ statusCode: "500", message: "Internal error" })).toBe(
-    false,
-  );
+  expect(
+    isObjectNotFound({ statusCode: "500", message: "Internal error" }),
+  ).toBe(false);
   expect(isObjectNotFound(new TypeError("Failed to fetch"))).toBe(false);
 });
 

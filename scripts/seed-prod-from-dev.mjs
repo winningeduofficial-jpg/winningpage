@@ -141,7 +141,9 @@ function loadDevEnv() {
       ".env.seed.local 또는 .env.local에 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 필요",
     );
   if (url.includes("127.0.0.1") || url.includes("localhost"))
-    throw new Error(`${source}의 SUPABASE_URL이 로컬을 가리킴 — dev URL이어야 한다.`);
+    throw new Error(
+      `${source}의 SUPABASE_URL이 로컬을 가리킴 — dev URL이어야 한다.`,
+    );
   if (!url.includes(DEV_PROJECT_REF))
     throw new Error(
       `${source}의 SUPABASE_URL이 dev 프로젝트(${DEV_PROJECT_REF})가 아님 — 중단.`,
@@ -161,7 +163,8 @@ function loadProdEnv() {
   }
   const file = readEnvFile(".env.seed.prod.local");
   const url = file?.SEED_TARGET_URL || file?.SUPABASE_URL;
-  const key = file?.SEED_TARGET_SERVICE_ROLE_KEY || file?.SUPABASE_SERVICE_ROLE_KEY;
+  const key =
+    file?.SEED_TARGET_SERVICE_ROLE_KEY || file?.SUPABASE_SERVICE_ROLE_KEY;
   if (url && key)
     return { url: url.replace(/\/$/, ""), key, source: ".env.seed.prod.local" };
   return null;
@@ -331,7 +334,9 @@ function scanBannersRefs(str, refs, pathIndex) {
   const bare = str.trim().replace(/^\//, "");
   if (pathIndex.has(bare)) refs.add(bare);
   if (str.length > bare.length || !pathIndex.has(bare)) {
-    for (const m of str.matchAll(/[\w\-./]+\.(?:png|jpe?g|webp|gif|svg|pdf|mp4|webm)/gi)) {
+    for (const m of str.matchAll(
+      /[\w\-./]+\.(?:png|jpe?g|webp|gif|svg|pdf|mp4|webm)/gi,
+    )) {
       const token = m[0].replace(/^\//, "");
       if (pathIndex.has(token)) refs.add(token);
     }
@@ -358,7 +363,9 @@ async function listBannersBucket(url, key, prefix = "") {
       }),
     });
     if (!res.ok)
-      throw new Error(`banners 리스팅 실패(${prefix || "/"}): HTTP ${res.status}`);
+      throw new Error(
+        `banners 리스팅 실패(${prefix || "/"}): HTTP ${res.status}`,
+      );
     const objs = await res.json();
     if (!Array.isArray(objs))
       throw new Error(`banners 리스팅 응답이 배열이 아님(${prefix || "/"})`);
@@ -397,7 +404,9 @@ async function ensureProdBannersBucket(url, key) {
 
 async function mirrorBanner(devUrl, prodUrl, prodKey, relPath) {
   const encoded = relPath.split("/").map(encodeURIComponent).join("/");
-  const downloadRes = await fetch(`${devUrl}/storage/v1/object/public/banners/${encoded}`);
+  const downloadRes = await fetch(
+    `${devUrl}/storage/v1/object/public/banners/${encoded}`,
+  );
   if (!downloadRes.ok) {
     console.error(`✗ 다운로드 실패: ${relPath} (HTTP ${downloadRes.status})`);
     return false;
@@ -405,16 +414,19 @@ async function mirrorBanner(devUrl, prodUrl, prodKey, relPath) {
   const buf = Buffer.from(await downloadRes.arrayBuffer());
   const contentType =
     downloadRes.headers.get("content-type") ?? "application/octet-stream";
-  const uploadRes = await fetch(`${prodUrl}/storage/v1/object/banners/${encoded}`, {
-    method: "POST",
-    headers: {
-      apikey: prodKey,
-      Authorization: `Bearer ${prodKey}`,
-      "Content-Type": contentType,
-      "x-upsert": "true",
+  const uploadRes = await fetch(
+    `${prodUrl}/storage/v1/object/banners/${encoded}`,
+    {
+      method: "POST",
+      headers: {
+        apikey: prodKey,
+        Authorization: `Bearer ${prodKey}`,
+        "Content-Type": contentType,
+        "x-upsert": "true",
+      },
+      body: buf,
     },
-    body: buf,
-  });
+  );
   if (!uploadRes.ok) {
     console.error(`✗ 업로드 실패: ${relPath} (HTTP ${uploadRes.status})`);
     return false;
@@ -447,11 +459,12 @@ async function createAdminMaster(prodClient) {
       `prod admin_roles에 '최고 관리자' 행이 없음: ${roleErr?.message ?? "not found"}`,
     );
 
-  const { data: created, error: createErr } = await prodClient.auth.admin.createUser({
-    email,
-    password,
-    email_confirm: true,
-  });
+  const { data: created, error: createErr } =
+    await prodClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
   if (createErr) throw new Error(`auth 계정 생성 실패: ${createErr.message}`);
   const userId = created.user.id;
 
@@ -471,7 +484,9 @@ async function createAdminMaster(prodClient) {
   if (memberErr)
     throw new Error(`admin_members 행 생성 실패: ${memberErr.message}`);
 
-  console.log(`\n✓ 관리자 계정 생성 완료: ${email} (최고 관리자, profile_id=${userId})`);
+  console.log(
+    `\n✓ 관리자 계정 생성 완료: ${email} (최고 관리자, profile_id=${userId})`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -484,13 +499,17 @@ async function main() {
   const prod = loadProdEnv();
   const devHost = hostOf(dev.url);
 
-  console.log(`모드: ${APPLY ? "적용(--apply)" : "드라이런"} | dev: ${devHost}`);
+  console.log(
+    `모드: ${APPLY ? "적용(--apply)" : "드라이런"} | dev: ${devHost}`,
+  );
 
   if (prod) {
     const prodHost = hostOf(prod.url);
     const prodRef = prodHost.split(".")[0];
     if (prodRef === DEV_PROJECT_REF)
-      throw new Error("타깃이 dev 프로젝트와 동일함 — 자기 자신 시딩 방지, 중단.");
+      throw new Error(
+        "타깃이 dev 프로젝트와 동일함 — 자기 자신 시딩 방지, 중단.",
+      );
     if (APPLY) {
       console.log(`타깃(prod) URL: ${prod.url}`);
       if (process.env.SEED_CONFIRM !== prodRef)
@@ -553,7 +572,11 @@ async function main() {
       console.log(
         `✓ admin_roles: dev ${rows.length}행 → prod ${nameToProdId.size}행 (name 기준 매핑, id는 prod 기존값 유지)`,
       );
-      results.push({ table: table.name, devCount: rows.length, __adminRoleMap: nameToProdId });
+      results.push({
+        table: table.name,
+        devCount: rows.length,
+        __adminRoleMap: nameToProdId,
+      });
     } else if (table.special === "admin_role_permissions") {
       const mapEntry = results.find((r) => r.__adminRoleMap);
       const n = await handleAdminRolePermissions(
@@ -562,7 +585,9 @@ async function main() {
         devRolesCache,
         mapEntry.__adminRoleMap,
       );
-      console.log(`✓ admin_role_permissions: dev ${rows.length}행 → prod ${n}행 반영`);
+      console.log(
+        `✓ admin_role_permissions: dev ${rows.length}행 → prod ${n}행 반영`,
+      );
       results.push({ table: table.name, devCount: rows.length, prodCount: n });
       continue;
     } else {
@@ -570,7 +595,9 @@ async function main() {
     }
 
     const prodCount = await countRows(prodClient, table.name);
-    console.log(`✓ ${table.name}: dev ${rows.length}행 → prod 현재 ${prodCount}행`);
+    console.log(
+      `✓ ${table.name}: dev ${rows.length}행 → prod 현재 ${prodCount}행`,
+    );
     results.push({ table: table.name, devCount: rows.length, prodCount });
   }
 
@@ -583,7 +610,9 @@ async function main() {
   }
   console.log(
     `\nbanners 참조 파일: ${referencedPaths.size}개(${(referencedSize / 1024 / 1024).toFixed(1)}MB)` +
-      (missing.length ? `, 참조는 있으나 실파일 없음 ${missing.length}건(스킵)` : ""),
+      (missing.length
+        ? `, 참조는 있으나 실파일 없음 ${missing.length}건(스킵)`
+        : ""),
   );
   console.log(
     `URL 치환 대상(${devHost} → ${prodHost ?? "(타깃 미설정)"}): ${hostCounter.count}건`,
@@ -598,7 +627,9 @@ async function main() {
       const success = await mirrorBanner(dev.url, prod.url, prod.key, p);
       if (success) ok++;
     }
-    console.log(`  ${ok}/${referencedPaths.size - missing.length}개 파일 복사 완료`);
+    console.log(
+      `  ${ok}/${referencedPaths.size - missing.length}개 파일 복사 완료`,
+    );
 
     await createAdminMaster(prodClient);
   } else {
@@ -607,7 +638,9 @@ async function main() {
     );
   }
 
-  console.log(`\n완료: 테이블 ${TABLES.length}개 처리${APPLY ? "" : " (드라이런)"}`);
+  console.log(
+    `\n완료: 테이블 ${TABLES.length}개 처리${APPLY ? "" : " (드라이런)"}`,
+  );
 }
 
 main().catch((e) => {
