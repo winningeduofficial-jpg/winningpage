@@ -441,7 +441,10 @@ export default function ServiceCatalog({
                       {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — 반응형
                       확대만 제거하고, shortLabel↔전문 전환(lg:hidden/hidden lg:inline)
                       은 폭 절약이 아니라 "서비스명 중복 회피"가 목적이라 그대로 둔다. */}
-                      <span className="break-keep text-[0.8125rem] font-medium leading-5 tracking-[-0.02em] text-ink">
+                      {/* QA 행238 — 13px가 작다는 지적으로 14px로 올린다. 라벨 몫 예산
+                      156px 대비 최장 라벨이 13px에서 112.8px(여유 43px)이라 14px로
+                      올려도(≈121.5px) 예산 안에 그대로 들어간다. */}
+                      <span className="break-keep text-[0.875rem] font-medium leading-5 tracking-[-0.02em] text-ink">
                         <span className="lg:hidden">{shortLabel}</span>
                         <span className="hidden lg:inline">{product.name}</span>
                       </span>
@@ -505,21 +508,27 @@ export default function ServiceCatalog({
                       기존 w900 → w500, ink-title → ink 로만 내렸다. 무게가 줄고 ls 가
                       음수라 최장 문구('40%할인 180,000원') 폭은 기존 122.6px 보다 더
                       줄어들어 126px 예산이 깨질 위험이 없다. */}
+                      {/* QA 행238 — 라벨(위 span)은 14px로 올렸지만 이 span은 13px을
+                      유지한다. 바로 위 주석의 126px 예산 계산(14px면 최장 문구가
+                      ≈132px로 넘침)이 그대로 걸리는 유일한 span이라, 여기만 올리면
+                      2줄로 접혀 행 높이가 깨진다. */}
                       <span className="text-[0.8125rem] font-medium tracking-[-0.02em] text-ink lg:hidden">
                         {compactBadge
                           ? `${compactBadge} ${formatKRW(product.price)}`
                           : formatKRW(product.price)}
                       </span>
                       {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — lg 전용
-                      배지・판매가를 390 한 줄 표현(0.8125rem, 위 span)과 같은 위계로
-                      내렸다. 기존 24px는 7f072f45 폐기 이전 확대 규약의 잔존값이었다. */}
+                      배지・판매가를 390 한 줄 표현과 같은 위계로 내렸다. 기존 24px는
+                      7f072f45 폐기 이전 확대 규약의 잔존값이었다.
+                      QA 행238 — lg 컬럼은 폭 제약(w-31.5)이 없는 auto 폭이라(위 button
+                      주석 참고) 라벨과 함께 14px로 올려도 줄바꿈 위험이 없다. */}
                       <span className="hidden items-center gap-2 lg:flex">
                         {product.badge && (
-                          <span className="text-[0.8125rem] font-medium tracking-[-0.02em] text-primary">
+                          <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-primary">
                             {product.badge}
                           </span>
                         )}
-                        <span className="text-[0.8125rem] font-medium tracking-[-0.02em] text-ink">
+                        <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-ink">
                           {formatKRW(product.price)}
                         </span>
                       </span>
