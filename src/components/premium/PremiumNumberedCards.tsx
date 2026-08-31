@@ -87,7 +87,7 @@ export default function PremiumNumberedCards({
       {items.map((item) => (
         <div
           key={item.number}
-          className={`flex min-h-[12rem] w-full shrink-0 flex-col rounded-lg px-8 py-7 transition-colors duration-200 hover:bg-surface-beige motion-reduce:transition-none lg:flex-1 ${PREMIUM_CARD_BORDER_CLASS}`}
+          className={`flex min-h-[12rem] w-full shrink-0 flex-col px-8 py-7 transition-colors duration-200 hover:bg-surface-beige motion-reduce:transition-none lg:flex-1 ${PREMIUM_CARD_BORDER_CLASS}`}
         >
           <span
             className={`text-[1.5rem] font-semibold leading-[1.4] ${PREMIUM_GOLD_TEXT_CLASS}`}

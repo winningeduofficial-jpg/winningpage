@@ -67,7 +67,7 @@ export default function PremiumNumberedList({
               className={
                 isDark
                   ? "flex flex-col text-left"
-                  : `flex min-h-[8.125rem] flex-col justify-center rounded-lg px-8 py-6 text-left ${PREMIUM_CARD_BORDER_CLASS}`
+                  : `flex min-h-[8.125rem] flex-col justify-center px-8 py-6 text-left ${PREMIUM_CARD_BORDER_CLASS}`
               }
             >
               <span

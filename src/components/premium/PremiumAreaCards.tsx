@@ -77,7 +77,7 @@ function AreaCard({
 
   return (
     <div
-      className={`group flex min-h-[19rem] w-full shrink-0 flex-col rounded-lg px-8 py-7 transition-[background-color,color,transform,box-shadow] duration-200 hover:scale-[1.03] hover:border-transparent hover:shadow-[0_0.5rem_1.75rem_rgba(28,26,25,0.28)] motion-reduce:transition-none motion-reduce:hover:scale-100 lg:flex-1 hover:bg-ink-dark hover:text-white ${
+      className={`group flex min-h-[19rem] w-full shrink-0 flex-col px-8 py-7 transition-[background-color,color,transform,box-shadow] duration-200 hover:scale-[1.03] hover:border-transparent hover:shadow-[0_0.5rem_1.75rem_rgba(28,26,25,0.28)] motion-reduce:transition-none motion-reduce:hover:scale-100 lg:flex-1 hover:bg-ink-dark hover:text-white ${
         isStaticDark
           ? "border border-transparent bg-ink-dark text-white"
           : PREMIUM_CARD_BORDER_CLASS
