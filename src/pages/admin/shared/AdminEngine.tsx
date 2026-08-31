@@ -671,6 +671,28 @@ export function AdminForm<T extends AdminRow = AdminRow>({
   const editorRefs = useRef(
     new Map<string, { current: BlockEditorHandle | null }>(),
   );
+
+  // 이번 편집 세션(이 AdminForm 마운트)에서 업로드된 banners 경로 → blockEditor
+  // 삽입분인지 여부. uploadImage 자체는 PremiumBookAdmin도 재사용하는 순수 모듈
+  // 스코프 함수라 여기(컴포넌트 레벨 ref)에서만 추적한다 — 그래야 마운트마다
+  // 격리되고 PremiumBookAdmin의 booklet.pdf 고정 경로 upsert(uploadImage를 아예
+  // 거치지 않음)와도 섞이지 않는다. 저장 시엔 blockEditor 삽입분을 diff 삭제
+  // 대상에서 제외하지만(주간 GC 몫, 고아 방지 스펙 1), 취소 시엔 전량 삭제
+  // 대상이다(스펙 2) — 그래서 값 하나만이 아니라 태그까지 들고 있는다.
+  const sessionUploadsRef = useRef<Map<string, boolean>>(new Map());
+
+  async function trackedUpload(
+    files: File | (File | null | undefined)[] | FileList | null | undefined,
+    field: Partial<AdminField<T>>,
+  ) {
+    const uploaded = await onUpload(files, field);
+    for (const item of uploaded || []) {
+      const path = bannerPathFromUrl(item.url);
+      if (path)
+        sessionUploadsRef.current.set(path, field.type === "blockEditor");
+    }
+    return uploaded;
+  }
   // 미리보기는 "미리보기" 버튼을 눌렀을 때 getBlocks()를 1회 호출한 스냅샷이다.
   // null이면 닫힘 — 라이브 갱신 없음, 에디터로 되돌아가는 데이터 경로 없음.
   const [previewPost, setPreviewPost] = useState<ColumnBodyPost | null>(null);
@@ -719,6 +741,14 @@ export function AdminForm<T extends AdminRow = AdminRow>({
       !window.confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")
     )
       return;
+
+    // 고아 방지 스펙 2: 저장 없이 폼을 나가면 이번 세션에 업로드한 파일은
+    // (blockEditor 삽입분 포함) 전부 고아가 된다 — best-effort로 지운다.
+    if (sessionUploadsRef.current.size > 0) {
+      removeBannerPaths(sessionUploadsRef.current.keys());
+      sessionUploadsRef.current.clear();
+    }
+
     onCancel();
   }
 
@@ -757,7 +787,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
 
-    const uploaded = await onUpload(files, field);
+    const uploaded = await trackedUpload(files, field);
     if (!uploaded || uploaded.length === 0) return;
 
     if (field.type === "multiImage") {
@@ -838,6 +868,29 @@ export function AdminForm<T extends AdminRow = AdminRow>({
           : [];
       }
     }
+
+    // 고아 방지 스펙 1: 편집 시작 시점 원본(row)에는 있었지만 최종 저장 값엔
+    // 없는 구 경로 + 이번 세션 중 업로드했으나 최종 값에 남지 않은 중간
+    // 교체분을 지운다. blockEditor 삽입분은 diff 대상에서 제외한다(true로
+    // 태깅된 항목 — 주간 GC가 수거).
+    const bannerFields = (config.fields || []).filter(
+      (field) =>
+        field.type === "image" ||
+        field.type === "multiImage" ||
+        field.type === "multiFile",
+    );
+    const originalBannerPaths = collectBannerPaths(row, bannerFields);
+    const finalBannerPaths = collectBannerPaths(merged, bannerFields);
+    const bannerPathsToDelete = new Set<string>();
+    for (const path of originalBannerPaths) {
+      if (!finalBannerPaths.has(path)) bannerPathsToDelete.add(path);
+    }
+    for (const [path, isBlockEditor] of sessionUploadsRef.current) {
+      if (!isBlockEditor && !finalBannerPaths.has(path))
+        bannerPathsToDelete.add(path);
+    }
+    sessionUploadsRef.current.clear();
+    if (bannerPathsToDelete.size > 0) removeBannerPaths(bannerPathsToDelete);
 
     setDirty(false);
     onSave(merged);
@@ -1076,7 +1129,10 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                   : undefined)
                               }
                               uploadFile={async (file) => {
-                                const uploaded = await onUpload(file, field);
+                                const uploaded = await trackedUpload(
+                                  file,
+                                  field,
+                                );
                                 if (!uploaded?.[0]?.url)
                                   throw new Error(
                                     "이미지 업로드에 실패했습니다.",
@@ -1109,7 +1165,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                 accept="image/*"
                                 className="hidden"
                                 onChange={async (e) => {
-                                  const uploaded = await onUpload(
+                                  const uploaded = await trackedUpload(
                                     e.target.files?.[0],
                                     field,
                                   );
@@ -1148,7 +1204,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                 accept={field.accept || "*"}
                                 className="hidden"
                                 onChange={async (e) => {
-                                  const uploaded = await onUpload(
+                                  const uploaded = await trackedUpload(
                                     e.target.files?.[0],
                                     field,
                                   );
@@ -1786,6 +1842,75 @@ export function AdminTable<T extends AdminRow = AdminRow>({
 }
 
 const IMAGE_BUCKET = "banners";
+
+const BANNERS_PUBLIC_PATH_MARKER = "/storage/v1/object/public/banners/";
+
+// banners 버킷 공개 URL에서 스토리지 경로만 뽑아낸다(고아 파일 정리 대상 판별용).
+// 마커가 없으면(banners 버킷 외 URL, 외부 URL) null — 그런 값은 건드리지 않는다.
+export function bannerPathFromUrl(url: unknown): string | null {
+  if (typeof url !== "string" || !url) return null;
+  const markerIndex = url.indexOf(BANNERS_PUBLIC_PATH_MARKER);
+  if (markerIndex === -1) return null;
+  const raw = url.slice(markerIndex + BANNERS_PUBLIC_PATH_MARKER.length);
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+// image/multiImage/multiFile 필드 값에서 참조 중인 banners 경로 전체를 모은다.
+// blockEditor는 의도적으로 제외한다 — 본문 삽입 이미지는 주간 GC가 수거하는 별도
+// 경로다(고아 방지 스펙 1). multiImage/multiFile 항목은 문자열(URL) 또는
+// {url,...} 객체 두 형태를 다 가질 수 있다(AdminFileListItem 타입 주석과 동일 계약).
+export function collectBannerPaths(
+  source: AdminRow | null | undefined,
+  fields: Partial<AdminField>[] | null | undefined,
+): Set<string> {
+  const paths = new Set<string>();
+  if (!source || !fields) return paths;
+
+  for (const field of fields) {
+    if (!field.key) continue;
+
+    if (field.type === "image") {
+      const path = bannerPathFromUrl(source[field.key]);
+      if (path) paths.add(path);
+      continue;
+    }
+
+    if (field.type !== "multiImage" && field.type !== "multiFile") continue;
+
+    for (const item of normalizeArray(source[field.key])) {
+      const url =
+        typeof item === "string" ? item : (item as { url?: string })?.url;
+      const path = bannerPathFromUrl(url);
+      if (path) paths.add(path);
+    }
+  }
+
+  return paths;
+}
+
+// best-effort 삭제(고아 방지 스펙 4) — 실패해도 throw하지 않고 warn만 남긴다.
+// 저장/취소/행삭제 UX를 막으면 안 되므로 호출부는 await 없이 fire-and-forget으로
+// 불러도 안전하다.
+export async function removeBannerPaths(
+  paths: Iterable<string>,
+): Promise<void> {
+  const unique = [...new Set(paths)].filter(Boolean);
+  if (unique.length === 0) return;
+
+  const { error } = await supabase.storage.from(IMAGE_BUCKET).remove(unique);
+  if (error) {
+    console.warn(
+      "banners 고아 파일 삭제 실패(best-effort, 무시하고 진행)",
+      error,
+      unique,
+    );
+  }
+}
 
 const COMPRESS_THRESHOLD_BYTES = 500 * 1024;
 
