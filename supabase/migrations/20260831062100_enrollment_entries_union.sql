@@ -34,7 +34,14 @@
 --    돈이 안 들어온 건을 수강 신청으로 세면 안 된다(20260821 confirm-payment 주석).
 -- =====================================================================
 
-create or replace view public.admin_enrollment_entries
+-- ⚠️ create or replace 로는 안 된다 — 컬럼을 빼거나 순서를 바꾸는 교체를 Postgres 가
+--    거부한다(42P16 cannot drop columns from view). 앞 뷰(20260831053500)에 있던
+--    profile_id · application_status · updated_at · order_paid_at 이 여기서 사라지므로
+--    먼저 떨어뜨리고 새로 만든다. 이 뷰를 참조하는 다른 객체는 없다(화면이 PostgREST
+--    로 직접 읽는 것뿐) — 그래서 cascade 없이 안전하게 지워진다.
+drop view if exists public.admin_enrollment_entries;
+
+create view public.admin_enrollment_entries
 with (security_invoker = on)
 as
 

@@ -65,6 +65,24 @@ test("합집합 뷰에서 읽고, 화면은 읽기 전용이다", () => {
   expect(enrollments.noCreate).toBe(true);
 });
 
+test("뷰를 바꿀 때는 먼저 떨어뜨린다", () => {
+  // create or replace 는 컬럼을 빼거나 순서를 바꾸는 교체를 거부한다
+  // (42P16 cannot drop columns from view). 앞 뷰에 있던 profile_id ·
+  // application_status · updated_at · order_paid_at 이 여기서 사라지므로
+  // drop 이 먼저 와야 한다 — 실제로 이걸 빠뜨려 db-push 가 죽었다.
+  const dropAt = sql.indexOf(
+    "drop view if exists public.admin_enrollment_entries",
+  );
+  const createAt = sql.indexOf("create view public.admin_enrollment_entries");
+
+  expect(dropAt, "drop view 가 없다").toBeGreaterThan(-1);
+  expect(createAt, "create view 가 없다").toBeGreaterThan(-1);
+  expect(dropAt).toBeLessThan(createAt);
+  expect(sql, "create or replace 로는 이 교체가 안 된다").not.toContain(
+    "create or replace view public.admin_enrollment_entries",
+  );
+});
+
 test("뷰는 온라인 주문과 오프라인 장부를 union 한다", () => {
   expect(sql).toMatch(/union all/i);
   expect(sql).toContain("public.order_items");
