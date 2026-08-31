@@ -98,7 +98,7 @@ export default function MyPage() {
           <MyPageTabs tabs={tabs} activeTab={activeTab} />
         </div>
 
-        <div className="mt-25">
+        <div className="mt-16">
           {activeTab === "services" && <MyServicesTab orders={orders} />}
 
           {activeTab === "children" && <ChildrenTab />}
