@@ -268,10 +268,14 @@ export default function HeroSection({
         {/* 좌측 캐러셀 969×429 + 카드 바깥 하단 인디케이터 */}
         {leftSlideCount > 0 && (
           <div className="flex w-full flex-col items-center lg:basis-[73.89%] lg:grow lg:shrink-0">
+            {/* 프레임 배경은 투명 — 여기는 slideCount > 0 가드 안이라 항상 배너가 있고,
+                배너가 모서리 라운드를 구운 투명 PNG로 올라오면 프레임에 깔린 색이
+                모서리 초승달로 비친다(2026-08-31 QA: 네이비 잔상). 배너가 0장이면
+                섹션 자체가 렌더되지 않으므로 플레이스홀더 배경이 필요한 경로가 없다. */}
             <section
               aria-roledescription="carousel"
               aria-label="메인 배너"
-              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-[#050D2B] aspect-969/429 hero-reveal-left"
+              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] aspect-969/429 hero-reveal-left"
               onMouseEnter={leftCarousel.onMouseEnter}
               onMouseLeave={leftCarousel.onMouseLeave}
               onFocusCapture={leftCarousel.onFocusCapture}
@@ -378,10 +382,12 @@ export default function HeroSection({
         {/* 우측 캐러셀 321×429 + 카드 바깥 하단 인디케이터 */}
         {rightSlideCount > 0 && (
           <div className="flex w-full max-w-80.25 flex-col items-center md:max-w-104 lg:max-w-none lg:basis-[24.47%] lg:grow lg:shrink-0">
+            {/* 좌측 캐러셀과 같은 이유로 프레임 배경(네이비 그라데이션) 제거 — 투명 PNG
+                배너의 모서리·하단 반투명 영역으로 비쳐 보였다. */}
             <section
               aria-roledescription="carousel"
               aria-label="이벤트 배너"
-              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-linear-to-b from-[#0039B6] to-[#001950] aspect-321/429 hero-reveal-right"
+              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] aspect-321/429 hero-reveal-right"
               onMouseEnter={rightCarousel.onMouseEnter}
               onMouseLeave={rightCarousel.onMouseLeave}
               onFocusCapture={rightCarousel.onFocusCapture}
