@@ -2,8 +2,16 @@ import { useEffect, useEffectEvent, useState } from "react";
 import GoalPageHeader from "@/components/goal/GoalPageHeader";
 import AddWorkbookModal from "@/components/goal/modals/AddWorkbookModal";
 import EffortSubjectCard from "@/components/goal/plan/EffortSubjectCard";
+import AddSubjectModal from "@/components/goal/study/AddSubjectModal";
 import {
+  DEFAULT_TIMER_SUBJECTS,
+  TIMER_SUBJECT_CATALOG,
+} from "@/components/goal/studyRecordOptions";
+import { getSubjectLabel } from "@/components/goal/subjectTokens";
+import {
+  addGoalTimerSubject,
   createGoalWorkbook,
+  fetchGoalTimer,
   fetchGoalWorkbooks,
   updateGoalWorkbook,
 } from "@/lib/goalApi";
@@ -18,16 +26,15 @@ import {
 // 수정하지 않고 maxWidthClassName prop으로 넘길 수 있는 기존 토큰 중 1368px을 여유 있게 담는
 // `goal-dashboard`(93rem/1488px)를 대신 채택했다.
 
-// 카드 4장의 과목 정본. subjectTokens.js KNOWN_SUBJECT_IDS 5종 중 "기타(etc)"는 이 화면에
-// 카드가 없다 — 헤더 "+ 과목 추가하기"가 5번째 이후 과목 카드를 늘리는 동선인데 시안에 그
-// 모달이 따로 없어 기존부터 스텁 처리돼 있었고(part-10 §253), 이번 범위는 그 스텁을 그대로
-// 둔 채 기존 4카드 배선만 실데이터로 바꾼다(범위 확대 아님).
-const SUBJECT_CARDS = [
-  { id: "korean", label: "국어" },
-  { id: "math", label: "수학" },
-  { id: "english", label: "영어" },
-  { id: "science", label: "탐구" },
-];
+// QA 행361 — "+ 과목 추가하기"는 예전엔 문제집 등록 모달(AddWorkbookModal)을 여는 스텁이었다
+// (part-10 §253에 별도 모달이 없어 임시로 재사용). 2026-08-31 머지된 열공 타이머(#25)의 과목
+// 추가 모달(AddSubjectModal + addGoalTimerSubject, QA B9)이 생기면서 "과목을 추가한다"는
+// 진짜 동선이 생겼다 — 이 헤더 버튼을 그쪽으로 옮긴다. 카드 목록도 더 이상 4개 고정이 아니라
+// 열공 타이머와 같은 노출 과목 목록(GET /api/goal/timer visibleSubjects)을 그대로 따른다 —
+// "타이머에 보이는 과목 = 나의노력에 보이는 과목"으로 두 화면의 과목 개념을 하나로 합친다
+// (전에는 이 화면만 별도로 4과목 하드코딩이라 타이머에서 5번째 과목을 추가해도 여기 카드가
+// 안 늘어났다). 문제집 등록(카드별 "+ 문제집 추가")은 그대로 AddWorkbookModal을 쓴다 — 그
+// 동선은 이번 변경과 무관하다.
 
 // api/_lib/goalRepo.js buildWorkbookPayload() 반환 shape.
 type Workbook = {
@@ -47,6 +54,12 @@ export default function Efforts() {
   const [editingWorkbook, setEditingWorkbook] = useState<Workbook | null>(null);
   const [workbooks, setWorkbooks] = useState<Workbook[]>([]);
   const [loadError, setLoadError] = useState(false);
+  const [addSubjectOpen, setAddSubjectOpen] = useState(false);
+  // 노출 과목 목록 — GET /api/goal/timer visibleSubjects(열공 타이머와 동일 소스, QA
+  // 행361). 로딩 중엔 Timer.tsx와 같은 기본 4과목으로 잠깐 보여준다.
+  const [visibleSubjects, setVisibleSubjects] = useState<string[]>(
+    DEFAULT_TIMER_SUBJECTS,
+  );
 
   async function loadWorkbooks() {
     const outcome = await fetchGoalWorkbooks();
@@ -62,13 +75,34 @@ export default function Efforts() {
     setLoadError(true);
   }
 
+  async function loadVisibleSubjects() {
+    const result = await fetchGoalTimer();
+    if (result.kind === "success" && result.summary?.visibleSubjects?.length) {
+      setVisibleSubjects(result.summary.visibleSubjects);
+    }
+  }
+
   const onMountLoadWorkbooks = useEffectEvent(() => {
     loadWorkbooks();
+    loadVisibleSubjects();
   });
 
   useEffect(() => {
     onMountLoadWorkbooks();
   }, []);
+
+  const canAddMoreSubjects =
+    visibleSubjects.length < TIMER_SUBJECT_CATALOG.length;
+
+  // AddSubjectModal의 onAdd 계약(Timer.tsx와 동일) — 성공하면 노출 목록을 다시
+  // 불러와 카드 그리드를 즉시 갱신한다.
+  async function handleAddSubject(subject: string) {
+    const result = await addGoalTimerSubject(subject);
+    if (result.kind !== "success") {
+      throw new Error(`add-subject-failed:${result.kind}`);
+    }
+    await loadVisibleSubjects();
+  }
 
   function openModal(subjectLabel: string | null) {
     setPresetSubject(subjectLabel ?? null);
@@ -139,15 +173,18 @@ export default function Efforts() {
         meta={<CountBadge count={totalCompleted} />}
         subcopy="완독한 책들이 차곡차곡 쌓여갑니다. 성적이 아닌 실행 자체를 봅니다."
         actions={
-          // `+ 과목 추가하기`(5번째 이후 과목 카드 추가) — 시안에 별도 모달이 없어 스텁 처리한다.
-          // 이번 범위 문제집 등록 모달(AddWorkbookModal)만 재사용해 연다(추정, part-10 §253).
-          <button
-            type="button"
-            onClick={() => openModal(null)}
-            className="text-[0.875rem] font-medium text-ink-sub underline-offset-2 hover:text-ink-strong hover:underline"
-          >
-            + 과목 추가하기
-          </button>
+          // `+ 과목 추가하기` — 열공 타이머(#25)와 같은 AddSubjectModal을 연다(QA 행361).
+          // 카탈로그 8종을 이미 다 노출 중이면 더 고를 게 없어 숨긴다(Timer.tsx
+          // canAddMoreSubjects와 동일 조건).
+          canAddMoreSubjects && (
+            <button
+              type="button"
+              onClick={() => setAddSubjectOpen(true)}
+              className="text-[0.875rem] font-medium text-ink-sub underline-offset-2 hover:text-ink-strong hover:underline"
+            >
+              + 과목 추가하기
+            </button>
+          )
         }
         maxWidthClassName="max-w-goal-dashboard"
       />
@@ -160,7 +197,8 @@ export default function Efforts() {
         )}
 
         <div className="grid grid-cols-4 gap-10">
-          {SUBJECT_CARDS.map(({ id, label }) => {
+          {visibleSubjects.map((id) => {
+            const label = getSubjectLabel(id);
             const subjectBooks = workbooks.filter(
               (book) => book.subject === id,
             );
@@ -187,6 +225,13 @@ export default function Efforts() {
           })}
         </div>
       </div>
+
+      <AddSubjectModal
+        open={addSubjectOpen}
+        onClose={() => setAddSubjectOpen(false)}
+        visibleSubjects={visibleSubjects}
+        onAdd={handleAddSubject}
+      />
 
       <AddWorkbookModal
         open={modalOpen}
