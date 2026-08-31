@@ -64,6 +64,9 @@ interface MainCrudConfig {
   order: string;
   homepage?: boolean;
   noCreate?: boolean;
+  excel?: boolean;
+  // 개인정보 반출 게이트 대상(AdminConfig.sensitiveDownload 와 같은 뜻).
+  sensitiveDownload?: boolean;
   rowCapWarning?: boolean;
   retentionNotice?: string;
   guideText?: string;
@@ -624,9 +627,12 @@ export const mainConfigs: Record<string, MainConfig> = {
     // created_at을 그대로 지정하면 최신 신청이 목록 맨 위로 온다.
     order: "created_at",
     noCreate: true,
-    // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가므로 이 섹션은 CSV 내보내기를
-    // 기본 비활성으로 둔다 — 다운로드 버튼은 config.excel이거나 activeKey 화이트리스트에 있을 때만
-    // 뜨는데(Admin.jsx 렌더부), 둘 다 지정하지 않으면 자동으로 숨겨진다.
+    // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가는 섹션이라 예전에는 CSV
+    // 내보내기를 아예 끄는 것으로 막았다. QA 223 이 "받게 해달라, 대신 게이트를 걸어라"로
+    // 정리해, 이제 excel 을 열되 sensitiveDownload 로 비밀번호 재확인 + 사유 기재 +
+    // 로그 적재를 통과해야 내려받게 한다.
+    excel: true,
+    sensitiveDownload: true,
     rowCapWarning: true, // PostgREST 기본 1000행 상한 — 닿으면 목록 상단에 경고 노출
     retentionNotice:
       "상담 신청 정보(이름·연락처·이메일 등)는 상담 종료 후 2년간 보관합니다. 보관기간이 지난 건은 확인 후 삭제해 주세요.",

@@ -1,9 +1,10 @@
-import { Eye, EyeOff, RefreshCw, Search } from "lucide-react";
+import { Download, Eye, EyeOff, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
 import { supabase } from "@/lib/supabase";
 import { AdminTable } from "@/pages/admin/shared/AdminEngine";
 import { getFreshSupabaseAccessTokenOrSignOut } from "@/pages/admin/shared/adminSession";
-import { searchable } from "@/pages/admin/shared/csvExport";
+import { downloadCsv, searchable } from "@/pages/admin/shared/csvExport";
 import {
   ActionButton,
   Select,
@@ -113,6 +114,9 @@ interface MembersAdminProps {
   config: {
     title: string;
     searchPlaceholder: string;
+    // 목록 렌더(AdminTable)와 QA 268 다운로드가 함께 읽는다 — 이 파일이 실제로
+    // 읽는 필드만 좁히고 나머지는 인덱스 시그니처로 열어두는 이 파일의 관례를 따른다.
+    columns: { key: string; label: string; type?: string | undefined }[];
     [key: string]: unknown;
   };
 }
@@ -217,6 +221,9 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
   const [selected, setSelected] = useState<ProfileRow | null>(null);
   const [tab, setTab] = useState<TabKey>("profile");
   const [unmasked, setUnmasked] = useState(false);
+
+  // 개인정보 반출 게이트 (QA 268 다운로드 · 269 마스킹 해제).
+  const { requestAccess, gate } = useSensitiveActionGate();
 
   const [links, setLinks] = useState<LinkedPerson[]>([]);
   const [accesses, setAccesses] = useState<ProgramAccessRow[]>([]);
@@ -370,6 +377,58 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
     setDetailError("");
   }
 
+  // QA 268 — 회원 목록 다운로드. 게이트를 통과한 뒤에만 실행된다.
+  //
+  // 목록 화면은 휴대폰을 maskedPhone 으로 가려 보여주지만, 이 파일은 **가리지 않은
+  // 원본**을 내보낸다. 게이트(비밀번호 재확인 + 사유 + 로그)를 세운 이유가 바로
+  // "권한 있는 사람이 필요할 때 원본을 받게 하되 그 사실을 남긴다"이므로, 통과한
+  // 다음에도 마스킹된 파일을 주면 요구가 반쪽이 된다.
+  function exportMembers() {
+    const columns = config.columns.map((column) =>
+      column.type === "maskedPhone" ? { ...column, type: undefined } : column,
+    );
+
+    downloadCsv(
+      `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`,
+      filteredRows as unknown as Record<string, unknown>[],
+      columns,
+    );
+  }
+
+  function requestExport() {
+    if (filteredRows.length === 0) {
+      alert("내보낼 데이터가 없습니다.");
+      return;
+    }
+
+    requestAccess({
+      action: "download",
+      resourceKey: "members",
+      title: "회원 목록 다운로드",
+      description: `회원 ${filteredRows.length.toLocaleString()}건의 개인정보(이름·이메일·연락처)가 CSV 파일로 저장됩니다.`,
+      rowCount: filteredRows.length,
+      onGranted: exportMembers,
+    });
+  }
+
+  // QA 269 — 마스킹 해제도 같은 게이트를 탄다. 다시 가리는 방향(해제 → 마스킹)은
+  // 개인정보가 나가는 동작이 아니라 그냥 통과시킨다.
+  function toggleMasking() {
+    if (unmasked) {
+      setUnmasked(false);
+      return;
+    }
+
+    requestAccess({
+      action: "unmask",
+      resourceKey: "members",
+      title: "개인정보 마스킹 해제",
+      description: `${selected?.name || "이 회원"}의 연락처·이메일 원본이 화면에 표시됩니다.`,
+      targetId: selected?.id,
+      onGranted: () => setUnmasked(true),
+    });
+  }
+
   const phoneOf = (row?: ProfileRow | null) =>
     unmasked ? row?.phone || "-" : maskPhone(row?.phone);
   const emailOf = (row?: ProfileRow | null) =>
@@ -486,15 +545,14 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
 
     return (
       <div>
+        {gate}
+
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-black text-[#111827]">
             {config.title} 상세
           </h1>
           <div className="flex items-center gap-2">
-            <ActionButton
-              variant="light"
-              onClick={() => setUnmasked((prev) => !prev)}
-            >
+            <ActionButton variant="light" onClick={toggleMasking}>
               {unmasked ? <EyeOff size={14} /> : <Eye size={14} />}
               {unmasked ? "개인정보 마스킹" : "마스킹 해제"}
             </ActionButton>
@@ -603,16 +661,29 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
 
   return (
     <div>
+      {gate}
+
       <div className="mb-6 bg-white px-6 py-5 shadow-sm">
         <div className="flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={loadRows}
-            className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
-          >
-            <RefreshCw size={14} />
-            초기화
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadRows}
+              className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+            >
+              <RefreshCw size={14} />
+              초기화
+            </button>
+
+            <button
+              type="button"
+              onClick={requestExport}
+              className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+            >
+              <Download size={14} />
+              엑셀 다운로드
+            </button>
+          </div>
 
           <div className="flex items-center gap-2">
             <Select value={memberType} onChange={setMemberType}>
