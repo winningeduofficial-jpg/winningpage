@@ -27,6 +27,43 @@ export function round1(value: number | null | undefined): number | null {
   return Math.round(value * 10) / 10;
 }
 
+/**
+ * 회차 자연 순서(응시/입력 시점) 정렬 키 — 모의고사는 examDate, 내신은 enteredAt을 쓴다
+ * (api/goal/grades.ts validateEntry가 채우는 필드, 둘 중 하나만 존재). 둘 다 없는
+ * 방어적 상황(레거시 데이터)에서는 recordedAt(저장 시각)으로 대체한다.
+ */
+function examOrderKey(record: GoalGradeRecordLike): string {
+  const examDate = record.examDate as string | undefined;
+  const enteredAt = record.enteredAt as string | undefined;
+  const recordedAt = record.recordedAt as string | undefined;
+  return examDate || enteredAt || recordedAt || "";
+}
+
+/**
+ * QA 행288 — latestKpi()/recentHistory()가 배열의 "마지막 원소"를 최신으로 간주해 왔는데,
+ * api/goal/grades.ts upsertRecord()는 회차를 그냥 배열 끝에 append한다. 사용자가 회차를
+ * 시간순과 다르게(예: 지난 시험을 나중에 추가) 입력하면 증감이 뒤바뀐다.
+ *
+ * 회차 라벨(term)은 내신은 자유 입력이라 정렬 키로 못 쓴다("고1 3월" 같은 상수 목록이
+ * 없다) — 모의고사도 회차 목록 상수(MOCK_EXAM_ROUNDS)가 매년 갱신되는 "올해 4건" 드롭다운
+ * 옵션이라 여러 학년·연도에 걸친 기록을 정렬하는 데는 못 쓴다(연도가 바뀌면 과거 라벨이
+ * 그 상수에 아예 없다). 대신 각 회차가 실제로 갖고 있는 날짜 필드(examDate/enteredAt, 응시·
+ * 입력 시점 그 자체)로 정렬한다 — 이 값이야말로 "회차의 자연 순서"다.
+ *
+ * 저장 배열이 이미 정렬돼 있어도(신규 저장은 upsertRecord가 정렬해 넣는다) 과거에 뒤섞인
+ * 채 저장된 기존 데이터를 매 읽기마다 복구하기 위해 항상 다시 정렬한다(읽기 시 정렬은
+ * 생략 불가 — 임무 지시). 같은 날짜는 원 배열 순서를 유지한다(Array.prototype.sort는
+ * stable).
+ */
+export function sortByExamOrder<T extends GoalGradeRecordLike>(
+  records: T[] | null | undefined,
+): T[] {
+  const list = records || [];
+  return [...list].sort((a, b) =>
+    examOrderKey(a).localeCompare(examOrderKey(b)),
+  );
+}
+
 /** api/goal/grades.js 회차 레코드 배열 → GoalTable rows({term, korean, math, english, science, average}). */
 export function toTableRows(records: GoalGradeRecordLike[] | null | undefined) {
   return (records || []).map((record) => ({
@@ -62,7 +99,7 @@ export function latestKpi(
     fallbackRound?: string | undefined;
   } = {},
 ) {
-  const list = records || [];
+  const list = sortByExamOrder(records);
 
   if (list.length > 0) {
     // list.length > 0으로 이미 확인됨.
@@ -114,7 +151,7 @@ export function recentHistory(
   records: GoalGradeRecordLike[] | null | undefined,
   count = 3,
 ) {
-  const list = records || [];
+  const list = sortByExamOrder(records);
   const withDelta = list.map((record, index) => ({
     ...record,
     // index > 0으로 이미 확인됨.
