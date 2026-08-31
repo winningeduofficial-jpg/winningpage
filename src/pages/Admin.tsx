@@ -83,7 +83,7 @@ import {
   uploadImage,
 } from "./admin/shared/AdminEngine";
 import { AdminTopbar } from "./admin/shared/AdminTopbar";
-import { reportAdminError } from "./admin/shared/adminErrors";
+import { buildFieldLabels, reportAdminError } from "./admin/shared/adminErrors";
 import { getFreshSupabaseAccessTokenOrSignOut } from "./admin/shared/adminSession";
 import {
   csvBody,
@@ -2861,19 +2861,59 @@ export function AdminSectionRoute({ section }: { section: string }) {
   // 개인정보 반출 게이트 — 모달 상태를 이 훅이 들고, gate 를 아래 트리에 그린다.
   const { requestAccess, gate } = useSensitiveActionGate();
 
+  // 목록 상단 드롭다운 필터의 선택값(QA 227). 메뉴를 옮기면 아래 effect 가 비운다 —
+  // 종목 목록이 섹션마다 달라 이전 선택이 남으면 결과가 통째로 0건이 된다.
+  const [listFilterValue, setListFilterValue] = useState("");
+
   const config = CONFIGS[activeKey];
   const ListSummaryComponent = config.listSummaryKey
     ? LIST_SUMMARY_REGISTRY[config.listSummaryKey]
     : null;
 
+  // 목록 상단 드롭다운(config.listFilter)의 선택지 — 불러온 행의 실제 값에서
+  // 중복을 걷어내 만든다(QA 227). 빈 값은 선택지가 될 수 없어 뺀다.
+  const listFilterOptions = useMemo(() => {
+    const key = config.listFilter?.key;
+    if (!key) return [];
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const value = String(row[key] ?? "").trim();
+      if (value) seen.add(value);
+    }
+    return [...seen].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [rows, config.listFilter?.key]);
+
+  // 실제로 적용할 필터값. 지금 선택지에 없는 값은 무시한다(QA 227) — 메뉴를 옮기면
+  // 선택지가 통째로 달라지는데 이전 선택이 살아 있으면 새 목록이 0건으로 보인다.
+  // 상태를 effect 로 비우는 대신 "유효하지 않으면 없는 것으로 친다"로 두면 값이
+  // 잠깐 남아 있는 렌더도 생기지 않는다.
+  const activeListFilter = listFilterOptions.includes(listFilterValue)
+    ? listFilterValue
+    : "";
+
   const filteredRows = useMemo(() => {
     // 서버 페이지네이션 탭의 rows는 이미 "검색어가 적용된 현재 페이지 10행"이다.
     // 여기서 클라이언트 필터를 또 걸면 그 10행 안에서 한 번 더 걸러진다.
     if (config.serverPaginate) return rows;
+
+    const key = config.listFilter?.key;
+    const base =
+      key && activeListFilter
+        ? rows.filter(
+            (row) => String(row[key] ?? "").trim() === activeListFilter,
+          )
+        : rows;
+
     const q = keyword.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((row) => searchable(row).includes(q));
-  }, [rows, keyword, config.serverPaginate]);
+    if (!q) return base;
+    return base.filter((row) => searchable(row).includes(q));
+  }, [
+    rows,
+    keyword,
+    config.serverPaginate,
+    config.listFilter?.key,
+    activeListFilter,
+  ]);
 
   // 목록 조회 쿼리(필터 + 검색 + 정렬)를 한 곳에서 만든다 — loadRows와 CSV 청크
   // 내보내기가 같은 조건을 봐야 "화면에서 본 것"과 "받은 파일"이 어긋나지 않는다.
@@ -2881,8 +2921,10 @@ export function AdminSectionRoute({ section }: { section: string }) {
   // exactOptionalPropertyTypes: 호출부(loadRows)가 `count: paginate ? "exact" : undefined`로
   // undefined를 명시적으로 넘기므로 undefined도 프로퍼티 타입에 포함한다.
   function buildListQuery({ count }: { count?: "exact" | undefined } = {}) {
+    // 목록만 조인 뷰에서 읽는 섹션이 있다(config.listTable, QA 272). 쓰기 경로는
+    // 아래 saveRow/deleteRow 가 그대로 config.table 을 쓴다 — 조인 뷰는 쓰기가 안 된다.
     let query = supabase
-      .from(config.table)
+      .from(config.listTable || config.table)
       .select("*", count ? { count } : undefined);
 
     if (config.fixedCategories) {
@@ -3098,6 +3140,13 @@ export function AdminSectionRoute({ section }: { section: string }) {
 
     delete payload.created_at;
     delete payload.updated_at;
+
+    // 목록을 조인 뷰에서 읽는 섹션(config.listTable)은 폼이 그 뷰의 행을 그대로
+    // 받는다. 뷰에만 있는 파생 컬럼을 그대로 저장하면 원본 테이블에 없는 컬럼이라
+    // 42703 으로 죽는다 — 쓰기 직전에 걷어낸다 (QA 272).
+    for (const column of config.listOnlyColumns || []) {
+      delete payload[column];
+    }
     // 조회수는 원칙적으로 공개면에서만 증가한다. payload는 수정 화면을 열 때의 row
     // 스냅샷이라, 그대로 저장하면 화면을 열어둔 사이 늘어난 조회수가 옛 값으로 덮여
     // 롤백된다 — 그래서 기본은 항상 제거한다. 단, config.fields에 view_count가 있는
@@ -3144,7 +3193,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
         .single();
 
       if (error) {
-        reportAdminError("등록 실패", error);
+        reportAdminError("등록 실패", error, buildFieldLabels(config));
         return;
       }
 
@@ -3161,7 +3210,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
         .single();
 
       if (error) {
-        reportAdminError("수정 실패", error);
+        reportAdminError("수정 실패", error, buildFieldLabels(config));
         return;
       }
 
@@ -3194,7 +3243,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
       .eq("id", row.id);
 
     if (error) {
-      reportAdminError("삭제 실패", error);
+      reportAdminError("삭제 실패", error, buildFieldLabels(config));
       return;
     }
 
@@ -3280,7 +3329,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
       .single();
 
     if (error) {
-      reportAdminError("수정 실패", error);
+      reportAdminError("수정 실패", error, buildFieldLabels(config));
       return false;
     }
 
@@ -3443,14 +3492,16 @@ export function AdminSectionRoute({ section }: { section: string }) {
             <div className="mb-6 bg-white px-6 py-5 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={loadRows}
-                    className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
-                  >
-                    <RefreshCw size={14} />
-                    초기화
-                  </button>
+                  {!config.hideReset && (
+                    <button
+                      type="button"
+                      onClick={loadRows}
+                      className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+                    >
+                      <RefreshCw size={14} />
+                      초기화
+                    </button>
+                  )}
 
                   {(config.excel ||
                     ["members", "refunds"].includes(activeKey)) && (
@@ -3468,7 +3519,25 @@ export function AdminSectionRoute({ section }: { section: string }) {
                   )}
                 </div>
 
-                <div className="flex items-center">
+                <div className="flex items-center gap-2">
+                  {config.listFilter && listFilterOptions.length > 0 && (
+                    <select
+                      value={activeListFilter}
+                      onChange={(e) => {
+                        setListFilterValue(e.target.value);
+                        setPage(1);
+                      }}
+                      className="h-9 border border-gray-400 px-3 text-sm font-bold outline-hidden"
+                    >
+                      <option value="">{config.listFilter.allLabel}</option>
+                      {listFilterOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
                   <input
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
