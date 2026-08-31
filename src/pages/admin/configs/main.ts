@@ -67,6 +67,11 @@ interface MainCrudConfig {
   rowCapWarning?: boolean;
   retentionNotice?: string;
   guideText?: string;
+  // 엑셀 다운로드 버튼 노출(Admin.tsx 렌더부 config.excel 판정).
+  excel?: boolean;
+  // 저장 직전 재확인 문구(QA A13, 2026-08-27) — 값이 있으면 Admin.tsx saveRow 가
+  // window.confirm 으로 한 번 더 묻고, 취소하면 저장하지 않는다.
+  confirmBeforeSave?: string;
   columns: MainColumn[];
   fields: MainField[];
   defaults: Record<string, unknown>;
@@ -528,6 +533,9 @@ export const mainConfigs: Record<string, MainConfig> = {
     searchPlaceholder: "메뉴명, 페이지명, 주소를 검색하세요",
     order: "sort_order",
     homepage: true,
+    // QA A13(2026-08-27): 메뉴 위치·주소 변경이 랜딩 헤더/푸터에 즉시 반영되므로 저장 전 재확인.
+    confirmBeforeSave:
+      "저장하면 랜딩 메뉴 구성(상위/하위 메뉴, 순서, 주소)이 즉시 변경됩니다. 저장할까요?",
     guideText: `페이지 주소가 일반 문자이면 /page/주소로 연결됩니다. 예: services-record-analysis → /page/services-record-analysis / 페이지 주소가 /로 시작하면 실제 기능 페이지로 바로 연결됩니다. 예: /admission/results / 프리미엄 페이지는 premium/<이름> 형식으로 입력하세요. 예: premium/graduate-school → /page/premium/graduate-school`,
     columns: [
       { key: "menu_group_order", label: "상위 순서" },
@@ -640,9 +648,10 @@ export const mainConfigs: Record<string, MainConfig> = {
     // created_at을 그대로 지정하면 최신 신청이 목록 맨 위로 온다.
     order: "created_at",
     noCreate: true,
-    // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가므로 이 섹션은 CSV 내보내기를
-    // 기본 비활성으로 둔다 — 다운로드 버튼은 config.excel이거나 activeKey 화이트리스트에 있을 때만
-    // 뜨는데(Admin.jsx 렌더부), 둘 다 지정하지 않으면 자동으로 숨겨진다.
+    // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가는 섹션이라 원래 CSV 내보내기를
+    // 비활성으로 뒀으나, QA G2(2026-08-27) 요청으로 어드민 전용 엑셀 다운로드를 켠다 —
+    // 다운로드 버튼은 config.excel 이 true 일 때만 뜬다(Admin.tsx 렌더부).
+    excel: true,
     rowCapWarning: true, // PostgREST 기본 1000행 상한 — 닿으면 목록 상단에 경고 노출
     retentionNotice:
       "상담 신청 정보(이름·연락처·이메일 등)는 상담 종료 후 2년간 보관합니다. 보관기간이 지난 건은 확인 후 삭제해 주세요.",
