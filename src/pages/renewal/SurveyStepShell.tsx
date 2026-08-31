@@ -18,6 +18,8 @@ import { submitDiagnosisAnswers } from "@/lib/diagnosisInputStorage";
 // sql/72(2026-08-13 확정) — 문항 제목/안내문구/선택지 라벨/리커트 문장 어드민 오버라이드.
 // mount 1회 fetch, 실패·0행이면 빈 Map(= 정적 문구 그대로) — MentorFaq.jsx 의 키 단위 폴백과 같은 계약이다.
 import { fetchSurveyCopyOverrides } from "@/lib/diagnosisSurveyCopyOverrides";
+// 이용개시 시작 로그(programEntry.ts) — 진입 게이트가 allowed를 확인한 직후 기록한다.
+import { markProgramEntry } from "@/lib/programEntry";
 // Q-01(2026-08-11 확정) — 제출 시점에 로그인 학생 이름을 조회한다. 비로그인·조회 실패는 null.
 import { fetchLoggedInStudentName } from "./diagnosisStudentName";
 
@@ -55,7 +57,14 @@ export default function SurveyStepShell() {
   useEffect(() => {
     let alive = true;
     checkDiagnosisAccess().then((result) => {
-      if (!alive || result.allowed) return;
+      if (!alive) return;
+      if (result.allowed) {
+        // 무료 1회 사용자(부여된 이용권 없음)는 서버가 0행 UPDATE로 무해하게
+        // 처리한다(fn_mark_program_entry는 program_access_grants 행이 있을 때만
+        // 기록한다 — programEntry.ts 상단 주석 참고).
+        markProgramEntry("diagnose");
+        return;
+      }
       // 카피 톤은 QA 행 27 안내문("회원가입을 하면 전문적인 학생 학습진단 리포트를
       // 받아보실 수 있습니다")과 요금표(20260806)의 "회원가입 시 1회 무료" 규정을 따른다.
       window.alert(

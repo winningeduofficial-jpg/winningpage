@@ -53,6 +53,10 @@ const performanceAppRoutes: RouteObject[] = [
         Component: () => (
           <RequireEntitlement
             serviceKey="suhaeng"
+            // 수행평가 현행 환불 산정은 회차 분기라 first_accessed_at을 읽지 않지만,
+            // 약관 [별표 1]이 시작 로그 보관을 요구하고 혼합 상품이 기간제로
+            // 재분류될 가능성에 대비해 기록해 둔다(programEntry.ts 상단 주석).
+            entryProgramKey="suhaeng"
             forbiddenTo={(location) =>
               `/pricing?service=suhaeng&redirect=${encodeURIComponent(
                 `${location.pathname}${location.search}${location.hash}`,

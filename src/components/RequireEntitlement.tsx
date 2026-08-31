@@ -2,6 +2,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { type Location, Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "@/context/AuthProvider";
 import { useSessionOptional } from "@/context/SessionContext";
+import { markProgramEntry } from "@/lib/programEntry";
 import { entitlementQueryOptions, queryClient } from "@/lib/queryClient";
 import PerformanceSkeleton from "./performance/PerformanceSkeleton";
 
@@ -126,6 +127,10 @@ type RequireEntitlementProps = {
   forbiddenNotice?: string;
   /** 로딩 문구. */
   loadingLabel?: string;
+  /** 이용개시 시작 로그(fn_mark_program_entry)를 남길 program_key. 생략하면 기록하지
+   *  않는다 — 목표관리는 이 컴포넌트를 안 쓰고(routeMiddleware.ts에서 직접 기록)
+   *  수행평가만 여기서 채워 쓴다(programEntry.ts 상단 주석 참고). */
+  entryProgramKey?: string;
   /** 통과 시 렌더. 기본 `<Outlet />`. */
   children?: ReactNode;
 };
@@ -135,6 +140,7 @@ export default function RequireEntitlement({
   forbiddenTo,
   forbiddenNotice,
   loadingLabel = "이용 가능 여부 확인 중...",
+  entryProgramKey,
   children,
 }: RequireEntitlementProps) {
   const location = useLocation();
@@ -154,6 +160,16 @@ export default function RequireEntitlement({
     retryToken,
   );
   const status: GuardState = ctx ? ctx.guardState : standaloneState;
+
+  // 이용개시 시작 로그(programEntry.ts) — status가 "ok"로 전이하는 시점에만 기록한다.
+  // 렌더 중 호출하지 않는 이유는 리렌더마다 새 Promise가 뜨는 걸 피하기 위함이고,
+  // 헬퍼 자체가 (userId, entryProgramKey) 단위로 dedupe하므로 이 effect가 status
+  // "ok" 유지 중 여러 번 재실행돼도 무해하다.
+  useEffect(() => {
+    if (status === "ok" && entryProgramKey) {
+      markProgramEntry(entryProgramKey);
+    }
+  }, [status, entryProgramKey]);
 
   function retry() {
     if (ctx) {

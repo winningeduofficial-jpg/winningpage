@@ -35,26 +35,49 @@ describe("isVirtualAccountPayment", () => {
 });
 
 describe("findMatchingCancel", () => {
-  test("금액이 일치하는 취소를 찾는다", () => {
+  test("태그 없는 레거시 취소는 금액 일치로 찾는다(하위 호환)", () => {
     const cancels = [{ cancelAmount: 5000 }, { cancelAmount: 10000 }];
-    expect(findMatchingCancel(cancels, 10000)).toEqual({
+    expect(findMatchingCancel(cancels, 10000, 42)).toEqual({
       cancelAmount: 10000,
     });
   });
 
   test("일치하는 금액이 없으면 null", () => {
     const cancels = [{ cancelAmount: 5000 }];
-    expect(findMatchingCancel(cancels, 10000)).toBeNull();
+    expect(findMatchingCancel(cancels, 10000, 42)).toBeNull();
   });
 
   test("cancels가 배열이 아니거나 없으면 null(신규 취소 필요 신호)", () => {
-    expect(findMatchingCancel(null, 10000)).toBeNull();
-    expect(findMatchingCancel(undefined, 10000)).toBeNull();
+    expect(findMatchingCancel(null, 10000, 42)).toBeNull();
+    expect(findMatchingCancel(undefined, 10000, 42)).toBeNull();
   });
 
   test("문자열 금액도 숫자로 비교한다(토스 응답 타입 방어)", () => {
     const cancels = [{ cancelAmount: "10000" as unknown as number }];
-    expect(findMatchingCancel(cancels, 10000)).toEqual(cancels[0]);
+    expect(findMatchingCancel(cancels, 10000, 42)).toEqual(cancels[0]);
+  });
+
+  test("내 rr 태그가 붙은 항목은 금액과 무관하게 우선 매칭한다", () => {
+    const cancels = [{ cancelAmount: 9999, cancelReason: "[rr:42] 고객 요청" }];
+    expect(findMatchingCancel(cancels, 10000, 42)).toEqual(cancels[0]);
+  });
+
+  test("같은 금액 취소가 두 건이면 내 태그가 붙은 쪽을 선택한다", () => {
+    const mine = { cancelAmount: 5000, cancelReason: "[rr:42] 고객 요청" };
+    const other = { cancelAmount: 5000, cancelReason: "[rr:99] 고객 요청" };
+    expect(findMatchingCancel([other, mine], 5000, 42)).toEqual(mine);
+    expect(findMatchingCancel([mine, other], 5000, 42)).toEqual(mine);
+  });
+
+  test("다른 rr 태그가 붙은 같은 금액 항목은 레거시 폴백에서 제외된다", () => {
+    const other = { cancelAmount: 5000, cancelReason: "[rr:99] 고객 요청" };
+    expect(findMatchingCancel([other], 5000, 42)).toBeNull();
+  });
+
+  test("태그 없는 레거시 항목과 다른 rr 태그 항목이 섞여 있어도 레거시만 폴백 매칭한다", () => {
+    const other = { cancelAmount: 5000, cancelReason: "[rr:99] 고객 요청" };
+    const legacy = { cancelAmount: 5000 };
+    expect(findMatchingCancel([other, legacy], 5000, 42)).toEqual(legacy);
   });
 });
 
@@ -88,11 +111,15 @@ describe("buildCancelRequestBody", () => {
       cancelReason: "단순 변심",
       cancelAmount: 10000,
       isVirtualAccount: false,
+      refundRequestId: 42,
       refundBank: "88",
       refundAccount: "110-1234-5678",
       refundHolder: "홍길동",
     });
-    expect(body).toEqual({ cancelReason: "단순 변심", cancelAmount: 10000 });
+    expect(body).toEqual({
+      cancelReason: "[rr:42] 단순 변심",
+      cancelAmount: 10000,
+    });
   });
 
   test("가상계좌 + 계좌 3필드가 모두 있으면 refundReceiveAccount를 채운다(계좌번호는 숫자만 정규화)", () => {
@@ -100,6 +127,7 @@ describe("buildCancelRequestBody", () => {
       cancelReason: "단순 변심",
       cancelAmount: 10000,
       isVirtualAccount: true,
+      refundRequestId: 42,
       refundBank: "88",
       refundAccount: "110-1234-5678",
       refundHolder: "홍길동",
@@ -118,6 +146,7 @@ describe("buildCancelRequestBody", () => {
       cancelReason: "단순 변심",
       cancelAmount: 10000,
       isVirtualAccount: true,
+      refundRequestId: 42,
       refundBank: "88",
       refundAccount: "",
       refundHolder: "홍길동",
@@ -130,6 +159,7 @@ describe("buildCancelRequestBody", () => {
       cancelReason: "단순 변심",
       cancelAmount: 10000,
       isVirtualAccount: true,
+      refundRequestId: 42,
       refundBank: "88",
       refundAccount: "----",
       refundHolder: "홍길동",
@@ -142,8 +172,34 @@ describe("buildCancelRequestBody", () => {
       cancelReason: "단순 변심",
       cancelAmount: 10000,
       isVirtualAccount: true,
+      refundRequestId: 42,
     });
-    expect(body).toEqual({ cancelReason: "단순 변심", cancelAmount: 10000 });
+    expect(body).toEqual({
+      cancelReason: "[rr:42] 단순 변심",
+      cancelAmount: 10000,
+    });
+  });
+
+  test("cancelReason 앞에 [rr:<id>] 태그를 붙인다", () => {
+    const body = buildCancelRequestBody({
+      cancelReason: "고객 요청",
+      cancelAmount: 10000,
+      isVirtualAccount: false,
+      refundRequestId: "7",
+    });
+    expect(body.cancelReason).toBe("[rr:7] 고객 요청");
+  });
+
+  test("태그를 붙인 뒤 200자를 넘으면 잘라내되 태그는 항상 보존된다", () => {
+    const longReason = "가".repeat(300);
+    const body = buildCancelRequestBody({
+      cancelReason: longReason,
+      cancelAmount: 10000,
+      isVirtualAccount: false,
+      refundRequestId: 42,
+    });
+    expect(body.cancelReason.length).toBe(200);
+    expect(body.cancelReason.startsWith("[rr:42] ")).toBe(true);
   });
 });
 

@@ -53,6 +53,7 @@ const TOSS_CANCEL_PATH_SUFFIX = "cancel";
 
 type TossCancelEntry = {
   cancelAmount?: number;
+  cancelReason?: string;
   [key: string]: unknown;
 };
 
@@ -105,44 +106,83 @@ export function isVirtualAccountPayment(
 }
 
 /**
- * 토스 결제 조회(GET) 응답의 cancels 배열에서 이 환불 건과 같은 금액의
- * 취소를 찾는다. 같은 주문에 이미 다른 환불 건의 취소가 있어도 금액이
- * 다르면 매칭되지 않는다.
+ * cancelReason 에 실어 보내는 refund_request 식별 태그. buildCancelRequestBody
+ * 와 findMatchingCancel 이 같은 포맷을 공유해야 매칭이 성립한다.
+ */
+function refundRequestTag(refundRequestId: string | number): string {
+  return `[rr:${refundRequestId}]`;
+}
+
+/**
+ * 토스 결제 조회(GET) 응답의 cancels 배열에서 이 환불 건의 취소를 찾는다.
  *
- * ⚠️ 알려진 한계: 같은 주문에 부분환불이 두 번 이상 걸려 있고 금액이 우연히
- * 같으면(예: 5,000원 환불 두 건) 이 판정만으로는 어느 취소가 이 환불 건의
- * 것인지 구분할 수 없다 — 토스 REST 응답에 우리 refund_request.id 를 실어
- * 보낼 메타데이터 필드가 없어서다. 실제로는 "같은 refund_request 를 재클릭"
- * 하는 멱등 재시도 판별용으로만 쓴다.
+ * 1순위: cancelReason 에 이 환불 건 태그(`[rr:<id>]`)가 붙은 항목 — 있으면
+ * 금액과 무관하게 그것이 정본이다(같은 주문·같은 금액의 부분환불이 여러 건
+ * 있어도 태그로 정확히 구분된다. 과거에는 금액만 봐서 남의 취소를 자기
+ * 것으로 오판할 수 있었다 — 이제는 태그가 그 오판을 막는다).
+ * 2순위(하위 호환): 태그가 아예 없는 레거시 취소(태그 도입 이전에 걸린
+ * 것) 중 금액이 일치하는 항목. 단, **다른** refund_request 의 태그가 붙은
+ * 항목은 이 폴백에서 제외한다 — 태그가 있는데 내 것이 아니면 명백히 남의
+ * 취소이기 때문이다.
  */
 export function findMatchingCancel(
   cancels: TossCancelEntry[] | null | undefined,
   amount: number,
+  refundRequestId: string | number,
 ): TossCancelEntry | null {
   if (!Array.isArray(cancels)) return null;
+
+  const myTag = refundRequestTag(refundRequestId);
+  const tagged = cancels.find(
+    (entry) =>
+      typeof entry?.cancelReason === "string" &&
+      entry.cancelReason.includes(myTag),
+  );
+  if (tagged) return tagged;
+
+  const untaggedOrMine = cancels.filter((entry) => {
+    const reason =
+      typeof entry?.cancelReason === "string" ? entry.cancelReason : "";
+    return !reason.includes("[rr:");
+  });
+
   return (
-    cancels.find((entry) => Number(entry?.cancelAmount) === Number(amount)) ??
-    null
+    untaggedOrMine.find(
+      (entry) => Number(entry?.cancelAmount) === Number(amount),
+    ) ?? null
   );
 }
 
+// 토스 cancelReason 필드 길이 제약(공식 문서: 최대 200자).
+const CANCEL_REASON_MAX_LENGTH = 200;
+
 /**
- * 토스 결제취소 API 요청 바디를 구성한다. 가상계좌 결제가 아니면
- * refundReceiveAccount 를 아예 넣지 않는다(카드·계좌이체·간편결제는 이
- * 필드를 받지 않는다). 가상계좌인데 은행/계좌번호/예금주 중 하나라도
- * 비어 있으면 refundReceiveAccount 를 채우지 않는다 — 호출부가 그 경우
- * 토스를 부르기 전에 422 로 막아야 한다(값을 지어내지 않는다).
+ * 토스 결제취소 API 요청 바디를 구성한다. cancelReason 앞에 이 환불 건의
+ * refund_request 식별 태그(`[rr:<id>]`)를 붙인다 — findMatchingCancel 이
+ * 이 태그로 "같은 주문·같은 금액의 다른 부분환불"과 정확히 구분한다.
+ * 태그가 항상 맨 앞이라 200자 제한으로 자르더라도 태그는 보존된다.
+ * 가상계좌 결제가 아니면 refundReceiveAccount 를 아예 넣지 않는다(카드·
+ * 계좌이체·간편결제는 이 필드를 받지 않는다). 가상계좌인데 은행/계좌번호/
+ * 예금주 중 하나라도 비어 있으면 refundReceiveAccount 를 채우지 않는다 —
+ * 호출부가 그 경우 토스를 부르기 전에 422 로 막아야 한다(값을 지어내지
+ * 않는다).
  */
 export function buildCancelRequestBody(params: {
   cancelReason: string;
   cancelAmount: number;
   isVirtualAccount: boolean;
+  refundRequestId: string | number;
   refundBank?: string | null;
   refundAccount?: string | null;
   refundHolder?: string | null;
 }): TossCancelRequestBody {
+  const taggedReason =
+    `${refundRequestTag(params.refundRequestId)} ${params.cancelReason}`.slice(
+      0,
+      CANCEL_REASON_MAX_LENGTH,
+    );
   const body: TossCancelRequestBody = {
-    cancelReason: params.cancelReason,
+    cancelReason: taggedReason,
     cancelAmount: params.cancelAmount,
   };
 
@@ -262,7 +302,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   let cancelResult: TossCancelEntry | Record<string, unknown> | null =
-    findMatchingCancel(queried.cancels, cancelAmount);
+    findMatchingCancel(queried.cancels, cancelAmount, refundRequest.id);
 
   if (!cancelResult) {
     // 5) 새 취소 요청.
@@ -284,6 +324,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       cancelReason: refundRequest.reason || "고객 요청",
       cancelAmount,
       isVirtualAccount,
+      refundRequestId: refundRequest.id,
       refundBank: refundRequest.refund_bank,
       refundAccount: refundRequest.refund_account,
       refundHolder: refundRequest.refund_holder,
@@ -313,7 +354,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     cancelResult =
-      findMatchingCancel(cancelData.cancels, cancelAmount) || cancelData;
+      findMatchingCancel(cancelData.cancels, cancelAmount, refundRequest.id) ||
+      cancelData;
   }
 
   // 6) 증빙 저장 — 재클릭으로 기취소를 찾은 경우도 다시 저장해 둔다(첫 시도가
