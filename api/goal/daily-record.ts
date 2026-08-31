@@ -37,6 +37,7 @@ import {
   appendProbabilityLog,
   fetchStudentRow,
   fetchStudentStateRow,
+  fetchTimerDaySummary,
   fetchTodayRecord,
   narrowGoalSession,
   num,
@@ -101,6 +102,28 @@ export const CONDITION_LABELS: Record<string, string> = {
 
 const MEMO_MAX_LENGTH = 1000;
 const STUDY_HOURS_MAX = 24;
+
+function round1(value: number) {
+  return Math.round(value * 10) / 10;
+}
+
+/**
+ * QA 행303·305 — 타이머 합산과 수기 입력값을 병합하는 정책. GET(mergeTimerIntoRecord)과
+ * POST(studyHours 검증) 둘 다 같은 정책을 써야 해서 한 곳에 모았다 — 순수 계산만 한다
+ * (DB 읽기/쓰기 없음, 부작용 없음).
+ *
+ * max를 쓰고 더하지 않는 이유: study_hours가 단일 컬럼이라 수기 입력분과 타이머
+ * 측정분을 구분해 저장할 곳이 없다 — 학생이 타이머로 2시간을 재고 카드에서 "대략
+ * 2시간"을 다시 수기로 입력(빠른 추가 칩)하면 단순 합산은 겹치는 시간을 이중
+ * 계산한다. 타이머가 항상 최소 보장값이 되고, 수기 입력은 그 위로만 늘릴 수 있다.
+ *
+ * 호출부 주의: handlePost에서 이 함수가 돌려주는 값은 calculateDailyBonusV2의
+ * studyHours 인자로 그대로 흘러간다 — 즉 타이머 시간이 확률 delta 계산에도 영향을
+ * 준다(의도된 동작). 이 함수 자체는 그 계산을 하지 않고 시간 값만 병합한다.
+ */
+function mergeStudyHoursWithTimer(manualHours: number, timerHours: number) {
+  return Math.max(manualHours, timerHours);
+}
 
 // ---------------------------------------------------------------------------
 // 값 검증 헬퍼 (api/goal/intake.js 관례 재사용 — 화이트리스트 우선, 클라이언트 값 불신)
@@ -247,16 +270,66 @@ async function handleGet(
   const now = new Date();
   const recordDate = kstYMD(now);
 
-  const [record, stateRow] = await Promise.all([
+  const [record, stateRow, timerSummary] = await Promise.all([
     fetchTodayRecord(supabaseAdmin, profileId, recordDate),
     fetchStudentStateRow(supabaseAdmin, profileId),
+    fetchTimerDaySummary(supabaseAdmin, profileId, now),
   ]);
 
   return res.status(200).json({
     ok: true,
-    record: buildRecordPayload(record),
+    record: mergeTimerIntoRecord(
+      buildRecordPayload(record),
+      recordDate,
+      timerSummary,
+    ),
     probs: buildProbsPayload(stateRow),
+    // 과목별 순공 시간(시간 단위) — 열공 타이머(#25) 마감 세션 합계. DailyRecord.tsx는
+    // 지금까지 별도로 GET /api/goal/timer를 불러 같은 데이터를 읽어 왔다(그쪽도 여전히
+    // 정상 동작해 이번에 배선을 바꾸지 않았다) — 이 필드는 조회 응답 하나로도 총 순공
+    // 시간과 과목별 내역을 함께 받을 수 있게 보강한 것이다(임무 지시 원칙 ③).
+    subjectHours: timerSummary.subjects.map((row) => ({
+      subject: row.subject,
+      hours: round1(row.seconds / 3600),
+    })),
   });
+}
+
+/**
+ * QA 행303·305 — 열공 타이머로 잰 시간이 오늘의 공부 기록·순공 시간에 반영되지 않던
+ * 문제. dbRow(수기 입력값)와 timerSummary(#25 타이머 마감 세션 합계, 서버 파생)를
+ * mergeStudyHoursWithTimer()로 합친다(병합 정책 근거는 그 함수 헤더 참고).
+ *
+ * DB 행이 아예 없어도(오늘 daily_records가 없지만 타이머는 돌렸다) 타이머 시간이
+ * 있으면 record를 합성해 돌려준다 — recordIndex를 null로 남겨 "실제 저장된 행이
+ * 아니다"를 클라이언트가 구분할 수 있게 한다(DailyRecord.tsx가 이 필드로
+ * hasExistingRecord를 판정한다, "기록 수정"/"기록 저장" 버튼 문구가 실제 저장 여부와
+ * 어긋나지 않도록).
+ */
+function mergeTimerIntoRecord(
+  record: ReturnType<typeof buildRecordPayload>,
+  recordDate: string,
+  timerSummary: Awaited<ReturnType<typeof fetchTimerDaySummary>>,
+) {
+  const timerHours = round1(timerSummary.totalSeconds / 3600);
+
+  if (record) {
+    return {
+      ...record,
+      studyHours: mergeStudyHoursWithTimer(record.studyHours, timerHours),
+    };
+  }
+  if (timerHours <= 0) return null;
+
+  return {
+    recordIndex: null,
+    recordDate,
+    studyHours: timerHours,
+    bodyCondition: "",
+    tasks: [],
+    reasons: [],
+    memo: "",
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -297,7 +370,11 @@ async function handlePost(
     return res.status(400).json({ reason: "before_start_date" });
   }
 
-  const existing = await fetchTodayRecord(supabaseAdmin, profileId, recordDate);
+  const [existing, timerSummary] = await Promise.all([
+    fetchTodayRecord(supabaseAdmin, profileId, recordDate),
+    fetchTimerDaySummary(supabaseAdmin, profileId, now),
+  ]);
+  const timerHours = round1(timerSummary.totalSeconds / 3600);
 
   // ── 병합 — 바디에 있는 필드만 교체, 없으면 기존 행 값 유지 ────────────────
   const tasksResult = mapWhitelist(body.tasks, TASK_LABELS, "학습 항목");
@@ -357,6 +434,13 @@ async function handlePost(
   } else {
     studyHoursInput = num(existing?.study_hours) ?? 0;
   }
+
+  // QA 행303·305 — 열공 타이머로 잰 시간을 여기서도 반영한다(병합 정책은
+  // mergeStudyHoursWithTimer 헤더 참고, GET(mergeTimerIntoRecord)과 동일). 이게 없으면
+  // "오늘의 공부 기록" 페이지(#26, studyHours를 아예 입력받지 않는다)가
+  // existing?.study_hours만 보고, 타이머만 쓰고 카드에서 수기 입력을 한 번도 안 한
+  // 학생은 항상 0으로 떨어져 아래 no_study_time 게이트에 막힌다.
+  studyHoursInput = mergeStudyHoursWithTimer(studyHoursInput, timerHours);
 
   if (
     !Number.isFinite(studyHoursInput) ||

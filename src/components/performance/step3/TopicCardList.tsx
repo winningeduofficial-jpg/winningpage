@@ -24,14 +24,22 @@ import TopicCard, { type Topic } from "./TopicCard";
 //   되어 어느 쪽이 현재 제안인지 화면이 스스로 모순된다. 옛 라운드는 DB에 남아 있으므로
 //   기록이 사라지는 것도 아니다.
 //
-// ── 상한 안내 (§9.3)
-//   주제 추천은 **라운드 3회**가 상한이고 초과 시 서버가 `409 ROUND_LIMIT`을 준다.
+// ── 상한 안내 (§9.3, QA 행278로 라운드 상한 자체가 2로 조정됨 — `recommend-topics.ts`
+//   `MAX_ROUNDS` 주석 참고. 최초 추천 1회 + 재추천 1회 = 총 2라운드다.)
+//   상한이 몇이든 이 컴포넌트는 `maxRounds` prop(서버 응답 `maxRounds`)을 그대로 읽으므로
+//   숫자를 하드코딩하지 않는다. 초과 시 서버가 `409 ROUND_LIMIT`을 준다.
 //   버튼을 눌러 보고 나서야 막히는 것보다 도달 시점에 미리 잠그는 편이 낫다 —
 //   `round >= maxRounds`면 버튼을 비활성화하고 이유를 한 줄로 적는다. 서버가 그래도
-//   `ROUND_LIMIT`을 돌려주면(다른 탭에서 이미 3회를 쓴 경우) 호출부가 `roundLimited`를
+//   `ROUND_LIMIT`을 돌려주면(다른 탭에서 이미 상한을 쓴 경우) 호출부가 `roundLimited`를
 //   켜서 같은 안내로 수렴시킨다.
 //   **재추천은 회차를 깎지 않는다**(§9.3 — RPC가 `already_charged`를 돌려주는 것이 정상
 //   경로다). 그래서 이 버튼 근처에 회차 소모 경고를 붙이지 않는다.
+//
+// ── 상시 안내 (QA 행278)
+//   한도에 도달하기 전에도 "재추천은 딱 1번뿐"이라는 사실을 미리 알려 달라는 요청이라,
+//   버튼 아래 상시 문구를 하나 더 둔다. 남은 횟수(`round`/`maxRounds` 둘 다 서버 응답
+//   실측값)를 그 자리에서 계산해 표기한다 — 별도 상수로 남은 횟수를 추정하면(이중 소스)
+//   `MAX_ROUNDS`가 다시 바뀔 때 이 문구만 갱신을 놓칠 수 있다.
 type TopicCardListProps = {
   /** 현재 라운드의 주제 3건. */
   topics?: Topic[];
@@ -54,7 +62,7 @@ type TopicCardListProps = {
 export default function TopicCardList({
   topics = [],
   round = 1,
-  maxRounds = 3,
+  maxRounds = 2,
   onDetail,
   onRegenerate,
   regenerating = false,
@@ -62,6 +70,9 @@ export default function TopicCardList({
   error = null,
 }: TopicCardListProps) {
   const limitReached = roundLimited || round >= maxRounds;
+  // 상시 안내에 쓸 남은 재추천 횟수 — `round`/`maxRounds` 둘 다 서버가 정본이라 그 값의
+  // 차만 낸다(위 "상시 안내" 주석).
+  const remainingRegenerations = Math.max(0, maxRounds - round);
 
   // 버튼을 잠그는 두 사유. **`disabled` 속성 대신 `aria-disabled`를 쓴다** — 포커스를 가진
   // 버튼이 `disabled`가 되면 브라우저가 포커스를 `<body>`로 떨어뜨려서, 방금 이 버튼을
@@ -108,6 +119,16 @@ export default function TopicCardList({
         >
           다른 주제 다시 추천
         </button>
+
+        {/* 상시 안내(QA 행278) — 한도 도달 전에도 항상 보인다. 한도 도달 뒤에는 아래
+            `limitReached` 문구가 같은 자리를 대신하므로 여기서는 숨긴다(같은 취지의
+            문구 두 줄이 겹치지 않게). */}
+        {!limitReached && (
+          <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
+            추가 추천은 1회로 한정되어 있어요. 신중하게 실행해 주세요. (남은
+            추가 추천 {remainingRegenerations}회)
+          </p>
+        )}
 
         {/* 상한 안내·실패 안내 모두 시안에 없는 표면이다(§11.3 Q39 — 시안에 토스트가 없다).
             다른 STEP과 같은 관례로 카드 아래 한 줄 텍스트로만 만든다. */}

@@ -98,10 +98,10 @@ export const FALLBACK_NAV_GROUPS = [
     items: [
       { label: "학습진단", to: "/services/learning-diagnosis", sortOrder: 1 },
       { label: "목표관리", to: "/services/goal", sortOrder: 2 },
-      { label: "콜멘토", to: "/services/callmentor", sortOrder: 3 },
-      { label: "수행평가", to: "/services/performance", sortOrder: 4 },
-      { label: "자기평가", to: "/services/self-assessment", sortOrder: 5 },
-      { label: "심화탐구", to: "/services/research", sortOrder: 6 },
+      { label: "수행평가", to: "/services/performance", sortOrder: 3 },
+      { label: "자기평가", to: "/services/self-assessment", sortOrder: 4 },
+      { label: "심화탐구", to: "/services/research", sortOrder: 5 },
+      { label: "콜멘토", to: "/services/callmentor", sortOrder: 6 },
     ],
   },
   PREMIUM_NAV_GROUP,
@@ -147,10 +147,10 @@ export const FALLBACK_NAV_GROUPS = [
 export const SERVICE_NAME_ROUTES = {
   학습진단: "/services/learning-diagnosis",
   목표관리: "/services/goal",
-  콜멘토: "/services/callmentor",
   수행평가: "/services/performance",
   자기평가: "/services/self-assessment",
   심화탐구: "/services/research",
+  콜멘토: "/services/callmentor",
 };
 
 export const MENU_GROUP_ORDER = {

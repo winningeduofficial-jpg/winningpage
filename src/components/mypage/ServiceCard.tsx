@@ -13,6 +13,8 @@ type ServiceCardAction = {
   kind: "link" | "outline-solid" | "solid";
   label: string;
   href: string;
+  disabled?: boolean;
+  disabledReason?: string;
 };
 
 type ServiceCardData = {
@@ -28,6 +30,8 @@ type ServiceCardData = {
   /** 메타 한 줄 우측(남은일수/유효기간/완료일 등) */
   metaRight: string;
   actions: ServiceCardAction[];
+  /** 같은 서비스로 묶인 결제 건수. 2건 이상일 때만 "결제 N건" 배지를 보여준다. */
+  paymentCount: number;
 };
 
 type ServiceCardProps = {
@@ -43,18 +47,30 @@ export default function ServiceCard({ card }: ServiceCardProps) {
     metaLeft,
     metaRight,
     actions,
+    paymentCount,
   } = card;
 
   const statusPillClass = isOngoing
     ? "bg-performance-chip text-accent"
     : "bg-[#d9d9d9] text-ink-sub";
 
+  const disabledActionReason = actions.find(
+    (action) => action.disabled,
+  )?.disabledReason;
+
   return (
     <div className="flex flex-col gap-4.75 rounded-perf-modal border border-[#d9d9d9] bg-white p-8">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.025rem] text-ink">
-          {serviceName}
-        </h3>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.025rem] text-ink">
+            {serviceName}
+          </h3>
+          {paymentCount > 1 && (
+            <span className="text-[0.8125rem] font-medium text-ink-sub">
+              결제 {paymentCount}건
+            </span>
+          )}
+        </div>
         <span
           className={`inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 text-[0.875rem] font-semibold leading-[1.4] ${statusPillClass}`}
         >
@@ -84,20 +100,38 @@ export default function ServiceCard({ card }: ServiceCardProps) {
           {actions[0]!.label} →
         </Link>
       ) : (
-        <div className="flex items-center gap-2">
-          {actions.map((action) => (
-            <Link
-              key={action.kind}
-              to={action.href}
-              className={
-                action.kind === "outline-solid"
-                  ? "inline-flex h-8 w-33 items-center justify-center rounded-lg border border-[#d9d9d9] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-ink-sub transition hover:bg-surface-04"
-                  : "inline-flex h-8 w-33 items-center justify-center rounded-lg bg-[#e9f4ff] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-accent transition hover:bg-[#d9edff]"
-              }
-            >
-              {action.label}
-            </Link>
-          ))}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            {actions.map((action) =>
+              action.disabled ? (
+                <span
+                  key={`${action.kind}-${action.label}`}
+                  aria-disabled="true"
+                  title={action.disabledReason}
+                  className="inline-flex h-8 w-33 cursor-not-allowed items-center justify-center rounded-lg bg-[#f2f2f2] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-ink-sub/60"
+                >
+                  {action.label}
+                </span>
+              ) : (
+                <Link
+                  key={`${action.kind}-${action.label}`}
+                  to={action.href}
+                  className={
+                    action.kind === "outline-solid"
+                      ? "inline-flex h-8 w-33 items-center justify-center rounded-lg border border-[#d9d9d9] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-ink-sub transition hover:bg-surface-04"
+                      : "inline-flex h-8 w-33 items-center justify-center rounded-lg bg-[#e9f4ff] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-accent transition hover:bg-[#d9edff]"
+                  }
+                >
+                  {action.label}
+                </Link>
+              ),
+            )}
+          </div>
+          {disabledActionReason && (
+            <p className="text-[0.75rem] leading-[1.4] text-ink-sub">
+              {disabledActionReason}
+            </p>
+          )}
         </div>
       )}
     </div>

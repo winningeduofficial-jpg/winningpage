@@ -19,6 +19,12 @@ import { buildReportFileName } from "./reportFileName";
 // 입력 없이 이 URL 로 진입했을 때 되돌려보낼 설문 시작점. 라우트 정본(App.jsx)과 같은 경로다.
 const SURVEY_ENTRY_PATH = "/app/learning-diagnosis/survey";
 
+// QA 행345 — afterprint가 오지 않는 예외 상황(다이얼로그 취소 실패·브라우저 미지원 등)에 대비한
+// document.title 원복 폴백 지연. 인쇄 다이얼로그가 파일명을 읽어들이는 데 걸리는 시간보다
+// 충분히 길게 잡되, 실제 문제(afterprint 미수신)가 있을 때 탭 제목이 바뀐 채로 남는 기간은
+// 짧게 유지한다.
+const PDF_TITLE_RESTORE_FALLBACK_MS = 5000;
+
 // loadDiagnosisInput()/buildReport()의 JSDoc 반환 타입({object|null}/{object})이 이 파일이
 // 읽는 필드를 담지 않아 여기서만 쓰는 최소 타입으로 좁혀 둔다(두 파일 다 이 배치 범위 밖).
 type DiagnosisInput = {
@@ -129,6 +135,27 @@ export default function FreeDiagnosisReport() {
     }
   }, [location.state]);
 
+  // QA 행341 — 리포트 도달 후 브라우저 뒤로가기로 설문 스텝(응답을 다시 고를 수 있는 화면)에
+  // 재진입할 수 있었다. 셸(SurveyStepShell)의 answers는 컴포넌트 상태라 뒤로가기로 되짚어가도
+  // 이전 응답이 복원되지는 않지만, 여전히 "제출을 마친 설문을 다시 채워 넣을 수 있는 화면"으로
+  // 돌아가지는 것 자체가 문제다.
+  //
+  // 설문 스텝에서 "이미 제출된 세션이면 리포트로 forward redirect"하는 방식 대신 이 페이지에서
+  // popstate를 가드하는 쪽을 택했다 — sessionStorage(loadDiagnosisInput)는 설문을 다시 시작해
+  // 재진단(이용권 재구매 등)하는 정상 플로우에서도 이전 진단 결과를 계속 들고 있으므로, 그 값의
+  // 존재만으로 설문 진입을 막으면 정당한 재진단까지 리포트로 되튕긴다. 반면 popstate 가드는
+  // "리포트를 실제로 본 이후의 뒤로가기"만 좁게 겨눈다. 과한 히스토리 조작(추가 페이지 이동 등)
+  // 없이 현재 URL을 다시 push해 그 자리에 머무르게만 한다.
+  useEffect(() => {
+    if (!data) return undefined;
+    window.history.pushState(null, "", window.location.href);
+    const trapBack = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("popstate", trapBack);
+    return () => window.removeEventListener("popstate", trapBack);
+  }, [data]);
+
   // 무입력·손상 페이로드는 설문 시작점으로 돌려보낸다(가짜 리포트를 본인 결과로 오인하는 것을 원천 차단).
   if (!data) {
     return <Navigate to={SURVEY_ENTRY_PATH} replace />;
@@ -140,20 +167,38 @@ export default function FreeDiagnosisReport() {
   // (ReportSheetA4가 더 이상 totalPages 기본값을 추정하지 않는 이유).
   const totalPages = hasReportExtras(data) ? 4 : 2;
 
-  // QA 행 103 → 2026-08-22 형식 교체 — 브라우저 인쇄 다이얼로그가 제안하는 기본 파일명은
-  // document.title을 따른다(PDF 저장 시 이 값이 그대로 파일명이 된다). SPA라 페이지 자체를
-  // 이동하지 않으므로, 인쇄 직전에만 문서 제목을 바꾸고 다이얼로그가 닫힌 뒤 원복한다.
-  // window.print()는 다이얼로그가 닫힐 때까지 호출 스레드를 막으므로 이 동기 순서로 충분하다
-  // (SPA 내 다른 print 진입점이 없어 전역 상태로 관리할 필요가 없다). 데스크톱 시트 하단
-  // 버튼과 모바일 안내 카드 버튼이 이 하나의 핸들러를 공유한다. 파일명 규칙은 reportFileName.ts.
+  // QA 행 103 → 2026-08-22 형식 교체, QA 행345 → afterprint 대기로 재수정 — 브라우저 인쇄
+  // 다이얼로그가 제안하는 기본 파일명은 document.title을 따른다(PDF 저장 시 이 값이 그대로
+  // 파일명이 된다). SPA라 페이지 자체를 이동하지 않으므로, 인쇄 직전에만 문서 제목을 바꾸고
+  // 다이얼로그가 닫힌 뒤 원복한다.
+  //
+  // window.print() 직후 동기적으로 원복하면 안 된다 — Chrome처럼 print()가 호출 스레드를
+  // 막는 브라우저에서는 문제없지만, Safari 등 논블로킹 브라우저는 print()가 즉시 반환되고
+  // 다이얼로그가 비동기로 뜬다. 그 경우 원복이 다이얼로그가 파일명을 읽기도 전에 끝나
+  // "위닝에듀"로 저장되는 문제가 있었다. 다이얼로그가 실제로 닫힐 때 발생하는 afterprint
+  // 이벤트로 원복 시점을 옮기고, 이벤트가 오지 않는 예외 상황을 대비해 폴백 타이머를 둔다
+  // (둘 중 먼저 온 쪽이 원복하고 나머지는 restored 플래그로 무시한다).
   const handlePdfDownload = () => {
     const originalTitle = document.title;
     document.title = buildReportFileName({
       studentName,
       diagnosedAt: data.student?.diagnosedAt ?? null,
     });
+
+    let restored = false;
+    const restoreTitle = () => {
+      if (restored) return;
+      restored = true;
+      document.title = originalTitle;
+      window.removeEventListener("afterprint", restoreTitle);
+      window.clearTimeout(fallbackTimer);
+    };
+    const fallbackTimer = window.setTimeout(
+      restoreTitle,
+      PDF_TITLE_RESTORE_FALLBACK_MS,
+    );
+    window.addEventListener("afterprint", restoreTitle);
     window.print();
-    document.title = originalTitle;
   };
 
   return (

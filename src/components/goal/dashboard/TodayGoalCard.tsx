@@ -16,13 +16,24 @@ type GoalRateRowProps = {
   value: number;
   dotClassName: string;
   fillClassName: string;
+  achievedHours: number;
+  targetHours: number;
 };
+
+// 0.1h 단위 반올림 표시(임무 지시) — round1(src/lib/goalGrades.ts)과 같은 계산이지만
+// 이 카드는 grades 도메인과 무관해 이 파일 안에 별도로 둔다(house 패턴, api/goal/grades.ts
+// 헤더 주석과 동일 이유).
+function formatHours(hours: number) {
+  return (Math.round(hours * 10) / 10).toFixed(1);
+}
 
 function GoalRateRow({
   label,
   value,
   dotClassName,
   fillClassName,
+  achievedHours,
+  targetHours,
 }: GoalRateRowProps) {
   return (
     <div className="flex items-center gap-3">
@@ -40,6 +51,11 @@ function GoalRateRow({
         fillClassName={fillClassName}
         className="flex-1"
       />
+      {/* QA 행304 — 달성률 %만으로는 실제 몇 시간을 채웠는지/목표가 몇 시간인지 알 수
+          없었다. "달성 h / 목표 h"를 %와 함께 보여준다. */}
+      <span className="w-24 shrink-0 whitespace-nowrap text-right text-[0.8125rem] leading-[1.4] text-ink-sub">
+        {formatHours(achievedHours)}h / {formatHours(targetHours)}h
+      </span>
       <span className="w-12 shrink-0 text-right text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
         {value}%
       </span>
@@ -61,6 +77,8 @@ type TodayGoalData = {
   quickAddOptions: number[];
   upperGoalRate: number;
   lowerGoalRate: number;
+  upperTargetHours: number;
+  lowerTargetHours: number;
 };
 
 type TodayGoalCardProps = {
@@ -192,12 +210,16 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
           value={data.upperGoalRate}
           dotClassName="bg-[#5AA6F0]"
           fillClassName="bg-[#CCE4F7]"
+          achievedHours={data.studyHours}
+          targetHours={data.upperTargetHours}
         />
         <GoalRateRow
           label="최소 목표 학습 시간"
           value={data.lowerGoalRate}
           dotClassName="bg-[#6FC98A]"
           fillClassName="bg-[#ABDFBA]"
+          achievedHours={data.studyHours}
+          targetHours={data.lowerTargetHours}
         />
       </div>
     </GoalCard>

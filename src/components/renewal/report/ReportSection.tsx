@@ -18,6 +18,16 @@ import type { ReactNode } from "react";
  *
  * as prop — 문서 구조(h2/h3)는 그대로 보존한다: 시트 최상위 섹션은 h2, 2단·다단 그리드
  * 안에서 병렬로 오는 하위 섹션(잘하고/보완할, 부록 블록 A·B·D)은 h3.
+ *
+ * 카드/블록 소제목(2026-08-31, QA 행244) — 이 컴포넌트가 다루는 섹션 제목(h2/h3, 1.25rem
+ * text-accent) 한 단 아래에 필드 라벨 격 소제목이 하나 더 있다: "종합점수"(ReadinessOverview)·
+ * 확률 라벨(AdmissionSection)·카드 라벨(SummaryCards)·추천 서비스명(RecommendServices h3) —
+ * 전부 text-[1.1875rem] font-medium text-ink로 색·굵기·크기는 이미 일치했고 line-height만
+ * SummaryCards(leading-5)와 나머지 3곳(미지정)이 갈려 있었다. 나머지 3곳에도 leading-5를
+ * 맞춰 이 컴포넌트와 같은 2단 스케일(섹션 제목 / 카드·블록 소제목)로 정리했다. 옆에 붙는
+ * 값 표시(1.25rem text-primary, 예: "82%")는 소제목이 아니라 데이터 값이라 대상이 아니고,
+ * ReportPageOne 헤드라인(fd-headline, 인쇄 CSS 고정폭)과 부록 최상단 H2(ReportScreenExtras,
+ * text-primary)는 위에서부터 문서 제목 격으로 이미 제외돼 있어 그대로 둔다.
  */
 type ReportSectionProps = {
   title: ReactNode;

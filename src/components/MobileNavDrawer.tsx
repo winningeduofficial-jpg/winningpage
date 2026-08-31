@@ -188,21 +188,17 @@ export default function MobileNavDrawer({
           <div className="border-t border-[#eeeeee] px-4 py-4">
             {shouldShowLoggedInHeader ? (
               <>
-                {buildMyMenu(isParentMember).map((item) => {
-                  const Icon = item.icon;
-
-                  return (
-                    <Link
-                      key={item.label}
-                      to={item.to}
-                      onClick={onClose}
-                      className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
-                    >
-                      <Icon size={18} />
-                      {item.label}
-                    </Link>
-                  );
-                })}
+                {/* QA 행253·254 — 아이콘 제거, 항목(내정보/수강신청·결제/환불신청)은 유지. */}
+                {buildMyMenu(isParentMember).map((item) => (
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    onClick={onClose}
+                    className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
 
                 {isAdmin && (
                   <Link

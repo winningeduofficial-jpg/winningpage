@@ -104,8 +104,12 @@ type AchievementChartProps = {
 
 export default function AchievementChart({ data }: AchievementChartProps) {
   const history = Array.isArray(data) ? data : [];
-  // 기록이 0~1건이면 추세선을 그릴 수 없다(점 하나는 변화가 아니라 스냅샷) — 빈 상태로 접는다.
-  const hasData = history.length >= 2;
+  // QA 행327 — 온보딩 직후엔 goal_probability_logs 스냅샷이 1건뿐이라 추세선을 그릴 순
+  // 없지만(비교 대상 없음), 그렇다고 빈 상태로 접으면 "확률이 아예 안 잡혔다"처럼 보인다.
+  // 1건이어도 그 시점의 초기값은 실데이터이니 점 하나로라도 보여준다(Recharts는 Line에
+  // 데이터가 1개면 연결선 없이 dot만 그린다 — 그 자체로 "초기값" 렌더가 자연스럽다).
+  // 0건(기록 자체가 없음)일 때만 빈 상태 문구로 접는다.
+  const hasData = history.length >= 1;
 
   // 정시 rate가 없는 학생(jungsiAvailable=false)은 idealJungsi/minJungsi가 전 구간 null이다.
   // 그런 계열을 범례·라인에 그대로 두면 "값이 0"처럼 보이므로, 전 구간 null인 계열은

@@ -18,7 +18,9 @@ const ReadinessOverview = ({
     // ReportSheetA4가 소유한다(46px 캐노니컬) — 종전 mt-12(48px)는 이중 소유였다.
     <ReportSection title="학교 생활 및 입시 준비도" className="">
       <div className="flex items-center gap-3">
-        <span className="text-[1.1875rem] font-medium text-ink">종합점수</span>
+        <span className="text-[1.1875rem] font-medium leading-5 text-ink">
+          종합점수
+        </span>
         <span className="text-[1.25rem] font-medium text-primary">
           {scoreLabel}
         </span>

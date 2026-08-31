@@ -5,7 +5,6 @@ import { Link, useSearchParams } from "react-router";
 import bizAiPlatform from "@/assets/company/biz-ai-platform.png";
 import bizConsulting from "@/assets/company/biz-consulting.png";
 import bizNetwork from "@/assets/company/biz-network.png";
-import directorPortrait from "@/assets/company/director-portrait.png";
 import missionBg from "@/assets/company/mission-bg.jpg";
 import partnerChloeWinningArt from "@/assets/company/partner-chloe-winning-art.png";
 import partnerJungsangLanguage from "@/assets/company/partner-jungsang-language.png";
@@ -309,32 +308,27 @@ function renderContent(content: string | null | undefined) {
 }
 
 // -------------------------------------------------------------------------
-// [1] 히어로 — 다크네이비 배경 + 원장 사진 + 카피 + 서비스 카드 6장
-// 아이브로우/헤드라인/사진은 시안 고정값이다(HeroSection 내부 주석 참고 — company-intro
+// [1] 히어로 — 다크네이비 배경 + 카피 + 서비스 카드 8장
+// 아이브로우/헤드라인은 시안 고정값이다(HeroSection 내부 주석 참고 — company-intro
 // page_contents 행이 구 디자인 기준으로 운영 중이라 title/subtitle/image_url을 그대로
 // 매핑하면 회귀가 난다). page.body만 선택적으로 보조 카피에 얹는다.
+// 대표이사 사진(원 director-portrait.png)은 고객 확정으로 제거했다(QA 행310) — 우측
+// 사진 컬럼을 없애고 텍스트+카드 단일 컬럼을 섹션 중앙에 배치하는 구성으로 재배치했다
+// (사진에 맞춰 flush하던 min-h/pt/pb 계산도 함께 정리).
 // -------------------------------------------------------------------------
 function HeroSection({ page }: { page: IntroPage }) {
-  // 원장 카피(아이브로우/헤드라인)와 사진은 시안 고정값으로 못박는다. company-intro 슬러그의
+  // 원장 카피(아이브로우/헤드라인)는 시안 고정값으로 못박는다. company-intro 슬러그의
   // page_contents 행은 운영 중인 구 디자인(제목=회사명 "위닝에듀", 부제=설명 문단, 이미지=박스형
   // 사진, sql/34_menu_navigation_sync.sql에서 실사용 확인) 기준으로 채워져 있어, 그 값을 새
-  // 히어로의 아이브로우/헤드라인/컷아웃 사진 슬롯에 그대로 매핑하면 위계가 다른 옛 카피가
-  // 노출되고 투명 컷아웃 사진의 하단 플러시 구성이 깨진다. 관리자 오버레이는 회귀 위험이 낮은
-  // body(보조 카피, 선택 렌더)만 유지한다.
+  // 히어로의 아이브로우/헤드라인 슬롯에 그대로 매핑하면 위계가 다른 옛 카피가 노출된다.
+  // 관리자 오버레이는 회귀 위험이 낮은 body(보조 카피, 선택 렌더)만 유지한다.
   const headline = "15년간 쌓아온 데이터로 빈틈없이 함께 가겠습니다.";
-  const name = "강원석 대표이사";
   const body = cleanText(page?.body);
-  const heroImage = directorPortrait;
-  const heroImageAlt = "위닝에듀 강원석 대표이사";
 
   return (
-    <section className="relative overflow-hidden bg-[#202f3f] pt-29 pb-16 sm:pb-0 lg:min-h-167.5 lg:pt-0 lg:pb-0">
-      <div className="mx-auto flex w-full max-w-content flex-col gap-10 px-5 sm:px-8 lg:flex-row lg:items-end lg:justify-between lg:gap-0">
-        {/* lg 이상: pt/pb를 섹션이 아닌 이 컬럼에만 걸어 사진(아래 래퍼)만 섹션 상하단에
-            flush되게 한다 — items-end 정렬로 이 컬럼 하단이 사진 하단과 맞춰지고, 컬럼 자체
-            높이(pt+콘텐츠+pb)가 사진 높이에 못 미치는 만큼의 여백이 컬럼 상단에 남는 방식으로
-            "아이브로우 top ≈ 섹션 top + 116px" "카드 하단 → 섹션 하단 103px"를 근사한다. */}
-        <div className="flex flex-col lg:max-w-142.5 lg:flex-1 lg:pt-29 lg:pb-25.75">
+    <section className="relative overflow-hidden bg-[#202f3f] py-16 sm:py-20 lg:py-28">
+      <div className="mx-auto flex w-full max-w-content flex-col items-center gap-10 px-5 text-center sm:px-8">
+        <div className="flex flex-col items-center">
           <h1 className="break-keep text-[1.75rem] font-semibold leading-[1.3] text-white sm:text-[2.125rem]">
             {headline}
           </h1>
@@ -343,71 +337,60 @@ function HeroSection({ page }: { page: IntroPage }) {
               {body}
             </p>
           )}
-
-          {/* 카드 그리드 검산: 8장 확장(6→8, 사용자 확정) 후 데스크톱 4열 × 2행,
-              gap 0(맞닿는 타일이 시안 핵심 구성) 유지. 모바일은 2열 × 4행,
-              768px 이상은 4열 × 2행으로 조기 전환해 타일이 과도하게 부풀지 않게 한다. */}
-          <div className="mt-6.5 grid grid-cols-2 sm:grid-cols-4 lg:grid-rows-2">
-            {HERO_CARDS.map((card) => {
-              const content = (
-                <>
-                  {card.best && (
-                    <span className="absolute left-0 top-0 flex h-5 w-8.5 items-center justify-center bg-[#ff8e00] text-[0.625rem] font-medium leading-[1.3] text-white sm:h-6 sm:w-10 sm:text-[0.6875rem]">
-                      BEST
-                    </span>
-                  )}
-                  {/* button(수시카드)은 phrasing content만 허용해 <p>가 유효하지 않다 —
-                      6장 전부 <span className="block">으로 통일한다. */}
-                  <span
-                    className="block text-center text-[0.6875rem] font-semibold leading-[1.3] sm:text-[0.8125rem]"
-                    style={{ color: card.tint, opacity: 0.95 }}
-                  >
-                    {card.desc[0]}
-                    <br />
-                    {card.desc[1]}
-                  </span>
-                  {/* 타이틀 서체 — 파일 상단 주석 참고(font-grace, font-bold 필수 동반). */}
-                  <span className="mt-2 block text-center font-grace text-[1.375rem] font-bold leading-[1.3] text-white sm:text-[1.6875rem] lg:text-[1.6rem]">
-                    {card.title}
-                  </span>
-                </>
-              );
-              const className =
-                "relative flex aspect-248/229 flex-col items-center justify-center gap-1 px-2 transition hover:brightness-110 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-[-0.125rem] focus-visible:outline-white";
-
-              return card.route ? (
-                <Link
-                  key={card.key}
-                  to={card.route}
-                  style={{ backgroundColor: card.bg }}
-                  className={className}
-                >
-                  {content}
-                </Link>
-              ) : (
-                <button
-                  key={card.key}
-                  type="button"
-                  onClick={alertServiceNotReady}
-                  style={{ backgroundColor: card.bg }}
-                  className={className}
-                >
-                  {content}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
-        <div className="relative mx-auto w-[16rem] shrink-0 sm:w-[20rem] lg:mx-0 lg:mb-0 lg:w-[24rem] lg:self-end xl:w-112.5">
-          <img
-            src={heroImage}
-            alt={heroImageAlt}
-            className="h-auto w-full object-contain object-bottom"
-          />
-          <p className="absolute bottom-1 right-1 text-center text-[0.8125rem] font-medium leading-[1.3] text-white/70">
-            {name}
-          </p>
+        {/* 카드 그리드 검산: 8장 확장(6→8, 사용자 확정) 후 데스크톱 4열 × 2행,
+            gap 0(맞닿는 타일이 시안 핵심 구성) 유지. 모바일은 2열 × 4행,
+            768px 이상은 4열 × 2행으로 조기 전환해 타일이 과도하게 부풀지 않게 한다. */}
+        <div className="grid w-full max-w-142.5 grid-cols-2 sm:grid-cols-4 lg:grid-rows-2">
+          {HERO_CARDS.map((card) => {
+            const content = (
+              <>
+                {card.best && (
+                  <span className="absolute left-0 top-0 flex h-5 w-8.5 items-center justify-center bg-[#ff8e00] text-[0.625rem] font-medium leading-[1.3] text-white sm:h-6 sm:w-10 sm:text-[0.6875rem]">
+                    BEST
+                  </span>
+                )}
+                {/* button(수시카드)은 phrasing content만 허용해 <p>가 유효하지 않다 —
+                    6장 전부 <span className="block">으로 통일한다. */}
+                <span
+                  className="block text-center text-[0.6875rem] font-semibold leading-[1.3] sm:text-[0.8125rem]"
+                  style={{ color: card.tint, opacity: 0.95 }}
+                >
+                  {card.desc[0]}
+                  <br />
+                  {card.desc[1]}
+                </span>
+                {/* 타이틀 서체 — 파일 상단 주석 참고(font-grace, font-bold 필수 동반). */}
+                <span className="mt-2 block text-center font-grace text-[1.375rem] font-bold leading-[1.3] text-white sm:text-[1.6875rem] lg:text-[1.6rem]">
+                  {card.title}
+                </span>
+              </>
+            );
+            const className =
+              "relative flex aspect-248/229 flex-col items-center justify-center gap-1 px-2 transition hover:brightness-110 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-[-0.125rem] focus-visible:outline-white";
+
+            return card.route ? (
+              <Link
+                key={card.key}
+                to={card.route}
+                style={{ backgroundColor: card.bg }}
+                className={className}
+              >
+                {content}
+              </Link>
+            ) : (
+              <button
+                key={card.key}
+                type="button"
+                onClick={alertServiceNotReady}
+                style={{ backgroundColor: card.bg }}
+                className={className}
+              >
+                {content}
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>

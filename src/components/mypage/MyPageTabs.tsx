@@ -18,7 +18,7 @@ export default function MyPageTabs({ tabs, activeTab }: MyPageTabsProps) {
   const [searchParams] = useSearchParams();
 
   return (
-    <nav className="mt-25 flex border-b border-line">
+    <nav className="mt-16 flex border-b border-line">
       {tabs.map((tab) => {
         const isActive = tab.key === activeTab;
         const params = new URLSearchParams(searchParams);
@@ -30,7 +30,7 @@ export default function MyPageTabs({ tabs, activeTab }: MyPageTabsProps) {
             to={{ search: `?${params.toString()}` }}
             replace
             aria-current={isActive ? "page" : undefined}
-            className={`border-b-[0.1875rem] p-7 text-[1.5rem] leading-[1.3] tracking-[-0.02em] transition-colors ${
+            className={`border-b-[0.1875rem] p-6 text-[1.5rem] leading-[1.3] tracking-[-0.02em] transition-colors ${
               isActive
                 ? "border-primary font-semibold text-primary"
                 : "border-transparent font-medium text-line hover:text-ink"

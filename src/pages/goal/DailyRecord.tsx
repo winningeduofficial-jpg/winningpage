@@ -101,7 +101,11 @@ export default function DailyRecord() {
       if (!record) return;
 
       setStudyHours(record.studyHours || 0);
-      setHasExistingRecord(true);
+      // recordIndex가 null이면 실제 daily_records 행이 아니라 타이머 시간만으로
+      // 서버가 합성한 프리필이다(api/goal/daily-record.ts mergeTimerIntoRecord,
+      // QA 행303) — 아직 "기록"을 저장한 적이 없으므로 버튼 문구를 "기록 저장하기"로
+      // 유지한다.
+      setHasExistingRecord(record.recordIndex != null);
       setCondition(record.bodyCondition || null);
       setStudyItems(
         (record.tasks || [])

@@ -29,7 +29,7 @@ import { alertServiceNotReady } from "@/lib/paidServiceAccess";
 // components/services/ServiceLandingPage 공용 스켈레톤을 벗어나 bespoke로 구현했다(구
 // SERVICE_LANDING_CONTENT.research 항목은 serviceLandingContent.js에서 함께 제거 — 3종 선례와 동일).
 // 심화탐구는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가 없어,
-// 히어로 CTA는 이동 대신 "서비스 준비중입니다" alert로 안내한다(alertServiceNotReady,
+// 히어로 CTA는 이동 대신 "서비스 예정입니다" alert로 안내한다(alertServiceNotReady,
 // paidServiceAccess.js — 자기평가・콜멘토와 동일 처리, 2026-08-05 사용자 확정). 이전에는
 // /learning-diagnosis로 임시 우회했으나(자기평가서 선례와 동일한 처리) 학습진단 안내는 히어로
 // 문구와 모순돼 폐기했다. 상세 페이지가 생기면 PAID_SERVICE_CONFIGS에 등록하고

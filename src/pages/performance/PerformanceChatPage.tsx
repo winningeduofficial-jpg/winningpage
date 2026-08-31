@@ -535,7 +535,9 @@ export default function PerformanceChatPage() {
   const [topicRegenerating, setTopicRegenerating] = useState(false);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [topicRound, setTopicRound] = useState(0);
-  const [topicMaxRounds, setTopicMaxRounds] = useState(3);
+  // 초기값 2 = 서버 응답이 아직 없을 때의 잠정치(QA 행278, `recommend-topics.ts`
+  // `MAX_ROUNDS` 주석 참고). 응답이 오면 곧바로 실측값으로 덮어써진다(아래 setter 호출부).
+  const [topicMaxRounds, setTopicMaxRounds] = useState(2);
   const [topicRoundLimited, setTopicRoundLimited] = useState(false);
   const [topicError, setTopicError] = useState<string | null>(null);
   const [quotaPlanEndsAt, setQuotaPlanEndsAt] = useState<string | null>(null);
@@ -2403,12 +2405,14 @@ export default function PerformanceChatPage() {
         open={designModalOpen}
         report={designReport}
         topicTitle={confirmedTopic?.title ?? undefined}
+        studentName={profileName}
         onClose={handleCloseDesignModal}
       />
       <EvaluationReportModal
         open={evaluationModalOpen}
         report={evaluationReport}
         topicTitle={confirmedTopic?.title ?? undefined}
+        studentName={profileName}
         onClose={handleCloseEvaluationModal}
       />
     </div>

@@ -87,7 +87,7 @@ const AdmissionSection = ({ admission }: AdmissionSectionProps) => {
       {/* items-center 유지 — 시안 승인 정렬이다. 배지를 붙이려고 baseline 으로 바꾸면
           라벨·값 두 줄의 세로 위치가 함께 움직여 1440 데스크톱 렌더가 회귀한다. */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="text-[1.1875rem] font-medium text-ink">
+        <span className="text-[1.1875rem] font-medium leading-5 text-ink">
           {probabilityLabel}
         </span>
         <span className="text-[1.25rem] font-medium text-primary">

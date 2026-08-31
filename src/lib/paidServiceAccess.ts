@@ -103,7 +103,7 @@ function getPaidServiceConfig(service?: PaidServiceLike) {
   return PAID_SERVICE_CONFIGS.find((config) => config.match(service)) || null;
 }
 
-const SERVICE_NOT_READY_MESSAGE = "서비스 준비중입니다.";
+const SERVICE_NOT_READY_MESSAGE = "서비스 예정입니다.";
 
 // 상세 페이지(= PAID_SERVICE_CONFIGS 등록 서비스)가 아직 없는 서비스의 히어로 CTA용 핸들러.
 // 자기평가・심화탐구・콜멘토 3종이 여기 해당한다(2026-08-05, 사용자 확정). 서비스가 실제 앱을

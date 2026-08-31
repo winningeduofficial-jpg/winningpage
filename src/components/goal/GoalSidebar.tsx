@@ -1,9 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router";
 import { useAuth } from "@/context/AuthProvider";
 import { kstYMD } from "@/lib/goal/calc/index.js";
-import { fetchGoalSchedules, fetchGoalTimer } from "@/lib/goalApi";
+import {
+  fetchGoalSchedules,
+  fetchGoalTimer,
+  heartbeatGoalTimer,
+} from "@/lib/goalApi";
 import { goalStudentQueryOptions } from "@/lib/queryClient";
 import { GOAL_NAV_FOOTER, GOAL_NAV_GROUPS } from "./goalNavItems";
 
@@ -11,12 +15,19 @@ import { GOAL_NAV_FOOTER, GOAL_NAV_GROUPS } from "./goalNavItems";
 // GoalAppLayout에 상주해 어느 목표관리 화면에 있어도 계속 폴링되므로 과한 빈도는 낭비다.
 const TIMER_BADGE_POLL_MS = 45 * 1000;
 
+// 하트비트 간격 — 예전 Timer.jsx 로컬 상수와 같은 값(60초)을 그대로 옮겼다.
+const HEARTBEAT_INTERVAL_MS = 60 * 1000;
+
 // 사이드바 뱃지 소스 — 중요일정 카운트(GET /api/goal/schedules, due_date 오늘 이후 행 수)와
 // 타이머 진행 여부(GET /api/goal/timer 45초 폴링)를 실데이터로 쓴다. dailyRecordDone은
 // 별도 UoW 소관이라 목업 고정값 유지. GoalAppLayout이 props 없이 셸로 마운트하므로
 // 이 컴포넌트가 직접 조회한다(StudyPlanRail 자체 조회 선례, 전역 상태 도입 없음).
 export default function GoalSidebar() {
   const [timerRunning, setTimerRunning] = useState(false);
+  // 하트비트 effect가 setInterval 콜백 안에서 읽을 최신값 — effect 자체는 마운트 시
+  // 한 번만 등록하고(빈 의존성 배열) 매 폴링마다 재구독하지 않으므로 state 클로저가
+  // 아니라 ref로 최신 실행 여부를 넘긴다.
+  const timerRunningRef = useRef(false);
   const [scheduleCount, setScheduleCount] = useState(0);
   // ['goal','student', userId] 쿼리 캐시(src/lib/queryClient.ts)를 그대로 구독한다 —
   // 목표관리 진입 시 미들웨어·Dashboard.tsx가 이미 채워둔 캐시를 재사용해 사이드바
@@ -36,7 +47,9 @@ export default function GoalSidebar() {
     const poll = async () => {
       const result = await fetchGoalTimer();
       if (!cancelled && result.kind === "success") {
-        setTimerRunning(Boolean(result.summary?.running));
+        const running = Boolean(result.summary?.running);
+        timerRunningRef.current = running;
+        setTimerRunning(running);
       }
     };
 
@@ -45,6 +58,28 @@ export default function GoalSidebar() {
     return () => {
       cancelled = true;
       clearInterval(intervalId);
+    };
+  }, []);
+
+  // 열공 타이머 하트비트(QA 행286 "이탈 시 자동 마감" 수정) — 예전엔 Timer.jsx가 자신이
+  // 마운트돼 있을 때만 하트비트를 보내, 타이머를 켠 채 다른 메뉴로 이동하면 하트비트가
+  // 끊겨 서버 TIMER_STALE_MS(5분) 무하트비트 타임아웃으로 세션이 강제 마감됐다. 이 사이드바는
+  // GoalAppLayout에 상주해 목표관리 앱 안 어느 화면에 있어도 마운트가 유지되므로, 여기서
+  // 실행 중 세션이 있을 때만(timerRunningRef, 위 폴링이 45초마다 갱신) 하트비트를 보낸다 —
+  // Timer.jsx는 더 이상 자체 하트비트를 보내지 않는다(이중 전송 방지). 탭을 완전히 닫으면
+  // pagehide가 마지막으로 한 번 더 보내고, 그 이후는 서버 스테일 마감이 그대로 안전장치로
+  // 남는다(의도된 동작, 유지).
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (timerRunningRef.current) heartbeatGoalTimer();
+    }, HEARTBEAT_INTERVAL_MS);
+    const onPageHide = () => {
+      if (timerRunningRef.current) heartbeatGoalTimer({ keepalive: true });
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener("pagehide", onPageHide);
     };
   }, []);
 

@@ -38,7 +38,7 @@ export default function PremiumMentorReviews({
           {mentors.map((mentor) => (
             <div
               key={mentor.name}
-              className="flex flex-col gap-6 rounded-lg border border-line p-6 sm:flex-row sm:gap-10 sm:p-8"
+              className="flex flex-col gap-6 border border-line p-6 sm:flex-row sm:gap-10 sm:p-8"
             >
               <div className="flex shrink-0 flex-col items-center gap-4 sm:w-[13rem] sm:items-start">
                 <img

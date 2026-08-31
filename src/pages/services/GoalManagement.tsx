@@ -378,10 +378,14 @@ const FAQ_ITEMS = [
   },
 ];
 
+// 애니메이션 인뷰 시작점 — 뷰포트 아래 200px 여유에서 미리 발화해 "보이는지 모르게
+// 늦게 시작"하는 문제를 막는다(QA 행106, 학습진단 랜딩과 동일 값).
+const ANIMATION_IN_VIEW_MARGIN = "0px 0px 200px 0px";
+
 function HeroSection() {
   // 히어로를 벗어나 스크롤하면 30초 회전을 멈춘다 — 큰 PNG(1600x1200) 리페인트 비용 절감
   // (PhoneReportSection과 동일 훅 구조. 서비스 랜딩 4종 + LearningDiagnosisLanding 공통 useInView).
-  const [auraRef, auraInView] = useInView() as [
+  const [auraRef, auraInView] = useInView(ANIMATION_IN_VIEW_MARGIN) as [
     MutableRefObject<HTMLDivElement | null>,
     boolean,
   ];
@@ -555,7 +559,7 @@ function OutcomesSection() {
 function PhoneReportSection() {
   // 이 섹션도 스크롤 상당히 아래(lg:pt-[16.125rem])라 뷰포트에 들어와 있는 동안만
   // 애니메이션을 돌린다(LearningDiagnosisLanding MacbookMockup과 동일 훅 구조).
-  const [chipLayerRef, chipsInView] = useInView() as [
+  const [chipLayerRef, chipsInView] = useInView(ANIMATION_IN_VIEW_MARGIN) as [
     MutableRefObject<HTMLDivElement | null>,
     boolean,
   ];

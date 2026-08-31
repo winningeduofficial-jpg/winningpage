@@ -37,6 +37,10 @@ import { useReactToPrint } from "react-to-print";
 //
 // ── 호출부 계약
 //   · `open`은 **이미 파생된 값**을 넘긴다(예: `open && Boolean(report)`).
+//   · `documentTitle`은 PDF/인쇄 파일명이다(QA 행354). 생략하면 react-to-print가 인쇄
+//     iframe의 `document.title`을 기본값으로 쓰는데, 그 iframe은 앱 전체를 복제하지
+//     않아 사이트 기본 타이틀("위닝에듀")로 저장된다 — 두 리포트 모달 모두 반드시
+//     넘긴다(`reportFileName.ts`의 `buildPerformanceReportFileName`).
 //   · `footer`는 `ReactNode` 또는 `(ctx) => ReactNode` 함수형을 받는다 — 함수형이면
 //     `ctx.print`로 react-to-print 핸들러를 받아 인쇄 버튼에 연결한다(`window.print()` 직접
 //     호출 금지 — react-to-print의 iframe 격리를 우회하게 된다).
@@ -55,6 +59,9 @@ type ReportModalShellProps = {
   title: string;
   /** 헤더 부제. 없으면 줄을 통째로 뺀다(빈 자리를 지어내지 않는다). */
   subtitle?: string;
+  /** PDF/인쇄 파일명(QA 행354, `reportFileName.ts`). 없으면 react-to-print 기본값(빈
+   * iframe의 `document.title`, 사실상 사이트 기본값)으로 떨어진다. */
+  documentTitle?: string;
   /** 스크롤 영역의 `aria-label`. */
   scrollLabel: string;
   /** 본문(폭 70.5rem 래퍼 안에 들어간다). */
@@ -71,6 +78,7 @@ export default function ReportModalShell({
   open,
   title,
   subtitle,
+  documentTitle,
   scrollLabel,
   children,
   footer,
@@ -78,7 +86,11 @@ export default function ReportModalShell({
   finalFocus,
 }: ReportModalShellProps) {
   const contentRef = useRef<HTMLDivElement>(null);
-  const print = useReactToPrint({ contentRef, pageStyle: PRINT_PAGE_STYLE });
+  const print = useReactToPrint({
+    contentRef,
+    pageStyle: PRINT_PAGE_STYLE,
+    ...(documentTitle ? { documentTitle } : {}),
+  });
 
   return (
     <DialogPrimitive.Root

@@ -39,7 +39,7 @@ export default function PremiumFocusColumns({
         <PremiumSectionHeading heading={heading} sub={sub} />
 
         <div
-          className={`rounded-lg border border-line px-6 py-8 sm:px-10 sm:py-10 lg:px-12 lg:py-12 ${PREMIUM_HEADING_GAP_CLASS}`}
+          className={`border border-line px-6 py-8 sm:px-10 sm:py-10 lg:px-12 lg:py-12 ${PREMIUM_HEADING_GAP_CLASS}`}
         >
           <div className="grid grid-cols-1 gap-10 lg:grid-cols-2 lg:gap-16">
             {columns.map((column) => (

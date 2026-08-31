@@ -18,6 +18,10 @@ import WithdrawModal from "./WithdrawModal";
 
 const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
 
+// 과도 입력으로 인한 UI 깨짐 방지(QA 행266) — 학교명은 실제 학교 정식 명칭 최대
+// 길이 여유를 두고 50자로 제한한다.
+const SCHOOL_NAME_MAX_LENGTH = 50;
+
 // 이용안내(chevron 링크) — PNG 라벨 그대로, 라우트는 src/App.jsx에 실제 등록된 것만
 // 사용(읽기로 확인). "마케팅 목적의 개인정보 수집 및 이용"/"광고성 정보 수신 동의"는 PNG상
 // 별도 링크가 아니라 토글 행이라 여기 목록에는 넣지 않는다(아래 ToggleRow 2개로 별도 렌더).
@@ -432,6 +436,7 @@ export default function ProfileTab({
                     }))
                   }
                   placeholder="학교명 입력"
+                  maxLength={SCHOOL_NAME_MAX_LENGTH}
                   className="h-13 w-full rounded-xl border border-line px-4 text-base text-ink outline-hidden focus:border-primary"
                 />
               </div>

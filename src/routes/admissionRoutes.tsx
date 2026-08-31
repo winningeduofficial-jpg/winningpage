@@ -1,5 +1,7 @@
 import type { RouteObject } from "react-router";
 import { Navigate } from "react-router";
+import { AuthCheckingFallback } from "@/components/routeGuards/RouteGuardUi";
+import { requireAuthMiddleware } from "@/lib/routeMiddleware";
 import AdmissionBoard from "@/pages/AdmissionBoard";
 import AdmissionGuidelines from "@/pages/AdmissionGuidelines";
 import AdmissionResults from "@/pages/AdmissionResults";
@@ -8,8 +10,20 @@ import AdmissionCases from "@/pages/admission/AdmissionCases";
 import SpecialHighschoolCases from "@/pages/special/SpecialHighschoolCases";
 
 const admissionRoutes: RouteObject[] = [
-  { path: "/admission/guidelines", Component: AdmissionGuidelines },
-  { path: "/admission/results", Component: AdmissionResults },
+  // 비회원 진입 차단(QA 행353) — diagnosisRoutes.tsx의 /app/learning-diagnosis/survey와
+  // 동일한 requireAuthMiddleware를 재사용해 비회원을 /login?redirect=...로 보낸다.
+  {
+    path: "/admission/guidelines",
+    Component: AdmissionGuidelines,
+    middleware: [requireAuthMiddleware],
+    HydrateFallback: AuthCheckingFallback,
+  },
+  {
+    path: "/admission/results",
+    Component: AdmissionResults,
+    middleware: [requireAuthMiddleware],
+    HydrateFallback: AuthCheckingFallback,
+  },
 
   // 수시와 정시는 각각 자신의 category만 조회합니다.
   { path: "/admission/susi", Component: AdmissionCases },

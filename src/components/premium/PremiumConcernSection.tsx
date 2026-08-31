@@ -55,7 +55,7 @@ export default function PremiumConcernSection({
           {cards.map((card) => (
             <div
               key={card.label}
-              className="flex flex-col gap-3 rounded-lg bg-white px-6 py-6 sm:px-8 sm:py-7"
+              className="flex flex-col gap-3 bg-white px-6 py-6 sm:px-8 sm:py-7"
             >
               <p className="break-keep text-[1rem] font-semibold leading-[1.4] text-ink-strong">
                 {card.label}
@@ -67,7 +67,7 @@ export default function PremiumConcernSection({
           ))}
         </div>
 
-        <div className="mt-8 rounded-lg bg-white px-6 py-5 text-center sm:px-8">
+        <div className="mt-8 bg-white px-6 py-5 text-center sm:px-8">
           <p className="break-keep text-[0.9375rem] font-medium leading-[1.5] text-ink-strong sm:text-[1rem]">
             {pillBefore}
             {goldIndex >= 0 ? (

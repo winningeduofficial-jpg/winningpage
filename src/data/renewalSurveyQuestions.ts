@@ -135,6 +135,7 @@ export const renewalSurveyQuestions = [
       "자율형・사립고",
       "특목고",
       "특성화고",
+      "중학교",
       "기타",
       "해당 없음",
     ],
@@ -143,6 +144,7 @@ export const renewalSurveyQuestions = [
       "AUTONOMOUS",
       "SPECIAL",
       "VOCATIONAL",
+      "MIDDLE",
       "ETC",
       "NONE",
     ],
@@ -501,8 +503,12 @@ export const renewalSurveyQuestions = [
     scoringId: 8,
     page: 3,
     category: "기본정보",
-    title: "최근 학습을 가장 자주 방해하는 요인은 무엇인가요?",
-    helper: "최대 3개를 선택해 주세요",
+    // QA 행350 — 한 줄로 길게 이어지던 질문을 본문/보조 지시 두 줄로 나눈다. 보조 지시 문구는
+    // 기존 helper와 동일 문구를 그대로 title 2행으로 옮긴 것이라 helper는 비운다(중복 렌더 방지).
+    // QuestionCard가 whitespace-pre-line으로 렌더한다.
+    title:
+      "최근 학습을 가장 자주 방해하는 요인은 무엇인가요?\n최대 3개를 선택해 주세요",
+    helper: null,
     type: "checkbox-row",
     maxSelect: 3,
     exclusiveValues: ["특별히 큰 어려움은 없어요"],
@@ -618,8 +624,10 @@ export const renewalSurveyQuestions = [
     scoringId: 10,
     page: 4,
     category: "기본정보",
-    title: "학교 활동이나 입시 준비에서 현재 가장 어려운 부분은 무엇인가요?",
-    helper: "최대 3개를 선택해 주세요",
+    // QA 행350 — q10과 동일 사유(위 주석 참고).
+    title:
+      "학교 활동이나 입시 준비에서 현재 가장 어려운 부분은 무엇인가요?\n최대 3개를 선택해 주세요",
+    helper: null,
     type: "checkbox-row",
     maxSelect: 3,
     exclusiveValues: ["현재는 관련 도움이 크게 필요하지 않아요"],
@@ -780,6 +788,10 @@ export const renewalSurveyQuestions = [
       "탐구는 많지만 성적이 부족해요",
       "모두 평균적인 수준이에요",
       "강점과 부족한 점을 모르겠어요",
+      // QA 행348 — "잘 모르겠어요" 추가. 위의 "강점과 부족한 점을 모르겠어요"와 별개 선택지지만
+      // 둘 다 '준비 상태를 판단하지 못함'이라는 같은 의미라 새 코드를 만들지 않고 기존 UNKNOWN을
+      // 그대로 재사용한다(JONGHAP_DELTA.UNKNOWN=-5, q18의 "잘 모르겠어요"와 동일 처리 원칙).
+      "잘 모르겠어요",
     ],
     optionCodes: [
       "CONNECTED",
@@ -787,6 +799,7 @@ export const renewalSurveyQuestions = [
       "GRADE_OK",
       "INQUIRY_OK",
       "AVERAGE",
+      "UNKNOWN",
       "UNKNOWN",
     ],
     extra: {},

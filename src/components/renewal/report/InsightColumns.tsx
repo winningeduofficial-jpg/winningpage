@@ -24,7 +24,7 @@ const InsightColumns = ({ strengths, improvements }: InsightColumnsProps) => {
           {withDedupedKeys(strengths).map(({ item, key }) => (
             <li
               key={key}
-              className="text-[1.1875rem] font-normal leading-[1.3] text-[#808080]"
+              className="text-base font-normal leading-[1.3] text-[#808080]"
             >
               {item}
             </li>
@@ -37,7 +37,7 @@ const InsightColumns = ({ strengths, improvements }: InsightColumnsProps) => {
           {withDedupedKeys(improvements).map(({ item, key }) => (
             <li
               key={key}
-              className="text-[1.1875rem] font-normal leading-[1.3] text-[#808080]"
+              className="text-base font-normal leading-[1.3] text-[#808080]"
             >
               {item}
             </li>

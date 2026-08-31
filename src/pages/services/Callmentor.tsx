@@ -273,7 +273,7 @@ export default function Callmentor() {
             </p>
             <div className="flex flex-col gap-4 sm:flex-row">
               {/* 콜멘토는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가
-                  없어, 클릭 시 이동 대신 "서비스 준비중입니다" alert로 안내한다
+                  없어, 클릭 시 이동 대신 "서비스 예정입니다" alert로 안내한다
                   (alertServiceNotReady, paidServiceAccess.js — 자기평가・심화탐구와 동일 처리,
                   2026-08-05 사용자 확정). 라벨도 학습진단을 명시하던 "학습진단으로 시작하기 →"에서
                   다른 두 페이지와 통일된 "지금 시작하기"로 바꿨다(준비중 alert와 라벨의 모순 방지).

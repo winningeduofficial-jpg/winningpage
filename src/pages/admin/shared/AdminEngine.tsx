@@ -750,6 +750,56 @@ export function AdminForm<T extends AdminRow = AdminRow>({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [dirty]);
 
+  // 상세/편집 진입은 라우트가 아니라 이 컴포넌트의 마운트 여부(Admin.tsx의
+  // mode/editingRow state)로만 표현된다 — 즉 진입 시 URL·히스토리 엔트리가
+  // 하나도 안 쌓인다. 그 상태에서 브라우저 뒤로가기를 누르면 "이 폼을 닫는다"가
+  // 아니라 방문 히스토리상 직전 엔트리(보통 다른 메뉴)로 그대로 새어 나간다
+  // (QA 행317). 마운트 시 더미 엔트리를 하나 쌓아 그 간극을 메운다 — popstate가
+  // 오면 실제 뒤로 이동을 허용하는 대신 폼/모달만 닫고 소비한다.
+  // dirty/onCancel을 ref로 미러링하는 이유: 아래 effect는 deps를 []로 고정해
+  // "마운트당 정확히 1개 엔트리"를 보장해야 한다(dirty가 바뀔 때마다 새로
+  // push하면 뒤로가기 1회로 안 닫히는 엔트리가 쌓인다).
+  const dirtyRef = useRef(dirty);
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+  const onCancelRef = useRef(onCancel);
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
+  const pushedHistoryRef = useRef(false);
+  useEffect(() => {
+    pushedHistoryRef.current = true;
+    window.history.pushState({ __adminFormGuard: true }, "");
+
+    function handlePopState() {
+      if (!pushedHistoryRef.current) return;
+      pushedHistoryRef.current = false;
+      if (
+        dirtyRef.current &&
+        !window.confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")
+      ) {
+        // 이탈 취소 — 브라우저가 이미 소비한 엔트리를 다시 쌓아 가드를 복구한다.
+        pushedHistoryRef.current = true;
+        window.history.pushState({ __adminFormGuard: true }, "");
+        return;
+      }
+      onCancelRef.current();
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      // 저장/취소 등 정상 경로로 닫힐 때(=언마운트) 우리가 쌓은 엔트리가 아직
+      // 남아 있다면 한 번 소비해 히스토리를 정리한다(popstate 핸들러는 이미
+      // 위에서 떼어냈으므로 이 back()이 닫기 로직을 다시 발화시키지 않는다).
+      if (pushedHistoryRef.current) {
+        pushedHistoryRef.current = false;
+        window.history.back();
+      }
+    };
+  }, []);
+
   function handleCancel() {
     if (
       dirty &&

@@ -3,6 +3,7 @@ import PerformanceReportSurface from "@/components/performance/report/Performanc
 import ReportModalShell, {
   REPORT_MODAL_FOOTER_BUTTON,
 } from "@/components/performance/report/ReportModalShell";
+import { buildPerformanceReportFileName } from "@/components/performance/report/reportFileName";
 import SectionedReportView, {
   getVisibleSections,
   type ReportSection,
@@ -58,6 +59,9 @@ import SectionedReportView, {
 const MODAL_TITLE = "평가 리포트";
 const PRINT_LABEL = "PDF로 저장 / 인쇄";
 const NEXT_LABEL = "다음 단계 선택하기";
+/** PDF 파일명의 "리포트이름" 조각(QA 행354, `reportFileName.ts`). `DesignReportModal`과
+ * 같은 관례 — 고객 요청 원문 "평가리포트"를 그대로 쓴다. */
+const REPORT_FILE_NAME_LABEL = "평가리포트";
 
 /**
  * 점수 카드 라벨 2종. 서버 `EVALUATION_SCORE_CARD_LABELS`(prompts.js)와 같은 문자열이며,
@@ -81,8 +85,10 @@ type EvaluationReportModalProps = {
   open: boolean;
   /** `POST /api/performance/evaluate` 응답의 `report` 그대로. */
   report?: EvaluationReport | null;
-  /** 확정 주제. 헤더 부제. */
+  /** 확정 주제. 헤더 부제 + PDF 파일명 첫 조각. */
   topicTitle?: string | undefined;
+  /** 로그인 학생 이름. PDF 파일명 둘째 조각(QA 행354). 없으면 그 조각만 빠진다. */
+  studentName?: string | null;
   /** ESC·딤 클릭·`다음 단계 선택하기` 공통 핸들러. */
   onClose: () => void;
 };
@@ -91,6 +97,7 @@ export default function EvaluationReportModal({
   open,
   report,
   topicTitle,
+  studentName,
   onClose,
 }: EvaluationReportModalProps) {
   // 훅 입력과 렌더 조건을 한 표현식에서 파생시킨다(`ReportModalShell` 호출부 계약).
@@ -107,6 +114,11 @@ export default function EvaluationReportModal({
       open={isOpen}
       title={MODAL_TITLE}
       {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
+      documentTitle={buildPerformanceReportFileName({
+        topicTitle,
+        studentName,
+        reportName: REPORT_FILE_NAME_LABEL,
+      })}
       scrollLabel="평가 리포트 본문"
       onClose={onClose}
       footer={({ print }) => (

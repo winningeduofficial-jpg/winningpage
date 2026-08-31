@@ -41,7 +41,7 @@ export default function PremiumDarkTrio({
           {items.map((item) => (
             <div
               key={item.title}
-              className="flex aspect-square w-full max-w-80 flex-col items-center justify-center gap-5 rounded-lg bg-black px-8 text-center"
+              className="flex aspect-square w-full max-w-80 flex-col items-center justify-center gap-5 bg-black px-8 text-center"
             >
               <img
                 src={item.icon}

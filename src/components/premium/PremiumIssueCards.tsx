@@ -58,10 +58,10 @@ export default function PremiumIssueCards({
             <div
               key={item.title}
               style={isDark ? undefined : PREMIUM_CARD_SHADOW_STYLE}
-              className={`${
+              className={`flex flex-col justify-center ${
                 columns === 2
-                  ? "w-full rounded-lg p-10 sm:min-h-[5.625rem]"
-                  : "w-full rounded-lg p-10 sm:w-[20.8125rem] sm:min-h-[13.75rem]"
+                  ? "w-full p-10 sm:min-h-[5.625rem]"
+                  : "w-full p-10 sm:w-[20.8125rem] sm:min-h-[13.75rem]"
               } ${isDark ? "bg-white/10" : PREMIUM_CARD_BORDER_CLASS}`}
             >
               <p className="text-[1.25rem] font-semibold leading-[1.4] text-gold">

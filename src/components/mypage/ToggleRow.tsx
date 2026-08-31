@@ -30,9 +30,9 @@ export default function ToggleRow({
       className={`flex h-13 items-center justify-between gap-4 rounded-xl border border-line px-5 ${className}`}
     >
       <div className="min-w-0">
-        <p className="text-sm text-ink">{label}</p>
+        <p className="text-base text-ink">{label}</p>
         {description && (
-          <p className="mt-0.5 break-keep text-xs text-ink-sub">
+          <p className="mt-0.5 break-keep text-sm text-ink-sub">
             {description}
           </p>
         )}
