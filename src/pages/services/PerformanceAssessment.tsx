@@ -6,6 +6,7 @@ import iconFolder from "@/assets/renewal/landing/icon-folder-v2.png";
 import iconLock from "@/assets/renewal/landing/icon-lock-v2.png";
 import iconShield from "@/assets/renewal/landing/icon-shield-v2.png";
 import audienceQuality from "@/assets/services/performance/audience-quality-v2.jpg";
+import heroReportMockup from "@/assets/services/performance/hero-report-mockup.png";
 import audienceResearch from "@/assets/services/performance/audience-research.jpg";
 import audienceStructure from "@/assets/services/performance/audience-structure.jpg";
 import audienceTopic from "@/assets/services/performance/audience-topic.jpg";
@@ -401,12 +402,14 @@ function HeroSection() {
         {/* 브라우저 목업 — 래퍼/프레임 지오메트리(폭 1068px, radius 5px, 3중 그림자, 상단
             마진 + 하단 음수 마진으로 다음 섹션과 겹치는 처리)는 목표관리(GoalManagement.jsx)
             HeroSection 목업 구조를 그대로 이식했다(사용자 지시 — 세 히어로 공통 규격 통일).
-            시안(2393:12091)은 크롬 UI는 벡터로 존재하나 본문 콘텐츠가 완전히 비어있어(스펙
-            §2-4) 본문은 계속 빈 배경으로 두되, 크롬 툴바 색상은 수행평가 기존 구현을 유지한다. */}
+            본문은 오래 빈 배경이었다(시안 2393:12091의 크롬 안이 비어 있었음). 2026-08-31
+            수급된 시안 4865:17414의 본문 프레임(4080:7616, 평가 리포트 화면)만 @2x로 추출해
+            채운다 — 크롬은 이 컴포넌트가 그리므로 시안의 크롬·그림자는 버렸다. */}
         <ServiceHeroBrowserFrame>
-          <div
-            className="aspect-1280/553 w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
-            aria-hidden="true"
+          <img
+            src={heroReportMockup}
+            alt="수행평가 평가 리포트 화면 — 종합 평가 점수 86점과 평가 기준 충족도・주제 적합성・자료 활용 등급, 총평, 잘한 점 코멘트를 보여준다"
+            className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
           />
         </ServiceHeroBrowserFrame>
       </div>
