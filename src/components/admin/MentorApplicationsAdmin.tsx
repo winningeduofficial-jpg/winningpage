@@ -14,6 +14,7 @@ import {
   MENTOR_APPLICATION_STATUS_OPTIONS,
   Select,
 } from "@/pages/admin/shared/formFields";
+import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 
 // ---------------------------------------------------------------------------
 // 멘토 신청 내역(mentorApplications) — CONFIGS.mentorApplications 참고.
@@ -192,6 +193,9 @@ export default function MentorApplicationsAdmin({
   const [selected, setSelected] = useState<MentorApplicationRow | null>(null); // 상세로 연 행. null이면 목록.
   const [statusDraft, setStatusDraft] = useState("");
   const [savingStatus, setSavingStatus] = useState(false);
+
+  // QA 317 — 상세에서 뒤로가기가 목록으로 돌아오게 한다.
+  useAdminDetailBack(Boolean(selected), () => setSelected(null));
 
   // 개인정보 반출 게이트 (QA 270 · 228 — 228 이 먼저 요청, 270 이 재요청).
   const { requestAccess, gate } = useSensitiveActionGate();

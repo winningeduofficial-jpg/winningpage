@@ -24,6 +24,7 @@ import {
   ActionButton,
   GOAL_CUT_SOURCE_OPTIONS,
 } from "@/pages/admin/shared/formFields";
+import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 
 // 이 파일 로컬 전용 타입(새 전역 타입 파일 없음). goal_students/goal_student_state는
 // 파생·원자료 컬럼이 매우 많은 넓은 테이블/뷰라 실제로 읽는 필드만 명시하고
@@ -682,6 +683,10 @@ export default function GoalStudentsAdmin({
 
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const windowSize = Math.min(totalPages, 10);
+  // QA 317 — 학생 상세는 라우트가 아니라 state 라, 뒤로가기가 목록이 아닌 직전
+  // 메뉴로 튄다. 상세를 열 때 히스토리 항목을 쌓아 뒤로가기가 그걸 소비하게 한다.
+  useAdminDetailBack(Boolean(detailId), () => setDetailId(null));
+
   const windowStart = Math.min(
     Math.max(1, page - Math.floor(windowSize / 2)),
     Math.max(1, totalPages - windowSize + 1),
