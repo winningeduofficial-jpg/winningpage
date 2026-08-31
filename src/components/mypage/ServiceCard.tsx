@@ -105,7 +105,7 @@ export default function ServiceCard({ card }: ServiceCardProps) {
             {actions.map((action) =>
               action.disabled ? (
                 <span
-                  key={action.kind}
+                  key={`${action.kind}-${action.label}`}
                   aria-disabled="true"
                   title={action.disabledReason}
                   className="inline-flex h-8 w-33 cursor-not-allowed items-center justify-center rounded-lg bg-[#f2f2f2] text-[0.875rem] font-semibold tracking-[-0.0175rem] text-ink-sub/60"
@@ -114,7 +114,7 @@ export default function ServiceCard({ card }: ServiceCardProps) {
                 </span>
               ) : (
                 <Link
-                  key={action.kind}
+                  key={`${action.kind}-${action.label}`}
                   to={action.href}
                   className={
                     action.kind === "outline-solid"
