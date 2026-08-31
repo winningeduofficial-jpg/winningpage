@@ -2178,5 +2178,14 @@ export async function uploadImage(
     });
   }
 
+  // 다중 업로드에서 일부만 실패하면 성공분만 조용히 반영돼 누락이 무증상으로
+  // 남는다(2026-08-31 분석 2-c). 건별 alert 와 별개로 합계를 한 번 더 알린다.
+  const failedCount = fileList.length - uploaded.length;
+  if (failedCount > 0 && uploaded.length > 0) {
+    alert(
+      `${fileList.length}개 중 ${failedCount}개는 업로드되지 않았습니다. 성공한 파일만 반영됩니다.`,
+    );
+  }
+
   return uploaded;
 }
