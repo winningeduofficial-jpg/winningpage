@@ -7,6 +7,7 @@ import {
   fetchIsSuperAdmin,
 } from "./adminPermissions";
 import { isOnboardingDone } from "./goalOnboarding";
+import { markProgramEntry } from "./programEntry";
 import { entitlementQueryOptions, queryClient } from "./queryClient";
 import { getCached, setCached } from "./routeMiddlewareCache";
 import { supabase } from "./supabase";
@@ -223,7 +224,14 @@ export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
     throw new RouteCheckFailedError("entitlement");
   }
 
-  if (allowed) return;
+  if (allowed) {
+    // program_key는 'goal'이 아니라 'target'이다 — products/program_access_grants의
+    // 정본이 'target'이고(serviceAccess.ts SERVICE_CONFIGS.goal.program_keys=["target"]),
+    // 'goal'은 이 config의 서비스 키일 뿐이다. await하지 않는다(진입 기록이 네비게이션을
+    // 블로킹하면 안 됨 — markProgramEntry 상단 주석 참고).
+    markProgramEntry("target");
+    return;
+  }
 
   const redirectPath = currentPathWithQuery(request);
   throw redirect(
