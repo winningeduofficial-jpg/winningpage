@@ -121,9 +121,10 @@ export default function OptionGroup({
           const active = multiple
             ? selectedList.includes(optionValue)
             : value === optionValue;
-          // 배타 선택지는 maxSelect 카운트와 무관하게 항상 클릭 가능해야 한다.
-          const blockedByLimit =
-            limitReached && !active && !exclusiveValues.includes(optionValue);
+          // maxSelect 도달 시 배타 선택지도 다른 미선택 항목과 동일하게 막는다(QA 행340·342) —
+          // 이미 선택된 항목은 handleSelect가 상한과 무관하게 항상 해제를 허용하므로, 해제 후
+          // 배타 선택지를 고르는 경로는 여전히 열려 있다.
+          const blockedByLimit = limitReached && !active;
           const isDisabled = disabled || blockedByLimit;
 
           return (
