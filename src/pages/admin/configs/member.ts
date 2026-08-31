@@ -121,7 +121,7 @@ export const memberConfigs: Record<string, MemberConfig> = {
       { key: "price", label: "수강료", type: "money" },
       { key: "discount_amount", label: "감면액", type: "money" },
       { key: "paid_amount", label: "납부액", type: "money" },
-      // QA 행272·227 — 결제방식/승인번호 컬럼 추가(20260901000000 마이그레이션 신설 컬럼).
+      // QA 행272·227 — 결제방식/승인번호 컬럼 추가(enrollments 결제 컬럼 마이그레이션 신설).
       { key: "payment_method", label: "결제방식" },
       { key: "approval_no", label: "승인번호" },
       { key: "created_at", label: "신청일", type: "date" },
