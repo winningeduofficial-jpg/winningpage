@@ -1,6 +1,8 @@
-import { RefreshCw } from "lucide-react";
+import { Download, RefreshCw } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
 import { supabase } from "@/lib/supabase";
+import { downloadCsv } from "@/pages/admin/shared/csvExport";
 import { ActionButton } from "@/pages/admin/shared/formFields";
 
 // ---------------------------------------------------------------------------
@@ -49,6 +51,24 @@ const PAGE_SIZE = 1000;
 
 const VIEW_COLUMNS =
   "order_item_id, order_id, paid_at, payer_name, payer_email, student_name, service_key, item_name, list_amount, discount_amount, paid_amount, refunded_amount, revenue_status, net_amount";
+
+// QA 271 내보내기 컬럼 — 화면 표의 여덟 칸에 결제자 이메일을 더한 것이다.
+// 이메일은 표에 결제자명이 없을 때만 대체 표기로 쓰여 눈에 잘 띄지 않지만,
+// 파일에는 있어야 정산 대사(對査)에 쓸 수 있다. 이 이메일 때문에 이 다운로드가
+// 개인정보 반출이고, 그래서 게이트를 탄다.
+const REVENUE_EXPORT_COLUMNS = [
+  { key: "paid_at", label: "결제일시", type: "datetime" },
+  { key: "payer_name", label: "결제자" },
+  { key: "payer_email", label: "결제자 이메일" },
+  { key: "item_name", label: "이용 서비스" },
+  { key: "student_name", label: "이용 학생" },
+  { key: "list_amount", label: "서비스 금액", type: "money" },
+  { key: "discount_amount", label: "할인 금액", type: "money" },
+  { key: "paid_amount", label: "최종 결제 금액", type: "money" },
+  { key: "refunded_amount", label: "환불 금액", type: "money" },
+  { key: "net_amount", label: "순매출", type: "money" },
+  { key: "revenue_status", label: "상태" },
+];
 
 /**
  * KST 기준 'YYYY-MM-DD'. 브라우저 시간대와 무관하게 같은 값을 낸다.
@@ -142,6 +162,9 @@ export default function RevenueAdmin() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // 개인정보 반출 게이트 (QA 271).
+  const { requestAccess, gate } = useSensitiveActionGate();
 
   async function loadServices() {
     // 탭 목록을 하드코딩하지 않는다 — 서비스가 늘거나 이름이 바뀌면 화면만 옛것으로
@@ -246,8 +269,35 @@ export default function RevenueAdmin() {
 
   const tabs: ServiceTab[] = [{ key: "all", label: "전체" }, ...serviceTabs];
 
+  // QA 271 — 매출·결제 다운로드. 결제자 이름·이메일이 함께 나가므로 게이트를 탄다.
+  function exportRevenue() {
+    downloadCsv(
+      `매출및결제_${fromYmd}_${toYmd}.csv`,
+      filteredPeriod as unknown as Record<string, unknown>[],
+      REVENUE_EXPORT_COLUMNS,
+    );
+  }
+
+  function requestExport() {
+    if (filteredPeriod.length === 0) {
+      alert("내보낼 데이터가 없습니다.");
+      return;
+    }
+
+    requestAccess({
+      action: "download",
+      resourceKey: "revenue",
+      title: "매출 및 결제 다운로드",
+      description: `${fromYmd} ~ ${toYmd} 결제 ${filteredPeriod.length.toLocaleString()}건(결제자 이름·이메일 포함)이 CSV 파일로 저장됩니다.`,
+      rowCount: filteredPeriod.length,
+      onGranted: exportRevenue,
+    });
+  }
+
   return (
     <div>
+      {gate}
+
       <div className="mb-6 bg-white px-6 py-5 shadow-sm">
         {/* 서비스별 탭 — 시안의 전체/목표관리/콜멘토/… 줄 */}
         <div className="mb-5 flex flex-wrap gap-1 border-b border-[#edf0f4]">
@@ -310,6 +360,14 @@ export default function RevenueAdmin() {
           >
             <RefreshCw size={14} />
             새로고침
+          </button>
+          <button
+            type="button"
+            onClick={requestExport}
+            className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+          >
+            <Download size={14} />
+            엑셀 다운로드
           </button>
         </div>
 

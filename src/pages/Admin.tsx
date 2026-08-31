@@ -23,6 +23,7 @@ import MembersAdmin from "@/components/admin/MembersAdmin";
 import MentorApplicationsAdmin from "@/components/admin/MentorApplicationsAdmin";
 import PremiumBookAdmin from "@/components/admin/PremiumBookAdmin";
 import RevenueAdmin from "@/components/admin/RevenueAdmin";
+import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
 import AdmissionMetaEditModal from "@/components/admission/editor/AdmissionMetaEditModal";
 import {
   canAccessSection,
@@ -256,6 +257,9 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
     items: [
       { key: "adminMembers", label: "관리자 관리" },
       { key: "adminRoles", label: "관리자 권한 관리" },
+      // 개인정보 반출 게이트가 남기는 원장(QA 268·270·228·223·271·269).
+      // RLS 상 최고 관리자만 읽는다.
+      { key: "adminAccessLogs", label: "개인정보 접근 로그" },
     ],
   },
 ];
@@ -2852,6 +2856,9 @@ export function AdminSectionRoute({ section }: { section: string }) {
     total: number;
   } | null>(null);
 
+  // 개인정보 반출 게이트 — 모달 상태를 이 훅이 들고, gate 를 아래 트리에 그린다.
+  const { requestAccess, gate } = useSensitiveActionGate();
+
   const config = CONFIGS[activeKey];
   const ListSummaryComponent = config.listSummaryKey
     ? LIST_SUMMARY_REGISTRY[config.listSummaryKey]
@@ -3272,6 +3279,27 @@ export function AdminSectionRoute({ section }: { section: string }) {
     return true;
   }
 
+  // 개인정보 반출 게이트 (QA 223·268·270·271). config.sensitiveDownload 인 섹션은
+  // [엑셀 다운로드]가 곧장 내려받지 않고 비밀번호 재확인 + 사유 기재를 먼저 태운다.
+  // 게이트는 로그를 남긴 뒤에야 onGranted 를 부르므로, 적재 실패 시 파일은 나가지 않는다.
+  function handleDownloadClick() {
+    if (!config.sensitiveDownload) {
+      void downloadExcel();
+      return;
+    }
+
+    const rowCount = config.serverPaginate ? totalCount : filteredRows.length;
+
+    requestAccess({
+      action: "download",
+      resourceKey: activeKey,
+      title: `${config.title} 다운로드`,
+      description: `${rowCount.toLocaleString()}건의 개인정보가 CSV 파일로 저장됩니다.`,
+      rowCount,
+      onGranted: downloadExcel,
+    });
+  }
+
   async function downloadExcel() {
     const filename = `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`;
 
@@ -3334,6 +3362,8 @@ export function AdminSectionRoute({ section }: { section: string }) {
   // 예전에 이 컴포넌트의 <main>/바깥 div가 지던 책임을 그대로 넘겨받았다.
   return (
     <>
+      {gate}
+
       {config.custom ? (
         // custom: true 인 config 는 전부 customComponentKey를 지정한다(coupons /
         // premiumBookPages / mentorApplications / learningDiagnosis / goalStudents) —
@@ -3415,7 +3445,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
                     ["members", "refunds"].includes(activeKey)) && (
                     <button
                       type="button"
-                      onClick={downloadExcel}
+                      onClick={handleDownloadClick}
                       disabled={Boolean(exporting)}
                       className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
                     >

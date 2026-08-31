@@ -69,6 +69,8 @@ interface MainCrudConfig {
   guideText?: string;
   // 엑셀 다운로드 버튼 노출(Admin.tsx 렌더부 config.excel 판정).
   excel?: boolean;
+  // 개인정보 반출 게이트 대상(AdminConfig.sensitiveDownload 와 같은 뜻).
+  sensitiveDownload?: boolean;
   // 저장 직전 재확인 문구(QA A13, 2026-08-27) — 값이 있으면 Admin.tsx saveRow 가
   // window.confirm 으로 한 번 더 묻고, 취소하면 저장하지 않는다.
   confirmBeforeSave?: string;
@@ -649,9 +651,11 @@ export const mainConfigs: Record<string, MainConfig> = {
     order: "created_at",
     noCreate: true,
     // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가는 섹션이라 원래 CSV 내보내기를
-    // 비활성으로 뒀으나, QA G2(2026-08-27) 요청으로 어드민 전용 엑셀 다운로드를 켠다 —
-    // 다운로드 버튼은 config.excel 이 true 일 때만 뜬다(Admin.tsx 렌더부).
+    // 비활성으로 뒀다. QA G2(2026-08-27)가 "받게 해달라"로 그걸 열었고, QA 223 이 뒤이어
+    // "대신 게이트를 걸어라"를 요구했다 — 그래서 excel 은 켠 채로 두고 sensitiveDownload
+    // 로 비밀번호 재확인 + 사유 기재 + 로그 적재를 통과해야 실제로 내려받게 한다.
     excel: true,
+    sensitiveDownload: true,
     rowCapWarning: true, // PostgREST 기본 1000행 상한 — 닿으면 목록 상단에 경고 노출
     retentionNotice:
       "상담 신청 정보(이름·연락처·이메일 등)는 상담 종료 후 2년간 보관합니다. 보관기간이 지난 건은 확인 후 삭제해 주세요.",

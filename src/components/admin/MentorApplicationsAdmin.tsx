@@ -1,8 +1,13 @@
-import { ExternalLink, RefreshCw, Search } from "lucide-react";
+import { Download, ExternalLink, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
 import { supabase } from "@/lib/supabase";
 import { AdminTable } from "@/pages/admin/shared/AdminEngine";
-import { normalizeArray, searchable } from "@/pages/admin/shared/csvExport";
+import {
+  downloadCsv,
+  normalizeArray,
+  searchable,
+} from "@/pages/admin/shared/csvExport";
 import {
   ActionButton,
   Field,
@@ -171,6 +176,8 @@ interface MentorApplicationsAdminProps {
   config: {
     title: string;
     searchPlaceholder?: string;
+    // 목록 렌더(AdminTable)와 QA 270·228 다운로드가 함께 읽는다.
+    columns: { key: string; label: string; type?: string | undefined }[];
     [key: string]: unknown;
   };
 }
@@ -185,6 +192,9 @@ export default function MentorApplicationsAdmin({
   const [selected, setSelected] = useState<MentorApplicationRow | null>(null); // 상세로 연 행. null이면 목록.
   const [statusDraft, setStatusDraft] = useState("");
   const [savingStatus, setSavingStatus] = useState(false);
+
+  // 개인정보 반출 게이트 (QA 270 · 228 — 228 이 먼저 요청, 270 이 재요청).
+  const { requestAccess, gate } = useSensitiveActionGate();
 
   async function loadRows() {
     setLoading(true);
@@ -219,6 +229,36 @@ export default function MentorApplicationsAdmin({
     if (!q) return rows;
     return rows.filter((row) => searchable(row).includes(q));
   }, [rows, keyword]);
+
+  // QA 270·228 — 멘토 신청 내역 다운로드. 목록은 휴대폰을 maskedPhone 으로 가리지만
+  // 게이트를 통과한 파일에는 원본을 담는다(MembersAdmin.exportMembers 와 같은 판단).
+  function exportApplications() {
+    const columns = config.columns.map((column) =>
+      column.type === "maskedPhone" ? { ...column, type: undefined } : column,
+    );
+
+    downloadCsv(
+      `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`,
+      filteredRows as unknown as Record<string, unknown>[],
+      columns,
+    );
+  }
+
+  function requestExport() {
+    if (filteredRows.length === 0) {
+      alert("내보낼 데이터가 없습니다.");
+      return;
+    }
+
+    requestAccess({
+      action: "download",
+      resourceKey: "mentorApplications",
+      title: "멘토 신청 내역 다운로드",
+      description: `멘토 지원자 ${filteredRows.length.toLocaleString()}건의 개인정보(이름·대학·휴대폰)가 CSV 파일로 저장됩니다.`,
+      rowCount: filteredRows.length,
+      onGranted: exportApplications,
+    });
+  }
 
   function openDetail(row: MentorApplicationRow) {
     setSelected(row);
@@ -381,16 +421,29 @@ export default function MentorApplicationsAdmin({
 
   return (
     <div>
+      {gate}
+
       <div className="mb-6 bg-white px-6 py-5 shadow-sm">
         <div className="flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={loadRows}
-            className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
-          >
-            <RefreshCw size={14} />
-            초기화
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadRows}
+              className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+            >
+              <RefreshCw size={14} />
+              초기화
+            </button>
+
+            <button
+              type="button"
+              onClick={requestExport}
+              className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+            >
+              <Download size={14} />
+              엑셀 다운로드
+            </button>
+          </div>
 
           <div className="flex items-center">
             <input

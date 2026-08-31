@@ -63,6 +63,7 @@ export const ADMIN_SECTION_KEYS = [
   // 권한을 못 주거나(키 누락) 권한 화면에 유령 항목이 뜬다(키 잔존).
   "adminMembers",
   "adminRoles",
+  "adminAccessLogs",
 ] as const;
 
 export type AdminSectionKey = (typeof ADMIN_SECTION_KEYS)[number];
