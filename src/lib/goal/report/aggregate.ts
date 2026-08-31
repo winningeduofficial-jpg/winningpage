@@ -233,7 +233,10 @@ export function computeAvgStudyHours(
   records: GoalDailyRecordRow[],
 ): number | null {
   if (records.length === 0) return null;
-  const total = records.reduce((sum, r) => sum + (toNum(r.study_hours) ?? 0), 0);
+  const total = records.reduce(
+    (sum, r) => sum + (toNum(r.study_hours) ?? 0),
+    0,
+  );
   return round1(total / records.length);
 }
 
@@ -434,6 +437,9 @@ const SUBJECT_LABELS: Record<string, string> = {
   math: "수학",
   english: "영어",
   science: "탐구",
+  social: "사회",
+  history: "한국사",
+  second_lang: "제2외국어",
   etc: "기타",
 };
 

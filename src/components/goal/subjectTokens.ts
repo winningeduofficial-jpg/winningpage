@@ -4,16 +4,29 @@
 // SUBJECT_DOT_CLASS / TomorrowPlanCard.jsx SUBJECT_TONE / EffortSubjectCard.jsx SUBJECT_COLOR /
 // AchievementChart.jsx 로컬 hex)으로 흩어져 서로 다른 색으로 어긋나 있던 매핑을 통합한다.
 //
-// 과목 id(korean/math/english/science/etc)와 한글명(국어/수학/영어/탐구) 두 키 형태를 모두 받는다.
+// 과목 id(korean/math/english/science/social/history/second_lang/etc)와 한글명
+// (국어/수학/영어/탐구/사회/한국사/제2외국어) 두 키 형태를 모두 받는다(QA B9로 5종→8종 확장).
 
 const SUBJECT_ID_BY_NAME: Record<string, string> = {
   국어: "korean",
   수학: "math",
   영어: "english",
   탐구: "science",
+  사회: "social",
+  한국사: "history",
+  제2외국어: "second_lang",
 };
 
-const KNOWN_SUBJECT_IDS = ["korean", "math", "english", "science", "etc"];
+const KNOWN_SUBJECT_IDS = [
+  "korean",
+  "math",
+  "english",
+  "science",
+  "social",
+  "history",
+  "second_lang",
+  "etc",
+];
 
 // 키(id 또는 한글명)를 과목 id로 정규화한다. 미지정/미매칭은 'etc'로 폴백.
 export function resolveSubjectId(key?: string | null) {
@@ -30,6 +43,9 @@ const SUBJECT_LABELS = {
   math: "수학",
   english: "영어",
   science: "탐구",
+  social: "사회",
+  history: "한국사",
+  second_lang: "제2외국어",
   etc: "기타",
 };
 

@@ -60,8 +60,21 @@ const PUBLIC_REL = "src/pages/AdmissionGuidelines.tsx";
 const ADMIN_REL = "src/pages/admin/shared/AdminEngine.tsx";
 // META_MODAL_REL(AdmissionMetaEditModal 경로 상수)은 meta:13이
 // AdmissionGuidelines.universityLink.metaModal.test.tsx로 옮겨가며 함께 옮겼다.
-const VIEW_SQL_GLOB_SUFFIX = "_admission_resource_index_official_url.sql";
-const BASE_VIEW_SQL = "sql/48_admission_resource_index_json_flags.sql";
+//
+// sql:12 재배선 메모(2026-08-31, sql/ ENOENT 해소)
+// -----------------------------------------------
+// sql/ 은 2026-08-21 전량 baseline.sql로 스쿼시됐다(수동 넘버링 폐기,
+// supabase/README.md). 구 sql:12는 "48번(플래그만) + <번호>_..._official_url.sql
+// (official_source_url 추가분) 2개 파일이 append-only로 이어진다"는 마이그레이션
+// *이력*을 검증했는데, 스쿼시 이후에는 그 중간 이력이 물리적으로 존재하지
+// 않는다 — 지금은 admission_university_resource_index 뷰 정의가 baseline
+// 하나에 최종 형태로만 있다. 그래서 "이력 append-only" 명제는 "최종 상태 —
+// official_source_url이 select 목록의 맨 뒤에 정확히 1개 있다"로 좁혀 재작성한다
+// (원래 명제의 알맹이인 "끝에 덧붙였지, 중간에 끼워 넣거나 다른 컬럼을 건드리지
+// 않았다"는 그대로 보존된다). "sql/<번호>..." 파일 존재 검증(구 체계 전제)은
+// baseline 안의 CREATE OR REPLACE VIEW 블록 존재 검증으로 치환한다.
+const ADMISSION_VIEW_NAME = "admission_university_resource_index";
+const BASELINE_SQL_REL = "supabase/migrations/20260821000000_baseline.sql";
 
 const read = (rel: string) =>
   fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
@@ -242,8 +255,10 @@ function selectItems(sqlText: string, whatFile: string): string[] {
     .split("\n")
     .filter((l) => !l.trim().startsWith("--"))
     .join("\n");
+  // baseline(pg_dump)은 식별자를 큰따옴표로 감싼다("public"."admission_university_resources")
+  // — 구 sql/48은 따옴표 없는 public.admission_university_resources였다. 둘 다 받는다.
   const m = stripped.match(
-    /create or replace view[\s\S]*?\bas\s*select\b([\s\S]*?)\bfrom\s+public\.admission_university_resources/i,
+    /create or replace view[\s\S]*?\bas\s*select\b([\s\S]*?)\bfrom\s+"?public"?\."?admission_university_resources"?/i,
   );
   if (!m)
     throw new Error(
@@ -555,39 +570,44 @@ describe("대학명 → official_source_url 배선 검증", () => {
     ).toBe(true);
   });
 
-  test("sql:12. 목록 뷰 SQL 이 존재하고, 48번 select 컬럼 전부를 접두사로 보존한 채 official_source_url 1개만 맨 뒤에 추가하며, grant 를 재부여한다", () => {
-    const sqlDir = path.join(REPO_ROOT, "sql");
-    const matches = fs
-      .readdirSync(sqlDir)
-      .filter((f) => f.endsWith(VIEW_SQL_GLOB_SUFFIX));
+  test("sql:12. 목록 뷰가 baseline에 존재하고, official_source_url 1개가 select 목록 맨 뒤에만 있으며, anon/authenticated에 조회 권한이 있다", () => {
+    // 구 sql:12는 "48번(플래그만) → <번호>_..._official_url.sql(official_source_url
+    // 추가분)" 2파일의 append-only 이력을 검증했다. sql/ 스쿼시 이후 그 중간
+    // 이력은 물리적으로 없다 — baseline에 최종 뷰 정의 1개만 있다. 그래서
+    // "이력이 append-only였다"가 아니라 그 이력이 남긴 결과 상태, 즉
+    // "official_source_url이 select 목록 맨 뒤에 정확히 1개 있고 나머지는
+    // 그 앞에서 중복 없이 온다"를 검증한다.
+    const baselineSql = read(BASELINE_SQL_REL);
+    const viewNeedle = `CREATE OR REPLACE VIEW "public"."${ADMISSION_VIEW_NAME}"`;
     let pass = false;
     let detail: string;
-    if (matches.length !== 1) {
+    if (!baselineSql.includes(viewNeedle)) {
       detail = JSON.stringify({
-        matches,
-        expected: `sql/<번호>${VIEW_SQL_GLOB_SUFFIX} 1개`,
+        expected: `${BASELINE_SQL_REL} 안에 ${viewNeedle} 존재`,
+        found: false,
       });
     } else {
-      const newSql = fs.readFileSync(path.join(sqlDir, matches[0]!), "utf8");
-      const baseItems = selectItems(read(BASE_VIEW_SQL), BASE_VIEW_SQL);
-      const newItems = selectItems(newSql, matches[0]!);
-      const prefixOk = baseItems.every((v, i) => newItems[i] === v);
-      const appended = newItems.slice(baseItems.length);
+      const items = selectItems(baselineSql, BASELINE_SQL_REL);
+      const officialUrlIndexes = items
+        .map((v, i) => (v === '"official_source_url"' ? i : -1))
+        .filter((i) => i >= 0);
+      const isLastOnly =
+        officialUrlIndexes.length === 1 &&
+        officialUrlIndexes[0] === items.length - 1;
       const hasGrant =
-        /grant\s+select\s+on\s+public\.admission_university_resource_index\s+to\s+anon,\s*authenticated/i.test(
-          newSql,
+        /GRANT\s+ALL\s+ON\s+TABLE\s+"public"\."admission_university_resource_index"\s+TO\s+"anon";/i.test(
+          baselineSql,
+        ) &&
+        /GRANT\s+ALL\s+ON\s+TABLE\s+"public"\."admission_university_resource_index"\s+TO\s+"authenticated";/i.test(
+          baselineSql,
         );
-      pass =
-        prefixOk &&
-        appended.length === 1 &&
-        appended[0] === "official_source_url" &&
-        hasGrant;
+      pass = isLastOnly && hasGrant;
       detail = JSON.stringify({
-        file: matches[0],
-        prefixOk,
-        appended,
+        itemCount: items.length,
+        officialUrlIndexes,
+        isLastOnly,
         hasGrant,
-        baseCount: baseItems.length,
+        lastItem: items[items.length - 1],
       });
     }
     expect(pass, detail).toBe(true);

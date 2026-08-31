@@ -45,10 +45,7 @@ type EnrollmentOrder = {
   coupon_redemptions?: {
     discount_amount: number;
     voided_at?: string | null;
-    coupons?:
-      | { title?: string | null }
-      | { title?: string | null }[]
-      | null;
+    coupons?: { title?: string | null } | { title?: string | null }[] | null;
   }[];
 };
 

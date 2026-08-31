@@ -12,7 +12,7 @@
 // `fetchWithTimeout(url, options, timeoutMs)` 시그니처와 `error.code === 'TIMEOUT'` 계약만
 // 그대로 유지하는 얇은 래퍼다 — 호출부는 수정하지 않는다.
 
-import { apiFetch, ApiFetchTimeoutError } from "../apiFetch";
+import { ApiFetchTimeoutError, apiFetch } from "../apiFetch";
 
 const DEFAULT_TIMEOUT_MS = 30000;
 

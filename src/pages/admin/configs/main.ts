@@ -67,6 +67,11 @@ interface MainCrudConfig {
   rowCapWarning?: boolean;
   retentionNotice?: string;
   guideText?: string;
+  // 엑셀 다운로드 버튼 노출(Admin.tsx 렌더부 config.excel 판정).
+  excel?: boolean;
+  // 저장 직전 재확인 문구(QA A13, 2026-08-27) — 값이 있으면 Admin.tsx saveRow 가
+  // window.confirm 으로 한 번 더 묻고, 취소하면 저장하지 않는다.
+  confirmBeforeSave?: string;
   columns: MainColumn[];
   fields: MainField[];
   defaults: Record<string, unknown>;
@@ -148,12 +153,13 @@ export const mainConfigs: Record<string, MainConfig> = {
     searchPlaceholder: "배너 제목을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `랜딩에는 활성 배너 중 sort_order 최상위 1건만 노출됩니다. 969×429px 통이미지(헤드라인·버튼 텍스트 포함)를 업로드하세요. 이동 URL을 입력하면 배너 전체가 클릭됩니다. 형식: JPG 또는 PNG / 2MB 이하`,
+    guideText: `활성 배너가 sort_order 순으로 캐러셀 자동 전환되며, 각 배너의 노출 시간(초)만큼 머뭅니다. 969×429px 통이미지(헤드라인·버튼 텍스트 포함)를 업로드하세요. 이동 URL을 입력하면 배너 전체가 클릭됩니다. 형식: JPG 또는 PNG / 2MB 이하`,
     columns: [
       { key: "image_url", label: "이미지", type: "image" },
       { key: "title", label: "제목" },
       { key: "button_link", label: "배너 클릭 시 이동 URL" },
       { key: "sort_order", label: "순서" },
+      { key: "display_seconds", label: "노출 시간(초)" },
       { key: "is_active", label: "노출", type: "boolean" },
     ],
     fields: [
@@ -177,6 +183,12 @@ export const mainConfigs: Record<string, MainConfig> = {
         cacheControl: "31536000, immutable",
       },
       { key: "sort_order", label: "순서", type: "number" },
+      {
+        key: "display_seconds",
+        label: "노출 시간(초)",
+        type: "number",
+        required: true,
+      },
     ],
     defaults: {
       is_active: true,
@@ -187,6 +199,7 @@ export const mainConfigs: Record<string, MainConfig> = {
       button_link: "",
       image_url: "",
       sort_order: 1,
+      display_seconds: 10,
     },
   },
 
@@ -196,13 +209,14 @@ export const mainConfigs: Record<string, MainConfig> = {
     searchPlaceholder: "배너 제목을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `PC 권장: 321px × 429px / 형식: PNG / 2MB 이하 / 여러 장 등록 시 6초 간격 자동 전환되며 이미지 하단 인디케이터로 이동할 수 있습니다`,
+    guideText: `PC 권장: 321px × 429px / 형식: PNG / 2MB 이하 / 여러 장 등록 시 각 배너의 노출 시간(초)만큼 머문 뒤 자동 전환되며 이미지 하단 인디케이터로 이동할 수 있습니다`,
     columns: [
       { key: "image_url", label: "PC 이미지", type: "image" },
       { key: "title", label: "제목" },
       { key: "subtitle", label: "설명" },
       { key: "link_url", label: "연결 주소" },
       { key: "sort_order", label: "순서" },
+      { key: "display_seconds", label: "노출 시간(초)" },
       { key: "is_active", label: "노출", type: "boolean" },
     ],
     fields: [
@@ -237,6 +251,12 @@ export const mainConfigs: Record<string, MainConfig> = {
       { key: "start_date", label: "노출 시작일", type: "date" },
       { key: "end_date", label: "노출 종료일", type: "date" },
       { key: "sort_order", label: "순서", type: "number" },
+      {
+        key: "display_seconds",
+        label: "노출 시간(초)",
+        type: "number",
+        required: true,
+      },
     ],
     defaults: {
       is_active: true,
@@ -249,6 +269,7 @@ export const mainConfigs: Record<string, MainConfig> = {
       start_date: null,
       end_date: null,
       sort_order: 1,
+      display_seconds: 5,
     },
   },
 
@@ -512,6 +533,9 @@ export const mainConfigs: Record<string, MainConfig> = {
     searchPlaceholder: "메뉴명, 페이지명, 주소를 검색하세요",
     order: "sort_order",
     homepage: true,
+    // QA A13(2026-08-27): 메뉴 위치·주소 변경이 랜딩 헤더/푸터에 즉시 반영되므로 저장 전 재확인.
+    confirmBeforeSave:
+      "저장하면 랜딩 메뉴 구성(상위/하위 메뉴, 순서, 주소)이 즉시 변경됩니다. 저장할까요?",
     guideText: `페이지 주소가 일반 문자이면 /page/주소로 연결됩니다. 예: services-record-analysis → /page/services-record-analysis / 페이지 주소가 /로 시작하면 실제 기능 페이지로 바로 연결됩니다. 예: /admission/results / 프리미엄 페이지는 premium/<이름> 형식으로 입력하세요. 예: premium/graduate-school → /page/premium/graduate-school`,
     columns: [
       { key: "menu_group_order", label: "상위 순서" },
@@ -624,9 +648,10 @@ export const mainConfigs: Record<string, MainConfig> = {
     // created_at을 그대로 지정하면 최신 신청이 목록 맨 위로 온다.
     order: "created_at",
     noCreate: true,
-    // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가므로 이 섹션은 CSV 내보내기를
-    // 기본 비활성으로 둔다 — 다운로드 버튼은 config.excel이거나 activeKey 화이트리스트에 있을 때만
-    // 뜨는데(Admin.jsx 렌더부), 둘 다 지정하지 않으면 자동으로 숨겨진다.
+    // 개인정보(이름·연락처·이메일)가 파일로 통째로 빠져나가는 섹션이라 원래 CSV 내보내기를
+    // 비활성으로 뒀으나, QA G2(2026-08-27) 요청으로 어드민 전용 엑셀 다운로드를 켠다 —
+    // 다운로드 버튼은 config.excel 이 true 일 때만 뜬다(Admin.tsx 렌더부).
+    excel: true,
     rowCapWarning: true, // PostgREST 기본 1000행 상한 — 닿으면 목록 상단에 경고 노출
     retentionNotice:
       "상담 신청 정보(이름·연락처·이메일 등)는 상담 종료 후 2년간 보관합니다. 보관기간이 지난 건은 확인 후 삭제해 주세요.",

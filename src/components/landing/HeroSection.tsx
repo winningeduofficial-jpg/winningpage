@@ -2,10 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { resolvePromotedSlugLink } from "@/hooks/useNavGroups";
 
-/** 좌측 메인 배너 캐러셀 자동 전환 간격 (ms) — 10s */
-const MAIN_BANNER_INTERVAL = 10000;
-/** 우측 소형 배너 캐러셀 자동 전환 간격 (ms) — 명세 3.1: 5s 유지 */
-const SIDE_BANNER_INTERVAL = 5000;
 /** 스와이프 판정 최소 이동 거리 (px) */
 const SWIPE_THRESHOLD = 40;
 /** 트랙패드 휠 좌우 이동 판정 누적 deltaX 임계값 */
@@ -16,18 +12,28 @@ const WHEEL_COOLDOWN = 500;
 const WHEEL_RESET_DELAY = 300;
 
 /**
+ * DB display_seconds(초, 배너별 NOT NULL·기본 10/5)를 밀리초로 환산. 폴백 상수를 두지 않는다 —
+ * 값이 유효하지 않은 행은 자동 전환을 걸지 않는다(null 반환).
+ */
+function secondsToMs(value: number | null | undefined): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value * 1000
+    : null;
+}
+
+/**
  * 히어로 좌/우 캐러셀 공용 로직 — 각 캐러셀은 독립된 훅 인스턴스를 사용하므로
  * 타이머/일시정지/스와이프 상태가 서로 간섭하지 않는다.
- * - 자동 전환: setTimeout 체인 (interval), hover/focus/pointerdown 일시정지, reducedMotion 시 비활성
+ * - 자동 전환: setTimeout 체인 (슬라이드별 intervals[activeIndex]), hover/focus/pointerdown 일시정지, reducedMotion 시 비활성
  * - 포인터 스와이프 + 트랙패드 휠 좌우 이동, 드래그 직후 링크 클릭 방지
  * - pointerPaused 고착 방지 window 폴백 리스너
  *
- * @param interval 자동 전환 간격 (ms) — 좌측은 MAIN_BANNER_INTERVAL, 우측은 SIDE_BANNER_INTERVAL
+ * @param intervals 슬라이드별 자동 전환 간격 (ms) — index는 activeIndex와 대응 (banners.display_seconds → secondsToMs)
  */
 function useHeroCarousel(
   slideCount: number,
   reducedMotion: boolean,
-  interval: number,
+  intervals: Array<number | null>,
 ) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [hoverPaused, setHoverPaused] = useState(false);
@@ -40,6 +46,12 @@ function useHeroCarousel(
   const wheelCooldownUntilRef = useRef(0);
   const wheelLastEventAtRef = useRef(0);
 
+  // intervals는 매 렌더 새 배열 참조로 들어올 수 있어(부모 props.map 결과) ref로만
+  // 최신값을 따라가고, 아래 자동 전환 effect의 의존성 배열에는 넣지 않는다 — 배열 참조가
+  // 바뀔 때마다 진행 중이던 타이머가 리셋되는 것을 막기 위함이다.
+  const intervalsRef = useRef(intervals);
+  intervalsRef.current = intervals;
+
   // 슬라이드 개수 변동 시 인덱스 보정
   useEffect(() => {
     if (activeIndex >= slideCount) setActiveIndex(0);
@@ -47,15 +59,17 @@ function useHeroCarousel(
 
   const isPaused = hoverPaused || focusPaused || pointerPaused;
 
-  // 자동 전환: setTimeout 체인 (activeIndex 변경 시 자동 리셋)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: TODO(useEffectEvent) activeIndex는 함수형 업데이터(prev => ...)로만 갱신해 effect 본문에서 직접 읽지 않는다 — 슬라이드가 바뀔 때마다 타이머를 처음부터 다시 재는 트리거 전용 값이다.
+  // 자동 전환: setTimeout 체인 (activeIndex 변경 시 자동 리셋, 다음 지속 시간은
+  // intervals[activeIndex] — 배너별 display_seconds)
   useEffect(() => {
     if (slideCount <= 1 || isPaused || reducedMotion) return undefined;
+    const duration = intervalsRef.current[activeIndex] ?? null;
+    if (duration === null) return undefined;
     const timer = setTimeout(() => {
       setActiveIndex((prev) => (prev + 1) % slideCount);
-    }, interval);
+    }, duration);
     return () => clearTimeout(timer);
-  }, [slideCount, isPaused, reducedMotion, activeIndex, interval]);
+  }, [slideCount, isPaused, reducedMotion, activeIndex]);
 
   const goTo = useCallback(
     (index: number) => {
@@ -170,6 +184,7 @@ type MainBanner = {
   button_link?: string;
   link_url?: string;
   sort_order?: number;
+  display_seconds?: number | null;
 };
 
 // home_side_banners 활성분(sort_order asc).
@@ -182,6 +197,7 @@ type SideBanner = {
   link_url?: string;
   open_new_window?: boolean;
   sort_order?: number;
+  display_seconds?: number | null;
 };
 
 type HeroSectionProps = {
@@ -191,12 +207,14 @@ type HeroSectionProps = {
 
 /**
  * 히어로 섹션 (명세 3.1)
- * - 좌측 969×429: banners 활성분 캐러셀 — 자동 전환(10s, setTimeout 체인) + 카드 바깥 하단 중앙
- *   pill 인디케이터 + 포인터 스와이프/트랙패드 휠 좌우 이동 (화살표 없음). 1건뿐이면 pill·자동
- *   전환 없이 고정 렌더. 텍스트(헤드라인/CTA)는 디자이너가 이미지에 포함해 관리.
- *   클릭 URL은 link_url 우선, 없으면 레거시 컬럼 button_link(Home.jsx select 목록 참조).
- * - 우측 321×429: home_side_banners 자동 전환(5s, setTimeout 체인) + 하단 중앙 pill 인디케이터
- *   + 포인터 스와이프/트랙패드 휠 좌우 이동 (화살표 없음). 1건뿐이면 pill·자동 전환 없이 고정
+ * - 좌측 969×429: banners 활성분 캐러셀 — 자동 전환(배너별 display_seconds, 기본 10s,
+ *   setTimeout 체인) + 카드 바깥 하단 중앙 pill 인디케이터 + 포인터 스와이프/트랙패드 휠
+ *   좌우 이동 (화살표 없음). 1건뿐이면 pill·자동 전환 없이 고정 렌더. 텍스트(헤드라인/CTA)는
+ *   디자이너가 이미지에 포함해 관리. 클릭 URL은 link_url 우선, 없으면 레거시 컬럼
+ *   button_link(Home.jsx select 목록 참조).
+ * - 우측 321×429: home_side_banners 자동 전환(배너별 display_seconds, 기본 5s, setTimeout
+ *   체인) + 하단 중앙 pill 인디케이터 + 포인터 스와이프/트랙패드 휠 좌우 이동 (화살표 없음).
+ *   1건뿐이면 pill·자동 전환 없이 고정
  * - 좌/우 캐러셀은 useHeroCarousel 훅의 독립 인스턴스를 사용해 타이머가 서로 간섭하지 않는다.
  * - hover/focus/pointerdown 일시정지, prefers-reduced-motion 시 자동 전환 비활성(컴포넌트
  *   레벨에서 1회 감지 후 좌/우 훅에 공유 전달)
@@ -225,15 +243,18 @@ export default function HeroSection({
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
+  // leftSlides/rightSlides는 매 렌더 새로 .filter()된 배열이라 아래 map 결과도 매번 새
+  // 참조가 되지만, useHeroCarousel은 intervals를 ref로만 추적해 자동 전환 타이머를
+  // 리셋시키지 않으므로 여기서 별도 메모이제이션은 필요 없다.
   const leftCarousel = useHeroCarousel(
     leftSlideCount,
     reducedMotion,
-    MAIN_BANNER_INTERVAL,
+    leftSlides.map((s) => secondsToMs(s.display_seconds)),
   );
   const rightCarousel = useHeroCarousel(
     rightSlideCount,
     reducedMotion,
-    SIDE_BANNER_INTERVAL,
+    rightSlides.map((s) => secondsToMs(s.display_seconds)),
   );
 
   if (leftSlideCount === 0 && rightSlideCount === 0) return null;
@@ -247,10 +268,14 @@ export default function HeroSection({
         {/* 좌측 캐러셀 969×429 + 카드 바깥 하단 인디케이터 */}
         {leftSlideCount > 0 && (
           <div className="flex w-full flex-col items-center lg:basis-[73.89%] lg:grow lg:shrink-0">
+            {/* 프레임 배경은 투명 — 여기는 slideCount > 0 가드 안이라 항상 배너가 있고,
+                배너가 모서리 라운드를 구운 투명 PNG로 올라오면 프레임에 깔린 색이
+                모서리 초승달로 비친다(2026-08-31 QA: 네이비 잔상). 배너가 0장이면
+                섹션 자체가 렌더되지 않으므로 플레이스홀더 배경이 필요한 경로가 없다. */}
             <section
               aria-roledescription="carousel"
               aria-label="메인 배너"
-              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-[#050D2B] aspect-969/429 hero-reveal-left"
+              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] aspect-969/429 hero-reveal-left"
               onMouseEnter={leftCarousel.onMouseEnter}
               onMouseLeave={leftCarousel.onMouseLeave}
               onFocusCapture={leftCarousel.onFocusCapture}
@@ -357,10 +382,12 @@ export default function HeroSection({
         {/* 우측 캐러셀 321×429 + 카드 바깥 하단 인디케이터 */}
         {rightSlideCount > 0 && (
           <div className="flex w-full max-w-80.25 flex-col items-center md:max-w-104 lg:max-w-none lg:basis-[24.47%] lg:grow lg:shrink-0">
+            {/* 좌측 캐러셀과 같은 이유로 프레임 배경(네이비 그라데이션) 제거 — 투명 PNG
+                배너의 모서리·하단 반투명 영역으로 비쳐 보였다. */}
             <section
               aria-roledescription="carousel"
               aria-label="이벤트 배너"
-              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] bg-linear-to-b from-[#0039B6] to-[#001950] aspect-321/429 hero-reveal-right"
+              className="relative w-full touch-pan-y select-none overflow-hidden rounded-[1.64rem] aspect-321/429 hero-reveal-right"
               onMouseEnter={rightCarousel.onMouseEnter}
               onMouseLeave={rightCarousel.onMouseLeave}
               onFocusCapture={rightCarousel.onFocusCapture}

@@ -113,6 +113,15 @@ export default defineHandler({
         return void res.status(409).json({ error: "no_linked_parent" });
       }
 
+      // 3-1) 연결된 학부모 이름 조회 (QA F2, 2026-08-27) — 완료 화면에 표시만 하는
+      //      부가 정보라 조회가 실패해도 본 요청을 막지 않고 null로 내려보낸다.
+      const { data: parentProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("name")
+        .eq("id", link.parent_id)
+        .maybeSingle();
+      const parentName = parentProfile?.name ?? null;
+
       // 4) 상품 조회 (서버 신뢰 가격) — api/create-order.js:73-88 패턴 이식. is_orderable
       //    은 셀프서브 결제 카탈로그(products.is_orderable, 20260825 도입) 전용 게이트다
       //    — is_active(판매 중)와 별개로 학생 수강신청 흐름에서 제외할 상품을 막는다.
@@ -203,6 +212,7 @@ export default defineHandler({
         listAmount: listTotal,
         discountAmount: Number(row.discount_amount ?? 0),
         amount,
+        parentName,
       });
     } catch (err) {
       console.error("request-enrollment error:", err);

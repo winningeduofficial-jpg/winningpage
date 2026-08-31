@@ -184,22 +184,22 @@ const AUDIENCE_CARDS = [
   {
     image: studentCardWriting,
     title: "작성이 막막한 학생",
-    desc: "어디서부터 시작할지 모르겠는 학생.",
+    desc: "어디서부터 시작할지 모르겠는 학생",
   },
   {
     image: studentCardOrganizing,
     title: "정리가 어려운 학생",
-    desc: "경험은 있는데 어떻게 풀지 막막한 학생.",
+    desc: "경험은 있는데 어떻게 풀지 막막한 학생",
   },
   {
     image: studentCardStructuring,
     title: "구성이 어려운 학생",
-    desc: "설득력 있는 흐름과 구성이 어려운 학생.",
+    desc: "설득력 있는 흐름과 구성이 어려운 학생",
   },
   {
     image: studentCardPolishing,
     title: "완성도를 높이고 싶은 학생",
-    desc: "초안은 있으나 더 다듬고 싶은 학생.",
+    desc: "초안은 있으나 더 다듬고 싶은 학생",
   },
 ];
 

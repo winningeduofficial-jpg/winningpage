@@ -12,7 +12,7 @@
 // 재생하지 않음 — 매 렌더 반복 재생은 피로도를 유발). 헬퍼/에러/성공 메시지는 등장 시
 // auth-message-enter로 살짝 페이드-라이즈한다. 두 클래스 모두 index.css에서
 // prefers-reduced-motion: reduce 시 애니메이션이 꺼진다.
-import { useEffect, useRef, useState, type InputHTMLAttributes } from "react";
+import { type InputHTMLAttributes, useEffect, useRef, useState } from "react";
 
 type TextFieldSize = "default" | "lg" | "perf";
 type TextFieldStatus = "default" | "error" | "success";
@@ -60,7 +60,10 @@ interface TextFieldOwnProps {
 // 전부 여기서 상속돼 {...rest}로 그대로 흐른다(수동 재선언 불필요). maxLength는 네이티브
 // 그대로 — 초과분은 브라우저가 입력 자체를 막는다(잘라내기가 아니다).
 type TextFieldProps = TextFieldOwnProps &
-  Omit<InputHTMLAttributes<HTMLInputElement>, "size" | "onChange" | "value" | "className">;
+  Omit<
+    InputHTMLAttributes<HTMLInputElement>,
+    "size" | "onChange" | "value" | "className"
+  >;
 
 // auth-field-shake(index.css)가 --duration-slow(320ms) 토큰으로 재생되는 애니메이션이라
 // shake 클래스를 떼는 타이밍도 같은 값이어야 한다 — 어긋나면 애니메이션이 끝나기 전에

@@ -13,8 +13,8 @@ import TodayGoalCard from "@/components/goal/dashboard/TodayGoalCard";
 import TomorrowPlanCard from "@/components/goal/dashboard/TomorrowPlanCard";
 import GoalCard from "@/components/goal/GoalCard";
 import { QUICK_ADD_HOURS } from "@/components/goal/goalFormOptions";
+import { DEFAULT_TIMER_SUBJECTS } from "@/components/goal/studyRecordOptions";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
-import { TIMER_SUBJECT_ORDER } from "@/components/goal/studyRecordOptions";
 import { useAuth } from "@/context/AuthProvider";
 import {
   getDayIndexFromYMDServer,
@@ -25,13 +25,13 @@ import {
   formatScheduleDday,
   formatScheduleMeta,
 } from "@/lib/goal/scheduleDday";
+import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
 import {
   fetchGoalRanking,
   fetchGoalSchedules,
   fetchGoalTimer,
   fetchTodayGoalRecord,
 } from "@/lib/goalApi";
-import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
 import { formatTodayDateLabel } from "@/lib/goalPlanUtils";
 import { goalStudentQueryOptions } from "@/lib/queryClient";
 
@@ -213,25 +213,25 @@ function mapTodayGoal(
 /**
  * 과목별 배분 비율(합=1). fetchGoalTimer().summary.targets(goal_subject_targets, 학생이
  * 타이머 페이지에서 설정한 과목별 목표 시간)가 있으면 그 비율로, 하나도 없으면
- * TIMER_SUBJECT_ORDER 4과목 균등 배분한다(Timer 페이지 기존 파생 규칙과 동일 폴백).
+ * DEFAULT_TIMER_SUBJECTS 4과목 균등 배분한다(Timer 페이지 기존 파생 규칙과 동일 폴백).
  */
 function buildSubjectRatios(
   timerTargets: { subject: string; targetHours: number }[] | null,
 ): Record<string, number> {
   const relevant = (timerTargets || []).filter(
-    (t) => TIMER_SUBJECT_ORDER.includes(t.subject) && t.targetHours > 0,
+    (t) => DEFAULT_TIMER_SUBJECTS.includes(t.subject) && t.targetHours > 0,
   );
   const total = relevant.reduce((sum, t) => sum + t.targetHours, 0);
 
   if (total <= 0) {
-    const equalShare = 1 / TIMER_SUBJECT_ORDER.length;
+    const equalShare = 1 / DEFAULT_TIMER_SUBJECTS.length;
     return Object.fromEntries(
-      TIMER_SUBJECT_ORDER.map((subject) => [subject, equalShare]),
+      DEFAULT_TIMER_SUBJECTS.map((subject) => [subject, equalShare]),
     );
   }
 
   return Object.fromEntries(
-    TIMER_SUBJECT_ORDER.map((subject) => {
+    DEFAULT_TIMER_SUBJECTS.map((subject) => {
       const match = relevant.find((t) => t.subject === subject);
       return [subject, match ? match.targetHours / total : 0];
     }),
@@ -250,7 +250,7 @@ function buildTomorrowPlan(
   if (tomorrowIdealHours <= 0) return [];
 
   const ratios = buildSubjectRatios(timerTargets);
-  return TIMER_SUBJECT_ORDER.map((subjectId) => ({
+  return DEFAULT_TIMER_SUBJECTS.map((subjectId) => ({
     subject: getSubjectLabel(subjectId),
     hours: tomorrowIdealHours * (ratios[subjectId] ?? 0),
   }))
@@ -501,7 +501,10 @@ export default function Dashboard() {
   // 웰컴 카드(§3.16) — headline은 오늘의 조언(②), body는 확률 요약(①). badge는
   // DashboardPageHeader가 adviceType prop으로 자체 렌더하므로 여기서는 만들지 않는다.
   const advice = {
-    headline: buildTodayHeadline(todayDaySchedule.ideal, todayGoalData.studyHours),
+    headline: buildTodayHeadline(
+      todayDaySchedule.ideal,
+      todayGoalData.studyHours,
+    ),
     body: buildProbabilitySummary(targetUniversities),
   };
 

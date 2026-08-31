@@ -3061,6 +3061,11 @@ export function AdminSectionRoute({ section }: { section: string }) {
   }
 
   async function saveRow(form) {
+    // QA A13(2026-08-27): config.confirmBeforeSave 가 있는 섹션은 저장 직전 한 번 더 묻는다.
+    if (config.confirmBeforeSave && !window.confirm(config.confirmBeforeSave)) {
+      return;
+    }
+
     const payload = config.formToPayload
       ? config.formToPayload(form)
       : { ...form };

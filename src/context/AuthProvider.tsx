@@ -86,13 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let alive = true;
 
-    withTimeout(
-      supabase.auth.getSession(),
-      SESSION_TIMEOUT_MS,
-      { data: { session: null } } as Awaited<
-        ReturnType<typeof supabase.auth.getSession>
-      >,
-    )
+    withTimeout(supabase.auth.getSession(), SESSION_TIMEOUT_MS, {
+      data: { session: null },
+    } as Awaited<ReturnType<typeof supabase.auth.getSession>>)
       .then(({ value, timedOut }) => {
         if (!alive) return;
         setSession(value?.data?.session || null);

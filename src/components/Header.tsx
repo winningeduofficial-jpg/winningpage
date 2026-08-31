@@ -441,7 +441,11 @@ export default function Header() {
           nextProfile = cachedProfile;
         }
 
-        const fetchedProfile = await withTimeout(fetchProfile(user), 1800, null);
+        const fetchedProfile = await withTimeout(
+          fetchProfile(user),
+          1800,
+          null,
+        );
 
         if (!alive || currentSeq !== seq) return;
 

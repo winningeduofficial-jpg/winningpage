@@ -152,6 +152,9 @@ interface GoalTimerSummary {
   subjects: { subject: string; seconds: number }[];
   totalSeconds: number;
   targets: { subject: string; targetHours: number }[];
+  // 학생이 타이머 화면에 노출 중인 과목 목록(정렬 순, QA B9 "+ 과목 추가"). 행이 없으면
+  // 서버가 기본 4과목을 돌려준다(api/_lib/goalRepo.ts DEFAULT_TIMER_SUBJECTS).
+  visibleSubjects: string[];
 }
 
 /** fetchGoalGrades()/addGoalGrade() 회차 레코드 — api/goal/grades.ts validateEntry 참고. */
@@ -1109,10 +1112,14 @@ export async function addGoalGrade(
 // summary shape(camelCase, api/goal/timer.js GET 응답 그대로):
 //   { date, serverNow, running:{subject,startedAt}|null,
 //     subjects:[{subject,seconds}], totalSeconds,
-//     targets:[{subject,targetHours}] }
-// subject 값은 코드('korean'|'math'|'english'|'science'|'etc') — 한글 라벨
-// 변환은 src/components/goal/subjectTokens.js가 담당한다(plan-tasks의
-// 한글 왕복 변환과 달리, 타이머는 코드값을 그대로 화면까지 들고 간다).
+//     targets:[{subject,targetHours}], visibleSubjects:[subject] }
+// subject 값은 코드(8종 — korean/math/english/science/social/history/
+// second_lang/etc, QA B9로 5종에서 확장) — 한글 라벨 변환은
+// src/components/goal/subjectTokens.js가 담당한다(plan-tasks의 한글 왕복
+// 변환과 달리, 타이머는 코드값을 그대로 화면까지 들고 간다).
+// visibleSubjects는 학생이 타이머 화면에 실제로 노출 중인 과목(기본 4과목 +
+// "+ 과목 추가"로 늘린 과목)만 담는다 — subjects/targets는 카탈로그 전체를
+// 담을 수 있으므로 카드 렌더링은 반드시 visibleSubjects를 기준으로 한다.
 //
 // ⚠ pagehide 하트비트는 navigator.sendBeacon이 아니라 fetch(..., {keepalive:true})를
 // 쓴다(judgement call) — sendBeacon은 커스텀 헤더를 지원하지 않아 이 저장소의
@@ -1242,6 +1249,20 @@ export async function setGoalTimerTarget(subject: string, targetHours: number) {
   return {
     kind: "success" as const,
     target: result.body?.target as GoalTimerSummary["targets"][number],
+  };
+}
+
+/** 타이머 화면에 과목 카드 추가("+ 과목 추가", QA B9). 이미 노출 중이면 멱등. */
+export async function addGoalTimerSubject(subject: string) {
+  const result = await requestGoalTimer("POST", {
+    action: "addSubject",
+    subject,
+  });
+  if (result.kind !== "success") return result;
+  return {
+    kind: "success" as const,
+    visibleSubjects: result.body
+      ?.visibleSubjects as GoalTimerSummary["visibleSubjects"],
   };
 }
 
