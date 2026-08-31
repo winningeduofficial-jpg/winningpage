@@ -20,7 +20,6 @@ import {
 import {
   addGoalTimerSubject,
   fetchGoalTimer,
-  heartbeatGoalTimer,
   setGoalTimerTarget,
   startGoalTimer,
   stopGoalTimer,
@@ -28,7 +27,6 @@ import {
 import { goalStudentQueryOptions } from "@/lib/queryClient";
 
 const POLL_INTERVAL_MS = 20 * 1000; // GET 폴링 15~30초 범위(임무 지시)
-const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
 // 열공 타이머(#25) 기본 4과목 스톱워치 2×2(420×241) + 전체 합계 바(860×100) + 오늘 세션
 // 기록 패널(420×382). part-09 §45~144. QA B9(2026-08-27)로 "+ 과목 추가"가 생겨 카드
@@ -157,21 +155,12 @@ export default function Timer() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // 하트비트 60초 간격 + pagehide(fetch keepalive — sendBeacon 대신 쓰는 이유는
-  // src/lib/goalApi.js 주석 참고, Authorization 헤더가 필요해 sendBeacon은 못 쓴다).
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      heartbeatGoalTimer();
-    }, HEARTBEAT_INTERVAL_MS);
-    const onPageHide = () => {
-      heartbeatGoalTimer({ keepalive: true });
-    };
-    window.addEventListener("pagehide", onPageHide);
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener("pagehide", onPageHide);
-    };
-  }, []);
+  // 하트비트(60초 간격 + pagehide keepalive)는 더 이상 이 페이지가 보내지 않는다 —
+  // GoalAppLayout에 상주하는 GoalSidebar가 대신 보낸다(QA 행286, "타이머 이탈 시
+  // 자동 마감" 수정). 이 페이지에 있을 때만 하트비트가 나가면 다른 메뉴로 이동한
+  // 순간 서버 TIMER_STALE_MS(5분) 타임아웃으로 세션이 강제 마감됐다 — 이제는 goal
+  // 앱 안 어디에 있어도 실행 중 세션이 있으면 계속 하트비트가 나간다(이중 전송
+  // 방지를 위해 이 페이지 쪽 발송은 제거).
 
   const estimatedNowMs = Date.now() + clockOffsetMs;
   const runningSubject = summary?.running?.subject ?? null;
