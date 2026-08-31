@@ -67,7 +67,10 @@ type ReportPageOneProps = {
 // 결과 리포트 1페이지(A4-3) — 헤드라인+레이더 / 학생 기본정보 / 주요 학습 특성 섹션
 // (§타이틀 → 요약 카드 3장 → 우선순위 표 6행 → 서술 3블록).
 // 전 섹션 static 카피 없음 — data prop 하나에서 하향 주입(props 계약 준수).
-export default function ReportPageOne({ data, totalPages }: ReportPageOneProps) {
+export default function ReportPageOne({
+  data,
+  totalPages,
+}: ReportPageOneProps) {
   const {
     student,
     headlineLines,

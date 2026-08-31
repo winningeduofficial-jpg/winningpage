@@ -90,6 +90,15 @@ export const memberConfigs: Record<string, MemberConfig> = {
       //    (src/components/admin/MembersAdmin.tsx) — 목록에서 값만 보이고 고칠
       //    데가 없으면 QA 186 요구가 반쪽이 된다.
       { key: "member_category", label: "회원구분" },
+      // QA G4 — 생년월일/소속코드/학교명/지역/이용서비스 5열 추가(2026-08-27).
+      // service_labels 는 profiles 테이블 컬럼이 아니라 MembersAdmin.loadRows()가
+      // program_access 를 별도로 묶어 각 행에 얹어주는 파생 필드다(active 상태만,
+      // 콤마 조인). 값이 없으면 formatValue가 "-"로 채운다.
+      { key: "birth_date", label: "생년월일", type: "date" },
+      { key: "org_code", label: "소속코드" },
+      { key: "school_name", label: "학교명" },
+      { key: "region", label: "지역" },
+      { key: "service_labels", label: "이용서비스" },
       { key: "created_at", label: "가입일", type: "date" },
     ],
   },

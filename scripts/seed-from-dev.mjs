@@ -1,96 +1,129 @@
 #!/usr/bin/env node
+
 // 로컬 Supabase 스택에 dev 데이터를 주입한다 (그때그때 추출 방식 — 커밋되는 시드 없음).
 //
 // 사용법:
-//   1) supabase start           (로컬 스택 기동)
-//   2) supabase db reset        (마이그레이션 + supabase/seed.sql 재생)
-//   3) node scripts/seed-from-dev.mjs
+//   npm run db:reseed           (supabase db reset + 이 스크립트. 스택은 미리 기동)
+//   node scripts/seed-from-dev.mjs   (reset 없이 주입만)
 //
-// 필요: .env.local에 SUPABASE_URL(dev), SUPABASE_SERVICE_ROLE_KEY(dev)
+// 필요: dev 접속 정보(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)를
+//   1순위 .env.seed.local  — dev 전용 파일(gitignore됨). .env.local을 로컬 스택
+//                            기본값으로 둔 채 재시드하려면 이 파일을 만들어 둔다.
+//   2순위 .env.local       — 원격 dev 블록이 활성일 때만 유효.
 // 로컬 접속 정보는 `supabase status`에서 자동으로 읽는다.
 //
 // 화이트리스트 테이블만 복사한다 — 유저 데이터(profiles/orders 등)는 절대 포함 금지.
 
-import { createClient } from '@supabase/supabase-js';
-import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { createClient } from "@supabase/supabase-js";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 
 // FK 의존 순서 고려: 참조되는 쪽을 먼저.
 const TABLES = [
   // 약관
-  'terms',
+  "terms",
   // 결제 카탈로그
-  'programs',
-  'products',
-  'coupons',
+  "programs",
+  "products",
+  "coupons",
   // 학습진단 카피
-  'learning_diagnosis_v2_survey_copy',
+  "learning_diagnosis_v2_survey_copy",
   // 랜딩/메뉴
-  'page_contents',
-  'program_categories',
-  'banners',
-  'home_mentor_strategies',
-  'home_side_banners',
-  'popups',
-  'app_settings',
-  'university_acceptances',
+  "page_contents",
+  "program_categories",
+  "banners",
+  "home_mentor_strategies",
+  "home_side_banners",
+  "popups",
+  "app_settings",
+  "university_acceptances",
   // 콘텐츠 게시판
-  'faqs',
-  'galleries',
-  'notices',
-  'company_news',
-  'admission_posts',
-  'admission_acceptance_rates',
-  'admission_case_logos',
-  'special_highschool_acceptance_rates',
-  'special_highschool_cases',
+  "faqs",
+  "galleries",
+  "notices",
+  "company_news",
+  "admission_posts",
+  "admission_acceptance_rates",
+  "admission_case_logos",
+  "special_highschool_acceptance_rates",
+  "special_highschool_cases",
   // 멘토 지원 + 수행평가 마스터
   // (performance_topics는 제외 — 2026-08-21 실측 결과 전 행이 performance_sessions
   //  FK 종속 유저 데이터라 마스터가 아니다. RAG 코퍼스도 dev 0행.)
-  'mentor_apply_copy',
-  'mentor_apply_faqs',
+  "mentor_apply_copy",
+  "mentor_apply_faqs",
   // 목표관리 정시 컷 (약 13k행)
-  'goal_university_cuts',
+  "goal_university_cuts",
   // 프리미엄 북
-  'premium_book_pages',
+  "premium_book_pages",
 ];
 
 const PAGE = 1000;
 
-// PK가 id가 아닌 테이블 (upsert 충돌 기준)
-const PK_OVERRIDE = { app_settings: 'key' };
+// PK가 id가 아닌 테이블 (upsert 충돌 기준).
+// terms는 마이그레이션이 같은 문서를 다른 id로 미리 시드하므로 id 대신
+// terms_code_version_key(code, version)를 충돌 축으로 쓴다 — 충돌 시 id까지
+// dev 값으로 맞춰진다.
+const PK_OVERRIDE = { app_settings: "key", terms: "code,version" };
 
-function loadDevEnv() {
-  const envPath = path.join(repoRoot, '.env.local');
+function readEnvFile(name) {
   const env = {};
-  for (const line of readFileSync(envPath, 'utf8').split('\n')) {
+  let raw;
+  try {
+    raw = readFileSync(path.join(repoRoot, name), "utf8");
+  } catch {
+    return null;
+  }
+  for (const line of raw.split("\n")) {
     const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, '');
+    if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
   }
   const url = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
   const key = env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('.env.local에 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 필요');
-  return { url, key };
+  return url && key ? { url, key, source: name } : null;
+}
+
+function loadDevEnv() {
+  // .env.seed.local(dev 전용)이 있으면 우선한다 — .env.local을 로컬 스택
+  // 기본값으로 유지한 채 재시드할 수 있게 한다.
+  const found = readEnvFile(".env.seed.local") ?? readEnvFile(".env.local");
+  if (!found)
+    throw new Error(
+      ".env.seed.local 또는 .env.local에 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 필요",
+    );
+  return found;
 }
 
 function loadLocalEnv() {
-  const out = execSync('supabase status -o json', { cwd: repoRoot, encoding: 'utf8' });
-  const jsonStart = out.indexOf('{');
+  const out = execSync("supabase status -o json", {
+    cwd: repoRoot,
+    encoding: "utf8",
+  });
+  const jsonStart = out.indexOf("{");
   const status = JSON.parse(out.slice(jsonStart));
   const url = status.API_URL;
   const key = status.SERVICE_ROLE_KEY;
-  if (!url || !key) throw new Error('supabase status에서 API_URL/SERVICE_ROLE_KEY를 읽지 못함 — 스택이 떠 있나?');
+  if (!url || !key)
+    throw new Error(
+      "supabase status에서 API_URL/SERVICE_ROLE_KEY를 읽지 못함 — 스택이 떠 있나?",
+    );
   return { url, key };
 }
 
 async function fetchAll(client, table) {
   const rows = [];
   for (let from = 0; ; from += PAGE) {
-    const { data, error } = await client.from(table).select('*').range(from, from + PAGE - 1);
+    const { data, error } = await client
+      .from(table)
+      .select("*")
+      .range(from, from + PAGE - 1);
     if (error) throw new Error(`${table} 읽기 실패: ${error.message}`);
     rows.push(...data);
     if (data.length < PAGE) break;
@@ -98,10 +131,35 @@ async function fetchAll(client, table) {
   return rows;
 }
 
+// terms는 마이그레이션이 활성 행을 미리 시드해 두 유니크에 동시에 걸린다
+// (2026-08-31 db reset 직후 실측): 같은 (code, version)이 다른 id로 존재하고,
+// "code당 활성 1행"(terms_active_code_key)도 dev 행 삽입을 막는다. 그래서
+// ① 로컬 활성을 전부 내리고 ② (code, version) 축으로 upsert한 뒤(id까지 dev
+// 값으로 수렴) ③ dev에 없는 잔여 행을 지운다 — 동의 이력이 참조하는 행은
+// FK(23503)가 막으므로 비활성 상태로 남겨 둔다.
+async function replaceTerms(client, rows) {
+  const { error: deactivateError } = await client
+    .from("terms")
+    .update({ is_active: false })
+    .eq("is_active", true);
+  if (deactivateError)
+    throw new Error(`terms 비활성화 실패: ${deactivateError.message}`);
+  await upsertAll(client, "terms", rows);
+  const devIds = rows.map((r) => r.id);
+  const { error: pruneError } = await client
+    .from("terms")
+    .delete()
+    .not("id", "in", `(${devIds.join(",")})`);
+  if (pruneError && pruneError.code !== "23503")
+    throw new Error(`terms 잔여 행 정리 실패: ${pruneError.message}`);
+}
+
 async function upsertAll(client, table, rows) {
   for (let i = 0; i < rows.length; i += PAGE) {
     const chunk = rows.slice(i, i + PAGE);
-    const { error } = await client.from(table).upsert(chunk, { onConflict: PK_OVERRIDE[table] ?? 'id' });
+    const { error } = await client
+      .from(table)
+      .upsert(chunk, { onConflict: PK_OVERRIDE[table] ?? "id" });
     if (error) throw new Error(`${table} 쓰기 실패(${i}~): ${error.message}`);
   }
 }
@@ -109,18 +167,27 @@ async function upsertAll(client, table, rows) {
 async function main() {
   const dev = loadDevEnv();
   const local = loadLocalEnv();
-  if (dev.url.includes('127.0.0.1') || dev.url.includes('localhost')) {
-    throw new Error('.env.local의 SUPABASE_URL이 로컬을 가리킴 — dev URL이어야 한다');
+  if (dev.url.includes("127.0.0.1") || dev.url.includes("localhost")) {
+    throw new Error(
+      `${dev.source}의 SUPABASE_URL이 로컬을 가리킴 — dev URL이어야 한다. ` +
+        "dev 접속 정보만 담은 .env.seed.local을 만들면 .env.local을 건드리지 않아도 된다.",
+    );
   }
 
-  const devClient = createClient(dev.url, dev.key, { auth: { persistSession: false } });
-  const localClient = createClient(local.url, local.key, { auth: { persistSession: false } });
+  const devClient = createClient(dev.url, dev.key, {
+    auth: { persistSession: false },
+  });
+  const localClient = createClient(local.url, local.key, {
+    auth: { persistSession: false },
+  });
 
-  let ok = 0, failed = [];
+  let ok = 0,
+    failed = [];
   for (const table of TABLES) {
     try {
       const rows = await fetchAll(devClient, table);
-      await upsertAll(localClient, table, rows);
+      if (table === "terms") await replaceTerms(localClient, rows);
+      else await upsertAll(localClient, table, rows);
       console.log(`✓ ${table}: ${rows.length}행`);
       ok++;
     } catch (e) {
@@ -130,32 +197,46 @@ async function main() {
   }
   // seed.sql의 약관 동의 블록은 terms가 빈 시점에 돌아 0행이었을 수 있다 — 여기서 백필.
   const QA_USER_IDS = [
-    '00000000-0000-4000-8000-000000000001',
-    '00000000-0000-4000-8000-000000000002',
-    '00000000-0000-4000-8000-000000000003',
+    "00000000-0000-4000-8000-000000000001",
+    "00000000-0000-4000-8000-000000000002",
+    "00000000-0000-4000-8000-000000000003",
   ];
   try {
-    const { data: requiredTerms, error } = await localClient.from('terms').select('id').eq('is_required', true);
+    const { data: requiredTerms, error } = await localClient
+      .from("terms")
+      .select("id")
+      .eq("is_required", true);
     if (error) throw new Error(error.message);
     // (user_id, term_id) unique 제약이 없어 upsert 불가 — 기존 행 제외하고 insert
     const { data: existing, error: e1 } = await localClient
-      .from('user_term_agreements').select('user_id, term_id').in('user_id', QA_USER_IDS);
+      .from("user_term_agreements")
+      .select("user_id, term_id")
+      .in("user_id", QA_USER_IDS);
     if (e1) throw new Error(e1.message);
     const seen = new Set(existing.map((r) => `${r.user_id}:${r.term_id}`));
-    const agreements = QA_USER_IDS
-      .flatMap((uid) => requiredTerms.map((t) => ({ user_id: uid, term_id: t.id, agreed: true })))
-      .filter((r) => !seen.has(`${r.user_id}:${r.term_id}`));
+    const agreements = QA_USER_IDS.flatMap((uid) =>
+      requiredTerms.map((t) => ({ user_id: uid, term_id: t.id, agreed: true })),
+    ).filter((r) => !seen.has(`${r.user_id}:${r.term_id}`));
     if (agreements.length) {
-      const { error: e2 } = await localClient.from('user_term_agreements').insert(agreements);
+      const { error: e2 } = await localClient
+        .from("user_term_agreements")
+        .insert(agreements);
       if (e2) throw new Error(e2.message);
     }
-    console.log(`✓ user_term_agreements 백필: 신규 ${agreements.length}행 (필수 약관 ${requiredTerms.length}종)`);
+    console.log(
+      `✓ user_term_agreements 백필: 신규 ${agreements.length}행 (필수 약관 ${requiredTerms.length}종)`,
+    );
   } catch (e) {
     console.error(`✗ user_term_agreements 백필: ${e.message}`);
   }
 
-  console.log(`\n완료: ${ok}/${TABLES.length} 테이블${failed.length ? `, 실패: ${failed.join(', ')}` : ''}`);
+  console.log(
+    `\n완료: ${ok}/${TABLES.length} 테이블${failed.length ? `, 실패: ${failed.join(", ")}` : ""}`,
+  );
   if (failed.length) process.exit(1);
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

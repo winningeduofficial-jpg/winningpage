@@ -246,8 +246,7 @@ export default function PaymentsTab({
         // 환불은 결제가 끝난 건에만. 학부모 반려 건은 종결 — 재신청을 열지
         // 않는다(사용자 확정 2026-08-19, sql/88 WC057 이 서버에서도 거부).
         canRequestRefund={
-          !detailOrder?.is_fake_entitlement &&
-          detailStatus === "student_active"
+          !detailOrder?.is_fake_entitlement && detailStatus === "student_active"
         }
         onClose={() => setDetailOrder(null)}
         onRequestRefund={() => {

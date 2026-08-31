@@ -458,20 +458,30 @@ test("합성: 위험 접두사 셀 전부 t='s'로 강제되고 수식(f) 없음
 //
 // 원본은 sql/00_base_schema.sql을 파싱해 admission_university_resources의
 // NOT NULL 컬럼 목록을 얻는다(getNotNullColumnsFromSchema, 하드코딩
-// 회피가 team-lead 지시). 그 헬퍼를 그대로 로컬로 복사한다 — 소스에
+// 회피가 team-lead 지시). sql/은 2026-08-21 baseline.sql로 스쿼시됐으므로
+// (수동 넘버링 폐기, supabase/README.md) 같은 CREATE TABLE 정의를
+// baseline에서 파싱한다. baseline은 pg_dump 산출물이라 구문이 다르다
+// (대문자 키워드 + 스키마·컬럼명 전부 큰따옴표: `CREATE TABLE IF NOT EXISTS
+// "public"."admission_university_resources" (` / `"id" "uuid" ... NOT NULL,`)
+// — 그 두 지점만 파서를 조정했다. 그 헬퍼를 그대로 로컬로 복사한다 — 소스에
 // 새 export를 추가하지 않는다.
 
 async function getNotNullColumnsFromSchema(): Promise<string[]> {
   const { readFile } = await import("node:fs/promises");
   const { join } = await import("node:path");
-  const schemaPath = join(process.cwd(), "sql", "00_base_schema.sql");
+  const schemaPath = join(
+    process.cwd(),
+    "supabase",
+    "migrations",
+    "20260821000000_baseline.sql",
+  );
   const sql = await readFile(schemaPath, "utf-8");
   const startMarker =
-    'create table if not exists public."admission_university_resources" (';
+    'CREATE TABLE IF NOT EXISTS "public"."admission_university_resources" (';
   const startIdx = sql.indexOf(startMarker);
   if (startIdx === -1) {
     throw new Error(
-      "sql/00_base_schema.sql에서 admission_university_resources 테이블 정의를 못 찾음",
+      "baseline.sql에서 admission_university_resources 테이블 정의를 못 찾음",
     );
   }
   const afterStart = sql.slice(startIdx + startMarker.length);
@@ -489,7 +499,10 @@ async function getNotNullColumnsFromSchema(): Promise<string[]> {
       return;
     if (/\bNOT NULL\b/i.test(trimmedLine)) {
       const firstToken = trimmedLine.split(/\s+/)[0];
-      if (firstToken) notNullColumns.push(firstToken);
+      // baseline 컬럼명은 큰따옴표로 감싸여 있다("source_name") — row 키와
+      // 비교하려면 따옴표를 벗겨야 한다.
+      const columnName = firstToken?.replace(/^"|"$/g, "");
+      if (columnName) notNullColumns.push(columnName);
     }
   });
   return notNullColumns;

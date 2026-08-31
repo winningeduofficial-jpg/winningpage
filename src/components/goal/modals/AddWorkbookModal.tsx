@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import AppModal from "@/components/goal/AppModal";
+import { TASK_SUBJECTS } from "@/components/goal/goalFormOptions";
 import ModalField from "@/components/goal/ModalField";
 import SegmentedChipGroup from "@/components/goal/SegmentedChipGroup";
-import { TASK_SUBJECTS } from "@/components/goal/goalFormOptions";
 import { resolveSubjectId } from "@/components/goal/subjectTokens";
 
 // 문제집 추가/수정 모달 — docs/figma-goal/part-11.md #31 (530×468 = 33.125rem × 29.25rem).

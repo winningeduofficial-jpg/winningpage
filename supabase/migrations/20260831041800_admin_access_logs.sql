@@ -35,7 +35,7 @@ create table if not exists public.admin_access_logs (
 );
 
 comment on table public.admin_access_logs is
-  '개인정보 반출 원장(20260831000100). 엑셀 다운로드·마스킹 해제 직전에 화면 게이트가 한 줄씩 넣는다. update/delete 정책이 없어 적재 후에는 누구도 고칠 수 없다.';
+  '개인정보 반출 원장(20260831041800). 엑셀 다운로드·마스킹 해제 직전에 화면 게이트가 한 줄씩 넣는다. update/delete 정책이 없어 적재 후에는 누구도 고칠 수 없다.';
 comment on column public.admin_access_logs.actor_email is
   '실행 시점의 계정 이메일 스냅샷. profile 이 지워져도 남아야 하므로 profile_id 와 별도로 박는다.';
 comment on column public.admin_access_logs.resource_key is
@@ -89,7 +89,7 @@ from public.admin_access_logs l
 left join public.profiles p on p.id = l.profile_id;
 
 comment on view public.admin_access_log_entries is
-  '개인정보 접근 로그 열람 화면용 평면 뷰(20260831000100). security_invoker=on — 조회자 권한으로 admin_access_logs RLS 를 평가한다.';
+  '개인정보 접근 로그 열람 화면용 평면 뷰(20260831041800). security_invoker=on — 조회자 권한으로 admin_access_logs RLS 를 평가한다.';
 
 grant select on public.admin_access_log_entries to authenticated;
 

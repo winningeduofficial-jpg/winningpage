@@ -94,7 +94,7 @@ test("게이트가 쓰는 resource_key 는 전부 실재하는 메뉴 키다", (
 
 test("원장 마이그레이션은 쓰기·읽기만 열고 수정·삭제 정책은 만들지 않는다", () => {
   const sql = read(
-    "supabase/migrations/20260831000100_admin_access_logs.sql",
+    "supabase/migrations/20260831041800_admin_access_logs.sql",
   ).toLowerCase();
 
   expect(sql).toContain("create table if not exists public.admin_access_logs");

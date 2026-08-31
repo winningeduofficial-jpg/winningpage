@@ -347,12 +347,13 @@ export const boardConfigs: Record<string, BoardConfig> = {
     searchPlaceholder: "질문을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `답변은 서식 없는 평문이며 줄바꿈만 그대로 반영됩니다. 초기 답변 5개에 붙은 '[예시]'는 확정되지 않은 임시 문구라는 표식입니다 — 실제 문구로 교체하면서 '[예시]' 접두어도 함께 지워 주세요. 문항을 전부 지우면 공개 페이지는 코드에 내장된 기본 문구로 되돌아갑니다(빈 화면이 되지 않습니다).`,
+    guideText: `답변은 서식 없는 평문이며 줄바꿈만 그대로 반영됩니다. 초기 답변 5개에 붙은 '[예시]'는 확정되지 않은 임시 문구라는 표식입니다 — 실제 문구로 교체하면서 '[예시]' 접두어도 함께 지워 주세요. 문항을 전부 지우면 공개 페이지는 코드에 내장된 기본 문구로 되돌아갑니다(빈 화면이 되지 않습니다). '공지'로 표시한 문항은 노출 순서와 무관하게 항상 맨 위에 모입니다.`,
     columns: [
       { key: "sort_order", label: "노출 순서" },
       { key: "question", label: "질문" },
       { key: "answer", label: "답변", type: "truncate" },
       { key: "is_active", label: "노출", type: "boolean" },
+      { key: "is_notice", label: "공지", type: "boolean" },
     ],
     fields: [
       {
@@ -361,11 +362,23 @@ export const boardConfigs: Record<string, BoardConfig> = {
         type: "radioBoolean",
         required: true,
       },
+      {
+        key: "is_notice",
+        label: "구분",
+        type: "radioBoolean",
+        required: true,
+      },
       { key: "sort_order", label: "노출 순서", type: "number", required: true },
       { key: "question", label: "질문", type: "text", required: true },
       { key: "answer", label: "답변", type: "textarea" },
     ],
-    defaults: { is_active: true, sort_order: 1, question: "", answer: "" },
+    defaults: {
+      is_active: true,
+      is_notice: false,
+      sort_order: 1,
+      question: "",
+      answer: "",
+    },
   },
 
   // 정본: sql/53_mentor_apply_faq_admin.sql. 공개 소비처는

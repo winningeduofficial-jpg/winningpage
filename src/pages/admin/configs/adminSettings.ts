@@ -124,7 +124,7 @@ export const adminSettingsConfigs: Record<
   },
 
   // QA 268·270·228·223·271·269 게이트가 남기는 원장의 열람 화면
-  // (20260831000100_admin_access_logs). RLS 가 최고 관리자에게만 select 를 열어
+  // (20260831041800_admin_access_logs). RLS 가 최고 관리자에게만 select 를 열어
   // 두므로, 실무 관리자가 URL 로 들어와도 빈 목록이 된다.
   adminAccessLogs: {
     title: "개인정보 접근 로그",
