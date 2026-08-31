@@ -30,6 +30,8 @@ type ServiceCardData = {
   /** 메타 한 줄 우측(남은일수/유효기간/완료일 등) */
   metaRight: string;
   actions: ServiceCardAction[];
+  /** 같은 서비스로 묶인 결제 건수. 2건 이상일 때만 "결제 N건" 배지를 보여준다. */
+  paymentCount: number;
 };
 
 type ServiceCardProps = {
@@ -45,6 +47,7 @@ export default function ServiceCard({ card }: ServiceCardProps) {
     metaLeft,
     metaRight,
     actions,
+    paymentCount,
   } = card;
 
   const statusPillClass = isOngoing
@@ -58,9 +61,16 @@ export default function ServiceCard({ card }: ServiceCardProps) {
   return (
     <div className="flex flex-col gap-4.75 rounded-perf-modal border border-[#d9d9d9] bg-white p-8">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.025rem] text-ink">
-          {serviceName}
-        </h3>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-[1.25rem] font-semibold leading-[1.3] tracking-[-0.025rem] text-ink">
+            {serviceName}
+          </h3>
+          {paymentCount > 1 && (
+            <span className="text-[0.8125rem] font-medium text-ink-sub">
+              결제 {paymentCount}건
+            </span>
+          )}
+        </div>
         <span
           className={`inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg px-3 text-[0.875rem] font-semibold leading-[1.4] ${statusPillClass}`}
         >

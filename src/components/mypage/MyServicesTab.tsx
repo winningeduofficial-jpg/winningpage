@@ -93,6 +93,8 @@ type ServiceCardViewModel = {
   metaLeft: string;
   metaRight: string;
   actions: ServiceCardAction[];
+  /** 같은 서비스로 묶인 주문 건수. 2건 이상이면 카드에 "결제 N건" 표기. */
+  paymentCount: number;
 };
 
 // 서비스명 키워드 → 소개 페이지 라우트(src/App.jsx 등록 기준).
@@ -239,6 +241,7 @@ const DIAGNOSIS_RETAKE_BLOCKED_REASON =
 function toViewModel(
   parsed: ParsedOrder,
   diagnosisAccess: DiagnosisAccessResult | null,
+  paymentCount: number,
 ): ServiceCardViewModel {
   const {
     category,
@@ -336,7 +339,39 @@ function toViewModel(
     metaLeft,
     metaRight,
     actions,
+    paymentCount,
   };
+}
+
+// 같은 서비스를 여러 주문으로 보유한 경우 카드를 1장으로 합친다(QA 행247). 그룹 키는
+// parseOrder가 이미 대괄호 기간 표기를 걷어내고 뽑아둔 serviceName — expandOrder로
+// 쪼갠 order_items 항목도 order_name 그대로 파싱되므로 동일 서비스면 같은 키로 모인다.
+function pickRepresentativeOrder(group: ParsedOrder[]): ParsedOrder {
+  const activeOrders = group.filter((order) => order.isOngoing);
+  const candidates = activeOrders.length > 0 ? activeOrders : group;
+  return candidates.reduce((latest, order) => {
+    const latestPaidAt = latest.paidAt?.getTime() ?? 0;
+    const orderPaidAt = order.paidAt?.getTime() ?? 0;
+    return orderPaidAt > latestPaidAt ? order : latest;
+  });
+}
+
+function groupOrdersByService(
+  parsedOrders: ParsedOrder[],
+): { representative: ParsedOrder; paymentCount: number }[] {
+  const groups = new Map<string, ParsedOrder[]>();
+  for (const order of parsedOrders) {
+    const group = groups.get(order.serviceName);
+    if (group) {
+      group.push(order);
+    } else {
+      groups.set(order.serviceName, [order]);
+    }
+  }
+  return Array.from(groups.values()).map((group) => ({
+    representative: pickRepresentativeOrder(group),
+    paymentCount: group.length,
+  }));
 }
 
 // 빈 상태(3762:20041) — 결제한 서비스가 없을 때. 문구·버튼 라벨은 시안 스크린샷 실측.
@@ -412,8 +447,10 @@ export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
   }
 
   const displayOrders = usableOrders.flatMap(expandOrder);
-  const cards = displayOrders.map((order) =>
-    toViewModel(parseOrder(order), diagnosisAccess),
+  const parsedOrders = displayOrders.map(parseOrder);
+  const groupedOrders = groupOrdersByService(parsedOrders);
+  const cards = groupedOrders.map(({ representative, paymentCount }) =>
+    toViewModel(representative, diagnosisAccess, paymentCount),
   );
   const ongoing = cards.filter((card) => card.isOngoing);
   const completed = cards.filter((card) => !card.isOngoing);
