@@ -206,10 +206,13 @@
    * 출처(같은 rem 값)를 복사한 것이며 새로 만든 매직 넘버가 아니다.
    */
 
-  /* fd-page-label — ReportSheetA4 lg:text-base(1rem) lg:text-[#808080] */
+  /* fd-page-label — ReportSheetA4 lg:text-base(1rem) lg:text-[#808080].
+     QA 행352 — 화면용 #808080은 인쇄(잉크 번짐·프린터 캘리브레이션)에서 잘 안 보여
+     #4a4a4a로 대비를 올린다. 이 파일 전체가 @media print 블록 안이라 화면 색상(#808080,
+     ReportSheetA4의 lg: 클래스)에는 영향이 없다. */
   .fd-page-label {
     font-size: 1rem !important;
-    color: #808080 !important;
+    color: #4a4a4a !important;
   }
 
   /* QA 행 105 — 인쇄 뷰포트(794px)는 Tailwind lg: 를 타지 않는다. PriorityTable은 A4 출력물
@@ -372,10 +375,12 @@
     gap: 2.5rem !important;
   }
 
-  /* StudentInfoBlock 라벨 — lg:w-[5.6875rem] lg:text-[#d7d7d7] */
+  /* StudentInfoBlock 라벨 — lg:w-[5.6875rem] lg:text-[#d7d7d7].
+     QA 행352 — 화면용 #d7d7d7은 인쇄에서 거의 안 보여 #8a8a8a로 대비를 올린다.
+     fd-page-label과 동일 근거(위 주석) — 인쇄 전용, 화면 색상은 그대로다. */
   .fd-student-label {
     width: 5.6875rem !important;
-    color: #d7d7d7 !important;
+    color: #8a8a8a !important;
   }
 
   /* StudentInfoBlock 값 — lg:w-[12.5rem] lg:flex-none */
