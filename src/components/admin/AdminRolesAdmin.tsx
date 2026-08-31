@@ -7,6 +7,7 @@ import {
   Field,
   TextInput,
 } from "@/pages/admin/shared/formFields";
+import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 
 // ---------------------------------------------------------------------------
 // 관리자 권한 관리(adminRoles) — 권한 묶음 CRUD.
@@ -158,6 +159,9 @@ export default function AdminRolesAdmin({ config }: AdminRolesAdminProps) {
     setDescDraft(role.description || "");
     setPermDraft({ ...(permsByRole[role.id] || {}) });
   }
+
+  // QA 317 — 편집 화면에서 뒤로가기가 목록으로 돌아오게 한다.
+  useAdminDetailBack(Boolean(editing), closeEdit);
 
   function closeEdit() {
     setEditing(null);

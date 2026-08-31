@@ -10,6 +10,7 @@ import {
   Select,
   Textarea,
 } from "@/pages/admin/shared/formFields";
+import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 
 // ---------------------------------------------------------------------------
 // 회원 관리(members) — 목록 + 고객 상세.
@@ -224,6 +225,10 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
   const [selected, setSelected] = useState<ProfileRow | null>(null);
   const [tab, setTab] = useState<TabKey>("profile");
   const [unmasked, setUnmasked] = useState(false);
+
+  // QA 317 — 상세는 라우트가 아니라 state 라, 뒤로가기가 목록이 아닌 직전 메뉴로
+  // 튄다. 상세를 열 때 히스토리 항목을 하나 쌓아 뒤로가기가 그걸 소비하게 한다.
+  useAdminDetailBack(Boolean(selected), closeDetail);
 
   // 개인정보 반출 게이트 (QA 268 다운로드 · 269 마스킹 해제).
   const { requestAccess, gate } = useSensitiveActionGate();

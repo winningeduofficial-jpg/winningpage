@@ -12,6 +12,7 @@ import {
   Select,
   TextInput,
 } from "@/pages/admin/shared/formFields";
+import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 
 // ---------------------------------------------------------------------------
 // 관리자 관리(adminMembers) — 직원 목록 · 상세 · 초대.
@@ -207,6 +208,10 @@ export default function AdminMembersAdmin({ config }: AdminMembersAdminProps) {
     }
     setEffective(eff);
   }
+
+  // QA 317 — 상세에서 뒤로가기가 목록으로 돌아오게 한다(상세가 라우트가 아니라
+  // state 여서, 그냥 두면 직전에 들른 다른 메뉴로 튄다).
+  useAdminDetailBack(Boolean(selected), closeDetail);
 
   function closeDetail() {
     setSelected(null);

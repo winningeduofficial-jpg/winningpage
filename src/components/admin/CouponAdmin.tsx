@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 
 // =====================================================================
 // 어드민 "쿠폰관리" — 목록 / 생성·수정 / 사용이력 / void / 발급 관리
@@ -865,6 +866,14 @@ export default function CouponAdmin() {
     setEditingId(row.id);
     setView("edit");
   }
+
+  // QA 317 — 등록·수정·이력·발급 네 화면 모두 목록을 갈아끼우는 전체 화면이라
+  // 뒤로가기가 직전 메뉴로 튄다. 어느 화면이든 목록으로 돌아오게 한다.
+  useAdminDetailBack(view !== "list", () => {
+    setView("list");
+    setEditingId(null);
+    setHistoryCoupon(null);
+  });
 
   function closeForm() {
     setView("list");
