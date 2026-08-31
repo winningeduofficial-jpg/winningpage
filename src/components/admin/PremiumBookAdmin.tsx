@@ -7,6 +7,8 @@ import { supabase } from "@/lib/supabase";
 import {
   AdminForm,
   AdminTable,
+  collectBannerPaths,
+  removeBannerPaths,
   uploadImage,
 } from "@/pages/admin/shared/AdminEngine";
 import { reportAdminError } from "@/pages/admin/shared/adminErrors";
@@ -156,6 +158,15 @@ export default function PremiumBookAdmin({
       reportAdminError("삭제 실패", error);
       return;
     }
+
+    // 고아 방지 스펙 3: 삭제된 페이지 row가 참조하던 banners 이미지도 함께 지운다.
+    // best-effort — 실패해도 행 삭제 자체는 이미 끝난 뒤다. config.fields는 이
+    // 컴포넌트 경계상 unknown이라(PremiumBookAdminConfig 주석) 여기서만 캐스팅한다.
+    const referencedPaths = collectBannerPaths(
+      row,
+      config.fields as Parameters<typeof collectBannerPaths>[1],
+    );
+    if (referencedPaths.size > 0) removeBannerPaths(referencedPaths);
 
     await loadRows();
   }

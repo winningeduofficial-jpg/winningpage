@@ -1,0 +1,83 @@
+# Supabase Storage 고아 파일 주간 GC 워크플로.
+#
+# 배경: 어드민 이미지 업로드가 매번 새 타임스탬프 경로를 만들고 구 파일을
+# 지우지 않아 미참조 파일이 쌓인다(실측: 한 달간 banners 68개·21MB).
+# scripts/storage-gc.mjs가 "DB 참조 집합 vs 스토리지 실파일"을 대조해
+# 미참조·유예기간(7일) 경과 파일만 Storage API로 삭제한다.
+#
+# 대상 환경은 matrix로 dev/prod 둘 다 배선돼 있고, secrets 존재가 활성화
+# 스위치다:
+#   - dev:  SEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY (scheduled.yml과 공유,
+#           등록됨) — 미등록이면 실패 처리(배선 사고 감지).
+#   - prod: PROD_SUPABASE_URL / PROD_SERVICE_ROLE_KEY — 미등록이면 조용히
+#           skip. dev에서 2-3주 무사고 확인 후 secrets를 등록하는 행위가
+#           곧 prod 가동이다. 머지 타이밍과 무관하게 사람이 켠다.
+#
+# schedule은 default 브랜치(main)의 워크플로만 실행된다 — main 반영 후 가동.
+#
+# 안전장치는 스크립트에 내장돼 있다: KEEP 목록(코드 소유 보관 파일),
+# 참조 0건·테이블 스캔 실패·버킷 전체 미참조 시 삭제 거부, 유저 업로드
+# 버킷(mentor-applications, performance-guides)은 기본 제외.
+# 삭제된 파일 목록은 이 워크플로의 실행 로그에 전부 남는다.
+
+name: Storage GC
+
+on:
+  schedule:
+    # KST 월요일 05:00 = UTC 일요일 20:00. 주 1회.
+    - cron: "0 20 * * 0"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "드라이런(삭제 없이 목록만 출력)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  gc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: dev
+            url_secret: SEED_SUPABASE_URL
+            key_secret: SEED_SERVICE_ROLE_KEY
+            required: true
+          - target: prod
+            url_secret: PROD_SUPABASE_URL
+            key_secret: PROD_SERVICE_ROLE_KEY
+            required: false
+    name: gc-${{ matrix.target }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # 스크립트는 의존성이 없어 npm install 불필요.
+      - name: Run storage GC (${{ matrix.target }})
+        env:
+          SUPABASE_URL: ${{ secrets[matrix.url_secret] }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets[matrix.key_secret] }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            if [ "${{ matrix.required }}" = "true" ]; then
+              echo "::error::${{ matrix.target }} secrets(${{ matrix.url_secret }}/${{ matrix.key_secret }}) 미등록"
+              exit 1
+            fi
+            echo "::notice::${{ matrix.target }} secrets 미등록 — skip. 등록이 곧 활성화 스위치다."
+            exit 0
+          fi
+          printf 'SUPABASE_URL=%s\nSUPABASE_SERVICE_ROLE_KEY=%s\n' \
+            "$SUPABASE_URL" "$SUPABASE_SERVICE_ROLE_KEY" > /tmp/gc.env
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            node scripts/storage-gc.mjs --env /tmp/gc.env --grace-days 7
+          else
+            node scripts/storage-gc.mjs --env /tmp/gc.env --grace-days 7 --delete
+          fi

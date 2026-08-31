@@ -30,6 +30,13 @@ interface MemberCrudConfig {
   searchPlaceholder: string;
   order: string;
   excel?: boolean;
+  // 목록만 조인 뷰에서 읽는다(AdminConfig.listTable 과 같은 뜻) — QA 272.
+  listTable?: string;
+  listOnlyColumns?: string[];
+  // 목록 상단 드롭다운 필터(AdminConfig.listFilter 와 같은 뜻) — QA 227.
+  listFilter?: { key: string; allLabel: string };
+  // 목록 툴바 「초기화」 버튼 숨김(AdminConfig.hideReset 과 같은 뜻) — QA 272.
+  hideReset?: boolean;
   noCreate?: boolean;
   columns: MemberColumn[];
   fields: MemberField[];
@@ -106,9 +113,21 @@ export const memberConfigs: Record<string, MemberConfig> = {
   enrollments: {
     title: "수강 신청 내역",
     table: "enrollments",
+    // 목록은 결제방식·승인번호가 붙은 조인 뷰에서 읽는다(20260831053500). 등록·수정은
+    // 그대로 enrollments 로 간다 — 조인 뷰는 쓰기가 안 된다.
+    listTable: "admin_enrollment_entries",
+    // 뷰가 덧붙인 파생 컬럼. 저장 때 걷어내지 않으면 enrollments 에 없는 컬럼이라
+    // 42703 이 난다.
+    listOnlyColumns: ["payment_method", "approval_no", "order_paid_at"],
+    // QA 227 — 상단 서비스 선택 필터. 종목(category_name)이 곧 서비스 구분이고,
+    // 선택지는 실제 등록된 값에서 뽑으므로 종목이 늘어도 여기를 고칠 필요가 없다.
+    listFilter: { key: "category_name", allLabel: "전체 서비스" },
     searchPlaceholder: "수강생, 보호자, 프로그램 검색",
     order: "created_at",
     excel: true,
+    // QA 272 — 좌측 상단 「초기화」 버튼 삭제 요청. 재조회 버튼인데 "입력한 검색
+    // 조건을 지우는 버튼"으로 읽혀 오조작을 부른다는 지적이었다.
+    hideReset: true,
     columns: [
       { key: "term_name", label: "학기" },
       { key: "category_name", label: "종목" },
@@ -116,7 +135,14 @@ export const memberConfigs: Record<string, MemberConfig> = {
       { key: "class_name", label: "클래스" },
       { key: "guardian_name", label: "보호자" },
       { key: "student_name", label: "수강생" },
+      // QA 272 — 목록에서 바로 연락이 되게 전화번호를 노출한다. 값은 이미 있고
+      // 편집 폼(fields)에도 있었는데 목록 컬럼에만 빠져 있었다.
+      { key: "phone", label: "연락처", type: "maskedPhone" },
       { key: "payment_status", label: "납부상태" },
+      // QA 272 — 연결된 주문(order_id)이 있을 때만 값이 실린다. 오프라인 현금
+      // 수납처럼 대응 주문이 없는 건은 빈 칸이 정상이다.
+      { key: "payment_method", label: "결제방식" },
+      { key: "approval_no", label: "승인번호" },
       { key: "price", label: "수강료", type: "money" },
       { key: "discount_amount", label: "감면액", type: "money" },
       { key: "paid_amount", label: "납부액", type: "money" },
@@ -132,6 +158,14 @@ export const memberConfigs: Record<string, MemberConfig> = {
       { key: "phone", label: "연락처", type: "text" },
       { key: "grade", label: "학년", type: "text" },
       { key: "school_name", label: "학교명", type: "text" },
+      // QA 272 — 이 수강 건에 대응하는 온라인 주문번호. 넣으면 목록의 결제방식·
+      // 승인번호가 그 주문에서 자동으로 따라온다. 대응 주문이 없으면 비워 둔다.
+      {
+        key: "order_id",
+        label: "연결 주문번호",
+        type: "text",
+        placeholder: "토스 주문번호 (없으면 비워 두세요)",
+      },
       {
         key: "payment_status",
         label: "납부상태",

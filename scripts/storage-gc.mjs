@@ -52,10 +52,15 @@ const ALL_BUCKETS = ["banners", "performance-guides", "mentor-applications"];
 // upsert하고 DB엔 WebP 페이지 URL만 저장된다 (PremiumBookAdmin, 명세 §D3b).
 const KEEP = new Set(["banners/premium-book/booklet.pdf"]);
 const DEFAULT_BUCKETS = ["banners"];
-const BUCKETS = argValue("--buckets")?.split(",").map((s) => s.trim()) ?? DEFAULT_BUCKETS;
+const BUCKETS =
+  argValue("--buckets")
+    ?.split(",")
+    .map((s) => s.trim()) ?? DEFAULT_BUCKETS;
 
 if (!ENV_FILE) {
-  console.error("사용법: node scripts/storage-gc.mjs --env <envfile> [--grace-days N] [--buckets a,b] [--delete]");
+  console.error(
+    "사용법: node scripts/storage-gc.mjs --env <envfile> [--grace-days N] [--buckets a,b] [--delete]",
+  );
   process.exit(1);
 }
 if (!Number.isFinite(GRACE_DAYS) || GRACE_DAYS < 0) {
@@ -100,24 +105,30 @@ const LIST_PAGE = 1000;
 async function listBucket(bucket, prefix = "") {
   const out = [];
   for (let offset = 0; ; offset += LIST_PAGE) {
-    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/list/${bucket}`, {
-      method: "POST",
-      headers: JSON_HEADERS,
-      body: JSON.stringify({
-        prefix,
-        limit: LIST_PAGE,
-        offset,
-        sortBy: { column: "name", order: "asc" },
-      }),
-    });
+    const res = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/list/${bucket}`,
+      {
+        method: "POST",
+        headers: JSON_HEADERS,
+        body: JSON.stringify({
+          prefix,
+          limit: LIST_PAGE,
+          offset,
+          sortBy: { column: "name", order: "asc" },
+        }),
+      },
+    );
     if (!res.ok)
-      throw new Error(`${bucket} 리스팅 실패(${prefix || "/"}): HTTP ${res.status}`);
+      throw new Error(
+        `${bucket} 리스팅 실패(${prefix || "/"}): HTTP ${res.status}`,
+      );
     const objs = await res.json();
     if (!Array.isArray(objs))
       throw new Error(`${bucket} 리스팅 응답이 배열이 아님(${prefix || "/"})`);
     for (const o of objs) {
       const p = prefix ? `${prefix}/${o.name}` : o.name;
-      if (o.id === null) out.push(...(await listBucket(bucket, p))); // 폴더
+      if (o.id === null)
+        out.push(...(await listBucket(bucket, p))); // 폴더
       else if (!p.endsWith(".emptyFolderPlaceholder"))
         out.push({
           path: p,
@@ -183,10 +194,13 @@ function scanString(str, refs, pathIndex) {
   if (hit) for (const bucket of hit) refs.add(`${bucket}/${bare}`);
   // 긴 텍스트(HTML/마크다운) 안에 상대경로가 박힌 경우 — 확장자 있는 토큰만 추출
   if (str.length > bare.length || !hit) {
-    for (const m of str.matchAll(/[\w\-./]+\.(?:png|jpe?g|webp|gif|svg|pdf|mp4|webm)/gi)) {
+    for (const m of str.matchAll(
+      /[\w\-./]+\.(?:png|jpe?g|webp|gif|svg|pdf|mp4|webm)/gi,
+    )) {
       const token = m[0].replace(/^\//, "");
       const tokenHit = pathIndex.get(token);
-      if (tokenHit) for (const bucket of tokenHit) refs.add(`${bucket}/${token}`);
+      if (tokenHit)
+        for (const bucket of tokenHit) refs.add(`${bucket}/${token}`);
     }
   }
 }
@@ -236,7 +250,9 @@ async function removeObjects(bucket, paths) {
       body: JSON.stringify({ prefixes: batch }),
     });
     if (!res.ok)
-      throw new Error(`${bucket} 삭제 실패(배치 ${i}~): HTTP ${res.status} ${await res.text()}`);
+      throw new Error(
+        `${bucket} 삭제 실패(배치 ${i}~): HTTP ${res.status} ${await res.text()}`,
+      );
     for (const p of batch) console.log(`  삭제됨: ${bucket}/${p}`);
   }
 }
@@ -246,7 +262,9 @@ function fmtMB(bytes) {
 }
 
 async function main() {
-  console.log(`대상 버킷: ${BUCKETS.join(", ")} | 유예기간: ${GRACE_DAYS}일 | 모드: ${DELETE ? "삭제" : "드라이런"}`);
+  console.log(
+    `대상 버킷: ${BUCKETS.join(", ")} | 유예기간: ${GRACE_DAYS}일 | 모드: ${DELETE ? "삭제" : "드라이런"}`,
+  );
 
   // 리스팅은 참조 대조용으로 3개 버킷 전부 — 삭제 후보는 BUCKETS만.
   const filesByBucket = new Map();
@@ -261,22 +279,30 @@ async function main() {
   }
 
   const { refs, failedTables, tableCount } = await collectRefs(pathIndex);
-  console.log(`\n참조 수집: ${refs.size}건 (테이블 ${tableCount}개 스캔${failedTables.length ? `, 실패 ${failedTables.length}개` : ""})`);
+  console.log(
+    `\n참조 수집: ${refs.size}건 (테이블 ${tableCount}개 스캔${failedTables.length ? `, 실패 ${failedTables.length}개` : ""})`,
+  );
 
   if (DELETE) {
     if (refs.size === 0)
       throw new Error("참조가 0건 — 수집 비정상으로 판단, 삭제 거부");
     if (failedTables.length > 0)
-      throw new Error(`테이블 스캔 실패 존재(${failedTables.join(", ")}) — 참조 누락 가능, 삭제 거부`);
+      throw new Error(
+        `테이블 스캔 실패 존재(${failedTables.join(", ")}) — 참조 누락 가능, 삭제 거부`,
+      );
   }
 
   const cutoff = Date.now() - GRACE_DAYS * 24 * 60 * 60 * 1000;
-  let totalOrphans = 0, totalOrphanSize = 0, totalDeletable = 0, totalDeletableSize = 0;
+  let totalOrphans = 0,
+    totalOrphanSize = 0,
+    totalDeletable = 0,
+    totalDeletableSize = 0;
 
   for (const bucket of BUCKETS) {
     const files = filesByBucket.get(bucket);
     const orphans = files.filter(
-      (f) => !refs.has(`${bucket}/${f.path}`) && !KEEP.has(`${bucket}/${f.path}`),
+      (f) =>
+        !refs.has(`${bucket}/${f.path}`) && !KEEP.has(`${bucket}/${f.path}`),
     );
     const referenced = files.length - orphans.length;
     const deletable = orphans.filter(
@@ -290,19 +316,30 @@ async function main() {
     totalDeletable += deletable.length;
     totalDeletableSize += deletableSize;
 
-    console.log(`\n== ${bucket}: 전체 ${files.length} | 참조 ${referenced} | 고아 ${orphans.length}(${fmtMB(orphanSize)}) | 유예 보류 ${inGrace} | 삭제 대상 ${deletable.length}(${fmtMB(deletableSize)})`);
+    console.log(
+      `\n== ${bucket}: 전체 ${files.length} | 참조 ${referenced} | 고아 ${orphans.length}(${fmtMB(orphanSize)}) | 유예 보류 ${inGrace} | 삭제 대상 ${deletable.length}(${fmtMB(deletableSize)})`,
+    );
     for (const f of deletable)
-      console.log(`  ${f.path}  ${(f.size / 1024).toFixed(0)}KB  ${f.updatedAt?.slice(0, 10)}`);
+      console.log(
+        `  ${f.path}  ${(f.size / 1024).toFixed(0)}KB  ${f.updatedAt?.slice(0, 10)}`,
+      );
 
     if (DELETE && deletable.length > 0) {
       if (referenced === 0)
-        throw new Error(`${bucket}: 참조된 파일이 0개 — 수집 비정상으로 판단, 삭제 거부`);
-      await removeObjects(bucket, deletable.map((f) => f.path));
+        throw new Error(
+          `${bucket}: 참조된 파일이 0개 — 수집 비정상으로 판단, 삭제 거부`,
+        );
+      await removeObjects(
+        bucket,
+        deletable.map((f) => f.path),
+      );
       console.log(`  → ${bucket}: ${deletable.length}개 삭제 완료`);
     }
   }
 
-  console.log(`\n합계: 고아 ${totalOrphans}개(${fmtMB(totalOrphanSize)}) / 삭제 대상 ${totalDeletable}개(${fmtMB(totalDeletableSize)})${DELETE ? "" : " — 드라이런, 아무것도 지우지 않음"}`);
+  console.log(
+    `\n합계: 고아 ${totalOrphans}개(${fmtMB(totalOrphanSize)}) / 삭제 대상 ${totalDeletable}개(${fmtMB(totalDeletableSize)})${DELETE ? "" : " — 드라이런, 아무것도 지우지 않음"}`,
+  );
 }
 
 main().catch((e) => {
