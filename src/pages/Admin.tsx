@@ -77,7 +77,9 @@ import {
   AdminForm,
   type AdminRow,
   AdminTable,
+  collectBannerPaths,
   PAGE_SIZE,
+  removeBannerPaths,
   uploadImage,
 } from "./admin/shared/AdminEngine";
 import { AdminTopbar } from "./admin/shared/AdminTopbar";
@@ -3195,6 +3197,15 @@ export function AdminSectionRoute({ section }: { section: string }) {
       reportAdminError("삭제 실패", error);
       return;
     }
+
+    // 고아 방지 스펙 3: row가 참조하던 banners 이미지(image/multiImage/multiFile)를
+    // 함께 지운다. blockEditor 본문 이미지는 collectBannerPaths가 애초에 보지
+    // 않는다(주간 GC 몫). best-effort라 실패해도 행 삭제 자체는 이미 끝난 뒤다.
+    const referencedPaths = collectBannerPaths(
+      row,
+      config.fields || config.columns,
+    );
+    if (referencedPaths.size > 0) removeBannerPaths(referencedPaths);
 
     setMutationSeq((seq) => seq + 1);
     await loadRows();
