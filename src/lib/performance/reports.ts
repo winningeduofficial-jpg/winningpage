@@ -57,12 +57,9 @@ async function callReportsApi(accessToken: string, params: URLSearchParams) {
   let response: Response;
 
   try {
-    response = await apiFetch(
-      `/api/performance/reports?${params.toString()}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      },
-    );
+    response = await apiFetch(`/api/performance/reports?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
   } catch (error) {
     const wrapped = new ReportsError("NETWORK", NETWORK_ERROR);
     wrapped.cause = error;

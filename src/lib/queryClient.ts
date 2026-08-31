@@ -211,11 +211,7 @@ supabase.auth.onAuthStateChange((event, session) => {
 
   if (event === "SIGNED_IN") {
     const nextUserId = session?.user?.id ?? null;
-    if (
-      nextUserId &&
-      lastSignedInUserId &&
-      nextUserId !== lastSignedInUserId
-    ) {
+    if (nextUserId && lastSignedInUserId && nextUserId !== lastSignedInUserId) {
       queryClient.clear();
     }
     lastSignedInUserId = nextUserId;

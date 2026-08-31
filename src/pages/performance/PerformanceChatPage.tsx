@@ -492,8 +492,12 @@ export default function PerformanceChatPage() {
     entryReducer,
     initialEntryState,
   );
-  const { mode: entryMode, resumeBusy, resumeError, resumeContinueNotice } =
-    entryState;
+  const {
+    mode: entryMode,
+    resumeBusy,
+    resumeError,
+    resumeContinueNotice,
+  } = entryState;
   const entryResolvedRef = useRef(false);
 
   const [submitting, setSubmitting] = useState(false);

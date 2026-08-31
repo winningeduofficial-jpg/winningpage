@@ -59,10 +59,7 @@ type PaymentOrder = {
   coupon_redemptions?: {
     discount_amount: number;
     voided_at?: string | null;
-    coupons?:
-      | { title?: string | null }
-      | { title?: string | null }[]
-      | null;
+    coupons?: { title?: string | null } | { title?: string | null }[] | null;
   }[];
 };
 
@@ -139,6 +136,7 @@ export default function PaymentDetailModal({
         <dl className="mt-7.5 flex flex-col pb-7.5">
           {metaRows.map((row, i) => (
             <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: 파생 표시 행이라 고유 id가 없고 재정렬·삽입 없이 통째로 다시 그린다 — 같은 라벨이 반복될 수 있어 인덱스로 구분한다.
               key={`${row.label}-${i}`}
               className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
             >

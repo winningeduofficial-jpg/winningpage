@@ -6,7 +6,14 @@
     "useIgnoreFile": true
   },
   "files": {
-    "includes": ["**", "!dist", "!dist-ssr", "!build", "!src/demo/html"]
+    "includes": [
+      "**",
+      "!dist",
+      "!dist-ssr",
+      "!build",
+      "!src/demo/html",
+      "!supabase/templates"
+    ]
   },
   "formatter": {
     "enabled": true,

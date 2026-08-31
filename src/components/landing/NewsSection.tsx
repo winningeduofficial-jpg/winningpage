@@ -90,7 +90,11 @@ function PinnedBadge({ pinned }: { pinned: boolean }) {
     return <span aria-hidden="true" className="relative w-16 shrink-0" />;
 
   return (
-    <Chip tone={"coral" as ChipTone} size="md" className="relative min-w-16 shrink-0">
+    <Chip
+      tone={"coral" as ChipTone}
+      size="md"
+      className="relative min-w-16 shrink-0"
+    >
       중요
     </Chip>
   );
@@ -235,10 +239,7 @@ export default function NewsSection({
     0,
     MAX_ROWS,
   );
-  const noticeRows = filterByPinned(notices, noticeFilter).slice(
-    0,
-    MAX_ROWS,
-  );
+  const noticeRows = filterByPinned(notices, noticeFilter).slice(0, MAX_ROWS);
   const companyFilterLabel = NEWS_FILTER_TABS.find(
     (tab) => tab.key === companyFilter,
   )?.label;
