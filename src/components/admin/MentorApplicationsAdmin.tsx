@@ -111,6 +111,30 @@ const MENTOR_APPLICATION_DETAIL_SECTIONS: MentorApplicationDetailSection[] = [
   },
 ];
 
+// 증빙 파일이 "없다"고 안내하는 단일 문구 — 경로 자체가 비었을 때와 스토리지에
+// 객체가 없을 때가 어드민 입장에선 같은 상황이라 문구를 하나로 묶는다(QA 318).
+const PROOF_FILE_MISSING_MESSAGE = "등록된 증빙 파일이 없습니다.";
+
+// createSignedUrl 이 "객체 없음"으로 실패했는지 판정한다.
+//
+// dev 실측 응답(2026-08-31, HTTP 400):
+//   { statusCode: "404", error: "not_found", message: "Object not found", code: "NoSuchKey" }
+// supabase-js 는 이걸 StorageError 로 감싸는데, 그 클래스가 노출하는 필드는
+// message / status(number) / statusCode(string) 뿐이라(@supabase/storage-js
+// lib/common/errors.ts) code("NoSuchKey")로는 판정할 수 없다. statusCode 를 1순위로
+// 보고, 문구 매칭은 스토리지가 필드 구성을 바꿀 때를 대비한 폴백이다.
+export function isObjectNotFound(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { statusCode, message } = error as {
+    statusCode?: unknown;
+    message?: unknown;
+  };
+  if (String(statusCode ?? "") === "404") return true;
+  return String(message ?? "")
+    .toLowerCase()
+    .includes("not found");
+}
+
 function formatDateTime(value: unknown): string {
   if (!value) return "-";
   const date = new Date(value as string | number | Date);
@@ -242,7 +266,7 @@ export default function MentorApplicationsAdmin({
   // 여는 일회성 열람이고, 증빙 파일에 개인정보(성적표 등)가 담겨 있어 길게 잡을 이유가 없다.
   async function openProofFile() {
     if (!selected?.proof_file_path) {
-      alert("첨부된 증빙 파일이 없습니다.");
+      alert(PROOF_FILE_MISSING_MESSAGE);
       return;
     }
 
@@ -251,8 +275,14 @@ export default function MentorApplicationsAdmin({
       .createSignedUrl(selected.proof_file_path, 60);
 
     if (error || !data?.signedUrl) {
+      // 경로는 있는데 객체가 없는 경우(행은 남고 파일만 사라졌거나, 업로드가 2단계
+      // 흐름 중간에 끊긴 경우)를 "없음"으로 흡수한다 — 어드민에게 원문
+      // "Object not found"를 그대로 던지면 시스템 장애처럼 읽힌다(QA 318).
+      // 그 외 실패(권한·네트워크)는 원문을 남겨야 원인을 좁힐 수 있으므로 구분한다.
       alert(
-        `증빙 파일 열람 실패: ${error?.message || "서명 URL을 가져오지 못했습니다."}`,
+        isObjectNotFound(error)
+          ? PROOF_FILE_MISSING_MESSAGE
+          : `증빙 파일 열람 실패: ${error?.message || "서명 URL을 가져오지 못했습니다."}`,
       );
       return;
     }
