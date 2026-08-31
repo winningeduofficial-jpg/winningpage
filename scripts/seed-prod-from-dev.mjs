@@ -7,6 +7,7 @@
 // 사용법 (기본은 드라이런 — 아무것도 쓰지 않는다):
 //   node scripts/seed-prod-from-dev.mjs
 //   node scripts/seed-prod-from-dev.mjs --apply
+//   node scripts/seed-prod-from-dev.mjs --verify   # 시딩 후 검증(읽기만)
 //
 // 접속 정보:
 //   dev(소스)  — .env.seed.local (없으면 .env.local, 로컬 URL이면 중단)
@@ -493,8 +494,94 @@ async function createAdminMaster(prodClient) {
 // main
 // ---------------------------------------------------------------------------
 
+// 시딩 후 검증(--verify) — 읽기 전용. 세 가지를 본다:
+//   1) 테이블별 행수: prod가 dev보다 적으면 실패(초과분은 정보로만 — upsert
+//      재실행이나 prod 자체 등록분일 수 있다).
+//   2) prod 행 데이터에 dev 도메인 문자열 잔존 0건 (URL 치환 누락 검출).
+//   3) dev 행이 참조하는 banners 파일이 prod 버킷에 전부 존재.
+// 하나라도 실패하면 exit code 1.
+async function verifyMain(dev, prod) {
+  const devHost = hostOf(dev.url);
+  const prodHost = hostOf(prod.url);
+  console.log(`검증 모드(--verify) | dev ${devHost} ↔ prod ${prodHost}`);
+
+  const devClient = createClient(dev.url, dev.key, {
+    auth: { persistSession: false },
+  });
+  const prodClient = createClient(prod.url, prod.key, {
+    auth: { persistSession: false },
+  });
+
+  const devBannerFiles = await listBannersBucket(dev.url, dev.key);
+  const devPathIndex = new Set(devBannerFiles.map((f) => f.path));
+  const referencedPaths = new Set();
+
+  let failures = 0;
+
+  for (const table of TABLES) {
+    const devRows = await fetchAll(devClient, table.name);
+    const prodRows = await fetchAll(prodClient, table.name);
+
+    // 참조 수집은 dev 원본에서 — 시딩이 복사했어야 하는 파일 목록의 기준이다.
+    const devStrings = [];
+    collectStrings(devRows, devStrings);
+    for (const s of devStrings)
+      scanBannersRefs(s, referencedPaths, devPathIndex);
+
+    const prodStrings = [];
+    collectStrings(prodRows, prodStrings);
+    const leaks = prodStrings.filter((s) => s.includes(devHost)).length;
+
+    const short = prodRows.length < devRows.length;
+    if (short || leaks > 0) failures++;
+    console.log(
+      `${short || leaks ? "✗" : "✓"} ${table.name}: dev ${devRows.length} / prod ${prodRows.length}` +
+        (prodRows.length > devRows.length ? " (prod 초과분 있음 — 정보)" : "") +
+        (leaks ? ` | dev 도메인 잔존 ${leaks}건` : ""),
+    );
+  }
+
+  console.log("\nbanners 버킷 대조(prod)...");
+  const prodBannerFiles = await listBannersBucket(prod.url, prod.key);
+  const prodPathIndex = new Set(prodBannerFiles.map((f) => f.path));
+  const missingInProd = [...referencedPaths].filter(
+    (p) => devPathIndex.has(p) && !prodPathIndex.has(p),
+  );
+  if (missingInProd.length > 0) {
+    failures++;
+    console.log(`✗ prod 버킷에 없는 참조 파일 ${missingInProd.length}건:`);
+    for (const p of missingInProd.slice(0, 20)) console.log(`   - ${p}`);
+  } else {
+    console.log(
+      `✓ 참조 파일 ${referencedPaths.size}개 전부 prod 버킷에 존재 (prod 총 ${prodBannerFiles.length}파일)`,
+    );
+  }
+
+  if (failures > 0) {
+    console.log(`\n검증 실패: ${failures}건`);
+    process.exitCode = 1;
+  } else {
+    console.log("\n검증 통과: 행수·URL 치환·storage 미러 모두 정상");
+  }
+}
+
 async function main() {
   const APPLY = process.argv.includes("--apply");
+  const VERIFY = process.argv.includes("--verify");
+
+  if (VERIFY) {
+    if (APPLY) throw new Error("--verify와 --apply는 함께 쓸 수 없습니다.");
+    const dev = loadDevEnv();
+    const prod = loadProdEnv();
+    if (!prod)
+      throw new Error(
+        "검증에는 타깃 접속 정보가 필요합니다 — SEED_TARGET_URL/SEED_TARGET_SERVICE_ROLE_KEY 또는 .env.seed.prod.local.",
+      );
+    if (hostOf(prod.url).split(".")[0] === DEV_PROJECT_REF)
+      throw new Error("타깃이 dev 프로젝트와 동일함 — 중단.");
+    await verifyMain(dev, prod);
+    return;
+  }
   const dev = loadDevEnv();
   const prod = loadProdEnv();
   const devHost = hostOf(dev.url);

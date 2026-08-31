@@ -73,6 +73,11 @@ node scripts/seed-prod-from-dev.mjs
 
 # 3) 실제 반영 — 타깃 프로젝트 ref를 SEED_CONFIRM으로 명시해야 진행된다.
 SEED_CONFIRM=<prod 프로젝트 ref> node scripts/seed-prod-from-dev.mjs --apply
+
+# 4) 검증 — 읽기 전용. 테이블별 행수 대조(prod가 적으면 실패), prod 행 데이터의
+#    dev 도메인 잔존 0건, dev가 참조하는 banners 파일의 prod 버킷 존재를 확인한다.
+#    실패가 있으면 exit code 1.
+node scripts/seed-prod-from-dev.mjs --verify
 ```
 
 - 타깃이 dev 프로젝트(`gjowqdiopinhixfivnkx`)와 같으면 즉시 중단(자기 자신 시딩 방지).
