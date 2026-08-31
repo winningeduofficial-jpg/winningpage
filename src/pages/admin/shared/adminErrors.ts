@@ -36,7 +36,9 @@ interface AdminErrorLike {
   code?: string;
   details?: string;
   // Supabase StorageError 는 code 대신 statusCode("403" 등)를 실어 온다.
-  statusCode?: string | number;
+  // `| undefined` 명시는 exactOptionalPropertyTypes 아래에서 StorageError 의
+  // `statusCode: string | undefined` 선언을 그대로 받기 위해서다.
+  statusCode?: string | number | undefined;
 }
 
 /** 컬럼 키 → 화면에 쓰는 한국어 라벨. config.fields/columns 에서 만들어 넘긴다. */
