@@ -65,8 +65,11 @@ const TABLES = [
 
 const PAGE = 1000;
 
-// PK가 id가 아닌 테이블 (upsert 충돌 기준)
-const PK_OVERRIDE = { app_settings: "key" };
+// PK가 id가 아닌 테이블 (upsert 충돌 기준).
+// terms는 마이그레이션이 같은 문서를 다른 id로 미리 시드하므로 id 대신
+// terms_code_version_key(code, version)를 충돌 축으로 쓴다 — 충돌 시 id까지
+// dev 값으로 맞춰진다.
+const PK_OVERRIDE = { app_settings: "key", terms: "code,version" };
 
 function loadDevEnv() {
   const envPath = path.join(repoRoot, ".env.local");
@@ -114,6 +117,29 @@ async function fetchAll(client, table) {
   return rows;
 }
 
+// terms는 마이그레이션이 활성 행을 미리 시드해 두 유니크에 동시에 걸린다
+// (2026-08-31 db reset 직후 실측): 같은 (code, version)이 다른 id로 존재하고,
+// "code당 활성 1행"(terms_active_code_key)도 dev 행 삽입을 막는다. 그래서
+// ① 로컬 활성을 전부 내리고 ② (code, version) 축으로 upsert한 뒤(id까지 dev
+// 값으로 수렴) ③ dev에 없는 잔여 행을 지운다 — 동의 이력이 참조하는 행은
+// FK(23503)가 막으므로 비활성 상태로 남겨 둔다.
+async function replaceTerms(client, rows) {
+  const { error: deactivateError } = await client
+    .from("terms")
+    .update({ is_active: false })
+    .eq("is_active", true);
+  if (deactivateError)
+    throw new Error(`terms 비활성화 실패: ${deactivateError.message}`);
+  await upsertAll(client, "terms", rows);
+  const devIds = rows.map((r) => r.id);
+  const { error: pruneError } = await client
+    .from("terms")
+    .delete()
+    .not("id", "in", `(${devIds.join(",")})`);
+  if (pruneError && pruneError.code !== "23503")
+    throw new Error(`terms 잔여 행 정리 실패: ${pruneError.message}`);
+}
+
 async function upsertAll(client, table, rows) {
   for (let i = 0; i < rows.length; i += PAGE) {
     const chunk = rows.slice(i, i + PAGE);
@@ -145,7 +171,8 @@ async function main() {
   for (const table of TABLES) {
     try {
       const rows = await fetchAll(devClient, table);
-      await upsertAll(localClient, table, rows);
+      if (table === "terms") await replaceTerms(localClient, rows);
+      else await upsertAll(localClient, table, rows);
       console.log(`✓ ${table}: ${rows.length}행`);
       ok++;
     } catch (e) {
