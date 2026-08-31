@@ -214,10 +214,10 @@ export default function ChangeEmailModal({
     if (applied) onChanged?.(nextEmail.trim());
   }, [saving, code, nextEmail, profileId, onChanged]);
 
-  // 변경 확정 후 재로그인 강제 — 세션의 JWT 에는 옛 이메일이 남는다. 서버 측
-  // 어드민 판정(api/_lib/adminAuth.ts)이 JWT email 을 profiles.email 과 대조하는
-  // 경로를 쓰므로, 옛 토큰을 들고 있는 동안 판정이 어긋날 수 있다. 전 기기
-  // 세션을 끊고(로그인 정책상 prod 는 1세션이기도 하다) 로그인 화면으로 보낸다.
+  // 변경 확정 후 재로그인 강제 — 권한 판정 문제는 아니다(서버는 auth.getUser 로
+  // 라이브 이메일을 읽고, is_winning_admin/adminAuth 모두 id 분기로 통과한다).
+  // 목적은 두 가지: 다른 기기의 refresh 토큰을 끊어 옛 이메일로 로그인하던
+  // 기기를 정리하고, 이 기기도 새 이메일 세션으로 확실히 갈아탄다.
   // signOut 실패는 무시한다 — 로컬 세션 제거만 실패할 수 있는데, 어차피
   // 전체 리로드로 로그인 화면에 가면 이어서 쓸 수 없다.
   const relogin = useCallback(async () => {
