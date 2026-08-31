@@ -162,6 +162,18 @@ type AdminFileListItem =
 export type AdminConfig<T extends AdminRow = AdminRow> = {
   title: string;
   table?: string;
+  // 목록 조회만 다른 소스(조인 뷰)에서 읽어야 할 때 지정한다. 등록·수정·삭제는
+  // 그대로 table 로 간다 — 조인 뷰는 쓰기가 안 되기 때문이다 (QA 272).
+  listTable?: string;
+  // listTable 뷰에만 있고 원본 테이블에는 없는 파생 컬럼. 편집 폼은 목록 행을
+  // 그대로 form 으로 받으므로, 저장 때 이 키들을 빼지 않으면 원본 테이블에 없는
+  // 컬럼이 딸려가 42703 으로 죽는다.
+  listOnlyColumns?: string[];
+  // 목록 상단 드롭다운 필터. 선택지는 하드코딩하지 않고 **불러온 행의 해당 컬럼
+  // 실제 값**에서 뽑는다 — 종목·프로그램이 늘어도 화면만 옛 목록으로 남지 않는다
+  // (QA 227). 전량 로드 탭 전용이다(서버 페이지네이션 탭은 현재 페이지만 들고 있어
+  // 거기서 값을 뽑으면 선택지가 페이지마다 달라진다).
+  listFilter?: { key: string; allLabel: string };
   tabs?: { key: string; label: string }[];
   searchPlaceholder?: string;
   order?: string;
@@ -174,6 +186,9 @@ export type AdminConfig<T extends AdminRow = AdminRow> = {
   hideRowEdit?: boolean;
   showMetaEdit?: boolean;
   excel?: boolean;
+  // 목록 툴바의 「초기화」(재조회) 버튼을 숨긴다. 검색어를 지우는 버튼으로 오해돼
+  // 입력 중이던 조건이 날아간다는 지적이 있어 섹션별로 끌 수 있게 했다 (QA 272).
+  hideReset?: boolean;
   // 다운로드가 개인정보 반출인 섹션. 켜면 [엑셀 다운로드]가 곧장 내려받지 않고
   // 비밀번호 재확인 + 사유 기재 게이트(SensitiveActionGate)를 먼저 태우고,
   // admin_access_logs 에 한 줄 남긴 뒤에야 진행한다 (QA 223·268·270·271).
