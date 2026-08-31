@@ -46,6 +46,11 @@ const DELETE = args.includes("--delete");
 
 // 유저 업로드 버킷은 기본 제외 — --buckets로 명시해야만 포함된다.
 const ALL_BUCKETS = ["banners", "performance-guides", "mentor-applications"];
+
+// 코드 소유 영구 보관 파일 — DB에 참조가 없어도 절대 삭제하지 않는다.
+// premium-book/booklet.pdf: 프리미엄 북 원본 PDF. 어드민이 고정 경로에
+// upsert하고 DB엔 WebP 페이지 URL만 저장된다 (PremiumBookAdmin, 명세 §D3b).
+const KEEP = new Set(["banners/premium-book/booklet.pdf"]);
 const DEFAULT_BUCKETS = ["banners"];
 const BUCKETS = argValue("--buckets")?.split(",").map((s) => s.trim()) ?? DEFAULT_BUCKETS;
 
@@ -270,7 +275,9 @@ async function main() {
 
   for (const bucket of BUCKETS) {
     const files = filesByBucket.get(bucket);
-    const orphans = files.filter((f) => !refs.has(`${bucket}/${f.path}`));
+    const orphans = files.filter(
+      (f) => !refs.has(`${bucket}/${f.path}`) && !KEEP.has(`${bucket}/${f.path}`),
+    );
     const referenced = files.length - orphans.length;
     const deletable = orphans.filter(
       (f) => f.updatedAt && new Date(f.updatedAt).getTime() < cutoff,
