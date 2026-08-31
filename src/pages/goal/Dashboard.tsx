@@ -207,6 +207,12 @@ function mapTodayGoal(
     quickAddOptions: QUICK_ADD_HOURS,
     upperGoalRate: rateOf(daySchedule.ideal),
     lowerGoalRate: rateOf(daySchedule.min),
+    // QA 행304 — 카드가 달성률 %만 보여주고 실제 이상/최소 목표 "시간(h)"이 어디에도
+    // 안 보였다. daySchedule은 이미 서버가 온보딩 때 요일별로 계산해 저장한 값이라
+    // (api/goal/intake.ts buildWeeklySchedule → study_schedule 컬럼, goalRepo.js
+    // buildStudentPayload가 weeklySchedule로 내려준다) 그대로 넘긴다 — 새로 계산하지 않는다.
+    upperTargetHours: daySchedule.ideal,
+    lowerTargetHours: daySchedule.min,
   };
 }
 
