@@ -58,7 +58,7 @@ export default function PremiumIssueCards({
             <div
               key={item.title}
               style={isDark ? undefined : PREMIUM_CARD_SHADOW_STYLE}
-              className={`${
+              className={`flex flex-col justify-center ${
                 columns === 2
                   ? "w-full p-10 sm:min-h-[5.625rem]"
                   : "w-full p-10 sm:w-[20.8125rem] sm:min-h-[13.75rem]"
