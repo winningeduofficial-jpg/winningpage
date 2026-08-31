@@ -249,6 +249,8 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
       // fn_request_refund(고객 신청) 원장 — 위 refunds(관리자 수기 대장)와는
       // 다른 테이블이다. CONFIGS.refundRequests 참고.
       { key: "refundRequests", label: "환불 신청 내역" },
+      // QA 275 — 완료된 환불의 결과 원장(파일18 「환불 처리 대장」).
+      { key: "refundLedger", label: "환불 처리 대장" },
       { key: "coupons", label: "쿠폰관리" },
     ],
   },
