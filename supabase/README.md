@@ -53,6 +53,40 @@ QA 계정(로컬 전용): `devadmin@gmail.com`/`LocalAdmin2026!`(admin),
 앱 배포(Vercel)와 DB push는 같은 push 이벤트에 병렬로 돌므로, 파괴적 변경(컬럼 삭제·
 rename)은 expand-contract 2단계로 나눠서 이전 코드가 새 스키마와 공존하게 할 것.
 
+## prod 초기 시딩 (main 릴리스 시점 1회)
+
+`scripts/seed-prod-from-dev.mjs`가 dev cloud Supabase(`gjowqdiopinhixfivnkx`)의 콘텐츠·마스터
+데이터를 prod Supabase로 복사한다. `scripts/seed-from-dev.mjs`(로컬 스택용)와는 별개 파일.
+user 연관 테이블(profiles/orders/goal_workbooks/performance_topics 등)은 절대 포함하지 않는다.
+
+```bash
+# 1) 준비
+#    - dev 접속: .env.seed.local (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY, 기존 파일 재사용)
+#    - prod 접속: env SEED_TARGET_URL / SEED_TARGET_SERVICE_ROLE_KEY,
+#      또는 .env.seed.prod.local 파일(SEED_TARGET_URL / SEED_TARGET_SERVICE_ROLE_KEY, gitignore됨 — 직접 생성)
+#    - 관리자 계정(선택): env SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD
+#      (미설정 시 마지막 단계인 최고 관리자 계정 생성만 스킵되고 나머지는 진행됨)
+
+# 2) 드라이런 — 아무것도 쓰지 않는다. 테이블별 원본 행수, banners 참조 파일 수/용량,
+#    URL 치환 예정 건수만 출력.
+node scripts/seed-prod-from-dev.mjs
+
+# 3) 실제 반영 — 타깃 프로젝트 ref를 SEED_CONFIRM으로 명시해야 진행된다.
+SEED_CONFIRM=<prod 프로젝트 ref> node scripts/seed-prod-from-dev.mjs --apply
+```
+
+- 타깃이 dev 프로젝트(`gjowqdiopinhixfivnkx`)와 같으면 즉시 중단(자기 자신 시딩 방지).
+- admin_roles/admin_role_permissions는 dev·prod가 각자 마이그레이션으로 발급한 uuid가 달라서
+  id를 그대로 복사하지 않고 role 이름 기준으로 매핑해 role_id를 다시 쓴다.
+- admission_result_department_index/university_index, admission_university_resource_index,
+  goal_university_options는 VIEW라 시딩 대상이 아니다 — 기반 테이블을 시딩하면 자동으로 채워진다.
+- goal_workbooks, performance_topics는 브리프에 있었지만 각각 goal_students/performance_sessions에
+  걸린 유저 데이터라서(FK 확인됨) 제외했다 — 스크립트 상단 주석 참고.
+- admission_results(43,170행) 같은 대용량 테이블은 id가 identity(BY DEFAULT)라 dev id를 그대로
+  upsert할 수 있다. 다만 시딩 후 prod 시퀀스가 dev 최대 id를 따라잡지 못해 다음 INSERT가 충돌할
+  수 있다 — 필요하면 SQL Editor에서 `select setval('admission_results_id_seq', (select max(id) from admission_results))` 를 수동 실행할 것(이 스크립트는 REST만 쓰므로 시퀀스 재동기화는 하지 않는다).
+- 서비스 롤 키는 로그에 절대 남기지 않는다.
+
 ## 주의
 
 - pg_dump 기반 baseline은 public 스키마 전용 — storage 쪽 객체는 별도 마이그레이션
