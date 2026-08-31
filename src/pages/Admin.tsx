@@ -213,11 +213,6 @@ const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
         label: "위닝 심화보고서 DB",
         section: "위닝 DB",
       },
-      {
-        key: "winningStudentRecordDb",
-        label: "위닝 생기부 DB",
-        section: "위닝 DB",
-      },
     ],
   },
   // 회원관리 — 상세(6탭)가 QA 182의 「고객조회상담」을 통째로 흡수했다.

@@ -47,7 +47,6 @@ export const ADMIN_SECTION_KEYS = [
   "winningSuhaengResourceDb",
   "winningSetukDb",
   "winningDeepReportDb",
-  "winningStudentRecordDb",
   // 회원관리
   "members",
   // 회원관리 — 이용 현황
