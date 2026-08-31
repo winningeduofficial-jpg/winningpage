@@ -3132,6 +3132,53 @@ export function AdminSectionRoute({ section }: { section: string }) {
       }
     }
 
+    // QA 행337 — sort_order를 특정 값으로 지정해 저장하면 그 값(과 그 뒤로 이어지는
+    // 연속 구간)을 이미 쓰고 있는 다른 행들을 +1씩 밀어 "정확히 그 자리에 꽂힌다"는
+    // 기대를 만족시킨다. getNextSortOrder(formFields.tsx)는 신규 등록 시 max+1만
+    // 계산해 이 재배열을 대신하지 않는다. sort_order 필드가 없는 섹션(대다수
+    // custom:true 포함)은 손대지 않는다 — 클라이언트 처리만, DB 함수/마이그레이션 없음.
+    const hasSortOrderField = config.fields?.some(
+      (field) => field.key === "sort_order",
+    );
+    if (hasSortOrderField && Number.isFinite(Number(payload.sort_order))) {
+      const targetSortOrder = Number(payload.sort_order);
+      let conflictQuery = supabase
+        .from(config.table)
+        .select("id, sort_order")
+        .gte("sort_order", targetSortOrder)
+        .order("sort_order", { ascending: true });
+      if (mode !== "create" && editingRow) {
+        conflictQuery = conflictQuery.neq("id", editingRow.id);
+      }
+      const { data: conflictRows, error: conflictError } = await conflictQuery;
+      if (conflictError) {
+        reportAdminError("순서 재배열 조회 실패", conflictError);
+        return;
+      }
+
+      // 지정값부터 빈틈없이 이어지는 구간만 민다(1,2,3,5 중 2를 지정하면 2·3만
+      // 밀고 5는 그대로 둔다 — 이미 3과 5 사이가 비어 있어 충돌하지 않는다).
+      const shiftTargets: { id: string; sort_order: number }[] = [];
+      let expected = targetSortOrder;
+      for (const conflictRow of conflictRows || []) {
+        if (Number(conflictRow.sort_order) !== expected) break;
+        shiftTargets.push(conflictRow);
+        expected += 1;
+      }
+
+      // 충돌 최소화를 위해 큰 값부터 역순으로 민다.
+      for (const shiftRow of shiftTargets.slice().reverse()) {
+        const { error: shiftError } = await supabase
+          .from(config.table)
+          .update({ sort_order: Number(shiftRow.sort_order) + 1 })
+          .eq("id", shiftRow.id);
+        if (shiftError) {
+          reportAdminError("순서 재배열 실패", shiftError);
+          return;
+        }
+      }
+    }
+
     let savedRow = null;
 
     if (mode === "create") {
