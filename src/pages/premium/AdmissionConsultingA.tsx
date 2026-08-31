@@ -250,6 +250,21 @@ export default function AdmissionConsultingA() {
         />
       )}
 
+      {/* 학종 전략 섹션 — 디자인 시안 없음(QA 행260, 러프 재량). 헤드라인은 고객 제공
+          문구 그대로이고, 아래 파이널 CTA(S 프로그램 안내)와는 목적이 달라 신청 CTA는
+          히어로와 동일 목적지(상담 신청 폼)로 보낸다. 신규 컴포넌트를 만들지 않고
+          다른 프리미엄 페이지(대입S 등)가 멘토 섹션 뒤 파이널 배너 앞에 두는 중간
+          CTA 배너 패턴(PremiumCtaBanner variant="light")을 그대로 재사용했다. */}
+      <PremiumCtaBanner
+        title="다음 학기가 달라지는 학종 전략, 대표 원장과 함께 시작하세요"
+        sub="탐구활동부터 내신까지, 지금 상담을 신청하고 나만의 전략을 확인하세요."
+        cta={{
+          label: "사전 인터뷰 신청",
+          to: `${PREMIUM_APPLY_PATH}#${PREMIUM_APPLY_FORM_ANCHOR_ID}`,
+        }}
+        variant="light"
+      />
+
       <PremiumCtaBanner
         title="대입 실전(면접·자소서)까지 대표원장의 직접 피드백이 필요하다면"
         cta={{ label: "S 프로그램 안내받기 →", to: PREMIUM_ADMISSION_S_PATH }}
