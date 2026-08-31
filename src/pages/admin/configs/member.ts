@@ -113,12 +113,23 @@ export const memberConfigs: Record<string, MemberConfig> = {
   enrollments: {
     title: "수강 신청 내역",
     table: "enrollments",
-    // 목록은 결제방식·승인번호가 붙은 조인 뷰에서 읽는다(20260831053500). 등록·수정은
-    // 그대로 enrollments 로 간다 — 조인 뷰는 쓰기가 안 된다.
+    // 목록은 **온라인 결제 + 오프라인 장부 합집합** 뷰에서 읽는다(20260831062100).
+    //
+    // 왜 합집합인가 — enrollments 는 오프라인 수강 장부인데 dev·운영 모두 0행이고
+    // 위닝측이 오프라인 접수를 하지 않는다(서비스 미런칭, 2026-08-31 확인). 실제
+    // 수강 신청은 전부 온라인 결제(orders)로 들어온다. QA 272 가 요구한 항목이
+    // 결제방식·승인번호라는 점, 이 메뉴가 매출·결제관리 그룹이라는 점 모두
+    // "여기서 결제한 사람을 본다"를 가리킨다. 「매출 및 결제」가 수기 장부를
+    // orders 기반 뷰로 갈아끼운 것과 같은 처방이다.
     listTable: "admin_enrollment_entries",
-    // 뷰가 덧붙인 파생 컬럼. 저장 때 걷어내지 않으면 enrollments 에 없는 컬럼이라
-    // 42703 이 난다.
-    listOnlyColumns: ["payment_method", "approval_no", "order_paid_at"],
+    // 합집합이라 id 가 두 원장에서 오고, 온라인 건은 어드민이 고칠 대상이 아니다
+    // (주문을 손으로 고치면 매출과 어긋난다). 오프라인 접수 등록 화면은 실제로
+    // 접수를 시작할 때 별도로 만든다.
+    readOnly: true,
+    noCreate: true,
+    // 뷰에만 있는 파생 컬럼. 지금은 readOnly 라 저장 경로가 없지만, 나중에 오프라인
+    // 등록을 이 화면에 되살리면 이걸 걷어내지 않는 순간 42703 이 난다.
+    listOnlyColumns: ["payment_method", "approval_no", "source"],
     // QA 227 — 상단 서비스 선택 필터. 종목(category_name)이 곧 서비스 구분이고,
     // 선택지는 실제 등록된 값에서 뽑으므로 종목이 늘어도 여기를 고칠 필요가 없다.
     listFilter: { key: "category_name", allLabel: "전체 서비스" },
@@ -129,7 +140,9 @@ export const memberConfigs: Record<string, MemberConfig> = {
     // 조건을 지우는 버튼"으로 읽혀 오조작을 부른다는 지적이었다.
     hideReset: true,
     columns: [
-      { key: "term_name", label: "학기" },
+      { key: "created_at", label: "신청일", type: "date" },
+      // 온라인 결제분과 오프라인 접수분이 한 표에 섞이므로 출처를 밝힌다.
+      { key: "source", label: "구분" },
       { key: "category_name", label: "종목" },
       { key: "program_name", label: "프로그램" },
       { key: "class_name", label: "클래스" },
@@ -146,7 +159,6 @@ export const memberConfigs: Record<string, MemberConfig> = {
       { key: "price", label: "수강료", type: "money" },
       { key: "discount_amount", label: "감면액", type: "money" },
       { key: "paid_amount", label: "납부액", type: "money" },
-      { key: "created_at", label: "신청일", type: "date" },
     ],
     fields: [
       { key: "term_name", label: "학기", type: "text" },
