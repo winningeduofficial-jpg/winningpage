@@ -85,7 +85,7 @@ export default function PaymentTable({
             <TableHead className="text-right text-ink-sub">
               {headers.amount}
             </TableHead>
-            <TableHead className="text-right text-ink-sub">
+            <TableHead className="text-center text-ink-sub">
               {headers.status}
             </TableHead>
           </TableRow>
@@ -124,7 +124,7 @@ export default function PaymentTable({
               <TableCell className="text-right text-ink-strong">
                 {row.amountText}
               </TableCell>
-              <TableCell className="text-right">{renderStatus(row)}</TableCell>
+              <TableCell className="text-center">{renderStatus(row)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
