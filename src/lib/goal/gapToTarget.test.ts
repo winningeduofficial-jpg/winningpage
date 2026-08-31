@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildGapRows,
-  mogoGap,
-  naesinGap,
-  studyGap,
-} from "./gapToTarget.ts";
+import { buildGapRows, mogoGap, naesinGap, studyGap } from "./gapToTarget.ts";
 
 describe("naesinGap", () => {
   it("현재 등급이 목표보다 나쁘면(수치가 크면) 양수(부족)를 반환한다", () => {

@@ -233,7 +233,10 @@ export function computeAvgStudyHours(
   records: GoalDailyRecordRow[],
 ): number | null {
   if (records.length === 0) return null;
-  const total = records.reduce((sum, r) => sum + (toNum(r.study_hours) ?? 0), 0);
+  const total = records.reduce(
+    (sum, r) => sum + (toNum(r.study_hours) ?? 0),
+    0,
+  );
   return round1(total / records.length);
 }
 

@@ -81,6 +81,7 @@ const RecommendServices = ({
         {Array.from({ length: Math.max(0, 2 - cards.length) }).map(
           (_, index) => (
             <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: 내용 없는 장식용 빈 칸이라 인덱스 외 식별자가 없다 — 개수도 렌더마다 고정이다.
               key={`empty-${index}`}
               aria-hidden="true"
               className="fd-recommend-card w-full rounded-xl border border-[#d1e8ff] px-3.25 py-4 lg:h-50.25 lg:w-122.5 lg:pl-3.25 lg:pr-0 lg:pt-4 lg:pb-0"

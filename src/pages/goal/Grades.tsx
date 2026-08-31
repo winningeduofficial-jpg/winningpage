@@ -9,8 +9,8 @@ import GoalTable from "@/components/goal/report/GoalTable";
 import { useAuth } from "@/context/AuthProvider";
 import {
   addGoalGrade,
-  fetchGoalGrades,
   type FetchGoalGradesResult,
+  fetchGoalGrades,
 } from "@/lib/goalApi";
 import {
   improvementDelta,

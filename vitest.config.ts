@@ -9,6 +9,15 @@ export default mergeConfig(
   defineConfig({
     test: {
       environment: "jsdom",
+      // supabase 클라이언트 모듈이 로드 시점에 URL/키를 요구한다. 단위 테스트는
+      // 네트워크를 쓰지 않으므로(로컬 스택이 꺼져 있어도 전부 통과) .env.local이
+      // 없는 CI에서도 모듈 로드가 죽지 않게 더미를 깔아 준다 — 실값이 있으면 그대로 쓴다.
+      env: {
+        VITE_SUPABASE_URL:
+          process.env.VITE_SUPABASE_URL ?? "http://127.0.0.1:54321",
+        VITE_SUPABASE_ANON_KEY:
+          process.env.VITE_SUPABASE_ANON_KEY ?? "sb_publishable_vitest_dummy",
+      },
       // 전역 주입 대신 명시적 import(test/expect/describe from "vitest")를 쓴다 —
       // 이 저장소의 다른 곳들도 암묵적 전역에 의존하지 않는 관례를 따른다.
       globals: false,
