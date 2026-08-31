@@ -129,6 +129,27 @@ export default function FreeDiagnosisReport() {
     }
   }, [location.state]);
 
+  // QA 행341 — 리포트 도달 후 브라우저 뒤로가기로 설문 스텝(응답을 다시 고를 수 있는 화면)에
+  // 재진입할 수 있었다. 셸(SurveyStepShell)의 answers는 컴포넌트 상태라 뒤로가기로 되짚어가도
+  // 이전 응답이 복원되지는 않지만, 여전히 "제출을 마친 설문을 다시 채워 넣을 수 있는 화면"으로
+  // 돌아가지는 것 자체가 문제다.
+  //
+  // 설문 스텝에서 "이미 제출된 세션이면 리포트로 forward redirect"하는 방식 대신 이 페이지에서
+  // popstate를 가드하는 쪽을 택했다 — sessionStorage(loadDiagnosisInput)는 설문을 다시 시작해
+  // 재진단(이용권 재구매 등)하는 정상 플로우에서도 이전 진단 결과를 계속 들고 있으므로, 그 값의
+  // 존재만으로 설문 진입을 막으면 정당한 재진단까지 리포트로 되튕긴다. 반면 popstate 가드는
+  // "리포트를 실제로 본 이후의 뒤로가기"만 좁게 겨눈다. 과한 히스토리 조작(추가 페이지 이동 등)
+  // 없이 현재 URL을 다시 push해 그 자리에 머무르게만 한다.
+  useEffect(() => {
+    if (!data) return undefined;
+    window.history.pushState(null, "", window.location.href);
+    const trapBack = () => {
+      window.history.pushState(null, "", window.location.href);
+    };
+    window.addEventListener("popstate", trapBack);
+    return () => window.removeEventListener("popstate", trapBack);
+  }, [data]);
+
   // 무입력·손상 페이로드는 설문 시작점으로 돌려보낸다(가짜 리포트를 본인 결과로 오인하는 것을 원천 차단).
   if (!data) {
     return <Navigate to={SURVEY_ENTRY_PATH} replace />;
