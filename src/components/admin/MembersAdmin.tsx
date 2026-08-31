@@ -56,6 +56,9 @@ interface ProfileRow {
   guardian_phone?: string | null;
   memo?: string | null;
   member_category?: string | null;
+  org_code?: string | null;
+  // profiles 컬럼이 아니라 loadRows()가 program_access 를 묶어 얹는 파생 필드다.
+  service_labels?: string;
   is_active?: boolean | null;
   terms_service_agreed?: boolean | null;
   privacy_required_agreed?: boolean | null;
@@ -240,16 +243,46 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
       .select("*")
       .order("created_at", { ascending: false });
 
-    setLoading(false);
-
     if (error) {
       console.error(error);
       alert(`${config.title} 조회 실패: ${error.message}`);
+      setLoading(false);
       setRows([]);
       return;
     }
 
-    setRows((data as ProfileRow[]) || []);
+    const profileRows = (data as ProfileRow[]) || [];
+
+    // 이용서비스(QA G4) — program_access 를 한 번에 묶어 회원별 콤마 조인
+    // 문자열로 얹는다. 목록 화면이 회원 수만큼 상세 쿼리를 날리지 않도록
+    // profiles 조회와 별개로 딱 한 번만 조회한다. access_status='active'
+    // 인 것만 "이용 중"으로 본다(inactive/expired/suspended 는 제외 —
+    // program_access_access_status_check 의 4개 값 중 active 만 실제 이용).
+    // program_key 라벨 맵이 저장소 어디에도 없어(program_key label map 미존재,
+    // 2026-08-27 조사) 원문 키를 그대로 보여준다.
+    const { data: accessRows, error: accessError } = await supabase
+      .from("program_access")
+      .select("id, program_key, access_status");
+
+    if (accessError) {
+      console.error(accessError);
+    }
+
+    const servicesById = new Map<string, string[]>();
+    for (const row of accessRows || []) {
+      if (row.access_status !== "active") continue;
+      const list = servicesById.get(row.id) || [];
+      list.push(row.program_key);
+      servicesById.set(row.id, list);
+    }
+
+    setRows(
+      profileRows.map((row) => ({
+        ...row,
+        service_labels: (servicesById.get(row.id) || []).join(", "),
+      })),
+    );
+    setLoading(false);
   }
 
   const onMountLoadRows = useEffectEvent(() => {
@@ -734,6 +767,7 @@ function ProfilePane({
         <Row label="이름" value={profile.name || "-"} />
         <Row label="성별" value={profile.gender || "-"} />
         <Row label="생년월일" value={profile.birth_date || "-"} />
+        <Row label="소속코드" value={profile.org_code || "-"} />
         <Row label="가입일" value={formatDateTime(profile.created_at)} />
         <Row
           label="계정 상태"
