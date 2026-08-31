@@ -58,6 +58,14 @@ export default function ServiceTabsPanel({
     () => tabs.find((tab) => content[tab]?.length) ?? tabs[0]!,
   );
   const activeCards = content[activeTab] || [];
+  // 탭마다 카드 수가 다를 수 있다(목표관리 '학부모 안내' 3장 vs 나머지 5장, QA 행232).
+  // columns prop 고정 열 수 그대로 쓰면 카드 수가 모자란 탭에서 빈 칸이 우측에 뜬다 —
+  // 실제 카드 수가 지원 열 수(TAB_PANEL_COLS 키)와 맞으면 그 수로 그리드를 다시 잡아
+  // 카드가 컨테이너 전체 폭을 고르게 채우게 하고, 안 맞으면(예상 밖 카드 수) 원래
+  // columns로 조용히 폴백한다.
+  const effectiveColumns = TAB_PANEL_COLS[activeCards.length]
+    ? activeCards.length
+    : columns;
 
   return (
     <>
@@ -91,7 +99,7 @@ export default function ServiceTabsPanel({
               {index < tabs.length - 1 && (
                 <span
                   aria-hidden="true"
-                  className="h-5.75 w-px shrink-0 bg-line"
+                  className="h-4 w-px shrink-0 bg-line"
                 />
               )}
             </Fragment>
@@ -103,7 +111,7 @@ export default function ServiceTabsPanel({
         id={`${idPrefix}-tabpanel`}
         role="tabpanel"
         aria-labelledby={`${idPrefix}-tab-${tabs.indexOf(activeTab)}`}
-        className={`mt-8 grid grid-cols-1 items-start gap-5 sm:mt-10 lg:mt-7.5 ${TAB_PANEL_COLS[columns]} lg:gap-7.5 ${panelHeightClass}`}
+        className={`mt-8 grid grid-cols-1 items-start gap-5 sm:mt-10 lg:mt-7.5 ${TAB_PANEL_COLS[effectiveColumns]} lg:gap-7.5 ${panelHeightClass}`}
       >
         {activeCards.map((card) => (
           <div
@@ -111,16 +119,16 @@ export default function ServiceTabsPanel({
             className="flex flex-col text-left"
           >
             <div className="flex aspect-453/200 items-center justify-center rounded-[0.5625rem] border border-line bg-surface-footer">
-              {/* 아이콘은 시안 절대치 138px 고정이다. 박스는 aspect-[453/200]이지만 플렉스
-                  아이템의 min-height:auto content-based minimum 이 작동해, 카드가 좁아 aspect
-                  유도 높이가 138px 밑으로 내려가면 박스가 아이콘에 맞춰 늘어난다(실측: 5열
-                  1100px 컨테이너에서 aspect 유도 86.5px → 실제 140px). 따라서 아이콘이 박스를
-                  넘치는 일은 구조적으로 없다. 대신 그 구간에서는 453:200 비율이 지켜지지 않는다. */}
+              {/* 아이콘 크기는 시안 절대치 138px에서 폰 목업 대비 과대하다는 QA 지적(행258)으로
+                  110px로 축소했다. 박스는 aspect-[453/200]이지만 플렉스 아이템의 min-height:auto
+                  content-based minimum 이 작동해, 카드가 좁아 aspect 유도 높이가 110px 밑으로
+                  내려가면 박스가 아이콘에 맞춰 늘어난다. 따라서 아이콘이 박스를 넘치는 일은
+                  구조적으로 없다. 대신 그 구간에서는 453:200 비율이 지켜지지 않는다. */}
               <img
                 src={card.icon}
                 alt=""
                 aria-hidden="true"
-                className="h-34.5 w-34.5 object-contain"
+                className="h-27.5 w-27.5 object-contain"
               />
             </div>
             <p className={`mt-4 ${CARD_TITLE_CLASS}`}>{card.title}</p>

@@ -27,7 +27,12 @@ type StepItem = { title: string; desc: string };
 
 // 패딩은 시안 실효 pt 44 / pb 40 / px 30.5 → ×0.766 = 34 / 30 / 23.
 // radius 12는 스케일 미적용(rounded-xl 유지). 설명 색 #808080 → #767676 상향(회색 하한).
-const STEP_CARD_CLASS = "rounded-xl bg-[#F5F5F7] px-6 pb-7.5 pt-8.5";
+// 배경 — 원래 리터럴 #F5F5F7이었으나 같은 페이지에 있는 ServiceOutcomesPanel의
+// bg-surface-footer(#F9FAFB)와 미묘하게 달라 두 섹션이 서로 다른 회색으로 보였다
+// (목표관리 ManagementSection↔OutcomesSection, QA 행234). 기존에 더 많이 쓰이는
+// 정본 토큰(surface-footer) 쪽으로 통일했다 — 이 카드는 심화탐구・수행평가・자기평가・
+// 목표관리 4개 서비스 랜딩이 공용으로 쓰는 컴포넌트라 전부 같이 바뀐다.
+const STEP_CARD_CLASS = "rounded-xl bg-surface-footer px-6 pb-7.5 pt-8.5";
 
 function StepCard({ item }: { item: StepItem }) {
   return (
