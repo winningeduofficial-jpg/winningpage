@@ -2405,12 +2405,14 @@ export default function PerformanceChatPage() {
         open={designModalOpen}
         report={designReport}
         topicTitle={confirmedTopic?.title ?? undefined}
+        studentName={profileName}
         onClose={handleCloseDesignModal}
       />
       <EvaluationReportModal
         open={evaluationModalOpen}
         report={evaluationReport}
         topicTitle={confirmedTopic?.title ?? undefined}
+        studentName={profileName}
         onClose={handleCloseEvaluationModal}
       />
     </div>
