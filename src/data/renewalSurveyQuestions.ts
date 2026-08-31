@@ -135,6 +135,7 @@ export const renewalSurveyQuestions = [
       "자율형・사립고",
       "특목고",
       "특성화고",
+      "중학교",
       "기타",
       "해당 없음",
     ],
@@ -143,6 +144,7 @@ export const renewalSurveyQuestions = [
       "AUTONOMOUS",
       "SPECIAL",
       "VOCATIONAL",
+      "MIDDLE",
       "ETC",
       "NONE",
     ],
@@ -780,6 +782,10 @@ export const renewalSurveyQuestions = [
       "탐구는 많지만 성적이 부족해요",
       "모두 평균적인 수준이에요",
       "강점과 부족한 점을 모르겠어요",
+      // QA 행348 — "잘 모르겠어요" 추가. 위의 "강점과 부족한 점을 모르겠어요"와 별개 선택지지만
+      // 둘 다 '준비 상태를 판단하지 못함'이라는 같은 의미라 새 코드를 만들지 않고 기존 UNKNOWN을
+      // 그대로 재사용한다(JONGHAP_DELTA.UNKNOWN=-5, q18의 "잘 모르겠어요"와 동일 처리 원칙).
+      "잘 모르겠어요",
     ],
     optionCodes: [
       "CONNECTED",
@@ -787,6 +793,7 @@ export const renewalSurveyQuestions = [
       "GRADE_OK",
       "INQUIRY_OK",
       "AVERAGE",
+      "UNKNOWN",
       "UNKNOWN",
     ],
     extra: {},

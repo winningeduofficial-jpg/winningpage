@@ -241,6 +241,7 @@ export const OPTION_CODES = {
     "AUTONOMOUS",
     "SPECIAL",
     "VOCATIONAL",
+    "MIDDLE",
     "ETC",
     "NONE",
   ],
@@ -327,6 +328,8 @@ export const OPTION_CODES = {
     "GRADE_OK",
     "INQUIRY_OK",
     "AVERAGE",
+    "UNKNOWN",
+    // "잘 모르겠어요" 신설(QA 행348) — 기존 UNKNOWN 재사용(renewalSurveyQuestions.ts q17 주석 참고).
     "UNKNOWN",
   ],
   Q18: [
