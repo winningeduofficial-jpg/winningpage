@@ -87,6 +87,7 @@ interface SubmitError {
 interface CompletedOrder {
   id: string;
   amount: number;
+  parentName: string | null;
 }
 
 export default function StudentEnrollmentRequest() {
@@ -180,7 +181,12 @@ export default function StudentEnrollmentRequest() {
 
       let response: Response | undefined;
       let payload:
-        | { error?: string; orderId?: string; amount?: number }
+        | {
+            error?: string;
+            orderId?: string;
+            amount?: number;
+            parentName?: string | null;
+          }
         | undefined;
       try {
         response = await apiFetch("/api/request-enrollment", {
@@ -217,7 +223,11 @@ export default function StudentEnrollmentRequest() {
       // 서버가 실제로 만든 주문의 id/금액을 그대로 쓴다(표시가는 서버 신뢰값).
       // response.ok=true 경로에서 payload/orderId/amount는 기존에도 항상 있다고
       // 가정해온 값 — 타입만 좁힌다(런타임 동작 변경 없음, 실제 누락 가능성은 보고).
-      setCompletedOrder({ id: payload!.orderId!, amount: payload!.amount! });
+      setCompletedOrder({
+        id: payload!.orderId!,
+        amount: payload!.amount!,
+        parentName: payload!.parentName ?? null,
+      });
     } finally {
       setSubmitting(false);
     }
@@ -261,6 +271,16 @@ export default function StudentEnrollmentRequest() {
                   '1234567-1234567'은 더미다. 길어서 줄바꿈되도 값을 자르지 않는다. */}
               <dd className="min-w-0 break-all text-right text-[0.875rem] font-medium text-ink">
                 {completedOrder.id}
+              </dd>
+            </div>
+            {/* 연결된 학부모 — api/request-enrollment.ts 가 조회한 parentName을
+                그대로 표시만 한다(QA F2, 2026-08-27). */}
+            <div className="flex items-center justify-between gap-4 bg-white px-4 py-3">
+              <dt className="shrink-0 text-[0.875rem] font-medium text-ink">
+                연결된 학부모
+              </dt>
+              <dd className="min-w-0 break-all text-right text-[0.875rem] font-medium text-ink">
+                {completedOrder.parentName ?? "—"}
               </dd>
             </div>
             {/* 부가가치세 행 없음(사용자 확정) — orders 스키마엔 부가세 컬럼이
