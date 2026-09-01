@@ -25,37 +25,36 @@ import RefundApprovalModal from "./RefundApprovalModal";
 
 // 학부모 "결제 내역" 탭 — 확정 디자인 3967:3944(내용 있음) / 3967:4412(빈 상태).
 //
-// 세 섹션이 같은 5열 표를 쓴다. 학부모가 "지금 내가 할 일"을 위에서부터 보게
-// 하는 순서다 — 자녀가 올린 것(환불 요청 → 결제 요청)이 먼저고, 끝난 것이 뒤다.
+// "지난 결제내역" 제목 하나 아래 단일 표로 세 출처의 행을 합쳐 보여준다.
+// 학부모가 "지금 내가 할 일"을 위에서부터 보게 하는 순서로 합친다 — 자녀가
+// 올린 것(환불 요청 → 결제 요청)이 먼저고, 끝난 것이 뒤다. 각 행은 kind로
+// 구분하고 클릭·상태 배지 렌더링을 kind에 따라 분기한다.
 //
-//   1) 환불요청      자녀가 보낸 환불 요청(approval_status='requested').
+//   kind: "refund"   자녀가 보낸 환불 요청(approval_status='requested').
 //                    행을 누르면 확인 모달이 열리고 거기서 금액을 본다
 //                    (RefundApprovalModal — 학생 화면엔 금액이 없다).
-//   2) 결제 신청하기  자녀가 보낸 결제 요청(status='pending'). row 전체 클릭이
+//   kind: "pending"  자녀가 보낸 결제 요청(status='pending'). row 전체 클릭이
 //                    유일한 트리거이고, approval_status 와 무관하게 항상
 //                    승인/거절 확인 모달(EnrollmentRequestModal)을 먼저 연다 —
 //                    거기서 "결제 진행하기"를 눌러야 /checkout 으로 간다.
 //                    approved 인 건(수락까지 끝나고 결제창만 닫힌 경우)은 모달의
 //                    거절 버튼이 "닫기"로 바뀔 뿐, 모달을 거치는 건 동일하다.
-//   3) 지난 결제내역  결제가 끝난 주문(paid/waiting_deposit). 주문번호를 누르면
+//   kind: "history"  결제가 끝난 주문(paid/waiting_deposit). 주문번호를 누르면
 //                    기존 결제 상세 → 영수증/환불 신청 체인으로 이어진다.
+//
+// date 열은 승인 전(요청 시점)과 결제 완료(승인 시점) 행이 섞이므로 라벨을
+// "일시"로 통일한다(값 자체는 kind별로 다른 시점을 그대로 보여준다).
 //
 // 자녀 이름은 fn_parent_children(sql/73)으로만 얻을 수 있다 — profiles_select_own
 // 때문에 학부모가 자녀 프로필을 직접 못 읽는다.
 
 const TABLE_HEADERS = {
   id: "주문번호",
-  date: "승인 일시",
+  date: "일시",
   product: "상품",
   amount: "결제 금액",
   status: "상태",
 };
-
-// "환불요청"·"결제 신청하기" 섹션은 아직 학부모 응답 전(또는 응답만 끝나고
-// 결제 전) 건이라 "승인 일시"가 아니라 자녀가 요청을 보낸 시점을 보여준다.
-const PENDING_TABLE_HEADERS = { ...TABLE_HEADERS, date: "요청 일시" };
-
-const EMPTY_TEXT = "요청 사항이 없습니다.";
 
 type Order = {
   id: string;
@@ -80,6 +79,9 @@ type Order = {
     list_price?: number;
     price?: number;
     quantity?: number;
+    // 번들 구성 내역 표기(태스크6, bundleComposition.ts) 용 — useMyPageOrders.ts
+    // 와 동일 이유(그쪽 주석 참고).
+    product_id?: string | null;
   }[];
   list_amount?: number;
   discount_amount?: number;
@@ -147,7 +149,7 @@ export default function ParentPaymentsTab({
         // list_amount/discount_amount/coupon_redemptions — EnrollmentRequestModal의
         // "원금"/"할인 금액"/"쿠폰" 행 분해용(useMyPageOrders.ts와 동일 이유).
         .select(
-          "id, order_name, amount, status, approval_status, student_profile_id, created_at, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
+          "id, order_name, amount, status, approval_status, student_profile_id, created_at, order_items(name, list_price, price, quantity, product_id), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
         )
         .eq("parent_profile_id", uid)
         .eq("status", "pending")
@@ -198,77 +200,56 @@ export default function ParentPaymentsTab({
     setReceiptOrder(target);
   }
 
+  const rows = [
+    ...refundRequests.map((r) => ({
+      key: `refund-${r.id}`,
+      kind: "refund" as const,
+      // idFull은 optional(exactOptionalPropertyTypes) — order_id 없으면 키 자체를
+      // 생략한다. PaymentTable이 `idFull || idText`로 폴백하므로 동작은 동일하다.
+      ...(r.order_id !== undefined && { idFull: r.order_id }),
+      idText: formatOrderId(r.order_id),
+      dateText: formatApprovedAt(r.created_at),
+      // 부분해지 신청이면 대상 항목명만 나열한다 — order_name(전체 주문
+      // 상품명)을 그대로 쓰면 환불 대상이 아닌 항목까지 포함된 것처럼
+      // 보인다.
+      productText: refundTargetNames(r) || r.order_name || "",
+      amountText: formatKRW(r.gross_amount || r.amount),
+      raw: r,
+    })),
+    ...pendingOrders.map((o) => {
+      // student_profile_id가 없으면 nameById 조회를 건너뛴다(PaymentTableRow는
+      // productText가 필수라 undefined 대신 order_name/빈 문자열로 폴백한다).
+      const childName = o.student_profile_id
+        ? nameById[o.student_profile_id]
+        : undefined;
+      return {
+        key: `pending-${o.id}`,
+        kind: "pending" as const,
+        idFull: o.id,
+        idText: formatOrderId(o.id),
+        dateText: formatApprovedAt(o.created_at),
+        productText: childName
+          ? `${childName} · ${formatProductNames(o)}`
+          : formatProductNames(o),
+        amountText: formatKRW(o.amount),
+        raw: o,
+      };
+    }),
+    ...historyOrders.map((o) => ({
+      key: `order-${o.id}`,
+      kind: "history" as const,
+      idFull: o.id,
+      idText: formatOrderId(o.id),
+      dateText: formatApprovedAt(o.paid_at),
+      productText: formatProductNames(o),
+      amountText: formatKRW(o.amount),
+      ...(o.is_fake_entitlement && { note: "(개발용)" }),
+      raw: o,
+    })),
+  ];
+
   return (
     <div className="flex flex-col gap-18">
-      {/* 1) 환불요청 */}
-      <section>
-        <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
-          자녀의 환불요청
-        </h2>
-        <PaymentTable
-          headers={PENDING_TABLE_HEADERS}
-          emptyText={EMPTY_TEXT}
-          rows={refundRequests.map((r) => ({
-            key: `refund-${r.id}`,
-            // idFull은 optional(exactOptionalPropertyTypes) — order_id 없으면 키 자체를
-            // 생략한다. PaymentTable이 `idFull || idText`로 폴백하므로 동작은 동일하다.
-            ...(r.order_id !== undefined && { idFull: r.order_id }),
-            idText: formatOrderId(r.order_id),
-            dateText: formatApprovedAt(r.created_at),
-            // 부분해지 신청이면 대상 항목명만 나열한다 — order_name(전체 주문
-            // 상품명)을 그대로 쓰면 환불 대상이 아닌 항목까지 포함된 것처럼
-            // 보인다.
-            productText: refundTargetNames(r) || r.order_name || "",
-            amountText: formatKRW(r.gross_amount || r.amount),
-            raw: r,
-          }))}
-          onSelect={(row) => setApprovalRequest(row.raw as Refund)}
-          renderStatus={() => (
-            <PaymentStatusBadge status="refund_approval_pending" />
-          )}
-        />
-      </section>
-
-      {/* 2) 결제 신청하기 */}
-      <section>
-        <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
-          결제 신청하기
-        </h2>
-        <PaymentTable
-          headers={PENDING_TABLE_HEADERS}
-          emptyText={EMPTY_TEXT}
-          rows={pendingOrders.map((o) => {
-            // student_profile_id가 없으면 nameById 조회를 건너뛴다(PaymentTableRow는
-            // productText가 필수라 undefined 대신 order_name/빈 문자열로 폴백한다).
-            const childName = o.student_profile_id
-              ? nameById[o.student_profile_id]
-              : undefined;
-            return {
-              key: `pending-${o.id}`,
-              idFull: o.id,
-              idText: formatOrderId(o.id),
-              dateText: formatApprovedAt(o.created_at),
-              productText: childName
-                ? `${childName} · ${formatProductNames(o)}`
-                : formatProductNames(o),
-              amountText: formatKRW(o.amount),
-              raw: o,
-            };
-          })}
-          onSelect={(row) => setEnrollmentRequest(row.raw as Order)}
-          renderStatus={(row) => (
-            <PaymentStatusBadge
-              status={
-                (row.raw as Order).approval_status === "approved"
-                  ? "enrollment_approved"
-                  : "enrollment_requested"
-              }
-            />
-          )}
-        />
-      </section>
-
-      {/* 3) 지난 결제내역 */}
       <section>
         <h2 className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">
           지난 결제내역
@@ -276,22 +257,32 @@ export default function ParentPaymentsTab({
         <PaymentTable
           headers={TABLE_HEADERS}
           emptyText="결제 내역이 없습니다."
-          rows={historyOrders.map((o) => ({
-            key: `order-${o.id}`,
-            idFull: o.id,
-            idText: formatOrderId(o.id),
-            dateText: formatApprovedAt(o.paid_at),
-            productText: formatProductNames(o),
-            amountText: formatKRW(o.amount),
-            ...(o.is_fake_entitlement && { note: "(개발용)" }),
-            raw: o,
-          }))}
-          onSelect={(row) => setDetailOrder(row.raw as Order)}
-          renderStatus={(row) => (
-            <PaymentStatusBadge
-              status={resolveOrderStatus(row.raw as Order, refunds)}
-            />
-          )}
+          rows={rows}
+          onSelect={(row) => {
+            if (row.kind === "refund") setApprovalRequest(row.raw as Refund);
+            else if (row.kind === "pending")
+              setEnrollmentRequest(row.raw as Order);
+            else setDetailOrder(row.raw as Order);
+          }}
+          renderStatus={(row) => {
+            if (row.kind === "refund")
+              return <PaymentStatusBadge status="refund_approval_pending" />;
+            if (row.kind === "pending")
+              return (
+                <PaymentStatusBadge
+                  status={
+                    (row.raw as Order).approval_status === "approved"
+                      ? "enrollment_approved"
+                      : "enrollment_requested"
+                  }
+                />
+              );
+            return (
+              <PaymentStatusBadge
+                status={resolveOrderStatus(row.raw as Order, refunds)}
+              />
+            );
+          }}
         />
       </section>
 

@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import ModalFooter from "@/components/mypage/modal/ModalFooter";
+import RefundAmountSummary from "@/components/mypage/modal/RefundAmountSummary";
+import RejectReasonField from "@/components/mypage/modal/RejectReasonField";
 import RefundAccountFields from "@/components/mypage/RefundAccountFields";
 import { formatKRW } from "@/data/pricingCatalog";
 import type { VirtualAccountInfo } from "@/hooks/usePaymentConfirmation";
@@ -81,7 +84,6 @@ export default function RefundApprovalModal({
   onClose,
   onResponded,
 }: RefundApprovalModalProps) {
-  const titleId = useId();
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -195,25 +197,69 @@ export default function RefundApprovalModal({
     <MyPageModalShell
       open={open}
       onClose={onClose}
-      labelledBy={titleId}
-      className="w-104"
-    >
-      <div className="flex-1 overflow-y-auto px-6 pt-8">
-        <h2
-          id={titleId}
-          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title"
-        >
-          환불 요청을 확인해주세요
-        </h2>
-
-        <p className="mt-4 break-keep text-center text-[0.8125rem] leading-[1.6] text-ink-sub">
+      size="sm"
+      title="환불 요청을 확인해주세요"
+      subtitle={
+        <>
           {childName
             ? `${childName} 학생이 환불을 요청했어요.`
             : "자녀가 환불을 요청했어요."}
           <br />
           승인하면 검토 후 결제하신 수단으로 환급됩니다.
-        </p>
-
+        </>
+      }
+      footer={
+        rejecting ? (
+          <ModalFooter
+            buttons={[
+              {
+                key: "cancel",
+                label: "취소",
+                variant: "neutral",
+                onClick: () => {
+                  setRejecting(false);
+                  setRejectReason("");
+                  setErrorMsg("");
+                },
+              },
+              {
+                key: "reject",
+                label: saving ? "처리 중..." : "반려하기",
+                variant: "destructive",
+                disabled: saving,
+                onClick: () => respond(false),
+              },
+            ]}
+          />
+        ) : (
+          <ModalFooter
+            buttons={[
+              {
+                key: "close",
+                label: "닫기",
+                variant: "neutral",
+                onClick: onClose,
+              },
+              {
+                key: "reject",
+                label: "반려",
+                variant: "destructive-outline",
+                disabled: saving,
+                onClick: () => setRejecting(true),
+              },
+              {
+                key: "approve",
+                label: saving ? "처리 중..." : "환불 승인",
+                variant: "primary",
+                disabled: saving || !accountFieldsValid,
+                onClick: () => respond(true),
+              },
+            ]}
+          />
+        )
+      }
+    >
+      <div className="flex-1 overflow-y-auto px-6">
         <div className="mt-6">
           <p
             className="truncate text-[0.9375rem] font-semibold text-ink"
@@ -247,33 +293,7 @@ export default function RefundApprovalModal({
             </div>
           )}
 
-          <div className="mt-3 flex flex-col gap-2">
-            {gross !== null && (
-              <>
-                <div className="flex items-center justify-between text-[0.875rem]">
-                  <span className="text-ink-sub">결제 금액</span>
-                  <span className="text-ink-strong">{formatKRW(gross)}</span>
-                </div>
-                <div className="flex items-center justify-between text-[0.875rem]">
-                  {/* ⚠ 신규 카피 — RefundRequestModal 쪽도 같은 교체가 동시
-                      진행 중이다. */}
-                  <span className="text-ink-sub">이용분 공제</span>
-                  <span className="text-error">
-                    {/* fee는 feeBase와 동일 조건(feeBase===null?null:...)으로
-                        계산돼 gross!==null 블록 안에서는 항상 non-null이다
-                        (isPartial 이 아니면 feeBase===gross). */}
-                    {fee! > 0 ? `-${formatKRW(fee!)}` : formatKRW(0)}
-                  </span>
-                </div>
-              </>
-            )}
-            <div className="flex items-center justify-between border-t border-line pt-2 text-[0.9375rem] font-semibold">
-              {/* 약관 [별표 2] 최종 단계 문언 "최종 환불액" 그대로
-                  (사용자 확정 2026-09-01). */}
-              <span className="text-ink">최종 환불액</span>
-              <span className="text-ink-strong">{formatKRW(refund)}</span>
-            </div>
-          </div>
+          <RefundAmountSummary gross={gross} fee={fee} refund={refund} />
 
           {request.reason && (
             <p className="mt-4 break-keep rounded-xl bg-surface-04 px-4 py-3 text-[0.8125rem] leading-relaxed text-ink-sub">
@@ -294,62 +314,15 @@ export default function RefundApprovalModal({
         )}
 
         {rejecting && (
-          <textarea
-            rows={2}
+          <RejectReasonField
             value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
+            onChange={setRejectReason}
             placeholder="반려 사유를 입력해 주세요."
-            className="mt-4 w-full resize-none rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink outline-hidden focus:border-accent"
           />
         )}
 
         {errorMsg && (
           <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 px-6 py-5">
-        {rejecting ? (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setRejecting(false);
-                setRejectReason("");
-                setErrorMsg("");
-              }}
-              className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={() => respond(false)}
-              disabled={saving}
-              className="h-12 rounded-xl bg-error text-[0.875rem] font-semibold text-white transition hover:bg-error/90 disabled:opacity-60"
-            >
-              {saving ? "처리 중..." : "반려하기"}
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => setRejecting(true)}
-              disabled={saving}
-              className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30 disabled:opacity-60"
-            >
-              반려
-            </button>
-            <button
-              type="button"
-              onClick={() => respond(true)}
-              disabled={saving || !accountFieldsValid}
-              className="h-12 rounded-xl bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-            >
-              {saving ? "처리 중..." : "환불 승인"}
-            </button>
-          </>
         )}
       </div>
     </MyPageModalShell>

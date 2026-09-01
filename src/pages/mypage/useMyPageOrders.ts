@@ -34,6 +34,10 @@ export type Order = {
     list_price?: number;
     price?: number;
     quantity?: number;
+    // 번들 구성 내역 표기(태스크6, bundleComposition.ts)용 — 이 항목이
+    // bundle_items를 가진 products 행을 가리키면 영수증·결제 상세에 구성
+    // 라인을 덧붙인다.
+    product_id?: string | null;
   }[];
   list_amount?: number;
   discount_amount?: number;
@@ -100,7 +104,7 @@ export function useMyPageOrders(user: SessionUser | null) {
         // 쿠폰명 노출용 — coupons는 public read가 is_active=true 행만 통과시키므로
         // 비활성 쿠폰이면 embed가 null로 온다(코드에서 폴백 처리).
         .select(
-          "id, order_name, amount, paid_at, status, approval_status, reject_reason, method, vat:raw->>vat, card:raw->card, virtual_account:raw->virtualAccount, easy_pay:raw->easyPay, approved_at:raw->>approvedAt, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
+          "id, order_name, amount, paid_at, status, approval_status, reject_reason, method, vat:raw->>vat, card:raw->card, virtual_account:raw->virtualAccount, easy_pay:raw->easyPay, approved_at:raw->>approvedAt, order_items(name, list_price, price, quantity, product_id), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
         )
         // 쌍 구조(sql/68) — orders.user_id 는 **결제한 사람(학부모)** 축이다.
         // 학생은 student_profile_id 에만 박히므로 user_id 로만 조회하면 학생

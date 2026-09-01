@@ -1,6 +1,7 @@
-import { useId } from "react";
 import OrderAmountBreakdown from "@/components/mypage/OrderAmountBreakdown";
 import MyPageModalShell from "./MyPageModalShell";
+import InfoRowList from "./modal/InfoRowList";
+import ModalFooter from "./modal/ModalFooter";
 
 // 결제 상세 내역 모달 (Figma 3665:6278).
 //
@@ -53,6 +54,9 @@ type PaymentOrder = {
     list_price?: number;
     price?: number;
     quantity?: number;
+    // 번들 구성 내역 표기(태스크6, bundleComposition.ts) — OrderAmountBreakdown이
+    // 소비한다.
+    product_id?: string | null;
   }[];
   list_amount?: number;
   discount_amount?: number;
@@ -80,8 +84,6 @@ export default function PaymentDetailModal({
   onRequestRefund,
   onViewReceipt,
 }: PaymentDetailModalProps) {
-  const titleId = useId();
-
   if (!open || !order) return null;
 
   // 주문 메타(주문번호/결제 수단/승인 일시/결제 상태)를 위에 몰고, 금액 분해
@@ -126,35 +128,44 @@ export default function PaymentDetailModal({
     <MyPageModalShell
       open={open}
       onClose={onClose}
-      labelledBy={titleId}
-      className="w-135"
+      size="md"
+      title="결제 상세 내역"
+      footer={
+        <ModalFooter
+          buttons={[
+            {
+              key: "close",
+              label: "닫기",
+              variant: "neutral",
+              onClick: onClose,
+            },
+            ...(canRequestRefund
+              ? [
+                  {
+                    key: "refund",
+                    label: "환불 신청",
+                    variant: "destructive-outline" as const,
+                    onClick: onRequestRefund,
+                  },
+                ]
+              : []),
+            ...(canViewReceipt
+              ? [
+                  {
+                    key: "receipt",
+                    label: "영수증 보기",
+                    variant: "primary" as const,
+                    onClick: onViewReceipt,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      }
     >
-      <div className="flex-1 overflow-y-auto px-8.75 pt-10">
-        <h2
-          id={titleId}
-          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong"
-        >
-          결제 상세 내역
-        </h2>
-
+      <div className="flex-1 overflow-y-auto px-8.75">
         <dl className="mt-7.5 flex flex-col pb-7.5">
-          {metaRows.map((row, i) => (
-            <div
-              // biome-ignore lint/suspicious/noArrayIndexKey: 파생 표시 행이라 고유 id가 없고 재정렬·삽입 없이 통째로 다시 그린다 — 같은 라벨이 반복될 수 있어 인덱스로 구분한다.
-              key={`${row.label}-${i}`}
-              className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
-            >
-              <dt className="shrink-0 text-[0.875rem] text-ink-sub">
-                {row.label}
-              </dt>
-              <dd
-                className="truncate text-right text-[0.875rem] text-ink-strong"
-                title={row.value}
-              >
-                {row.value}
-              </dd>
-            </div>
-          ))}
+          <InfoRowList rows={metaRows} />
           <div className="py-3.75">
             <OrderAmountBreakdown
               order={order}
@@ -163,34 +174,6 @@ export default function PaymentDetailModal({
             />
           </div>
         </dl>
-      </div>
-
-      <div className="flex justify-center gap-3 border-t border-[#F0F0F0] px-8.75 py-6.25">
-        <button
-          type="button"
-          onClick={onClose}
-          className="h-10 w-33 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
-        >
-          닫기
-        </button>
-        {canRequestRefund && (
-          <button
-            type="button"
-            onClick={onRequestRefund}
-            className="h-10 w-33 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-error transition-colors hover:bg-surface-04"
-          >
-            환불 신청
-          </button>
-        )}
-        {canViewReceipt && (
-          <button
-            type="button"
-            onClick={onViewReceipt}
-            className="h-10 w-33 rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
-          >
-            영수증 보기
-          </button>
-        )}
       </div>
     </MyPageModalShell>
   );

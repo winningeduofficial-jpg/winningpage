@@ -1,5 +1,6 @@
-import { useId } from "react";
 import MyPageModalShell from "./MyPageModalShell";
+import InfoRowList from "./modal/InfoRowList";
+import ModalFooter from "./modal/ModalFooter";
 
 // 학생 "신청 상세 내역" 모달 (Figma 3967:3571, 583×376).
 //
@@ -48,8 +49,6 @@ export default function StudentRequestDetailModal({
   onClose,
   onRequestRefund,
 }: StudentRequestDetailModalProps) {
-  const titleId = useId();
-
   if (!open || !order) return null;
 
   const isSuperseded = order.approval_status === "superseded";
@@ -83,17 +82,32 @@ export default function StudentRequestDetailModal({
     <MyPageModalShell
       open={open}
       onClose={onClose}
-      labelledBy={titleId}
-      className="w-135"
+      size="md"
+      title="신청 상세 내역"
+      footer={
+        <ModalFooter
+          buttons={[
+            {
+              key: "close",
+              label: "닫기",
+              variant: "neutral",
+              onClick: onClose,
+            },
+            ...(showRefundButton
+              ? [
+                  {
+                    key: "refund",
+                    label: "환불 신청",
+                    variant: "primary" as const,
+                    onClick: onRequestRefund,
+                  },
+                ]
+              : []),
+          ]}
+        />
+      }
     >
-      <div className="flex-1 overflow-y-auto px-8.75 pt-10">
-        <h2
-          id={titleId}
-          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong"
-        >
-          신청 상세 내역
-        </h2>
-
+      <div className="flex-1 overflow-y-auto px-8.75">
         {isSuperseded && (
           <p className="mt-5 rounded-lg bg-surface-04 px-4 py-3 text-center text-[0.875rem] text-ink-sub">
             학부모님이 다른 상품으로 결제하셨어요.
@@ -101,39 +115,8 @@ export default function StudentRequestDetailModal({
         )}
 
         <dl className="mt-7.5 flex flex-col pb-7.5">
-          {rows.map((row) => (
-            <div
-              key={row.label}
-              className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
-            >
-              <dt className="shrink-0 text-[0.875rem] text-ink-sub">
-                {row.label}
-              </dt>
-              <dd className="truncate text-right text-[0.875rem] text-ink-strong">
-                {row.value}
-              </dd>
-            </div>
-          ))}
+          <InfoRowList rows={rows} />
         </dl>
-      </div>
-
-      <div className="flex justify-center gap-3 border-t border-[#F0F0F0] px-8.75 py-6.25">
-        <button
-          type="button"
-          onClick={onClose}
-          className="h-10 w-33 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
-        >
-          닫기
-        </button>
-        {showRefundButton && (
-          <button
-            type="button"
-            onClick={onRequestRefund}
-            className="h-10 w-33 rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
-          >
-            환불 신청
-          </button>
-        )}
       </div>
     </MyPageModalShell>
   );

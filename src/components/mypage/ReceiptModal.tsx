@@ -1,10 +1,3 @@
-import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import {
-  Dialog,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { COMPANY } from "@/data/company";
 import { formatKRW } from "@/data/pricingCatalog";
 import type {
@@ -19,13 +12,19 @@ import {
   installmentLabel,
   methodLabel,
 } from "@/lib/paymentReceiptFormat";
+import { useBundleCompositionMap } from "./bundleComposition";
+import MyPageModalShell from "./MyPageModalShell";
+import ModalFooter from "./modal/ModalFooter";
 import { formatProductNames } from "./paymentRows";
 
 // 결제 영수증 모달 (Figma 3762:19227).
-// AppModal(src/components/goal/AppModal.jsx)은 하단 취소/저장 버튼이 항상 어두운 단색(#2E2A26)
-// 고정이라 이 모달의 "인쇄 하기" 버튼(bg-primary)과 스타일이 어긋난다 — team-lead 지침대로
-// 재사용하지 않고 이 파일에서 독립 구현한다. ESC 닫기·포커스 트랩·배경 스크롤 잠금·트리거
-// 포커스 복귀는 이제 shadcn Dialog(Base UI) 내장 동작으로 처리한다(수동 useEffect 3개 제거).
+//
+// 예전엔 AppModal(취소/저장 버튼이 항상 어두운 단색 #2E2A26 고정)과 스타일이
+// 어긋나 team-lead 지침대로 이 파일에서 Popup을 직접 조립해 독립 구현했다.
+// 지금은 결제 탭 모달 6종 통일 작업(2026-09)으로 그 인라인 조립을 걷어내고
+// MyPageModalShell(다른 결제 탭 모달들과 동일 셸)을 쓴다 — ESC 닫기·포커스
+// 트랩·배경 스크롤 잠금·트리거 포커스 복귀는 여전히 shadcn Dialog(Base UI)
+// 내장 동작이 처리한다.
 //
 // 카드/마켓 영수증 형태로 개편(QA 요청) — 판매자/상품/결제수단/금액 4블록을 점선으로
 // 구분한다. 승인번호는 카드 결제만 있는 값이라 필수로 보여주되(카드 결제 건에서
@@ -34,7 +33,7 @@ import { formatProductNames } from "./paymentRows";
 // 실제로 없는 데이터를 있는 것처럼 보이면 안 된다(팀 리드 지침).
 type ReceiptOrder = {
   order_name?: string;
-  order_items?: { name: string }[] | null;
+  order_items?: { name: string; product_id?: string | null }[] | null;
   method?: string | null;
   amount: number;
   vat?: number | string | null;
@@ -125,9 +124,13 @@ function buildAmountBreakdownRows(order: ReceiptOrder): ReceiptRow[] {
 function ReceiptSection({
   rows,
   dashedTop,
+  note,
 }: {
   rows: ReceiptRow[];
   dashedTop: boolean;
+  // 번들 구성 내역(태스크6) — 금액 없는 들여쓰기 보조 텍스트 행. 상품명 행
+  // 바로 아래에만 붙는다(현재 이 섹션을 쓰는 곳은 구매 상품 섹션뿐).
+  note?: string[];
 }) {
   if (rows.length === 0) return null;
   return (
@@ -137,14 +140,24 @@ function ReceiptSection({
       }`}
     >
       {rows.map((row) => (
-        <div
-          key={row.label}
-          className="flex items-center justify-between gap-4"
-        >
-          <dt className="shrink-0 text-[0.875rem] text-ink-sub">{row.label}</dt>
-          <dd className="truncate text-right text-[0.875rem] text-ink-strong">
-            {row.value}
-          </dd>
+        <div key={row.label}>
+          <div className="flex items-center justify-between gap-4">
+            <dt className="shrink-0 text-[0.875rem] text-ink-sub">
+              {row.label}
+            </dt>
+            <dd className="truncate text-right text-[0.875rem] text-ink-strong">
+              {row.value}
+            </dd>
+          </div>
+          {note && note.length > 0 && (
+            <div className="mt-1.5 flex flex-col gap-0.5 pl-3">
+              {note.map((line) => (
+                <p key={line} className="text-right text-xs text-ink-sub">
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -156,7 +169,18 @@ export default function ReceiptModal({
   onClose,
   order,
 }: ReceiptModalProps) {
+  // Hooks must run unconditionally — order/open 가드보다 위에 둔다(order가
+  // null이면 productIds가 빈 배열이라 훅 내부에서 조용히 빈 map을 돌려준다).
+  const productIds = (order?.order_items ?? []).map((item) => item.product_id);
+  const bundleMap = useBundleCompositionMap(productIds);
+
   if (!open || !order) return null;
+
+  // 이 주문에 담긴 모든 항목의 구성 라인을 순서대로 이어 붙인다 — 번들 아닌
+  // 주문(bundleMap이 빈 상태)은 flatMap 결과가 빈 배열이라 note가 안 보인다.
+  const bundleNote = (order.order_items ?? []).flatMap(
+    (item) => bundleMap.get(item.product_id || "") ?? [],
+  );
 
   const sellerRows = buildSellerRows();
   const productRows = buildProductRows(order);
@@ -168,63 +192,50 @@ export default function ReceiptModal({
   };
 
   return (
-    <Dialog
-      open
-      onOpenChange={(next) => {
-        if (!next) onClose?.();
-      }}
+    <MyPageModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title="결제 영수증"
+      footer={
+        <ModalFooter
+          buttons={[
+            {
+              key: "close",
+              label: "닫기",
+              variant: "neutral",
+              onClick: onClose,
+            },
+            {
+              key: "print",
+              label: "인쇄 하기",
+              variant: "primary",
+              onClick: () => window.print(),
+            },
+          ]}
+        />
+      }
     >
-      <DialogPortal>
-        <DialogOverlay className="bg-black/40" />
-        <DialogPrimitive.Popup
-          data-slot="dialog-content"
-          // Base UI Popup은 aria-modal을 자동 배선하지 않는다 — 리터럴로 명시.
-          aria-modal="true"
-          className="fixed top-1/2 left-1/2 z-100 flex max-h-[90vh] w-[min(calc(100%-2rem),33.75rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-xl bg-white shadow-[0_24px_60px_rgba(0,0,0,0.24)] outline-none"
-        >
-          {/* 시안(3762:19227)에는 우상단 X 닫기 버튼이 없다 — 하단 닫기/인쇄 버튼만 유지하고
-              ESC·배경 클릭 닫기(Base UI Dialog 내장)는 그대로 둔다. */}
-          <div className="flex-1 overflow-y-auto px-8.75 pt-10">
-            <DialogTitle className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-strong">
-              결제 영수증
-            </DialogTitle>
-
-            <dl className="mt-7.5 flex flex-col pb-8.75">
-              <ReceiptSection rows={sellerRows} dashedTop={false} />
-              <ReceiptSection rows={productRows} dashedTop />
-              <ReceiptSection rows={paymentRows} dashedTop />
-              <ReceiptSection rows={breakdownRows} dashedTop />
-              {/* 합계 — 위 세 블록과 점선으로 구분하고, 총 결제 금액은 굵게
-                  강조해 마켓·카드 영수증의 관행적인 합계 표기를 따른다. */}
-              <div className="flex items-center justify-between gap-4 border-t border-dashed border-line pt-3.75">
-                <dt className="text-[0.9375rem] font-semibold text-ink">
-                  {totalRow.label}
-                </dt>
-                <dd className="text-right text-[0.9375rem] font-bold text-ink-strong">
-                  {totalRow.value}
-                </dd>
-              </div>
-            </dl>
+      {/* 시안(3762:19227)에는 우상단 X 닫기 버튼이 없다 — 하단 닫기/인쇄 버튼만 유지하고
+          ESC·배경 클릭 닫기(Base UI Dialog 내장)는 그대로 둔다. */}
+      <div className="flex-1 overflow-y-auto px-8.75">
+        <dl className="mt-7.5 flex flex-col pb-8.75">
+          <ReceiptSection rows={sellerRows} dashedTop={false} />
+          <ReceiptSection rows={productRows} dashedTop note={bundleNote} />
+          <ReceiptSection rows={paymentRows} dashedTop />
+          <ReceiptSection rows={breakdownRows} dashedTop />
+          {/* 합계 — 위 세 블록과 점선으로 구분하고, 총 결제 금액은 굵게
+              강조해 마켓·카드 영수증의 관행적인 합계 표기를 따른다. */}
+          <div className="flex items-center justify-between gap-4 border-t border-dashed border-line pt-3.75">
+            <dt className="text-[0.9375rem] font-semibold text-ink">
+              {totalRow.label}
+            </dt>
+            <dd className="text-right text-[0.9375rem] font-bold text-ink-strong">
+              {totalRow.value}
+            </dd>
           </div>
-
-          <div className="flex justify-center gap-3 border-t border-[#F0F0F0] px-8.75 py-6.25">
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-10 w-33 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
-            >
-              닫기
-            </button>
-            <button
-              type="button"
-              onClick={() => window.print()}
-              className="h-10 w-33 rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
-            >
-              인쇄 하기
-            </button>
-          </div>
-        </DialogPrimitive.Popup>
-      </DialogPortal>
-    </Dialog>
+        </dl>
+      </div>
+    </MyPageModalShell>
   );
 }

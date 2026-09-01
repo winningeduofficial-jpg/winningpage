@@ -4,6 +4,7 @@ import {
   type DiscountOrderInput,
 } from "@/components/mypage/paymentRows";
 import { formatKRW } from "@/data/pricingCatalog";
+import { useBundleCompositionMap } from "./bundleComposition";
 
 // 영수증형 금액 구조 — Carbon Design System의 order summary 템플릿 패턴을 따른다:
 // "결제 항목" 섹션 → "할인" 섹션(없으면 통째로 생략) → 굵은 구분선 → 원금/할인액
@@ -29,31 +30,46 @@ function Row({
   value,
   emphasize,
   bold,
+  sublines,
 }: {
   label: string;
   value: string;
   emphasize?: boolean;
   bold?: boolean;
+  // 번들 구성 내역(태스크6) — 금액 없는 들여쓰기 보조 텍스트 행. 이 상품
+  // 행에만 붙고, 값이 없으면 아무것도 렌더하지 않는다.
+  sublines?: string[] | undefined;
 }) {
   return (
-    <div className="mt-2 flex items-center justify-between gap-3 text-[0.9375rem]">
-      <span
-        className={`truncate ${bold ? "font-bold text-ink-strong" : "text-ink"}`}
-        title={label}
-      >
-        {label}
-      </span>
-      <span
-        className={`shrink-0 ${
-          emphasize
-            ? "font-semibold text-primary"
-            : bold
-              ? "text-[1.0625rem] font-bold text-ink-strong"
-              : "font-semibold text-ink-strong"
-        }`}
-      >
-        {value}
-      </span>
+    <div>
+      <div className="mt-2 flex items-center justify-between gap-3 text-[0.9375rem]">
+        <span
+          className={`truncate ${bold ? "font-bold text-ink-strong" : "text-ink"}`}
+          title={label}
+        >
+          {label}
+        </span>
+        <span
+          className={`shrink-0 ${
+            emphasize
+              ? "font-semibold text-primary"
+              : bold
+                ? "text-[1.0625rem] font-bold text-ink-strong"
+                : "font-semibold text-ink-strong"
+          }`}
+        >
+          {value}
+        </span>
+      </div>
+      {sublines && sublines.length > 0 && (
+        <div className="mt-1 flex flex-col gap-0.5 pl-3">
+          {sublines.map((line) => (
+            <span key={line} className="text-[0.8125rem] text-ink-sub">
+              {line}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -68,6 +84,13 @@ export default function OrderAmountBreakdown({
 
   const hasDiscount = discountTotal > 0;
 
+  // 번들 구성 내역(태스크6) — itemRows는 order.order_items와 같은 순서·같은
+  // 길이로 만들어진다(computeDiscountBreakdown의 .map()) 그래서 인덱스로
+  // product_id를 짝지을 수 있다. 번들 아닌 주문은 bundleMap이 빈 채로
+  // 남아 sublines가 항상 undefined라 화면이 그대로다.
+  const productIds = (order.order_items ?? []).map((item) => item.product_id);
+  const bundleMap = useBundleCompositionMap(productIds);
+
   return (
     <div>
       <SectionLabel>결제 항목</SectionLabel>
@@ -78,6 +101,7 @@ export default function OrderAmountBreakdown({
             key={`item-${row.label}-${i}`}
             label={row.label}
             value={row.amountText}
+            sublines={bundleMap.get(order.order_items?.[i]?.product_id || "")}
           />
         ))
       ) : (
