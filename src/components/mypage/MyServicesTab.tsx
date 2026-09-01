@@ -8,6 +8,10 @@ import {
   SURVEY_FIRST_STEP_PATH,
   SURVEY_REPORT_PATH,
 } from "@/lib/renewalSurvey";
+import {
+  type BundleGrantSpecRow,
+  useBundleGrantSpecMap,
+} from "./bundleComposition";
 import ServiceCard from "./ServiceCard";
 
 /**
@@ -57,7 +61,7 @@ type Order = {
   paid_at?: string | null;
   status?: string | null;
   is_fake_entitlement?: boolean;
-  order_items?: { name: string }[] | null;
+  order_items?: { name: string; product_id?: string | null }[] | null;
 };
 
 type ServiceCategory = "session" | "diagnosis" | "duration";
@@ -151,19 +155,65 @@ function classifyService(serviceName: string): ServiceCategory {
   return "duration";
 }
 
-// 목표관리만 실제 앱(/app/goal) 진입이 가능하고, 나머지는 아직 개인화된 대시보드 라우트가
-// 없어 서비스 소개 페이지로 보낸다. 무료진단 "다시 검사하기"는 설문 진입 라우트로 별도 처리.
+// 목표관리·수행평가는 실제 앱(/app/goal, /app/performance) 진입이 가능하고, 나머지는
+// 아직 개인화된 대시보드 라우트가 없어 서비스 소개 페이지로 보낸다(수행평가 하드 전환
+// 완료, performanceAppRoutes.tsx — /app/performance가 인덱스 경로). 무료진단
+// "다시 검사하기"는 설문 진입 라우트로 별도 처리.
 function programLink(serviceName: string) {
   if (serviceName.includes("목표관리")) return "/app/goal";
+  if (serviceName.includes("수행평가")) return "/app/performance";
   const matched = SERVICE_INTRO_ROUTES.find((route) => route.test(serviceName));
   return matched ? matched.href : "/services";
 }
+
+// 번들 구성 권한(program_key) → order_name 대괄호 표기 합성 함수. 위 파서
+// (DURATION_BRACKET_RE·MONTHS_RE·COUNT_RE)가 그대로 먹는 형태로 만들어 기존
+// 단품 주문과 동일한 분류·표시 경로를 태운다(마이페이지 QA, 2026-09-01).
+// diagnose는 부산 번들 구성이 항상 1회·30일 유효라 단품 diagnose-1 상품명
+// ("[이용권] 위닝 학습진단", 20260821000004)을 그대로 재사용한다 — 진단
+// 카테고리는 이 표기에서 개월/회차를 읽지 않으므로(paidAt 완료일만 표시)
+// 지어낼 필요가 없다. target/suhaeng은 bundle_items 값(개월수·회차)을 그대로
+// 대괄호에 담아 동적으로 조립한다.
+const BUNDLE_ORDER_NAME_BY_PROGRAM_KEY: Record<
+  string,
+  (spec: BundleGrantSpecRow) => string
+> = {
+  diagnose: () => "[이용권] 위닝 학습진단",
+  target: (spec) => `[${spec.duration_months}개월] 위닝 목표관리`,
+  suhaeng: (spec) => {
+    const parts: string[] = [];
+    if (spec.duration_months) parts.push(`${spec.duration_months}개월`);
+    if (spec.session_quota) parts.push(`${spec.session_quota}회`);
+    return `[${parts.join(" ")}] 위닝 수행평가`;
+  },
+};
 
 // order_items가 2건 이상인 주문(여러 상품을 한 번에 결제한 경우)은 order_name이
 // "대표 상품명 외 N건"으로 뭉개져 있어 항목별로 쪼갠다. 1건 이하면 기존 order_name
 // 파싱 경로를 그대로 쓴다 — order_items가 정확히 1건일 때는 order_name의 대괄호
 // 기간 표기가 그 1건에 대한 것이라 그대로 유지해야 정보 손실이 없다.
-function expandOrder(order: Order): Order[] {
+//
+// 다만 그 1건이 번들 상품(bundle_items를 가진 product_id)이면 order_name은
+// "9,900원 부산캠퍼스 특별할인 학습관리 서비스" 하나뿐이라 이 규칙대로 두면
+// 카드 1장 + classifyService 미매칭으로 빠진다(마이페이지 QA). bundleSpecs가
+// 있으면 구성 권한 수만큼 가상 항목으로 먼저 전개한다.
+function expandOrder(order: Order, bundleSpecs: BundleGrantSpecRow[]): Order[] {
+  if (bundleSpecs.length > 0) {
+    return bundleSpecs.map((spec) => {
+      const build = BUNDLE_ORDER_NAME_BY_PROGRAM_KEY[spec.program_key];
+      return {
+        id: `${order.id}:${spec.program_key}`,
+        // 매핑에 없는 program_key는 지어내지 않고 원본 order_name을 그대로
+        // 둔다 — bundle_items 확장 시 새 program_key가 추가돼도 조용히
+        // 틀린 표기를 보여주지 않는다.
+        order_name: build ? build(spec) : (order.order_name ?? null),
+        paid_at: order.paid_at ?? null,
+        status: order.status ?? null,
+        is_fake_entitlement: order.is_fake_entitlement ?? false,
+      };
+    });
+  }
+
   const items = order.order_items;
   if (!items || items.length <= 1) return [order];
   return items.map((item, index) => ({
@@ -442,11 +492,26 @@ export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
     (order) => order.status === "paid" || order.is_fake_entitlement,
   );
 
+  // order_items가 정확히 1건인 주문만 번들 후보다(2건 이상이면 기존
+  // 항목별 분리 경로를 쓴다 — 위 expandOrder 주석 참고).
+  const soleProductId = (order: Order) =>
+    order.order_items?.length === 1
+      ? (order.order_items[0]?.product_id ?? null)
+      : null;
+
+  // 번들 상품의 구성 권한 원값 — expandOrder가 카드를 서비스별로 쪼개는 데
+  // 쓴다. usableOrders 필터 전에 훅을 불러야 아래 조기 반환(EmptyState)과
+  // 상관없이 항상 같은 순서로 호출된다(React hooks 규칙).
+  const bundleProductIds = usableOrders.map(soleProductId).filter(Boolean);
+  const bundleSpecMap = useBundleGrantSpecMap(bundleProductIds);
+
   if (!usableOrders.length) {
     return <EmptyState />;
   }
 
-  const displayOrders = usableOrders.flatMap(expandOrder);
+  const displayOrders = usableOrders.flatMap((order) =>
+    expandOrder(order, bundleSpecMap.get(soleProductId(order) ?? "") ?? []),
+  );
   const parsedOrders = displayOrders.map(parseOrder);
   const groupedOrders = groupOrdersByService(parsedOrders);
   const cards = groupedOrders.map(({ representative, paymentCount }) =>
