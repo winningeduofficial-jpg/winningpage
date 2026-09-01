@@ -1235,6 +1235,138 @@ try {
     await page.keyboard.press("Escape").catch(() => {});
     await context.close();
   }
+
+  // ===========================================================================
+  // UI 시나리오 20 — 학생 "신청 내역"을 학부모 "결제 내역" 형식으로 통일
+  // (B안, 2026-09-01): 표 4열(주문번호/일시/상품/상태, 금액 열 제거)·학부모
+  // 배지 어휘 재사용·PaymentDetailModal asStudent 공유(금액 비표시, 신청자·
+  // 결제담당 유지, 번들 구성 부속 라인 표시). 학부모 5열 표는 회귀 없이
+  // 그대로인지 S14가 이미 검증한다(별도 확인 불필요).
+  // ===========================================================================
+  const parent20 = await mkUser("s20-parent", "parent");
+  const student20 = await mkUser("s20-student", "student", "위닝부산캠퍼스");
+  await linkPair(parent20, student20);
+  const order20paid = `order_${RUN_TAG}_stdpaid`;
+  const order20pending = `order_${RUN_TAG}_stdpending`;
+  {
+    const { error } = await requestEnrollment(
+      order20paid,
+      student20,
+      parent20,
+      busan,
+    );
+    check("S20 결제완료용 신청 성공(DB)", !error, error?.message);
+    cleanup.orderIds.push(order20paid);
+    await approveAndPay(order20paid, parent20);
+
+    // 응답 대기 요청 — 승인/결제로 진행하지 않는다(approval_status='requested'
+    // 그대로 남겨 "승인 필요" 배지를 재현).
+    const { error: pendErr } = await requestEnrollment(
+      order20pending,
+      student20,
+      parent20,
+      suhaeng1,
+    );
+    check("S20 응답대기용 신청 성공(DB)", !pendErr, pendErr?.message);
+    cleanup.orderIds.push(order20pending);
+
+    const { context, page } = await freshPage(browser, student20.email);
+    await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(1500);
+
+    const headerRow = page.locator("table thead tr").first();
+    const headerText = (await headerRow.textContent()) || "";
+    check(
+      "S20 표 헤더 = 주문번호/일시/상품/상태(학부모와 동일 라벨)",
+      headerText.includes("주문번호") &&
+        headerText.includes("일시") &&
+        headerText.includes("상품") &&
+        headerText.includes("상태"),
+      headerText,
+    );
+    check(
+      "S20 옛 학생 전용 헤더(신청번호·이용금액) 미노출",
+      !headerText.includes("신청번호") && !headerText.includes("이용금액"),
+      headerText,
+    );
+
+    // 금액 열 자체가 없는지 확인한다 — 상품명("9,900원 부산캠퍼스…")은 정가가
+    // 마케팅 문구에 박힌 상품명이라 "원"이 들어가는 게 정상이다(정책이 막는
+    // 건 계산된 결제 금액 행이지 상품명 문자열이 아니다). 그래서 블랭킷 정규식
+    // 대신 실제 금액 열 헤더("금액"/"결제 금액") 부재로 판정한다.
+    check(
+      "S20 표에 금액 열 헤더 없음 — 금액 비표시 정책 유지",
+      !headerText.includes("금액"),
+      headerText,
+    );
+
+    check(
+      "S20 결제완료 주문 배지 = '결제 완료'(학부모 어휘, 옛 '이용 중' 아님)",
+      (await page.getByText("결제 완료", { exact: true }).count()) > 0 &&
+        (await page.getByText("이용 중", { exact: true }).count()) === 0,
+    );
+    check(
+      "S20 응답대기 주문 배지 = '승인 필요'(학부모 pending 어휘 재사용)",
+      (await page.getByText("승인 필요", { exact: true }).count()) > 0,
+    );
+
+    // 결제완료 주문 행 클릭 → asStudent 상세 모달.
+    await page
+      .getByText(order20paid.replace(/^order_/, ""), { exact: false })
+      .first()
+      .click();
+    await page.waitForTimeout(800);
+
+    check(
+      "S20 상세 모달 제목 = '신청 상세 내역'(학생 고유 프레이밍 유지)",
+      (await page.getByText("신청 상세 내역").count()) > 0,
+    );
+    check(
+      "S20 상세 모달에 신청자·결제담당 행 유지",
+      (await page.getByText("신청자").count()) > 0 &&
+        (await page.getByText("결제담당").count()) > 0,
+    );
+    check(
+      "S20 상세 모달에 결제 수단·영수증 보기 없음(금액 비표시)",
+      (await page.getByText("결제 수단").count()) === 0 &&
+        (await page.getByRole("button", { name: "영수증 보기" }).count()) === 0,
+    );
+    check(
+      "S20 상세 모달에 번들 구성 부속 라인 노출(금액 없는 정보)",
+      (await page.getByText("목표관리서비스 1개월", { exact: false }).count()) >
+        0,
+    );
+    // 상품명 자체에 정가가 박혀 있어("9,900원 부산캠퍼스…") 모달 전체에서
+    // "원" 유무로는 판정할 수 없다 — OrderAmountBreakdown이 쓰는 실제 금액
+    // 라벨("결제 금액"/"합계"/"할인액 총합")이 없는지로 정책 위반 여부를 본다.
+    const dialogText =
+      (await page
+        .getByRole("dialog")
+        .textContent()
+        .catch(() => "")) || "";
+    check(
+      "S20 상세 모달에 OrderAmountBreakdown 금액 라벨 없음",
+      !dialogText.includes("결제 금액") &&
+        !dialogText.includes("합계") &&
+        !dialogText.includes("할인액 총합"),
+      dialogText,
+    );
+
+    const refundButtonVisible =
+      (await page.getByRole("button", { name: "환불 신청" }).count()) > 0;
+    check("S20 결제완료 건에 환불 신청 버튼 노출", refundButtonVisible);
+    await page.getByRole("button", { name: "환불 신청" }).click();
+    await page.waitForTimeout(1000);
+    check(
+      "S20 환불 신청 버튼 → asStudent RefundRequestModal 오픈",
+      (await page.getByText("환불을 요청할게요").count()) > 0,
+    );
+
+    await page.keyboard.press("Escape").catch(() => {});
+    await context.close();
+  }
 } finally {
   await browser.close();
 
