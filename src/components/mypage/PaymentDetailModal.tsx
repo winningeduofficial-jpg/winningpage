@@ -23,6 +23,7 @@ const STATUS_TEXT: Record<string, string> = {
   refund_completed: "환불 완료",
   refund_rejected: "환불 반려",
   superseded: "다른 상품으로 결제됨",
+  enrollment_parent_rejected: "학부모 반려",
 };
 
 function formatApprovedAtDetail(
@@ -46,6 +47,7 @@ type PaymentOrder = {
   paid_at?: string;
   vat?: number | string | null;
   amount: number;
+  reject_reason?: string | null;
   order_items?: {
     name: string;
     list_price?: number;
@@ -57,10 +59,7 @@ type PaymentOrder = {
   coupon_redemptions?: {
     discount_amount: number;
     voided_at?: string | null;
-    coupons?:
-      | { title?: string | null }
-      | { title?: string | null }[]
-      | null;
+    coupons?: { title?: string | null } | { title?: string | null }[] | null;
   }[];
 };
 
@@ -94,6 +93,11 @@ export default function PaymentDetailModal({
     { label: "결제 수단", value: order.method || "-" },
     { label: "승인 일시", value: formatApprovedAtDetail(order.paid_at) },
     { label: "결제 상태", value: STATUS_TEXT[status || ""] || "-" },
+    // 반려 건에만(orders_reject_reason_pairing_check) 노출한다. 폴백 문구 없이
+    // 값이 없으면 행 자체를 렌더하지 않는다.
+    ...(status === "enrollment_parent_rejected" && order.reject_reason
+      ? [{ label: "학부모 반려 사유", value: order.reject_reason }]
+      : []),
   ];
 
   // 환불 신청 버튼은 결제가 확정된 건에만 노출한다. 입금 대기(가상계좌 미입금)는
@@ -106,11 +110,17 @@ export default function PaymentDetailModal({
   //
   // 학생·학부모 둘 다 신청할 수 있다. 학생이 신청하면 학부모 확인 단계를
   // 거친다(확정 디자인 3967:3561 "환불을 요청할게요").
-  const canRequestRefund = status === "paid";
+  //
+  // 일부 환불(refund_partial, v10 부분해지 완료)은 종결이 아니다 — 열린 신청이
+  // 없고 잔여 구성서비스가 살아 있는 상태라, 남은 항목의 재신청 경로를 열어
+  // 둔다(서버도 회수된 라인만 WC060 으로 거르고 잔여 신청은 받는다).
+  const canRequestRefund = status === "paid" || status === "refund_partial";
 
-  // 영수증은 결제가 실제로 이뤄진 건에만 있다 — superseded(대체됨) 주문은
-  // 결제된 적이 없어 영수증을 보여주면 안 된다.
-  const canViewReceipt = status !== "superseded";
+  // 영수증은 결제가 실제로 이뤄진 건에만 있다 — superseded(대체됨)·
+  // enrollment_parent_rejected(반려) 주문은 결제된 적이 없어 영수증을
+  // 보여주면 안 된다.
+  const canViewReceipt =
+    status !== "superseded" && status !== "enrollment_parent_rejected";
 
   return (
     <MyPageModalShell
@@ -130,6 +140,7 @@ export default function PaymentDetailModal({
         <dl className="mt-7.5 flex flex-col pb-7.5">
           {metaRows.map((row, i) => (
             <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: 파생 표시 행이라 고유 id가 없고 재정렬·삽입 없이 통째로 다시 그린다 — 같은 라벨이 반복될 수 있어 인덱스로 구분한다.
               key={`${row.label}-${i}`}
               className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
             >

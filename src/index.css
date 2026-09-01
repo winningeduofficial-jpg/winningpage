@@ -31,6 +31,8 @@
   --color-ink-sub: #6b6b6b;
   --color-ink-title: #181d24;
   --color-ink-strong: #191d23;
+  --color-ink-natural: #808080;
+  --color-ink-dark: #1c1a19;
 
   --color-line: #d7d7d7;
   --color-error: #eb2626;
@@ -46,6 +48,7 @@
   --color-surface-04: #f5f5f7;
   --color-surface-badge: #d1e8ff;
   --color-surface-muted: #f5f5f7;
+  --color-surface-beige: #f7f6f3;
 
   --color-goal-sidebar: #f9f8f7;
   --color-goal-card: #fbfbfa;
@@ -65,12 +68,18 @@
   --color-goal-subject-math: #e3f2fd;
   --color-goal-subject-english: #fff8e1;
   --color-goal-subject-science: #e8f5e9;
+  --color-goal-subject-social: #ede7f6;
+  --color-goal-subject-history: #fbe9e7;
+  --color-goal-subject-second_lang: #e0f7fa;
   --color-goal-subject-etc: #f1ede7;
 
   --color-goal-subjectStrong-korean: #f48fb1;
   --color-goal-subjectStrong-math: #64b5f6;
   --color-goal-subjectStrong-english: #ffd54f;
   --color-goal-subjectStrong-science: #81c784;
+  --color-goal-subjectStrong-social: #9575cd;
+  --color-goal-subjectStrong-history: #ff8a65;
+  --color-goal-subjectStrong-second_lang: #4dd0e1;
   --color-goal-subjectStrong-etc: #bcafa0;
 
   --color-goal-weekday-mon: #fce7ee;
@@ -220,35 +229,47 @@ body {
   background: #f8f7f3;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/* 앵커 리셋은 반드시 base 레이어 안에 둔다 — 레이어 밖(unlayered) 규칙은 명시도와
+   무관하게 @layer utilities 를 이기므로, 밖에 두면 <a> 에 붙인 text-* 색 유틸리티가
+   전부 무효가 된다(primary 배경 버튼 글자가 잉크색으로 보이던 원인). */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
-button,
-input,
-textarea,
-select {
-  font-family: inherit;
-}
+/* 요소 리셋은 반드시 base 레이어 안에 둔다 — 위 앵커 리셋 주석과 같은 이유다.
+   밖(unlayered)에 두면 명시도와 무관하게 @layer utilities 를 이겨서, img 의
+   max-w-* / input 의 focus-visible:outline-* 같은 유틸리티가 전부 무효가 된다
+   (콜멘토 히어로 목업이 max-w-118.5 를 무시하고 전폭으로 커지던 원인, 2026-08-21
+   전수 조사로 실피해 4곳 확인). */
+@layer base {
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
 
-button {
-  cursor: pointer;
-}
+  button {
+    cursor: pointer;
+  }
 
-button:disabled {
-  cursor: not-allowed;
-}
+  button:disabled {
+    cursor: not-allowed;
+  }
 
-img {
-  display: block;
-  max-width: 100%;
-}
+  img {
+    display: block;
+    max-width: 100%;
+  }
 
-input,
-textarea,
-select {
-  outline: none;
+  input,
+  textarea,
+  select {
+    outline: none;
+  }
 }
 
 ::selection {

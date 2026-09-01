@@ -18,10 +18,11 @@
 //   3) 응답 필드명은 카멜 케이스다. DB 스네이크를 그대로 노출하지 않는다(§9-2).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { VercelRequest } from "@vercel/node";
 import { kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
+import { resolveUser } from "./httpAuth.js";
 import {
   clean,
-  getBearerToken,
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "./serviceAccess.js";
@@ -38,10 +39,10 @@ import { createSupabaseAdmin } from "./supabaseAdmin.js";
 type Row = any;
 
 // VercelRequest.headers 의 실제 타입(IncomingHttpHeaders)과 구조적으로 맞춘다 —
-// getBearerToken() 이 요구하는 { headers: Record<string,string> } 보다 넓게 잡아야
 // 실제 VercelRequest 를 넘기는 8개 api/goal/*.ts 호출부가 타입 에러 없이 그대로 쓸 수
-// 있다(getBearerToken 호출부에서만 아래 캐스트로 좁힌다 — 그 함수 시그니처는
-// api/_lib/serviceAccess.ts 소유라 여기서 바꾸지 않는다).
+// 있게 openGoalSession 의 파라미터를 이만큼만 넓게 잡는다(openGoalSession 내부에서
+// _lib/httpAuth.js 의 resolveUser(req: VercelRequest) 로 넘길 때만 캐스트한다 —
+// resolveUser 시그니처는 api/_lib/httpAuth.ts 소유라 여기서 바꾸지 않는다).
 type VercelLikeRequest = {
   headers: Record<string, string | string[] | undefined>;
 };
@@ -68,8 +69,9 @@ export const CUT_KEYS = [
   "minJungsi",
 ];
 
-// 학습 계획 과제(goal_plan_tasks) 과목 — DB CHECK 5종(sql/75_goal_plan_tasks.sql)과
-// AddTaskModal 과목 칩의 한글 라벨(TASK_SUBJECTS, src/components/goal/goalFormOptions.ts)을 잇는다.
+// 학습 계획 과제(goal_plan_tasks) 과목 — DB CHECK 8종(supabase/migrations/
+// 20260827011107_goal_timer_subjects.sql, 원래 5종에서 QA B9로 확장)과 AddTaskModal
+// 과목 칩의 한글 라벨(TASK_SUBJECTS, src/components/goal/goalFormOptions.ts)을 잇는다.
 // '탐구' → 'science' 매핑은 team-lead가 sql/75 CHECK 값을 먼저 확정해 준 결과다 —
 // 사회탐구까지 포괄하는 라벨이지만 DB 값은 그대로 따른다. api/goal/plan-tasks.js 는 이
 // 배럴만 참조하고 자체 매핑을 두지 않는다(단일 정본).
@@ -78,6 +80,9 @@ export const SUBJECT_CODE_TO_LABEL: Record<string, string> = {
   math: "수학",
   english: "영어",
   science: "탐구",
+  social: "사회",
+  history: "한국사",
+  second_lang: "제2외국어",
   etc: "기타",
 };
 export const SUBJECT_LABEL_TO_CODE: Record<string, string> = Object.fromEntries(
@@ -136,20 +141,19 @@ export type GoalSessionResult = {
 export async function openGoalSession(
   req: VercelLikeRequest,
 ): Promise<GoalSessionResult> {
-  const token = getBearerToken(req as { headers: Record<string, string> });
-  if (!token) {
+  // _lib/httpAuth.js의 resolveUser()로 수렴 — 토큰 없음/무효 두 경우 모두 null을
+  // 돌려주는데, 원본도 두 경우 모두 같은 401 LOGIN_MESSAGE였으므로 동작 동일
+  // (api/docs/refactor-plan.md 배치4). resolveUser는 내부에서 별도
+  // createSupabaseAdmin()을 호출하지만 그 함수는 모듈 스코프 캐시 싱글턴이라
+  // 아래에서 다시 부르는 것과 같은 인스턴스를 돌려준다(api/docs/batch-1-issues.md
+  // 이슈 3과 동일 패턴).
+  const authed = await resolveUser(req as unknown as VercelRequest);
+  if (!authed) {
     return { error: { status: 401, body: { detail: LOGIN_MESSAGE } } };
   }
 
   const supabaseAdmin = createSupabaseAdmin();
-  const { data: userData, error: userError } =
-    await supabaseAdmin.auth.getUser(token);
-
-  if (userError || !userData?.user?.id) {
-    return { error: { status: 401, body: { detail: LOGIN_MESSAGE } } };
-  }
-
-  const profileId = userData.user.id;
+  const profileId = authed.userId;
   // hasPaidServiceAccess는 { allowed, reason } 을 돌려준다(api/_lib/serviceAccess.js
   // 참고) — 이 함수의 반환 계약(allowed:boolean, 위 JSDoc)을 지키기 위해 여기서
   // 뽑아 쓴다. 객체를 그대로 내려보내면 호출부의 `if (!allowed)` 가 항상
@@ -1217,9 +1221,29 @@ export async function updateStudentGrades(
 export const TABLE_TIMER_SESSIONS = "goal_timer_sessions";
 export const TABLE_SUBJECT_TARGETS = "goal_subject_targets";
 
-// 과목 코드 5종. sql/75_goal_plan_tasks.sql·77_goal_timer_sessions.sql·
-// 78_goal_subject_targets.sql이 공유하는 CHECK 도메인과 글자 단위로 같다.
-export const TIMER_SUBJECTS = ["korean", "math", "english", "science", "etc"];
+// 과목 코드 8종(QA B9로 5종에서 확장). goal_plan_tasks·goal_timer_sessions·
+// goal_subject_targets·goal_timer_subjects가 공유하는 CHECK 도메인과 글자 단위로 같다
+// (supabase/migrations/20260827011107_goal_timer_subjects.sql). 열공 타이머 "+ 과목
+// 추가" 모달의 선택 카탈로그 = 이 배열 그대로(순서도 동일, src/components/goal/
+// studyRecordOptions.ts TIMER_SUBJECT_CATALOG와 글자 단위로 같다).
+export const TIMER_SUBJECTS = [
+  "korean",
+  "math",
+  "english",
+  "science",
+  "social",
+  "history",
+  "second_lang",
+  "etc",
+];
+
+// 열공 타이머 기본 노출 4과목(QA B9 이전부터의 고정 그리드) — goal_timer_subjects에
+// 행이 없는 학생에게 기본값으로 보여준다. src/components/goal/studyRecordOptions.ts
+// DEFAULT_TIMER_SUBJECTS와 글자 단위로 같다(클라이언트는 이 서버 파일을 import할 수
+// 없어 — service_role 키를 물고 있는 supabaseAdmin.js를 재수출하게 된다 — 별도로 둔다).
+export const DEFAULT_TIMER_SUBJECTS = ["math", "korean", "english", "science"];
+
+export const TABLE_TIMER_SUBJECTS = "goal_timer_subjects";
 
 // ---------------------------------------------------------------------------
 // 열공 타이머(#25) — 서버 시각 기반 세션 영속화 + 과목별 목표
@@ -1511,4 +1535,76 @@ export async function upsertSubjectTarget(
 
   if (error) throw error;
   return { subject: data.subject, targetHours: num(data.target_hours) };
+}
+
+/**
+ * 학생이 타이머 화면에 노출 중인 과목 목록(sort_order → created_at 순). 행이 없으면
+ * DEFAULT_TIMER_SUBJECTS 사본을 돌려준다 — 기존 학생 백필 없이 "기본 4과목"을
+ * 표현하는 방식(QA B9, supabase/migrations/20260827011107_goal_timer_subjects.sql).
+ */
+export async function fetchVisibleTimerSubjects(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+): Promise<string[]> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_TIMER_SUBJECTS)
+    .select("subject, sort_order")
+    .eq("profile_id", profileId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) throw error;
+  const rows = (data as Row[]) || [];
+  if (rows.length === 0) return [...DEFAULT_TIMER_SUBJECTS];
+  return rows.map((row) => row.subject as string);
+}
+
+/**
+ * 타이머 노출 과목 추가("+ 과목 추가", QA B9). 아직 이 학생의 행이 하나도 없으면
+ * 기본 4과목을 sort_order 0..3으로 먼저 물질화한 뒤, 요청 과목을 다음 sort_order로
+ * 이어 추가한다. 이미 노출 중인 과목을 다시 추가해도 멱등(upsert ignoreDuplicates)
+ * — 카탈로그 유효성(TIMER_SUBJECTS.includes) 검증은 호출부(api/goal/timer.ts)가
+ * 먼저 한다. 반환은 갱신된 노출 목록 전체.
+ */
+export async function addTimerSubject(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  subject: string,
+): Promise<string[]> {
+  const { data: existingData, error: fetchError } = await supabaseAdmin
+    .from(TABLE_TIMER_SUBJECTS)
+    .select("subject, sort_order")
+    .eq("profile_id", profileId);
+
+  if (fetchError) throw fetchError;
+  let rows = (existingData as Row[]) || [];
+
+  if (rows.length === 0) {
+    const defaults = DEFAULT_TIMER_SUBJECTS.map((code, index) => ({
+      profile_id: profileId,
+      subject: code,
+      sort_order: index,
+    }));
+    const { error: seedError } = await supabaseAdmin
+      .from(TABLE_TIMER_SUBJECTS)
+      .upsert(defaults, {
+        onConflict: "profile_id,subject",
+        ignoreDuplicates: true,
+      });
+    if (seedError) throw seedError;
+    rows = defaults as unknown as Row[];
+  }
+
+  const nextSortOrder =
+    rows.reduce((max, row) => Math.max(max, num(row.sort_order) ?? -1), -1) + 1;
+
+  const { error: insertError } = await supabaseAdmin
+    .from(TABLE_TIMER_SUBJECTS)
+    .upsert(
+      { profile_id: profileId, subject, sort_order: nextSortOrder },
+      { onConflict: "profile_id,subject", ignoreDuplicates: true },
+    );
+  if (insertError) throw insertError;
+
+  return fetchVisibleTimerSubjects(supabaseAdmin, profileId);
 }

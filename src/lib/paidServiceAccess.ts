@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { apiFetch, getAuthHeader } from "./apiFetch";
 
 // 로컬 QA 전용 결제 게이트 우회 플래그.
 // 사용법: .env.local에 VITE_DISABLE_PAID_GATE=true 를 추가하고 개발 서버를 재시작한다.
@@ -103,7 +103,7 @@ function getPaidServiceConfig(service?: PaidServiceLike) {
   return PAID_SERVICE_CONFIGS.find((config) => config.match(service)) || null;
 }
 
-const SERVICE_NOT_READY_MESSAGE = "서비스 준비중입니다.";
+const SERVICE_NOT_READY_MESSAGE = "서비스 예정입니다.";
 
 // 상세 페이지(= PAID_SERVICE_CONFIGS 등록 서비스)가 아직 없는 서비스의 히어로 CTA용 핸들러.
 // 자기평가・심화탐구・콜멘토 3종이 여기 해당한다(2026-08-05, 사용자 확정). 서비스가 실제 앱을
@@ -185,19 +185,18 @@ export async function openPaidServiceOrAlert(
   setButtonLoading(targetEl, true, "입장 확인 중...");
 
   try {
-    const { data } = await supabase.auth.getSession();
-    const session = data?.session;
+    const authHeader = await getAuthHeader();
 
-    if (!session?.user || !session?.access_token) {
+    if (!authHeader) {
       window.alert(PAID_MESSAGE);
       return true;
     }
 
-    const response = await fetch("/api/create-service-ticket", {
+    const response = await apiFetch("/api/create-service-ticket", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
+        ...authHeader,
       },
       body: JSON.stringify({ service_key: config.serviceKey }),
     });

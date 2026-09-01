@@ -1,3 +1,4 @@
+import { BANK_OPTIONS } from "@/lib/paymentReceiptFormat";
 import type { FieldOption } from "@/pages/admin/shared/csvExport";
 
 // refund_requests.status DB CHECK 값(requested|processing|completed|rejected)과
@@ -44,14 +45,6 @@ const REFUND_APPROVAL_STATUS_OPTIONS: FieldOption[] = [
 // 형태로 맞춰 취소완료로 쓴다. failed 도 같은 이유로 '납부' 접두를 살려
 // 납부실패로 쓴다 — refunds 탭(2188행)의 '취소요청'/'환불완료'/'반려' 축과는
 // 다른 테이블·다른 상태 축이라 혼동하지 않는다.
-const PAYMENT_STATUS_OPTIONS: FieldOption[] = [
-  { value: "pending", label: "납부대기" },
-  { value: "paid", label: "납부완료" },
-  { value: "failed", label: "납부실패" },
-  { value: "refunded", label: "환불완료" },
-  { value: "cancelled", label: "취소완료" },
-];
-
 interface RevenueColumn {
   key: string;
   label: string;
@@ -64,6 +57,9 @@ interface RevenueField {
   label: string;
   type: "text" | "number" | "textarea" | "select" | "date";
   required?: boolean;
+  // 상세 폼에서 값만 보여주고 편집은 막는다. 환불 처리 대장처럼 원장 전체가
+  // 읽기 전용인 화면에서 쓴다(QA 275).
+  readOnly?: boolean;
   options?: FieldOption[];
 }
 
@@ -75,6 +71,8 @@ interface RevenueCrudConfig {
   excel?: boolean;
   readOnly?: boolean;
   noCreate?: boolean;
+  // 개인정보 반출 게이트 대상(AdminConfig.sensitiveDownload 와 같은 뜻) — QA 271 계열.
+  sensitiveDownload?: boolean;
   columns: RevenueColumn[];
   fields?: RevenueField[];
   defaults?: Record<string, unknown>;
@@ -92,101 +90,30 @@ interface RevenueCustomConfig {
 type RevenueConfig = RevenueCrudConfig | RevenueCustomConfig;
 
 export const revenueConfigs: Record<string, RevenueConfig> = {
-  payments: {
-    title: "매출 조정",
-    table: "payments",
-    searchPlaceholder: "결제자, 프로그램 검색",
-    order: "paid_at",
-    excel: true,
-    columns: [
-      { key: "payer_name", label: "수강자명" },
-      { key: "program_name", label: "프로그램" },
-      { key: "class_name", label: "클래스" },
-      { key: "payment_method", label: "납부유형" },
-      { key: "sale_amount", label: "판매금액", type: "money" },
-      { key: "discount_amount", label: "감면액", type: "money" },
-      { key: "paid_amount", label: "납부금액", type: "money" },
-      {
-        key: "status",
-        label: "상태",
-        type: "select",
-        options: PAYMENT_STATUS_OPTIONS,
-      },
-      { key: "paid_at", label: "납부일시", type: "date" },
-    ],
-    fields: [
-      { key: "payer_name", label: "수강자명", type: "text", required: true },
-      { key: "program_name", label: "프로그램", type: "text" },
-      { key: "class_name", label: "클래스", type: "text" },
-      { key: "payment_method", label: "납부유형", type: "text" },
-      { key: "sale_amount", label: "판매금액", type: "number" },
-      { key: "discount_amount", label: "감면액", type: "number" },
-      { key: "paid_amount", label: "납부금액", type: "number" },
-      {
-        key: "status",
-        label: "상태",
-        type: "select",
-        options: PAYMENT_STATUS_OPTIONS,
-      },
-      { key: "memo", label: "비고", type: "textarea" },
-    ],
-    defaults: {
-      payer_name: "",
-      sale_amount: 0,
-      discount_amount: 0,
-      paid_amount: 0,
-      status: "paid",
-    },
+  // 매출 및 결제 — 실제 결제(orders/order_items) 기반. 원천은 admin_revenue_items
+  // 뷰(20260823000011)이고 화면은 RevenueAdmin.tsx 가 전부 그린다(제네릭 CRUD 아님).
+  revenue: {
+    title: "매출 및 결제",
+    custom: true,
+    customComponentKey: "revenue",
+    searchPlaceholder: "",
   },
 
-  settlements: {
-    title: "매출 정산",
-    table: "payments",
-    searchPlaceholder: "정산 내역 검색",
-    order: "paid_at",
-    readOnly: true,
-    excel: true,
-    columns: [
-      { key: "payer_name", label: "수강자명" },
-      { key: "program_name", label: "프로그램" },
-      { key: "class_name", label: "클래스" },
-      { key: "sale_amount", label: "판매금액", type: "money" },
-      { key: "discount_amount", label: "감면액", type: "money" },
-      { key: "paid_amount", label: "실납부금액", type: "money" },
-      { key: "paid_at", label: "결제일", type: "date" },
-    ],
-  },
-
-  dailySettlements: {
-    title: "일일정산",
-    table: "daily_settlements",
-    searchPlaceholder: "정산일 검색",
-    order: "settlement_date",
-    excel: true,
-    columns: [
-      { key: "settlement_date", label: "정산일", type: "date" },
-      { key: "total_sale_amount", label: "판매금액", type: "money" },
-      { key: "total_discount_amount", label: "감면액", type: "money" },
-      { key: "total_paid_amount", label: "실납부금액", type: "money" },
-      { key: "total_refund_amount", label: "환불금액", type: "money" },
-      { key: "memo", label: "비고" },
-    ],
-    fields: [
-      { key: "settlement_date", label: "정산일", type: "date" },
-      { key: "total_sale_amount", label: "판매금액", type: "number" },
-      { key: "total_discount_amount", label: "감면액", type: "number" },
-      { key: "total_paid_amount", label: "실납부금액", type: "number" },
-      { key: "total_refund_amount", label: "환불금액", type: "number" },
-      { key: "memo", label: "비고", type: "textarea" },
-    ],
-    defaults: {
-      settlement_date: new Date().toISOString().slice(0, 10),
-      total_sale_amount: 0,
-      total_discount_amount: 0,
-      total_paid_amount: 0,
-      total_refund_amount: 0,
-    },
-  },
+  // 「매출 조정」(payments) · 「매출 정산」(payments 읽기전용) · 「일일정산」
+  // (daily_settlements) 은 2026-08-23 에 없앴다.
+  //
+  //   셋 다 운영자가 손으로 적는 수기 장부였고 실제 결제와 연결이 없었다. 게다가
+  //   앞의 둘은 화면이 그리던 컬럼(payer_name/program_name/class_name/sale_amount/
+  //   discount_amount/paid_amount)이 **실제 payments 스키마에 하나도 없어서**
+  //   빈 화면으로 떠 있었다(2026-08-23 실측 — payments 는 order_id·amount·status
+  //   같은 토스 연동용 컬럼만 갖고 있다).
+  //
+  //   대체재는 「매출 및 결제」다 — orders/order_items 를 보는 admin_revenue_items
+  //   뷰(20260823000011) 기반. 유저가 결제하는 DB 와 어드민이 보는 DB 가 갈라져
+  //   있던 것을 합치는 게 이 교체의 핵심이다.
+  //
+  //   ⚠️ payments·daily_settlements **테이블은 지우지 않았다.** 화면만 없앤다 —
+  //      운영 DB 에 손으로 적어둔 기록이 남아 있을 수 있어 확인 전에는 못 지운다.
 
   // 관리자 수기 대장(admin_refunds/refunds, sql/00_base_schema.sql:882) — 고객이
   // fn_request_refund 로 신청한 게 아니라 운영자가 직접 기록하는 별도 원장이다.
@@ -262,6 +189,21 @@ export const revenueConfigs: Record<string, RevenueConfig> = {
       { key: "order_id", label: "주문번호" },
       { key: "amount", label: "환불 신청 금액", type: "money" },
       { key: "reason", label: "신청 사유" },
+      // 환불계좌 3필드(2026-08-22 추가) — 가상계좌 결제 건 환불에 실제로
+      // 쓰이는 계좌다(api/complete-refund.ts 가 토스 결제취소 API의
+      // refundReceiveAccount로 그대로 넘긴다). columns 배열은 목록 전용이라
+      // 이 저장소의 AdminEngine 렌더 구조상 애초에 인라인 편집이 없다 —
+      // 편집은 아래 fields(상세/수정 폼)로만 가능하므로 별도 readOnly 플래그가
+      // 필요 없다. refund_bank 는 코드로 저장되어(paymentReceiptFormat.ts
+      // BANKS와 같은 코드 체계) select 타입으로 은행명을 사람이 읽게 푼다.
+      {
+        key: "refund_bank",
+        label: "환불 은행",
+        type: "select",
+        options: BANK_OPTIONS,
+      },
+      { key: "refund_account", label: "환불 계좌번호" },
+      { key: "refund_holder", label: "환불 예금주" },
       {
         key: "approval_status",
         label: "승인 여부",
@@ -274,7 +216,12 @@ export const revenueConfigs: Record<string, RevenueConfig> = {
         type: "select",
         options: REFUND_REQUEST_STATUS_OPTIONS,
       },
-      { key: "created_at", label: "신청 일시", type: "date" },
+      { key: "created_at", label: "환불 신청일", type: "date" },
+      // QA 273 — 신청일만 있고 처리일이 없어 일자별 환불 집계도 정산 대사도 할 수
+      // 없었다. fn_complete_refund 가 완료 시점에 찍는다(20260831081100).
+      // 그 컬럼이 생기기 전에 처리된 건은 빈 칸이다 — 실제 시각을 알 수 없어
+      // 소급하지 않았다.
+      { key: "completed_at", label: "환불 처리일", type: "date" },
     ],
     fields: [
       { key: "user_id", label: "신청자", type: "text" },
@@ -305,5 +252,59 @@ export const revenueConfigs: Record<string, RevenueConfig> = {
     custom: true,
     customComponentKey: "coupons",
     searchPlaceholder: "",
+  },
+
+  // QA 275 — 파일18 「환불 처리 대장」. 완료된 환불만 보는 결과 원장이라 신청
+  // 단계(refundRequests)와 화면을 나눈다. 원천은 admin_refund_ledger 뷰
+  // (20260831081100) — 학생·처리자 이름과 소속코드를 조인해 평면화했다.
+  //
+  // 읽기 전용이다. 완료 처리는 fn_complete_refund RPC 전용이고(WC038 트리거가
+  // 제네릭 PATCH 로의 completed 전환을 막는다), 대장을 손으로 고칠 수 있으면
+  // 감사 기록이 되지 못한다.
+  //
+  // ⚠️ 수강자명·소속코드가 함께 나가므로 다운로드는 게이트를 탄다(QA 268 계열).
+  refundLedger: {
+    title: "환불 처리 대장",
+    table: "admin_refund_ledger",
+    searchPlaceholder: "수강자명, 주문번호, 소속코드 검색",
+    order: "completed_at",
+    readOnly: true,
+    noCreate: true,
+    excel: true,
+    sensitiveDownload: true,
+    columns: [
+      { key: "completed_at", label: "처리일", type: "date" },
+      { key: "student_name", label: "수강자명" },
+      { key: "program_name", label: "프로그램" },
+      { key: "org_code", label: "소속코드" },
+      { key: "paid_amount", label: "납부금액", type: "money" },
+      { key: "refund_amount", label: "환불금액", type: "money" },
+      { key: "refund_method", label: "환불방법" },
+      { key: "processed_by_name", label: "처리자" },
+      { key: "reason", label: "사유" },
+    ],
+    fields: [
+      { key: "completed_at", label: "처리일", type: "text", readOnly: true },
+      { key: "order_id", label: "주문번호", type: "text", readOnly: true },
+      { key: "student_name", label: "수강자명", type: "text", readOnly: true },
+      { key: "org_code", label: "소속코드", type: "text", readOnly: true },
+      { key: "program_name", label: "프로그램", type: "text", readOnly: true },
+      { key: "paid_amount", label: "납부금액", type: "text", readOnly: true },
+      { key: "refund_amount", label: "환불금액", type: "text", readOnly: true },
+      { key: "refund_method", label: "환불방법", type: "text", readOnly: true },
+      {
+        key: "processed_by_name",
+        label: "처리자",
+        type: "text",
+        readOnly: true,
+      },
+      { key: "reason", label: "신청 사유", type: "textarea", readOnly: true },
+      {
+        key: "admin_memo",
+        label: "처리 메모",
+        type: "textarea",
+        readOnly: true,
+      },
+    ],
   },
 };

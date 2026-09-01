@@ -38,6 +38,7 @@ import {
   narrowGoalSession,
   openGoalSession,
 } from "../_lib/goalRepo.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 // "최근 7일" 창 — 오늘(KST) 포함 6일 전부터. gapToTarget.ts의 학습 시간 격차 전용
 // (recentAvgStudyHours). 리포트 주간 경계(월~일)와는 무관한 단순 롤링 윈도우다.
@@ -47,13 +48,18 @@ export const config = { runtime: "nodejs" };
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
-    return res.status(405).json({ detail: "Method not allowed" });
+    return sendError(res, "detail", 405, "Method not allowed");
   }
 
   try {
     const session = await openGoalSession(req);
     if (session.error) {
-      return res.status(session.error.status).json(session.error.body);
+      return sendError(
+        res,
+        "detail",
+        session.error.status,
+        session.error.body.detail as string,
+      );
     }
 
     const { allowed } = session;
@@ -110,6 +116,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
   } catch (error) {
     console.error("goal/student error:", error);
-    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
+    return sendError(res, "detail", 500, "처리 중 오류가 발생했습니다.");
   }
 }

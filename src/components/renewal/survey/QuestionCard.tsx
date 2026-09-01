@@ -15,6 +15,10 @@
  * maxSelect가 있는 복수선택 문항은 헤더 우측에 `2 / 3` 카운터를 노출한다
  * (SPEC-fd-ver3-v2 §9-A3 — disabled 만으로는 이유가 전달되지 않는다).
  *
+ * title에 `\n`이 있으면 whitespace-pre-line으로 그대로 줄바꿈한다(QA 행350 — q10·q12처럼
+ * 길게 이어지는 한 문장을 본문/보조 지시 두 줄로 나눠 보여줄 때만 쓴다. 나머지 문항 title은
+ * `\n`을 담지 않으므로 렌더 결과는 그대로다).
+ *
  * `questionId`가 있으면 `id={`q-${questionId}`}` 앵커를 달아 하단 CTA의 "미완료" 클릭이
  * 이 카드로 스크롤할 수 있게 한다. 고정 헤더(64px)에 가리지 않도록 scroll-mt를 둔다.
  * `highlighted`면 일시적으로 링을 켜서 "여기를 봐달라"는 안내를 준다(오류색이 아니라
@@ -92,7 +96,7 @@ export default function QuestionCard({
           </div>
 
           <div className="flex flex-col gap-0">
-            <h3 className="break-keep text-xl font-medium leading-[1.4] text-ink sm:text-2xl">
+            <h3 className="break-keep whitespace-pre-line text-xl font-medium leading-[1.4] text-ink sm:text-2xl">
               {title}
             </h3>
             {helper && (

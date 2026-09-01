@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   BODY_CONDITIONS,
+  CONDITION_LABELS,
   REASON_LABELS,
   TASK_LABELS,
 } from "../../../api/goal/daily-record";
@@ -32,5 +33,14 @@ describe("studyRecordOptions ↔ api/goal/daily-record 화이트리스트 패리
   test("CONDITION_OPTIONS의 value 집합이 BODY_CONDITIONS와 완전히 같다", () => {
     const expected = new Set(CONDITION_OPTIONS.map((o) => o.value));
     expect(BODY_CONDITIONS).toEqual(expected);
+  });
+
+  // 일간 보고서 알림톡이 이 라벨을 학부모 문자에 그대로 싣는다 — 어긋나면
+  // 'normal' 같은 코드값이 발송된다(api/cron/daily-report.ts).
+  test("CONDITION_OPTIONS(value→label)가 CONDITION_LABELS와 완전히 같다", () => {
+    const expected = Object.fromEntries(
+      CONDITION_OPTIONS.map((o) => [o.value, o.label]),
+    );
+    expect(CONDITION_LABELS).toEqual(expected);
   });
 });

@@ -14,6 +14,8 @@
 //         / 400 INVALID_SESSION_ID|INVALID_CURSOR / 405 METHOD_NOT_ALLOWED / 500 INTERNAL
 //         — `design-report.js`/`submission.js`와 같은 `userMessage` 규약으로 감싼다.
 
+import { apiFetch } from "../apiFetch";
+
 const NETWORK_ERROR =
   "네트워크 오류가 발생했어요. 연결을 확인하고 다시 시도해 주세요.";
 
@@ -55,7 +57,7 @@ async function callReportsApi(accessToken: string, params: URLSearchParams) {
   let response: Response;
 
   try {
-    response = await fetch(`/api/performance/reports?${params.toString()}`, {
+    response = await apiFetch(`/api/performance/reports?${params.toString()}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
   } catch (error) {

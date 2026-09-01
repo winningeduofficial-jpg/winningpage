@@ -24,6 +24,13 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
     cls: "bg-surface-04 text-ink-sub",
   },
 
+  // 학부모가 결제 요청(수강신청) 자체를 반려함(fn_respond_enrollment) — 돈이
+  // 들어온 적 없는 종결 상태라 refund_parent_rejected와 같은 중립 톤을 쓴다.
+  enrollment_parent_rejected: {
+    label: "학부모 반려",
+    cls: "bg-surface-04 text-ink-sub",
+  },
+
   // ── 학생 "신청 내역" 어휘 (3967:3016 실측) ───────────────────────────
   // 학생 화면은 돈이 아니라 **신청·이용** 관점이다. 같은 주문이라도 학부모는
   // '결제 완료', 학생은 '이용 중'으로 읽는다 — 그래서 키를 나눈다.
@@ -59,6 +66,10 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
   refund_processing: { label: "환불 진행 중", cls: "bg-[#f7dad8] text-error" },
 
   refund_completed: { label: "환불 완료", cls: "bg-[#e3f3e8] text-[#2e7d4f]" },
+  // v10 구성서비스 단위 부분해지 완료 — 주문은 아직 살아있으므로(status
+  // 'paid') 종결 톤인 refund_completed(초록)과 구분해 진행 계열 파랑으로 둔다.
+  // ⚠ 신규 카피 — 승인 필요.
+  refund_partial: { label: "일부 환불", cls: "bg-[#e9f4ff] text-accent" },
   refund_rejected: { label: "환불 반려", cls: "bg-[#f7dad8] text-error" },
 
   // 자녀가 보낸 결제 요청에 학부모가 아직 승인/거절을 안 함

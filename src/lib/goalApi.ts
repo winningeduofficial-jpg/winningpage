@@ -12,7 +12,7 @@
 // row.status: 'active' | 'awaiting_cuts') 이름이 겹치면 혼동되므로, 이 래퍼의 판별자는
 // 의도적으로 `status`가 아니라 `kind`로 둔다.
 
-import { supabase } from "./supabase";
+import { apiFetch, getAuthHeader } from "./apiFetch";
 
 // ---------------------------------------------------------------------------
 // 응답 payload 타입 — api/_lib/goalRepo.js buildXxxPayload()/api/goal/*.ts 응답 조립과
@@ -152,6 +152,9 @@ interface GoalTimerSummary {
   subjects: { subject: string; seconds: number }[];
   totalSeconds: number;
   targets: { subject: string; targetHours: number }[];
+  // 학생이 타이머 화면에 노출 중인 과목 목록(정렬 순, QA B9 "+ 과목 추가"). 행이 없으면
+  // 서버가 기본 4과목을 돌려준다(api/_lib/goalRepo.ts DEFAULT_TIMER_SUBJECTS).
+  visibleSubjects: string[];
 }
 
 /** fetchGoalGrades()/addGoalGrade() 회차 레코드 — api/goal/grades.ts validateEntry 참고. */
@@ -168,18 +171,6 @@ interface GoalGradeRecord {
   value: number;
   none: boolean;
   recordedAt: string;
-}
-
-/**
- * 현재 세션을 조회해 Authorization 헤더를 만든다.
- * 세션이 없으면 null을 반환한다 — 호출부는 이를 즉시 '세션 없음'으로 처리해야 한다.
- */
-async function getAuthHeader(): Promise<{ Authorization: string } | null> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const session = sessionData?.session;
-  if (!session?.user || !session?.access_token) return null;
-
-  return { Authorization: `Bearer ${session.access_token}` };
 }
 
 // 응답 본문 shape은 엔드포인트별로 다르고 파싱 실패 시 {}로 접히므로 any로 둔다 —
@@ -250,7 +241,7 @@ export async function fetchGoalStudent(): Promise<FetchGoalStudentResult> {
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/student", {
+    response = await apiFetch("/api/goal/student", {
       method: "GET",
       headers: authHeader,
     });
@@ -327,7 +318,7 @@ export async function submitGoalIntake(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/intake", {
+    response = await apiFetch("/api/goal/intake", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -396,7 +387,7 @@ export async function fetchTodayGoalRecord(): Promise<FetchTodayGoalRecordResult
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/daily-record", {
+    response = await apiFetch("/api/goal/daily-record", {
       method: "GET",
       headers: authHeader,
     });
@@ -485,7 +476,7 @@ export async function submitDailyRecord(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/daily-record", {
+    response = await apiFetch("/api/goal/daily-record", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -561,7 +552,7 @@ async function goalWorkbooksRequest(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/workbooks", {
+    response = await apiFetch("/api/goal/workbooks", {
       method,
       headers: {
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
@@ -667,7 +658,7 @@ export async function fetchGoalSchedules(): Promise<FetchGoalSchedulesResult> {
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/schedules", {
+    response = await apiFetch("/api/goal/schedules", {
       method: "GET",
       headers: authHeader,
     });
@@ -715,7 +706,7 @@ async function submitGoalSchedule(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/schedules", {
+    response = await apiFetch("/api/goal/schedules", {
       method,
       headers: {
         "Content-Type": "application/json",
@@ -811,7 +802,7 @@ async function requestPlanTasks(
 
   let response: Response;
   try {
-    response = await fetch(`/api/goal/plan-tasks${qs}`, {
+    response = await apiFetch(`/api/goal/plan-tasks${qs}`, {
       method,
       headers: {
         ...(body ? { "Content-Type": "application/json" } : {}),
@@ -947,7 +938,7 @@ export async function fetchGoalRanking(): Promise<FetchGoalRankingResult> {
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/ranking", {
+    response = await apiFetch("/api/goal/ranking", {
       method: "GET",
       headers: authHeader,
     });
@@ -1010,7 +1001,7 @@ export async function fetchGoalGrades(): Promise<FetchGoalGradesResult> {
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/grades", {
+    response = await apiFetch("/api/goal/grades", {
       method: "GET",
       headers: authHeader,
     });
@@ -1077,7 +1068,7 @@ export async function addGoalGrade(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/grades", {
+    response = await apiFetch("/api/goal/grades", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...authHeader },
       body: JSON.stringify({ type, entry }),
@@ -1121,10 +1112,14 @@ export async function addGoalGrade(
 // summary shape(camelCase, api/goal/timer.js GET 응답 그대로):
 //   { date, serverNow, running:{subject,startedAt}|null,
 //     subjects:[{subject,seconds}], totalSeconds,
-//     targets:[{subject,targetHours}] }
-// subject 값은 코드('korean'|'math'|'english'|'science'|'etc') — 한글 라벨
-// 변환은 src/components/goal/subjectTokens.js가 담당한다(plan-tasks의
-// 한글 왕복 변환과 달리, 타이머는 코드값을 그대로 화면까지 들고 간다).
+//     targets:[{subject,targetHours}], visibleSubjects:[subject] }
+// subject 값은 코드(8종 — korean/math/english/science/social/history/
+// second_lang/etc, QA B9로 5종에서 확장) — 한글 라벨 변환은
+// src/components/goal/subjectTokens.js가 담당한다(plan-tasks의 한글 왕복
+// 변환과 달리, 타이머는 코드값을 그대로 화면까지 들고 간다).
+// visibleSubjects는 학생이 타이머 화면에 실제로 노출 중인 과목(기본 4과목 +
+// "+ 과목 추가"로 늘린 과목)만 담는다 — subjects/targets는 카탈로그 전체를
+// 담을 수 있으므로 카드 렌더링은 반드시 visibleSubjects를 기준으로 한다.
 //
 // ⚠ pagehide 하트비트는 navigator.sendBeacon이 아니라 fetch(..., {keepalive:true})를
 // 쓴다(judgement call) — sendBeacon은 커스텀 헤더를 지원하지 않아 이 저장소의
@@ -1151,7 +1146,7 @@ async function requestGoalTimer(
 
   let response: Response;
   try {
-    response = await fetch("/api/goal/timer", {
+    response = await apiFetch("/api/goal/timer", {
       method,
       headers: {
         ...(body ? { "Content-Type": "application/json" } : {}),
@@ -1257,6 +1252,20 @@ export async function setGoalTimerTarget(subject: string, targetHours: number) {
   };
 }
 
+/** 타이머 화면에 과목 카드 추가("+ 과목 추가", QA B9). 이미 노출 중이면 멱등. */
+export async function addGoalTimerSubject(subject: string) {
+  const result = await requestGoalTimer("POST", {
+    action: "addSubject",
+    subject,
+  });
+  if (result.kind !== "success") return result;
+  return {
+    kind: "success" as const,
+    visibleSubjects: result.body
+      ?.visibleSubjects as GoalTimerSummary["visibleSubjects"],
+  };
+}
+
 // ---------------------------------------------------------------------------
 // fetchGoalReport — GET /api/goal/report
 // ---------------------------------------------------------------------------
@@ -1296,7 +1305,7 @@ export async function fetchGoalReport(
 
   let response: Response;
   try {
-    response = await fetch(`/api/goal/report?${params.toString()}`, {
+    response = await apiFetch(`/api/goal/report?${params.toString()}`, {
       method: "GET",
       headers: authHeader,
     });

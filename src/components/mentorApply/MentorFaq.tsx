@@ -46,9 +46,20 @@ function hasAnswer(item: { q: string; a: string }) {
   return typeof item.a === "string" && item.a.trim() !== "";
 }
 
+// 2026-08-27 QA C8: "공지" 구분 추가 — 관리자가 공지로 표시한 문항은 sort_order와
+// 무관하게 항상 목록 맨 위에 모인다(공개 조회의 is_notice desc 정렬 + 방어적으로
+// 폴백 상수 병합 시에도 동일 규칙 유지). 폴백 상수(MENTOR_FAQ)는 공지 개념이 없어
+// isNotice: false로 취급한다.
+type MentorFaqEntry = { q: string; a: string; isNotice: boolean };
+
+const FALLBACK_FAQS: MentorFaqEntry[] = MENTOR_FAQ.map((item) => ({
+  ...item,
+  isNotice: false,
+}));
+
 export default function MentorFaq() {
   // 초기값은 폴백 상수 — 로딩 중에도 빈 화면 대신 이 값으로 먼저 그린다.
-  const [faqs, setFaqs] = useState(MENTOR_FAQ);
+  const [faqs, setFaqs] = useState<MentorFaqEntry[]>(FALLBACK_FAQS);
   const [copy, setCopy] = useState(FAQ_SECTION);
 
   useEffect(() => {
@@ -58,8 +69,9 @@ export default function MentorFaq() {
       const [faqResult, copyResult] = await Promise.all([
         supabase
           .from("mentor_apply_faqs")
-          .select("question, answer")
+          .select("question, answer, is_notice")
           .eq("is_active", true)
+          .order("is_notice", { ascending: false })
           .order("sort_order", { ascending: true })
           .order("created_at", { ascending: false }),
         supabase.from("mentor_apply_copy").select("copy_key, copy_value"),
@@ -70,7 +82,11 @@ export default function MentorFaq() {
       // 조회 실패 또는 0행이면 MENTOR_FAQ 폴백을 그대로 유지한다(교체하지 않는다).
       if (!faqResult.error && faqResult.data && faqResult.data.length > 0) {
         setFaqs(
-          faqResult.data.map((row) => ({ q: row.question, a: row.answer })),
+          faqResult.data.map((row) => ({
+            q: row.question,
+            a: row.answer,
+            isNotice: !!row.is_notice,
+          })),
         );
       }
 
@@ -103,8 +119,14 @@ export default function MentorFaq() {
     : PROD_ANSWER_PLACEHOLDER;
 
   // 답변 렌더는 평문 + 개행 보존이다 — 어드민이 textarea 에 실개행으로 입력하므로.
-  // ServiceFaq(공용 컴포넌트, 수정 금지)는 답변에 className 을 넘길 prop 이 없어
-  // 여기서 answer 자체를 whitespace-pre-line span 으로 감싸 item.a 자리에 넘긴다.
+  // ServiceFaq(공용 컴포넌트, badge 필드만 추가·그 외 수정 금지)는 답변에 className 을
+  // 넘길 prop 이 없어 여기서 answer 자체를 whitespace-pre-line span 으로 감싸 item.a
+  // 자리에 넘긴다.
+  //
+  // 공지 배지(2026-08-27 QA C8): ServiceFaq 의 badge 필드로 넘긴다 — q 자체를 노드로
+  // 바꾸지 않는 이유는 ServiceFaq 가 item.q 를 리스트 key 로도 쓰기 때문이다(복수 공지가
+  // 있으면 동일한 노드 구조가 key 충돌을 일으킨다). badge 는 key 와 무관한 별도 필드라
+  // 이 문제가 없다.
   const items = faqs.map((item) => ({
     q: item.q,
     a: hasAnswer(item) ? (
@@ -112,6 +134,11 @@ export default function MentorFaq() {
     ) : (
       placeholder
     ),
+    badge: item.isNotice ? (
+      <span className="mr-2 inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 align-middle text-xs font-semibold text-primary">
+        공지
+      </span>
+    ) : undefined,
   }));
 
   // MENTOR_FAQ(폴백)이든 DB 응답이든 배열 자체가 빈 방어적 케이스만 여기서 숨긴다 —

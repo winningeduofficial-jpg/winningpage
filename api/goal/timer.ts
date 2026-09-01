@@ -15,15 +15,17 @@
 // 갈리는 이유는 api/_lib/goalRepo.js openGoalSession 주석 참고.
 //
 // ── 모든 진입점 공통 선행 reconcile ────────────────────────────────────────
-// GET·start·stop·heartbeat·setTarget 전부 reconcileTimerState 를 먼저 거친다
+// GET·start·stop·heartbeat·setTarget·addSubject 전부 reconcileTimerState 를 먼저 거친다
 // (goalRepo.js) — (a) 자정을 넘겨 방치된 열린 세션을 날짜 경계마다 분할 마감
 // (b) 하트비트가 5분 넘게 끊긴 열린 세션을 그 시각으로 강제 마감. 둘 다
 // 멱등이라 여러 진입점이 중복 호출해도 안전하다.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
+  addTimerSubject,
   fetchSubjectTargets,
   fetchTimerDaySummary,
+  fetchVisibleTimerSubjects,
   narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
@@ -34,6 +36,7 @@ import {
   touchTimerHeartbeat,
   upsertSubjectTarget,
 } from "../_lib/goalRepo.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -63,7 +66,12 @@ function runningPayload(row: TimerSessionRow) {
 async function handleGet(req: VercelRequest, res: VercelResponse) {
   const session = await openGoalSession(req);
   if (session.error) {
-    return res.status(session.error.status).json(session.error.body);
+    return sendError(
+      res,
+      "detail",
+      session.error.status,
+      session.error.body.detail as string,
+    );
   }
 
   const { allowed } = session;
@@ -75,9 +83,10 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
 
   const { supabaseAdmin, profileId } = narrowGoalSession(session);
   const now = new Date();
-  const [summary, targets] = await Promise.all([
+  const [summary, targets, visibleSubjects] = await Promise.all([
     fetchTimerDaySummary(supabaseAdmin, profileId, now),
     fetchSubjectTargets(supabaseAdmin, profileId),
+    fetchVisibleTimerSubjects(supabaseAdmin, profileId),
   ]);
 
   return res.status(200).json({
@@ -87,13 +96,19 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
     subjects: summary.subjects,
     totalSeconds: summary.totalSeconds,
     targets,
+    visibleSubjects,
   });
 }
 
 async function handlePost(req: VercelRequest, res: VercelResponse) {
   const session = await openGoalSession(req);
   if (session.error) {
-    return res.status(session.error.status).json(session.error.body);
+    return sendError(
+      res,
+      "detail",
+      session.error.status,
+      session.error.body.detail as string,
+    );
   }
 
   const { allowed } = session;
@@ -153,6 +168,22 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true, target });
   }
 
+  if (action === "addSubject") {
+    const subject = body?.subject;
+    if (!TIMER_SUBJECTS.includes(subject)) {
+      return res.status(400).json({ detail: "유효하지 않은 과목입니다." });
+    }
+    // 다른 액션과 동일하게 선행 reconcile — addTimerSubject 자체는 세션에 영향이
+    // 없지만 진입점 전체를 같은 정리 상태로 맞춰 둔다(setTarget과 동일 이유).
+    await reconcileTimerState(supabaseAdmin, profileId, now);
+    const visibleSubjects = await addTimerSubject(
+      supabaseAdmin,
+      profileId,
+      subject,
+    );
+    return res.status(200).json({ ok: true, visibleSubjects });
+  }
+
   return res.status(400).json({ detail: "알 수 없는 action 입니다." });
 }
 
@@ -164,9 +195,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === "POST") {
       return await handlePost(req, res);
     }
-    return res.status(405).json({ detail: "Method not allowed" });
+    return sendError(res, "detail", 405, "Method not allowed");
   } catch (error) {
     console.error("goal/timer error:", error);
-    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
+    return sendError(res, "detail", 500, "처리 중 오류가 발생했습니다.");
   }
 }

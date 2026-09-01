@@ -22,29 +22,75 @@
 //   서브아이템 라벨이 줄바꿈된다). gap은 140+8=148px로 nav 피치와 일치시키기 위한 8px(0.5rem)
 //   고정값 — nav와 임의로 다른 값을 쓰면 컬럼-셀 좌측선 정렬이 뷰포트에 따라 어긋난다.
 //
-// NAV_GUARD (좁은 데스크톱 충돌 가드, 로고용, 유지):
-//   marginLeft: max(0px, calc(6.04rem − (100vw − 72.75rem) / 2))
-//   6.04rem = 밴드 패딩(px-8=2rem) + LOGO_W(4.04rem, 0729 시안 35px 높이 로고) = 로고 우측
-//   끝까지의 안전영역. 72.75rem은 max-w-content 토큰(2026-07-29 1200px→1164px 축소 반영,
-//   과거 75rem 참조는 스테일이었다 — 이번에 함께 수정).
-//   이 가드는 100vw ≈ 84.83rem(1357px) 이상에서 0으로 수렴한다 — desktop 브레이크포인트(90rem)가
-//   그보다 크므로 nav가 보이는 범위 전역에서 항상 0으로 평가된다(로고 충돌 가드는 실질적으로
-//   비활성). 밴드 패딩이 2xl(96rem)에서 7.5rem으로 확장되지만, 그 시점엔 이미 가드가 0으로
-//   수렴한 지 오래(84.83rem)라 이 가드 공식은 32px 패딩 구간 기준으로 유지해도 안전하다.
-//   그래도 향후 breakpoint를 다시 낮추는 변경에 대비한 안전망으로 제거하지 않고 유지한다.
+// NAV_GUARD (좁은 데스크톱 충돌 가드, 로고용):
+//   marginLeft: max(0px, calc(19.375rem − (100vw − 72.75rem) / 2))
+//   19.375rem = 2xl 밴드 패딩(px-30=7.5rem) + LOGO_W(11.875rem, 브랜드 리뉴얼 가로형 로고
+//   h-6=24px) = 2xl 기준 로고 우측 끝까지의 안전영역. 72.75rem은 max-w-content 토큰.
+//   가로형 로고는 세로형(4.04rem)보다 훨씬 넓어 가드가 90rem~111.5rem(1784px) 구간에서
+//   실제로 활성화된다. 패딩이 2rem(<2xl)/7.5rem(2xl+)로 갈리지만 인라인 calc에는 미디어쿼리를
+//   넣을 수 없어 더 넓은 2xl 패딩 기준(19.375rem)으로 통일했다 — <2xl 구간에서는 로고와 nav
+//   사이에 5.5rem 여백이 추가로 생기는 보수적 동작이고, 어느 구간에서도 겹치지 않는다.
+//   (nav 총폭 43.25rem + 가드 최대 16.2rem = 59.45rem < 72.75rem이라 우측 침범도 없다.)
 // MEGA_GUARD: 좌측선 정렬 기준에서는 컬럼 0의 시작이 nav 셀 0의 시작과 같아야 하므로
 //   NAV_GUARD와 완전히 동일한 값을 그대로 재사용한다(별도 오프셋 보정 없음 — 위 피치
 //   설명 참고). 두 이름으로 나눠 export하는 이유는 순수 값이 같더라도 nav/메가 각각의
 //   의미를 코드에서 명확히 구분하기 위함이다.
-export const NAV_GUARD = "max(0px, calc(6.04rem - (100vw - 72.75rem) / 2))";
+import {
+  PREMIUM_ADMISSION_A_PATH,
+  PREMIUM_PROGRAM_PATH_PREFIX,
+} from "@/components/premium/premiumRoutesPaths";
+
+export const NAV_GUARD = "max(0px, calc(19.375rem - (100vw - 72.75rem) / 2))";
 export const MEGA_GUARD = NAV_GUARD;
 export const NAV_CELL_W = "6.25rem";
 export const NAV_CELL_GAP = "3rem";
 export const MEGA_COL_W = "8.75rem";
 export const MEGA_COL_GAP = "0.5rem";
 
+// 프리미엄 메뉴 그룹 — DB(page_contents) 소유가 아니라 이 상수가 정본이다(premium-db-decouple:
+// 프리미엄 프로그램 페이지 전체가 DB 조회 0건으로 전환되며 메뉴도 함께 코드 소유로 옮겼다).
+// useNavGroups.ts가 DB에서 파생된 그룹 트리에 이 그룹을 항상 주입한다(제목 '프리미엄'인 DB
+// 그룹은 있어도 무시하고 이 상수로 교체) — page_contents에 프리미엄 프로그램 행이 아예
+// 없어져도(20260824000007 마이그레이션) 메뉴가 사라지지 않는다.
+export const PREMIUM_NAV_GROUP = {
+  title: "프리미엄",
+  to: PREMIUM_ADMISSION_A_PATH,
+  items: [
+    {
+      label: "대입컨설팅 프로그램",
+      to: PREMIUM_ADMISSION_A_PATH,
+      sortOrder: 1,
+    },
+    {
+      label: "특목고입학 프로그램",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/special-highschool`,
+      sortOrder: 2,
+    },
+    {
+      label: "대학원입학 프로그램",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/graduate-school`,
+      sortOrder: 3,
+    },
+    {
+      label: "해외명문대 진학컨설팅",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/global-university`,
+      sortOrder: 4,
+    },
+    {
+      label: "국제학교 학습관리",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/international-school`,
+      sortOrder: 5,
+    },
+    {
+      label: "국제・해외고 국내대 입학컨설팅",
+      to: `${PREMIUM_PROGRAM_PATH_PREFIX}/returning-student`,
+      sortOrder: 6,
+    },
+  ],
+};
+
 // 헤더 메가메뉴·푸터 공용 fallback — DB(page_contents)가 우선, 이 상수는 오프라인/최초 페인트용.
-// 시안 2016:1796 기준.
+// 시안 2016:1796 기준. '프리미엄' 그룹은 PREMIUM_NAV_GROUP을 그대로 참조한다(위 주석 참고).
 export const FALLBACK_NAV_GROUPS = [
   {
     title: "서비스",
@@ -52,51 +98,20 @@ export const FALLBACK_NAV_GROUPS = [
     items: [
       { label: "학습진단", to: "/services/learning-diagnosis", sortOrder: 1 },
       { label: "목표관리", to: "/services/goal", sortOrder: 2 },
-      { label: "콜멘토", to: "/services/callmentor", sortOrder: 3 },
-      { label: "수행평가", to: "/services/performance", sortOrder: 4 },
-      { label: "자기평가", to: "/services/self-assessment", sortOrder: 5 },
-      { label: "심화탐구", to: "/services/research", sortOrder: 6 },
+      { label: "수행평가", to: "/services/performance", sortOrder: 3 },
+      { label: "자기평가", to: "/services/self-assessment", sortOrder: 4 },
+      { label: "심화탐구", to: "/services/research", sortOrder: 5 },
+      { label: "콜멘토", to: "/services/callmentor", sortOrder: 6 },
     ],
   },
-  {
-    title: "프리미엄",
-    to: "/page/premium-a",
-    items: [
-      { label: "대입컨설팅 프로그램", to: "/page/premium-a", sortOrder: 1 },
-      {
-        label: "특목고입학 프로그램",
-        to: "/page/premium-special-highschool",
-        sortOrder: 2,
-      },
-      {
-        label: "대학원입학 프로그램",
-        to: "/page/premium-graduate-school",
-        sortOrder: 3,
-      },
-      {
-        label: "해외명문대 진학컨설팅",
-        to: "/page/premium-global-university",
-        sortOrder: 4,
-      },
-      {
-        label: "국제학교 학습관리",
-        to: "/page/premium-international-school",
-        sortOrder: 5,
-      },
-      {
-        label: "국제・해외고 국내대 입학컨설팅",
-        to: "/page/premium-returning-student",
-        sortOrder: 6,
-      },
-    ],
-  },
+  PREMIUM_NAV_GROUP,
   {
     title: "입시정보",
     to: "/admission/guidelines",
     items: [
       { label: "대입모집요강", to: "/admission/guidelines", sortOrder: 1 },
       { label: "입결정보", to: "/admission/results", sortOrder: 2 },
-      { label: "수시정시합격", to: "/admission/susi-jungsi", sortOrder: 3 },
+      { label: "대입합격", to: "/admission/susi-jungsi", sortOrder: 3 },
       {
         label: "특목고합격",
         to: "/admission/special-highschool",
@@ -121,7 +136,7 @@ export const FALLBACK_NAV_GROUPS = [
       { label: "회사소개", to: "/company-news", sortOrder: 1 },
       { label: "공지사항", to: "/events", sortOrder: 2 },
       { label: "자주하는 질문", to: "/faq", sortOrder: 3 },
-      { label: "온라인문의", to: "/page/online-inquiry", sortOrder: 4 },
+      { label: "온라인문의", to: "/online-inquiry", sortOrder: 4 },
     ],
   },
 ];
@@ -132,10 +147,10 @@ export const FALLBACK_NAV_GROUPS = [
 export const SERVICE_NAME_ROUTES = {
   학습진단: "/services/learning-diagnosis",
   목표관리: "/services/goal",
-  콜멘토: "/services/callmentor",
   수행평가: "/services/performance",
   자기평가: "/services/self-assessment",
   심화탐구: "/services/research",
+  콜멘토: "/services/callmentor",
 };
 
 export const MENU_GROUP_ORDER = {

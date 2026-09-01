@@ -1,6 +1,8 @@
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import RefundAccountFields from "@/components/mypage/RefundAccountFields";
 import { formatKRW } from "@/data/pricingCatalog";
+import type { VirtualAccountInfo } from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
 
 // 학부모 환불 확인 모달 — 자녀가 보낸 환불 요청을 승인/반려한다.
@@ -17,12 +19,19 @@ import { supabase } from "@/lib/supabase";
 // 승인축(approval_status)과 처리축(status)은 별개다 — 여기서 승인해도 실제
 // 환불 실행은 어드민이 한다(fn_complete_refund). 승인은 "어드민이 처리해도
 // 좋다"는 잠금 해제일 뿐이다.
+//
+// 환불계좌 3필드(2026-08-22 추가) — 학생이 신청한 환불을 승인하는 화면이라,
+// 그 주문이 가상계좌 결제면 학부모가 여기서 환불계좌를 입력해야 한다
+// (fn_respond_refund가 승인 시 함께 받는다, WC058). 학부모 직접 신청 경로
+// (RefundRequestModal)와 입력 시점이 다를 뿐 필드 UI는 RefundAccountFields를
+// 공유한다.
 
 const RESPOND_ERROR_TEXT = {
   WC026: "이미 처리된 환불 요청입니다.",
   WC027: "이 환불 요청에 응답할 권한이 없습니다.",
   WC028: "이미 응답한 환불 요청입니다.",
   WC029: "반려 사유를 입력해 주세요.",
+  WC058: "가상계좌 환불은 환불계좌(은행/계좌번호/예금주) 입력이 필요합니다.",
 };
 const RESPOND_UNKNOWN_ERROR_TEXT =
   "처리에 실패했습니다. 잠시 후 다시 시도해 주세요.";
@@ -34,11 +43,31 @@ type RefundRequestRow = {
   gross_amount?: number | null;
   reason?: string;
   student_profile_id?: string;
+  // v10 구성서비스 단위 부분해지 — 산정 라인 배열(jsonb). 레거시 v9 행은 키
+  // 구성이 달라(order_item_id 없음) 소비 측에서 방어적으로 파싱한다.
+  quote?: unknown;
+  // NULL/빈 배열이면 주문 전체 환불, 값이 있으면 그 order_item_id 들만 대상.
+  order_item_ids?: number[] | null;
 };
+
+type RefundQuoteLine = {
+  item_name?: string;
+  paid_allocated?: number;
+  refund?: number;
+};
+
+function parseQuoteLines(quote: unknown): RefundQuoteLine[] {
+  if (!Array.isArray(quote)) return [];
+  return quote.filter(
+    (line): line is RefundQuoteLine =>
+      typeof line === "object" && line !== null,
+  );
+}
 
 type RefundApprovalModalProps = {
   open: boolean;
   request: RefundRequestRow | null;
+  virtualAccount?: VirtualAccountInfo | null;
   childName?: string;
   onClose: () => void;
   onResponded?: () => void;
@@ -47,6 +76,7 @@ type RefundApprovalModalProps = {
 export default function RefundApprovalModal({
   open,
   request,
+  virtualAccount,
   childName,
   onClose,
   onResponded,
@@ -57,12 +87,41 @@ export default function RefundApprovalModal({
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
+  const [refundBank, setRefundBank] = useState("");
+  const [refundAccount, setRefundAccount] = useState("");
+  const [refundHolder, setRefundHolder] = useState("");
+
+  const isVirtualAccountOrder = Boolean(virtualAccount);
+
+  // request가 바뀔 때마다(다른 신청 건을 열 때) 계좌 입력을 새로 시작한다.
+  // 결제 시점에 이미 환불계좌가 있으면(가상계좌 refundReceiveAccount) 프리필한다.
+  // virtualAccount는 상위(ParentPaymentsTab)가 매 렌더 orders.find(...)로 새로
+  // 계산해 내려주는 파생값이라 deps에 넣으면 입력 중인 계좌 값이 다른 이유의
+  // 재렌더로 초기화된다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: request?.id(스칼라) 하나로 "다른 신청 건을 열었는가"만 판별한다.
+  useEffect(() => {
+    const prefill = virtualAccount?.refundReceiveAccount;
+    setRefundBank(prefill?.bank || "");
+    setRefundAccount(prefill?.accountNumber || "");
+    setRefundHolder(prefill?.holderName || "");
+  }, [request?.id]);
+
+  const accountFieldsValid =
+    !isVirtualAccountOrder ||
+    (Boolean(refundBank) &&
+      refundAccount.trim().length > 0 &&
+      refundHolder.trim().length > 0);
+
   const respond = useCallback(
     async (approve: boolean) => {
       if (!request?.id || saving) return;
       const reason = approve ? null : rejectReason.trim();
       if (!approve && !reason) {
         setErrorMsg(RESPOND_ERROR_TEXT.WC029);
+        return;
+      }
+      if (approve && !accountFieldsValid) {
+        setErrorMsg(RESPOND_ERROR_TEXT.WC058);
         return;
       }
 
@@ -73,6 +132,14 @@ export default function RefundApprovalModal({
         p_refund_request_id: request.id,
         p_approve: approve,
         p_reject_reason: reason,
+        // 가상계좌 결제 건만 실어 보낸다(RefundRequestModal과 같은 이유).
+        ...(approve && isVirtualAccountOrder
+          ? {
+              p_refund_bank: refundBank,
+              p_refund_account: refundAccount.trim(),
+              p_refund_holder: refundHolder.trim(),
+            }
+          : {}),
       });
 
       setSaving(false);
@@ -89,7 +156,17 @@ export default function RefundApprovalModal({
       setRejectReason("");
       onResponded?.();
     },
-    [request, saving, rejectReason, onResponded],
+    [
+      request,
+      saving,
+      rejectReason,
+      onResponded,
+      accountFieldsValid,
+      isVirtualAccountOrder,
+      refundBank,
+      refundAccount,
+      refundHolder,
+    ],
   );
 
   if (!open || !request) return null;
@@ -98,7 +175,21 @@ export default function RefundApprovalModal({
   // 근거가 없으므로 환불액만 보여준다.
   const gross = request.gross_amount ? Number(request.gross_amount) : null;
   const refund = Number(request.amount || 0);
-  const fee = gross === null ? null : gross - refund;
+  const quoteLines = parseQuoteLines(request.quote);
+  const isPartial = Boolean(
+    request.order_item_ids && request.order_item_ids.length > 0,
+  );
+  const paidAllocatedSum =
+    quoteLines.length > 0
+      ? quoteLines.reduce((sum, l) => sum + (l.paid_allocated ?? 0), 0)
+      : null;
+  // 부분해지(구성서비스 단위)는 gross(주문 전액)를 base로 쓰면 아직 남아 있는
+  // 다른 서비스분까지 이번 건의 공제로 오인된다 — quote 라인의 paid_allocated
+  // (안분결제액) 합을 base로 쓴다. 못 구하면(레거시 v9 등) 기존 gross 기반을
+  // 유지한다.
+  const feeBase =
+    isPartial && paidAllocatedSum !== null ? paidAllocatedSum : gross;
+  const fee = feeBase === null ? null : Math.max(0, feeBase - refund);
 
   return (
     <MyPageModalShell
@@ -131,6 +222,31 @@ export default function RefundApprovalModal({
             {request.order_name}
           </p>
 
+          {/* ⚠ 신규 카피 — 승인 필요. */}
+          {isPartial && (
+            <p className="mt-2 break-keep text-[0.8125rem] leading-relaxed text-ink-sub">
+              선택 항목만 환불하는 신청입니다. 나머지 서비스는 계속 이용할 수
+              있어요.
+            </p>
+          )}
+
+          {quoteLines.length >= 2 && (
+            <div className="mt-3 flex flex-col gap-1 rounded-xl bg-surface-04 px-4 py-3 text-[0.8125rem]">
+              <p className="font-semibold text-ink">항목별 내역</p>
+              {quoteLines.map((line, i) => (
+                <div
+                  key={line.item_name ?? i}
+                  className="flex items-center justify-between text-ink-sub"
+                >
+                  <span>{line.item_name ?? "-"}</span>
+                  <span className="text-ink-strong">
+                    {formatKRW(line.refund ?? 0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="mt-3 flex flex-col gap-2">
             {gross !== null && (
               <>
@@ -139,17 +255,22 @@ export default function RefundApprovalModal({
                   <span className="text-ink-strong">{formatKRW(gross)}</span>
                 </div>
                 <div className="flex items-center justify-between text-[0.875rem]">
-                  <span className="text-ink-sub">취소 수수료</span>
+                  {/* ⚠ 신규 카피 — RefundRequestModal 쪽도 같은 교체가 동시
+                      진행 중이다. */}
+                  <span className="text-ink-sub">이용분 공제</span>
                   <span className="text-error">
-                    {/* fee는 gross와 동일 조건(gross===null?null:...)으로 계산돼
-                        gross!==null 블록 안에서는 항상 non-null이다. */}
+                    {/* fee는 feeBase와 동일 조건(feeBase===null?null:...)으로
+                        계산돼 gross!==null 블록 안에서는 항상 non-null이다
+                        (isPartial 이 아니면 feeBase===gross). */}
                     {fee! > 0 ? `-${formatKRW(fee!)}` : formatKRW(0)}
                   </span>
                 </div>
               </>
             )}
             <div className="flex items-center justify-between border-t border-line pt-2 text-[0.9375rem] font-semibold">
-              <span className="text-ink">환불 금액</span>
+              {/* 약관 [별표 2] 최종 단계 문언 "최종 환불액" 그대로
+                  (사용자 확정 2026-09-01). */}
+              <span className="text-ink">최종 환불액</span>
               <span className="text-ink-strong">{formatKRW(refund)}</span>
             </div>
           </div>
@@ -160,6 +281,17 @@ export default function RefundApprovalModal({
             </p>
           )}
         </div>
+
+        {isVirtualAccountOrder && !rejecting && (
+          <RefundAccountFields
+            bank={refundBank}
+            account={refundAccount}
+            holder={refundHolder}
+            onBankChange={setRefundBank}
+            onAccountChange={setRefundAccount}
+            onHolderChange={setRefundHolder}
+          />
+        )}
 
         {rejecting && (
           <textarea
@@ -212,7 +344,7 @@ export default function RefundApprovalModal({
             <button
               type="button"
               onClick={() => respond(true)}
-              disabled={saving}
+              disabled={saving || !accountFieldsValid}
               className="h-12 rounded-xl bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
               {saving ? "처리 중..." : "환불 승인"}

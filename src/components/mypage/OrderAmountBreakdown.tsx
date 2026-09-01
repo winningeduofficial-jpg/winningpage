@@ -74,6 +74,7 @@ export default function OrderAmountBreakdown({
       {itemRows.length > 0 ? (
         itemRows.map((row, i) => (
           <Row
+            // biome-ignore lint/suspicious/noArrayIndexKey: 파생 표시 행이라 고유 id가 없고 재정렬·삽입 없이 통째로 다시 그린다 — 같은 라벨이 반복될 수 있어 인덱스로 구분한다.
             key={`item-${row.label}-${i}`}
             label={row.label}
             value={row.amountText}
@@ -88,6 +89,7 @@ export default function OrderAmountBreakdown({
           <SectionLabel>할인</SectionLabel>
           {discountRows.map((row, i) => (
             <Row
+              // biome-ignore lint/suspicious/noArrayIndexKey: 파생 표시 행이라 고유 id가 없고 재정렬·삽입 없이 통째로 다시 그린다.
               key={`discount-${i}`}
               label={row.label}
               value={row.amountText}
@@ -96,6 +98,7 @@ export default function OrderAmountBreakdown({
           ))}
           {couponRows.map((row, i) => (
             <Row
+              // biome-ignore lint/suspicious/noArrayIndexKey: 파생 표시 행이라 고유 id가 없고 재정렬·삽입 없이 통째로 다시 그린다.
               key={`coupon-${i}`}
               label={row.label}
               value={row.amountText}

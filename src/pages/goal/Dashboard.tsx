@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import AchievementChart from "@/components/goal/dashboard/AchievementChart";
 import AdviceCard from "@/components/goal/dashboard/AdviceCard";
@@ -12,8 +13,9 @@ import TodayGoalCard from "@/components/goal/dashboard/TodayGoalCard";
 import TomorrowPlanCard from "@/components/goal/dashboard/TomorrowPlanCard";
 import GoalCard from "@/components/goal/GoalCard";
 import { QUICK_ADD_HOURS } from "@/components/goal/goalFormOptions";
+import { DEFAULT_TIMER_SUBJECTS } from "@/components/goal/studyRecordOptions";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
-import { TIMER_SUBJECT_ORDER } from "@/components/goal/studyRecordOptions";
+import { useAuth } from "@/context/AuthProvider";
 import {
   getDayIndexFromYMDServer,
   kstYMD,
@@ -23,15 +25,15 @@ import {
   formatScheduleDday,
   formatScheduleMeta,
 } from "@/lib/goal/scheduleDday";
+import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
 import {
   fetchGoalRanking,
   fetchGoalSchedules,
-  fetchGoalStudent,
   fetchGoalTimer,
   fetchTodayGoalRecord,
 } from "@/lib/goalApi";
-import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
 import { formatTodayDateLabel } from "@/lib/goalPlanUtils";
+import { goalStudentQueryOptions } from "@/lib/queryClient";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -205,31 +207,37 @@ function mapTodayGoal(
     quickAddOptions: QUICK_ADD_HOURS,
     upperGoalRate: rateOf(daySchedule.ideal),
     lowerGoalRate: rateOf(daySchedule.min),
+    // QA 행304 — 카드가 달성률 %만 보여주고 실제 이상/최소 목표 "시간(h)"이 어디에도
+    // 안 보였다. daySchedule은 이미 서버가 온보딩 때 요일별로 계산해 저장한 값이라
+    // (api/goal/intake.ts buildWeeklySchedule → study_schedule 컬럼, goalRepo.js
+    // buildStudentPayload가 weeklySchedule로 내려준다) 그대로 넘긴다 — 새로 계산하지 않는다.
+    upperTargetHours: daySchedule.ideal,
+    lowerTargetHours: daySchedule.min,
   };
 }
 
 /**
  * 과목별 배분 비율(합=1). fetchGoalTimer().summary.targets(goal_subject_targets, 학생이
  * 타이머 페이지에서 설정한 과목별 목표 시간)가 있으면 그 비율로, 하나도 없으면
- * TIMER_SUBJECT_ORDER 4과목 균등 배분한다(Timer 페이지 기존 파생 규칙과 동일 폴백).
+ * DEFAULT_TIMER_SUBJECTS 4과목 균등 배분한다(Timer 페이지 기존 파생 규칙과 동일 폴백).
  */
 function buildSubjectRatios(
   timerTargets: { subject: string; targetHours: number }[] | null,
 ): Record<string, number> {
   const relevant = (timerTargets || []).filter(
-    (t) => TIMER_SUBJECT_ORDER.includes(t.subject) && t.targetHours > 0,
+    (t) => DEFAULT_TIMER_SUBJECTS.includes(t.subject) && t.targetHours > 0,
   );
   const total = relevant.reduce((sum, t) => sum + t.targetHours, 0);
 
   if (total <= 0) {
-    const equalShare = 1 / TIMER_SUBJECT_ORDER.length;
+    const equalShare = 1 / DEFAULT_TIMER_SUBJECTS.length;
     return Object.fromEntries(
-      TIMER_SUBJECT_ORDER.map((subject) => [subject, equalShare]),
+      DEFAULT_TIMER_SUBJECTS.map((subject) => [subject, equalShare]),
     );
   }
 
   return Object.fromEntries(
-    TIMER_SUBJECT_ORDER.map((subject) => {
+    DEFAULT_TIMER_SUBJECTS.map((subject) => {
       const match = relevant.find((t) => t.subject === subject);
       return [subject, match ? match.targetHours / total : 0];
     }),
@@ -248,7 +256,7 @@ function buildTomorrowPlan(
   if (tomorrowIdealHours <= 0) return [];
 
   const ratios = buildSubjectRatios(timerTargets);
-  return TIMER_SUBJECT_ORDER.map((subjectId) => ({
+  return DEFAULT_TIMER_SUBJECTS.map((subjectId) => ({
     subject: getSubjectLabel(subjectId),
     hours: tomorrowIdealHours * (ratios[subjectId] ?? 0),
   }))
@@ -354,10 +362,17 @@ function mapNaesin(student: GoalStudent) {
 export default function Dashboard() {
   // fetchGoalStudent() 결과를 discriminated union 그대로 보관한다(재가공하지 않는다 —
   // goalApi.js의 kind 계약을 이 컴포넌트가 다시 해석하는 지점을 하나로 좁혀 둔다).
-  // null = 아직 응답 도착 전(로딩 중). RequireGoalAccess가 이미 onboarded:true만
-  // 통과시키므로 정상 경로에선 result.kind는 항상 'onboarded'다 — 그 외 kind는
-  // 전부 직접 URL 진입·세션 경쟁 상태 같은 방어적 분기다.
-  const [result, setResult] = useState<GoalStudentResult | null>(null);
+  // useQuery(['goal','student'])는 requireGoalOnboardingDoneMiddleware(routeMiddleware.ts →
+  // goalOnboarding.ts의 isOnboardingDone)가 이 라우트 진입 시 이미 채워 둔 캐시를
+  // 그대로 읽는다(staleTime 15초, queryClient.ts, 캐시 키의 userId는 리뷰 C1) —
+  // 이 컴포넌트가 마운트되며 GET /api/goal/student를 다시 부르지 않는다(명세
+  // B-2 §7). data === undefined = 아직 응답 도착 전(로딩 중, 캐시 미스로 직접
+  // 접근한 경우에만 발생). RequireGoalAccess가 이미 onboarded:true만 통과시키므로
+  // 정상 경로에선 kind는 항상 'onboarded'다 — 그 외 kind는 전부 직접 URL 진입·
+  // 세션 경쟁 상태 같은 방어적 분기다.
+  const { userId } = useAuth();
+  const { data: goalStudentData } = useQuery(goalStudentQueryOptions(userId));
+  const result = (goalStudentData ?? null) as GoalStudentResult | null;
   // null = 로딩 중. kind가 'ok'가 아닌 나머지(no-session/not-allowed/error)는
   // mapRankingRows가 빈 배열로 접어 RankingRail의 빈 상태 문구로 흡수한다 —
   // 이 카드 하나 때문에 대시보드 전체를 에러 화면으로 떨어뜨리지 않는다.
@@ -390,9 +405,6 @@ export default function Dashboard() {
   };
   useEffect(() => {
     let alive = true;
-    fetchGoalStudent().then((r) => {
-      if (alive) setResult(r as GoalStudentResult);
-    });
     fetchTodayGoalRecord().then((r) => {
       if (alive) setDailyRecordResult(r as DailyRecordResult);
     });
@@ -495,7 +507,10 @@ export default function Dashboard() {
   // 웰컴 카드(§3.16) — headline은 오늘의 조언(②), body는 확률 요약(①). badge는
   // DashboardPageHeader가 adviceType prop으로 자체 렌더하므로 여기서는 만들지 않는다.
   const advice = {
-    headline: buildTodayHeadline(todayDaySchedule.ideal, todayGoalData.studyHours),
+    headline: buildTodayHeadline(
+      todayDaySchedule.ideal,
+      todayGoalData.studyHours,
+    ),
     body: buildProbabilitySummary(targetUniversities),
   };
 

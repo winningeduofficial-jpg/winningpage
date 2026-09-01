@@ -1,17 +1,24 @@
+import { useQuery } from "@tanstack/react-query";
 import type { ComponentProps } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import GoalPageHeader from "@/components/goal/GoalPageHeader";
 import AddMockExamGradeModal from "@/components/goal/modals/AddMockExamGradeModal";
 import AddNaesinGradeModal from "@/components/goal/modals/AddNaesinGradeModal";
 import GoalGaugeCard from "@/components/goal/report/GoalGaugeCard";
 import GoalTable from "@/components/goal/report/GoalTable";
-import { addGoalGrade, fetchGoalGrades, fetchGoalStudent } from "@/lib/goalApi";
+import { useAuth } from "@/context/AuthProvider";
+import {
+  addGoalGrade,
+  type FetchGoalGradesResult,
+  fetchGoalGrades,
+} from "@/lib/goalApi";
 import {
   improvementDelta,
   latestKpi,
   round1,
   toTableRows,
 } from "@/lib/goalGrades";
+import { goalStudentQueryOptions } from "@/lib/queryClient";
 
 // 성적 관리(#35) + 내신/모의고사 성적 추가 모달(#36, 4022:5216) — 실데이터 배선.
 //
@@ -63,41 +70,59 @@ export default function Grades() {
   const [naesinModalOpen, setNaesinModalOpen] = useState(false);
   const [mockModalOpen, setMockModalOpen] = useState(false);
 
-  // null = 로딩 중. 두 응답을 각자의 discriminated union 그대로 보관하지 않고 이 페이지가
-  // 바로 쓰는 모양으로 한 번만 합친다 — 소비 지점이 이 컴포넌트 하나뿐이라 goalApi.js의
-  // kind 계약을 그대로 노출할 이유가 없다(Dashboard.jsx의 result 보관 방식과는 다른 이유:
-  // 거긴 여러 매퍼가 같은 result를 나눠 쓴다).
-  const [state, setState] = useState<GradesState>({ status: "loading" });
+  // 목표 대학 컷·온보딩 베이스라인은 ['goal','student', userId] 쿼리
+  // 캐시(src/lib/queryClient.ts)를 그대로 구독한다 — goal 진입 시 미들웨어·
+  // Dashboard.tsx가 이미 채워둔 응답을 재사용해 이 페이지 전용 재요청을 없앤다
+  // (명세 B-3 §5, 캐시 키의 userId는 리뷰 C1). 회차 기록(fetchGoalGrades)은 이
+  // 페이지 전용 데이터라 이번 배치 전환 대상이 아니다(계획서 B-3 범위는
+  // fetchGoalStudent만) — 기존처럼 로컬 상태로 직접 조회한다.
+  const { userId } = useAuth();
+  const goalStudentQuery = useQuery(goalStudentQueryOptions(userId));
+  const [gradesResult, setGradesResult] =
+    useState<FetchGoalGradesResult | null>(null);
 
   useEffect(() => {
     let alive = true;
 
-    Promise.all([fetchGoalStudent(), fetchGoalGrades()]).then(
-      ([studentResult, gradesResult]) => {
-        if (!alive) return;
-
-        if (studentResult.kind !== "onboarded" || gradesResult.kind !== "ok") {
-          setState({ status: "error" });
-          return;
-        }
-
-        // goalApi.ts의 GoalGradeRecord/GoalTargets는 export되지 않아(파일 소유권 제약)
-        // 이 파일의 로컬 shape와 구조는 같지만 인덱스 시그니처가 없다 — 실제 데이터는
-        // GradesState 계약을 그대로 만족하므로 여기서만 단언한다.
-        setState({
-          status: "ready",
-          targets: studentResult.student.targets,
-          scores: studentResult.student.scores,
-          naesinRecords: gradesResult.naesinRecords,
-          mockRecords: gradesResult.mockRecords,
-        } as unknown as GradesState);
-      },
-    );
+    fetchGoalGrades().then((result) => {
+      if (alive) setGradesResult(result);
+    });
 
     return () => {
       alive = false;
     };
   }, []);
+
+  // 두 응답을 각자의 discriminated union 그대로 보관하지 않고 이 페이지가 바로 쓰는
+  // 모양으로 한 번만 합친다 — 소비 지점이 이 컴포넌트 하나뿐이라 goalApi.js의 kind
+  // 계약을 그대로 노출할 이유가 없다(Dashboard.jsx의 result 보관 방식과는 다른 이유:
+  // 거긴 여러 매퍼가 같은 result를 나눠 쓴다).
+  const state: GradesState = useMemo(() => {
+    if (goalStudentQuery.isPending || gradesResult === null) {
+      return { status: "loading" };
+    }
+
+    const studentResult = goalStudentQuery.data;
+
+    if (
+      !studentResult ||
+      studentResult.kind !== "onboarded" ||
+      gradesResult.kind !== "ok"
+    ) {
+      return { status: "error" };
+    }
+
+    // goalApi.ts의 GoalGradeRecord/GoalTargets는 export되지 않아(파일 소유권 제약)
+    // 이 파일의 로컬 shape와 구조는 같지만 인덱스 시그니처가 없다 — 실제 데이터는
+    // GradesState 계약을 그대로 만족하므로 여기서만 단언한다.
+    return {
+      status: "ready",
+      targets: studentResult.student.targets,
+      scores: studentResult.student.scores,
+      naesinRecords: gradesResult.naesinRecords,
+      mockRecords: gradesResult.mockRecords,
+    } as unknown as GradesState;
+  }, [goalStudentQuery.isPending, goalStudentQuery.data, gradesResult]);
 
   async function handleSaveGrade(
     type: "naesin" | "mock",
@@ -126,8 +151,9 @@ export default function Grades() {
     }
 
     // 서버가 돌려준 갱신된 전체 회차 배열로 교체한다 — 재조회 왕복 없이 즉시 반영.
-    setState((prev) =>
-      prev.status === "ready"
+    // state는 gradesResult(로컬)에서 파생되므로 gradesResult 쪽을 갱신한다.
+    setGradesResult((prev) =>
+      prev?.kind === "ok"
         ? {
             ...prev,
             [type === "naesin" ? "naesinRecords" : "mockRecords"]:

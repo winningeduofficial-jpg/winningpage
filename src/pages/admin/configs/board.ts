@@ -111,6 +111,11 @@ export const boardConfigs: Record<string, BoardConfig> = {
           ".pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg",
       },
       { key: "sort_order", label: "순서", type: "number" },
+      // 조회수는 공개면에서만 증가하는 값이라 원칙적으로 이 폼으로 편집하지 않는다
+      // (saveRow의 delete payload.view_count 참고). 이 필드는 어드민이 명시적으로
+      // 값을 강제 조정하려는 경우만을 위한 예외 통로다 — fields에 view_count가
+      // 있는 표에 한해 saveRow가 그 값을 그대로 저장한다.
+      { key: "view_count", label: "조회수 조정", type: "number" },
     ],
     defaults: {
       is_active: true,
@@ -175,6 +180,8 @@ export const boardConfigs: Record<string, BoardConfig> = {
           ".pdf,.hwp,.hwpx,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg",
       },
       { key: "sort_order", label: "순서", type: "number" },
+      // 조회수 강제 조정 예외 통로 — notices 설정의 동일 필드 주석 참고.
+      { key: "view_count", label: "조회수 조정", type: "number" },
     ],
     defaults: {
       is_active: true,
@@ -206,6 +213,7 @@ export const boardConfigs: Record<string, BoardConfig> = {
       { key: "is_featured", label: "인기", type: "boolean" },
       { key: "is_active", label: "노출", type: "boolean" },
       { key: "created_at", label: "작성일", type: "date" },
+      { key: "view_count", label: "조회수" },
     ],
     fields: [
       {
@@ -241,6 +249,8 @@ export const boardConfigs: Record<string, BoardConfig> = {
         ],
       },
       { key: "is_featured", label: "이번주 인기 노출", type: "radioBoolean" },
+      // 조회수 강제 조정 예외 통로 — notices 설정의 동일 필드 주석 참고.
+      { key: "view_count", label: "조회수 조정", type: "number" },
     ],
     defaults: {
       is_active: true,
@@ -337,12 +347,13 @@ export const boardConfigs: Record<string, BoardConfig> = {
     searchPlaceholder: "질문을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `답변은 서식 없는 평문이며 줄바꿈만 그대로 반영됩니다. 초기 답변 5개에 붙은 '[예시]'는 확정되지 않은 임시 문구라는 표식입니다 — 실제 문구로 교체하면서 '[예시]' 접두어도 함께 지워 주세요. 문항을 전부 지우면 공개 페이지는 코드에 내장된 기본 문구로 되돌아갑니다(빈 화면이 되지 않습니다).`,
+    guideText: `답변은 서식 없는 평문이며 줄바꿈만 그대로 반영됩니다. 초기 답변 5개에 붙은 '[예시]'는 확정되지 않은 임시 문구라는 표식입니다 — 실제 문구로 교체하면서 '[예시]' 접두어도 함께 지워 주세요. 문항을 전부 지우면 공개 페이지는 코드에 내장된 기본 문구로 되돌아갑니다(빈 화면이 되지 않습니다). '공지'로 표시한 문항은 노출 순서와 무관하게 항상 맨 위에 모입니다.`,
     columns: [
       { key: "sort_order", label: "노출 순서" },
       { key: "question", label: "질문" },
       { key: "answer", label: "답변", type: "truncate" },
       { key: "is_active", label: "노출", type: "boolean" },
+      { key: "is_notice", label: "공지", type: "boolean" },
     ],
     fields: [
       {
@@ -351,11 +362,23 @@ export const boardConfigs: Record<string, BoardConfig> = {
         type: "radioBoolean",
         required: true,
       },
+      {
+        key: "is_notice",
+        label: "구분",
+        type: "radioBoolean",
+        required: true,
+      },
       { key: "sort_order", label: "노출 순서", type: "number", required: true },
       { key: "question", label: "질문", type: "text", required: true },
       { key: "answer", label: "답변", type: "textarea" },
     ],
-    defaults: { is_active: true, sort_order: 1, question: "", answer: "" },
+    defaults: {
+      is_active: true,
+      is_notice: false,
+      sort_order: 1,
+      question: "",
+      answer: "",
+    },
   },
 
   // 정본: sql/53_mentor_apply_faq_admin.sql. 공개 소비처는

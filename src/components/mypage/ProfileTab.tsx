@@ -13,9 +13,14 @@ import ChangePasswordModal from "./ChangePasswordModal";
 import ChangePhoneModal from "./ChangePhoneModal";
 import ProfileField from "./ProfileField";
 import ToggleRow from "./ToggleRow";
+import UnlinkParentModal from "./UnlinkParentModal";
 import WithdrawModal from "./WithdrawModal";
 
 const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
+
+// 과도 입력으로 인한 UI 깨짐 방지(QA 행266) — 학교명은 실제 학교 정식 명칭 최대
+// 길이 여유를 두고 50자로 제한한다.
+const SCHOOL_NAME_MAX_LENGTH = 50;
 
 // 이용안내(chevron 링크) — PNG 라벨 그대로, 라우트는 src/App.jsx에 실제 등록된 것만
 // 사용(읽기로 확인). "마케팅 목적의 개인정보 수집 및 이용"/"광고성 정보 수신 동의"는 PNG상
@@ -49,6 +54,32 @@ function formatLinkDate(iso: string | null | undefined) {
   return `${d.getFullYear()}. ${d.getMonth() + 1}. ${d.getDate()}.`;
 }
 
+// 생년월일 표시 — profiles.birth_date는 date 컬럼이라 "YYYY-MM-DD" 문자열로 온다.
+// new Date()로 재파싱하지 않는다(문자열을 UTC 자정으로 해석해 로컬 표시가 하루
+// 밀릴 수 있는 흔한 함정을 피하기 위해 문자열을 직접 쪼갠다).
+function formatBirthDate(value: string | null | undefined) {
+  if (!value) return "";
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return value;
+  return `${match[1]}.${match[2]}.${match[3]}`;
+}
+
+// 성별 표시 — profiles.gender는 NICE 본인인증 API 응답을 가공 없이 그대로 저장한
+// 값이다(api/nice-identity-callback.ts:242 `gender: result.gender || null`,
+// supabase/migrations/20260821000006_mentor_apply_gender.sql 주석: "profiles.gender는
+// 외부 본인인증 API 응답을 그대로 흘려받는 컬럼이라 CHECK이 없다" — 그 파일이 정의한
+// '남'/'여' 자체 폼 규약과는 성격이 다르다). 이 값의 숫자 코드 규약(1/2인지 1/0인지)을
+// 확정할 근거가 코드베이스 안에 없어 숫자 코드는 매핑하지 않는다 — 잘못 매핑하면
+// 성별이 뒤바뀌어 보이는 사고가 더 크다. 명확한 텍스트 표기만 한글로 바꾸고, 그 밖의
+// 값은 원문 그대로 노출한다(폴백 문구 없음).
+function formatGender(value: string) {
+  const trimmed = value.trim();
+  const upper = trimmed.toUpperCase();
+  if (upper === "M" || upper === "MALE" || trimmed === "남") return "남성";
+  if (upper === "F" || upper === "FEMALE" || trimmed === "여") return "여성";
+  return trimmed;
+}
+
 type ProfileUser = {
   id: string;
   email?: string;
@@ -61,6 +92,8 @@ type Profile = {
   phone?: string;
   school_type?: string;
   school_name?: string;
+  birth_date?: string | null;
+  gender?: string | null;
 };
 
 type ParentLink = {
@@ -96,6 +129,8 @@ export default function ProfileTab({
     phone: profile?.phone || "",
     school_type: profile?.school_type || "",
     school_name: profile?.school_name || "",
+    birth_date: profile?.birth_date || "",
+    gender: profile?.gender || "",
   });
   const [toggles, setToggles] = useState({
     marketing_agreed: false,
@@ -106,10 +141,6 @@ export default function ProfileTab({
   const [emailOpen, setEmailOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
-
-  // 이름 인라인 편집(블러 시 저장) — 마지막으로 서버에 반영된 값과 비교해 불필요한 저장을 막는다.
-  const [savedName, setSavedName] = useState(profile?.name || "");
-  const [savingName, setSavingName] = useState(false);
 
   // 학교·학년 인라인 편집.
   const [editingSchool, setEditingSchool] = useState(false);
@@ -123,7 +154,8 @@ export default function ProfileTab({
   const [parentLink, setParentLink] = useState<ParentLink | null | undefined>(
     undefined,
   );
-  const [revoking, setRevoking] = useState(false);
+  // 연결 해제 재확인 모달(비밀번호 재인증 포함, UnlinkParentModal.tsx) 열림 여부.
+  const [unlinkOpen, setUnlinkOpen] = useState(false);
 
   // 내 연결코드.
   const [linkCode, setLinkCode] = useState("");
@@ -140,7 +172,7 @@ export default function ProfileTab({
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "name, email, phone, school_type, school_name, marketing_agreed, ads_agreed",
+          "name, email, phone, school_type, school_name, birth_date, gender, marketing_agreed, ads_agreed",
         )
         .eq("id", profileId)
         .maybeSingle();
@@ -154,8 +186,9 @@ export default function ProfileTab({
         phone: data.phone ?? prev.phone,
         school_type: data.school_type ?? prev.school_type,
         school_name: data.school_name ?? prev.school_name,
+        birth_date: data.birth_date ?? prev.birth_date,
+        gender: data.gender ?? prev.gender,
       }));
-      setSavedName(data.name || "");
       setToggles({
         marketing_agreed: Boolean(data.marketing_agreed),
         ads_agreed: Boolean(data.ads_agreed),
@@ -225,10 +258,7 @@ export default function ProfileTab({
   }
 
   // 공용 저장 헬퍼 — src/pages/MyPage.jsx handleSubmit의 upsert 흐름을 재사용한다.
-  async function persistProfile(
-    fields: Record<string, unknown>,
-    { syncAuthName = false }: { syncAuthName?: boolean } = {},
-  ) {
+  async function persistProfile(fields: Record<string, unknown>) {
     const payload = {
       id: profileId,
       updated_at: new Date().toISOString(),
@@ -244,30 +274,9 @@ export default function ProfileTab({
       return false;
     }
 
-    if (syncAuthName && fields.name) {
-      try {
-        await supabase.auth.updateUser({
-          data: { name: fields.name, full_name: fields.name },
-        });
-      } catch (metadataError) {
-        console.error("인증 메타데이터 저장 오류:", metadataError);
-      }
-    }
-
     setErrorMsg("");
     window.dispatchEvent(new Event("winning-profile-updated"));
     return true;
-  }
-
-  // 이름 — 별도 "변경" 버튼 없이 블러 시 자동 저장(시안 실측: 이름 행에만 액션 버튼이 없음).
-  async function handleNameBlur() {
-    const name = cleanText(form.name);
-    if (!name || name === savedName) return;
-
-    setSavingName(true);
-    const ok = await persistProfile({ name }, { syncAuthName: true });
-    setSavingName(false);
-    if (ok) setSavedName(name);
   }
 
   function startEditSchool() {
@@ -299,23 +308,6 @@ export default function ProfileTab({
     setToggles((prev) => ({ ...prev, [key]: value }));
     const ok = await persistProfile({ [key]: value });
     if (!ok) setToggles((prev) => ({ ...prev, [key]: !value }));
-  }
-
-  // 학부모 연결 해제 — sql/40_auth_signup.sql의 revoke_parent_link RPC(본인 소유 링크만
-  // revoked 처리, 실제 삭제 아님·재요청 가능)를 그대로 호출한다. 새 기능을 지어내지 않는다.
-  async function handleRevokeLink() {
-    if (!parentLink?.id || revoking) return;
-    setRevoking(true);
-    const { error } = await supabase.rpc("revoke_parent_link", {
-      p_link_id: parentLink.id,
-    });
-    setRevoking(false);
-    if (error) {
-      console.error("학부모 연결 해제 실패:", error);
-      setErrorMsg("연결 해제에 실패했습니다. 잠시 후 다시 시도해 주세요.");
-      return;
-    }
-    setParentLink(null);
   }
 
   // 연결코드 재발급 — sql/40_auth_signup.sql의 reissue_link_code RPC를 그대로 호출한다.
@@ -365,9 +357,8 @@ export default function ProfileTab({
                 </div>
                 <button
                   type="button"
-                  onClick={handleRevokeLink}
-                  disabled={revoking}
-                  className="text-xs text-ink-sub underline underline-offset-2 hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => setUnlinkOpen(true)}
+                  className="text-xs text-ink-sub underline underline-offset-2 hover:text-ink"
                 >
                   연결 해제
                 </button>
@@ -387,16 +378,28 @@ export default function ProfileTab({
         </div>
       )}
 
-      {/* 이름 */}
-      <ProfileField
-        label="이름"
-        value={form.name}
-        onChange={(v) => updateForm("name", v)}
-        onBlur={handleNameBlur}
-        placeholder="이름 입력"
-        readOnly={savingName}
-        className="mb-5"
-      />
+      {/* 이름 — 가입 시 본인인증으로 확정된 값이라 수정 불가(QA 2026-08-22). DB
+          레벨 잠금은 supabase/migrations의 profile_identity_lock 트리거가 맡는다. */}
+      <ProfileField label="이름" value={form.name} readOnly className="mb-5" />
+
+      {/* 생년월일 · 성별 — 이름과 같은 이유로 읽기 전용, 값이 없으면 행 자체를
+          렌더하지 않는다(폴백 문구 금지 — 데이터 없으면 렌더 안 함). */}
+      {form.birth_date && (
+        <ProfileField
+          label="생년월일"
+          value={formatBirthDate(form.birth_date)}
+          readOnly
+          className="mb-5"
+        />
+      )}
+      {form.gender && (
+        <ProfileField
+          label="성별"
+          value={formatGender(form.gender)}
+          readOnly
+          className="mb-5"
+        />
+      )}
 
       {/* 학교 · 학년 — 학생 전용(학부모 시안 3379:12569 에는 이 행이 없다). */}
       {!isParent && (
@@ -433,6 +436,7 @@ export default function ProfileTab({
                     }))
                   }
                   placeholder="학교명 입력"
+                  maxLength={SCHOOL_NAME_MAX_LENGTH}
                   className="h-13 w-full rounded-xl border border-line px-4 text-base text-ink outline-hidden focus:border-primary"
                 />
               </div>
@@ -602,6 +606,13 @@ export default function ProfileTab({
           updateForm("phone", phone);
           window.dispatchEvent(new Event("winning-profile-updated"));
         }}
+      />
+
+      <UnlinkParentModal
+        open={unlinkOpen}
+        linkId={parentLink?.id ?? null}
+        onClose={() => setUnlinkOpen(false)}
+        onSuccess={() => setParentLink(null)}
       />
     </div>
   );

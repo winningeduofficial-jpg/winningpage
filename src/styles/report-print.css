@@ -35,15 +35,33 @@
   }
 
   /*
-   * fd-screen-only (F-04 · F-05, 2026-08-11) — 화면 전용 확장 영역·각주 일괄 제외.
+   * A4 출력물 컨셉(2026-08-20) — 화면은 lg(1024px) 미만에서 A4 시트 대신 다운로드 안내
+   * 카드(fd-mobile-notice)만 보여준다. 인쇄는 뷰포트와 무관하게 항상 A4 데스크톱 레이아웃이
+   * 나가야 하므로, 인쇄 뷰포트(794px, lg: 미적용)에서도 시트를 강제로 켜고 안내 카드는
+   * 강제로 끈다 — 그러지 않으면 모바일에서 인쇄를 눌렀을 때 빈 페이지만 나간다.
+   */
+  .fd-desktop-report {
+    display: flex !important;
+  }
+
+  .fd-mobile-notice {
+    display: none !important;
+  }
+
+  /*
+   * fd-screen-only — 인쇄에서 계속 숨긴다(F-04·F-05, 2026-08-11 원안 유지).
    *
-   * 인쇄 페이지 하단 여유는 실측 1p 71.0px · 2p 52.6px 뿐이라 AREA_COPY 108문구와 고지
-   * 7종을 시트 안에 넣을 자리가 물리적으로 없다. 화면은 세로 제약이 없으므로 그쪽으로
-   * 옮기고 여기서 통째로 뺀다 — 그래서 인쇄는 승인된 A4 정확히 2장을 유지한다.
-   *
-   * §7.5 예외 명시: `fd-screen-only` 하위의 `lg:` 값들은 인쇄에서 이 한 줄로 전부 사라지므로
-   * 개별 `fd-*` 인쇄 훅을 만들지 않는다. 다음 감사자가 훅 20개를 덧붙이지 않도록 여기 적어 둔다.
-   * (반대로 fd-screen-only **밖**에 새 `lg:` 를 만들면 §7.5 대로 훅을 함께 추가해야 한다.)
+   * QA 행 102(2026-08-20) 최초 대응에서는 이 클래스 자체의 display:none 규칙을 지워
+   * "화면 전용" 전체를 인쇄에도 노출시켰다. 그런데 `fd-screen-only`는 부록(현재
+   * ReportScreenExtras) 하나가 아니라 AdmissionSection·RecommendServices·ReportPageOne의
+   * 각주 7종이 함께 공유하던 클래스였다 — 그 각주들은 원래 "길어서 시트 여유(1p 71.0px·
+   * 2p 52.6px)를 넘긴다"는 이유로 인쇄에서 뺀 것이었는데, 규칙을 통째로 지우면서 부록과
+   * 함께 되살아나 시트 2장(특히 2페이지 AdmissionSection)이 예산을 크게 초과했다(실측
+   * 297mm 대비 +153px). 사용자가 실제로 원한 것은 부록만 PDF에 포함하는 것이었다(행 102
+   * 재확인, 2026-08-20) — 그래서 부록(ReportScreenExtras)은 `fd-screen-only`를 떼고
+   * (2026-08-21부터는 `.fd-report-sheet` 재사용 자체가 인쇄 가시성을 진다 — 아래
+   * `.fd-report-sheet + .fd-report-sheet` 참고), 이 규칙은 원래 의도대로 display:none
+   * 으로 복원한다.
    */
   .fd-screen-only {
     display: none !important;
@@ -65,21 +83,82 @@
     margin: 0 !important;
   }
 
+  /*
+   * QA 행 102 후속(2026-08-20) — min-height:297mm를 없앤다. 실측 콘텐츠가 이미 297mm와
+   * 비슷하거나 더 커서(§ AdmissionSection 등 데이터 의존 섹션) 바닥 역할을 한 적이 없는
+   * 죽은 값이었다 — 남겨 둬도 실제 높이는 항상 콘텐츠가 결정한다. overflow:visible은
+   * 유지한다 — 시트가 297mm를 넘는 경우 잘라내지 않고 다음 페이지로 자연스럽게
+   * 흘려보내기 위해서다(콘텐츠 자체를 297mm 이하로 맞추는 것이 근본 해결책 —
+   * 아래 fd-screen-only 복원 참고).
+   */
   .fd-report-sheet {
     width: 70rem !important;
-    height: 297mm !important; /* 297.18mm 오버플로 방지 고정 */
-    min-height: 0 !important;
     margin: 0 !important;
     padding: 3.75rem !important; /* ReportSheetA4 lg:p-[3.75rem] 와 동일 출처 */
     border-radius: 0 !important; /* ReportSheetA4 lg:rounded-none 와 동일 */
     box-shadow: none !important;
-    overflow: hidden !important;
+    overflow: visible !important;
+    /*
+     * 인쇄 전용 하단 트림(QA 행 102, 2026-08-20) — 시트2(강점 3개+보완 4개 상한 조합 ·
+     * 입결 컷 연결 시 3행 전부 표시, 둘 다 흔한 조합)가 297mm 예산을 실측 23px(1145.1px
+     * vs 1122.5px) 넘긴다. 실측상 넘치는 부분은 콘텐츠 마지막 줄(1102.6px, 예산 안쪽)이
+     * 아니라 시트 하단 padding의 꼬리다 — 그래서 위 padding(4방향 3.75rem) 중 하단만
+     * 선언 순서로 덮어쓴다. 상단·좌우는 시안 값 3.75rem 유지, 화면 렌더는 무변경 —
+     * 이 규칙은 @media print 안에서만 적용된다.
+     */
+    padding-bottom: 0.75rem !important;
   }
 
-  /* 시트 사이에만 개행 — 형제 요소 추가에 안전 */
+  /*
+   * 시트 사이 경계(2026-08-21 갱신) — 문서는 항상 짝수 장(2 또는 4)의 `.fd-report-sheet`
+   * 로 구성된다: 시트1·2(ReportPageOne·Two)는 무조건 렌더, 부록이 있으면 3·4페이지
+   * (ReportScreenExtras, ReportSheetA4 재사용)가 이어 붙는다. 형제 셀렉터 하나로 모든
+   * 인접 쌍(1→2, 2→3, 3→4)의 개행을 커버한다 — 전용 페이지별 훅(구 fd-print-page3)이
+   * 필요 없다. 부록이 없으면 시트가 2장뿐이라 이 규칙은 그 사이 한 번만 발동한다.
+   */
   .fd-report-sheet + .fd-report-sheet {
     break-before: page;
     page-break-before: page;
+  }
+
+  /*
+   * 부록 좌우 스플릿(2026-08-21, 사용자 지시 "페이지는 최대한 줄여야 하니까 좌우 스플릿
+   * 레이아웃을 도입해서 최대한 줄여봐") — 인쇄 뷰포트(794px)는 lg:를 타지 않아 부록(블록
+   * A·B)이 전부 단일 컬럼으로 흘러 3페이지를 먹었다. 열 "폭"은 고정 rem 값이 아니라 1fr
+   * 반복으로 둔다 — 다른 fd-* 훅들(시트 내부 고정 좌표 정렬용)과 달리 이 둘은 부록
+   * 콘텐츠 폭에 맞춰 자동 분배되면 되는 목록형 레이아웃이라 픽셀 단위 복제가 필요 없다.
+   *
+   * fd-strategy-grid(맞춤 전략)는 화면 lg:grid-cols-3와 같은 단수를 그대로 복사한
+   * 것이지만, fd-area-groups(영역별 상세 진단)의 2단은 **인쇄 전용**이다 — 화면은 세로
+   * 1단을 유지한다(사용자 재확정, 2026-08-21: "화면은 스크롤이라 압축 불필요"). 즉 이
+   * 훅만큼은 "인쇄 = 화면 lg 재현" 관례의 예외다.
+   */
+
+  /* fd-area-groups — 블록 A(영역별 상세 진단) 두 그룹(학습 실행 역량 6행 · 학교 생활 및
+     입시 준비도 6행)이 인쇄에서만 각각 한 단씩. 화면은 이 클래스에 lg: 값이 없어(위 참고)
+     세로 1단 그대로다. */
+  .fd-area-groups {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    column-gap: 2rem !important;
+  }
+
+  .fd-area-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* fd-strategy-grid — 블록 B(맞춤 전략) focusGroups(3)·restGroups(9, 항상 펼침) 둘 다
+     화면 lg:grid-cols-3와 동일하게 3단. gap은 화면 lg:gap-x-8/lg:gap-y-10과 동일 값. */
+  .fd-strategy-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    column-gap: 2rem !important;
+    row-gap: 2.5rem !important;
+  }
+
+  .fd-strategy-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   /*
@@ -127,79 +206,62 @@
    * 출처(같은 rem 값)를 복사한 것이며 새로 만든 매직 넘버가 아니다.
    */
 
-  /* fd-page-label — ReportSheetA4 lg:text-base(1rem) lg:text-[#808080] */
+  /* fd-page-label — ReportSheetA4 lg:text-base(1rem) lg:text-[#808080].
+     QA 행352 — 화면용 #808080은 인쇄(잉크 번짐·프린터 캘리브레이션)에서 잘 안 보여
+     #4a4a4a로 대비를 올린다. 이 파일 전체가 @media print 블록 안이라 화면 색상(#808080,
+     ReportSheetA4의 lg: 클래스)에는 영향이 없다. */
   .fd-page-label {
     font-size: 1rem !important;
-    color: #808080 !important;
+    color: #4a4a4a !important;
   }
 
-  /* PriorityTable — hidden lg:block(데스크톱 표) / lg:hidden(모바일 카드) 강제 전환 */
-  .fd-wide-only {
-    display: block !important;
+  /* QA 행 105 — 인쇄 뷰포트(794px)는 Tailwind lg: 를 타지 않는다. PriorityTable은 A4 출력물
+     컨셉(2026-08-20) 이후 항상 고정폭(w-250)이지만, 시트 폭(62.5rem)과 같은 값으로 다시
+     명시해 향후 클래스 변경에도 인쇄 폭이 흔들리지 않게 한다. */
+  .fd-priority-table {
+    width: 62.5rem !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
   }
 
-  .fd-narrow-only {
-    display: none !important;
+  /* 우선순위 표 행 — 화면 전용 여백(h-11·pt-4, 피치 60px)을 시안 피치(44px)로 복원.
+     A4 1페이지 세로 여유(71px) < 화면 여백 증가분(80px)이라 그대로 두면 넘친다. */
+  .fd-priority-row {
+    height: 1.75rem !important;
+    padding-top: 0 !important;
   }
 
-  /* DimensionBarChart — lg:h-5(1.25rem) lg:gap-[3.75rem] */
-  .fd-dim-row {
-    height: 1.25rem !important;
-    gap: 3.75rem !important;
-  }
-
-  /* DimensionBarChart 라벨 — lg:w-[4.625rem] */
-  .fd-dim-label {
-    width: 4.625rem !important;
-  }
-
-  /* DimensionBarChart ScoreBar(responsive) — lg:w-[14.4375rem] lg:flex-none */
-  .fd-dim-bar {
-    width: 14.4375rem !important;
-    flex: none !important;
-  }
-
-  /* DimensionBarChart 상태 라벨 — lg:w-[3.75rem] lg:text-left lg:whitespace-nowrap */
-  .fd-dim-status {
-    width: 3.75rem !important;
-    text-align: left !important;
-    white-space: nowrap !important;
-  }
-
-  /* ReportPageOne 헤드라인 — lg:mt-[2.875rem] lg:w-[35.875rem] lg:text-[2rem] lg:tracking-[-0.04rem] */
+  /* ReportPageOne 헤드라인 — lg:w-[35.875rem] lg:text-[2rem] lg:tracking-[-0.04rem].
+     margin-top은 라벨→첫 콘텐츠 간격 통일(2026-08-21)로 제거했다 — ReportSheetA4의
+     mt-[2.875rem] 래퍼가 lg: 분기 없이 항상 같은 값을 낸다. */
   .fd-headline {
-    margin-top: 2.875rem !important;
     width: 35.875rem !important;
     font-size: 2rem !important;
     letter-spacing: -0.04rem !important;
   }
 
-  /* RadarChart6 겹침 배치 — lg:absolute lg:left-[35.875rem] lg:top-[2.5625rem] lg:mx-0 lg:mt-0 */
+  /* RadarChart6 겹침 배치 — lg:absolute lg:left-[35.875rem] lg:-top-[1.625rem] lg:mx-0 lg:mt-0
+     (시안 A4-3: 차트 박스 y=101, 컨테이너 실측 기준 -1.625rem) */
   .fd-radar-overlay {
     position: absolute !important;
-    left: 35.875rem !important;
-    top: 2.5625rem !important;
+    left: 30.4375rem !important; /* 1.15배(2026-08-21 조정)에 맞춰 우측 정렬 재배치 */
+    top: -2.4375rem !important;
     margin: 0 !important;
   }
 
   /* RadarChart6 크기 — lg:h-[24.9375rem] lg:w-[27.875rem] lg:max-w-none */
   .fd-radar-svg {
-    height: 24.9375rem !important;
-    width: 27.875rem !important;
+    height: 28.6875rem !important; /* 1.15배(2026-08-21 조정) — lg 값과 동일 출처 */
+    width: 32.0625rem !important;
     max-width: none !important;
   }
 
-  /* ReportPageOne 섹션 간격 — 각 lg:mt-* 리터럴과 동일 값 */
+  /* ReportPageOne 섹션 간격 — 각 lg:mt-* 리터럴과 동일 값. fd-mt-traits-heading·
+     fd-mt-summary-cards는 섹션 위계 통일(2026-08-21, ReportSection 도입)로 제거했다 —
+     제목은 lg: 분기 없이 mt-12 하나, SummaryCards는 ReportSection 콘텐츠 래퍼(mt-4)가
+     그 자리를 대신한다(더 이상 자체 마진 클래스를 쓰지 않는다). */
   .fd-mt-student {
     margin-top: 4.1875rem !important;
-  }
-
-  .fd-mt-traits-heading {
-    margin-top: 3.5625rem !important;
-  }
-
-  .fd-mt-summary-cards {
-    margin-top: 1.8125rem !important;
   }
 
   .fd-mt-urgency {
@@ -230,22 +292,26 @@
     padding-top: 1.75rem !important;
   }
 
+  /* fd-readiness-admission-split(2026-08-21) — ReportPageTwo 준비도(좌)·입결 비교(우)
+     2단. lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4와 동일 출처(InsightColumns와
+     같은 2단 폭 관례 재사용 — 새 매직 넘버 아님). */
+  .fd-readiness-admission-split {
+    display: grid !important;
+    grid-template-columns: 30.875rem 30.875rem !important;
+    column-gap: 1rem !important;
+  }
+
   /* ReadinessOverview 요약 — lg:w-[30.5625rem] */
   .fd-readiness-summary {
     width: 30.5625rem !important;
   }
 
-  /* InsightColumns — lg:mt-[4.5rem] lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4 lg:gap-y-0 */
+  /* InsightColumns — lg:grid-cols-[30.875rem_30.875rem] lg:gap-x-4 lg:gap-y-0. margin-top은
+     섹션 위계 통일(2026-08-21)로 제거했다 — 더 이상 lg: 분기가 없다(항상 mt-12). */
   .fd-insight-columns {
-    margin-top: 4.5rem !important;
     grid-template-columns: 30.875rem 30.875rem !important;
     column-gap: 1rem !important;
     row-gap: 0 !important;
-  }
-
-  /* AdmissionSection — lg:mt-[4.0625rem] */
-  .fd-admission-section {
-    margin-top: 4.0625rem !important;
   }
 
   /* AdmissionSection 요약문 — lg:w-[30.625rem] */
@@ -253,9 +319,10 @@
     width: 30.625rem !important;
   }
 
-  /* AdmissionSection 표 박스 — lg:w-[31.875rem] */
+  /* AdmissionSection 표 박스 — lg:w-[30.625rem](2026-08-21, 2단 스플릿 오른쪽 단 폭에 맞춘
+     값. 종전 31.875rem은 전폭 단일 컬럼 기준) */
   .fd-admission-box {
-    width: 31.875rem !important;
+    width: 30.625rem !important;
   }
 
   /* AdmissionSection 행 간격 — lg:gap-[0.9375rem] */
@@ -269,14 +336,11 @@
     align-items: center !important;
   }
 
-  /* RecommendServices — lg:mt-[5.3125rem] */
-  .fd-recommend-section {
-    margin-top: 5.3125rem !important;
-  }
-
-  /* RecommendServices 그리드 — lg:mt-[0.9375rem] lg:grid-cols-2 lg:gap-5 */
+  /* RecommendServices·RecommendServices 그리드 — margin-top 훅 둘 다 섹션 위계 통일
+     (2026-08-21)로 제거했다: 섹션 상단은 더 이상 lg: 분기가 없고(항상 mt-12), 그리드도
+     leadNote 유무와 무관하게 항상 mt-4 하나(더 이상 lg:mt-3.75로 갈라지지 않는다).
+     grid-cols-2/gap 규칙은 유지한다. */
   .fd-recommend-grid {
-    margin-top: 0.9375rem !important;
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     gap: 1.25rem !important;
   }
@@ -311,10 +375,12 @@
     gap: 2.5rem !important;
   }
 
-  /* StudentInfoBlock 라벨 — lg:w-[5.6875rem] lg:text-[#d7d7d7] */
+  /* StudentInfoBlock 라벨 — lg:w-[5.6875rem] lg:text-[#d7d7d7].
+     QA 행352 — 화면용 #d7d7d7은 인쇄에서 거의 안 보여 #8a8a8a로 대비를 올린다.
+     fd-page-label과 동일 근거(위 주석) — 인쇄 전용, 화면 색상은 그대로다. */
   .fd-student-label {
     width: 5.6875rem !important;
-    color: #d7d7d7 !important;
+    color: #8a8a8a !important;
   }
 
   /* StudentInfoBlock 값 — lg:w-[12.5rem] lg:flex-none */

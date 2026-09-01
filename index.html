@@ -7,7 +7,13 @@
 
     <title>위닝에듀</title>
 
-    <link rel="preload" as="image" href="/images/winning-logo-stacked.svg" fetchpriority="high" />
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <link rel="preload" as="image" href="/images/winning-logo-horizontal.svg" fetchpriority="high" />
     <!-- Pretendard Variable dynamic-subset 92조각 중 유일하게 전 페이지 확정 사용되는 조각
          (Basic Latin 전체 + 한국어 최빈 음절 13자). SPA라 @font-face 매칭이 React 렌더 이후로
          밀리므로 이 preload로 폰트 요청 시작점을 문서 파싱 시점까지 앞당긴다.
@@ -82,7 +88,7 @@
 
       .pre-logo-link {
         display: flex;
-        width: 65px;
+        width: 11.875rem;
         height: 4rem;
         align-items: center;
         flex-shrink: 0;
@@ -90,12 +96,12 @@
 
       .pre-logo {
         display: block;
-        width: 65px;
-        height: 2.1875rem;
+        width: 11.875rem;
+        height: 1.5rem;
         object-fit: contain;
       }
 
-      /* Header.jsx의 로고는 모든 뷰포트에서 동일한 h-[2.1875rem](35px, 0729 시안) 고정
+      /* Header.jsx의 로고는 모든 뷰포트에서 동일한 h-6(24px, 가로형 리뉴얼 로고) 고정
          크기이므로 프리헤더 로고 치수도 브레이크포인트 구분 없이 동일하게 유지해
          하이드레이션 시 로고 크기 점프가 생기지 않게 한다. */
       @media (max-width: 900px) {
@@ -109,7 +115,7 @@
         }
 
         .pre-logo-link {
-          width: 65px;
+          width: 11.875rem;
           height: 76px;
         }
       }
@@ -122,10 +128,10 @@
         <div class="pre-logo-link">
           <img
             class="pre-logo"
-            src="/images/winning-logo-stacked.svg"
+            src="/images/winning-logo-horizontal.svg"
             alt=""
-            width="65"
-            height="35"
+            width="190"
+            height="24"
           />
         </div>
       </div>

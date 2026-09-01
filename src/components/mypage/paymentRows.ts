@@ -16,6 +16,11 @@ type RefundStatusInput = {
   approval_status?: string | null;
 };
 
+type RefundQuoteInput = {
+  quote?: unknown;
+  order_item_ids?: number[] | null;
+};
+
 // 승인/신청 일시 YYYY/MM/DD.
 export function formatApprovedAt(
   value: string | number | Date | null | undefined,
@@ -64,6 +69,12 @@ export function resolveOrderStatus(
   // 매칭이나 다른 상태로 오분류되지 않는다.
   if (order.approval_status === "superseded") return "superseded";
 
+  // 학부모가 결제 요청(수강신청) 자체를 반려함(fn_respond_enrollment,
+  // p_approve=false) — status 는 canceled 로 함께 떨어지므로 이 분기가
+  // 없으면 아래 "매칭되는 refund 없음 → paid" 폴백에 걸려 반려 건이
+  // "결제 완료"로 잘못 표시된다(돈이 들어온 적이 없는 주문이다).
+  if (order.approval_status === "rejected") return "enrollment_parent_rejected";
+
   // 가상계좌 미입금(waiting_deposit)은 환불 대상이 아니므로 refunds 매칭보다 먼저
   // 본다 — 돈이 안 들어온 주문이라 refund_requests 행이 있을 수 없다.
   if (order.status === "waiting_deposit") return "pending";
@@ -73,13 +84,39 @@ export function resolveOrderStatus(
 
   // 어드민 처리축이 종결된 건이 먼저다 — 제약상 이 두 값은 승인 이후에만
   // 나올 수 있다(refund_requests_approval_before_processing_check).
-  if (refund.status === "completed") return "refund_completed";
+  if (refund.status === "completed") {
+    // v10 부분해지(구성서비스 단위) 완료는 주문 전체가 끝난 게 아니라
+    // order.status 가 'paid' 로 남는다 — "일부 환불"은 이 조합으로만 파생된다.
+    return order.status === "refunded" ? "refund_completed" : "refund_partial";
+  }
   if (refund.status === "rejected") return "refund_rejected";
 
   if (refund.approval_status === "requested") return "refund_approval_pending";
   if (refund.approval_status === "rejected") return "refund_parent_rejected";
 
   return "refund_requested";
+}
+
+// refund 행의 quote(jsonb 산정 라인 배열, unknown)에서 대상 상품명들을 뽑아
+// ", " 로 이어 붙인다. order_item_ids 가 비어 있으면(주문 전체 환불) 상품명
+// 표기가 필요 없으므로 null을 돌려준다 — 호출부는 order_name 등 기존 표기로
+// 폴백한다. quote 원소 키는 버전마다 달라(v9 레거시는 order_item_id가 없다)
+// item_name 유무만 방어적으로 확인한다.
+export function refundTargetNames(refund: RefundQuoteInput): string | null {
+  if (!refund.order_item_ids || refund.order_item_ids.length === 0) {
+    return null;
+  }
+  if (!Array.isArray(refund.quote)) return null;
+
+  const names = refund.quote
+    .map((line) =>
+      line && typeof line === "object" && "item_name" in line
+        ? (line as { item_name?: unknown }).item_name
+        : undefined,
+    )
+    .filter((name): name is string => typeof name === "string");
+
+  return names.length > 0 ? names.join(", ") : null;
 }
 
 export type DiscountOrderInput = {

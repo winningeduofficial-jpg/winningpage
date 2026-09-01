@@ -2,6 +2,7 @@ import PerformanceReportSurface from "@/components/performance/report/Performanc
 import ReportModalShell, {
   REPORT_MODAL_FOOTER_BUTTON,
 } from "@/components/performance/report/ReportModalShell";
+import { buildPerformanceReportFileName } from "@/components/performance/report/reportFileName";
 import SectionedReportView, {
   getVisibleSections,
 } from "@/components/performance/report/SectionedReportView";
@@ -30,6 +31,9 @@ const MODAL_TITLE = "통합 설계 리포트";
 /** 인쇄 버튼 라벨. §5.13 primary 원문 그대로(가운데 공백 포함). */
 const PRINT_LABEL = "PDF로 저장 / 인쇄";
 const CLOSE_LABEL = "창 닫고 작성하기";
+/** PDF 파일명의 "리포트이름" 조각(QA 행354, `reportFileName.ts`). 모달 제목(`MODAL_TITLE`)과
+ * 별개다 — 파일명 관례는 고객 요청 원문 "구성설계리포트"를 그대로 쓴다. */
+const REPORT_FILE_NAME_LABEL = "구성설계리포트";
 
 type DesignReportSection = {
   id?: string;
@@ -46,8 +50,10 @@ type DesignReportModalProps = {
   open: boolean;
   /** `design-report` 응답. 섹션 순서는 서버가 `DESIGN_REPORT_SECTIONS`로 이미 정렬해 내려준다. */
   report?: DesignReport | null;
-  /** 확정한 주제 제목. 헤더 부제로 쓴다. */
+  /** 확정한 주제 제목. 헤더 부제 + PDF 파일명 첫 조각으로 쓴다. */
   topicTitle?: string | undefined;
+  /** 로그인 학생 이름. PDF 파일명 둘째 조각(QA 행354). 없으면 그 조각만 빠진다. */
+  studentName?: string | null;
   /** ESC·딤 클릭·`창 닫고 작성하기` 공통 핸들러. */
   onClose: () => void;
 };
@@ -56,6 +62,7 @@ export default function DesignReportModal({
   open,
   report,
   topicTitle,
+  studentName,
   onClose,
 }: DesignReportModalProps) {
   // `open`과 `report`를 한 표현식에서 파생시킨다 — 훅 입력과 렌더 조건이 갈리면
@@ -74,6 +81,11 @@ export default function DesignReportModal({
       // 이 자리에서 가장 필요한 정보라 주제명을 넣었다(제안). 주제가 없으면 줄을 통째로
       // 뺀다(가짜 문구를 지어내지 않는다).
       {...(topicTitle !== undefined ? { subtitle: topicTitle } : {})}
+      documentTitle={buildPerformanceReportFileName({
+        topicTitle,
+        studentName,
+        reportName: REPORT_FILE_NAME_LABEL,
+      })}
       scrollLabel="설계 리포트 본문"
       onClose={onClose}
       footer={({ print }) => (

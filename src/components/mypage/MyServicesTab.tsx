@@ -1,5 +1,13 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router";
+import {
+  checkDiagnosisAccess,
+  type DiagnosisAccessResult,
+} from "@/lib/diagnosisAccess";
+import {
+  SURVEY_FIRST_STEP_PATH,
+  SURVEY_REPORT_PATH,
+} from "@/lib/renewalSurvey";
 import ServiceCard from "./ServiceCard";
 
 /**
@@ -25,6 +33,13 @@ import ServiceCard from "./ServiceCard";
  * 정식 스키마(entitlement_months / entitlement_count 컬럼 등)가 생기면 이 파싱을 걷어내고
  * 그 값을 직접 써야 한다.
  *
+ * ── 한 주문에 여러 상품이 담긴 경우(order_items.length > 1) ──
+ * order_name은 "대표 상품명 외 N건"으로 요약돼 있어(buildOrderNameFromItems 계열) 그대로
+ * 쓰면 QA 지적대로 무슨 서비스가 묶였는지 알 수 없다. order_items가 2건 이상이면 order_name
+ * 대신 항목별로 카드를 쪼갠다(expandOrder) — 단, order_items.name은 products.name 스냅샷
+ * 그대로라 대괄호 기간·회차 표기가 없으므로, 쪼갠 카드는 기간 파싱 없이(months=null) 위
+ * "개월 정보 없음" 폴백(기본 이용 중, 메타 '-')과 같은 경로를 그대로 탄다.
+ *
  * ── 서비스명 → 표시 형식 분류 ──
  * 시안은 서비스 성격에 따라 메타 정보·하단 액션 문구가 다르다(콜멘토=세션형, 무료진단=1회성
  * 리포트형, 그 외=기간형). 서비스명 키워드로 분류하는 휴리스틱이며 실제 서비스 카탈로그
@@ -42,6 +57,7 @@ type Order = {
   paid_at?: string | null;
   status?: string | null;
   is_fake_entitlement?: boolean;
+  order_items?: { name: string }[] | null;
 };
 
 type ServiceCategory = "session" | "diagnosis" | "duration";
@@ -64,6 +80,8 @@ type ServiceCardAction = {
   kind: "link" | "outline-solid" | "solid";
   label: string;
   href: string;
+  disabled?: boolean;
+  disabledReason?: string;
 };
 
 type ServiceCardViewModel = {
@@ -75,6 +93,8 @@ type ServiceCardViewModel = {
   metaLeft: string;
   metaRight: string;
   actions: ServiceCardAction[];
+  /** 같은 서비스로 묶인 주문 건수. 2건 이상이면 카드에 "결제 N건" 표기. */
+  paymentCount: number;
 };
 
 // 서비스명 키워드 → 소개 페이지 라우트(src/App.jsx 등록 기준).
@@ -139,6 +159,22 @@ function programLink(serviceName: string) {
   return matched ? matched.href : "/services";
 }
 
+// order_items가 2건 이상인 주문(여러 상품을 한 번에 결제한 경우)은 order_name이
+// "대표 상품명 외 N건"으로 뭉개져 있어 항목별로 쪼갠다. 1건 이하면 기존 order_name
+// 파싱 경로를 그대로 쓴다 — order_items가 정확히 1건일 때는 order_name의 대괄호
+// 기간 표기가 그 1건에 대한 것이라 그대로 유지해야 정보 손실이 없다.
+function expandOrder(order: Order): Order[] {
+  const items = order.order_items;
+  if (!items || items.length <= 1) return [order];
+  return items.map((item, index) => ({
+    id: `${order.id}:${index}`,
+    order_name: item.name,
+    paid_at: order.paid_at ?? null,
+    status: order.status ?? null,
+    is_fake_entitlement: order.is_fake_entitlement ?? false,
+  }));
+}
+
 function parseOrder(order: Order): ParsedOrder {
   const rawName = String(order?.order_name || "").trim();
   const bracketMatch = rawName.match(DURATION_BRACKET_RE);
@@ -198,7 +234,15 @@ function parseOrder(order: Order): ParsedOrder {
   };
 }
 
-function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
+// 학습진단 재검사 문구 — SurveyStepShell 진입 게이트 alert(QA 행 27 안내문)와 톤을 맞춘다.
+const DIAGNOSIS_RETAKE_BLOCKED_REASON =
+  "1회 이용권을 모두 사용했습니다. 이용권을 구매하시면 다시 이용하실 수 있습니다.";
+
+function toViewModel(
+  parsed: ParsedOrder,
+  diagnosisAccess: DiagnosisAccessResult | null,
+  paymentCount: number,
+): ServiceCardViewModel {
   const {
     category,
     serviceName,
@@ -250,13 +294,28 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
     const label = category === "session" ? "상담 기록 보기" : "프로그램 가기";
     actions = [{ kind: "link", label, href }];
   } else if (category === "diagnosis") {
+    // fail-open 정책 유지 — 조회 전(null)이거나 서버가 판정 불가면 활성 상태로 둔다.
+    // 서버가 명시적으로 allowed:false를 준 경우에만 비활성화한다.
+    const retakeBlocked = diagnosisAccess !== null && !diagnosisAccess.allowed;
     actions = [
-      { kind: "outline-solid", label: "결과 리포트 보기", href },
       {
-        kind: "solid",
-        label: "다시 검사하기",
-        href: "/app/learning-diagnosis/survey",
+        kind: "outline-solid",
+        label: "결과 리포트 보기",
+        href: SURVEY_REPORT_PATH,
       },
+      retakeBlocked
+        ? {
+            kind: "solid",
+            label: "다시 검사하기",
+            href: SURVEY_FIRST_STEP_PATH,
+            disabled: true,
+            disabledReason: DIAGNOSIS_RETAKE_BLOCKED_REASON,
+          }
+        : {
+            kind: "solid",
+            label: "다시 검사하기",
+            href: SURVEY_FIRST_STEP_PATH,
+          },
     ];
   } else if (category === "session") {
     actions = [
@@ -280,7 +339,39 @@ function toViewModel(parsed: ParsedOrder): ServiceCardViewModel {
     metaLeft,
     metaRight,
     actions,
+    paymentCount,
   };
+}
+
+// 같은 서비스를 여러 주문으로 보유한 경우 카드를 1장으로 합친다(QA 행247). 그룹 키는
+// parseOrder가 이미 대괄호 기간 표기를 걷어내고 뽑아둔 serviceName — expandOrder로
+// 쪼갠 order_items 항목도 order_name 그대로 파싱되므로 동일 서비스면 같은 키로 모인다.
+function pickRepresentativeOrder(group: ParsedOrder[]): ParsedOrder {
+  const activeOrders = group.filter((order) => order.isOngoing);
+  const candidates = activeOrders.length > 0 ? activeOrders : group;
+  return candidates.reduce((latest, order) => {
+    const latestPaidAt = latest.paidAt?.getTime() ?? 0;
+    const orderPaidAt = order.paidAt?.getTime() ?? 0;
+    return orderPaidAt > latestPaidAt ? order : latest;
+  });
+}
+
+function groupOrdersByService(
+  parsedOrders: ParsedOrder[],
+): { representative: ParsedOrder; paymentCount: number }[] {
+  const groups = new Map<string, ParsedOrder[]>();
+  for (const order of parsedOrders) {
+    const group = groups.get(order.serviceName);
+    if (group) {
+      group.push(order);
+    } else {
+      groups.set(order.serviceName, [order]);
+    }
+  }
+  return Array.from(groups.values()).map((group) => ({
+    representative: pickRepresentativeOrder(group),
+    paymentCount: group.length,
+  }));
 }
 
 // 빈 상태(3762:20041) — 결제한 서비스가 없을 때. 문구·버튼 라벨은 시안 스크린샷 실측.
@@ -323,6 +414,21 @@ function Section({
 }
 
 export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
+  // "다시 검사하기" 활성 여부 판정 — 서버가 정본(diagnosisAccess.ts 참고). 조회 전엔
+  // null(활성 취급)로 두고, 응답이 오면 완료 카드의 재검사 버튼에 반영한다.
+  const [diagnosisAccess, setDiagnosisAccess] =
+    useState<DiagnosisAccessResult | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    checkDiagnosisAccess().then((result) => {
+      if (alive) setDiagnosisAccess(result);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // 상위(MyPage)는 표시·환불 판정을 위해 waiting_deposit(가상계좌 미입금) 주문도 함께
   // 내려준다. 하지만 이용 권한은 결제 확정(paid) 시점에만 부여된다(api/confirm-payment.js
   // — 가상계좌는 계좌만 발급됐고 돈은 아직 안 들어왔으므로 권한을 주지 않는다). 여기서
@@ -340,7 +446,12 @@ export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
     return <EmptyState />;
   }
 
-  const cards = usableOrders.map((order) => toViewModel(parseOrder(order)));
+  const displayOrders = usableOrders.flatMap(expandOrder);
+  const parsedOrders = displayOrders.map(parseOrder);
+  const groupedOrders = groupOrdersByService(parsedOrders);
+  const cards = groupedOrders.map(({ representative, paymentCount }) =>
+    toViewModel(representative, diagnosisAccess, paymentCount),
+  );
   const ongoing = cards.filter((card) => card.isOngoing);
   const completed = cards.filter((card) => !card.isOngoing);
 

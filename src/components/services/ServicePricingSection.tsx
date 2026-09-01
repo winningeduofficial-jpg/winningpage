@@ -18,8 +18,12 @@ import { Check } from "lucide-react";
 //                    똑같이 붙인다 — 상품 조회가 늦거나 실패해도 `#pricing` 이동은
 //                    도착해야 하기 때문이다(수행평가 랜딩의 이용권 미보유 안내 경로).
 //
-// 안내문·로딩 문구·에러 문구·'다시 시도'·'추천' 배지 텍스트는 두 페이지가 문자 그대로 동일하므로
-// 컴포넌트 내부에 원문 그대로 고정한다 — 단 한 글자도 바꾸지 않았다.
+// 로딩 문구·에러 문구·'다시 시도'·'추천' 배지 텍스트는 두 페이지가 문자 그대로 동일하므로
+// 컴포넌트 내부에 원문 그대로 고정한다.
+// 하단 안내문은 QA 지적으로 교체했다 — "여러 플랜을 동시 선택할 수 없다"는 기존 문구가
+// 실제로는 선택 불가능한(체크 아이콘만 있고 onClick이 없는) 목록에 붙어 있어 없는 동작을
+// 설명하는 오해였다. 대신 "결제는 이 페이지가 아니라 이동한 페이지에서 진행된다"는, CTA가
+// 실제로 하는 일을 안내하는 문구로 바꿨다(두 서비스 공통 적용).
 //
 // [가격 정본 안내] 가격은 Supabase `products` 테이블에서 조회한다. 정본은 DB이며 프론트에는
 // 가격을 하드코딩하지 않는다.
@@ -99,9 +103,13 @@ export default function ServicePricingSection({
     );
   }
 
-  // 안내문→CTA gap 64 × 0.766 ≈ 49px(lg:mt-[3.0625rem]). 300×68 × 0.766 → 230×52.
+  // 안내문→CTA gap — QA 지적으로 하단 구매 영역 전반의 간격을 좁혔다(기존 lg:mt-12.25).
   const ctaClass =
-    "mt-8 inline-flex h-14 w-full max-w-57.5 items-center justify-center rounded-[0.9375rem] border border-accent bg-primary px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F] lg:mt-12.25 lg:h-13 lg:w-57.5 lg:px-0";
+    "mt-6 inline-flex h-14 w-full max-w-57.5 items-center justify-center rounded-[0.9375rem] border border-accent bg-primary px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F] lg:mt-8 lg:h-13 lg:w-57.5 lg:px-0";
+  // 플랜이 1개만 남으면(예: 서비스 상품이 하나뿐인 상태) 상품 행 자체는 이미
+  // lg:mx-auto로 가운데 정렬되지만, 아래 안내문은 폭 제한이 없는 블록이라 text-left면
+  // 왼쪽 끝에 붙어 가운데 정렬된 행과 어긋나 보였다(QA 지적) — 이때만 문단을 가운데로 돌린다.
+  const isSingleProduct = products.length === 1;
 
   return (
     <ServiceSection
@@ -110,8 +118,8 @@ export default function ServicePricingSection({
       containerClassName="text-center"
       heading={heading}
     >
-      {/* 헤딩→리스트 gap 117 × 0.766 ≈ 90px(lg:mt-[5.625rem]). */}
-      <div className="mt-10 flex flex-col gap-3 text-left sm:mt-12 lg:mt-22.5 lg:gap-2.25">
+      {/* 헤딩→리스트 gap — QA 지적으로 기존 lg:mt-22.5(약 90px)에서 좁혔다. */}
+      <div className="mt-8 flex flex-col gap-2.5 text-left sm:mt-10 lg:mt-14 lg:gap-2">
         {products.map((product) => {
           // null/undefined일 때 이전에도 비교식이 항상 false였던 것과 동일한 결과.
           const hasDiscount =
@@ -174,18 +182,28 @@ export default function ServicePricingSection({
       </div>
 
       {serviceKey === "suhaeng" && (
-        <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-ink lg:mt-2.25">
+        <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-ink lg:mt-2.25 lg:mx-auto lg:max-w-231.5">
           1회 = 수행평가 1건 (주제 추천 → 설계 리포트 → 평가 리포트 전 과정)
         </p>
       )}
 
-      {/* 리스트 하단→안내문 gap 12 × 0.766 ≈ 9px. 부모 컨테이너 text-center 상속을
-          text-left 로 해제한다. */}
-      <p className="mt-4 break-keep text-left text-[0.875rem] font-medium text-ink lg:mt-2.25">
-        한 서비스 내에서 여러 플랜을 동시 선택할 수 없어요. 하나의 플랜만 선택
-        가능합니다.
+      {/* 이 목록의 항목은 실제로는 선택할 수 없는 정보 표시용 카드다(체크 아이콘은 장식이고
+          onClick이 없다) — "여러 플랜을 동시 선택할 수 없다"는 기존 안내문은 존재하지 않는
+          선택 동작을 설명하고 있어 오히려 혼란을 줬다(QA 지적으로 삭제).
+          대신 CTA가 실제로 하는 일(다른 페이지로 이동 후 구매)을 안내한다.
+          lg:mx-auto lg:max-w-231.5 — 폭 제한이 없는 문단이라 다상품 기본 케이스(text-left)에서
+          중앙 정렬된 상품 행(위 max-w-231.5)보다 좌측선이 밖으로 어긋났다(QA 지적).
+          같은 폭·중앙 제약을 걸어 좌측선을 맞춘다 — isSingleProduct일 땐 어차피 text-center라
+          박스가 좁아져도 시각적으로 그대로 가운데다. */}
+      <p
+        className={`mt-4 break-keep text-[0.875rem] font-medium text-ink lg:mt-2.25 lg:mx-auto lg:max-w-231.5 ${isSingleProduct ? "text-center" : "text-left"}`}
+      >
+        이 페이지에서는 결제가 진행되지 않으며, 버튼을 누르면 이동하는
+        페이지에서 이용권을 구매하실 수 있습니다.
       </p>
 
+      {/* CTA는 inline-flex라 부모(ServiceSection의 containerClassName="text-center")의
+          text-center를 그대로 상속해 이미 가운데 정렬된다 — 별도 처리가 필요 없다. */}
       {cta.to ? (
         <Link to={cta.to} className={ctaClass}>
           {cta.label}

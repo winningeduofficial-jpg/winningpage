@@ -1,8 +1,9 @@
-import type { Session, User } from "@supabase/supabase-js";
-import { ChevronDown, Menu, Settings } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
+import { Menu, Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import megaPromoDiagnosisImg from "@/assets/mega/promo-diagnosis.png";
+import { useAuth } from "@/context/AuthProvider";
 import {
   MEGA_COL_GAP,
   MEGA_COL_W,
@@ -12,9 +13,9 @@ import {
   NAV_GUARD,
 } from "@/data/navigation";
 import { cleanText, isSameObject, useNavGroups } from "@/hooks/useNavGroups";
+import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import MobileNavDrawer from "./MobileNavDrawer";
-import { buildMyMenu } from "./myMenuItems";
 
 const CSAT_DATE = "2026-11-19";
 const HEADER_PROFILE_CACHE_KEY = "winning-header-profile";
@@ -29,8 +30,13 @@ const MS_PER_DAY = 86400000;
 //   로고는 밴드 좌측 끝, 계정 그룹은 밴드 우측 끝.
 // 좌표계 2 (nav 5개 + 메가 컬럼): max-w-content(72.75rem) 컨텐츠 영역, px-8(2rem) 패딩.
 //   nav 기준점은 로고가 아니라 "컨텐츠 영역 시작"(뷰포트 중앙정렬 기준)이며, 좌표계 1과 완전히 독립이다.
-// LOGO_W: 세로형 로고(SVG, h-8.75=35px 고정, viewBox 96:52) 실렌더 폭 4.0385rem(64.6px)
-//   → 4.04rem로 반올림(0729 시안, 기존 40px/74px에서 축소 — 프리헤더 로고도 동일 크기로 축소).
+// LOGO_W: 헤더 로고를 푸터형(스택형, "W" 아래 회사명, SVG viewBox 763:324)으로 교체했다
+//   (QA 행320 — 기존 가로형 winning-logo-horizontal.svg는 폭이 넓어 헤더처럼 높이가
+//   좁은 자리에서 클릭 영역이 어색했다). 헤더 높이(h-16=64px)에 맞춰 h-11(44px)로
+//   렌더하고, 실렌더 폭은 스택형 원본 비율(763/324)로 환산한 6.5rem(104px)이다.
+//   NAV_GUARD는 옛 가로형 로고(190px) 기준으로 계산된 값이라 지금은 실제 필요보다
+//   여유가 크지만, 안전 방향(더 큰 마진)이라 재계산하지 않았다 — 재계산 시
+//   src/data/navigation.js NAV_GUARD 주석도 함께 갱신할 것.
 // NAV_GUARD·MEGA_GUARD·NAV_CELL_W·NAV_CELL_GAP·MEGA_COL_W·MEGA_COL_GAP: 헤더 nav·메가 컬럼이
 // 공유하는 컨텐츠 격자 상수. 산정 근거 및 상세 주석은 src/data/navigation.js에 있다.
 // 표준 상태(로그인/관리자, 배지+마이페이지+관리자+로그아웃) 우측 그룹 실측폭
@@ -38,7 +44,7 @@ const MS_PER_DAY = 86400000;
 //   이후 이름 truncate 상한을 제거해(이름 전체 노출 정책) 계정 그룹 폭은 이름 길이에 따라
 //   가변이 되었다 — 위 실측치는 상한 존재 당시 기준값이며, 긴 이름에서의 유동 gap·90rem
 //   전환점 상호작용은 Playwright 실측으로 별도 검증한다.
-const LOGO_W = "4.04rem";
+const LOGO_W = "6.5rem";
 // 프로모 카드 폭: Figma 1483:926 실측 460×478 → 컴팩트 스케일 0.8 적용 = 368px = 23rem.
 // (get_design_context 1483:926 실값 기준으로 재확인 완료 — 패딩 p-[32px], 요소간 gap-[32px],
 // radius-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px, 버튼 68px 도 모두
@@ -48,21 +54,17 @@ const MEGA_PROMO_W = "23rem";
 // 3144:2883 — 크기·간격·그림자·타이포는 비로그인 카드(1483:926)와 완전히 동일해 상수는
 // 그대로 재사용하고, 콘텐츠(타이틀/서브/이미지/CTA)만 이 두 상수 객체로 분기한다.
 const MEGA_PROMO_GUEST = {
-  title: "월 2만원 대로 시작하는 입시 관리!",
-  subtitle: (
-    <>
-      학업·교내활동, 탐구, 학종, 교과, 면접까지
-      <br />
-      무제한 점검하세요
-    </>
-  ),
+  title: "흔들리지 않는 학습·진로 관리의 시작!",
+  subtitle:
+    "학습진단, 목표관리, 수행, 탐구, 성장설계까지 완벽히 점검해 드립니다",
   image: "/images/mega-menu-promo.png",
   ctaLabel: "로그인하기",
   ctaTo: "/login",
 };
 const MEGA_PROMO_MEMBER = {
-  title: "나에게 딱 맞는 서비스를 추천받아요",
-  subtitle: "무료 설문조사로 나의 강점과 약점을 찾아보세요",
+  title: "흔들리지 않는 학습·진로 관리의 시작!",
+  subtitle:
+    "학습진단, 목표관리, 수행, 탐구, 성장설계까지 완벽히 점검해 드립니다",
   image: megaPromoDiagnosisImg,
   ctaLabel: "학습진단 하기",
   ctaTo: "/services/learning-diagnosis",
@@ -272,11 +274,13 @@ const CSAT_DDAY_REFRESH_MS = 60 * 60 * 1000;
 const LOGOUT_FALLBACK_TIMEOUT_MS = 1800;
 
 export default function Header() {
-  const [session, setSession] = useState<Session | null>(null);
+  // 세션 구독 자체는 AuthProvider(전역 단일 구독, src/context/AuthProvider.tsx)에
+  // 위임한다(명세서 B-3) — 이 컴포넌트는 세션이 확정된 뒤 프로필(profiles 테이블)만
+  // 별도로 조회한다.
+  const { session, user, isReady: isAuthReady } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(() =>
     readCachedProfile(),
   );
-  const [isAuthReady, setIsAuthReady] = useState(false);
   const [csatDDay, setCsatDDay] = useState(getCsatDay());
   const [activeMega, setActiveMega] = useState<string | null>(null);
   // 메가 패널 애니메이션 상태(open/closed 3-phase state machine, 사용자 확정 스펙).
@@ -290,7 +294,6 @@ export default function Header() {
     "closed" | "open" | "closing"
   >("closed");
   const megaPanelAnimTimerRef = useRef<number | null>(null);
-  const [myOpen, setMyOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
   const navGroups = useNavGroups();
@@ -415,70 +418,43 @@ export default function Header() {
     return () => window.clearInterval(timer);
   }, []);
 
+  // 세션이 아니라 프로필(profiles 테이블)만 조회한다 — 세션 확정은 AuthProvider가
+  // 이미 끝냈으므로(위 useAuth()), user가 바뀔 때만 프로필을 다시 가져오면 된다.
+  // "winning-profile-updated" 커스텀 이벤트(마이페이지 등에서 이름 변경 후 발행)도
+  // 같은 재조회 트리거로 남겨둔다.
   useEffect(() => {
     let alive = true;
     let seq = 0;
 
-    async function syncSession(nextSession?: Session | null) {
+    async function syncProfile() {
       const currentSeq = ++seq;
 
+      if (!user) {
+        setProfile(null);
+        writeCachedProfile(null);
+        return;
+      }
+
       try {
-        const sessionResult =
-          nextSession !== undefined
-            ? nextSession
-            : await withTimeout(supabase.auth.getSession(), 1200, {
-                data: { session: null },
-              } as Awaited<ReturnType<typeof supabase.auth.getSession>>);
-
-        if (!alive || currentSeq !== seq) return;
-
-        const currentSession: Session | null =
-          nextSession !== undefined
-            ? (sessionResult as Session | null)
-            : (
-                sessionResult as Awaited<
-                  ReturnType<typeof supabase.auth.getSession>
-                >
-              )?.data?.session || null;
-
-        if (!currentSession?.user) {
-          setSession(null);
-          setProfile(null);
-          writeCachedProfile(null);
-          setIsAuthReady(true);
-          return;
-        }
-
         const cachedProfile = readCachedProfile();
         let nextProfile: Profile | null = null;
 
-        if (isSameUserProfile(cachedProfile, currentSession.user)) {
+        if (isSameUserProfile(cachedProfile, user)) {
           nextProfile = cachedProfile;
         }
 
         const fetchedProfile = await withTimeout(
-          fetchProfile(currentSession.user),
+          fetchProfile(user),
           1800,
           null,
         );
 
         if (!alive || currentSeq !== seq) return;
 
-        if (
-          fetchedProfile &&
-          isSameUserProfile(fetchedProfile, currentSession.user)
-        ) {
+        if (fetchedProfile && isSameUserProfile(fetchedProfile, user)) {
           nextProfile = fetchedProfile;
           writeCachedProfile(fetchedProfile);
         }
-
-        setSession((prev) => {
-          if (prev?.user?.id === currentSession?.user?.id) {
-            return prev;
-          }
-
-          return currentSession;
-        });
 
         setProfile((prev) => {
           if (isSameObject(prev, nextProfile)) {
@@ -487,32 +463,22 @@ export default function Header() {
 
           return nextProfile;
         });
-
-        setIsAuthReady(true);
       } catch (error) {
-        console.error("헤더 세션 동기화 오류:", error);
+        console.error("헤더 프로필 동기화 오류:", error);
 
         if (!alive || currentSeq !== seq) return;
 
-        setSession(null);
         setProfile(null);
-        setIsAuthReady(true);
       }
     }
 
-    syncSession();
+    syncProfile();
 
     const handleProfileUpdated = () => {
-      syncSession();
+      syncProfile();
     };
 
     window.addEventListener("winning-profile-updated", handleProfileUpdated);
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
-        syncSession(nextSession || null);
-      },
-    );
 
     return () => {
       alive = false;
@@ -520,9 +486,8 @@ export default function Header() {
         "winning-profile-updated",
         handleProfileUpdated,
       );
-      authListener?.subscription?.unsubscribe?.();
     };
-  }, []);
+  }, [user]);
 
   function clearSupabaseAuthStorage() {
     try {
@@ -566,7 +531,8 @@ export default function Header() {
   }
 
   async function handleLogout() {
-    setSession(null);
+    // 세션 자체는 AuthProvider가 SIGNED_OUT 이벤트로 곧 null로 갱신하지만(비동기),
+    // 프로필은 이 컴포넌트가 로컬로 들고 있으므로 여기서 즉시 비운다.
     setProfile(null);
     writeCachedProfile(null);
     clearSupabaseAuthStorage();
@@ -582,6 +548,17 @@ export default function Header() {
       console.error("로그아웃 오류:", error);
     }
 
+    // 1차 정리는 supabase의 SIGNED_OUT 이벤트 구독(queryClient.ts)이 담당한다 —
+    // 위 signOut() 호출이 성공하면 그 구독이 이미 queryClient.clear()를 부른다.
+    // 여기 있는 호출은 그 위에 얹는 중복 안전장치다(주석 정정, 재검증 LOW) —
+    // signOut()이 LOGOUT_FALLBACK_TIMEOUT_MS 안에 응답하지 않아 이벤트 자체가
+    // 아직 안 왔거나, 이 페이지 이동(window.location.replace 아래)까지 SIGNED_OUT
+    // 처리보다 먼저 도달하는 경우를 대비한다. signOut 시도가 끝난 뒤로 미룬
+    // 이유는 별도다 — signOut 요청이 아직 진행 중인데 먼저 캐시를 비우면, 그
+    // 사이 진행 중이던 다른 in-flight 쿼리가 비워진 캐시에 다시 값을 채워 넣는
+    // 경합 창이 생긴다.
+    queryClient.clear();
+
     clearSupabaseAuthStorage();
     window.dispatchEvent(new Event("winning-profile-updated"));
     window.location.replace("/");
@@ -592,11 +569,10 @@ export default function Header() {
   const shouldShowLoggedInHeader = isLoggedIn && hasProfile;
   const displayName = cleanText(profile?.name) || "";
   const memberLabel = getMemberLabel(profile);
-  // 학부모는 '수강신청·결제'가 /pricing 이 아니라 마이페이지 결제 내역으로 간다
-  // (myMenuItems.js buildMyMenu 주석 참고).
+  // isParentMember는 MobileNavDrawer의 드로어 마이페이지 메뉴(buildMyMenu) 분기에
+  // 쓰인다 — 헤더 데스크톱 버튼은 QA 행253·254로 단독 버튼이 돼 더는 쓰지 않는다.
   const isParentMember =
     cleanText(profile?.member_type).toLowerCase() === "parent";
-  const myMenu = buildMyMenu(isParentMember);
   const isAdmin = cleanText(profile?.role).toLowerCase() === "admin";
 
   // 메가 패널 콘텐츠(모든 navGroups 컬럼 + 프로모 카드)는 activeMega와 무관하게 항상 동일하다
@@ -624,164 +600,101 @@ export default function Header() {
           <img
             src="/images/winning-logo-stacked.svg"
             alt="위닝에듀"
-            className="h-8.75 w-auto object-contain"
+            className="h-11 w-auto object-contain"
           />
         </Link>
 
-        <button
-          ref={mobileNavTriggerRef}
-          type="button"
-          onClick={() => setMobileNavOpen(true)}
-          aria-expanded={mobileNavOpen}
-          aria-controls="mobile-nav-drawer"
-          aria-label="전체 메뉴 열기"
-          className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-[#1e293b] transition hover:border-primary hover:text-primary desktop:hidden"
-        >
-          <Menu size={22} />
-        </button>
+        <div className="flex shrink-0 items-center gap-3">
+          <button
+            ref={mobileNavTriggerRef}
+            type="button"
+            onClick={() => setMobileNavOpen(true)}
+            aria-expanded={mobileNavOpen}
+            aria-controls="mobile-nav-drawer"
+            aria-label="전체 메뉴 열기"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-[#1e293b] transition hover:border-primary hover:text-primary"
+          >
+            <Menu size={22} />
+          </button>
 
-        <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
-          {(() => {
-            if (!isAuthReady)
-              return <div className="h-8 w-[16rem]" aria-hidden="true" />;
-            if (shouldShowLoggedInHeader)
-              return (
-                <>
-                  <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-primary whitespace-nowrap">
-                    {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
-                  </div>
+          <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
+            {(() => {
+              if (!isAuthReady)
+                return <div className="h-8 w-[16rem]" aria-hidden="true" />;
+              if (shouldShowLoggedInHeader)
+                return (
+                  <>
+                    <div className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-primary whitespace-nowrap">
+                      {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
+                    </div>
 
-                  {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
-                  <div
-                    className="relative flex items-center"
-                    onMouseEnter={() => setMyOpen(true)}
-                    onMouseLeave={() => setMyOpen(false)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setMyOpen((prev) => !prev)}
-                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
-                    >
-                      마이페이지
-                      <ChevronDown
-                        size={14}
-                        className={`transition ${myOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
-
-                    {myOpen && (
-                      <div className="absolute right-0 top-full z-50 w-[16rem]">
-                        <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                          {myMenu.map((item) => {
-                            const Icon = item.icon;
-
-                            return (
-                              <Link
-                                key={item.label}
-                                to={item.to}
-                                onClick={() => setMyOpen(false)}
-                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
-                              >
-                                <Icon size={18} />
-                                {item.label}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {isAdmin && (
+                    {/* QA 행253·254 — 호버 드롭다운(내정보/수강신청·결제/환불) 제거,
+                        /mypage로 바로 가는 단독 버튼으로 단순화한다. */}
                     <Link
-                      to="/admin"
-                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-line bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-primary hover:text-primary"
-                    >
-                      <Settings size={14} />
-                      관리자
-                    </Link>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
-                  >
-                    로그아웃
-                  </button>
-                </>
-              );
-            if (isLoggedIn)
-              return (
-                <>
-                  {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 여는 데스크톱 편의 동작 — 실제 토글은 안쪽 button이 클릭·키보드 모두로 이미 접근 가능하다. */}
-                  <div
-                    className="relative flex items-center"
-                    onMouseEnter={() => setMyOpen(true)}
-                    onMouseLeave={() => setMyOpen(false)}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setMyOpen((prev) => !prev)}
+                      to="/mypage"
                       className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
                     >
                       마이페이지
-                      <ChevronDown
-                        size={14}
-                        className={`transition ${myOpen ? "rotate-180" : ""}`}
-                      />
-                    </button>
+                    </Link>
 
-                    {myOpen && (
-                      <div className="absolute right-0 top-full z-50 w-[16rem]">
-                        <div className="overflow-hidden rounded-lg border border-line bg-white shadow-[0_18px_45px_rgba(13,27,42,0.14)]">
-                          {myMenu.map((item) => {
-                            const Icon = item.icon;
-
-                            return (
-                              <Link
-                                key={item.label}
-                                to={item.to}
-                                onClick={() => setMyOpen(false)}
-                                className="flex items-center gap-3 whitespace-nowrap border-b border-[#eeeeee] px-5 py-4 text-sm font-medium text-ink-header transition last:border-b-0 hover:bg-[#f5f8fb] hover:text-primary"
-                              >
-                                <Icon size={18} />
-                                {item.label}
-                              </Link>
-                            );
-                          })}
-                        </div>
-                      </div>
+                    {isAdmin && (
+                      <Link
+                        to="/admin"
+                        className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-line bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-primary hover:text-primary"
+                      >
+                        <Settings size={14} />
+                        관리자
+                      </Link>
                     )}
-                  </div>
 
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                    >
+                      로그아웃
+                    </button>
+                  </>
+                );
+              if (isLoggedIn)
+                return (
+                  <>
+                    {/* QA 행253·254 — 호버 드롭다운 제거, /mypage로 바로 가는 단독 버튼. */}
+                    <Link
+                      to="/mypage"
+                      className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-primary bg-white px-4 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
+                    >
+                      마이페이지
+                    </Link>
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                    >
+                      로그아웃
+                    </button>
+                  </>
+                );
+              return (
+                <>
+                  <Link
+                    to="/login"
+                    className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
                   >
-                    로그아웃
-                  </button>
+                    로그인
+                  </Link>
+
+                  <Link
+                    to="/signup"
+                    className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+                  >
+                    회원가입
+                  </Link>
                 </>
               );
-            return (
-              <>
-                <Link
-                  to="/login"
-                  className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
-                >
-                  로그인
-                </Link>
-
-                <Link
-                  to="/signup"
-                  className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
-                >
-                  회원가입
-                </Link>
-              </>
-            );
-          })()}
+            })()}
+          </div>
         </div>
       </div>
 
@@ -939,16 +852,24 @@ export default function Header() {
                   key={`mega-col-${group.title}`}
                   className="flex flex-col gap-3"
                 >
-                  {group.items.map((item) => (
-                    <Link
-                      key={`mega-${group.title}-${item.to}-${item.label}`}
-                      to={item.to}
-                      onClick={() => setActiveMega(null)}
-                      className="break-keep text-sm font-medium leading-5 text-ink transition hover:text-primary"
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
+                  {group.items.map((item) => {
+                    const isItemActive = item.to === pathname;
+                    return (
+                      <Link
+                        key={`mega-${group.title}-${item.to}-${item.label}`}
+                        to={item.to}
+                        onClick={() => setActiveMega(null)}
+                        aria-current={isItemActive ? "page" : undefined}
+                        className={`break-keep text-sm leading-5 transition hover:text-primary ${
+                          isItemActive
+                            ? "font-semibold text-primary"
+                            : "font-medium text-ink"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -1033,6 +954,7 @@ export default function Header() {
         isAdmin={isAdmin}
         onLogout={handleLogout}
         triggerRef={mobileNavTriggerRef}
+        activeGroupTitle={activePathTitle}
       />
     </header>
   );

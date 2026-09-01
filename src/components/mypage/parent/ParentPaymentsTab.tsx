@@ -6,12 +6,19 @@ import {
   formatApprovedAt,
   formatOrderId,
   formatProductNames,
+  refundTargetNames,
   resolveOrderStatus,
 } from "@/components/mypage/paymentRows";
 import ReceiptModal from "@/components/mypage/ReceiptModal";
 import RefundNoticeModal from "@/components/mypage/RefundNoticeModal";
 import RefundRequestModal from "@/components/mypage/RefundRequestModal";
+import { useAuth } from "@/context/AuthProvider";
 import { formatKRW } from "@/data/pricingCatalog";
+import type {
+  CardInfo,
+  EasyPayInfo,
+  VirtualAccountInfo,
+} from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
 import EnrollmentRequestModal from "./EnrollmentRequestModal";
 import RefundApprovalModal from "./RefundApprovalModal";
@@ -56,11 +63,17 @@ type Order = {
   amount: number;
   status?: string;
   approval_status?: string;
+  reject_reason?: string | null;
   student_profile_id?: string;
   created_at?: string;
   paid_at?: string;
   method?: string;
   vat?: number | string | null;
+  // 영수증(ReceiptModal) 전용 — useMyPageOrders.ts 와 동일 이유(그쪽 주석 참고).
+  card?: CardInfo | null;
+  virtual_account?: VirtualAccountInfo | null;
+  easy_pay?: EasyPayInfo | null;
+  approved_at?: string | null;
   is_fake_entitlement?: boolean;
   order_items?: {
     name: string;
@@ -73,10 +86,7 @@ type Order = {
   coupon_redemptions?: {
     discount_amount: number;
     voided_at?: string | null;
-    coupons?:
-      | { title?: string | null }
-      | { title?: string | null }[]
-      | null;
+    coupons?: { title?: string | null } | { title?: string | null }[] | null;
   }[];
 };
 
@@ -91,18 +101,24 @@ type Refund = {
   approval_status?: string;
   student_profile_id?: string;
   created_at?: string;
+  // v10 부분해지 — useMyPageOrders.ts 와 동일 이유(그쪽 주석 참고).
+  quote?: unknown;
+  order_item_ids?: number[] | null;
+  terms_version?: string;
 };
 
 type ParentPaymentsTabProps = {
   orders?: Order[];
   refunds?: Refund[];
-  onRefundSubmitted?: () => void;
+  // 상위(MyPage)가 가진 데이터(orders·refunds·탭 배지) 재조회 — 모달 액션 후
+  // 아래 refreshAll 이 자체 pending 목록과 함께 호출한다.
+  onRefresh?: () => void;
 };
 
 export default function ParentPaymentsTab({
   orders = [],
   refunds = [],
-  onRefundSubmitted,
+  onRefresh,
 }: ParentPaymentsTabProps) {
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [nameById, setNameById] = useState<Record<string, string>>({});
@@ -116,12 +132,13 @@ export default function ParentPaymentsTab({
     null,
   );
 
+  // 세션은 AuthProvider(전역 단일 구독)에서 읽는다(명세 B-3 §4).
+  const { userId: uid } = useAuth();
+
   // 결제 대기 주문은 상위(MyPage)가 내려주는 orders 에도 포함되어 있지만
   // (학생 화면이 필요로 함), 이 섹션은 여기서 직접 최신 상태로 다시 읽는다.
   // historyOrders(아래)는 이 pending 주문과 안 겹치도록 필터링한다.
   const reloadPending = useCallback(async () => {
-    const { data: session } = await supabase.auth.getSession();
-    const uid = session?.session?.user?.id;
     if (!uid) return;
 
     const [pend, children] = await Promise.all([
@@ -146,11 +163,19 @@ export default function ParentPaymentsTab({
         map[child.student_profile_id] = child.student_name;
       setNameById(map);
     }
-  }, []);
+  }, [uid]);
 
   useEffect(() => {
     reloadPending();
   }, [reloadPending]);
+
+  // 세 섹션(환불요청·결제 신청하기·지난 결제내역)은 데이터 출처가 갈린다 —
+  // 1·3은 상위 orders/refunds, 2는 여기 pendingOrders. 어느 섹션의 액션이든
+  // 다른 섹션의 상태(배지·목록·건수)를 바꿀 수 있으므로 항상 전부 다시 읽는다.
+  const refreshAll = useCallback(() => {
+    reloadPending();
+    onRefresh?.();
+  }, [reloadPending, onRefresh]);
 
   // 자녀가 보낸 환불 요청 — 학부모 본인 신청은 제약상 즉시 approved 라
   // 이 목록에 남지 않는다(refund_requests_parent_auto_approve_check).
@@ -190,7 +215,10 @@ export default function ParentPaymentsTab({
             ...(r.order_id !== undefined && { idFull: r.order_id }),
             idText: formatOrderId(r.order_id),
             dateText: formatApprovedAt(r.created_at),
-            productText: r.order_name || "",
+            // 부분해지 신청이면 대상 항목명만 나열한다 — order_name(전체 주문
+            // 상품명)을 그대로 쓰면 환불 대상이 아닌 항목까지 포함된 것처럼
+            // 보인다.
+            productText: refundTargetNames(r) || r.order_name || "",
             amountText: formatKRW(r.gross_amount || r.amount),
             raw: r,
           }))}
@@ -294,11 +322,9 @@ export default function ParentPaymentsTab({
         onSubmitted={() => {
           setRefundOrder(null);
           setNoticeOpen(true);
-          onRefundSubmitted?.();
+          refreshAll();
         }}
-        // onStaleData는 optional(exactOptionalPropertyTypes) — onRefundSubmitted가
-        // undefined면 키 자체를 생략한다(동작 동일, onStaleData?.() 호출부가 처리).
-        {...(onRefundSubmitted && { onStaleData: onRefundSubmitted })}
+        onStaleData={refreshAll}
       />
 
       <RefundNoticeModal
@@ -317,13 +343,21 @@ export default function ParentPaymentsTab({
         onClose={() => setEnrollmentRequest(null)}
         onRejected={() => {
           setEnrollmentRequest(null);
-          reloadPending();
+          refreshAll();
         }}
       />
 
       <RefundApprovalModal
         open={!!approvalRequest}
         request={approvalRequest}
+        // 환불 신청(refund_requests)에는 결제수단 정보가 없다 — 그 주문
+        // (orders)에서 가상계좌 여부·환불계좌 프리필값을 찾아 내려준다.
+        virtualAccount={
+          approvalRequest
+            ? (orders.find((o) => o.id === approvalRequest.order_id)
+                ?.virtual_account ?? null)
+            : null
+        }
         childName={
           approvalRequest?.student_profile_id
             ? nameById[approvalRequest.student_profile_id] || ""
@@ -332,7 +366,7 @@ export default function ParentPaymentsTab({
         onClose={() => setApprovalRequest(null)}
         onResponded={() => {
           setApprovalRequest(null);
-          onRefundSubmitted?.();
+          refreshAll();
         }}
       />
     </div>

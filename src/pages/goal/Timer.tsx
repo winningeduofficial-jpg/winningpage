@@ -1,29 +1,37 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import GoalPageHeader from "@/components/goal/GoalPageHeader";
+import AddSubjectButton from "@/components/goal/study/AddSubjectButton";
+import AddSubjectModal from "@/components/goal/study/AddSubjectModal";
 import SessionRecordPanel from "@/components/goal/study/SessionRecordPanel";
 import SubjectTimerCard from "@/components/goal/study/SubjectTimerCard";
 import TimerSummaryBar from "@/components/goal/study/TimerSummaryBar";
+import {
+  DEFAULT_TIMER_SUBJECTS,
+  TIMER_SUBJECT_CATALOG,
+} from "@/components/goal/studyRecordOptions";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
-import { TIMER_SUBJECT_ORDER } from "@/components/goal/studyRecordOptions";
+import { useAuth } from "@/context/AuthProvider";
 import {
   getDayIndexFromYMDServer,
   kstYMD,
   VIRTUAL_DAY_NAMES,
 } from "@/lib/goal/calc/index.js";
 import {
-  fetchGoalStudent,
+  addGoalTimerSubject,
   fetchGoalTimer,
-  heartbeatGoalTimer,
   setGoalTimerTarget,
   startGoalTimer,
   stopGoalTimer,
 } from "@/lib/goalApi";
+import { goalStudentQueryOptions } from "@/lib/queryClient";
 
 const POLL_INTERVAL_MS = 20 * 1000; // GET 폴링 15~30초 범위(임무 지시)
-const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
-// 열공 타이머(#25) 4과목 스톱워치 2×2(420×241) + 전체 합계 바(860×100) + 오늘 세션 기록
-// 패널(420×382). part-09 §45~144.
+// 열공 타이머(#25) 기본 4과목 스톱워치 2×2(420×241) + 전체 합계 바(860×100) + 오늘 세션
+// 기록 패널(420×382). part-09 §45~144. QA B9(2026-08-27)로 "+ 과목 추가"가 생겨 카드
+// 수는 더 이상 4로 고정이 아니다 — 카드는 GET /api/goal/timer의 visibleSubjects 순서
+// 그대로 렌더한다(카탈로그 8종 중 학생이 노출을 늘린 만큼).
 //
 // 서버 시각이 유일 진실이다(임무 지시 확정 사항) — 이 컴포넌트는 GET /api/goal/timer가
 // 준 진행 중 세션의 startedAt과 "추정 서버 현재 시각"(clockOffsetMs, 마지막 GET 응답의
@@ -38,6 +46,7 @@ type GoalTimerSummaryBody = {
   subjects: Array<{ subject: string; seconds: number }>;
   totalSeconds: number;
   targets: Array<{ subject: string; targetHours: number }>;
+  visibleSubjects: string[];
 };
 
 type TimerSummary = {
@@ -46,15 +55,15 @@ type TimerSummary = {
   subjectSeconds: Record<string, number>;
   subjectTargets: Record<string, number>;
   totalSeconds: number;
+  visibleSubjects: string[];
 };
 
 export default function Timer() {
   const [summary, setSummary] = useState<TimerSummary | null>(null);
   const [clockOffsetMs, setClockOffsetMs] = useState(0);
-  const [defaultTargetHours, setDefaultTargetHours] = useState<number | null>(
-    null,
-  );
+  const [idealTodayHours, setIdealTodayHours] = useState<number | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [addSubjectOpen, setAddSubjectOpen] = useState(false);
   const [, setTick] = useState(0);
   const pendingRef = useRef(false);
 
@@ -72,6 +81,9 @@ export default function Timer() {
       subjectSeconds,
       subjectTargets,
       totalSeconds: body.totalSeconds ?? 0,
+      visibleSubjects: body.visibleSubjects?.length
+        ? body.visibleSubjects
+        : DEFAULT_TIMER_SUBJECTS,
     });
     setClockOffsetMs(new Date(body.serverNow).getTime() - Date.now());
     setLoadError(false);
@@ -86,29 +98,43 @@ export default function Timer() {
     }
   }, [applySummary]);
 
-  // 최초 로드 + 오늘 요일 이상 목표 총합(과목별 목표 기본값 산출용, 저장하지 않는 파생값).
+  // 최초 로드(타이머 요약)는 reload()가, 오늘 요일 이상 목표 총합(과목별 목표
+  // 기본값 산출용, 저장하지 않는 파생값)은 ['goal','student'] 쿼리 캐시(아래
+  // useQuery)가 각각 맡는다.
   useEffect(() => {
     reload();
-
-    fetchGoalStudent().then((result) => {
-      if (result.kind !== "onboarded") return;
-      // goalApi.ts는 weeklySchedule을 Record<string, unknown>으로만 선언한다(넓은 계약) —
-      // 실제 값 모양은 Dashboard.tsx가 이미 쓰는 {ideal, min} 레코드와 같다.
-      const weeklySchedule = (result.student?.weeklySchedule || {}) as Record<
-        string,
-        { ideal: number; min: number } | undefined
-      >;
-      // getDayIndexFromYMDServer는 항상 0~6을 반환하고 VIRTUAL_DAY_NAMES는 7개 고정이다.
-      const dayName =
-        VIRTUAL_DAY_NAMES[getDayIndexFromYMDServer(kstYMD(new Date()))]!;
-      const idealToday = weeklySchedule?.[dayName]?.ideal;
-      setDefaultTargetHours(
-        typeof idealToday === "number"
-          ? idealToday / TIMER_SUBJECT_ORDER.length
-          : null,
-      );
-    });
   }, [reload]);
+
+  // 캐시(src/lib/queryClient.ts)를 그대로 구독한다 — goal 진입 시 미들웨어·
+  // Dashboard.tsx가 이미 채워둔 응답을 재사용해 이 페이지 전용 재요청을 없앤다
+  // (명세 B-3 §5, 캐시 키의 userId는 리뷰 C1).
+  const { userId } = useAuth();
+  const { data: goalStudentResult } = useQuery(goalStudentQueryOptions(userId));
+
+  useEffect(() => {
+    if (goalStudentResult?.kind !== "onboarded") return;
+    // goalApi.ts는 weeklySchedule을 Record<string, unknown>으로만 선언한다(넓은 계약) —
+    // 실제 값 모양은 Dashboard.tsx가 이미 쓰는 {ideal, min} 레코드와 같다.
+    const weeklySchedule = (goalStudentResult.student?.weeklySchedule ||
+      {}) as Record<string, { ideal: number; min: number } | undefined>;
+    // getDayIndexFromYMDServer는 항상 0~6을 반환하고 VIRTUAL_DAY_NAMES는 7개 고정이다.
+    const dayName =
+      VIRTUAL_DAY_NAMES[getDayIndexFromYMDServer(kstYMD(new Date()))]!;
+    const idealToday = weeklySchedule?.[dayName]?.ideal;
+    setIdealTodayHours(typeof idealToday === "number" ? idealToday : null);
+  }, [goalStudentResult]);
+
+  // 노출 과목 목록(GET /api/goal/timer visibleSubjects, QA B9) — "+ 과목 추가"로 늘어날
+  // 수 있어 요일 목표 총합을 나눌 분모가 더 이상 고정 4가 아니다. summary가 아직 없으면
+  // (최초 로딩 중) 기본 4과목으로 잠깐 보여준다.
+  const visibleSubjects = summary?.visibleSubjects ?? DEFAULT_TIMER_SUBJECTS;
+
+  // visibleSubjects는 매 렌더 새 배열 참조(summary?.visibleSubjects ?? DEFAULT_TIMER_SUBJECTS)라
+  // length만 의존성으로 둔다 — 값이 같으면(과목 수가 안 바뀌면) 재계산하지 않는다.
+  const defaultTargetHours = useMemo(() => {
+    if (idealTodayHours == null || visibleSubjects.length === 0) return null;
+    return idealTodayHours / visibleSubjects.length;
+  }, [idealTodayHours, visibleSubjects.length]);
 
   // GET 폴링(15~30초) + 탭 복귀 시 refetch.
   useEffect(() => {
@@ -129,21 +155,12 @@ export default function Timer() {
     return () => clearInterval(intervalId);
   }, []);
 
-  // 하트비트 60초 간격 + pagehide(fetch keepalive — sendBeacon 대신 쓰는 이유는
-  // src/lib/goalApi.js 주석 참고, Authorization 헤더가 필요해 sendBeacon은 못 쓴다).
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      heartbeatGoalTimer();
-    }, HEARTBEAT_INTERVAL_MS);
-    const onPageHide = () => {
-      heartbeatGoalTimer({ keepalive: true });
-    };
-    window.addEventListener("pagehide", onPageHide);
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener("pagehide", onPageHide);
-    };
-  }, []);
+  // 하트비트(60초 간격 + pagehide keepalive)는 더 이상 이 페이지가 보내지 않는다 —
+  // GoalAppLayout에 상주하는 GoalSidebar가 대신 보낸다(QA 행286, "타이머 이탈 시
+  // 자동 마감" 수정). 이 페이지에 있을 때만 하트비트가 나가면 다른 메뉴로 이동한
+  // 순간 서버 TIMER_STALE_MS(5분) 타임아웃으로 세션이 강제 마감됐다 — 이제는 goal
+  // 앱 안 어디에 있어도 실행 중 세션이 있으면 계속 하트비트가 나간다(이중 전송
+  // 방지를 위해 이 페이지 쪽 발송은 제거).
 
   const estimatedNowMs = Date.now() + clockOffsetMs;
   const runningSubject = summary?.running?.subject ?? null;
@@ -186,7 +203,20 @@ export default function Timer() {
     }
   };
 
-  const cards = TIMER_SUBJECT_ORDER.map((id) => {
+  // "+ 과목 추가"(QA B9) — 성공하면 reload()로 visibleSubjects를 포함한 전체 요약을
+  // 다시 가져온다(모달 자체는 낙관적 갱신을 하지 않는다, 실패 시 모달이 에러를 보여준다).
+  const canAddMoreSubjects =
+    visibleSubjects.length < TIMER_SUBJECT_CATALOG.length;
+
+  const handleAddSubject = async (subjectId: string) => {
+    const result = await addGoalTimerSubject(subjectId);
+    if (result.kind !== "success") {
+      throw new Error(`add-subject-failed:${result.kind}`);
+    }
+    await reload();
+  };
+
+  const cards = visibleSubjects.map((id) => {
     const accumulatedSeconds = summary?.subjectSeconds?.[id] ?? 0;
     const running = runningSubject === id;
     const hasCustomTarget = summary?.subjectTargets?.[id] != null;
@@ -247,11 +277,20 @@ export default function Timer() {
                 />
               ))}
             </div>
+            {canAddMoreSubjects && (
+              <AddSubjectButton onClick={() => setAddSubjectOpen(true)} />
+            )}
             <TimerSummaryBar totalSeconds={totalSeconds} />
           </div>
           <SessionRecordPanel subjects={cards} />
         </div>
       </div>
+      <AddSubjectModal
+        open={addSubjectOpen}
+        onClose={() => setAddSubjectOpen(false)}
+        visibleSubjects={visibleSubjects}
+        onAdd={handleAddSubject}
+      />
     </>
   );
 }

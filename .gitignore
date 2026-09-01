@@ -60,3 +60,5 @@ docs/
 /.golden-cache/
 
 spike/
+.env*
+.tmp-*

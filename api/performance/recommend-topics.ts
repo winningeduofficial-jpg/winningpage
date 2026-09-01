@@ -55,7 +55,9 @@
 //    회차를 태우는 프롬프트를 클라이언트가 조작할 수 있었다. 여기서 바디로 받는 것은
 //    `sessionId`와 `round`뿐이고 나머지는 전부 세션 행에서 읽는다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   generateWithRetry,
   PERFORMANCE_MODEL,
@@ -80,25 +82,26 @@ import {
 } from "../_lib/performance/prompts.js";
 import {
   findProgramAccessRow,
-  getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 
 /**
- * 라운드 상한(§10.2 P8 「재추천(round 배제 + 상한 3)」).
+ * 라운드 상한(QA 행278 — 고객 요청으로 §10.2 P8 「재추천(round 배제 + 상한 3)」을
+ * **하향 조정**한다. 이하는 그 조정의 기록이다).
  *
- * **세는 단위는 "라운드"다** — 최초 추천이 round 1이고 재추천 2회로 round 3까지 간다.
- * §9.2 상한 표의 `주제 재추천 | 3회`를 "재추천만 3회(=총 4라운드)"로 읽으면 같은 절의
- * 단가 근거(`5(vision) + 3(재추천) + 3(설계) + 3(평가)`)와 어긋난다 — 설계·평가가
- * `재생성 2회 = 총 3호출`로 계산된 것과 같은 셈법을 적용하면 주제도 **총 3호출**이다.
- * §10.2 P8의 「상한 3」과 이 단가 근거가 일치하므로 총 3라운드로 확정한다.
+ * **세는 단위는 "라운드"다** — 최초 추천이 round 1이고 재추천 1회로 round 2까지 간다.
+ * 즉 최초 1회 + 추가(재추천) 1회 = 학생당 최대 6개 주제(라운드당 3건 × 2라운드)다.
+ * 원래 §9.2/§10.2가 근거로 삼던 3라운드(=재추천 2회) 단가 계산은 이 조정으로 더 이상
+ * 유효하지 않다 — 고객이 재추천을 "신중하게 딱 한 번만" 쓰게 하려는 의도로 명시
+ * 요청했으므로 그 스펙을 그대로 따른다. `TopicCardList`는 이 값을 서버 응답
+ * `maxRounds`로만 읽으므로(하드코딩 금지) 여기 한 곳만 바꾸면 클라이언트 상한 표기도
+ * 함께 갱신된다.
  */
-const MAX_ROUNDS = 3;
+const MAX_ROUNDS = 2;
 
 /**
  * 모델 호출 총 예산. `generateWithRetry`의 과부하 재시도와 아래 구조 재시도가 **모두**
@@ -122,7 +125,8 @@ const STRUCTURE_RETRY = 1;
  * §9.2가 「과금과 남용 방지를 분리한다」고 정했으므로 회차를 더 깎아 막지 않고
  * `analyze-guide.js`의 `MAX_ANALYSIS_PER_SESSION`과 같은 방식으로 시도 수에 상한을 건다.
  *
- * 성공 라운드 3회 + 정상 재시도를 넉넉히 덮는 값으로 10을 쓴다(analyze-guide와 같은 수치).
+ * 성공 라운드 `MAX_ROUNDS`(현재 2) + 정상 재시도를 넉넉히 덮는 값으로 10을 쓴다
+ * (analyze-guide와 같은 수치). `MAX_ROUNDS`가 바뀌어도 이 여유값은 그대로 충분하다.
  */
 const MAX_MODEL_ATTEMPTS_PER_SESSION = 10;
 
@@ -198,7 +202,7 @@ function fail(
   message: string,
   extra?: Record<string, unknown>,
 ) {
-  return res.status(status).json({ error: { code, message }, ...extra });
+  sendError(res, "coded", status, message, code, extra);
 }
 
 /**
@@ -324,34 +328,19 @@ function toClientTopic(row: TopicRow) {
   };
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
-  }
-
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/recommend-topics 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
+export default defineHandler({
+  methods: ["POST"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "POST만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "주제 추천에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/recommend-topics",
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = requireUserId(ctx);
 
     // ── 이용권 재판정(§8.6 공통 규약). 클라이언트 가드 통과 여부를 신뢰하지 않는다.
     //    회차 **잔여**는 여기서 보지 않는다 — 잔여 판정과 차감은 RPC가 한 트랜잭션에서
@@ -510,7 +499,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         );
       }
 
-      return res.status(200).json({
+      res.status(200).json({
         round: requestedRound,
         topics: replay,
         quotaRemaining: quota.quotaRemaining,
@@ -518,6 +507,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         reused: true,
         maxRounds: MAX_ROUNDS,
       });
+      return;
     }
 
     if (requestedRound !== null && requestedRound !== nextRound) {
@@ -1017,7 +1007,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       round: nextRound,
       topics: (insertedRows || [])
         .sort((a, b) => a.idx - b.idx)
@@ -1037,12 +1027,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         ),
       },
     });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/recommend-topics error:", error);
-    return fail(res, 500, "INTERNAL", "주제 추천에 실패했습니다.");
-  }
-}
+  },
+});
 
 // ── 실행 시간 (형제 라우트와 동일)
 //    `MODEL_TIMEOUT_MS`(50초)는 **`maxDuration: 60`을 전제로 잡은 총 예산**이다. 이 선언이

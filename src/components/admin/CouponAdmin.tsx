@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 
 // =====================================================================
 // 어드민 "쿠폰관리" — 목록 / 생성·수정 / 사용이력 / void / 발급 관리
@@ -99,6 +100,8 @@ interface CouponRow {
   grant_type: string;
   grant_on_signup: boolean;
   is_active: boolean;
+  // 단체 쿠폰 축(2026-08-27). NULL = 소속 제한 없음.
+  org_code: string | null;
   created_at?: string;
   [key: string]: unknown;
 }
@@ -121,6 +124,8 @@ interface GrantRow {
   user_id: string;
   granted_at: string;
   granted_by: string;
+  // 발급분 자체의 사용 기한(20260825000010). NULL = 무기한.
+  valid_until: string | null;
   revoked_at: string | null;
   revoke_reason?: string | null;
   [key: string]: unknown;
@@ -147,6 +152,10 @@ interface CouponForm {
   stackable: boolean;
   grant_type: string;
   grant_on_signup: boolean;
+  // 단체 쿠폰 축(2026-08-27). 화면 입력은 원문 그대로 두고 저장 시
+  // formToPayload 가 upper(trim())한다 — DB CHECK(coupons_org_code_normalized_check)
+  // 와 대칭.
+  org_code: string;
   valid_until: string;
   valid_until_mode: string;
   max_uses_per_user: number | string;
@@ -170,6 +179,8 @@ const FIELD_LABEL: Record<string, string> = {
   stackable: "중복 사용",
   grant_type: "배포 방식",
   grant_on_signup: "가입 시 자동 발급",
+  org_code: "소속 코드(단체 쿠폰)",
+  kind: "쿠폰 종류", // 파생값(DB 컬럼 아님) — org_code/code+max_redemptions 로 목록에서만 계산
   used: "사용 건수", // 파생값(DB 컬럼 아님) — 유효 / 전체(무효화 포함)
   id: "내부 키",
   created_at: "등록 일시",
@@ -257,6 +268,38 @@ const COUPON_SAVE_CAP_MISMATCH_TEXT =
 //   ① 필드 옆에 충돌한 기존 쿠폰 행을 그대로 보여주고(데이터라서 창작이 아니다)
 //   ② 차단 alert 는 아래 승인된 문구를 쓴다.
 const SLUG_DUPLICATE_TEXT = "이미 사용 중인 쿠폰 키입니다.";
+
+// validateForm 이 org_code(단체 쿠폰)+grant_type='granted' 조합을 막을 때
+// 쓰는 전용 문구(2026-08-27). 일반 "<X> 항목을 입력해주세요." 템플릿은 이미
+// 값이 채워진 필드를 "안 채웠다"고 말하게 돼 사실과 어긋난다 — 그래서
+// org_code 하나만 이 템플릿을 쓰지 않고 별도 문구를 alert 에서 분기한다.
+const ORG_CODE_GRANTED_CONFLICT_TEXT =
+  "소속 코드(단체 쿠폰)는 조건형 쿠폰에만 설정할 수 있습니다. 발급형으로 쓰려면 소속 코드를 비워주세요.";
+
+// org_code 입력칸 도움말(2026-08-27) — profiles.org_code(20260825093735)와
+// 비교 판정(fn_coupon_org_matches)이라는 사실을 운영자가 알아야 "왜 이
+// 쿠폰이 특정 회원한테만 보이는지" 문의를 줄일 수 있다.
+const ORG_CODE_HELPER_TEXT =
+  "입력하면 이 소속 코드로 가입한 학생·학부모만 사용할 수 있습니다(단체 쿠폰). 비우면 제한 없음.";
+
+// 선물 쿠폰 코드 생성 프리셋(2026-08-27) — WIN-XXXX-XXXX, 0/O·1/I 제외(전화로
+// 불러줄 때 헷갈리는 문자를 빼는 이 저장소의 기존 관례와 같은 이유).
+const GIFT_CODE_CHARSET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+const GIFT_CODE_GROUP_LENGTH = 4;
+const GIFT_CODE_PRESET_HINT_TEXT =
+  "선물 쿠폰 = 무작위 코드 + 총 발행 수량 1 (1회 사용)";
+
+function generateGiftCode(): string {
+  const bytes = new Uint8Array(GIFT_CODE_GROUP_LENGTH * 2);
+  crypto.getRandomValues(bytes);
+  const chars = Array.from(
+    bytes,
+    (b) => GIFT_CODE_CHARSET[b % GIFT_CODE_CHARSET.length],
+  );
+  const first = chars.slice(0, GIFT_CODE_GROUP_LENGTH).join("");
+  const second = chars.slice(GIFT_CODE_GROUP_LENGTH).join("");
+  return `WIN-${first}-${second}`;
+}
 
 // ── 발급 관리(2026-08-11 추가) 문구 ──────────────────────────────────────
 const GRANTS_ACTION_LABEL = "발급 이력";
@@ -361,6 +404,7 @@ const FORM_KEYS: (keyof CouponForm)[] = [
   "is_active",
   "slug",
   "code",
+  "org_code",
   "title",
   "discount_amount",
   "min_amount",
@@ -412,6 +456,7 @@ function emptyForm(): CouponForm {
     is_active: true,
     slug: "",
     code: "",
+    org_code: "",
     title: "",
     discount_amount: "",
     min_amount: 0,
@@ -441,6 +486,7 @@ function rowToForm(row: CouponRow): CouponForm {
   form.is_active = row.is_active !== false;
   form.slug = row.slug ?? "";
   form.code = row.code ?? "";
+  form.org_code = row.org_code ?? "";
   form.title = row.title ?? "";
   form.discount_amount = row.discount_amount ?? "";
   form.min_amount = row.min_amount ?? 0;
@@ -472,6 +518,12 @@ function formToPayload(form: CouponForm) {
     // code 는 UNIQUE 인데 NULL 은 다중 허용이다 — 빈 문자열로 저장하면 두 번째
     // 코드 없는 쿠폰이 23505 로 막힌다. 반드시 NULL 로 정규화한다.
     code: String(form.code ?? "").trim() || null,
+    // coupons_org_code_normalized_check(20260827010205)가 upper(trim())을
+    // 강제한다 — 화면에서 소문자를 입력해도 저장 전에 대칭으로 맞춘다.
+    org_code:
+      String(form.org_code ?? "")
+        .trim()
+        .toUpperCase() || null,
     title: String(form.title ?? "").trim(),
     discount_amount: Number(form.discount_amount),
     min_amount: Number(form.min_amount),
@@ -514,6 +566,17 @@ function validateForm(form: CouponForm): keyof CouponForm | null {
 
   // coupons_grant_type_check 를 화면에서 먼저 건다 — 23514 원문 노출 방지.
   if (!GRANT_TYPES.includes(form.grant_type)) return "grant_type";
+
+  // 단체 쿠폰(org_code)은 조건형(auto)에만 얹는다(2026-08-27). 발급형은
+  // 이미 coupon_grants 로 "누가 쓸 수 있는가"를 정하고 있어 소속 코드
+  // 축까지 겹치면 두 판정이 동시에 걸려 운영이 헷갈린다 — 소속 제한이
+  // 필요하면 발급을 끄고 org_code 만 쓴다.
+  if (
+    String(form.org_code ?? "").trim() !== "" &&
+    form.grant_type === "granted"
+  ) {
+    return "org_code";
+  }
 
   // `${key}_mode` 는 동적 조합 키라 CouponForm의 정적 키로 인덱싱할 수 없다 —
   // rowToForm/formToPayload와 같은 이유로 Record 캐스트를 쓴다.
@@ -780,6 +843,18 @@ export default function CouponAdmin() {
     setForm((prev) => ({ ...prev, ...values }));
   }
 
+  // 선물 쿠폰 프리셋(2026-08-27) — 무작위 코드 + 총 발행 수량(max_redemptions)
+  // 1로 한 번에 맞춘다. valid_until 은 건드리지 않는다(비어 있으면 무기한
+  // 그대로, 운영자가 이미 채워 둔 값도 유지) — 기한은 쿠폰마다 다르게 두고
+  // 싶을 수 있어 프리셋이 임의로 정하지 않는다.
+  function applyGiftCodePreset() {
+    patch({
+      code: generateGiftCode(),
+      max_redemptions_mode: "value",
+      max_redemptions: 1,
+    });
+  }
+
   function openCreate() {
     setForm(emptyForm());
     setEditingId(null);
@@ -792,6 +867,14 @@ export default function CouponAdmin() {
     setView("edit");
   }
 
+  // QA 317 — 등록·수정·이력·발급 네 화면 모두 목록을 갈아끼우는 전체 화면이라
+  // 뒤로가기가 직전 메뉴로 튄다. 어느 화면이든 목록으로 돌아오게 한다.
+  useAdminDetailBack(view !== "list", () => {
+    setView("list");
+    setEditingId(null);
+    setHistoryCoupon(null);
+  });
+
   function closeForm() {
     setView("list");
     setEditingId(null);
@@ -801,9 +884,14 @@ export default function CouponAdmin() {
   async function save() {
     const invalidKey = validateForm(form);
     if (invalidKey) {
-      // AdminForm 의 기존 템플릿(Admin.jsx:4258 "<X> 항목을 입력해주세요.")에
-      // 키를 그대로 끼우면 운영자가 DB 컬럼명을 읽어야 했다 — FIELD_LABEL 을
-      // 우선 적용해 화면 라벨로 보여준다(2026-08-12, 사용자 지시).
+      // org_code 는 "안 채움"이 아니라 "조합 충돌"이라 전용 문구를 먼저
+      // 분기한다(2026-08-27) — 그 외 키는 기존 AdminForm 템플릿(Admin.jsx:4258
+      // "<X> 항목을 입력해주세요.")에 FIELD_LABEL 을 끼워 넣는다(2026-08-12,
+      // 사용자 지시).
+      if (invalidKey === "org_code") {
+        alert(ORG_CODE_GRANTED_CONFLICT_TEXT);
+        return;
+      }
       alert(`${FIELD_LABEL[invalidKey] ?? invalidKey} 항목을 입력해주세요.`);
       return;
     }
@@ -1138,6 +1226,7 @@ export default function CouponAdmin() {
                     {[
                       "slug",
                       "title",
+                      "kind",
                       "discount_amount",
                       "min_amount",
                       "valid_until",
@@ -1167,7 +1256,7 @@ export default function CouponAdmin() {
                   {coupons.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={14}
+                        colSpan={15}
                         className="py-12 text-center text-gray-400"
                       >
                         등록된 데이터가 없습니다.
@@ -1207,6 +1296,16 @@ export default function CouponAdmin() {
                           </td>
 
                           <td className="px-3 py-3">{row.title}</td>
+                          {/* 파생 칼럼(DB 컬럼 아님) — org_code 가 있으면 단체,
+                              없고 code+총 발행 수량 1이면 선물, 그 외 할인
+                              (2026-08-27, 세 종류를 한눈에 구분). */}
+                          <td className="px-3 py-3">
+                            {row.org_code
+                              ? "단체"
+                              : row.code && row.max_redemptions === 1
+                                ? "선물"
+                                : "할인"}
+                          </td>
                           <td className="px-3 py-3">
                             {moneyText(row.discount_amount)}
                           </td>
@@ -1527,7 +1626,9 @@ export default function CouponAdmin() {
 
           {/* 어느 쿠폰의 발급인지 — 사용이력 헤더와 같은 형태. valid_until 을
               함께 보여준다: 발급받아도 쿠폰 자신의 기한이 지나면 못 쓰기
-              때문이다(발급별 만료일은 두지 않았다 — sql/55 1-h절). */}
+              때문이다. 발급분에도 별도 기한이 있고(coupon_grants.valid_until,
+              20260825000010) 그건 아래 목록의 「사용 기한」 칼럼이다 — 실제로
+              쓸 수 있는 마지막 날은 이 둘 중 이른 쪽이다. */}
           {grantCoupon && (
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm font-bold">
               <span className="font-mono text-[0.8125rem]">
@@ -1657,6 +1758,7 @@ export default function CouponAdmin() {
                       "user",
                       "granted_by",
                       "granted_at",
+                      "valid_until",
                       "revoked_at",
                       "revoke_reason",
                     ].map((key) => (
@@ -1672,7 +1774,7 @@ export default function CouponAdmin() {
                   {grantRows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="py-12 text-center text-gray-400"
                       >
                         등록된 데이터가 없습니다.
@@ -1706,6 +1808,11 @@ export default function CouponAdmin() {
                           </td>
                           <td className="px-3 py-3">
                             {dateTimeText(row.granted_at)}
+                          </td>
+                          {/* 쿠폰 자신의 기한(위 헤더)과 별개 축이다 — 실제로
+                              쓸 수 있는 마지막 날은 둘 중 이른 쪽이다. */}
+                          <td className="px-3 py-3">
+                            {row.valid_until ?? UNLIMITED_LABEL}
                           </td>
                           <td className="px-3 py-3">
                             {dateTimeText(row.revoked_at)}
@@ -1817,8 +1924,10 @@ export default function CouponAdmin() {
               {/* 필수 표시는 AdminForm 과 같은 규범(빨간 별표). NULL 을 고를 수
                   있는 3필드도 "선택 자체" 가 필수다 — 비워둘 수 없다. code 는
                   비워도 되고(코드 없는 쿠폰), stackable 은 불리언이라 항상 값이
-                  있다(기본 false) — 둘만 별표가 없다. */}
+                  있다(기본 false), org_code 는 비우면 소속 제한 없음(2026-08-27)
+                  — 셋만 별표가 없다. */}
               {key !== "code" &&
+                key !== "org_code" &&
                 key !== "stackable" &&
                 key !== "grant_on_signup" && (
                   <span className="ml-1 text-red-500">*</span>
@@ -1945,13 +2054,50 @@ export default function CouponAdmin() {
                 </>
               )}
 
-              {(key === "code" || key === "title") && (
+              {key === "title" && (
                 <input
                   type="text"
-                  value={form[key]}
-                  onChange={(e) => patch({ [key]: e.target.value })}
-                  className={`${INPUT_CLASS} ${key === "code" ? "font-mono" : ""}`}
+                  value={form.title}
+                  onChange={(e) => patch({ title: e.target.value })}
+                  className={INPUT_CLASS}
                 />
+              )}
+
+              {key === "code" && (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="text"
+                      value={form.code}
+                      onChange={(e) => patch({ code: e.target.value })}
+                      className={`${INPUT_CLASS} font-mono`}
+                    />
+                    <button
+                      type="button"
+                      onClick={applyGiftCodePreset}
+                      className="h-9 shrink-0 whitespace-nowrap border border-gray-500 bg-white px-3 text-sm font-bold"
+                    >
+                      선물 쿠폰 코드 생성
+                    </button>
+                  </div>
+                  <span className="text-xs font-bold text-gray-500">
+                    {GIFT_CODE_PRESET_HINT_TEXT}
+                  </span>
+                </div>
+              )}
+
+              {key === "org_code" && (
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="text"
+                    value={form.org_code}
+                    onChange={(e) => patch({ org_code: e.target.value })}
+                    className={`${INPUT_CLASS} font-mono`}
+                  />
+                  <span className="text-xs font-bold text-gray-500">
+                    {ORG_CODE_HELPER_TEXT}
+                  </span>
+                </div>
               )}
 
               {(key === "discount_amount" || key === "min_amount") && (

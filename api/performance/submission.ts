@@ -65,7 +65,9 @@
 //    평가 프롬프트에 그대로 실린다(토큰 비용). §9.2 「과금과 남용 방지를 분리한다」에
 //    따라 회차가 아니라 상한으로 막는다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   EMPTY_SUBMISSION_MESSAGE,
   SUBMISSION_TOO_SHORT_MESSAGE,
@@ -77,11 +79,10 @@ import {
   SUBMISSION_MIN_CHARS,
 } from "../_lib/performance/submission-schema.js";
 import {
-  getBearerToken,
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -166,7 +167,7 @@ function fail(
   message: string,
   extra?: Record<string, unknown>,
 ) {
-  return res.status(status).json({ error: { code, message }, ...extra });
+  sendError(res, "coded", status, message, code, extra);
 }
 
 const trimmed = (value: unknown) => String(value ?? "").trim();
@@ -288,28 +289,13 @@ function normalizeFields(schema: Schema, raw: unknown): NormalizeFieldsResult {
   return { ok: true, fields: clean };
 }
 
-/** 세션 + 인증 공통부. 성공하면 `{ userId, sessionRow }`. */
+/** 세션 + 이용권 공통부(인증은 defineHandler auth:"user"가 이미 처리했다). 성공하면 `sessionRow`. */
 async function authorize(
-  req: VercelRequest,
   res: VercelResponse,
   supabaseAdmin: ReturnType<typeof createSupabaseAdmin>,
+  userId: string,
   sessionId: string,
-): Promise<{ userId: string; sessionRow: SessionRow } | null> {
-  const token = getBearerToken(req as { headers: Record<string, string> });
-  if (!token) {
-    fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    return null;
-  }
-
-  const { data: userData, error: userError } =
-    await supabaseAdmin.auth.getUser(token);
-  if (userError || !userData?.user?.id) {
-    fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    return null;
-  }
-
-  const userId = userData.user.id;
-
+): Promise<SessionRow | null> {
   // 이용권 재판정(§8.6 공통 규약). 잔여 회차는 보지 않는다 — 이미 차감된 세션은
   // 소진·만료 뒤에도 계속 진행하는 것이 규정이다(§9.3 정정 「막는 것은 새 세션뿐」).
   const { allowed: hasAccess } = await hasPaidServiceAccess(
@@ -348,25 +334,22 @@ async function authorize(
     return null;
   }
 
-  return { userId, sessionRow: sessionRow as unknown as SessionRow };
+  return sessionRow as unknown as SessionRow;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "PUT" && req.method !== "GET") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "GET 또는 PUT만 허용됩니다.");
-  }
-
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/submission 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
+export default defineHandler({
+  methods: ["GET", "PUT"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "GET 또는 PUT만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "제출물 저장에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/submission",
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = requireUserId(ctx);
     const body = req.body && typeof req.body === "object" ? req.body : {};
     const sessionId =
       req.method === "GET"
@@ -375,10 +358,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? body.sessionId.trim()
           : "";
 
-    const auth = await authorize(req, res, supabaseAdmin, sessionId);
-    if (!auth) return undefined;
+    const authorized = await authorize(res, supabaseAdmin, userId, sessionId);
+    if (!authorized) return;
+    const sessionRow: SessionRow = authorized;
 
-    const { sessionRow } = auth;
     const schema = await resolveAndPersistSchema(supabaseAdmin, sessionRow);
 
     // ─────────────────────────────────────────────────────────────────
@@ -393,12 +376,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (req.method === "GET") {
       const latest = await loadLatestSubmission(supabaseAdmin, sessionRow.id);
 
-      return res.status(200).json({
+      res.status(200).json({
         schema,
         submission: toClientSubmission(latest),
         minChars: SUBMISSION_MIN_CHARS,
         maxRevisions: MAX_REVISIONS,
       });
+      return;
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -649,7 +633,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (submitted) row = submitted as SubmissionRow;
     }
 
-    return res.status(200).json({
+    res.status(200).json({
       ...toClientSubmission(row),
       mode,
       schema,
@@ -657,12 +641,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       minChars: SUBMISSION_MIN_CHARS,
       maxRevisions: MAX_REVISIONS,
     });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/submission error:", error);
-    return fail(res, 500, "INTERNAL", "제출물 저장에 실패했습니다.");
-  }
-}
+  },
+});
 
 // ─────────────────────────────────────────────────────────────────────
 // 실패 경로별 잔여 상태 (전부 무차감 — 이 파일에는 차감 코드가 없다)

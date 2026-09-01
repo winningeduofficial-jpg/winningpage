@@ -1,7 +1,16 @@
 import { ChevronDown, Download, Plus, RefreshCw, Search } from "lucide-react";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Outlet, useLocation, useNavigate } from "react-router";
 import * as XLSX from "xlsx";
+import AdminMembersAdmin from "@/components/admin/AdminMembersAdmin";
+import AdminRolesAdmin from "@/components/admin/AdminRolesAdmin";
 // 쿠폰관리는 제네릭 CRUD 로 표현되지 않는다(파생 사용 건수 · NULL=무제한 3상태
 // 입력 · slug 사전중복검사 · 사용이력 드릴다운 + void RPC). config.custom +
 // customComponentKey(CUSTOM_COMPONENT_REGISTRY 조회)로 붙인다 — premiumBookPages 선례와 같은 방식이다.
@@ -10,9 +19,17 @@ import * as XLSX from "xlsx";
 import CouponAdmin from "@/components/admin/CouponAdmin";
 import GoalStudentsAdmin from "@/components/admin/GoalStudentsAdmin";
 import LearningDiagnosisAdmin from "@/components/admin/LearningDiagnosisAdmin";
+import MembersAdmin from "@/components/admin/MembersAdmin";
 import MentorApplicationsAdmin from "@/components/admin/MentorApplicationsAdmin";
 import PremiumBookAdmin from "@/components/admin/PremiumBookAdmin";
+import RevenueAdmin from "@/components/admin/RevenueAdmin";
+import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
 import AdmissionMetaEditModal from "@/components/admission/editor/AdmissionMetaEditModal";
+import {
+  canAccessSection,
+  fetchAdminPermissions,
+  fetchIsSuperAdmin,
+} from "@/lib/adminPermissions";
 import {
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
@@ -41,7 +58,9 @@ import { supabase } from "@/lib/supabase";
 import {
   ADMIN_DEFAULT_SECTION_KEY,
   ADMIN_SECTION_KEYS,
+  type AdminSectionKey,
 } from "./admin/adminSectionKeys";
+import { adminSettingsConfigs } from "./admin/configs/adminSettings";
 import { admissionConfigs } from "./admin/configs/admission";
 import { boardConfigs } from "./admin/configs/board";
 import { goalConfigs } from "./admin/configs/goal";
@@ -58,11 +77,13 @@ import {
   AdminForm,
   type AdminRow,
   AdminTable,
+  collectBannerPaths,
   PAGE_SIZE,
+  removeBannerPaths,
   uploadImage,
 } from "./admin/shared/AdminEngine";
 import { AdminTopbar } from "./admin/shared/AdminTopbar";
-import { reportAdminError } from "./admin/shared/adminErrors";
+import { buildFieldLabels, reportAdminError } from "./admin/shared/adminErrors";
 import { getFreshSupabaseAccessTokenOrSignOut } from "./admin/shared/adminSession";
 import {
   csvBody,
@@ -77,94 +98,172 @@ import {
 const EXPORT_CHUNK = 1000;
 const SEARCH_DEBOUNCE_MS = 300;
 
-const MENU_GROUPS = [
+// 어드민 대분류 — 노션 「관리자 페이지 > 메뉴 및 기능 정리」 기획표(2026-08-22
+// 확정분)의 재편안이다. 기획표 8개 대분류 중 화면이 있는 7개만 그린다. 화면·섹션 키·라우트는 그대로 두고 묶는 방식과 라벨만 바꾼다.
+//   - 구 「게시판 관리」 해체 → 입시정보 관리 + 고객안내 관리
+//   - 구 「위닝관리」·「프로그램 관리」·「목표관리」 흡수 → 서비스 관리 하위(소분류 캡션)
+//   - 구 「관리자 설정」 → 직원관리
+// 기획표의 「멘토용페이지」·콜멘토 하위(멘토관리·상담내역·정산·멘토카드)는 콜멘토
+// 런칭 연기로 이번 범위에서 빠졌다 — 화면이 없으므로 메뉴도 만들지 않는다.
+// ⚠️ 여기 group_title/label/정렬은 admin_resources 시드(권한 화면이 읽는 사본)와
+//    같이 움직여야 한다 — 20260823000002_admin_resources_recategorize.sql.
+type AdminMenuItem = {
+  key: AdminSectionKey;
+  label: string;
+  // 소분류 캡션. 세부메뉴가 많은 그룹에서만 채운다(지금은 서비스 관리 하나) —
+  // 사이드바는 section 이 바뀌는 첫 항목에만 캡션을 그린다(AdminSidebar).
+  section?: string;
+};
+
+const MENU_GROUPS: { title: string; items: AdminMenuItem[] }[] = [
   {
-    title: "메인 관리",
+    title: "메인화면 관리",
     items: [
       { key: "popups", label: "팝업 관리" },
       { key: "banners", label: "메인 배너 관리" },
       { key: "sideBanners", label: "우측 소형 배너" },
       { key: "universityAcceptances", label: "합격생 대학 관리" },
       { key: "programCategories", label: "핵심 서비스" },
-      { key: "mentorStrategies", label: "멘토 성공전략" },
-      { key: "pageContents", label: "세부 페이지 관리" },
-      { key: "premiumBookPages", label: "프리미엄 책자 관리" },
-      { key: "premiumConsults", label: "프리미엄 상담 신청" },
+      // 기획표 라벨 변경: 멘토 성공전략 → 멘토스 소개.
+      { key: "mentorStrategies", label: "멘토스 소개" },
+      // premiumAchievements(프리미엄 실적 뱃지) 화면은 premium-db-decouple로 제거했다 —
+      // premium_achievements 테이블 자체가 drop되고(20260824000008), 프리미엄 랜딩은
+      // premiumStaticData.ts 코드 상수를 쓴다.
     ],
   },
+  // 입시정보 관리 — 사용자단 내비게이션의 「입시정보」 그룹(src/data/navigation.ts)과
+  // 같은 구성이다. 교육칼럼이 여기 들어가는 것도 그쪽 그룹을 따른 것.
   {
-    title: "게시판 관리",
+    title: "입시정보 관리",
     items: [
-      { key: "notices", label: "공지사항" },
-      { key: "companyNews", label: "회사소식" },
-      { key: "admissionSusiJungsi", label: "수시정시합격" },
-      { key: "specialHighschool", label: "특목고합격" },
-      { key: "admissionGuidelines", label: "대학별 모집요강" },
+      // 기획표 라벨 변경: 대학별 모집요강 → 대입 모집 요강.
+      { key: "admissionGuidelines", label: "대입 모집 요강" },
       { key: "admissionUniversities", label: "대학 목록 관리" },
+      // 라벨은 「대입합격」이다. 노션 기획표(8/22)에 「수시정시합격」으로 적혀
+      // 있지만 그쪽이 더 옛날 결정이고, 정시 이용자가 거의 없어 수시·정시를
+      // 묶어 「대입합격」으로 가기로 뒤집혔다(사용자 확정 2026-08-23, QA 49행).
+      // 사용자단도 같은 라벨이다 — useNavGroups 가 DB 의 구 라벨을 런타임에
+      // '대입합격'으로 치환하고 있고(useNavGroups.ts:64) 전용 테스트도 있다.
+      { key: "admissionSusiJungsi", label: "대입합격" },
+      { key: "specialHighschool", label: "특목고합격" },
+      // 기획표에 「개발 중, 우선 보류」로 적힌 둘이지만 화면은 이미 동작 중이라
+      // 그대로 둔다 — 메뉴에서 빼면 살아 있는 기능이 사라지는 회귀가 된다.
       { key: "admissionResults", label: "입결정보" },
       { key: "trendingDepartments", label: "지금 뜨고 있는 학과" },
       { key: "galleries", label: "교육칼럼" },
+    ],
+  },
+  {
+    title: "고객안내 관리",
+    items: [
+      { key: "companyNews", label: "회사소식" },
+      { key: "notices", label: "공지사항" },
       { key: "faqs", label: "자주하는질문" },
-      { key: "mentorApplyFaqs", label: "멘토신청 FAQ" },
-      { key: "mentorApplyCopy", label: "멘토신청 문구" },
-      { key: "learningDiagnosis", label: "학습진단 관리" },
+      // 세부 페이지 관리(page_contents)에 회사소개 문구가 들어 있어 회사소식과
+      // 같은 계열로 본다(2026-08-22 확정).
+      { key: "pageContents", label: "세부 페이지 관리" },
+    ],
+  },
+  // 서비스 관리 — 판매 중인 서비스의 운영 화면을 전부 모은 최대 그룹(16개)이다.
+  // 세부메뉴가 많아 item.section(소분류 캡션)으로 한 단계 더 끊는다.
+  {
+    title: "서비스 관리",
+    items: [
+      { key: "learningDiagnosis", label: "학습진단 관리", section: "서비스" },
       {
         key: "learningDiagnosisV2SurveyCopy",
         label: "학습진단(ver2) 문항 문구",
+        section: "서비스",
+      },
+      // 목표관리(goal_*)는 기획표에 빠져 있었다 — 판매 중인 서비스라 누락으로
+      // 보고 「서비스」 소분류에 채운 것(2026-08-22 확정).
+      {
+        key: "goalUniversityCuts",
+        label: "목표관리 — 대학 컷",
+        section: "서비스",
+      },
+      { key: "goalStudents", label: "목표관리 — 학생 현황", section: "서비스" },
+      {
+        key: "premiumBookPages",
+        label: "프리미엄 책자 관리",
+        section: "프리미엄",
+      },
+      {
+        key: "premiumConsults",
+        label: "프리미엄 상담 신청",
+        section: "프리미엄",
+      },
+      // ⚠️ 멘토 3종은 콜멘토와 무관하게 이미 서비스 중이다(멘토 지원 접수 +
+      //    멘토신청 랜딩). 콜멘토 보류에 휩쓸어 지우지 말 것.
+      { key: "mentorApplications", label: "멘토 신청 내역", section: "멘토" },
+      { key: "mentorApplyFaqs", label: "멘토신청 FAQ", section: "멘토" },
+      { key: "mentorApplyCopy", label: "멘토신청 문구", section: "멘토" },
+      { key: "winningBaseData", label: "기초데이터추출", section: "위닝 DB" },
+      { key: "winningDbInputs", label: "위닝DB입력", section: "위닝 DB" },
+      {
+        key: "winningSuhaengTopicDb",
+        label: "위닝 수행 주제 DB",
+        section: "위닝 DB",
+      },
+      {
+        key: "winningSuhaengResourceDb",
+        label: "위닝 수행 자료 DB",
+        section: "위닝 DB",
+      },
+      { key: "winningSetukDb", label: "위닝 세특 DB", section: "위닝 DB" },
+      {
+        key: "winningDeepReportDb",
+        label: "위닝 심화보고서 DB",
+        section: "위닝 DB",
       },
     ],
   },
+  // 회원관리 — 상세(6탭)가 QA 182의 「고객조회상담」을 통째로 흡수했다.
+  // 수강 신청 내역은 결제 원장이라 매출·결제관리로 옮겼다.
+  //
+  // 일일 입장·이용 현황은 "누가 언제 들어와서 무엇을 썼나"를 보는 화면이라
+  // 서비스 운영이 아니라 **회원**에 붙는다(사용자 확정 2026-08-23). 원래는
+  // 서비스 관리 > 이용 현황에 있었다.
   {
-    title: "회원 관리",
+    title: "회원관리",
     items: [
       { key: "members", label: "회원 목록" },
+      { key: "dailyEntries", label: "일일 입장", section: "이용 현황" },
+      { key: "usageStatus", label: "이용 현황", section: "이용 현황" },
+    ],
+  },
+  {
+    title: "매출·결제관리",
+    items: [
+      // 납부상태·수강료·감면액·납부액 컬럼을 가진 사실상 결제 원장이라 회원관리가
+      // 아니라 여기 둔다 — 회원 상세의 결제내역 탭과 역할이 겹치는 것도 피한다.
+      { key: "revenue", label: "매출 및 결제" },
       { key: "enrollments", label: "수강 신청 내역" },
-      { key: "mentorApplications", label: "멘토 신청 내역" },
-    ],
-  },
-  {
-    title: "프로그램 관리",
-    items: [
-      { key: "dailyEntries", label: "일일 입장" },
-      { key: "usageStatus", label: "이용 현황" },
-    ],
-  },
-  // 목표관리(goal_*) — 학생 앱의 확률 산출에 쓰이는 컷 기준표와 학생 현황.
-  // 등록 지점은 이 배열과 CONFIGS 둘뿐이다(다른 배선 없음).
-  {
-    title: "목표관리",
-    items: [
-      { key: "goalUniversityCuts", label: "대학 컷 관리" },
-      { key: "goalStudents", label: "학생 현황" },
-    ],
-  },
-  {
-    title: "위닝관리",
-    items: [
-      { key: "winningBaseData", label: "기초데이터추출" },
-      { key: "winningDbInputs", label: "위닝DB입력" },
-      { key: "winningSuhaengTopicDb", label: "위닝 수행 주제 DB" },
-      { key: "winningSuhaengResourceDb", label: "위닝 수행 자료 DB" },
-      { key: "winningSetukDb", label: "위닝 세특 DB" },
-      { key: "winningDeepReportDb", label: "위닝 심화보고서 DB" },
-      { key: "winningStudentRecordDb", label: "위닝 생기부 DB" },
-    ],
-  },
-  {
-    title: "수입·매출 관리",
-    items: [
-      { key: "payments", label: "매출 조정" },
-      { key: "settlements", label: "매출 정산" },
-      { key: "dailySettlements", label: "일일정산" },
+      // 「매출 조정」·「매출 정산」·「일일정산」은 2026-08-23 에 없앴다.
+      // 셋 다 운영자가 손으로 적는 수기 장부였고, 앞의 둘은 화면이 그리던 컬럼이
+      // 실제 payments 스키마에 아예 없어 빈 화면으로 떠 있었다. 실제 결제
+      // (orders/order_items)를 보는 「매출 및 결제」가 이 자리를 대신한다.
       // CONFIGS.refunds 라벨과 동일하게 유지할 것 — '환불 신청 내역'(아래)과
       // 혼동돼 있던 라벨을 2026-08-12 정정했다.
       { key: "refunds", label: "환불 수기 대장" },
       // fn_request_refund(고객 신청) 원장 — 위 refunds(관리자 수기 대장)와는
       // 다른 테이블이다. CONFIGS.refundRequests 참고.
       { key: "refundRequests", label: "환불 신청 내역" },
-      // 쿠폰은 결제 금액을 직접 깎는 손잡이라 수입·매출 그룹에 둔다
-      // (products/orders 와 같은 도메인 — sql/10_pricing_orders.sql).
+      // QA 275 — 완료된 환불의 결과 원장(파일18 「환불 처리 대장」).
+      { key: "refundLedger", label: "환불 처리 대장" },
       { key: "coupons", label: "쿠폰관리" },
+    ],
+  },
+  // 직원관리(구 「관리자 설정」) — 실무 관리자 묶음에는 이 그룹 권한 항목이
+  // 하나도 없어(규칙 3) 메뉴 자체가 보이지 않는다. 최고 관리자만 쓴다.
+  {
+    title: "직원관리",
+    items: [
+      { key: "adminMembers", label: "관리자 관리" },
+      { key: "adminRoles", label: "관리자 권한 관리" },
+      // 개인정보 반출 게이트가 남기는 원장(QA 268·270·228·223·271·269).
+      // RLS 상 최고 관리자만 읽는다.
+      { key: "adminAccessLogs", label: "개인정보 접근 로그" },
     ],
   },
 ];
@@ -178,6 +277,7 @@ const CONFIGS = {
   ...winningConfigs,
   ...revenueConfigs,
   ...goalConfigs,
+  ...adminSettingsConfigs,
 };
 
 // App.jsx의 ADMIN_SECTION_KEYS(라우트 목록, adminSectionKeys.ts)와 여기 CONFIGS가
@@ -208,6 +308,10 @@ const CUSTOM_COMPONENT_REGISTRY = {
   premiumBookPages: PremiumBookAdmin,
   mentorApplications: MentorApplicationsAdmin,
   goalStudents: GoalStudentsAdmin,
+  members: MembersAdmin,
+  adminMembers: AdminMembersAdmin,
+  adminRoles: AdminRolesAdmin,
+  revenue: RevenueAdmin,
 };
 
 // CUSTOM_COMPONENT_REGISTRY와 같은 이유의 간접 레이어 — config.ListSummary가
@@ -293,6 +397,38 @@ function AdminSidebar({ activeKey, setActiveKey }) {
   const [open, setOpen] = useState(
     () => new Set(MENU_GROUPS.map((group) => group.title)),
   );
+
+  // 권한이 있는 메뉴만 그린다 — 라우트 가드(requireAdminMiddleware)와 **같은 규칙**을
+  // 쓴다(canAccessSection). 예전에는 MENU_GROUPS 를 무조건 전부 그려서, 「접근 불가」로
+  // 설정한 메뉴가 그대로 보이고 눌러도 들어가졌다(2026-08-23).
+  //
+  // 빈 목록으로 시작한다 — 전부 그렸다가 지우면 권한 없는 메뉴가 한 번 번쩍인다.
+  // 라우트 가드가 이미 같은 조회를 마친 뒤라(캐시 TTL 15초) 실제로는 즉시 채워진다.
+  const [menuGroups, setMenuGroups] = useState<typeof MENU_GROUPS>([]);
+
+  const loadMenuGroups = useEffectEvent(async () => {
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user?.id;
+    if (!userId) return;
+
+    const [permissions, isSuperAdmin] = await Promise.all([
+      fetchAdminPermissions(userId),
+      fetchIsSuperAdmin(userId),
+    ]);
+
+    setMenuGroups(
+      MENU_GROUPS.map((group) => ({
+        ...group,
+        items: group.items.filter((item) =>
+          canAccessSection(permissions, isSuperAdmin, item.key),
+        ),
+      })).filter((group) => group.items.length > 0),
+    );
+  });
+
+  useEffect(() => {
+    loadMenuGroups();
+  }, []);
   // 자식 탭(acceptanceRates/admissionCaseLogos)에 있을 때도 사이드바에서는
   // 탭 목록의 첫 번째 key(admissionSusiJungsi)를 기준으로 활성 항목을 매칭한다.
   const sidebarActiveKey = CONFIGS[activeKey]?.tabs
@@ -315,7 +451,7 @@ function AdminSidebar({ activeKey, setActiveKey }) {
       </div>
 
       <nav className="px-4 py-5">
-        {MENU_GROUPS.map((group) => {
+        {menuGroups.map((group) => {
           const isOpen = open.has(group.title);
 
           return (
@@ -334,19 +470,31 @@ function AdminSidebar({ activeKey, setActiveKey }) {
 
               {isOpen && (
                 <div className="mt-1 space-y-1">
-                  {group.items.map((item) => (
-                    <button
-                      key={item.key}
-                      type="button"
-                      onClick={() => setActiveKey(item.key)}
-                      className={`block w-full rounded px-4 py-2 text-left text-[13px] font-bold ${
-                        sidebarActiveKey === item.key
-                          ? 'bg-white/10 text-white before:mr-2 before:text-red-500 before:content-["•"]'
-                          : 'text-white/55 before:mr-2 before:text-white/35 before:content-["•"] hover:bg-white/5 hover:text-white'
-                      }`}
-                    >
-                      {item.label}
-                    </button>
+                  {group.items.map((item, index) => (
+                    <Fragment key={item.key}>
+                      {/* 소분류 캡션 — 기획표의 3단(대분류 > 소분류 > 세부메뉴)을
+                          접었다 펴는 단계를 하나 더 두지 않고 캡션으로 표현한다.
+                          「서비스 관리」가 16개로 가장 크고, 그 안에서 서비스·
+                          프리미엄·멘토·위닝 DB가 섞이면 훑기 어렵다.
+                          섹션이 바뀌는 첫 항목에서만 그린다. */}
+                      {item.section &&
+                        item.section !== group.items[index - 1]?.section && (
+                          <div className="px-4 pb-1 pt-3 text-[11px] font-black tracking-wide text-white/35">
+                            {item.section}
+                          </div>
+                        )}
+                      <button
+                        type="button"
+                        onClick={() => setActiveKey(item.key)}
+                        className={`block w-full rounded px-4 py-2 text-left text-[13px] font-bold ${
+                          sidebarActiveKey === item.key
+                            ? 'bg-white/10 text-white before:mr-2 before:text-red-500 before:content-["•"]'
+                            : 'text-white/55 before:mr-2 before:text-white/35 before:content-["•"] hover:bg-white/5 hover:text-white'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    </Fragment>
                   ))}
                 </div>
               )}
@@ -2597,12 +2745,7 @@ function AcceptanceRateSummary({ rows }) {
 }
 
 function MoneySummary({ activeKey, rows }) {
-  if (
-    !["payments", "settlements", "dailySettlements", "refunds"].includes(
-      activeKey,
-    )
-  )
-    return null;
+  if (!["refunds"].includes(activeKey)) return null;
 
   const sale = rows.reduce(
     (sum, row) => sum + Number(row.sale_amount || row.total_sale_amount || 0),
@@ -2717,19 +2860,62 @@ export function AdminSectionRoute({ section }: { section: string }) {
     total: number;
   } | null>(null);
 
+  // 개인정보 반출 게이트 — 모달 상태를 이 훅이 들고, gate 를 아래 트리에 그린다.
+  const { requestAccess, gate } = useSensitiveActionGate();
+
+  // 목록 상단 드롭다운 필터의 선택값(QA 227). 메뉴를 옮기면 아래 effect 가 비운다 —
+  // 종목 목록이 섹션마다 달라 이전 선택이 남으면 결과가 통째로 0건이 된다.
+  const [listFilterValue, setListFilterValue] = useState("");
+
   const config = CONFIGS[activeKey];
   const ListSummaryComponent = config.listSummaryKey
     ? LIST_SUMMARY_REGISTRY[config.listSummaryKey]
     : null;
 
+  // 목록 상단 드롭다운(config.listFilter)의 선택지 — 불러온 행의 실제 값에서
+  // 중복을 걷어내 만든다(QA 227). 빈 값은 선택지가 될 수 없어 뺀다.
+  const listFilterOptions = useMemo(() => {
+    const key = config.listFilter?.key;
+    if (!key) return [];
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const value = String(row[key] ?? "").trim();
+      if (value) seen.add(value);
+    }
+    return [...seen].sort((a, b) => a.localeCompare(b, "ko"));
+  }, [rows, config.listFilter?.key]);
+
+  // 실제로 적용할 필터값. 지금 선택지에 없는 값은 무시한다(QA 227) — 메뉴를 옮기면
+  // 선택지가 통째로 달라지는데 이전 선택이 살아 있으면 새 목록이 0건으로 보인다.
+  // 상태를 effect 로 비우는 대신 "유효하지 않으면 없는 것으로 친다"로 두면 값이
+  // 잠깐 남아 있는 렌더도 생기지 않는다.
+  const activeListFilter = listFilterOptions.includes(listFilterValue)
+    ? listFilterValue
+    : "";
+
   const filteredRows = useMemo(() => {
     // 서버 페이지네이션 탭의 rows는 이미 "검색어가 적용된 현재 페이지 10행"이다.
     // 여기서 클라이언트 필터를 또 걸면 그 10행 안에서 한 번 더 걸러진다.
     if (config.serverPaginate) return rows;
+
+    const key = config.listFilter?.key;
+    const base =
+      key && activeListFilter
+        ? rows.filter(
+            (row) => String(row[key] ?? "").trim() === activeListFilter,
+          )
+        : rows;
+
     const q = keyword.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter((row) => searchable(row).includes(q));
-  }, [rows, keyword, config.serverPaginate]);
+    if (!q) return base;
+    return base.filter((row) => searchable(row).includes(q));
+  }, [
+    rows,
+    keyword,
+    config.serverPaginate,
+    config.listFilter?.key,
+    activeListFilter,
+  ]);
 
   // 목록 조회 쿼리(필터 + 검색 + 정렬)를 한 곳에서 만든다 — loadRows와 CSV 청크
   // 내보내기가 같은 조건을 봐야 "화면에서 본 것"과 "받은 파일"이 어긋나지 않는다.
@@ -2737,8 +2923,10 @@ export function AdminSectionRoute({ section }: { section: string }) {
   // exactOptionalPropertyTypes: 호출부(loadRows)가 `count: paginate ? "exact" : undefined`로
   // undefined를 명시적으로 넘기므로 undefined도 프로퍼티 타입에 포함한다.
   function buildListQuery({ count }: { count?: "exact" | undefined } = {}) {
+    // 목록만 조인 뷰에서 읽는 섹션이 있다(config.listTable, QA 272). 쓰기 경로는
+    // 아래 saveRow/deleteRow 가 그대로 config.table 을 쓴다 — 조인 뷰는 쓰기가 안 된다.
     let query = supabase
-      .from(config.table)
+      .from(config.listTable || config.table)
       .select("*", count ? { count } : undefined);
 
     if (config.fixedCategories) {
@@ -2914,16 +3102,23 @@ export function AdminSectionRoute({ section }: { section: string }) {
     setMode("edit");
   }
 
-  // 목록 셀 [수정] → 폼을 마운트하되 곧바로 그 섹션의 편집 다이얼로그를 연다.
-  // 진입 경로는 editRow와 같고(같은 AdminForm, 같은 저장 경로), 다른 것은
-  // "어느 섹션 모달을 들고 시작하느냐"와 "닫으면 목록으로 돌아가느냐"뿐이다.
+  // 목록 셀 [수정] → **목록을 그대로 둔 채** 그 섹션의 편집 다이얼로그만 연다.
+  // mode는 'list'를 유지한다 — AdminTable이 언마운트되지 않고, 아래 목록 분기가
+  // pendingSection을 보고 엔진 전용 AdminForm(origin='list', 모달만 렌더)을
+  // 오버레이로 함께 마운트한다. 저장 경로는 editRow와 동일(같은 saveRow).
+  // 예전엔 setMode('edit')로 폼 화면 전체를 마운트하고 그 위에 모달을 얹었는데,
+  // 반투명 백드롭 뒤로 사용자가 본 적 없는 폼 UI가 비쳐 보였다.
   function openRowSection(row, sectionKey) {
     setEditingRow(row);
     setPendingSection(sectionKey);
-    setMode("edit");
   }
 
   async function saveRow(form) {
+    // QA A13(2026-08-27): config.confirmBeforeSave 가 있는 섹션은 저장 직전 한 번 더 묻는다.
+    if (config.confirmBeforeSave && !window.confirm(config.confirmBeforeSave)) {
+      return;
+    }
+
     const payload = config.formToPayload
       ? config.formToPayload(form)
       : { ...form };
@@ -2947,9 +3142,24 @@ export function AdminSectionRoute({ section }: { section: string }) {
 
     delete payload.created_at;
     delete payload.updated_at;
-    // 조회수는 공개면에서만 증가한다. payload는 수정 화면을 열 때의 row 스냅샷이라,
-    // 그대로 저장하면 화면을 열어둔 사이 늘어난 조회수가 옛 값으로 덮여 롤백된다.
-    delete payload.view_count;
+
+    // 목록을 조인 뷰에서 읽는 섹션(config.listTable)은 폼이 그 뷰의 행을 그대로
+    // 받는다. 뷰에만 있는 파생 컬럼을 그대로 저장하면 원본 테이블에 없는 컬럼이라
+    // 42703 으로 죽는다 — 쓰기 직전에 걷어낸다 (QA 272).
+    for (const column of config.listOnlyColumns || []) {
+      delete payload[column];
+    }
+    // 조회수는 원칙적으로 공개면에서만 증가한다. payload는 수정 화면을 열 때의 row
+    // 스냅샷이라, 그대로 저장하면 화면을 열어둔 사이 늘어난 조회수가 옛 값으로 덮여
+    // 롤백된다 — 그래서 기본은 항상 제거한다. 단, config.fields에 view_count가 있는
+    // 표(notices/companyNews/galleries "조회수 조정")는 어드민이 그 필드를 통해 값을
+    // 명시적으로 편집한 것이므로 강제 조정 의도를 그대로 반영한다.
+    const viewCountEditable = config.fields?.some(
+      (field) => field.key === "view_count",
+    );
+    if (!viewCountEditable) {
+      delete payload.view_count;
+    }
 
     if (
       Array.isArray(payload.image_urls) &&
@@ -2975,6 +3185,53 @@ export function AdminSectionRoute({ section }: { section: string }) {
       }
     }
 
+    // QA 행337 — sort_order를 특정 값으로 지정해 저장하면 그 값(과 그 뒤로 이어지는
+    // 연속 구간)을 이미 쓰고 있는 다른 행들을 +1씩 밀어 "정확히 그 자리에 꽂힌다"는
+    // 기대를 만족시킨다. getNextSortOrder(formFields.tsx)는 신규 등록 시 max+1만
+    // 계산해 이 재배열을 대신하지 않는다. sort_order 필드가 없는 섹션(대다수
+    // custom:true 포함)은 손대지 않는다 — 클라이언트 처리만, DB 함수/마이그레이션 없음.
+    const hasSortOrderField = config.fields?.some(
+      (field) => field.key === "sort_order",
+    );
+    if (hasSortOrderField && Number.isFinite(Number(payload.sort_order))) {
+      const targetSortOrder = Number(payload.sort_order);
+      let conflictQuery = supabase
+        .from(config.table)
+        .select("id, sort_order")
+        .gte("sort_order", targetSortOrder)
+        .order("sort_order", { ascending: true });
+      if (mode !== "create" && editingRow) {
+        conflictQuery = conflictQuery.neq("id", editingRow.id);
+      }
+      const { data: conflictRows, error: conflictError } = await conflictQuery;
+      if (conflictError) {
+        reportAdminError("순서 재배열 조회 실패", conflictError);
+        return;
+      }
+
+      // 지정값부터 빈틈없이 이어지는 구간만 민다(1,2,3,5 중 2를 지정하면 2·3만
+      // 밀고 5는 그대로 둔다 — 이미 3과 5 사이가 비어 있어 충돌하지 않는다).
+      const shiftTargets: { id: string; sort_order: number }[] = [];
+      let expected = targetSortOrder;
+      for (const conflictRow of conflictRows || []) {
+        if (Number(conflictRow.sort_order) !== expected) break;
+        shiftTargets.push(conflictRow);
+        expected += 1;
+      }
+
+      // 충돌 최소화를 위해 큰 값부터 역순으로 민다.
+      for (const shiftRow of shiftTargets.slice().reverse()) {
+        const { error: shiftError } = await supabase
+          .from(config.table)
+          .update({ sort_order: Number(shiftRow.sort_order) + 1 })
+          .eq("id", shiftRow.id);
+        if (shiftError) {
+          reportAdminError("순서 재배열 실패", shiftError);
+          return;
+        }
+      }
+    }
+
     let savedRow = null;
 
     if (mode === "create") {
@@ -2985,7 +3242,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
         .single();
 
       if (error) {
-        reportAdminError("등록 실패", error);
+        reportAdminError("등록 실패", error, buildFieldLabels(config));
         return;
       }
 
@@ -2994,14 +3251,15 @@ export function AdminSectionRoute({ section }: { section: string }) {
       const { data, error } = await supabase
         .from(config.table)
         .update(payload)
-        // mode !== 'create'인 이 분기는 openEdit/openMetaEditFromRow가 setEditingRow(row)와
-        // setMode('edit')를 항상 함께 호출하는 계약 위에서만 도달한다 — editingRow는 항상 채워져 있다.
+        // mode !== 'create'인 이 분기는 editRow/openMetaEditFromRow(setMode('edit'))와
+        // openRowSection(mode 'list' 유지, 섹션 모달 오버레이)이 전부 setEditingRow(row)를
+        // 먼저 호출하는 계약 위에서만 도달한다 — editingRow는 항상 채워져 있다.
         .eq("id", editingRow!.id)
         .select("*")
         .single();
 
       if (error) {
-        reportAdminError("수정 실패", error);
+        reportAdminError("수정 실패", error, buildFieldLabels(config));
         return;
       }
 
@@ -3034,27 +3292,55 @@ export function AdminSectionRoute({ section }: { section: string }) {
       .eq("id", row.id);
 
     if (error) {
-      reportAdminError("삭제 실패", error);
+      reportAdminError("삭제 실패", error, buildFieldLabels(config));
       return;
     }
+
+    // 고아 방지 스펙 3: row가 참조하던 banners 이미지(image/multiImage/multiFile)를
+    // 함께 지운다. blockEditor 본문 이미지는 collectBannerPaths가 애초에 보지
+    // 않는다(주간 GC 몫). best-effort라 실패해도 행 삭제 자체는 이미 끝난 뒤다.
+    const referencedPaths = collectBannerPaths(
+      row,
+      config.fields || config.columns,
+    );
+    if (referencedPaths.size > 0) removeBannerPaths(referencedPaths);
 
     setMutationSeq((seq) => seq + 1);
     await loadRows();
   }
 
-  // refundRequests 탭 전용 — fn_complete_refund RPC 로만 '환불완료'를 찍는다
+  // refundRequests 탭 전용 — '환불완료'는 fn_complete_refund RPC 직접 호출이
+  // 아니라 api/complete-refund 서버 라우트를 거친다(2026-08-22, 환불 갭 해결
+  // 확정 설계). 그 라우트가 토스 결제취소(카드 부분취소·가상계좌/계좌이체
+  // 취소)를 먼저 실행하고, **성공했을 때만** fn_complete_refund 를 호출한다 —
+  // 예전처럼 RPC를 바로 부르면 DB 상태만 완료로 바뀌고 실제로는 아무도
+  // 돈을 돌려주지 않은 채 남는다(qa-payment 환불 흐름 점검 보고).
   // (제네릭 PATCH 로는 completed 로 못 가게 status select 에서 이미 뺐다, ①).
-  // RPC 인자명은 Baseline §2 fn_complete_refund 시그니처 그대로.
   async function completeRefund(row) {
     if (!window.confirm("환불을 완료 처리하시겠습니까?")) return;
 
-    const { error } = await supabase.rpc("fn_complete_refund", {
-      p_refund_request_id: row.id,
-      p_admin_memo: null,
+    const accessToken = await getFreshSupabaseAccessTokenOrSignOut();
+
+    const response = await fetch("/api/complete-refund", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ refundRequestId: row.id }),
     });
 
-    if (error) {
-      reportAdminError("환불 완료 처리 실패", error);
+    const result = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      // 토스 에러 메시지를 그대로 보여준다(팀 리드 지시) — reportAdminError의
+      // WC 코드 매핑을 거치면 "요청을 처리하지 못했습니다"류 일반 문구로
+      // 뭉개져 카드사·계좌 거부 사유(예: 이미 취소된 결제, 잔액 부족)가
+      // 안 보인다. 여기는 admin 전용 화면이라 원문 노출 위험이 낮다.
+      console.error("환불 완료 처리 실패:", result);
+      alert(
+        `환불 완료 처리 실패: ${result?.error || `HTTP ${response.status}`}`,
+      );
       return;
     }
 
@@ -3092,7 +3378,7 @@ export function AdminSectionRoute({ section }: { section: string }) {
       .single();
 
     if (error) {
-      reportAdminError("수정 실패", error);
+      reportAdminError("수정 실패", error, buildFieldLabels(config));
       return false;
     }
 
@@ -3100,6 +3386,27 @@ export function AdminSectionRoute({ section }: { section: string }) {
     setMetaEditRow(null);
     await loadRows();
     return true;
+  }
+
+  // 개인정보 반출 게이트 (QA 223·268·270·271). config.sensitiveDownload 인 섹션은
+  // [엑셀 다운로드]가 곧장 내려받지 않고 비밀번호 재확인 + 사유 기재를 먼저 태운다.
+  // 게이트는 로그를 남긴 뒤에야 onGranted 를 부르므로, 적재 실패 시 파일은 나가지 않는다.
+  function handleDownloadClick() {
+    if (!config.sensitiveDownload) {
+      void downloadExcel();
+      return;
+    }
+
+    const rowCount = config.serverPaginate ? totalCount : filteredRows.length;
+
+    requestAccess({
+      action: "download",
+      resourceKey: activeKey,
+      title: `${config.title} 다운로드`,
+      description: `${rowCount.toLocaleString()}건의 개인정보가 CSV 파일로 저장됩니다.`,
+      rowCount,
+      onGranted: downloadExcel,
+    });
   }
 
   async function downloadExcel() {
@@ -3164,6 +3471,8 @@ export function AdminSectionRoute({ section }: { section: string }) {
   // 예전에 이 컴포넌트의 <main>/바깥 div가 지던 책임을 그대로 넘겨받았다.
   return (
     <>
+      {gate}
+
       {config.custom ? (
         // custom: true 인 config 는 전부 customComponentKey를 지정한다(coupons /
         // premiumBookPages / mentorApplications / learningDiagnosis / goalStudents) —
@@ -3232,26 +3541,22 @@ export function AdminSectionRoute({ section }: { section: string }) {
             <div className="mb-6 bg-white px-6 py-5 shadow-sm">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={loadRows}
-                    className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
-                  >
-                    <RefreshCw size={14} />
-                    초기화
-                  </button>
-
-                  {(config.excel ||
-                    [
-                      "members",
-                      "payments",
-                      "settlements",
-                      "dailySettlements",
-                      "refunds",
-                    ].includes(activeKey)) && (
+                  {!config.hideReset && (
                     <button
                       type="button"
-                      onClick={downloadExcel}
+                      onClick={loadRows}
+                      className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+                    >
+                      <RefreshCw size={14} />
+                      초기화
+                    </button>
+                  )}
+
+                  {(config.excel ||
+                    ["members", "refunds"].includes(activeKey)) && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadClick}
                       disabled={Boolean(exporting)}
                       className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
                     >
@@ -3263,7 +3568,25 @@ export function AdminSectionRoute({ section }: { section: string }) {
                   )}
                 </div>
 
-                <div className="flex items-center">
+                <div className="flex items-center gap-2">
+                  {config.listFilter && listFilterOptions.length > 0 && (
+                    <select
+                      value={activeListFilter}
+                      onChange={(e) => {
+                        setListFilterValue(e.target.value);
+                        setPage(1);
+                      }}
+                      className="h-9 border border-gray-400 px-3 text-sm font-bold outline-hidden"
+                    >
+                      <option value="">{config.listFilter.allLabel}</option>
+                      {listFilterOptions.map((option) => (
+                        <option key={option} value={option}>
+                          {option}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
                   <input
                     value={keyword}
                     onChange={(e) => setKeyword(e.target.value)}
@@ -3378,6 +3701,27 @@ export function AdminSectionRoute({ section }: { section: string }) {
                 onSave={(form) => saveAdmissionMeta(metaEditRow, form)}
               />
             )}
+
+            {/* 목록 셀 [수정](openRowSection) → 섹션 편집 모달. AdminForm은
+                origin='list'에서 화면 JSX 없이 상태·저장 엔진 + 모달만 렌더
+                하므로(AdminEngine의 조기 반환), 목록 위에 다이얼로그만 뜬다.
+                mode는 'list' 그대로 — saveRow의 update 분기는 mode !== 'create'
+                조건이라 editingRow.id로 정상 저장된다. */}
+            {pendingSection && editingRow && (
+              <AdminForm
+                config={config}
+                mode={mode}
+                row={editingRow}
+                origin="list"
+                initialSection={pendingSection}
+                onCancel={() => {
+                  setEditingRow(null);
+                  setPendingSection(null);
+                }}
+                onSave={saveRow}
+                onUpload={uploadImage}
+              />
+            )}
           </>
         )
       ) : (
@@ -3385,8 +3729,11 @@ export function AdminSectionRoute({ section }: { section: string }) {
           config={config}
           mode={mode}
           row={editingRow}
-          origin={pendingSection ? "list" : "form"}
-          initialSection={pendingSection}
+          // 폼 화면 진입(editRow/createRow)은 항상 pendingSection이 null이다 —
+          // 목록 [수정] 직행(openRowSection)은 이제 mode를 'list'로 둔 채 위
+          // 목록 분기의 오버레이 AdminForm으로 렌더된다.
+          origin="form"
+          initialSection={null}
           createDefaults={pendingCreateDefaults}
           onCancel={() => {
             setMode("list");

@@ -1,4 +1,5 @@
 import { useRevalidator, useRouteError } from "react-router";
+import { queryClient } from "@/lib/queryClient";
 import {
   AdminForbiddenError,
   RouteCheckFailedError,
@@ -63,14 +64,17 @@ export function GoalAccessCheckingFallback() {
   );
 }
 
+// apiFetch(B-1) 도입 이후 이 판정 불가 상태는 대부분 15초 타임아웃이 원인이다
+// (그 전에는 응답이 오지 않으면 무한 대기였다) — 문구에 "연결이 느립니다"를
+// 실어 사용자가 재시도 버튼의 의미를 바로 알 수 있게 한다.
 const GOAL_CHECK_FAILED_COPY = {
   entitlement: {
-    title: "이용 가능 여부를 확인하지 못했습니다.",
+    title: "연결이 느립니다. 이용 가능 여부를 확인하지 못했습니다.",
     body: "네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 결제하셨다면 곧 다시 확인됩니다.",
     role: "alert" as const,
   },
   onboarding: {
-    title: "온보딩 완료 여부를 확인하지 못했습니다.",
+    title: "연결이 느립니다. 온보딩 완료 여부를 확인하지 못했습니다.",
     body: "네트워크 상태를 확인한 뒤 다시 시도해 주세요. 이미 온보딩을 마치셨다면 곧 다시 확인됩니다.",
     role: undefined,
   },
@@ -84,7 +88,21 @@ export function GoalAccessBoundary() {
     throw error;
   }
 
-  const copy = GOAL_CHECK_FAILED_COPY[error.reason];
+  // 중첩 함수(retry) 안에서는 위 instanceof 좁히기가 유지되지 않는다 — TS가 클로저
+  // 실행 시점의 재할당 가능성을 배제하지 못해서다. 좁혀진 값을 여기서 꺼내 둔다.
+  const { reason } = error;
+  const copy = GOAL_CHECK_FAILED_COPY[reason];
+
+  // "다시 시도"는 middleware(routeMiddleware.ts)가 쓰는 query 캐시(entitlementQueryOptions/
+  // goalStudentQueryOptions, staleTime 둘 다 15초)를 먼저 무효화한다 — 그냥
+  // revalidate()만 하면 middleware의 ensureQueryData가 아직 fresh한 캐시를 그대로
+  // 돌려줘 실제로는 재조회 없이 같은 실패가 반복될 수 있다.
+  function retry() {
+    queryClient.invalidateQueries({
+      queryKey: reason === "entitlement" ? ["entitlement"] : ["goal"],
+    });
+    revalidator.revalidate();
+  }
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-white px-6 text-[#0D1B2A]">
@@ -96,7 +114,7 @@ export function GoalAccessBoundary() {
         <p className="text-xs text-[#0D1B2A]/60">{copy.body}</p>
         <button
           type="button"
-          onClick={() => revalidator.revalidate()}
+          onClick={retry}
           className="mt-2 rounded-full bg-[#0D1B2A] px-5 py-2 text-xs font-extrabold text-white"
         >
           다시 시도

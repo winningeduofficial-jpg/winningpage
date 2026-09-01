@@ -26,6 +26,7 @@ type RequestOrder = {
   created_at?: string;
   paid_at?: string;
   approval_status?: string;
+  reject_reason?: string | null;
 };
 
 type StudentRequestDetailModalProps = {
@@ -71,6 +72,11 @@ export default function StudentRequestDetailModal({
       label: "결제완료일",
       value: order.paid_at ? formatStamp(order.paid_at) : "-",
     },
+    // 반려 건에만(orders_reject_reason_pairing_check — approval_status='rejected'일
+    // 때만 값이 있다) 노출한다. 폴백 문구 없이 값이 없으면 행 자체를 렌더하지 않는다.
+    ...(order.approval_status === "rejected" && order.reject_reason
+      ? [{ label: "학부모 반려 사유", value: order.reject_reason }]
+      : []),
   ];
 
   return (

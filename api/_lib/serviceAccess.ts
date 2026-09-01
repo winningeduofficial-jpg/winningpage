@@ -17,6 +17,7 @@
 // 다르다(check-service-access.js는 target_url/SSO_SECRET을 아예 요구하지
 // 않는다).
 
+import type { IncomingHttpHeaders } from "node:http";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ServiceConfig = {
@@ -62,6 +63,17 @@ export const SERVICE_CONFIGS: Record<string, ServiceConfig> = {
     // 'goal' 인 행도 이미 없었다(target 2건만 실재, sql/54 동일 절) — 이
     // 관용을 좁혀도 기존 사용자의 앱 진입이 끊기지 않는다(2026-08-11).
     program_keys: ["target"],
+  },
+  // 학습진단(이용 요금 구조 최종본 20260806) — 유료 전환. 회원가입 시 1회 무료는
+  // 이 config가 관여하지 않는 별도 판정이다(diagnosis_attempts kind='free',
+  // api/diagnosis/access.ts·consume.ts 참고) — hasPaidServiceAccess는 "무료 1회
+  // 이후" 이용권만 본다. products.program_key='diagnose'(sql/60 관계, session_quota
+  // 1)와 1:1 대응.
+  diagnose: {
+    service_key: "diagnose",
+    service_name: "학습진단 서비스",
+    payment_keywords: ["진단", "학습진단"],
+    program_keys: ["diagnose"],
   },
 };
 
@@ -160,11 +172,18 @@ export function isActiveStatus(value: unknown): boolean {
   );
 }
 
-/** Authorization: Bearer <token> 헤더에서 토큰만 뽑는다. */
-export function getBearerToken(req: {
-  headers: Record<string, string>;
-}): string {
-  return clean(req.headers.authorization || "").replace(/^Bearer\s+/i, "");
+/**
+ * Authorization: Bearer <token> 헤더에서 토큰만 뽑는다.
+ *
+ * `VercelRequest`(headers: IncomingHttpHeaders)를 캐스팅 없이 그대로 받을 수
+ * 있도록 `Record<string, string>` 대신 `IncomingHttpHeaders`를 받는다 — 값이
+ * 배열일 수 있는 헤더(중복 지정 등)는 첫 요소를 쓴다. 대소문자·"Bearer " 접두
+ * 처리 등 기존 동작은 그대로다.
+ */
+export function getBearerToken(req: { headers: IncomingHttpHeaders }): string {
+  const raw = req.headers.authorization;
+  const header = Array.isArray(raw) ? raw[0] : raw;
+  return clean(header || "").replace(/^Bearer\s+/i, "");
 }
 
 // 입장 판정. 정본은 DB 함수 하나다 — sql/64 10)절

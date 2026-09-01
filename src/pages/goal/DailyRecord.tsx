@@ -4,13 +4,13 @@ import ChipSelectSection from "@/components/goal/study/ChipSelectSection";
 import ConditionSection from "@/components/goal/study/ConditionSection";
 import RetrospectSection from "@/components/goal/study/RetrospectSection";
 import StudyTimeSection from "@/components/goal/study/StudyTimeSection";
-import { getSubjectLabel } from "@/components/goal/subjectTokens";
 import {
   CONDITION_OPTIONS,
+  DEFAULT_TIMER_SUBJECTS,
   DISTURBANCE_OPTIONS,
   STUDY_ITEM_OPTIONS,
-  TIMER_SUBJECT_ORDER,
 } from "@/components/goal/studyRecordOptions";
+import { getSubjectLabel } from "@/components/goal/subjectTokens";
 import {
   fetchGoalTimer,
   fetchTodayGoalRecord,
@@ -50,8 +50,10 @@ export default function DailyRecord() {
 
   // 과목별 순공 시간 표시(read-only) — GET /api/goal/timer의 마감 세션 합계 스냅샷.
   // 진행 중 세션의 실시간 경과는 얹지 않는다(이 페이지는 기록 스냅샷, 매초 갱신 불필요).
+  // 노출 과목은 열공 타이머(#25)와 동일하게 학생이 "+ 과목 추가"한 목록을 따른다
+  // (visibleSubjects, QA B9) — 로딩 중에는 기본 4과목으로 잠깐 보여준다.
   const [studySubjectTimes, setStudySubjectTimes] = useState(
-    TIMER_SUBJECT_ORDER.map((id) => ({
+    DEFAULT_TIMER_SUBJECTS.map((id) => ({
       id,
       label: getSubjectLabel(id),
       hours: 0,
@@ -64,8 +66,10 @@ export default function DailyRecord() {
       const seconds: Record<string, number> = {};
       for (const row of result.summary?.subjects || [])
         seconds[row.subject] = row.seconds;
+      const visibleSubjects =
+        result.summary?.visibleSubjects ?? DEFAULT_TIMER_SUBJECTS;
       setStudySubjectTimes(
-        TIMER_SUBJECT_ORDER.map((id) => ({
+        visibleSubjects.map((id) => ({
           id,
           label: getSubjectLabel(id),
           hours: (seconds[id] || 0) / 3600,
@@ -97,7 +101,11 @@ export default function DailyRecord() {
       if (!record) return;
 
       setStudyHours(record.studyHours || 0);
-      setHasExistingRecord(true);
+      // recordIndex가 null이면 실제 daily_records 행이 아니라 타이머 시간만으로
+      // 서버가 합성한 프리필이다(api/goal/daily-record.ts mergeTimerIntoRecord,
+      // QA 행303) — 아직 "기록"을 저장한 적이 없으므로 버튼 문구를 "기록 저장하기"로
+      // 유지한다.
+      setHasExistingRecord(record.recordIndex != null);
       setCondition(record.bodyCondition || null);
       setStudyItems(
         (record.tasks || [])

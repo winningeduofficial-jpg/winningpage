@@ -6,6 +6,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 
 type ConfirmModalProps = {
   title?: ReactNode;
@@ -13,6 +14,17 @@ type ConfirmModalProps = {
   buttonLabel?: string;
   onConfirm?: () => void;
   onClose: () => void;
+  /**
+   * 기본 스택(overlay z-50, 콘텐츠 z-100) 위로 올려야 하는 특수 호출부용
+   * 선택적 오버라이드 — 예: 홈 프로모션 팝업(Home.tsx의 HomePopupLayer, z-9999)
+   * 위에 반드시 떠야 하는 전역 안내(SessionKickGuard, 배정 메시지 "E2E 실버그"
+   * 대응). z-10000으로 그 어떤 기존 페이지 레이어보다 위에 올린다.
+   *
+   * 기본값 false — 결제 흐름 안내 모달(ParentCheckout·StudentEnrollmentRequest·
+   * ParentPricingBlockedModal)은 서로 같은 스택 안에서만 겹치므로 기존 z-50/
+   * z-100 그대로 둔다(하위호환, 기존 호출부는 이 prop을 생략하므로 영향 없음).
+   */
+  elevated?: boolean;
 };
 
 // 결제 요청 흐름 공용 안내 모달 — 학생 화면의 학부모 미연결 실패 모달
@@ -34,6 +46,7 @@ export default function ConfirmModal({
   buttonLabel = "확인",
   onConfirm,
   onClose,
+  elevated = false,
 }: ConfirmModalProps) {
   return (
     <Dialog
@@ -43,12 +56,15 @@ export default function ConfirmModal({
       }}
     >
       <DialogPortal>
-        <DialogOverlay className="bg-black/40" />
+        <DialogOverlay className={cn("bg-black/40", elevated && "z-10000")} />
         <DialogPrimitive.Popup
           data-slot="dialog-content"
           // Base UI Popup은 aria-modal을 자동 배선하지 않는다 — 리터럴로 명시.
           aria-modal="true"
-          className="fixed top-1/2 left-1/2 z-100 flex w-[min(calc(100%-2.5rem),34.125rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-perf-modal bg-white px-6 py-10 shadow-2xl outline-none lg:h-84.75 lg:justify-center lg:px-0 lg:py-0"
+          className={cn(
+            "fixed top-1/2 left-1/2 z-100 flex w-[min(calc(100%-2.5rem),34.125rem)] -translate-x-1/2 -translate-y-1/2 flex-col items-center rounded-perf-modal bg-white px-6 py-10 shadow-2xl outline-none lg:h-84.75 lg:justify-center lg:px-0 lg:py-0",
+            elevated && "z-10000",
+          )}
         >
           <div className="mx-auto flex w-full max-w-90.5 flex-col items-center gap-9 text-center">
             <DialogTitle className="text-[1.5rem] font-semibold leading-[1.3] tracking-[-0.03rem] text-ink">

@@ -41,6 +41,7 @@ import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
 import {
   DUPLICATE_PHONE_MESSAGE,
+  formatPhoneInput,
   isValidMobile,
   normalizePhone,
   PHONE_RESEND_COOLDOWN_SECONDS,
@@ -53,6 +54,7 @@ import {
   EMAIL_STATE,
   MESSAGES,
   sendSignupEmailCode,
+  toErrorMessage,
   verifySignupEmailCode,
 } from "@/lib/signupEmailAuth";
 import { supabase } from "@/lib/supabase";
@@ -80,6 +82,18 @@ export const REGION_OPTIONS = [
 ];
 
 const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
+
+// T8(QA 2026-08-22): 성별 필수 필드 — 전용 라디오 컴포넌트가 없어(공통 컴포넌트는
+// TextField/SelectField뿐) SelectField로 통일한다. mentor_applications 성별 값 규약과
+// 동일하게 '남'/'여' 두 값만 쓴다(supabase/migrations/20260821000006_mentor_apply_gender.sql).
+const GENDER_OPTIONS = ["남", "여"];
+
+// 'YYYYMMDD' 8자리 → 'YYYY.MM.DD' 표시용 변환. StudentBirth(B-2)가 SignupContext에
+// 저장한 원시 문자열을 그대로 읽기 전용으로 보여줄 때만 쓴다.
+function formatBirthDateDisplay(birthDate8: string) {
+  if (birthDate8?.length !== 8) return "";
+  return `${birthDate8.slice(0, 4)}.${birthDate8.slice(4, 6)}.${birthDate8.slice(6, 8)}`;
+}
 
 // §3.3 C-1 약관 6행 중 "모두 동의합니다"를 제외한 개별 5항목.
 // identityRequired 키는 스펙 7825(정본) 채택 — 8057/8293의 중복 "개인정보 수집 및 이용"
@@ -166,6 +180,7 @@ export default function StudentForm() {
   const navigate = useNavigate();
   const {
     memberType,
+    birthDate,
     isUnder14,
     formData,
     updateFormData,
@@ -227,7 +242,11 @@ export default function StudentForm() {
   // 새로고침 후에도 리셋된 상태 그대로 복구된다.
   function handleField(key: string) {
     return (value: string) => {
-      updateFormData({ [key]: value });
+      // 전화번호는 자동 하이픈 포맷(010-1234-5678)을 적용한다(QA 지시 2026-08-21) —
+      // 멘토신청·프리미엄이용 문의 폼과 같은 src/lib/phoneVerification.ts 유틸을 공유한다.
+      // 서버로 보낼 때는 normalizePhone이 다시 숫자만 남기므로 여기서는 표시용으로만 쓴다.
+      const nextValue = key === "phone" ? formatPhoneInput(value) : value;
+      updateFormData({ [key]: nextValue });
 
       if (key === "email") {
         lastEmailAttempt.current = "";
@@ -526,6 +545,9 @@ export default function StudentForm() {
     const normalizedEmail = formData.email.trim().toLowerCase();
 
     if (!normalizedName) return "이름을 입력해 주세요.";
+    // T8: 이 화면(14세 이상 전용)은 이미 memberType/isUnder14 가드가 birthDate 없이는
+    // 진입 자체를 막지만(위 useEffect), 방어적으로 한 번 더 확인한다.
+    if (!birthDate) return "생년월일 입력 단계로 돌아가 주세요.";
     if (!isValidPhone(normalizedPhone))
       return "전화번호를 올바르게 입력해 주세요.";
     if (!verification.phone.verified) return "전화번호 인증을 완료해 주세요.";
@@ -541,6 +563,7 @@ export default function StudentForm() {
       return "비밀번호는 영문, 숫자, 특수문자를 모두 포함해 6자 이상 입력해 주세요.";
     }
 
+    if (!formData.gender) return "성별을 선택해 주세요.";
     if (!formData.region) return "지역을 선택해 주세요.";
     if (!formData.schoolType) return "재학 구분을 선택해 주세요.";
 
@@ -636,6 +659,11 @@ export default function StudentForm() {
           p_privacy_optional_agreed: agreements.privacyOptional,
           p_marketing_agreed: agreements.marketing,
           p_ads_agreed: agreements.ads,
+          // T8(QA 2026-08-22): birthDate는 SignupContext 최상위 상태(StudentBirth 단계에서
+          // 저장한 'YYYYMMDD' 8자리)라 formData가 아니라 여기서 하이픈만 끼워 넣는다.
+          p_birth_date: `${birthDate.slice(0, 4)}-${birthDate.slice(4, 6)}-${birthDate.slice(6, 8)}`,
+          p_gender: formData.gender,
+          p_org_code: formData.orgCode.trim() || null,
         },
       );
 
@@ -704,6 +732,23 @@ export default function StudentForm() {
           return;
         }
 
+        // T8(QA 2026-08-22): 서버가 최종 판정하는 생년월일·성별 필수 검증 —
+        // 프런트 validateForm이 먼저 막지만, 서버 스키마가 최신이 아닌 배포 대비.
+        if (errorMessage.includes("birth_date_required")) {
+          setFormError("생년월일 입력 단계로 돌아가 주세요.");
+          return;
+        }
+
+        if (errorMessage.includes("invalid_gender")) {
+          setFormError("성별 값이 올바르지 않습니다. 다시 선택해 주세요.");
+          return;
+        }
+
+        if (errorMessage.includes("gender_required")) {
+          setFormError("성별을 선택해 주세요.");
+          return;
+        }
+
         setFormError(
           `회원 정보 저장 중 문제가 발생했습니다: ${profileError.message}`,
         );
@@ -735,8 +780,10 @@ export default function StudentForm() {
       //   요구해서 더 강하게 필요하다).
       navigate("/signup/student/complete");
     } catch (error) {
+      // toErrorMessage 를 거친다 — error.message 를 그대로 붙이면 auth-js 가
+      // 폴백으로 넣은 "{}" 가 화면에 그대로 나간다(QA 33, 그 함수 위 주석).
       setFormError(
-        `가입 처리 중 오류가 발생했습니다: ${error.message || String(error)}`,
+        `가입 처리 중 오류가 발생했습니다: ${toErrorMessage(error, "잠시 후 다시 시도해 주세요.")}`,
       );
     } finally {
       setLoading(false);
@@ -779,6 +826,30 @@ export default function StudentForm() {
           required
         />
 
+        {/* T8(QA 2026-08-22): 생년월일은 StudentBirth(B-2) 단계에서 이미 입력받았으므로
+            이 화면에서는 읽기 전용으로만 보여준다 — 재입력을 요구하지 않는다. */}
+        <TextField
+          label="생년월일"
+          id="student-birth-date"
+          name="birthDate"
+          size="lg"
+          value={formatBirthDateDisplay(birthDate)}
+          disabled
+          readOnly
+        />
+
+        <SelectField
+          label="성별"
+          id="student-gender"
+          name="gender"
+          size="lg"
+          value={formData.gender}
+          onChange={handleField("gender")}
+          placeholder="성별을 선택해주세요"
+          options={GENDER_OPTIONS}
+          required
+        />
+
         <TextField
           label="전화번호"
           id="student-phone"
@@ -797,7 +868,9 @@ export default function StudentForm() {
           actionDisabled={
             phoneSending || phoneCooldown.active || verification.phone.verified
           }
-          helperText={phoneMessage.text}
+          // 발송·검증 상태 메시지가 없을 때는 하이픈 자동 포맷 안내를 기본으로 보여준다
+          // (QA 지시 2026-08-21, password 필드의 정적 helperText 관례와 동일).
+          helperText={phoneMessage.text || "하이픈은 자동으로 입력돼요."}
           status={phoneMessage.status}
           autoComplete="tel"
           required
@@ -938,6 +1011,19 @@ export default function StudentForm() {
           onChange={handleField("schoolName")}
           placeholder="학교명 입력"
           disabled={formData.schoolType === "N수생"}
+        />
+
+        {/* T8(QA 2026-08-22): 소속코드 — 선택 입력, 검증 규칙 없음. 향후 소속 마스터가
+            도입되면 FK로 전환될 수 있다(마이그레이션 컬럼 주석 참고). */}
+        <TextField
+          label="소속코드 (선택)"
+          id="student-org-code"
+          name="orgCode"
+          size="lg"
+          value={formData.orgCode}
+          onChange={handleField("orgCode")}
+          placeholder="소속코드가 없으면 입력하지 마세요"
+          helperText="소속코드가 없으면 입력하지 마세요"
         />
       </section>
 

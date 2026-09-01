@@ -9,6 +9,43 @@ export default defineConfig({
       "@": path.resolve(path.dirname(fileURLToPath(import.meta.url)), "src"),
     },
   },
+  // /api/* 만 vercel dev(3000)로 넘긴다.
+  //
+  // 왜: `vercel dev` 를 그대로 쓰면 **모든 요청**이 vercel 의 HTTP 레이어를 거쳐
+  // 내부 vite 로 다시 넘어간다. 모듈·HMR 요청 하나하나가 한 홉씩 더 타서 화면이
+  // 뜨는 데만 몇 십 초가 걸리고, 버튼 한 번 누를 때마다 느껴진다. 게다가 /api 는
+  // 호출할 때마다 함수를 새로 번들링(esbuild)하고 Node 프로세스를 새로 띄운다
+  // (로컬에는 웜 재사용이 없다) — @supabase/supabase-js·undici 가 그래프에 있어
+  // 호출당 수 초다. 윈도우는 프로세스 생성 비용이 더 커서 체감이 배가된다.
+  //
+  // 그래서 앞뒤를 뒤집는다: 브라우저는 vite(5173)에 직접 붙어 HMR 속도를 그대로
+  // 쓰고, /api/* 만 vercel 로 넘긴다. 그 비용은 실제로 API 를 부를 때만 낸다.
+  //
+  //   터미널 1) npm run dev:api    (vercel dev — /api 담당, 3000)
+  //   터미널 2) npm run dev        (vite — 브라우저는 여기, 5173)
+  //
+  // API 를 안 건드리는 작업(어드민 화면 대부분은 supabase-js 로 브라우저에서
+  // 직접 조회한다)이라면 터미널 1 은 아예 안 띄워도 된다. 그때 /api 요청은
+  // ECONNREFUSED 로 즉시 실패한다 — SPA HTML 이 돌아와 response.json() 에서
+  // 터지던 기존 증상보다 원인이 분명하다.
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:3000",
+        changeOrigin: false,
+        // api/_lib 는 서버 함수와 프론트가 계산식을 공유하는 소스 모듈이다
+        // (예: SubmissionForm → submission-chars). 브라우저가 vite 모듈 URL
+        // "/api/_lib/…"로 요청하는데 이걸 프록시로 넘기면 함수 라우트가 아니라
+        // 404가 나고, 수행평가 화면 전체가 동적 import 실패로 죽는다.
+        // bypass가 문자열(원래 URL)을 돌려주면 프록시를 타지 않고 vite가
+        // 소스 파일로 직접 서빙한다.
+        bypass(req) {
+          if (req.url?.startsWith("/api/_lib/")) return req.url;
+          return undefined;
+        },
+      },
+    },
+  },
   plugins: [
     react({
       babel: {

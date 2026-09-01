@@ -9,6 +9,19 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
+// createSupabaseAdmin이 env 미설정 시 던지는 메시지. defineHandler(_lib/handler.ts)의
+// 최상위 catch가 이 메시지로 "설정 오류"를 식별해 라우트별 unhandledMessage 대신
+// 공통 "서버 설정이 올바르지 않습니다." 500을 낸다(dev 원본 ~20파일의 개별
+// `try { createSupabaseAdmin() } catch { ... }` 패턴과 동일 문구를 재현).
+export const SUPABASE_CONFIG_ERROR_MESSAGE =
+  "WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.";
+
+export function isSupabaseConfigError(error: unknown): boolean {
+  return (
+    error instanceof Error && error.message === SUPABASE_CONFIG_ERROR_MESSAGE
+  );
+}
+
 export function getEnv(...keys: string[]) {
   for (const key of keys) {
     const value = String(process.env[key] || "").trim();
@@ -35,9 +48,7 @@ export function createSupabaseAdmin() {
   );
 
   if (!url || !key) {
-    throw new Error(
-      "WINNING_SUPABASE_URL / WINNING_SUPABASE_SERVICE_ROLE_KEY 환경변수가 필요합니다.",
-    );
+    throw new Error(SUPABASE_CONFIG_ERROR_MESSAGE);
   }
 
   cached = createClient(url, key, {

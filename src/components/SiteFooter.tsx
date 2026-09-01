@@ -29,9 +29,12 @@ export default function SiteFooter() {
       <div className="relative py-25">
         {/* 모바일/태블릿(<lg): 로고 + 메뉴 흐름 배치 (현행 유지) */}
         <div className="mx-auto flex max-w-content flex-col gap-10 px-6 lg:hidden">
-          <Link to="/" className="inline-flex shrink-0 items-center">
+          <Link
+            to="/company-news"
+            className="inline-flex shrink-0 items-center"
+          >
             <img
-              src="/images/winning-logo.png"
+              src="/images/winning-logo-stacked.svg"
               alt="위닝에듀"
               className="h-25 w-auto object-contain"
             />
@@ -64,7 +67,10 @@ export default function SiteFooter() {
             로고와 메뉴는 같은 컨테이너에 있어 서로 겹치지 않는다(격자 최소폭 764px +
             로고 185px = 949px < 컨텐츠 내부폭 1136px). */}
         <div className="mx-auto hidden w-full max-w-content items-start justify-between px-8 lg:flex">
-          <Link to="/" className="inline-flex shrink-0 items-center">
+          <Link
+            to="/company-news"
+            className="inline-flex shrink-0 items-center"
+          >
             <img
               src="/images/winning-logo-stacked.svg"
               alt="위닝에듀"
@@ -119,8 +125,7 @@ export default function SiteFooter() {
               {COMPANY.mailOrderNo}
             </p>
             <p>
-              주소: {COMPANY.address} | 대표전화: {COMPANY.tel} | 센터문의:{" "}
-              {COMPANY.centerTel} | 카카오톡: {COMPANY.kakao}
+              주소: {COMPANY.address} | 온라인고객센터 : 카카오 채널 '위닝에듀'
             </p>
           </div>
 

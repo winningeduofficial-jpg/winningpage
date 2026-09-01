@@ -129,7 +129,9 @@ export async function fetchDepartmentsForUniversity(
     return [];
   }
 
-  return dedupeNonEmpty(((data as { department_name: string | null }[]) || []).map(
-    (row) => row.department_name,
-  ));
+  return dedupeNonEmpty(
+    ((data as { department_name: string | null }[]) || []).map(
+      (row) => row.department_name,
+    ),
+  );
 }

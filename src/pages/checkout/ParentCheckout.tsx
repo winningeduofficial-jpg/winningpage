@@ -12,17 +12,13 @@ import checkboxUnselected from "@/assets/checkout/checkbox-24.svg";
 import checkboxSelected from "@/assets/checkout/checkbox-24-selected.svg";
 import sectionArrow from "@/assets/checkout/section-arrow-38.svg";
 import ConfirmModal from "@/components/checkout/ConfirmModal";
-import { CHECKOUT_AGREEMENTS } from "@/data/legalDocs";
 import { formatKRW } from "@/data/pricingCatalog";
+import { useTermsDocs } from "@/hooks/useTermsDocs";
 import { type ServiceProduct, useProducts } from "@/lib/products";
 import { supabase } from "@/lib/supabase";
 import { ANONYMOUS, getTossPayments } from "@/lib/toss";
 import { useEnrollmentOrder } from "./useEnrollmentOrder";
 import { usePaymentAgreementHistory } from "./usePaymentAgreementHistory";
-
-// StudentEnrollmentRequest.tsx 와 동일 필터(목표관리/콜멘토/수행평가만 결제
-// 카탈로그에 노출) — 정본 근거는 그 파일 상단 주석 참고, 여기서 반복하지 않는다.
-const ALLOWED_SERVICE_KEYS = ["goal", "mentor", "suhaeng"];
 
 interface CouponRow {
   id: string;
@@ -86,6 +82,9 @@ const COUPON_REASON_TEXT: Record<string, string> = {
   login_required: "로그인 후 사용할 수 있습니다.",
   sold_out: "발급 수량이 모두 소진되었습니다.",
   not_granted: "발급받지 않은 쿠폰입니다.",
+  // 단체 쿠폰(coupons.org_code, 20260827010205) — 학생·학부모 둘 다 소속
+  // 코드가 일치하지 않을 때.
+  org_mismatch: "소속 코드가 일치하는 회원만 사용할 수 있는 단체 쿠폰입니다.",
 };
 const CODE_NOT_FOUND_TEXT = "유효하지 않은 쿠폰 코드입니다.";
 // Checkout.jsx:184 와 동일 문구(표시가/서버 청구가 불일치 안내) — fn_respond_enrollment 가
@@ -96,8 +95,12 @@ const AMOUNT_MISMATCH_TEXT =
 
 // 신규 문구(이 화면 전용, 사용자 승인 대기) — new_copy 배열 참고.
 const LOAD_FAILED_TEXT = "결제 요청 정보를 불러오지 못했습니다.";
+// missingOrderItem 이 뜨는 모든 경우(상품 삭제 on delete set null·비활성·주문불가)는
+// 새로고침으로 풀리지 않는 영구 상태다 — 일시 오류는 LOAD_FAILED_TEXT(주문 조회)와
+// productsLoading/hasNoServices(카탈로그 조회) 가드가 이미 따로 처리한다. 그래서
+// 재시도 안내 대신 재신청 안내로 쓴다(사용자 승인 문구, 2026-08-24).
 const MISSING_ORDER_ITEM_TEXT =
-  "일부 신청 상품 정보를 불러오지 못했어요. 새로고침 후 다시 시도해 주세요.";
+  "신청 상품이 변경되어 결제를 진행할 수 없어요. 자녀에게 다시 신청을 요청해 주세요.";
 const ALREADY_PROCESSED_TEXT = "이미 처리된 결제 요청입니다.";
 const NOT_PARENT_TEXT = "학부모 본인만 진행할 수 있는 결제 요청이에요.";
 // 고정 계약 상수 목록의 승인된 재사용 문구 — 신규 아님.
@@ -194,11 +197,20 @@ function mapCreateEnrollmentError(
   return GENERIC_FAIL_TEXT;
 }
 
+// 결제 화면에서 동의받는 문서 3종 — public.terms 단일 원본(fn_agree_payment_terms·
+// usePaymentAgreementHistory와 같은 code). refund_notice는 이용약관 제33조의1(환불 규정)
+// 사본, payment_terms·payment_consent는 한 체크박스로 묶어 이어 붙여 보여준다.
+const PAYMENT_TERM_CODES = [
+  "refund_notice",
+  "payment_terms",
+  "payment_consent",
+] as const;
+
 // 결제 약관 동의 체크박스 1행 — Figma 1882:10111 실측("[구매 전 안내사항]" /
 // "결제 서비스 이용 약관, 개인정보 처리 동의", 둘 다 필수 + 펼침 화살표 +
 // "위 내용을 모두 확인하였습니다."). 본문은 펼쳐야 보이는 아코디언 — 페이지
-// 이동(AgreementRow, 가입 화면용)이 아니라 CHECKOUT_AGREEMENTS 상수를 그
-// 자리에서 보여주는 방식으로 시안 화살표를 그대로 재현한다.
+// 이동(AgreementRow, 가입 화면용)이 아니라 DB에서 읽은 본문을 그 자리에서
+// 보여주는 방식으로 시안 화살표를 그대로 재현한다.
 function AgreementCheckRow({
   label,
   body,
@@ -325,6 +337,22 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   const [amountMismatch, setAmountMismatch] = useState(false);
 
   const [paymentAgreed, setPaymentAgreed] = usePaymentAgreementHistory();
+  // 동의 문서 본문. 로드 전/실패 시에는 체크할 수 없다 — 무엇에 동의하는지 보여주지
+  // 못한 채 동의를 받지 않는다(하드코딩 폴백 없음).
+  const {
+    docs: paymentDocs,
+    loading: paymentDocsLoading,
+    error: paymentDocsError,
+  } = useTermsDocs(PAYMENT_TERM_CODES);
+  const paymentDocsStatus =
+    paymentDocsError ?? (paymentDocsLoading ? "문서를 불러오는 중…" : null);
+  const purchaseNoticeBody =
+    paymentDocsStatus ?? paymentDocs?.refund_notice.content ?? "";
+  const paymentAgreementBody =
+    paymentDocsStatus ??
+    (paymentDocs
+      ? `[${paymentDocs.payment_terms.title}]\n${paymentDocs.payment_terms.content}\n\n[${paymentDocs.payment_consent.title}]\n${paymentDocs.payment_consent.content}`
+      : "");
   const [checkedRefund, setCheckedRefund] = useState(false);
   const [checkedPayment, setCheckedPayment] = useState(false);
   const [expandedRefund, setExpandedRefund] = useState(false);
@@ -335,17 +363,15 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   const [payError, setPayError] = useState<string | null>(null);
 
   // 카탈로그 — 학생이 이미 고른 상품을 학부모가 바꿀 수 있게(StudentEnrollmentRequest.tsx
-  // 와 동일 패턴). productsLoading/productsError 로 이름을 바꿔 위 결제 loading
-  // state 와 충돌하지 않게 한다.
+  // 와 동일 패턴). orderableOnly=true 로 셀프서브 결제 카탈로그(products.is_orderable)만
+  // 받는다 — 예전 ALLOWED_SERVICE_KEYS 하드코딩 상수는 제거했다(드리프트로 diagnose
+  // 누락 버그, is_orderable 컬럼 도입 배경). productsLoading/productsError 로 이름을
+  // 바꿔 위 결제 loading state 와 충돌하지 않게 한다.
   const {
-    services,
+    services: filteredServices,
     loading: productsLoading,
     error: productsError,
-  } = useProducts();
-  const filteredServices = useMemo(
-    () => services.filter((s) => ALLOWED_SERVICE_KEYS.includes(s.key)),
-    [services],
-  );
+  } = useProducts(undefined, { orderableOnly: true });
   const hasNoServices = Boolean(productsError) || filteredServices.length === 0;
 
   // 서비스별 단일 선택: { [serviceKey]: productId }. 초기값은 orderItems(학생이
@@ -852,9 +878,17 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                         className="rounded-2xl border border-line p-5"
                       >
                         <div className="flex items-start justify-between gap-4">
-                          <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink">
-                            {item.name}
-                          </p>
+                          <div className="min-w-0">
+                            <p className="text-[0.875rem] font-medium leading-[1.3] tracking-[-0.02em] text-ink">
+                              {item.name}
+                            </p>
+                            {/* ⚠ 신규 카피 — 승인 필요. 약관 제33조의2 ③ 1·2호 —
+                                구성 서비스별 정가·수량 표시. 수량은 화면에 존재하는
+                                order_items에 quantity 개념이 없어 항상 1이다. */}
+                            <p className="mt-1 text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
+                              정가 {formatKRW(item.list_price)} · 수량 1
+                            </p>
+                          </div>
                           <div className="flex shrink-0 flex-col items-end">
                             {hasDiscount && (
                               <span className="text-[0.75rem] font-medium leading-5 tracking-[-0.02em] text-line line-through">
@@ -1012,17 +1046,19 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
 
           {/* 우측: 결제수단/쿠폰/금액 — Checkout.jsx 아래쪽 aside 와 같은 골격. */}
           <aside className="mx-auto w-full max-w-142.5 space-y-10">
-            {/* 구매 전 확인사항(환불 규정) — sql/78 refund_notice. 이미 동의
+            {/* 구매 전 확인사항(환불 규정) — terms.refund_notice. 이미 동의
                 이력이 있으면(재구매 등) 섹션 자체를 감춘다. */}
             {paymentAgreed === false && (
               <div>
                 <h3 className={`mb-4 ${SECTION_HEADING}`}>구매 전 확인사항</h3>
                 <AgreementCheckRow
                   label="위 내용을 모두 확인하였습니다."
-                  body={CHECKOUT_AGREEMENTS.purchaseNotice}
+                  body={purchaseNoticeBody}
                   checked={checkedRefund}
                   expanded={expandedRefund}
-                  onToggleCheck={() => setCheckedRefund((prev) => !prev)}
+                  onToggleCheck={() =>
+                    paymentDocs && setCheckedRefund((prev) => !prev)
+                  }
                   onToggleExpand={() => setExpandedRefund((prev) => !prev)}
                 />
               </div>
@@ -1048,17 +1084,18 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
               </div>
 
               {/* 결제 서비스 이용약관 + 결제 관련 개인정보 수집·이용 동의 —
-                  sql/78 payment_terms·payment_consent, 한 체크박스로 묶어
-                  동의 처리한다(CHECKOUT_AGREEMENTS.paymentAgreement 가 이미
-                  두 문서를 이 순서로 이어붙인 텍스트다). */}
+                  terms.payment_terms·payment_consent, 한 체크박스로 묶어
+                  동의 처리한다(두 문서를 이 순서로 이어붙여 보여준다). */}
               {paymentAgreed === false && (
                 <div className="mt-4">
                   <AgreementCheckRow
                     label="결제 서비스 이용 약관, 개인정보 처리 동의"
-                    body={CHECKOUT_AGREEMENTS.paymentAgreement}
+                    body={paymentAgreementBody}
                     checked={checkedPayment}
                     expanded={expandedPayment}
-                    onToggleCheck={() => setCheckedPayment((prev) => !prev)}
+                    onToggleCheck={() =>
+                      paymentDocs && setCheckedPayment((prev) => !prev)
+                    }
                     onToggleExpand={() => setExpandedPayment((prev) => !prev)}
                   />
                 </div>
@@ -1220,12 +1257,18 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
             <div>
               <h3 className={`mb-4 ${SECTION_HEADING}`}>결제 금액</h3>
               <dl className="space-y-3 text-[0.875rem] font-medium leading-5 text-ink">
+                {/* ⚠ 신규 카피 — 승인 필요. 레이블 "판매가"→"정가 합계"
+                    (약관 제33조의2 ③ 3호 — displayListAmount가 개별 정가의
+                    합계임을 레이블에서 드러낸다). */}
                 <div className="flex justify-between">
-                  <dt>판매가</dt>
+                  <dt>정가 합계</dt>
                   <dd>{formatKRW(displayListAmount)}</dd>
                 </div>
+                {/* ⚠ 신규 카피 — 승인 필요. 레이블 "할인 금액"→"장기이용 할인
+                    금액" (약관 제33조의2 ③ 4호 — 상품 자체 장기이용 할인임을
+                    명시해 아래 쿠폰 할인과 구분한다). */}
                 <div className="flex justify-between">
-                  <dt>할인 금액</dt>
+                  <dt>장기이용 할인 금액</dt>
                   <dd className="text-primary">
                     {displayDiscountAmount > 0
                       ? `-${formatKRW(displayDiscountAmount)}`
@@ -1245,6 +1288,13 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                   <dd>{formatKRW(displayAmount)}</dd>
                 </div>
               </dl>
+
+              {/* ⚠ 신규 카피 — 승인 필요. 약관 제33조의2 ③ 2호 — 개별 정가가
+                  부분해지 환불 산정 기준임을 결제 이전 화면에 고지. */}
+              <p className="mt-3 text-[0.75rem] font-normal leading-[1.4] text-ink-sub">
+                각 구성 서비스의 개별 정가는 부분해지 시 환불액 산정의 기준이
+                됩니다.
+              </p>
 
               {missingOrderItem && (
                 <p

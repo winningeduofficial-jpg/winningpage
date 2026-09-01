@@ -41,8 +41,15 @@ function RateRow({
         fillClassName={available ? fillClassName : "bg-surface-01"}
         className="flex-1"
       />
+      {/* QA 행295 — "확률 표기가 잘려 보인다" 신고. value(susiRate/jeongsiRate)는
+          pctRound(targetUniversities.ts)가 항상 정수로 반올림해 최대 "100%"(4자)라
+          코드상 재현되는 고정폭 클리핑은 못 찾았다(GoalCard는 overflow-hidden이
+          없고, GoalProgressBar 트랙에는 min-w-0이 이미 있어 flex 축소로 밀려나지도
+          않는다) — 아래 "미산출" 분기는 처음부터 whitespace-nowrap + min-w를 썼는데
+          이 분기만 고정 w-10이라 방어가 없었다. 재현은 못 했지만 그 비대칭을 없애고
+          긴 값이 와도 줄바꿈으로 잘려 보이지 않게 방어적으로만 맞춘다. */}
       {available ? (
-        <span className="w-10 shrink-0 text-right text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">
+        <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">
           {value}%
         </span>
       ) : (

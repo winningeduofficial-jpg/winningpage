@@ -1,0 +1,8 @@
+<!-- 로컬 스택 전용 가입 확인 메일 템플릿.
+     운영 Supabase 대시보드의 "Confirm signup" 템플릿과 같은 계약 — 본문에
+     {{ .Token }}(6자리 코드)을 노출해 가입 폼의 verifyOtp(type 'signup')
+     입력과 맞물린다. 기본 템플릿은 링크형이라 코드가 없어서 로컬에서 가입
+     이메일 인증 단계를 통과할 수 없다(실동작 QA 2026-08-23). -->
+<h2>위닝에듀 가입 이메일 인증</h2>
+<p>아래 인증코드를 가입 화면에 입력해 주세요.</p>
+<p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>

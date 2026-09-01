@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthProvider";
 import { supabase } from "@/lib/supabase";
 
 // Header.jsx(:151 근방)가 profiles 를 조회하는 것과 같은 컬럼 세트.
@@ -30,6 +31,9 @@ const PROFILE_COLUMNS = "id, name, email, username, member_type, role";
  *                의 refetch 와 같은 역할이라 이름도 맞췄다.
  */
 export function useMemberType() {
+  // 세션은 AuthProvider(전역 단일 구독)에서 읽는다(명세 B-3 §4) — 이 훅은
+  // 세션이 확정된 뒤 profiles.member_type만 조회한다.
+  const { userId: authUserId, isReady: isAuthReady } = useAuth();
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [memberType, setMemberType] = useState<string | null>(null);
@@ -42,40 +46,41 @@ export function useMemberType() {
   useEffect(() => {
     let alive = true;
 
+    if (!isAuthReady) {
+      setLoading(true);
+      return undefined;
+    }
+
+    if (!authUserId) {
+      setUserId(null);
+      setMemberType(null);
+      setError(null);
+      setLoading(false);
+      return undefined;
+    }
+
     (async () => {
       setLoading(true);
       setError(null);
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const uid = sessionData?.session?.user?.id ?? null;
-
-      if (!alive) return;
-
-      if (!uid) {
-        setUserId(null);
-        setMemberType(null);
-        setLoading(false);
-        return;
-      }
-
       const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select(PROFILE_COLUMNS)
-        .eq("id", uid)
+        .eq("id", authUserId)
         .maybeSingle();
 
       if (!alive) return;
 
       if (profileError) {
         console.error("profiles 조회 실패:", profileError);
-        setUserId(uid);
+        setUserId(authUserId);
         setMemberType(null);
         setError(profileError);
         setLoading(false);
         return;
       }
 
-      setUserId(uid);
+      setUserId(authUserId);
       setMemberType(String(profile?.member_type || "").toLowerCase());
       setLoading(false);
     })();
@@ -83,7 +88,7 @@ export function useMemberType() {
     return () => {
       alive = false;
     };
-  }, [reloadKey]);
+  }, [isAuthReady, authUserId, reloadKey]);
 
   return { loading, userId, memberType, error, refetch };
 }

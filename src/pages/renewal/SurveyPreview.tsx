@@ -56,6 +56,8 @@ export default function SurveyPreview() {
   // submitDiagnosis 는 Q-01(로그인 이름 조회)때문에 비동기다.
   const goToReport = async () => {
     const diagnosisInput = await submitDiagnosis();
+    // null = 게이팅이 막았다 — 셸이 이미 안내 후 /pricing으로 보냈다(SurveyStepPage와 동일 계약).
+    if (!diagnosisInput) return;
     navigate(SURVEY_REPORT_PATH, { state: { diagnosisInput } });
   };
 

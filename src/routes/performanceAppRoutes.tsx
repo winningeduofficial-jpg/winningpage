@@ -33,10 +33,18 @@ function PerformanceChunkLoadingFallback() {
 // ※ 레거시 리다이렉트(/page/services-ai-performance → /services/performance)와
 //   랜딩 CTA의 외부 SSO 목적지는 건드리지 않는다 — 인앱 전환 플래그(§11 Q1)가
 //   아직 off이므로 이 라우트 그룹은 직접 URL로만 도달한다.
-// ※ forbiddenTo의 목적지 계약은 PerformanceAssessment.jsx가 받는다 —
-//   가격 섹션의 id="pricing"(+ scroll-mt-24 + 해시 스크롤 처리)과
-//   location.state.entitlementNotice 인라인 배너 2가지다. 목적지에서 그
-//   둘을 지우면 사용자는 설명 없이 랜딩 최상단으로 튕긴다.
+// ※ QA 지적(2026-08-22): forbiddenTo가 이전에는 `/services/performance#pricing`
+//   + `location.state.entitlementNotice` 인라인 배너였다. RequireEntitlement는
+//   세션·이용권을 비동기 조회하는 동안 PerformanceSkeleton(수행평가 앱 골격)을
+//   먼저 그린다 — 이용권이 없는 사용자에게는 "프로그램 화면이 잠깐 떴다가 랜딩으로
+//   튕기고 안내 박스만 남는" 것처럼 보였고, 그 배너는 history.state에 실려 있어
+//   새로고침해도 사라지지 않았다. 목표관리(requireGoalAccessMiddleware)는 같은
+//   판정을 라우트 미들웨어로 하기 때문에 애초에 앱 화면을 그리지 않고 곧장
+//   `/pricing`(이용요금 탭)으로 보낸다 — 그 목적지 하나만 맞춰 동일한 착지점을
+//   만든다(로딩 골격 자체는 셸 공유 이유로 SessionProvider 구조를 유지, 상단
+//   RequireEntitlement.tsx 주석 참고). PerformanceAssessment.jsx는 더 이상
+//   entitlementNotice를 소비하지 않는다 — 가격 섹션 앵커(id="pricing")는
+//   QuotaExhaustedBanner/Card의 "이용권 구매하기" 링크가 여전히 쓴다.
 const performanceAppRoutes: RouteObject[] = [
   {
     Component: () => <SessionProvider serviceKey="suhaeng" />,
@@ -45,8 +53,15 @@ const performanceAppRoutes: RouteObject[] = [
         Component: () => (
           <RequireEntitlement
             serviceKey="suhaeng"
-            forbiddenTo="/services/performance#pricing"
-            forbiddenNotice="수행평가 서비스는 유료 이용권을 결제하신 뒤 이용할 수 있습니다."
+            // 수행평가 현행 환불 산정은 회차 분기라 first_accessed_at을 읽지 않지만,
+            // 약관 [별표 1]이 시작 로그 보관을 요구하고 혼합 상품이 기간제로
+            // 재분류될 가능성에 대비해 기록해 둔다(programEntry.ts 상단 주석).
+            entryProgramKey="suhaeng"
+            forbiddenTo={(location) =>
+              `/pricing?service=suhaeng&redirect=${encodeURIComponent(
+                `${location.pathname}${location.search}${location.hash}`,
+              )}`
+            }
           />
         ),
         children: [

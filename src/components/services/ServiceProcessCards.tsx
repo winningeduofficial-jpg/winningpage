@@ -20,10 +20,16 @@ type ProcessItem = { title: string; desc: string | string[] };
 
 type ServiceProcessCardsProps = {
   items: ProcessItem[];
+  // 카드 배경만 호출부별로 바꿀 수 있게 한 escape hatch. 기본값(빈 문자열)이면
+  // 기존 bg-white가 그대로 적용돼 나머지 5개 페이지(GoalManagement 등 공유 사용처)는
+  // 무변경이다 — 학습진단 랜딩 전용 그라데이션(QA 행 65) 때문에 공유 컴포넌트 기본값을
+  // 바꾸지 않는다.
+  cardClassName?: string;
 };
 
 export default function ServiceProcessCards({
   items,
+  cardClassName = "",
 }: ServiceProcessCardsProps) {
   return (
     <div className="mt-10 grid grid-cols-1 gap-5 sm:mt-12 sm:grid-cols-2 lg:mt-17.25 lg:grid-cols-4 lg:gap-7.5">
@@ -32,7 +38,7 @@ export default function ServiceProcessCards({
         // 항상 켜져 있다. 카드 높이는 고정하지 않는다.
         <div
           key={item.title}
-          className="flex flex-col items-center justify-center gap-3.75 rounded-perf-modal border border-line bg-white px-6 py-8 text-center shadow-[0_0.75rem_1.25rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)]"
+          className={`flex flex-col items-center justify-center gap-3.75 rounded-perf-modal border border-line px-6 py-8 text-center shadow-[0_0.75rem_1.25rem_rgba(215,215,215,0.4)] transition hover:-translate-y-1 hover:shadow-[0_0.75rem_1.5rem_rgba(1,50,98,0.08)] ${cardClassName || "bg-white"}`}
         >
           {/* 내부 리듬은 균등이 아니라 2단이다: 뱃지↔타이틀 3px, 상단그룹↔설명 15px.
               STEP 뱃지는 배경・패딩 없는 순수 텍스트다(수행평가의 배지 칩 스타일은 폐기). */}

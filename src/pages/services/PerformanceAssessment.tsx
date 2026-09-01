@@ -21,6 +21,7 @@ import coachTablet from "@/assets/services/performance/coach-tablet.png";
 import coachTreadmill from "@/assets/services/performance/coach-treadmill.png";
 import coachWriting from "@/assets/services/performance/coach-writing.png";
 import heroAura from "@/assets/services/performance/hero-aura.svg";
+import heroReportMockup from "@/assets/services/performance/hero-report-mockup.png";
 import iconCalendar from "@/assets/services/performance/icon-calendar-v2.png";
 import ServiceAudienceCards from "@/components/services/ServiceAudienceCards";
 import ServiceFaq from "@/components/services/ServiceFaq";
@@ -80,18 +81,16 @@ import { useInView } from "@/hooks/useInView";
 // 불필요하다). 히어로 CTA는 `/app/performance`로 단순 이동만 하고, 실제 판정(로그인
 // 여부・결제 여부)은 전부 RequireEntitlement 가드(App.jsx)가 처리한다 — 여기서
 // openPaidServiceOrAlert 같은 판정 로직을 다시 호출하면 이중 판정이 된다(GoalManagement.jsx
-// 상단 주석과 동일한 이유). 가드가 이용권 미보유자를 `forbiddenTo="/services/performance#pricing"`
-// 로 되돌리는 것도 §2.2 설계상 정상 경로다 — 가드가 최종 권위이므로 랜딩에서 이용권을
-// 이중 판정할 이유가 없다.
+// 상단 주석과 동일한 이유). 가드가 이용권 미보유자를 되돌리는 목적지는 목표관리
+// (requireGoalAccessMiddleware)와 동일하게 `/pricing`(이용요금 탭)이다 — 이 랜딩으로
+// 되돌리지 않는다(QA 지적, performanceAppRoutes.tsx 주석 참고: 되돌렸을 때 배너가
+// history.state에 남아 새로고침해도 사라지지 않는 문제가 있었다).
 const HERO_SERVICE = { name: "수행평가 서비스", to: "/app/performance" };
 
-// 이용권 미보유 사용자가 `/app/performance`에 직접 접근하면 이 페이지의 가격
-// 섹션으로 되돌려진다(App.jsx의 `forbiddenTo="/services/performance#pricing"`,
-// 명세서 §2.2 forbidden 행). 그 계약을 이 페이지가 받는 지점이 아래 둘이다.
-//   ① 앵커 — `#pricing`이 가리킬 실제 id. 없으면 최상단에 그대로 머문다.
-//   ② 인라인 안내 — RequireEntitlement가 `location.state.entitlementNotice`로
-//      실어 보내는 문구. 소비하는 쪽이 없으면 사용자는 왜 튕겼는지 알 수 없다
-//      (§2.2 「현행 alert 대신 화면 안내로 승격」).
+// 가격 섹션 앵커 — RequireEntitlement의 forbidden 경로는 더 이상 이 페이지로 돌아오지
+// 않지만(위 주석 참고), QuotaExhaustedBanner/QuotaExhaustedCard(이미 이용권이 있는
+// 사용자의 회차 소진 안내)의 "이용권 구매하기" 링크가 여전히 `#pricing`으로 이 페이지에
+// 진입한다 — 그 계약을 아래 해시 스크롤 effect가 받는다.
 const PRICING_ANCHOR_ID = "pricing";
 
 // desc는 시안(2393:12092) 원문 그대로 자동 줄바꿈이 아니라 "명시적 개행"이다.
@@ -167,12 +166,12 @@ const COACHING_CONTENT = {
     {
       icon: coachWriting,
       title: "논리적 탐구 흐름 설계",
-      desc: "가설 → 검증 → 해석 → 한계의 탐구 흐름을 설계합니다.",
+      desc: "선정한 주제에 맞춰 수행의 흐름을 제시합니다.",
     },
     {
       icon: coachTreadmill,
-      title: "목차・세부 구성 제안",
-      desc: "보고서 목차와 문단 구성을 제안합니다.",
+      title: "세부 구성 제안",
+      desc: "문단의 구성과 그에 따른 내용의 방향을 제시합니다.",
     },
     {
       icon: coachLightbulb,
@@ -403,12 +402,14 @@ function HeroSection() {
         {/* 브라우저 목업 — 래퍼/프레임 지오메트리(폭 1068px, radius 5px, 3중 그림자, 상단
             마진 + 하단 음수 마진으로 다음 섹션과 겹치는 처리)는 목표관리(GoalManagement.jsx)
             HeroSection 목업 구조를 그대로 이식했다(사용자 지시 — 세 히어로 공통 규격 통일).
-            시안(2393:12091)은 크롬 UI는 벡터로 존재하나 본문 콘텐츠가 완전히 비어있어(스펙
-            §2-4) 본문은 계속 빈 배경으로 두되, 크롬 툴바 색상은 수행평가 기존 구현을 유지한다. */}
+            본문은 오래 빈 배경이었다(시안 2393:12091의 크롬 안이 비어 있었음). 2026-08-31
+            수급된 시안 4865:17414의 본문 프레임(4080:7616, 평가 리포트 화면)만 @2x로 추출해
+            채운다 — 크롬은 이 컴포넌트가 그리므로 시안의 크롬·그림자는 버렸다. */}
         <ServiceHeroBrowserFrame>
-          <div
-            className="aspect-1280/553 w-full bg-[#FAFAFA] md:aspect-auto md:min-h-0 md:flex-1"
-            aria-hidden="true"
+          <img
+            src={heroReportMockup}
+            alt="수행평가 평가 리포트 화면 — 종합 평가 점수 86점과 평가 기준 충족도・주제 적합성・자료 활용 등급, 총평, 잘한 점 코멘트를 보여준다"
+            className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
           />
         </ServiceHeroBrowserFrame>
       </div>
@@ -418,7 +419,6 @@ function HeroSection() {
 
 export default function PerformanceAssessment() {
   const location = useLocation();
-  const entitlementNotice = location.state?.entitlementNotice || null;
 
   // 해시(`#pricing`)로 도착해도 가격 섹션이 늘 로딩 분기일 수 있으므로 id는
   // ServicePricingSection의 3분기 모두에 붙어 있다. 도착 오차는 scroll-mt-24가 흡수한다.
@@ -430,46 +430,20 @@ export default function PerformanceAssessment() {
 
   // SPA 내부 이동은 해시를 브라우저가 처리해 주지 않는다 — App.jsx의 ScrollToTop은
   // 해시가 있을 때 "최상단으로 이동"만 건너뛸 뿐, 앵커로 스크롤하는 코드는 저장소
-  // 어디에도 없다(<a href="#...">를 쓰는 콜멘토는 같은 문서 내 이동이라 해당 없음).
-  // 그래서 가드가 보낸 `#pricing`을 여기서 직접 처리한다.
+  // 어디에도 없다. 그래서 QuotaExhaustedBanner/Card가 보낸 `#pricing`을 여기서
+  // 직접 처리한다(RequireEntitlement의 forbidden 경로는 더 이상 이 해시를 쓰지
+  // 않는다 — 위 PRICING_ANCHOR_ID 주석 참고).
   useEffect(() => {
     if (location.hash !== `#${PRICING_ANCHOR_ID}`) return undefined;
-    // 단, 안내 배너가 떠 있으면 자동 이동하지 않는다 — 배너는 "왜 되돌아왔는지"를
-    // 설명하는 유일한 표면인데 곧바로 가격 섹션으로 내려버리면 그 문장을 아무도
-    // 읽지 못한다. 배너의 CTA가 같은 앵커로 데려간다.
-    if (entitlementNotice) return undefined;
 
     // 레이아웃이 한 번 확정된 뒤에 이동한다(첫 프레임 좌표는 지연 로드 이미지 탓에
     // 실제 위치와 다르다).
     const frame = requestAnimationFrame(scrollToPricing);
     return () => cancelAnimationFrame(frame);
-  }, [location.hash, entitlementNotice, scrollToPricing]);
+  }, [location.hash, scrollToPricing]);
 
   return (
     <main className="min-h-screen bg-white pt-16">
-      {/* 이용권 미보유로 되돌려진 경우에만 뜬다. 평상시 방문에는 아무것도 렌더하지 않는다. */}
-      {entitlementNotice ? (
-        <div className="mx-auto w-full max-w-content px-5 pt-6 sm:px-8">
-          <div
-            role="status"
-            className="flex flex-col gap-3 rounded-2xl border border-line bg-surface-footer px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <p className="text-[1rem] font-semibold leading-normal text-primary">
-              {entitlementNotice}
-            </p>
-            {/* 현재 URL의 해시가 이미 `#pricing`이라 <a href="#pricing">는 같은 해시로의
-                이동이 되어 브라우저가 아무것도 하지 않는다. 그래서 직접 스크롤한다. */}
-            <button
-              type="button"
-              onClick={scrollToPricing}
-              className="inline-flex h-11 shrink-0 items-center justify-center rounded-[0.9375rem] border border-accent bg-primary px-6 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F]"
-            >
-              이용권 보러가기
-            </button>
-          </div>
-        </div>
-      ) : null}
-
       <HeroSection />
 
       {/* 히어로 목업이 lg:mb-[-7.89375rem]로 이 섹션 위에 겹치므로 pt 가 페이지 내 최소값이다. */}
@@ -536,7 +510,7 @@ export default function PerformanceAssessment() {
       <ServicePricingSection
         id={PRICING_ANCHOR_ID}
         serviceKey="suhaeng"
-        heading="위닝 수행평가 이용권 구매하기"
+        heading="위닝 수행평가 이용권 안내"
         cta={{
           label: "이용권 구매하기",
           to: "/pricing",

@@ -12,7 +12,7 @@ import { supabase } from "@/lib/supabase";
  *   상세 구조(CompanyNews.jsx:863, Events.jsx:119)가 깨진다.
  * - 단 fetchBoardRows 반환은 `{ rows, total }` 로 고정 — 나중에 서버 페이징으로 이행해도
  *   소비자 코드를 건드리지 않는다.
- * - 검색은 제목 대상, 클라이언트 필터, 대소문자 무시.
+ * - 검색은 제목+내용 대상, 클라이언트 필터, 대소문자 무시.
  */
 
 /**
@@ -123,7 +123,11 @@ export function formatBoardDate(value: unknown): string {
 }
 
 /**
- * 제목 대상 클라이언트 필터. 공백 trim, 대소문자 무시. 빈 키워드면 원본 배열 그대로 반환.
+ * 제목+내용 대상 클라이언트 필터. 공백 trim, 대소문자 무시. 빈 키워드면 원본 배열 그대로 반환.
+ * content는 HTML을 담을 수 있어(renderContent의 SafeHtml 분기 참고) 태그를 벗기지 않고
+ * 원문 그대로 대상에 포함한다 — 태그 자체에 검색어가 없어도 본문 텍스트가 태그 사이에
+ * 있는 한 매칭에는 지장이 없다(includes는 부분 문자열 검사라 태그가 섞여 있어도 본문
+ * 토큰은 그대로 유지된다).
  */
 export function filterBoardRows(
   rows: BoardRow[] | null | undefined,
@@ -136,11 +140,11 @@ export function filterBoardRows(
 
   if (!query) return list;
 
-  return list.filter((row) =>
-    String(row?.title ?? "")
-      .toLowerCase()
-      .includes(query),
-  );
+  return list.filter((row) => {
+    const title = String(row?.title ?? "").toLowerCase();
+    const content = String(row?.content ?? "").toLowerCase();
+    return title.includes(query) || content.includes(query);
+  });
 }
 
 /**

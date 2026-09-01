@@ -29,7 +29,7 @@ import { alertServiceNotReady } from "@/lib/paidServiceAccess";
 // components/services/ServiceLandingPage 공용 스켈레톤을 벗어나 bespoke로 구현했다(구
 // SERVICE_LANDING_CONTENT.research 항목은 serviceLandingContent.js에서 함께 제거 — 3종 선례와 동일).
 // 심화탐구는 상세 페이지(PAID_SERVICE_CONFIGS 미등록 — 실제 서비스 앱이 아직 없다)가 없어,
-// 히어로 CTA는 이동 대신 "서비스 준비중입니다" alert로 안내한다(alertServiceNotReady,
+// 히어로 CTA는 이동 대신 "서비스 예정입니다" alert로 안내한다(alertServiceNotReady,
 // paidServiceAccess.js — 자기평가・콜멘토와 동일 처리, 2026-08-05 사용자 확정). 이전에는
 // /learning-diagnosis로 임시 우회했으나(자기평가서 선례와 동일한 처리) 학습진단 안내는 히어로
 // 문구와 모순돼 폐기했다. 상세 페이지가 생기면 PAID_SERVICE_CONFIGS에 등록하고
@@ -90,17 +90,17 @@ const AUDIENCE_CARDS = [
   {
     image: audienceTopic,
     title: "주제가 막막한 학생",
-    desc: "관심사에서 탐구 주제를 잡기 어려운 학생.",
+    desc: "관심사에서 탐구 주제를 잡기 어려운 학생",
   },
   {
     image: audienceDesign,
     title: "설계가 어려운 학생",
-    desc: "가설・방법・계획을 세우기 어려운 학생.",
+    desc: "가설・방법・계획을 세우기 어려운 학생",
   },
   {
     image: audienceData,
     title: "자료 정리가 필요한 학생",
-    desc: "자료를 모으고 해석하는 데 어려움을 겪는 학생.",
+    desc: "자료를 모으고 해석하는 데 어려움을 겪는 학생",
   },
   {
     // 시안(1907:21486)은 카드1(1907:21476)과 imageRef·scaleMode·imageTransform까지 완전히 동일한
@@ -108,7 +108,7 @@ const AUDIENCE_CARDS = [
     // 그대로 옮기고 임의로 새 이미지를 지어내지 않았다.
     image: audienceTopic,
     title: "완성도를 높이고 싶은 학생",
-    desc: "초안은 있으나 더 다듬고 싶은 학생.",
+    desc: "초안은 있으나 더 다듬고 싶은 학생",
   },
 ];
 

@@ -29,7 +29,7 @@ import {
 } from "@/components/auth";
 import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
-import { normalizePhone } from "@/lib/phoneVerification";
+import { formatPhoneInput, normalizePhone } from "@/lib/phoneVerification";
 import {
   applySignupPassword,
   EMAIL_RESEND_COOLDOWN_SECONDS,
@@ -87,6 +87,19 @@ function getSignupRpcMessage(raw?: string) {
   }
   if (message.includes("identity_required")) {
     return "본인 인증을 위한 정보 수집 동의가 필요합니다.";
+  }
+
+  // T8(QA 2026-08-22): 이 화면은 생년월일·성별을 보내지 않는다(PASS 값이 정본이라
+  // RPC가 identity_verifications에서 직접 읽는다) — 그래도 서버 스키마가 최신이
+  // 아닌 배포이거나 예외적인 경합을 대비해 메시지를 함께 둔다.
+  if (message.includes("birth_date_required")) {
+    return "생년월일 확인에 실패했습니다. 본인확인을 다시 진행해 주세요.";
+  }
+  if (message.includes("invalid_gender")) {
+    return "성별 값이 올바르지 않습니다. 본인확인을 다시 진행해 주세요.";
+  }
+  if (message.includes("gender_required")) {
+    return "성별 확인에 실패했습니다. 본인확인을 다시 진행해 주세요.";
   }
 
   // ── D-2 전용 ──
@@ -502,6 +515,9 @@ export default function Under14Form() {
           p_guardian_phone: normalizePhone(formData.guardianPhone),
           p_guardian_consent: formData.guardianConsent,
           p_identity_request_id: verification.pass.requestId ?? "",
+          // T8(QA 2026-08-22): p_birth_date/p_gender는 보내지 않는다 — RPC가
+          // identity_verifications에서 PASS 값을 직접 읽어 정본으로 쓴다.
+          p_org_code: formData.orgCode.trim() || null,
         },
       );
 
@@ -568,9 +584,14 @@ export default function Under14Form() {
             name="phone"
             size="lg"
             value={formData.phone}
-            onChange={(v) => updateFormData({ phone: v })}
+            // 자동 하이픈 포맷(010-1234-5678, QA 지시 2026-08-21) — StudentForm.jsx와 동일
+            // src/lib/phoneVerification.ts formatPhoneInput을 재사용한다.
+            onChange={(v) => updateFormData({ phone: formatPhoneInput(v) })}
             placeholder="전화번호를 입력 해주세요"
             disabled={formData.noOwnPhone}
+            helperText={
+              formData.noOwnPhone ? "" : "하이픈은 자동으로 입력돼요."
+            }
           />
 
           {/* C-1과 달리 인증번호 발송 링크 대신 체크박스 — 체크/해제 시 UI 변화는 시안에
@@ -684,6 +705,19 @@ export default function Under14Form() {
           onChange={(v) => updateFormData({ schoolName: v })}
           placeholder="학교명 입력"
         />
+
+        {/* T8(QA 2026-08-22): 소속코드 — 선택 입력, 검증 규칙 없음. 생년월일·성별은
+            PASS 본인확인 값이 정본이라 이 화면에 입력칸을 두지 않는다(파일 상단 주석). */}
+        <TextField
+          label="소속코드 (선택)"
+          id="under14-org-code"
+          name="orgCode"
+          size="lg"
+          value={formData.orgCode}
+          onChange={(v) => updateFormData({ orgCode: v })}
+          placeholder="소속코드가 없으면 입력하지 마세요"
+          helperText="소속코드가 없으면 입력하지 마세요"
+        />
       </section>
 
       <section className="flex w-full flex-col gap-3">
@@ -697,8 +731,11 @@ export default function Under14Form() {
           name="guardianPhone"
           size="lg"
           value={formData.guardianPhone}
-          onChange={(v) => updateFormData({ guardianPhone: v })}
+          onChange={(v) =>
+            updateFormData({ guardianPhone: formatPhoneInput(v) })
+          }
           placeholder="전화번호를 입력 해주세요"
+          helperText="하이픈은 자동으로 입력돼요."
         />
 
         <InfoCard variant="card">

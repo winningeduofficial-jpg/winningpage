@@ -21,12 +21,15 @@ import {
   AuthLayout,
   AuthTitle,
   PrimaryButton,
+  SelectField,
   TextField,
 } from "@/components/auth";
 import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
+import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 import {
   DUPLICATE_PHONE_MESSAGE,
+  formatPhoneInput,
   isValidMobile,
   normalizePhone,
   PHONE_RESEND_COOLDOWN_SECONDS,
@@ -39,12 +42,18 @@ import {
   EMAIL_RESEND_COOLDOWN_SECONDS,
   EMAIL_STATE,
   sendSignupEmailCode,
+  toErrorMessage,
   verifySignupEmailCode,
 } from "@/lib/signupEmailAuth";
 import { supabase } from "@/lib/supabase";
+import { isValidBirthDate } from "@/lib/validators";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{6,}$/;
+
+// T8(QA 2026-08-22): 성별 필수 필드 — 전용 라디오 컴포넌트가 없어 SelectField로
+// 통일한다(StudentForm.tsx의 동명 상수와 동일한 값 — 파일 소유권이 갈려 각자 둔다).
+const GENDER_OPTIONS = ["남", "여"];
 
 type FieldStatus = "default" | "error" | "success";
 interface FieldMessage {
@@ -112,6 +121,11 @@ const RPC_ERRORS: [string, string][] = [
     "region_required",
     "서버 스키마가 최신이 아닙니다(sql/40 [13] 미적용). 관리자에게 문의해 주세요.",
   ],
+  // T8(QA 2026-08-22): 서버가 최종 판정하는 생년월일·성별 필수 검증 — validateForm이
+  // 먼저 막지만, 서버 스키마가 최신이 아닌 배포 대비.
+  ["birth_date_required", "생년월일을 입력해 주세요."],
+  ["invalid_gender", "성별 값이 올바르지 않습니다. 다시 선택해 주세요."],
+  ["gender_required", "성별을 선택해 주세요."],
 ];
 
 export default function ParentForm() {
@@ -322,7 +336,11 @@ export default function ParentForm() {
         updateVerification("email", { checked: false, available: false });
         setEmailMessage({
           // state가 없으면 상태 조회 자체가 실패한 것이고, 있으면 발송이 실패한 것이다.
-          text: state ? error.message : EMAIL_MESSAGES.checkFailed,
+          // error.message는 이제 signupEmailAuth.sendSignupEmailCode가 항상 채워
+          // 보내지만(QA 2026-08-21 "{}" 노출 버그 대응), 방어적으로 한 번 더 확인한다.
+          text: state
+            ? error.message || EMAIL_MESSAGES.checkFailed
+            : EMAIL_MESSAGES.checkFailed,
           status: "error",
         });
         return;
@@ -374,16 +392,55 @@ export default function ParentForm() {
     ? "영문/숫자/특수문자 포함 6자 이상"
     : passwordError || "영문/숫자/특수문자 포함 6자 이상";
 
+  // T8(QA 2026-08-22): 생년월일 8자리 실시간 검증 — StudentBirth.tsx가 쓰는
+  // isValidBirthDate(src/lib/validators)를 그대로 재사용해 두 화면의 판정이 갈리지
+  // 않게 한다. passwordStatus/passwordHelper와 동일한 반응형 계산 패턴.
+  const birthDateStatus = !formData.parentBirthDate
+    ? "default"
+    : formData.parentBirthDate.length !== 8
+      ? "error"
+      : isValidBirthDate(formData.parentBirthDate)
+        ? "success"
+        : "error";
+  const birthDateHelper = !formData.parentBirthDate
+    ? "생년월일 8자리 입력"
+    : formData.parentBirthDate.length !== 8
+      ? "생년월일 8자리를 정확히 입력해 주세요."
+      : isValidBirthDate(formData.parentBirthDate)
+        ? ""
+        : "올바른 생년월일을 입력해 주세요.";
+
   const requiredAgreementsChecked =
     agreements.service && agreements.privacyRequired;
   const allChecked = AGREEMENT_KEYS.every((key) => agreements[key]);
 
-  const canSubmit =
-    formData.name.trim() &&
-    verification.phone.verified &&
-    verification.email.verified &&
-    PASSWORD_REGEX.test(formData.password) &&
-    requiredAgreementsChecked;
+  // T8(QA 2026-08-22): StudentForm.tsx의 validateForm/submitValidationMessage 패턴을
+  // 그대로 가져온다 — 이전에는 canSubmit이 불리언만 계산해 "왜 막혔는지"를 보여주지
+  // 않았는데, 생년월일·성별 두 필수 필드가 늘면서 버튼 비활성 이유를 알려줄 필요가
+  // 커졌다. 기존 4개 조건(이름/전화·이메일 인증/비밀번호/필수약관)은 그대로 두고
+  // 생년월일·성별만 추가한다.
+  function validateForm() {
+    if (!formData.name.trim()) return "이름을 입력해 주세요.";
+    if (!verification.phone.verified) return "전화번호 인증을 완료해 주세요.";
+    if (!verification.email.verified) return "이메일 인증을 완료해 주세요.";
+    if (!PASSWORD_REGEX.test(formData.password)) {
+      return "비밀번호는 영문, 숫자, 특수문자를 모두 포함해 6자 이상 입력해 주세요.";
+    }
+    if (formData.parentBirthDate.length !== 8) {
+      return "생년월일 8자리를 정확히 입력해 주세요.";
+    }
+    if (!isValidBirthDate(formData.parentBirthDate)) {
+      return "올바른 생년월일을 입력해 주세요.";
+    }
+    if (!formData.gender) return "성별을 선택해 주세요.";
+    if (!requiredAgreementsChecked) {
+      return "필수 약관에 동의해야 회원가입을 진행할 수 있습니다.";
+    }
+    return "";
+  }
+
+  const submitValidationMessage = validateForm();
+  const canSubmit = submitValidationMessage === "";
 
   async function handleSubmit() {
     if (!canSubmit || submitting) return;
@@ -444,6 +501,10 @@ export default function ParentForm() {
           p_privacy_optional_agreed: false,
           p_marketing_agreed: agreements.marketing,
           p_ads_agreed: false,
+          // T8(QA 2026-08-22): 생년월일·성별 필수, 소속코드는 선택.
+          p_birth_date: `${formData.parentBirthDate.slice(0, 4)}-${formData.parentBirthDate.slice(4, 6)}-${formData.parentBirthDate.slice(6, 8)}`,
+          p_gender: formData.gender,
+          p_org_code: formData.orgCode.trim() || null,
         },
       );
 
@@ -468,11 +529,33 @@ export default function ParentForm() {
 
       setParentSignupCompleted(true);
 
+      // 가입 축하 쿠폰 발급 + 안내 알림톡 (학부모 가입에만 있는 단계,
+      // 2026-08-25 회의 확정). 기다리지 않는다 — 알리고 왕복이 몇 초 걸릴 수
+      // 있고, 문자가 늦거나 실패해도 가입은 이미 끝났다. 서버가 member_type 을
+      // 한 번 더 확인하고 중복 발송도 막으므로 여기서 조건을 더 걸지 않는다
+      // (api/signup-welcome.ts 상단 주석).
+      void (async () => {
+        try {
+          const authHeader = await getAuthHeader();
+          if (!authHeader) return;
+
+          await apiFetch("/api/signup-welcome", {
+            method: "POST",
+            headers: authHeader,
+          });
+        } catch (error) {
+          // 화면에 띄우지 않는다 — 사용자가 할 수 있는 게 없다.
+          console.error("가입 축하 알림톡 요청 실패:", error);
+        }
+      })();
+
       // ⚠️ 여기서 signOut 하지 않는다 — 파일 상단 주석 참고.
       navigate("/signup/parent/link");
     } catch (error) {
+      // toErrorMessage 를 거친다 — error.message 를 그대로 붙이면 auth-js 가
+      // 폴백으로 넣은 "{}" 가 화면에 그대로 나간다(QA 33, 그 함수 위 주석).
       setFormError(
-        `가입 처리 중 오류가 발생했습니다: ${error.message || String(error)}`,
+        `가입 처리 중 오류가 발생했습니다: ${toErrorMessage(error, "잠시 후 다시 시도해 주세요.")}`,
       );
     } finally {
       setSubmitting(false);
@@ -521,13 +604,51 @@ export default function ParentForm() {
           required
         />
 
+        {/* T8(QA 2026-08-22): 학부모는 학생과 달리 회원가입 흐름에서 생년월일을 아직
+            입력받지 않으므로(ParentForm 진입 전 별도 단계 없음) 여기서 직접 받는다.
+            검증은 StudentBirth.tsx와 같은 isValidBirthDate(src/lib/validators)를 쓴다. */}
+        <TextField
+          label="생년월일"
+          id="parent-birth-date"
+          name="parentBirthDate"
+          type="text"
+          inputMode="numeric"
+          value={formData.parentBirthDate}
+          onChange={(value) =>
+            updateFormData({
+              parentBirthDate: value.replace(/\D/g, "").slice(0, 8),
+            })
+          }
+          placeholder="생년월일 8자리 입력"
+          helperText={birthDateHelper}
+          status={birthDateStatus}
+          autoComplete="off"
+          required
+        />
+
+        <SelectField
+          label="성별"
+          id="parent-gender"
+          name="gender"
+          value={formData.gender}
+          onChange={(value) => updateFormData({ gender: value })}
+          placeholder="성별을 선택해주세요"
+          options={GENDER_OPTIONS}
+          required
+        />
+
         <TextField
           label="전화번호"
           id="phone"
           name="phone"
           type="tel"
           value={formData.phone}
-          onChange={(value) => updateFormData({ phone: value })}
+          // 자동 하이픈 포맷(010-1234-5678, QA 지시 2026-08-21) — src/lib/phoneVerification.ts
+          // formatPhoneInput, 멘토신청·프리미엄이용 폼과 공유하는 유틸이다. 서버 전송 값은
+          // normalizedPhone(normalizePhone)이 별도로 숫자만 남긴다.
+          onChange={(value) =>
+            updateFormData({ phone: formatPhoneInput(value) })
+          }
           placeholder="전화번호를 입력 해주세요"
           actionLabel="인증번호 보내기"
           onAction={handleSendPhoneCode}
@@ -536,7 +657,12 @@ export default function ParentForm() {
           }
           // helperText는 string(exactOptionalPropertyTypes, undefined 불가) —
           // TextField가 내부에서 truthy 체크만 하므로 ""는 undefined와 동일하게 렌더된다.
-          helperText={verification.phone.verified ? "" : phoneMessage.text}
+          // 상태 메시지가 없을 때는 하이픈 자동 포맷 안내를 기본으로 보여준다.
+          helperText={
+            verification.phone.verified
+              ? ""
+              : phoneMessage.text || "하이픈은 자동으로 입력돼요."
+          }
           status={verification.phone.verified ? "default" : phoneMessage.status}
           required
         />
@@ -617,6 +743,17 @@ export default function ParentForm() {
           status={passwordStatus}
           required
         />
+
+        {/* T8(QA 2026-08-22): 소속코드 — 선택 입력, 검증 규칙 없음. */}
+        <TextField
+          label="소속코드 (선택)"
+          id="parent-org-code"
+          name="orgCode"
+          value={formData.orgCode}
+          onChange={(value) => updateFormData({ orgCode: value })}
+          placeholder="소속코드가 없으면 입력하지 마세요"
+          helperText="소속코드가 없으면 입력하지 마세요"
+        />
       </div>
 
       <div className="flex w-full flex-col gap-5">
@@ -635,6 +772,12 @@ export default function ParentForm() {
 
       {formError && (
         <p className="w-full text-center text-sm text-red-500">{formError}</p>
+      )}
+
+      {!canSubmit && !submitting && submitValidationMessage && (
+        <p role="status" className="w-full text-xs text-ink-sub">
+          {submitValidationMessage}
+        </p>
       )}
 
       <PrimaryButton

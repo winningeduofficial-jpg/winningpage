@@ -55,6 +55,7 @@ import {
   PAID_MESSAGE,
   updateStudentGrades,
 } from "../_lib/goalRepo.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -172,17 +173,43 @@ function validateEntry(entry: unknown, type: "naesin" | "mock") {
   };
 }
 
-/** records 배열에 회차를 추가하거나(term 동일 시) 교체한다. */
-function upsertRecord(records: unknown, record: { term: string }) {
+// QA 행288 정렬 키 — src/lib/goalGrades.ts examOrderKey()와 같은 규칙(examDate/enteredAt,
+// 응시·입력 시점 그 자체). 이 파일이 그 모듈을 import하지 않는 이유는 파일 헤더 주석
+// 그대로다(calc 파이프라인과 무관한 이 파일 전용 소소한 유틸도 별도로 둔다).
+function examOrderKey(record: {
+  examDate?: string;
+  enteredAt?: string;
+  recordedAt?: string;
+}) {
+  return record.examDate || record.enteredAt || record.recordedAt || "";
+}
+
+/**
+ * records 배열에 회차를 추가하거나(term 동일 시) 교체한 뒤, 응시/입력 시점 순으로
+ * 정렬해 돌려준다. 회차를 시간순과 다르게 입력해도(예: 지난 시험을 나중에 추가) 배열이
+ * append 순서로 남지 않게 하기 위함 — src/lib/goalGrades.ts latestKpi()/recentHistory()가
+ * "배열 마지막 = 최신"으로 가정하기 때문에(읽기 시에도 다시 정렬하지만, 저장 시점부터
+ * 정렬해 두면 새 데이터는 애초에 어긋나지 않는다).
+ */
+function upsertRecord(
+  records: unknown,
+  record: {
+    term: string;
+    examDate?: string;
+    enteredAt?: string;
+    recordedAt?: string;
+  },
+) {
   const list = Array.isArray(records) ? records : [];
   const index = list.findIndex(
     (item) => item && typeof item === "object" && item.term === record.term,
   );
-  if (index === -1) return [...list, record];
+  const next =
+    index === -1
+      ? [...list, record]
+      : list.map((item, i) => (i === index ? record : item));
 
-  const next = [...list];
-  next[index] = record;
-  return next;
+  return next.sort((a, b) => examOrderKey(a).localeCompare(examOrderKey(b)));
 }
 
 function readBody(req: VercelRequest) {
@@ -285,19 +312,24 @@ async function handlePost(
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET" && req.method !== "POST") {
-    return res.status(405).json({ detail: "Method not allowed" });
+    return sendError(res, "detail", 405, "Method not allowed");
   }
 
   try {
     const session = await openGoalSession(req);
     if (session.error) {
-      return res.status(session.error.status).json(session.error.body);
+      return sendError(
+        res,
+        "detail",
+        session.error.status,
+        session.error.body.detail as string,
+      );
     }
 
     if (req.method === "GET") return await handleGet(req, res, session);
     return await handlePost(req, res, session);
   } catch (error) {
     console.error("goal/grades error:", error);
-    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
+    return sendError(res, "detail", 500, "처리 중 오류가 발생했습니다.");
   }
 }

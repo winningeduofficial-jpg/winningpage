@@ -4,12 +4,16 @@ import {
   isValidElement,
   type ReactElement,
   type ReactNode,
+  useEffect,
   useId,
   useRef,
   useState,
 } from "react";
+import { useLocation } from "react-router";
+import { PREMIUM_APPLY_FORM_ANCHOR_ID } from "@/components/premium/premiumRoutesPaths";
 import BookViewer from "@/components/premiumBook/BookViewer";
 import { usePremiumBookPages } from "@/components/premiumBook/usePremiumBookPages";
+import { formatPhoneInput } from "@/lib/phoneVerification";
 
 // 이용신청 > 프리미엄 이용 (node 1882:11190) 정식 페이지.
 // 러프 구현 목표 — 픽셀 재현 아님, 섹션 구조·카피·컬러 위계만 재현한다.
@@ -158,6 +162,15 @@ function FormField({
 const inputClass =
   "h-12 w-full rounded-[0.625rem] border border-line bg-white px-5 py-4 text-sm font-medium text-[#1e293b] placeholder:text-[#767676] focus:border-primary focus:outline-hidden";
 
+// <select>는 <input>과 달리 브라우저가 세로 padding을 텍스트 라인 안쪽으로 그대로
+// 적용한다(input처럼 넘치는 만큼 자동으로 다시 중앙 정렬하지 않음) — h-12(48px)에
+// inputClass의 py-4(32px)를 그대로 쓰면 남는 높이(16px)가 text-sm 줄 높이(20px)보다
+// 작아 선택된 값의 아래쪽이 잘려 보인다("이용하고 싶으신 서비스" 드롭다운 QA 지적).
+// 세로 padding 없이 h-12만으로 중앙 정렬하는 다른 네이티브 select 관례
+// (SelectField.tsx SIZE_CLASSES)를 따라 이 select만 별도 클래스를 쓴다.
+const selectClass =
+  "h-12 w-full rounded-[0.625rem] border border-line bg-white px-5 text-sm font-medium focus:border-primary focus:outline-hidden";
+
 const inputErrorClass = "border-red-400 focus:border-red-500";
 
 export default function PremiumApply() {
@@ -167,6 +180,29 @@ export default function PremiumApply() {
   const [submitError, setSubmitError] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const { pages, loading, error, retry } = usePremiumBookPages();
+  const location = useLocation();
+
+  // 대입A・S 히어로 CTA(/premium-apply#premium-apply-form, QA 행251)로 들어왔을 때 상담
+  // 신청 섹션까지 스크롤한다. React Router 데이터 라우터(ScrollToTop, src/App.tsx)는 해시가
+  // 있으면 스크롤을 건드리지 않고 물러나는데, 이건 페이지 내 앵커 클릭(브라우저 네이티브
+  // 스크롤)만 전제한 것이라 크로스 라우트 진입에는 아무도 스크롤을 옮기지 않는다 — 이 훅이
+  // 그 빈틈을 채운다. BookViewer 로딩이 끝나기 전에 스크롤하면 플립북 높이가 나중에
+  // 자리잡으며 목표 위치가 밀리므로 loading이 꺼진 다음에만 시도한다.
+  useEffect(() => {
+    if (loading) return;
+    if (location.hash !== `#${PREMIUM_APPLY_FORM_ANCHOR_ID}`) return;
+
+    const target = document.getElementById(PREMIUM_APPLY_FORM_ANCHOR_ID);
+    if (!target) return;
+
+    const prefersReduced = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    target.scrollIntoView({
+      behavior: prefersReduced ? "auto" : "smooth",
+      block: "start",
+    });
+  }, [loading, location.hash]);
 
   const fieldRefs: Record<
     keyof FormState,
@@ -257,8 +293,12 @@ export default function PremiumApply() {
         onRetry={retry}
       />
 
-      {/* 상담 신청 섹션 */}
-      <section className="bg-[#f7f7f7] py-20">
+      {/* 상담 신청 섹션 — id/scroll-mt는 대입A・S 히어로 CTA 앵커 타깃이다(위 useEffect,
+          BoardListPage.jsx:198 scroll-mt-24 선례와 동일하게 fixed 헤더 h-16을 보정한다). */}
+      <section
+        id={PREMIUM_APPLY_FORM_ANCHOR_ID}
+        className="scroll-mt-24 bg-[#f7f7f7] py-20"
+      >
         <div className="mx-auto flex max-w-content flex-col gap-10 px-6 lg:flex-row lg:items-start lg:justify-between lg:gap-16">
           <div className="max-w-130 shrink-0 lg:pt-4">
             <p className="text-sm font-medium leading-5 text-primary">문의</p>
@@ -317,9 +357,15 @@ export default function PremiumApply() {
                           fieldRefs.phone as React.RefObject<HTMLInputElement>
                         }
                         type="tel"
+                        inputMode="numeric"
                         value={form.phone}
-                        onChange={(e) => updateField("phone", e.target.value)}
+                        // 자동 하이픈 포맷(QA 지시 2026-08-21) — src/lib/phoneVerification.ts
+                        // formatPhoneInput, 멘토신청 지원서와 공유하는 유틸이다.
+                        onChange={(e) =>
+                          updateField("phone", formatPhoneInput(e.target.value))
+                        }
                         placeholder="010-0000-0000"
+                        maxLength={13}
                         className={`${inputClass} ${errors.phone ? inputErrorClass : ""}`}
                       />
                     </FormField>
@@ -353,7 +399,7 @@ export default function PremiumApply() {
                           onChange={(e) =>
                             updateField("service", e.target.value)
                           }
-                          className={`${inputClass} appearance-none pr-10 ${
+                          className={`${selectClass} appearance-none pr-10 ${
                             form.service ? "text-[#1e293b]" : "text-[#767676]"
                           } ${errors.service ? inputErrorClass : ""}`}
                         >
@@ -386,7 +432,7 @@ export default function PremiumApply() {
                   </FormField>
 
                   <div className="flex flex-col gap-1.5">
-                    {/* 동의 문구에 수집 항목·이용 목적·보유 기간을 모두 명시 — legalDocs.js 「4. 보유 및 이용기간」과 표현 일치 */}
+                    {/* 동의 문구에 수집 항목·이용 목적·보유 기간을 모두 명시 — 개인정보처리방침(terms.privacy_policy) 「4. 개인정보의 보유 및 이용기간」과 표현 일치 */}
                     <label className="flex items-start gap-2 text-sm font-normal leading-5 text-ink">
                       <input
                         ref={

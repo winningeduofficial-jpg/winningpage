@@ -42,15 +42,16 @@
 // ── 회차는 차감하지 않는다 (§9.3 "세션 생성 | 없음")
 //    quotaRemaining은 안내용 스냅샷으로만 응답에 싣는다.
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
   findProgramAccessRow,
-  getBearerToken,
   hasPaidServiceAccess,
   readQuotaSnapshot,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
+import type { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 
 const SERVICE_KEY = "suhaeng";
 
@@ -159,7 +160,7 @@ function fail(
   message: string,
   extra?: Record<string, unknown>,
 ) {
-  return res.status(status).json({ error: { code, message }, ...extra });
+  sendError(res, "coded", status, message, code, extra);
 }
 
 /** `recommend-topics.js`의 `toClientTopic`과 같은 모양(§8.3 `performance_topics` 계약). */
@@ -280,34 +281,19 @@ async function findUnchargedSession(
   return rows.find((row) => !chargedIds.has(row.id)) || null;
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST" && req.method !== "GET") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "GET 또는 POST만 허용됩니다.");
-  }
-
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/session 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
+export default defineHandler({
+  methods: ["GET", "POST"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "GET 또는 POST만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "세션 처리에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/session",
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const supabaseAdmin = ctx.supabaseAdmin;
+    const userId = requireUserId(ctx);
     // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
     const serviceConfig = SERVICE_CONFIGS[SERVICE_KEY]!;
 
@@ -407,7 +393,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
 
-      return res.status(200).json({
+      res.status(200).json({
         session: {
           ...toClientSession(sessionRow),
           guideInputMode: sessionRow.guide_input_mode,
@@ -418,6 +404,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         round: lastRound,
         maxRounds: MAX_ROUNDS,
       });
+      return;
     }
 
     const body = req.body && typeof req.body === "object" ? req.body : {};
@@ -511,10 +498,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (insertError)
         throw new Error(`세션 생성 실패: ${insertError.message}`);
 
-      return res.status(201).json({
+      res.status(201).json({
         session: toClientSession(created as unknown as SessionRow),
         quotaRemaining: quota.quotaRemaining,
       });
+      return;
     }
 
     // action === 'resume' — 프로필당 하나뿐인 미차감 세션을 이어받는다(sessionId를
@@ -561,16 +549,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       resultRow = updated as unknown as SessionRow;
     }
 
-    return res.status(201).json({
+    res.status(201).json({
       session: toClientSession(resultRow),
       quotaRemaining: quota.quotaRemaining,
     });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/session error:", error);
-    return fail(res, 500, "INTERNAL", "세션 처리에 실패했습니다.");
-  }
-}
+  },
+});
 
 // 실행 시간: 모델을 부르지 않으므로 형제 라우트의 `maxDuration: 60`이 필요 없다.
 export const config = { runtime: "nodejs" };

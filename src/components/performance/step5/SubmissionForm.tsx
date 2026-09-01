@@ -116,6 +116,16 @@ const TOPIC_LABEL = "주제";
 const SAVE_LABEL = "중간 저장";
 const SUBMIT_LABEL = "제출하고 평가 리포트 받기";
 
+// QA 행281 — `중간 저장`이 카드 맨 아래(제출 버튼 옆)에만 있어, 문항형(최대 20필드,
+// 필드 1개당 220px)에서는 몇 화면을 스크롤해야 보였다는 접수. 이 버튼이 실제로 저장하는
+// 대상은 **이 폼의 필드 값뿐**이다(`handleSaveDraft`가 `fields`를 그대로
+// `saveSubmission({mode:'draft'})`에 넘긴다 — `PerformanceChatPage.tsx`). STEP1~4는 각
+// 단계 자체 API 호출(세션 생성·안내문 제출·주제 확정·설계 리포트 생성)이 그 즉시 서버에
+// 커밋되므로 "중간 저장"이라는 개념 자체가 없다 — 그래서 이 버튼을 캔버스 헤더 등 다른
+// 스텝과 공유하는 자리로 승격하지 않고, **이 폼 안에서만** 카드 제목 옆에도 하나 더 두어
+// 스크롤 없이 바로 손에 닿게 한다(가시성 개선). 저장 로직·잠금 조건은 아래 버튼과 완전히
+// 같다 — 같은 `handleSaveDraft`/`saveLocked`를 그대로 재사용한다(이중 소스 아님).
+
 type SubmissionField = {
   key: string;
   label: string;
@@ -327,9 +337,36 @@ export default function SubmissionForm({
     >
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
-          <h3 className="text-[1rem] font-semibold leading-5.25 text-ink">
-            {CARD_TITLE}
-          </h3>
+          <div className="flex items-start justify-between gap-3">
+            <h3 className="text-[1rem] font-semibold leading-5.25 text-ink">
+              {CARD_TITLE}
+            </h3>
+            {/* 상단 중간 저장(QA 행281, 파일 상단 주석). 아래 버튼 행과 같은 핸들러·잠금
+                조건을 그대로 쓴다 — 여기서 새 상태를 만들지 않는다. */}
+            <button
+              type="button"
+              onClick={handleSaveDraft}
+              aria-disabled={saveLocked}
+              aria-busy={saving || undefined}
+              aria-describedby={describedBy}
+              className={[
+                "flex h-9 shrink-0 items-center gap-1.5 rounded-[0.625rem] border border-performance-line px-3 text-[0.8125rem] font-medium leading-4.5 transition-colors",
+                saveLocked
+                  ? "cursor-not-allowed opacity-50"
+                  : "bg-white text-ink-sub hover:border-ink-sub",
+              ].join(" ")}
+            >
+              {saving && (
+                <Loader2
+                  size={14}
+                  strokeWidth={2.5}
+                  className="animate-spin motion-reduce:animate-none"
+                  aria-hidden="true"
+                />
+              )}
+              {SAVE_LABEL}
+            </button>
+          </div>
           {/* §5.14 카드 본문 2·3행. 유형 라벨·안내문은 **서버 스키마 값**이라 8종에 따라
               바뀐다(시안의 `기본 보고서형`은 그중 하나다). */}
           <p className="text-[0.875rem] font-medium leading-4.5 text-ink-sub">

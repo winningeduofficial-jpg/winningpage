@@ -7,9 +7,11 @@ import {
   RouterProvider,
   useLocation,
 } from "react-router";
+import SessionKickGuard from "./components/SessionKickGuard";
 import SiteLayout from "./components/SiteLayout";
 import adminRoutes from "./routes/adminRoutes";
 import admissionRoutes from "./routes/admissionRoutes";
+import alimtalkLinkRoutes from "./routes/alimtalkLinkRoutes";
 import applyRoutes from "./routes/applyRoutes";
 import authRoutes from "./routes/authRoutes";
 import contentRoutes from "./routes/contentRoutes";
@@ -21,6 +23,7 @@ import goalOnboardingRoutes from "./routes/goalOnboardingRoutes";
 import homeRoutes from "./routes/homeRoutes";
 import mypageRoutes from "./routes/mypageRoutes";
 import performanceAppRoutes from "./routes/performanceAppRoutes";
+import premiumRoutes from "./routes/premiumRoutes";
 import serviceLandingRoutes from "./routes/serviceLandingRoutes";
 import standaloneRoutes from "./routes/standaloneRoutes";
 import termsRoutes from "./routes/termsRoutes";
@@ -44,6 +47,9 @@ function RootLayout() {
   return (
     <>
       <ScrollToTop />
+      {/* 어드민 포함 전 계정 대상 킥 감지 — 특정 라우트 그룹이 아니라 모든
+          라우트의 공통 조상인 여기 둔다(SessionKickGuard.tsx 헤더 주석 참고). */}
+      <SessionKickGuard />
       <Outlet />
     </>
   );
@@ -63,6 +69,7 @@ const routes: RouteObject[] = [
           ...admissionRoutes,
           ...contentRoutes,
           ...applyRoutes,
+          ...premiumRoutes,
           ...dynamicPageRoutes,
           ...authRoutes,
           ...termsRoutes,
@@ -75,6 +82,12 @@ const routes: RouteObject[] = [
 
       // 수행평가 학생 앱 — SessionProvider/RequireEntitlement 셸. SiteLayout 밖.
       ...performanceAppRoutes,
+
+      // 알림톡 승인 링크 → 실제 라우트 리다이렉트. SiteLayout 밖에 둔다 —
+      // 헤더·푸터를 그렸다가 곧바로 이동하면 한 프레임 깜빡인다.
+      // (경로 랭킹상 /services/goal/reports/* 는 /services/goal 보다,
+      //  /mypage/coupons 는 /mypage 보다 구체적이라 순서와 무관하게 먼저 잡힌다.)
+      ...alimtalkLinkRoutes,
 
       ...standaloneRoutes,
 

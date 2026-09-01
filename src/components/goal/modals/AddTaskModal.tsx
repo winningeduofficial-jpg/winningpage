@@ -1,12 +1,12 @@
 import { useState } from "react";
 import AppModal from "@/components/goal/AppModal";
-import ModalField from "@/components/goal/ModalField";
-import SegmentedChipGroup from "@/components/goal/SegmentedChipGroup";
 import {
   TASK_DURATIONS,
   TASK_SCHEDULES,
   TASK_SUBJECTS,
 } from "@/components/goal/goalFormOptions";
+import ModalField from "@/components/goal/ModalField";
+import SegmentedChipGroup from "@/components/goal/SegmentedChipGroup";
 
 // 과제 추가 모달 — docs/figma-goal/part-06.md #16 (530×468 = 33.125rem × 29.25rem, 높이는 주석용).
 // 트리거: StudyPlanRail("+")·주간 학습 계획표 컬럼 "+ 추가".

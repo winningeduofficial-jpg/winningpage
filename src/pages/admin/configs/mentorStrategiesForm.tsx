@@ -186,6 +186,12 @@ export function mentorFormToPayload(form: MentorForm): Record<string, unknown> {
   payload.mentor_name = String(form.mentor_name || "").trim();
   payload.badge = String(form.badge || "").trim() || null;
   payload.title_lines = titleLines.length > 0 ? titleLines : null;
+  // title 컬럼은 NOT NULL(DEFAULT 없음)인데 랜딩 렌더는 title_lines만 소비한다 —
+  // title_lines 첫 줄 → mentor_name → 고정 문자열 순으로 채워 INSERT 23502를 막는다.
+  payload.title =
+    titleLines[0]?.trim() ||
+    String(form.mentor_name || "").trim() ||
+    "멘토 전략";
   payload.photo_url = form.photo_url || null;
   payload.photo_layout = buildMentorPhotoLayout(form);
   payload.card_width = Number(form.card_width) || 210;

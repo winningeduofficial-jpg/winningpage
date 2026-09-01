@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
 import MentorCard from "./MentorCard";
 
@@ -12,13 +13,24 @@ type MentorSectionProps = {
   /** home_mentor_strategies 활성 rows (sort_order asc). row 필드 상세는 MentorCard jsdoc 참조. */
   mentors?: Array<{ id: string | number; [key: string]: unknown }>;
   /** 콜멘토 랜딩(섹션 5)은 카드 마크업은 동일하되 헤딩 색상·섹션 배경/패딩만 다르다 — 신규
-   * 컴포넌트 대신 이 variant로 흡수한다(재합성 0). */
-  variant?: "default" | "callmentor";
+   * 컴포넌트 대신 이 variant로 흡수한다(재합성 0). premium(대입컨설팅 A 프로그램 랜딩 섹션 9)도
+   * 같은 이유로 흡수 — 카드 마크업은 100% 동일(156×267 rounded 14.8px 시안 치수가 기존
+   * RENDER_SCALE 산출값과 이미 일치해 MentorCard는 무수정), 헤딩만 완전히 다른 마크업(중앙정렬
+   * 32px)으로 교체하고 배경색을 커스터마이즈한다. */
+  variant?: "default" | "callmentor" | "premium";
+  /** premium 전용: 기본 헤딩 블록(멘토스 소개 + 좌측정렬 2톤 타이틀) 자리에 그대로 렌더할
+   * 노드. 프리미엄 토큰/헤딩 컴포넌트는 호출하는 페이지가 소유한다 — landing 이 premium
+   * 도메인을 import 하지 않도록 슬롯으로 받는다. default/callmentor에는 영향 없음. */
+  headingSlot?: ReactNode;
+  /** premium 전용 섹션 클래스(배경·세로 패딩). 기본/콜멘토는 고정 클래스라 무시된다. */
+  className?: string;
 };
 
 export default function MentorSection({
   mentors = [],
   variant = "default",
+  headingSlot,
+  className = "",
 }: MentorSectionProps) {
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
     itemCount: mentors.length,
@@ -32,34 +44,41 @@ export default function MentorSection({
     ? repeatIndices
     : mentors.map((_, index) => index);
   const isCallMentor = variant === "callmentor";
+  const isPremium = variant === "premium";
 
   return (
     <section
       aria-label="위닝 멘토"
       className={
-        isCallMentor
-          ? "mx-auto w-full max-w-[120rem] bg-[#F4F4F6] pt-10 pb-16 sm:pt-12 sm:pb-20 lg:pt-10 lg:pb-30"
-          : "mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-30"
+        isPremium
+          ? `mx-auto w-full max-w-[120rem] ${className}`
+          : isCallMentor
+            ? "mx-auto w-full max-w-[120rem] bg-[#F4F4F6] pt-10 pb-16 sm:pt-12 sm:pb-20 lg:pt-10 lg:pb-30"
+            : "mx-auto w-full max-w-[120rem] bg-white pt-10 pb-0 lg:pt-30"
       }
     >
       <div className="flex w-full flex-col gap-10">
-        <div className="mx-auto w-full max-w-content px-5 sm:px-8">
-          <p
-            className={`text-[1.25rem] font-normal leading-[1.3] ${isCallMentor ? "text-gold" : "text-accent"}`}
-          >
-            멘토스 소개
-          </p>
-          <h2 className="mt-2 break-keep text-left text-[2rem] font-semibold leading-[1.4] tracking-[-0.05rem]">
-            <span className={isCallMentor ? "text-gold" : "text-primary"}>
-              위닝과 함께 합격한 선배에게{" "}
-            </span>
-            <span
-              className={isCallMentor ? "text-[#0F172A]" : "text-[#808080]"}
+        {isPremium ? (
+          headingSlot
+        ) : (
+          <div className="mx-auto w-full max-w-content px-5 sm:px-8">
+            <p
+              className={`text-[1.25rem] font-normal leading-[1.3] ${isCallMentor ? "text-gold" : "text-accent"}`}
             >
-              멘토 상담을 받아보세요
-            </span>
-          </h2>
-        </div>
+              멘토스 소개
+            </p>
+            <h2 className="mt-2 break-keep text-left text-[2rem] font-semibold leading-[1.4] tracking-[-0.05rem]">
+              <span className={isCallMentor ? "text-gold" : "text-primary"}>
+                위닝과 함께 합격한 선배에게{" "}
+              </span>
+              <span
+                className={isCallMentor ? "text-[#0F172A]" : "text-[#808080]"}
+              >
+                멘토 상담을 받아보세요
+              </span>
+            </h2>
+          </div>
+        )}
 
         {/* 컨텐츠 폭 캡 무한 마퀴 스트립 — AcceptanceSection과 동일 구조(스크롤 컨테이너 +
             내부 w-max 리스트)로 공용 landing-marquee-mask를 사용해 콘텐츠 폭 1100px 경계

@@ -10,13 +10,15 @@ type TrackKey = (typeof TRACK_TABS)[number]["key"];
 
 // university_acceptances 활성 row(sort_order asc). 서브라벨은 subtitle 우선(예: '7명 합격',
 // '의예과'), 없으면 count 기반 'N명 합격' 폴백.
+// track 은 이 컴포넌트가 다루는 두 탭(TrackKey) 외에 "graduate"(대학원입학 프리미엄 전용,
+// PremiumAcceptanceMarquee)도 DB 체크 제약상 허용된다 — 여기선 항상 걸러지고 렌더되지 않는다.
 type University = {
   id: string;
   name: string;
   emblem_url?: string;
   subtitle?: string;
   count?: number | null;
-  track: TrackKey;
+  track: TrackKey | "graduate";
   sort_order?: number;
 };
 
@@ -178,12 +180,14 @@ export default function AcceptanceSection({
                         width="120"
                         height="120"
                         loading="lazy"
-                        className="h-30 w-30 object-contain"
+                        // MentorCard 렌더 스케일(156/210≈0.743)과 어울리도록 기존 120px(h/w-30)을
+                        // 같은 비율로 축소(120×0.743≈89px→h/w-22).
+                        className="h-22 w-22 object-contain"
                       />
                     ) : (
                       <span
                         aria-hidden="true"
-                        className="h-30 w-30 rounded-full bg-[#eef0f3]"
+                        className="h-22 w-22 rounded-full bg-[#eef0f3]"
                       />
                     )}
                     <p className="w-full px-2 text-center text-[1.25rem] font-medium leading-[1.3] text-ink">

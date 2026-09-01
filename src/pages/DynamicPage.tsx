@@ -35,8 +35,15 @@ type PageContent = {
   button_link?: string;
 };
 
-export default function DynamicPage() {
-  const { slug } = useParams();
+type DynamicPageProps = {
+  /** /page/premium/:program 래퍼(premiumRoutes.tsx)처럼 URL 파라미터가 아닌 조합된
+   * slug로 조회해야 할 때 명시적으로 넘긴다. 없으면 기존처럼 라우트 :slug를 그대로 쓴다. */
+  slug?: string;
+};
+
+export default function DynamicPage({ slug: slugProp }: DynamicPageProps) {
+  const params = useParams();
+  const slug = slugProp ?? params.slug;
 
   const [page, setPage] = useState<PageContent | null>(null);
   const [loading, setLoading] = useState(true);

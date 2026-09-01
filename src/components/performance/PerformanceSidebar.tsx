@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 
 // 수행평가 앱 좌측 고정 사이드바 — docs/수행평가-상세-명세.md §3.2(블록 실측) / §3.3(진행단계
 // 상태 머신) / §3.4(메뉴 라벨 정본). 프로필 · 메뉴 · 진행단계 3블록으로 구성된다.
@@ -19,6 +19,13 @@ import { Link, useLocation } from "react-router";
 // 좌표계: 시안 절대 y(프로필 100/130, 메뉴 라벨 291, 메뉴 pill 323·365, 진행단계 라벨 456,
 // 스텝 pill 486·523·560·597·634)를 flex column + gap으로 환산했다. 아래 여백 상수는 전부
 // 그 y좌표를 역산한 값이며, 주석에 원 좌표를 남겨 두었다(GoalSidebar와 같은 관례).
+//
+// ── 하단 "메인으로 나가기" (QA 행280)
+// 시안에 없는 표면이다 — 인앱에서 사이트 메인(`/`)으로 나갈 방법이 브라우저 뒤로가기뿐이라
+// 접수됐다. GoalSidebar 하단 유틸(`내 정보 수정`, 같은 자리 `mt-auto` + 같은 타이포)과
+// 위치·표기 관례를 맞췄다. 다만 그쪽은 순수 이동(NavLink)인 반면 여기는 진행 중인 채팅이
+// 끊길 수 있어 `window.confirm` 한 번을 거친 뒤에만 이동한다 — 그래서 `Link`가 아니라
+// `button` + `useNavigate`다.
 
 // §3.4 메뉴 라벨. 시안 원문은 `3754:3035` 한 노드만 `위닝 채팅`이고 나머지 전 인앱
 // 노드가 `위닝 AI 채팅`이라 후자가 정본이었으나, 사용자 지시로 화면 문구에서 "AI" 표기를
@@ -71,6 +78,11 @@ const STEP_STATE_STYLES: Record<
 // 그래서 기본값이 「전부 미도래」이고, 활성 스텝 없음은 예외가 아니라 정상 입력이다.
 const DEFAULT_STEP_STATES = ["todo", "todo", "todo", "todo", "todo"];
 
+// QA 행280 — 사이트 메인 경로 + 이동 전 확인 문구.
+const MAIN_SITE_PATH = "/";
+const LEAVE_TO_MAIN_CONFIRM_MESSAGE =
+  "진행 중인 내용은 자동 저장되지 않을 수 있습니다. 메인으로 이동할까요?";
+
 function CheckIcon() {
   return (
     <svg viewBox="0 0 12 12" aria-hidden="true" className="h-3 w-3">
@@ -105,6 +117,14 @@ export default function PerformanceSidebar({
   stepStates = DEFAULT_STEP_STATES as Array<"done" | "current" | "todo">,
 }: PerformanceSidebarProps) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+
+  function handleLeaveToMain() {
+    if (window.confirm(LEAVE_TO_MAIN_CONFIRM_MESSAGE)) {
+      navigate(MAIN_SITE_PATH);
+    }
+  }
+
   // `/app/performance/:sessionId`(새로고침 복구)도 채팅 화면이므로 `위닝 채팅`이 활성이어야
   // 한다. NavLink의 `end`만으로는 그 경로에서 활성이 꺼지므로 경로 판정을 직접 한다.
   // 두 항목은 상호 배타다 — `3754:3121`에서 pill이 `저장 리포트`(@10,365)로 **이동**하고
@@ -255,6 +275,17 @@ export default function PerformanceSidebar({
       {/* 회차(잔여 이용 횟수) UI는 여기 두지 않는다 — 인앱 21개 노드 어디에도 사이드바 회차
           표시가 없고(슬라이스 x<324 영역 텍스트 전수 확인), 회차 소진 안내 표면은 §5.20이
           정한 채팅 상단 배너 + STEP3 인라인 카드 2곳뿐이다(P15). */}
+
+      {/* 하단 유틸 — 메인으로 나가기(파일 상단 "하단 메인으로 나가기" 주석). */}
+      <div className="mt-auto px-2.5 pb-8 pt-8">
+        <button
+          type="button"
+          onClick={handleLeaveToMain}
+          className="block pl-12.5 text-left text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
+        >
+          메인으로 나가기
+        </button>
+      </div>
     </aside>
   );
 }

@@ -162,6 +162,18 @@ type AdminFileListItem =
 export type AdminConfig<T extends AdminRow = AdminRow> = {
   title: string;
   table?: string;
+  // 목록 조회만 다른 소스(조인 뷰)에서 읽어야 할 때 지정한다. 등록·수정·삭제는
+  // 그대로 table 로 간다 — 조인 뷰는 쓰기가 안 되기 때문이다 (QA 272).
+  listTable?: string;
+  // listTable 뷰에만 있고 원본 테이블에는 없는 파생 컬럼. 편집 폼은 목록 행을
+  // 그대로 form 으로 받으므로, 저장 때 이 키들을 빼지 않으면 원본 테이블에 없는
+  // 컬럼이 딸려가 42703 으로 죽는다.
+  listOnlyColumns?: string[];
+  // 목록 상단 드롭다운 필터. 선택지는 하드코딩하지 않고 **불러온 행의 해당 컬럼
+  // 실제 값**에서 뽑는다 — 종목·프로그램이 늘어도 화면만 옛 목록으로 남지 않는다
+  // (QA 227). 전량 로드 탭 전용이다(서버 페이지네이션 탭은 현재 페이지만 들고 있어
+  // 거기서 값을 뽑으면 선택지가 페이지마다 달라진다).
+  listFilter?: { key: string; allLabel: string };
   tabs?: { key: string; label: string }[];
   searchPlaceholder?: string;
   order?: string;
@@ -174,6 +186,15 @@ export type AdminConfig<T extends AdminRow = AdminRow> = {
   hideRowEdit?: boolean;
   showMetaEdit?: boolean;
   excel?: boolean;
+  // 목록 툴바의 「초기화」(재조회) 버튼을 숨긴다. 검색어를 지우는 버튼으로 오해돼
+  // 입력 중이던 조건이 날아간다는 지적이 있어 섹션별로 끌 수 있게 했다 (QA 272).
+  hideReset?: boolean;
+  // 다운로드가 개인정보 반출인 섹션. 켜면 [엑셀 다운로드]가 곧장 내려받지 않고
+  // 비밀번호 재확인 + 사유 기재 게이트(SensitiveActionGate)를 먼저 태우고,
+  // admin_access_logs 에 한 줄 남긴 뒤에야 진행한다 (QA 223·268·270·271).
+  sensitiveDownload?: boolean;
+  // 저장 직전 재확인 문구(QA A13) — Admin.tsx saveRow 가 window.confirm 으로 묻는다.
+  confirmBeforeSave?: string;
   noCreate?: boolean;
   readOnly?: boolean;
   fixedCategories?: string[];
@@ -665,6 +686,28 @@ export function AdminForm<T extends AdminRow = AdminRow>({
   const editorRefs = useRef(
     new Map<string, { current: BlockEditorHandle | null }>(),
   );
+
+  // 이번 편집 세션(이 AdminForm 마운트)에서 업로드된 banners 경로 → blockEditor
+  // 삽입분인지 여부. uploadImage 자체는 PremiumBookAdmin도 재사용하는 순수 모듈
+  // 스코프 함수라 여기(컴포넌트 레벨 ref)에서만 추적한다 — 그래야 마운트마다
+  // 격리되고 PremiumBookAdmin의 booklet.pdf 고정 경로 upsert(uploadImage를 아예
+  // 거치지 않음)와도 섞이지 않는다. 저장 시엔 blockEditor 삽입분을 diff 삭제
+  // 대상에서 제외하지만(주간 GC 몫, 고아 방지 스펙 1), 취소 시엔 전량 삭제
+  // 대상이다(스펙 2) — 그래서 값 하나만이 아니라 태그까지 들고 있는다.
+  const sessionUploadsRef = useRef<Map<string, boolean>>(new Map());
+
+  async function trackedUpload(
+    files: File | (File | null | undefined)[] | FileList | null | undefined,
+    field: Partial<AdminField<T>>,
+  ) {
+    const uploaded = await onUpload(files, field);
+    for (const item of uploaded || []) {
+      const path = bannerPathFromUrl(item.url);
+      if (path)
+        sessionUploadsRef.current.set(path, field.type === "blockEditor");
+    }
+    return uploaded;
+  }
   // 미리보기는 "미리보기" 버튼을 눌렀을 때 getBlocks()를 1회 호출한 스냅샷이다.
   // null이면 닫힘 — 라이브 갱신 없음, 에디터로 되돌아가는 데이터 경로 없음.
   const [previewPost, setPreviewPost] = useState<ColumnBodyPost | null>(null);
@@ -707,12 +750,70 @@ export function AdminForm<T extends AdminRow = AdminRow>({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [dirty]);
 
+  // 상세/편집 진입은 라우트가 아니라 이 컴포넌트의 마운트 여부(Admin.tsx의
+  // mode/editingRow state)로만 표현된다 — 즉 진입 시 URL·히스토리 엔트리가
+  // 하나도 안 쌓인다. 그 상태에서 브라우저 뒤로가기를 누르면 "이 폼을 닫는다"가
+  // 아니라 방문 히스토리상 직전 엔트리(보통 다른 메뉴)로 그대로 새어 나간다
+  // (QA 행317). 마운트 시 더미 엔트리를 하나 쌓아 그 간극을 메운다 — popstate가
+  // 오면 실제 뒤로 이동을 허용하는 대신 폼/모달만 닫고 소비한다.
+  // dirty/onCancel을 ref로 미러링하는 이유: 아래 effect는 deps를 []로 고정해
+  // "마운트당 정확히 1개 엔트리"를 보장해야 한다(dirty가 바뀔 때마다 새로
+  // push하면 뒤로가기 1회로 안 닫히는 엔트리가 쌓인다).
+  const dirtyRef = useRef(dirty);
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+  const onCancelRef = useRef(onCancel);
+  useEffect(() => {
+    onCancelRef.current = onCancel;
+  }, [onCancel]);
+  const pushedHistoryRef = useRef(false);
+  useEffect(() => {
+    pushedHistoryRef.current = true;
+    window.history.pushState({ __adminFormGuard: true }, "");
+
+    function handlePopState() {
+      if (!pushedHistoryRef.current) return;
+      pushedHistoryRef.current = false;
+      if (
+        dirtyRef.current &&
+        !window.confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")
+      ) {
+        // 이탈 취소 — 브라우저가 이미 소비한 엔트리를 다시 쌓아 가드를 복구한다.
+        pushedHistoryRef.current = true;
+        window.history.pushState({ __adminFormGuard: true }, "");
+        return;
+      }
+      onCancelRef.current();
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      // 저장/취소 등 정상 경로로 닫힐 때(=언마운트) 우리가 쌓은 엔트리가 아직
+      // 남아 있다면 한 번 소비해 히스토리를 정리한다(popstate 핸들러는 이미
+      // 위에서 떼어냈으므로 이 back()이 닫기 로직을 다시 발화시키지 않는다).
+      if (pushedHistoryRef.current) {
+        pushedHistoryRef.current = false;
+        window.history.back();
+      }
+    };
+  }, []);
+
   function handleCancel() {
     if (
       dirty &&
       !window.confirm("저장하지 않은 변경사항이 있습니다. 나가시겠습니까?")
     )
       return;
+
+    // 고아 방지 스펙 2: 저장 없이 폼을 나가면 이번 세션에 업로드한 파일은
+    // (blockEditor 삽입분 포함) 전부 고아가 된다 — best-effort로 지운다.
+    if (sessionUploadsRef.current.size > 0) {
+      removeBannerPaths(sessionUploadsRef.current.keys());
+      sessionUploadsRef.current.clear();
+    }
+
     onCancel();
   }
 
@@ -751,7 +852,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
 
-    const uploaded = await onUpload(files, field);
+    const uploaded = await trackedUpload(files, field);
     if (!uploaded || uploaded.length === 0) return;
 
     if (field.type === "multiImage") {
@@ -782,9 +883,11 @@ export function AdminForm<T extends AdminRow = AdminRow>({
     );
   }
 
-  function submit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
+  // 저장 본체. DOM <form>에 의존하지 않는 순수 상태 기반 경로다 — required
+  // 검사도 form state를 읽지 네이티브 검증이 아니다. 그래서 <form>이 아예
+  // 렌더되지 않는 모드 A(아래 origin === 'list' 조기 반환)에서도 모달이 이
+  // 함수를 직접 호출해 폼 하단 [저장]과 같은 검증·저장을 태울 수 있다.
+  function saveForm() {
     if (readonly) {
       onCancel();
       return;
@@ -831,14 +934,91 @@ export function AdminForm<T extends AdminRow = AdminRow>({
       }
     }
 
+    // 고아 방지 스펙 1: 편집 시작 시점 원본(row)에는 있었지만 최종 저장 값엔
+    // 없는 구 경로 + 이번 세션 중 업로드했으나 최종 값에 남지 않은 중간
+    // 교체분을 지운다. blockEditor 삽입분은 diff 대상에서 제외한다(true로
+    // 태깅된 항목 — 주간 GC가 수거).
+    const bannerFields = (config.fields || []).filter(
+      (field) =>
+        field.type === "image" ||
+        field.type === "multiImage" ||
+        field.type === "multiFile",
+    );
+    const originalBannerPaths = collectBannerPaths(row, bannerFields);
+    const finalBannerPaths = collectBannerPaths(merged, bannerFields);
+    const bannerPathsToDelete = new Set<string>();
+    for (const path of originalBannerPaths) {
+      if (!finalBannerPaths.has(path)) bannerPathsToDelete.add(path);
+    }
+    for (const [path, isBlockEditor] of sessionUploadsRef.current) {
+      if (!isBlockEditor && !finalBannerPaths.has(path))
+        bannerPathsToDelete.add(path);
+    }
+    sessionUploadsRef.current.clear();
+    if (bannerPathsToDelete.size > 0) removeBannerPaths(bannerPathsToDelete);
+
     setDirty(false);
     onSave(merged);
+  }
+
+  // <form onSubmit> 어댑터 — 모드 B의 requestSubmit()이 HTML 검증을 태운 뒤
+  // 도달하는 지점. 저장 로직 자체는 saveForm 한 벌이다.
+  function submit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    saveForm();
   }
 
   // 모달 본문에 넣을 카테고리 필드 3개(문서 json / 원문 raw / html 미러).
   const groupFields = (config.fields || []).filter(
     (field) => field.group === modalSection,
   );
+
+  // 편집 다이얼로그(shadcn Dialog 셸). 두 렌더 경로(모드 A 조기 반환 / 모드 B
+  // 폼 화면)가 공유한다.
+  //   모드 A(origin === 'list'): 목록 [수정] 직행. <form>이 렌더되지 않으므로
+  //     저장은 saveForm 직접 호출 — requestSubmit과 달리 네이티브 HTML 검증이
+  //     없지만, 이 모드의 폼 값은 rowToForm(row)이 채운 기존 행 값 그대로라
+  //     required 검사는 saveForm의 상태 기반 검사로 충분하다.
+  //   모드 B(origin === 'form'): 기존 계약 유지 — requestSubmit()이 HTML 검증을
+  //     정상적으로 태워 폼 하단 [저장]과 완전히 동일한 경로가 된다(:660 주석).
+  const sectionEditModal = (
+    <AdmissionSectionEditModal
+      open={Boolean(modalSection)}
+      {...(modalSection !== null ? { sectionKey: modalSection } : {})}
+      {...(modalSection !== null
+        ? {
+            sectionLabel:
+              HWP_SECTION_LABELS[modalSection as SectionKey] || modalSection,
+          }
+        : {})}
+      universityName={form.university_name}
+      dirty={dirty}
+      origin={origin}
+      onClose={closeSectionModal}
+      onSave={
+        origin === "list" ? saveForm : () => formRef.current?.requestSubmit()
+      }
+    >
+      {groupFields.map((field) => (
+        <AdmissionGroupField key={field.key} field={field}>
+          <AdmissionDocFieldEditor
+            field={field}
+            form={form}
+            onPatch={patch}
+            onDirty={() => setDirty(true)}
+          />
+        </AdmissionGroupField>
+      ))}
+    </AdmissionSectionEditModal>
+  );
+
+  // 모드 A: 목록 [수정] 진입은 **모달만** 화면에 존재한다. 예전엔 여기서도
+  // 전체 편집 폼 화면을 렌더하고 그 위에 모달을 얹었는데(반투명 백드롭 뒤로
+  // 사용자가 본 적 없는 폼 UI가 비쳐 보이는 문제), AdminForm은 이제 이 모드
+  // 에서 상태·저장 엔진으로만 살고 화면 JSX는 만들지 않는다 — 뒤에는 목록
+  // 라우트 화면이 그대로 남는다... 는 아니고 AdminTable이 언마운트된 빈
+  // 섹션 배경 위에 모달이 뜬다(목록 유지는 Admin.tsx 렌더 분기 소관).
+  if (origin === "list") return sectionEditModal;
 
   return (
     // 모달을 <form>의 **형제**로 둔다. 편집 input이 <form> 안에 있으면 셀에서
@@ -1014,7 +1194,10 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                   : undefined)
                               }
                               uploadFile={async (file) => {
-                                const uploaded = await onUpload(file, field);
+                                const uploaded = await trackedUpload(
+                                  file,
+                                  field,
+                                );
                                 if (!uploaded?.[0]?.url)
                                   throw new Error(
                                     "이미지 업로드에 실패했습니다.",
@@ -1047,7 +1230,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                 accept="image/*"
                                 className="hidden"
                                 onChange={async (e) => {
-                                  const uploaded = await onUpload(
+                                  const uploaded = await trackedUpload(
                                     e.target.files?.[0],
                                     field,
                                   );
@@ -1086,7 +1269,7 @@ export function AdminForm<T extends AdminRow = AdminRow>({
                                 accept={field.accept || "*"}
                                 className="hidden"
                                 onChange={async (e) => {
-                                  const uploaded = await onUpload(
+                                  const uploaded = await trackedUpload(
                                     e.target.files?.[0],
                                     field,
                                   );
@@ -1284,39 +1467,9 @@ export function AdminForm<T extends AdminRow = AdminRow>({
         />
       </form>
 
-      {/* 공개 모달과 **같은 껍데기**(AdmissionModalShell)를 쓰는 편집
-          다이얼로그. 본문만 뷰어 대신 편집 필드를 넣는다. */}
-      <AdmissionSectionEditModal
-        open={Boolean(modalSection)}
-        {...(modalSection !== null ? { sectionKey: modalSection } : {})}
-        {...(modalSection !== null
-          ? {
-              sectionLabel:
-                HWP_SECTION_LABELS[modalSection as SectionKey] || modalSection,
-            }
-          : {})}
-        universityName={form.university_name}
-        dirty={dirty}
-        origin={origin}
-        onClose={closeSectionModal}
-        // 저장은 폼 하단 [저장]과 **완전히 같은 단일 경로**다: requestSubmit →
-        // submit(required 검사 → config.validate confirm) → onSave(merged) →
-        // saveRow → formToPayload → update().eq('id') → setMode('list').
-        // AdminForm이 언마운트되면서 모달도 함께 사라지고 목록으로 돌아간다 —
-        // 공개 모달(닫으면 목록)과 같은 루프다. 부분 저장 경로는 만들지 않는다.
-        onSave={() => formRef.current?.requestSubmit()}
-      >
-        {groupFields.map((field) => (
-          <AdmissionGroupField key={field.key} field={field}>
-            <AdmissionDocFieldEditor
-              field={field}
-              form={form}
-              onPatch={patch}
-              onDirty={() => setDirty(true)}
-            />
-          </AdmissionGroupField>
-        ))}
-      </AdmissionSectionEditModal>
+      {/* 모드 B(폼 화면의 ✏️ 진입) 편집 다이얼로그 — 정의는 위 sectionEditModal.
+          저장은 requestSubmit 경유라 폼 하단 [저장]과 완전히 같은 단일 경로다. */}
+      {sectionEditModal}
     </>
   );
 }
@@ -1755,6 +1908,75 @@ export function AdminTable<T extends AdminRow = AdminRow>({
 
 const IMAGE_BUCKET = "banners";
 
+const BANNERS_PUBLIC_PATH_MARKER = "/storage/v1/object/public/banners/";
+
+// banners 버킷 공개 URL에서 스토리지 경로만 뽑아낸다(고아 파일 정리 대상 판별용).
+// 마커가 없으면(banners 버킷 외 URL, 외부 URL) null — 그런 값은 건드리지 않는다.
+export function bannerPathFromUrl(url: unknown): string | null {
+  if (typeof url !== "string" || !url) return null;
+  const markerIndex = url.indexOf(BANNERS_PUBLIC_PATH_MARKER);
+  if (markerIndex === -1) return null;
+  const raw = url.slice(markerIndex + BANNERS_PUBLIC_PATH_MARKER.length);
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+// image/multiImage/multiFile 필드 값에서 참조 중인 banners 경로 전체를 모은다.
+// blockEditor는 의도적으로 제외한다 — 본문 삽입 이미지는 주간 GC가 수거하는 별도
+// 경로다(고아 방지 스펙 1). multiImage/multiFile 항목은 문자열(URL) 또는
+// {url,...} 객체 두 형태를 다 가질 수 있다(AdminFileListItem 타입 주석과 동일 계약).
+export function collectBannerPaths(
+  source: AdminRow | null | undefined,
+  fields: Partial<AdminField>[] | null | undefined,
+): Set<string> {
+  const paths = new Set<string>();
+  if (!source || !fields) return paths;
+
+  for (const field of fields) {
+    if (!field.key) continue;
+
+    if (field.type === "image") {
+      const path = bannerPathFromUrl(source[field.key]);
+      if (path) paths.add(path);
+      continue;
+    }
+
+    if (field.type !== "multiImage" && field.type !== "multiFile") continue;
+
+    for (const item of normalizeArray(source[field.key])) {
+      const url =
+        typeof item === "string" ? item : (item as { url?: string })?.url;
+      const path = bannerPathFromUrl(url);
+      if (path) paths.add(path);
+    }
+  }
+
+  return paths;
+}
+
+// best-effort 삭제(고아 방지 스펙 4) — 실패해도 throw하지 않고 warn만 남긴다.
+// 저장/취소/행삭제 UX를 막으면 안 되므로 호출부는 await 없이 fire-and-forget으로
+// 불러도 안전하다.
+export async function removeBannerPaths(
+  paths: Iterable<string>,
+): Promise<void> {
+  const unique = [...new Set(paths)].filter(Boolean);
+  if (unique.length === 0) return;
+
+  const { error } = await supabase.storage.from(IMAGE_BUCKET).remove(unique);
+  if (error) {
+    console.warn(
+      "banners 고아 파일 삭제 실패(best-effort, 무시하고 진행)",
+      error,
+      unique,
+    );
+  }
+}
+
 const COMPRESS_THRESHOLD_BYTES = 500 * 1024;
 
 function formatFileSize(bytes: number) {
@@ -1954,6 +2176,15 @@ export async function uploadImage(
       size: file.size,
       type: file.type,
     });
+  }
+
+  // 다중 업로드에서 일부만 실패하면 성공분만 조용히 반영돼 누락이 무증상으로
+  // 남는다(2026-08-31 분석 2-c). 건별 alert 와 별개로 합계를 한 번 더 알린다.
+  const failedCount = fileList.length - uploaded.length;
+  if (failedCount > 0 && uploaded.length > 0) {
+    alert(
+      `${fileList.length}개 중 ${failedCount}개는 업로드되지 않았습니다. 성공한 파일만 반영됩니다.`,
+    );
   }
 
   return uploaded;

@@ -1,14 +1,20 @@
-import { ExternalLink, RefreshCw, Search } from "lucide-react";
+import { Download, ExternalLink, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
 import { supabase } from "@/lib/supabase";
 import { AdminTable } from "@/pages/admin/shared/AdminEngine";
-import { normalizeArray, searchable } from "@/pages/admin/shared/csvExport";
+import {
+  downloadCsv,
+  normalizeArray,
+  searchable,
+} from "@/pages/admin/shared/csvExport";
 import {
   ActionButton,
   Field,
   MENTOR_APPLICATION_STATUS_OPTIONS,
   Select,
 } from "@/pages/admin/shared/formFields";
+import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 
 // ---------------------------------------------------------------------------
 // 멘토 신청 내역(mentorApplications) — CONFIGS.mentorApplications 참고.
@@ -111,6 +117,30 @@ const MENTOR_APPLICATION_DETAIL_SECTIONS: MentorApplicationDetailSection[] = [
   },
 ];
 
+// 증빙 파일이 "없다"고 안내하는 단일 문구 — 경로 자체가 비었을 때와 스토리지에
+// 객체가 없을 때가 어드민 입장에선 같은 상황이라 문구를 하나로 묶는다(QA 318).
+const PROOF_FILE_MISSING_MESSAGE = "등록된 증빙 파일이 없습니다.";
+
+// createSignedUrl 이 "객체 없음"으로 실패했는지 판정한다.
+//
+// dev 실측 응답(2026-08-31, HTTP 400):
+//   { statusCode: "404", error: "not_found", message: "Object not found", code: "NoSuchKey" }
+// supabase-js 는 이걸 StorageError 로 감싸는데, 그 클래스가 노출하는 필드는
+// message / status(number) / statusCode(string) 뿐이라(@supabase/storage-js
+// lib/common/errors.ts) code("NoSuchKey")로는 판정할 수 없다. statusCode 를 1순위로
+// 보고, 문구 매칭은 스토리지가 필드 구성을 바꿀 때를 대비한 폴백이다.
+export function isObjectNotFound(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const { statusCode, message } = error as {
+    statusCode?: unknown;
+    message?: unknown;
+  };
+  if (String(statusCode ?? "") === "404") return true;
+  return String(message ?? "")
+    .toLowerCase()
+    .includes("not found");
+}
+
 function formatDateTime(value: unknown): string {
   if (!value) return "-";
   const date = new Date(value as string | number | Date);
@@ -147,6 +177,8 @@ interface MentorApplicationsAdminProps {
   config: {
     title: string;
     searchPlaceholder?: string;
+    // 목록 렌더(AdminTable)와 QA 270·228 다운로드가 함께 읽는다.
+    columns: { key: string; label: string; type?: string | undefined }[];
     [key: string]: unknown;
   };
 }
@@ -161,6 +193,12 @@ export default function MentorApplicationsAdmin({
   const [selected, setSelected] = useState<MentorApplicationRow | null>(null); // 상세로 연 행. null이면 목록.
   const [statusDraft, setStatusDraft] = useState("");
   const [savingStatus, setSavingStatus] = useState(false);
+
+  // QA 317 — 상세에서 뒤로가기가 목록으로 돌아오게 한다.
+  useAdminDetailBack(Boolean(selected), () => setSelected(null));
+
+  // 개인정보 반출 게이트 (QA 270 · 228 — 228 이 먼저 요청, 270 이 재요청).
+  const { requestAccess, gate } = useSensitiveActionGate();
 
   async function loadRows() {
     setLoading(true);
@@ -195,6 +233,36 @@ export default function MentorApplicationsAdmin({
     if (!q) return rows;
     return rows.filter((row) => searchable(row).includes(q));
   }, [rows, keyword]);
+
+  // QA 270·228 — 멘토 신청 내역 다운로드. 목록은 휴대폰을 maskedPhone 으로 가리지만
+  // 게이트를 통과한 파일에는 원본을 담는다(MembersAdmin.exportMembers 와 같은 판단).
+  function exportApplications() {
+    const columns = config.columns.map((column) =>
+      column.type === "maskedPhone" ? { ...column, type: undefined } : column,
+    );
+
+    downloadCsv(
+      `${config.title}_${new Date().toISOString().slice(0, 10)}.csv`,
+      filteredRows as unknown as Record<string, unknown>[],
+      columns,
+    );
+  }
+
+  function requestExport() {
+    if (filteredRows.length === 0) {
+      alert("내보낼 데이터가 없습니다.");
+      return;
+    }
+
+    requestAccess({
+      action: "download",
+      resourceKey: "mentorApplications",
+      title: "멘토 신청 내역 다운로드",
+      description: `멘토 지원자 ${filteredRows.length.toLocaleString()}건의 개인정보(이름·대학·휴대폰)가 CSV 파일로 저장됩니다.`,
+      rowCount: filteredRows.length,
+      onGranted: exportApplications,
+    });
+  }
 
   function openDetail(row: MentorApplicationRow) {
     setSelected(row);
@@ -242,7 +310,7 @@ export default function MentorApplicationsAdmin({
   // 여는 일회성 열람이고, 증빙 파일에 개인정보(성적표 등)가 담겨 있어 길게 잡을 이유가 없다.
   async function openProofFile() {
     if (!selected?.proof_file_path) {
-      alert("첨부된 증빙 파일이 없습니다.");
+      alert(PROOF_FILE_MISSING_MESSAGE);
       return;
     }
 
@@ -251,8 +319,14 @@ export default function MentorApplicationsAdmin({
       .createSignedUrl(selected.proof_file_path, 60);
 
     if (error || !data?.signedUrl) {
+      // 경로는 있는데 객체가 없는 경우(행은 남고 파일만 사라졌거나, 업로드가 2단계
+      // 흐름 중간에 끊긴 경우)를 "없음"으로 흡수한다 — 어드민에게 원문
+      // "Object not found"를 그대로 던지면 시스템 장애처럼 읽힌다(QA 318).
+      // 그 외 실패(권한·네트워크)는 원문을 남겨야 원인을 좁힐 수 있으므로 구분한다.
       alert(
-        `증빙 파일 열람 실패: ${error?.message || "서명 URL을 가져오지 못했습니다."}`,
+        isObjectNotFound(error)
+          ? PROOF_FILE_MISSING_MESSAGE
+          : `증빙 파일 열람 실패: ${error?.message || "서명 URL을 가져오지 못했습니다."}`,
       );
       return;
     }
@@ -351,16 +425,29 @@ export default function MentorApplicationsAdmin({
 
   return (
     <div>
+      {gate}
+
       <div className="mb-6 bg-white px-6 py-5 shadow-sm">
         <div className="flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={loadRows}
-            className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
-          >
-            <RefreshCw size={14} />
-            초기화
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={loadRows}
+              className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+            >
+              <RefreshCw size={14} />
+              초기화
+            </button>
+
+            <button
+              type="button"
+              onClick={requestExport}
+              className="inline-flex h-9 items-center gap-2 border border-gray-500 bg-white px-4 text-sm font-bold"
+            >
+              <Download size={14} />
+              엑셀 다운로드
+            </button>
+          </div>
 
           <div className="flex items-center">
             <input

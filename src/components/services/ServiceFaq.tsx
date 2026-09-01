@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
 
 // FAQ 아코디언(단일 open).
@@ -14,7 +15,10 @@ import { useState } from "react";
 // 접근성 보강: 기준에는 aria-expanded 만 있었다. 여기에 aria-controls + 답변 id 연결을
 // 추가한다(시각 회귀 0).
 
-type FaqEntry = { q: string; a: string };
+// badge는 선택 필드다(2026-08-27 QA C8) — 소비처(멘토신청 FAQ)가 "공지" 항목 앞에 작은
+// 배지를 붙이기 위해 추가했다. 기존 4개 서비스 페이지는 이 필드를 넘기지 않으므로
+// undefined로 아무것도 렌더하지 않아 시각 회귀가 없다.
+type FaqEntry = { q: string; a: string; badge?: ReactNode };
 
 type FaqItemProps = {
   item: FaqEntry;
@@ -37,6 +41,7 @@ function FaqItem({ item, index, isOpen, onToggle }: FaqItemProps) {
         className="flex w-full items-center justify-between gap-4 text-left"
       >
         <span className="break-keep text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-ink">
+          {item.badge}
           {item.q}
         </span>
         {/* chevron 24 × 0.766 = 18.4px. 색 #808080 → #767676 상향. */}

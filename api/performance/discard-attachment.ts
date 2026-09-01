@@ -36,13 +36,13 @@
 //    "객체는 지웠는데 행이 남은" 상태이고, 그 행은 pending이라 24시간 스윕이
 //    정리한다(remove는 이미 없는 객체에 대해 에러가 아니다).
 
-import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { VercelResponse } from "@vercel/node";
+import { defineHandler, requireUserId } from "../_lib/handler.js";
+import { sendError } from "../_lib/httpResponse.js";
 import {
-  getBearerToken,
   hasPaidServiceAccess,
   SERVICE_CONFIGS,
 } from "../_lib/serviceAccess.js";
-import { createSupabaseAdmin } from "../_lib/supabaseAdmin.js";
 import { BUCKET } from "./upload-url.js";
 
 const SERVICE_KEY = "suhaeng";
@@ -57,41 +57,25 @@ function fail(
   message: string,
   extra?: Record<string, unknown>,
 ) {
-  return res.status(status).json({ error: { code, message }, ...extra });
+  sendError(res, "coded", status, message, code, extra);
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return fail(res, 405, "METHOD_NOT_ALLOWED", "POST만 허용됩니다.");
-  }
-
-  res.setHeader("Cache-Control", "no-store");
-
-  let supabaseAdmin: ReturnType<typeof createSupabaseAdmin>;
-  try {
-    supabaseAdmin = createSupabaseAdmin();
-  } catch (error) {
-    console.error("performance/discard-attachment 설정 오류:", error);
-    return fail(res, 500, "INTERNAL", "서버 설정이 올바르지 않습니다.");
-  }
-
-  try {
-    const token = getBearerToken(req as { headers: Record<string, string> });
-    if (!token) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const { data: userData, error: userError } =
-      await supabaseAdmin.auth.getUser(token);
-    if (userError || !userData?.user?.id) {
-      return fail(res, 401, "UNAUTHENTICATED", "로그인이 필요합니다.");
-    }
-
-    const userId = userData.user.id;
+export default defineHandler({
+  methods: ["POST"],
+  auth: "user",
+  errorShape: "coded",
+  methodNotAllowedMessage: "POST만 허용됩니다.",
+  methodNotAllowedCode: "METHOD_NOT_ALLOWED",
+  unhandledMessage: "사진 취소에 실패했습니다.",
+  unhandledCode: "INTERNAL",
+  logLabel: "performance/discard-attachment",
+  headers: { "Cache-Control": "no-store" },
+  handler: async (req, res, ctx) => {
+    const userId = requireUserId(ctx);
 
     // 이용권 재판정 — §8.6 공통 규약(다른 performance 라우트와 같은 관례).
     const { allowed: hasAccess } = await hasPaidServiceAccess(
-      supabaseAdmin,
+      ctx.supabaseAdmin,
       userId,
       // SERVICE_KEY("suhaeng")는 SERVICE_CONFIGS에 항상 존재하는 상수 키.
       SERVICE_CONFIGS[SERVICE_KEY]!,
@@ -130,7 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 세션 소유권 — service_role이라 RLS가 우회되므로 이 조건이 유일한 방어선이다.
-    const { data: sessionRow, error: sessionError } = await supabaseAdmin
+    const { data: sessionRow, error: sessionError } = await ctx.supabaseAdmin
       .from("performance_sessions")
       .select("id")
       .eq("id", sessionId)
@@ -151,12 +135,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // 첨부 조회는 **세션에 묶어서** 한다(analyze-guide.js와 같은 IDOR 차단 방식).
     // 없는 id와 남의 첨부를 같은 403으로 합친다(존재 오라클 방지).
-    const { data: attachmentRow, error: attachmentError } = await supabaseAdmin
-      .from("performance_attachments")
-      .select("id,storage_path,ocr_status,deleted_at")
-      .eq("id", attachmentId)
-      .eq("session_id", sessionRow.id)
-      .maybeSingle();
+    const { data: attachmentRow, error: attachmentError } =
+      await ctx.supabaseAdmin
+        .from("performance_attachments")
+        .select("id,storage_path,ocr_status,deleted_at")
+        .eq("id", attachmentId)
+        .eq("session_id", sessionRow.id)
+        .maybeSingle();
 
     if (attachmentError)
       throw new Error(`첨부 조회 실패: ${attachmentError.message}`);
@@ -181,7 +166,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Storage 먼저(파일 상단 주석). 경로는 DB 값이다.
     if (attachmentRow.storage_path && !attachmentRow.deleted_at) {
-      const { error: removeError } = await supabaseAdmin.storage
+      const { error: removeError } = await ctx.supabaseAdmin.storage
         .from(BUCKET)
         .remove([attachmentRow.storage_path]);
 
@@ -201,7 +186,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const { error: deleteError } = await supabaseAdmin
+    const { error: deleteError } = await ctx.supabaseAdmin
       .from("performance_attachments")
       .delete()
       .eq("id", attachmentRow.id)
@@ -210,15 +195,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (deleteError)
       throw new Error(`첨부 행 삭제 실패: ${deleteError.message}`);
 
-    return res
-      .status(200)
-      .json({ discarded: true, attachmentId: attachmentRow.id });
-  } catch (error) {
-    // 원 예외 메시지를 응답에 싣지 않는다(§8.6 공통 규약 「실패 응답」).
-    console.error("performance/discard-attachment error:", error);
-    return fail(res, 500, "INTERNAL", "사진 취소에 실패했습니다.");
-  }
-}
+    res.status(200).json({ discarded: true, attachmentId: attachmentRow.id });
+  },
+});
 
 // 실행 시간: 모델을 부르지 않으므로 형제 라우트의 `maxDuration: 60`이 필요 없다.
 export const config = { runtime: "nodejs" };

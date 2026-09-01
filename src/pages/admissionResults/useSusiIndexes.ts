@@ -70,6 +70,14 @@ export function useSusiUniversities(skip: boolean) {
 // Q2 — 모집단위 목록 (대학 선택 시). universityKey가 비어 있으면 즉시 빈 목록으로 리셋한다.
 export function useSusiDepartments(universityKey: string, skip: boolean) {
   const [departments, setDepartments] = useState<DepartmentIndexRow[]>([]);
+  // departments가 실제로 어느 universityKey에 대해 조회된 것인지 표시한다(QA 리뷰 — B3).
+  // universityKey가 A→B로 바뀌면 이 훅의 fetch effect는 커밋 이후에야 실행되므로,
+  // 그 사이 최소 한 렌더는 "universityKey=B인데 departments는 아직 A의 목록"인 상태가
+  // 남는다. 소비처(AdmissionResults.tsx)가 이 지연을 모르고 "departments에 없는
+  // department_key"를 즉시 무효로 판단하면, URL 동기화로 university+department를 함께
+  // 세팅한 직후 아직 안 갈아치워진 A의 목록을 기준으로 B의 department_key를 오판·제거한다.
+  // departmentsKey === universityKey일 때만 departments가 신뢰할 수 있는 스냅샷이다.
+  const [departmentsKey, setDepartmentsKey] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
@@ -78,6 +86,7 @@ export function useSusiDepartments(universityKey: string, skip: boolean) {
   useEffect(() => {
     if (skip || !universityKey) {
       setDepartments([]);
+      setDepartmentsKey(universityKey);
       setError(false);
       setLoading(false);
       return undefined;
@@ -90,6 +99,7 @@ export function useSusiDepartments(universityKey: string, skip: boolean) {
       const { data, error } = await fetchSusiDepartments(universityKey);
       if (!alive) return;
       setDepartments(data);
+      setDepartmentsKey(universityKey);
       setError(Boolean(error));
       setLoading(false);
     }
@@ -101,7 +111,7 @@ export function useSusiDepartments(universityKey: string, skip: boolean) {
 
   const retry = useCallback(() => setReloadToken((token) => token + 1), []);
 
-  return { departments, loading, error, retry };
+  return { departments, departmentsKey, loading, error, retry };
 }
 
 // Q4 — 지금 뜨고 있는 학과. 실패하면 섹션을 통째로 감춘다(부가 정보라 에러 UI를 띄우지 않는다).

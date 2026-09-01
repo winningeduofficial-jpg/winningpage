@@ -24,6 +24,7 @@ import {
   PAID_MESSAGE,
   updateWorkbookOwned,
 } from "../_lib/goalRepo.js";
+import { sendError } from "../_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
@@ -163,13 +164,18 @@ function validateUpdateBody(body: unknown) {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!["GET", "POST", "PUT", "DELETE"].includes(req.method || "")) {
-    return res.status(405).json({ detail: "Method not allowed" });
+    return sendError(res, "detail", 405, "Method not allowed");
   }
 
   try {
     const session = await openGoalSession(req);
     if (session.error) {
-      return res.status(session.error.status).json(session.error.body);
+      return sendError(
+        res,
+        "detail",
+        session.error.status,
+        session.error.body.detail as string,
+      );
     }
 
     const { allowed } = session;
@@ -256,6 +262,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ ok: true });
   } catch (error) {
     console.error("goal/workbooks error:", error);
-    return res.status(500).json({ detail: "처리 중 오류가 발생했습니다." });
+    return sendError(res, "detail", 500, "처리 중 오류가 발생했습니다.");
   }
 }

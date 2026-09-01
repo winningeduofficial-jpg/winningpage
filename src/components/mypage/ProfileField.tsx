@@ -16,6 +16,9 @@ type ProfileFieldProps = {
   placeholder?: string;
   type?: string;
   readOnly?: boolean;
+  /** 과도 입력으로 인한 UI 깨짐 방지(QA 행266). ProfileField 자체 렌더 <input>에만 적용된다 —
+   * children으로 커스텀 입력을 넘기는 필드(예: 학교·학년)는 호출부가 직접 줘야 한다. */
+  maxLength?: number;
   /** 예: '변경' */
   actionLabel?: string;
   onAction?: () => void;
@@ -34,6 +37,7 @@ export default function ProfileField({
   placeholder,
   type = "text",
   readOnly = false,
+  maxLength,
   actionLabel,
   onAction,
   actionDisabled = false,
@@ -71,6 +75,7 @@ export default function ProfileField({
             onBlur={onBlur}
             placeholder={placeholder}
             readOnly={readOnly}
+            maxLength={maxLength}
             className={`h-13 w-full rounded-xl border border-line px-5 text-base text-ink outline-hidden transition placeholder:text-ink-sub focus:border-primary ${
               readOnly ? "bg-surface-footer text-ink-sub" : ""
             }`}
