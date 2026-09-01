@@ -200,7 +200,34 @@ async function mintSession(email) {
       refresh_token: session.refresh_token,
       user: session.user,
     }),
+    accessToken: session.access_token,
   };
+}
+
+// 사용자 자격으로 rpc 호출 — fn_refund_quote 는 auth.uid() 소유권 검사를 하므로
+// service role(무 auth 컨텍스트)로 부르면 WC005 가 난다. 기대값 산정은 화면과
+// 같은 자격(당사자 세션)으로 불러야 한다.
+async function rpcAsUser(email, fn, args) {
+  const { accessToken } = await mintSession(email);
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: {
+      apikey: ANON_KEY,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(args),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok)
+    return {
+      data: null,
+      error: {
+        message: body?.message || `HTTP ${res.status}`,
+        code: body?.code,
+      },
+    };
+  return { data: body, error: null };
 }
 
 // 흐름마다 완전히 새 컨텍스트 — storageState 공유 금지(세션별 격리 원칙).
@@ -218,8 +245,11 @@ async function freshPage(browser, email) {
 }
 
 async function openRefundModalFromHistory(page, orderId) {
-  await page.goto(`${APP_ORIGIN}/mypage`, { waitUntil: "domcontentloaded" });
-  await page.getByRole("tab", { name: /결제/ }).first().click();
+  // 결제 탭은 쿼리스트링으로 직접 진입한다 — MyPageTabs 는 role="tab" 없는
+  // Link 라 getByRole('tab') 로는 잡히지 않는다(useMyPageTab 의 ?tab= 지원).
+  await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, {
+    waitUntil: "domcontentloaded",
+  });
   // 지난 결제내역에서 해당 주문 행 → 상세 모달 → 환불 신청.
   await page
     .getByText(orderId.replace(/^order_/, ""), { exact: false })
@@ -256,7 +286,8 @@ try {
       .select("id, product_slug")
       .eq("order_id", orderId);
     const suhaengItem = itemRows.find((r) => r.product_slug === "suhaeng-2");
-    const { data: quoteRows, error: qErr } = await admin.rpc(
+    const { data: quoteRows, error: qErr } = await rpcAsUser(
+      parent.email,
       "fn_refund_quote",
       {
         p_order_id: orderId,
@@ -270,6 +301,12 @@ try {
     await openRefundModalFromHistory(page, orderId);
 
     // 항목 2개짜리 주문 — 체크박스 목록이 떠야 한다(전체 선택 기본).
+    // 목록은 fn_refund_quote 응답 후에 렌더되므로 먼저 나타나기를 기다린다.
+    await page
+      .locator('input[type="checkbox"]')
+      .first()
+      .waitFor({ timeout: 15_000 })
+      .catch(() => {});
     const goalBox = page
       .getByRole("checkbox", { name: /목표관리|goal/i })
       .first();
@@ -395,10 +432,10 @@ try {
     // 학부모가 승인(학부모 세션 — 새 격리 컨텍스트).
     {
       const { context, page } = await freshPage(browser, parent.email);
-      await page.goto(`${APP_ORIGIN}/mypage`, {
+      // 결제 탭 직접 진입(openRefundModalFromHistory 와 같은 사유 — role="tab" 없음).
+      await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, {
         waitUntil: "domcontentloaded",
       });
-      await page.getByRole("tab", { name: /결제/ }).first().click();
       await page
         .getByText(orderId.replace(/^order_/, ""), { exact: false })
         .first()
