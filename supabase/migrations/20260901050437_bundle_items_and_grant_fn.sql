@@ -56,7 +56,28 @@ comment on policy "bundle_items_select_all" on public.bundle_items is
   'products 와 동일한 공개 수준 — 카탈로그 조회는 누구나. 쓰기 정책은 없다(어드민 화면 없음, seed/수기 UPDATE 전용 — products 와 동일 운영 방식).';
 
 -- ---------------------------------------------------------------------
--- 2) fn_grant_program_access_for_order — 번들 분기 추가
+-- 2) program_access_grants_live_item_uniq — order_item_id 단독 유니크를
+--    (order_item_id, program_key) 복합으로 교체
+--
+--    왜: baseline(20260821000000)의 이 유니크 인덱스는 "라인 하나(order_
+--    item_id)당 살아있는 부여 하나"를 전제한다. 번들 분기(아래 3절)는 상품
+--    라인 하나가 bundle_items 행 수만큼(부산 9,900 은 3개) program_access_
+--    grants 를 만든다 — order_item_id 는 세 행 모두 같으므로 원래 인덱스로는
+--    두 번째 INSERT 부터 23505(program_access_grants_live_item_uniq)로
+--    죽는다. 부분 인덱스 조건(order_item_id is not null and revoked_at is
+--    null)은 그대로 두고 컬럼만 program_key 를 더해, "라인+권한 조합당
+--    살아있는 부여 하나"로 좁힌다 — 단일 상품 경로(order_item_id 하나에
+--    program_key 하나)는 의미가 그대로 보존된다.
+-- ---------------------------------------------------------------------
+
+drop index if exists public.program_access_grants_live_item_uniq;
+
+create unique index program_access_grants_live_item_uniq
+  on public.program_access_grants (order_item_id, program_key)
+  where (order_item_id is not null and revoked_at is null);
+
+-- ---------------------------------------------------------------------
+-- 3) fn_grant_program_access_for_order — 번들 분기 추가
 --
 --    20260901001438 최신판 전체를 기반으로 재정의한다. 바뀌는 곳:
 --      (a) 루프 안에서 v_item.product_id 에 bundle_items 행이 있으면
