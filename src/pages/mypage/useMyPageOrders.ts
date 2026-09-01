@@ -55,6 +55,12 @@ export type Refund = {
   approval_status?: string;
   student_profile_id?: string;
   created_at?: string;
+  // v10 부분해지 — 산정 라인 배열(jsonb). 원소 키는 quote 산정 시점 버전에 따라
+  // 다르므로(레거시 v9는 order_item_id 없음) 소비 측에서 방어적으로 파싱한다.
+  quote?: unknown;
+  // NULL 이면 주문 전체 환불, 값이 있으면 그 order_item_id 들만 대상인 부분해지.
+  order_item_ids?: number[] | null;
+  terms_version?: string;
 };
 
 // 결제 내역 + 환불 신청 내역. user가 정해지면 1회 로드하고, reload는 결제/환불
@@ -121,7 +127,7 @@ export function useMyPageOrders(user: SessionUser | null) {
       supabase
         .from("refund_requests")
         .select(
-          "id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at",
+          "id, order_id, order_name, amount, gross_amount, reason, status, approval_status, student_profile_id, created_at, quote, order_item_ids, terms_version",
         )
         // orders 와 같은 이유로 쌍 두 축을 함께 본다 — refund_requests.user_id 는
         // "신청한 사람"이라, 학부모가 신청한 환불을 학생이 못 보거나 그 반대가 된다.

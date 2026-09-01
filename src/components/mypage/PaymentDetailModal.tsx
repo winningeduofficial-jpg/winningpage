@@ -110,7 +110,11 @@ export default function PaymentDetailModal({
   //
   // 학생·학부모 둘 다 신청할 수 있다. 학생이 신청하면 학부모 확인 단계를
   // 거친다(확정 디자인 3967:3561 "환불을 요청할게요").
-  const canRequestRefund = status === "paid";
+  //
+  // 일부 환불(refund_partial, v10 부분해지 완료)은 종결이 아니다 — 열린 신청이
+  // 없고 잔여 구성서비스가 살아 있는 상태라, 남은 항목의 재신청 경로를 열어
+  // 둔다(서버도 회수된 라인만 WC060 으로 거르고 잔여 신청은 받는다).
+  const canRequestRefund = status === "paid" || status === "refund_partial";
 
   // 영수증은 결제가 실제로 이뤄진 건에만 있다 — superseded(대체됨)·
   // enrollment_parent_rejected(반려) 주문은 결제된 적이 없어 영수증을

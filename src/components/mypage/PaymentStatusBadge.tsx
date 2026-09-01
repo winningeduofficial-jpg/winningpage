@@ -66,6 +66,10 @@ const STATUS_STYLES: Record<string, { label: string; cls: string }> = {
   refund_processing: { label: "환불 진행 중", cls: "bg-[#f7dad8] text-error" },
 
   refund_completed: { label: "환불 완료", cls: "bg-[#e3f3e8] text-[#2e7d4f]" },
+  // v10 구성서비스 단위 부분해지 완료 — 주문은 아직 살아있으므로(status
+  // 'paid') 종결 톤인 refund_completed(초록)과 구분해 진행 계열 파랑으로 둔다.
+  // ⚠ 신규 카피 — 승인 필요.
+  refund_partial: { label: "일부 환불", cls: "bg-[#e9f4ff] text-accent" },
   refund_rejected: { label: "환불 반려", cls: "bg-[#f7dad8] text-error" },
 
   // 자녀가 보낸 결제 요청에 학부모가 아직 승인/거절을 안 함
