@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useBundleCompositionMap } from "@/components/mypage/bundleComposition";
 import MyPageModalShell from "@/components/mypage/MyPageModalShell";
 import ModalFooter from "@/components/mypage/modal/ModalFooter";
 import RefundAmountSummary from "@/components/mypage/modal/RefundAmountSummary";
@@ -41,6 +42,7 @@ const RESPOND_UNKNOWN_ERROR_TEXT =
 
 type RefundRequestRow = {
   id: string;
+  order_id?: string;
   order_name?: string;
   amount: number;
   gross_amount?: number | null;
@@ -54,6 +56,7 @@ type RefundRequestRow = {
 };
 
 type RefundQuoteLine = {
+  order_item_id?: number;
   item_name?: string;
   paid_allocated?: number;
   refund?: number;
@@ -92,6 +95,34 @@ export default function RefundApprovalModal({
   const [refundBank, setRefundBank] = useState("");
   const [refundAccount, setRefundAccount] = useState("");
   const [refundHolder, setRefundHolder] = useState("");
+
+  // order_item_id → product_id — 구성 이용권 내역(bundleComposition) 조회
+  // 키. RefundRequestModal과 같은 근거로 직접 읽는다(request prop에는
+  // product_id가 없다).
+  const [orderItemProductIds, setOrderItemProductIds] = useState<
+    Record<number, string | null>
+  >({});
+  const bundleMap = useBundleCompositionMap(Object.values(orderItemProductIds));
+
+  useEffect(() => {
+    setOrderItemProductIds({});
+    const orderId = request?.order_id;
+    if (!open || !orderId) return;
+    let alive = true;
+    supabase
+      .from("order_items")
+      .select("id, product_id")
+      .eq("order_id", orderId)
+      .then(({ data, error }) => {
+        if (!alive || error || !data) return;
+        const map: Record<number, string | null> = {};
+        for (const row of data) map[row.id] = row.product_id ?? null;
+        setOrderItemProductIds(map);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [open, request?.order_id]);
 
   const isVirtualAccountOrder = Boolean(virtualAccount);
 
@@ -268,6 +299,30 @@ export default function RefundApprovalModal({
             {request.order_name}
           </p>
 
+          {/* 구성 이용권 내역(bundleComposition) — 라인이 1개뿐(번들, 부분환불
+              없음)이라 아래 "항목별 내역" 박스가 안 뜰 때만 제목 바로 아래
+              붙는다. 금액 없이 구성만 — RefundRequestModal과 같은 방침. */}
+          {quoteLines.length === 1 &&
+            (() => {
+              const soleLine = quoteLines[0];
+              const note =
+                soleLine != null
+                  ? (bundleMap.get(
+                      orderItemProductIds[soleLine.order_item_id ?? -1] || "",
+                    ) ?? [])
+                  : [];
+              if (note.length === 0) return null;
+              return (
+                <div className="mt-1.5 flex flex-col gap-0.5 pl-1">
+                  {note.map((line) => (
+                    <p key={line} className="text-xs text-ink-sub">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              );
+            })()}
+
           {/* ⚠ 신규 카피 — 승인 필요. */}
           {isPartial && (
             <p className="mt-2 break-keep text-[0.8125rem] leading-relaxed text-ink-sub">
@@ -279,17 +334,31 @@ export default function RefundApprovalModal({
           {quoteLines.length >= 2 && (
             <div className="mt-3 flex flex-col gap-1 rounded-xl bg-surface-04 px-4 py-3 text-[0.8125rem]">
               <p className="font-semibold text-ink">항목별 내역</p>
-              {quoteLines.map((line, i) => (
-                <div
-                  key={line.item_name ?? i}
-                  className="flex items-center justify-between text-ink-sub"
-                >
-                  <span>{line.item_name ?? "-"}</span>
-                  <span className="text-ink-strong">
-                    {formatKRW(line.refund ?? 0)}
-                  </span>
-                </div>
-              ))}
+              {quoteLines.map((line, i) => {
+                const note =
+                  bundleMap.get(
+                    orderItemProductIds[line.order_item_id ?? -1] || "",
+                  ) ?? [];
+                return (
+                  <div key={line.item_name ?? i}>
+                    <div className="flex items-center justify-between text-ink-sub">
+                      <span>{line.item_name ?? "-"}</span>
+                      <span className="text-ink-strong">
+                        {formatKRW(line.refund ?? 0)}
+                      </span>
+                    </div>
+                    {note.length > 0 && (
+                      <div className="flex flex-col gap-0.5 pl-3">
+                        {note.map((n) => (
+                          <p key={n} className="text-xs text-ink-sub">
+                            {n}
+                          </p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
 
