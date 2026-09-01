@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import ChangeEmailModal from "./ChangeEmailModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ChangePhoneModal from "./ChangePhoneModal";
+import OrgCodeModal from "./OrgCodeModal";
 import ProfileField from "./ProfileField";
 import ToggleRow from "./ToggleRow";
 import UnlinkParentModal from "./UnlinkParentModal";
@@ -94,6 +95,7 @@ type Profile = {
   school_name?: string;
   birth_date?: string | null;
   gender?: string | null;
+  org_code?: string | null;
 };
 
 type ParentLink = {
@@ -131,6 +133,7 @@ export default function ProfileTab({
     school_name: profile?.school_name || "",
     birth_date: profile?.birth_date || "",
     gender: profile?.gender || "",
+    org_code: profile?.org_code || "",
   });
   const [toggles, setToggles] = useState({
     marketing_agreed: false,
@@ -141,6 +144,7 @@ export default function ProfileTab({
   const [emailOpen, setEmailOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  const [orgCodeOpen, setOrgCodeOpen] = useState(false);
 
   // 학교·학년 인라인 편집.
   const [editingSchool, setEditingSchool] = useState(false);
@@ -172,7 +176,7 @@ export default function ProfileTab({
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "name, email, phone, school_type, school_name, birth_date, gender, marketing_agreed, ads_agreed",
+          "name, email, phone, school_type, school_name, birth_date, gender, org_code, marketing_agreed, ads_agreed",
         )
         .eq("id", profileId)
         .maybeSingle();
@@ -188,6 +192,7 @@ export default function ProfileTab({
         school_name: data.school_name ?? prev.school_name,
         birth_date: data.birth_date ?? prev.birth_date,
         gender: data.gender ?? prev.gender,
+        org_code: data.org_code ?? prev.org_code,
       }));
       setToggles({
         marketing_agreed: Boolean(data.marketing_agreed),
@@ -477,6 +482,20 @@ export default function ProfileTab({
         </ProfileField>
       )}
 
+      {/* 소속코드 — 학생 전용, 가입 시 안 넣은 경우 여기서 입력/수정한다(태스크5,
+          2026-09-01). 검증 규칙 없음(자유 텍스트) — 가입 폼(StudentForm.tsx
+          "소속코드 (선택)")과 라벨·placeholder 톤을 맞춘다. */}
+      {!isParent && (
+        <ProfileField
+          label="소속코드"
+          value={form.org_code || "-"}
+          readOnly
+          actionLabel={form.org_code ? "변경" : "입력"}
+          onAction={() => setOrgCodeOpen(true)}
+          className="mb-5"
+        />
+      )}
+
       {/* 휴대폰 번호 — 변경은 모달(카카오 인증번호) 경유, 인라인 즉시저장 아님
           (Figma 3973:15330→16090→16297→16478, ChangePhoneModal.jsx). */}
       <ProfileField
@@ -613,6 +632,17 @@ export default function ProfileTab({
         linkId={parentLink?.id ?? null}
         onClose={() => setUnlinkOpen(false)}
         onSuccess={() => setParentLink(null)}
+      />
+
+      <OrgCodeModal
+        open={orgCodeOpen}
+        {...(profileId !== undefined && { profileId })}
+        currentOrgCode={form.org_code}
+        onClose={() => setOrgCodeOpen(false)}
+        onChanged={(orgCode) => {
+          updateForm("org_code", orgCode);
+          window.dispatchEvent(new Event("winning-profile-updated"));
+        }}
       />
     </div>
   );
