@@ -1,9 +1,12 @@
-import { useEffect, useId, useRef } from "react";
+import MyPageModalShell from "./MyPageModalShell";
+import ModalFooter from "./modal/ModalFooter";
 
-// 환불 신청 접수 완료 모달 (Figma 3762:19708) — 확인 버튼 1개짜리 단순 안내 모달이라
-// AppModal(취소/저장 2버튼 고정)과 footer 형태가 달라 독립 구현한다.
-const FOCUSABLE_SELECTOR =
-  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
+// 환불 신청 접수 완료 모달 (Figma 3762:19708) — 확인 버튼 1개짜리 단순 안내 모달.
+//
+// 예전엔 AppModal(취소/저장 2버튼 고정)과 footer 형태가 달라 ESC/포커스 트랩/
+// 배경 스크롤 잠금을 직접 구현한 수제 오버레이였다. 결제 탭 모달 6종 통일
+// 작업(2026-09)으로 그 수동 구현을 걷어내고 MyPageModalShell(shadcn
+// Dialog/Base UI 내장 동작)로 옮긴다.
 
 type RefundNoticeModalProps = {
   open: boolean;
@@ -18,71 +21,28 @@ export default function RefundNoticeModal({
   parentName = "",
   onClose,
 }: RefundNoticeModalProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  const triggerElRef = useRef<Element | null>(null);
-  const titleId = useId();
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    triggerElRef.current = document.activeElement;
-    const { style } = document.body;
-    const previousOverflow = style.overflow;
-    style.overflow = "hidden";
-
-    return () => {
-      style.overflow = previousOverflow;
-      const trigger = triggerElRef.current;
-      if (trigger instanceof HTMLElement) trigger.focus();
-      triggerElRef.current = null;
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const raf = requestAnimationFrame(() => {
-      panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR)?.focus();
-    });
-    return () => cancelAnimationFrame(raf);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return undefined;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        onClose?.();
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, onClose]);
-
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-100 flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className="relative flex w-135 flex-col items-center rounded-xl bg-white px-8.75 py-12.5 text-center shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
-      >
-        <h2
-          id={titleId}
-          className="text-[1.25rem] font-bold leading-[1.4] text-ink-strong"
-        >
-          {asStudent ? "환불 요청을 보냈어요" : "환불 신청이 접수됐어요"}
-        </h2>
+    <MyPageModalShell
+      open={open}
+      onClose={onClose}
+      size="md"
+      title={asStudent ? "환불 요청을 보냈어요" : "환불 신청이 접수됐어요"}
+      footer={
+        <ModalFooter
+          buttons={[
+            {
+              key: "confirm",
+              label: "확인",
+              variant: "primary",
+              onClick: onClose,
+            },
+          ]}
+        />
+      }
+    >
+      <div className="px-8.75 pb-2.5 text-center">
         {/* 학생 완료 문구는 확정 디자인 3967:3933 실측. 학생 요청은 곧바로
             환불되지 않고 학부모 확인을 거치므로 안내가 달라야 한다. */}
         {asStudent ? (
@@ -101,15 +61,7 @@ export default function RefundNoticeModal({
             진행 상황은 결제 내역에서 확인할 수 있어요.
           </p>
         )}
-
-        <button
-          type="button"
-          onClick={onClose}
-          className="mt-7.5 h-10 w-37.5 rounded-lg bg-primary text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
-        >
-          확인
-        </button>
       </div>
-    </div>
+    </MyPageModalShell>
   );
 }

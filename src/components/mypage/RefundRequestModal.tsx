@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { formatKRW } from "@/data/pricingCatalog";
 import type { VirtualAccountInfo } from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
 import MyPageModalShell from "./MyPageModalShell";
+import ModalFooter from "./modal/ModalFooter";
+import RefundAmountSummary from "./modal/RefundAmountSummary";
 import RefundAccountFields from "./RefundAccountFields";
 
 // 환불 신청 모달 (Figma 3665:6635).
@@ -141,8 +143,6 @@ export default function RefundRequestModal({
   onSubmitted,
   onStaleData,
 }: RefundRequestModalProps) {
-  const titleId = useId();
-
   const [quote, setQuote] = useState<RefundQuote | null>(null);
   // 모달이 열릴 때 받은 "주문 전체" 산정 — 전체 선택으로 되돌아갈 때 재호출 없이
   // 재사용한다.
@@ -429,26 +429,43 @@ export default function RefundRequestModal({
     <MyPageModalShell
       open={open}
       onClose={onClose}
-      labelledBy={titleId}
-      className="w-104"
-    >
-      <div className="flex-1 overflow-y-auto px-6 pt-8">
-        <h2
-          id={titleId}
-          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title"
-        >
-          {asStudent ? "환불을 요청할게요" : "환불을 신청할게요"}
-        </h2>
-
-        {/* 학생 모드 안내(3967:3561 실측) — 결제 주체가 학부모라는 사실과
-            요청이 어디로 가는지를 먼저 알려준다. */}
-        {asStudent && (
-          <p className="mt-4 break-keep text-center text-[0.8125rem] leading-[1.6] text-ink-sub">
+      size="sm"
+      title={asStudent ? "환불을 요청할게요" : "환불을 신청할게요"}
+      // 학생 모드 안내(3967:3561 실측) — 결제 주체가 학부모라는 사실과 요청이
+      // 어디로 가는지를 먼저 알려준다. 학부모 모드는 부제가 없다.
+      subtitle={
+        asStudent ? (
+          <>
             결제는 {parentName ? `${parentName} ` : ""}학부모님이 하셨어요. 환불
             요청을 보내면 학부모님이 확인 후 환불을 진행합니다.
-          </p>
-        )}
-
+          </>
+        ) : undefined
+      }
+      footer={
+        <ModalFooter
+          buttons={[
+            {
+              key: "cancel",
+              label: "취소",
+              variant: "neutral",
+              onClick: onClose,
+            },
+            {
+              key: "submit",
+              label: saving
+                ? "접수 중..."
+                : asStudent
+                  ? "환불 요청 하기"
+                  : "환불 하기",
+              variant: "destructive",
+              disabled: !canSubmit,
+              onClick: handleSubmit,
+            },
+          ]}
+        />
+      }
+    >
+      <div className="flex-1 overflow-y-auto px-6">
         {/* 취소/환불 규정 안내 */}
         <p className="mt-6 text-[0.8125rem] font-semibold text-ink">
           취소/환불 규정 안내
@@ -529,53 +546,31 @@ export default function RefundRequestModal({
                 <p className="mt-3 text-[0.875rem] text-error">{quoteError}</p>
               );
             return (
-              <div className="mt-3 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-[0.875rem]">
-                  <span className="text-ink-sub">결제 금액</span>
-                  <span className="text-ink-strong">
-                    {formatKRW(grossAmount)}
-                  </span>
-                </div>
+              <div>
                 {/* 일부 선택(scope='items')일 때만 — 선택 범위의 결제액을
-                    별도로 보여준다. 전체 선택이면 결제 금액과 같아 생략한다.
-                    라벨은 약관 [별표 2] 1단계 문언 "안분결제액" 그대로
-                    (사용자 확정 2026-09-01). */}
-                {quote?.scope === "items" && selectedPaidSum !== null && (
-                  <div className="flex items-center justify-between text-[0.875rem]">
-                    <span className="text-ink-sub">안분결제액</span>
-                    <span className="text-ink-strong">
-                      {formatKRW(selectedPaidSum)}
-                    </span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-[0.875rem]">
-                  <span className="text-ink-sub">이용분 공제</span>
-                  <span className="text-error">
-                    {/* 이 분기(loading=false, quoteError="")는 fetch 성공 후
-                        setQuote(row)까지 끝난 상태라 usageDeduction은 항상 non-null이다. */}
-                    {usageDeduction! > 0
-                      ? `-${formatKRW(usageDeduction!)}`
-                      : formatKRW(0)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between border-t border-line pt-2 text-[0.9375rem] font-semibold">
-                  {/* 약관 [별표 2] 최종 단계 문언 "최종 환불액" 그대로
-                      (사용자 확정 2026-09-01). */}
-                  <span className="text-ink">최종 환불액</span>
-                  <span className="text-ink-strong">
-                    {formatKRW(refundAmount)}
-                  </span>
-                </div>
+                    RefundAmountSummary의 안분결제액 행으로 별도 보여준다.
+                    전체 선택이면 결제 금액과 같아 생략한다. */}
+                <RefundAmountSummary
+                  gross={grossAmount}
+                  paidAllocated={
+                    quote?.scope === "items" ? selectedPaidSum : undefined
+                  }
+                  // 이 분기(loading=false, quoteError="")는 fetch 성공 후
+                  // setQuote(row)까지 끝난 상태라 usageDeduction/refundAmount는
+                  // 항상 non-null이다.
+                  fee={usageDeduction}
+                  refund={refundAmount ?? 0}
+                />
 
                 {policyText && (
-                  <p className="break-keep text-[0.75rem] leading-relaxed text-ink-sub">
+                  <p className="mt-2 break-keep text-[0.75rem] leading-relaxed text-ink-sub">
                     {policyText}
                   </p>
                 )}
 
                 {quote?.coupon_restore && (
                   // ⚠ 신규 카피 — 승인 필요.
-                  <p className="break-keep text-[0.75rem] leading-relaxed text-ink-sub">
+                  <p className="mt-2 break-keep text-[0.75rem] leading-relaxed text-ink-sub">
                     결제에 사용한 쿠폰은 환불 완료 시 복원됩니다.
                   </p>
                 )}
@@ -658,28 +653,6 @@ export default function RefundRequestModal({
         {submitError && (
           <p className="mt-4 text-[0.875rem] text-error">{submitError}</p>
         )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 px-6 py-5">
-        <button
-          type="button"
-          onClick={onClose}
-          className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30"
-        >
-          취소
-        </button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          className={`h-12 rounded-xl text-[0.875rem] font-semibold text-white transition ${
-            canSubmit
-              ? "bg-error hover:bg-error/90"
-              : "cursor-not-allowed bg-line"
-          }`}
-        >
-          {saving ? "접수 중..." : asStudent ? "환불 요청 하기" : "환불 하기"}
-        </button>
       </div>
     </MyPageModalShell>
   );
