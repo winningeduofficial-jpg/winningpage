@@ -54,6 +54,18 @@ const POLICY_TEXT = {
   mixed: "상품별 규정에 따라 각각 산정한 금액을 합산했습니다.",
   no_grant: "이용 내역을 확인한 뒤 환불 금액이 확정됩니다.",
   period_unbounded: "이용 내역을 확인한 뒤 환불 금액이 확정됩니다.",
+  // fn_refund_quote Ver10(20260901) 신규 코드. ⚠ 신규 카피 — 승인 필요.
+  expired:
+    "이용 기간(유효기간)이 만료되어 환불 가능 금액이 없습니다(이용약관 제33조의1 ⑤·⑥).",
+  // ⚠ 신규 카피 — 승인 필요.
+  free_item:
+    "무상으로 제공된 상품은 환불 금액 산정에서 제외됩니다(이용약관 제33조의3 ⑥).",
+  // ⚠ 신규 카피 — 승인 필요.
+  period_monthly_tier:
+    "이용한 개월수는 정가 기준으로 정산하고 남은 기간을 환불합니다(이용약관 제33조의1 ②·⑪).",
+  // ⚠ 신규 카피 — 승인 필요.
+  period_monthly_tier_noreprice:
+    "청약철회 기간 내 신청으로, 결제 금액 기준으로 이용분만 제외하고 환불됩니다(이용약관 제32조·제33조의1 ②).",
 };
 
 // fn_request_refund 의 서버측 거부 사유. WC005~WC007 문구는 기존
@@ -70,6 +82,12 @@ const REFUND_ERROR_TEXT = {
   // 받을 기회가 없다. 프런트가 이미 필수 입력으로 막지만, RPC 직접 호출
   // 등으로 우회하면 서버가 여기서 막는다(RefundApprovalModal과 동일 문구).
   WC058: "가상계좌 환불은 환불계좌(은행/계좌번호/예금주) 입력이 필요합니다.",
+  // 구성서비스 부분해지(fn_refund_quote Ver10, 20260901) — 대상 항목이 이미
+  // 회수됐거나 주문에 없다. ⚠ 신규 카피 — 승인 필요.
+  WC060: "선택한 항목은 환불할 수 없는 상태입니다. 화면을 새로고침해 주세요.",
+  // 열린 다른 신청과 대상 항목이 겹친다(부분해지 축, WC007과 별도).
+  // ⚠ 신규 카피 — 승인 필요.
+  WC061: "선택한 항목에 이미 진행 중인 환불 신청이 있습니다.",
 };
 const REFUND_UNKNOWN_ERROR_TEXT =
   "환불 신청에 실패했습니다. 잠시 후 다시 시도해 주세요.";
@@ -84,11 +102,24 @@ type RefundOrder = {
   virtual_account?: VirtualAccountInfo | null;
 };
 
+// fn_refund_quote lines(jsonb) 원소 — 체크박스 렌더·표시에 쓰는 필드만.
+type QuoteLine = {
+  order_item_id: number;
+  item_name: string;
+  paid_allocated: number;
+  refund: number;
+  policy_code?: string;
+};
+
 type RefundQuote = {
   refund_amount: number;
   fee_amount: number;
   gross_amount?: number;
   policy_code?: string;
+  // Ver10(20260901) 신규 필드 — 구성서비스 부분해지.
+  scope?: string;
+  coupon_restore?: boolean;
+  lines?: QuoteLine[];
 };
 
 type RefundRequestModalProps = {
@@ -113,6 +144,14 @@ export default function RefundRequestModal({
   const titleId = useId();
 
   const [quote, setQuote] = useState<RefundQuote | null>(null);
+  // 모달이 열릴 때 받은 "주문 전체" 산정 — 전체 선택으로 되돌아갈 때 재호출 없이
+  // 재사용한다.
+  const [fullQuote, setFullQuote] = useState<RefundQuote | null>(null);
+  // 체크박스 목록 — 최초 응답 기준으로 고정한다(부분 재산정 응답은 선택된
+  // 라인만 담고 있어 목록으로 쓰면 체크박스가 사라진다). 2개 이상일 때만 값을
+  // 채운다 — 1개 이하면 구성서비스 선택 UI 자체가 없다.
+  const [allLines, setAllLines] = useState<QuoteLine[] | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [quoteError, setQuoteError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -142,6 +181,9 @@ export default function RefundRequestModal({
 
     setLoading(true);
     setQuote(null);
+    setFullQuote(null);
+    setAllLines(null);
+    setSelectedIds(new Set());
     setQuoteError("");
     setReason("");
     setEtcText("");
@@ -174,6 +216,18 @@ export default function RefundRequestModal({
         return;
       }
       setQuote(row);
+      setFullQuote(row);
+
+      // 구성서비스가 2개 이상인 주문만 부분해지 체크박스를 보여준다. 기본값은
+      // 전체 선택 — 지금까지의 "주문 전체 환불" 동작과 결과가 같다.
+      const rowLines: QuoteLine[] = Array.isArray(row.lines) ? row.lines : [];
+      if (rowLines.length >= 2) {
+        setAllLines(rowLines);
+        setSelectedIds(new Set(rowLines.map((l) => l.order_item_id)));
+      } else {
+        setAllLines(null);
+        setSelectedIds(new Set());
+      }
     })();
 
     return () => {
@@ -181,8 +235,72 @@ export default function RefundRequestModal({
     };
   }, [open, orderId]);
 
+  // 선택 집합이 바뀔 때마다 재산정한다. 전체 선택이면 위에서 이미 받은
+  // fullQuote 를 재사용하고(재호출 없음), 0개면 재산정 자체를 하지 않는다
+  // (제출도 막는다 — 아래 canSubmit).
+  useEffect(() => {
+    if (!open || !orderId || !allLines) return undefined;
+
+    if (selectedIds.size === allLines.length) {
+      if (fullQuote) setQuote(fullQuote);
+      return undefined;
+    }
+    if (selectedIds.size === 0) return undefined;
+
+    let alive = true;
+    setLoading(true);
+    setQuoteError("");
+
+    (async () => {
+      const { data, error } = await supabase.rpc("fn_refund_quote", {
+        p_order_id: orderId,
+        p_order_item_ids: Array.from(selectedIds),
+      });
+
+      if (!alive) return;
+      setLoading(false);
+
+      if (error) {
+        console.error("환불 금액 재산정 실패:", error);
+        setQuoteError(REFUND_ERROR_TEXT[error.code] || QUOTE_LOAD_ERROR_TEXT);
+        return;
+      }
+
+      const row = Array.isArray(data) ? data[0] : data;
+      if (!row) {
+        setQuoteError(QUOTE_LOAD_ERROR_TEXT);
+        return;
+      }
+      setQuote(row);
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [open, orderId, allLines, selectedIds, fullQuote]);
+
+  const toggleSelected = useCallback((id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  // 체크박스 UI가 있는 주문(allLines 존재)에서 일부만 선택된 상태인지 —
+  // 전체 선택이면 p_order_item_ids 를 생략해 주문 전체 신청과 동일하게 보낸다.
+  const isPartialSelection =
+    Boolean(allLines) && selectedIds.size < (allLines?.length ?? 0);
+
   const handleSubmit = useCallback(async () => {
     if (!orderId || saving) return;
+    // 체크박스 UI가 있는데 0개 선택이면 제출하지 않는다(버튼도 비활성화되지만
+    // 방어적으로 한 번 더 막는다).
+    if (allLines && selectedIds.size === 0) return;
 
     const finalReason = reason === ETC_REASON ? etcText.trim() : reason;
     if (!finalReason) return;
@@ -194,6 +312,12 @@ export default function RefundRequestModal({
     const { error } = await supabase.rpc("fn_request_refund", {
       p_order_id: orderId,
       p_reason: finalReason,
+      // 구성서비스 일부만 선택했을 때만 실어 보낸다 — 전체 선택은 생략해야
+      // 서버가 scope='order' 로 산정한다(§2-10, 전체를 배열로 넘겨도 서버가
+      // 승격은 하지만 의도를 명확히 하는 쪽을 따른다).
+      ...(isPartialSelection
+        ? { p_order_item_ids: Array.from(selectedIds) }
+        : {}),
       // 가상계좌 결제 건만 실어 보낸다 — 카드 결제 건에 빈 문자열을 보내면
       // fn_request_refund 가 저장은 하되(스키마상 막지 않는다) 의미 없는 값이
       // refund_requests 에 남는다.
@@ -216,12 +340,19 @@ export default function RefundRequestModal({
           : REFUND_UNKNOWN_ERROR_TEXT,
       );
 
-      // 서버가 "이미 신청이 있다"(WC007) 또는 "이미 환불 완료"(WC037)라고
-      // 하면 화면의 환불 목록이 낡았다는 뜻이다 — 이 화면을 연 뒤에(또는 다른
-      // 탭/기기에서) 신청이 생긴 경우다. 목록을 다시 읽어 표의 상태 배지가
-      // '환불 진행 중'으로 바뀌게 하고, 그러면 진입 버튼도 사라진다.
+      // 서버가 "이미 신청이 있다"(WC007) · "이미 환불 완료"(WC037) · "대상
+      // 항목이 유효하지 않다"(WC060) · "대상 항목이 열린 신청과 겹친다"(WC061)
+      // 라고 하면 화면의 환불 목록/구성서비스 상태가 낡았다는 뜻이다 — 이
+      // 화면을 연 뒤에(또는 다른 탭/기기에서) 상태가 바뀐 경우다. 목록을 다시
+      // 읽어 표의 상태 배지가 갱신되게 하고, 그러면 진입 버튼도 사라진다.
       // 이걸 안 하면 사용자가 같은 버튼을 계속 눌러 같은 에러만 반복해서 본다.
-      if (error.code === "WC007" || error.code === "WC037") onStaleData?.();
+      if (
+        error.code === "WC007" ||
+        error.code === "WC037" ||
+        error.code === "WC060" ||
+        error.code === "WC061"
+      )
+        onStaleData?.();
       return;
     }
 
@@ -237,13 +368,34 @@ export default function RefundRequestModal({
     refundBank,
     refundAccount,
     refundHolder,
+    allLines,
+    selectedIds,
+    isPartialSelection,
   ]);
 
   if (!open || !order) return null;
 
   const refundAmount = quote ? Number(quote.refund_amount) : null;
-  const feeAmount = quote ? Number(quote.fee_amount) : null;
   const grossAmount = quote ? Number(quote.gross_amount) : Number(order.amount);
+
+  // gross_amount 는 scope 와 무관하게 항상 "주문 전체" 결제액이다(fn_refund_quote
+  // 는 v_order.amount 를 그대로 돌려준다). 일부 선택(scope='items')일 때는 그
+  // 위에 "선택 항목 결제액"(선택된 라인의 안분결제액 합)을 별도로 보여준다.
+  const selectedPaidSum =
+    quote?.scope === "items" && quote.lines
+      ? quote.lines.reduce((sum, line) => sum + Number(line.paid_allocated), 0)
+      : null;
+
+  // "이용분 공제" = 이번 산정의 기준액(전체 선택이면 결제 금액, 일부 선택이면
+  // 선택 항목 결제액) − 환불 금액. 이전의 "취소 수수료"(quote.fee_amount) 행을
+  // 대체한다 — 부분해지에서는 fee_amount 가 주문 전체 기준이라 화면에 보이는
+  // 선택 범위와 안 맞는다.
+  const usageBase =
+    quote?.scope === "items" && selectedPaidSum !== null
+      ? selectedPaidSum
+      : grossAmount;
+  const usageDeduction =
+    refundAmount !== null ? Math.max(usageBase - refundAmount, 0) : null;
 
   // 산정액이 0원이면 신청 버튼을 막는다. 신청을 접수시키면 학부모 본인 신청은
   // 즉시 승인(approval_status='approved')으로 들어가고, 어드민이 완료 처리하는
@@ -260,12 +412,15 @@ export default function RefundRequestModal({
     (Boolean(refundBank) &&
       refundAccount.trim().length > 0 &&
       refundHolder.trim().length > 0);
+  // 구성서비스 체크박스가 있는 주문(allLines 존재)은 최소 1개 선택돼야 한다.
+  const hasValidSelection = !allLines || selectedIds.size > 0;
   const canSubmit =
     !loading &&
     !quoteError &&
     !blockedByPolicy &&
     reasonFilled &&
     accountFieldsFilled &&
+    hasValidSelection &&
     !saving;
 
   const policyText = quote ? POLICY_TEXT[quote.policy_code || ""] : "";
@@ -311,6 +466,49 @@ export default function RefundRequestModal({
             {order.order_name}
           </p>
 
+          {/* 구성서비스 선택(fn_refund_quote Ver10, 20260901) — 시안에 없는
+              신규 UI. 구성서비스가 2개 이상인 주문에서만 나타난다. 기본은
+              전체 선택 — 이 목록은 최초 응답 기준으로 고정한다(위 allLines
+              주석 참고). 섹션 안내 문구 자체는 디자인 확인 필요. */}
+          {allLines && allLines.length >= 2 && (
+            <div className="mt-3 flex flex-col gap-2">
+              {allLines.map((line) => {
+                const checked = selectedIds.has(line.order_item_id);
+                return (
+                  <label
+                    key={line.order_item_id}
+                    className={`flex h-11 cursor-pointer items-center gap-3 rounded-xl border px-4 transition ${
+                      checked ? "border-accent bg-surface-info" : "border-line"
+                    } ${loading ? "opacity-60" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={loading}
+                      onChange={() => toggleSelected(line.order_item_id)}
+                      className="h-4 w-4 shrink-0 rounded border-line accent-accent"
+                    />
+                    <span className="flex-1 truncate text-[0.875rem] text-ink">
+                      {line.item_name}
+                    </span>
+                    {!asStudent && (
+                      <span className="shrink-0 text-[0.8125rem] text-ink-sub">
+                        {formatKRW(Number(line.refund))}
+                      </span>
+                    )}
+                  </label>
+                );
+              })}
+
+              {selectedIds.size === 0 && (
+                // ⚠ 신규 카피 — 승인 필요.
+                <p className="text-[0.8125rem] text-error">
+                  환불할 항목을 1개 이상 선택해 주세요.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* 금액은 학생에게 보여주지 않는다(2026-08-13 확정) — 결제 주체인
               학부모의 확인 화면(RefundApprovalModal)에서만 공개한다. 산정 자체는
               그대로 돌아간다(아래 blockedByPolicy 가 0원 건을 막는 근거로 쓴다). */}
@@ -334,13 +532,23 @@ export default function RefundRequestModal({
                     {formatKRW(grossAmount)}
                   </span>
                 </div>
+                {/* 일부 선택(scope='items')일 때만 — 선택 범위의 결제액을
+                    별도로 보여준다. 전체 선택이면 결제 금액과 같아 생략한다. */}
+                {quote?.scope === "items" && selectedPaidSum !== null && (
+                  <div className="flex items-center justify-between text-[0.875rem]">
+                    <span className="text-ink-sub">선택 항목 결제액</span>
+                    <span className="text-ink-strong">
+                      {formatKRW(selectedPaidSum)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-[0.875rem]">
-                  <span className="text-ink-sub">취소 수수료</span>
+                  <span className="text-ink-sub">이용분 공제</span>
                   <span className="text-error">
                     {/* 이 분기(loading=false, quoteError="")는 fetch 성공 후
-                        setQuote(row)까지 끝난 상태라 feeAmount는 항상 non-null이다. */}
-                    {feeAmount! > 0
-                      ? `-${formatKRW(feeAmount!)}`
+                        setQuote(row)까지 끝난 상태라 usageDeduction은 항상 non-null이다. */}
+                    {usageDeduction! > 0
+                      ? `-${formatKRW(usageDeduction!)}`
                       : formatKRW(0)}
                   </span>
                 </div>
@@ -354,6 +562,13 @@ export default function RefundRequestModal({
                 {policyText && (
                   <p className="break-keep text-[0.75rem] leading-relaxed text-ink-sub">
                     {policyText}
+                  </p>
+                )}
+
+                {quote?.coupon_restore && (
+                  // ⚠ 신규 카피 — 승인 필요.
+                  <p className="break-keep text-[0.75rem] leading-relaxed text-ink-sub">
+                    결제에 사용한 쿠폰은 환불 완료 시 복원됩니다.
                   </p>
                 )}
               </div>
