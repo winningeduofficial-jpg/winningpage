@@ -1485,6 +1485,63 @@ try {
       `text=${goalMetaText}`,
     );
 
+    // ─────────────────────────────────────────────────────────────────────
+    // 유효기간 분해 다이얼로그(2026-09-01 카드 세부 확정) — 메타 행 문구
+    // "유효기간 최대 N일" 확인 + 클릭 시 grant별 표.
+    // ─────────────────────────────────────────────────────────────────────
+    const suhaengMetaText =
+      (await suhaengCard21.textContent().catch(() => "")) || "";
+    check(
+      "S21 수행평가 메타 문구 = '유효기간 최대 N일'",
+      /유효기간 최대 \d+일/.test(suhaengMetaText),
+      suhaengMetaText,
+    );
+
+    await suhaengCard21.getByRole("button").first().click();
+    await page.waitForTimeout(500);
+    check(
+      "S21 수행평가 다이얼로그 제목 노출",
+      (await page.getByText("이용권 유효기간").count()) > 0,
+    );
+    const suhaengDialogText =
+      (await page
+        .getByRole("dialog")
+        .textContent()
+        .catch(() => "")) || "";
+    check(
+      "S21 수행평가 다이얼로그 grant별 행(2회·6회, 만료 임박순) 노출",
+      /2회[\s\S]*유효기간[\s\S]*까지\)/.test(suhaengDialogText) &&
+        /6회[\s\S]*유효기간[\s\S]*까지\)/.test(suhaengDialogText),
+      suhaengDialogText,
+    );
+    check(
+      "S21 수행평가 다이얼로그 자동 사용 안내 노출",
+      suhaengDialogText.includes("먼저 만료되는 회차부터 자동 사용됩니다"),
+      suhaengDialogText,
+    );
+    await page.getByRole("button", { name: "확인" }).click();
+    await page.waitForTimeout(300);
+
+    await goalCard21.getByRole("button").first().click();
+    await page.waitForTimeout(500);
+    const goalDialogText =
+      (await page
+        .getByRole("dialog")
+        .textContent()
+        .catch(() => "")) || "";
+    check(
+      "S21 목표관리 다이얼로그 grant별 행(1개월·3개월, 시작순) 노출",
+      /1개월[\s\S]*~/.test(goalDialogText) &&
+        /3개월[\s\S]*~/.test(goalDialogText),
+      goalDialogText,
+    );
+    check(
+      "S21 목표관리 다이얼로그엔 자동 사용 안내 없음(기간제는 체이닝뿐)",
+      !goalDialogText.includes("먼저 만료되는 회차부터 자동 사용됩니다"),
+      goalDialogText,
+    );
+    await page.getByRole("button", { name: "확인" }).click();
+
     await context.close();
   }
 } finally {

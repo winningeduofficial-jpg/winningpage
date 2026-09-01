@@ -10,6 +10,8 @@ import {
   SURVEY_REPORT_PATH,
 } from "@/lib/renewalSurvey";
 import { supabase } from "@/lib/supabase";
+import MyPageModalShell from "./MyPageModalShell";
+import ModalFooter from "./modal/ModalFooter";
 import ServiceCard from "./ServiceCard";
 
 /**
@@ -71,6 +73,8 @@ type Grant = {
   id: string;
   program_key: string;
   granted_sessions: number | null;
+  /** 기간제 grant 분해 다이얼로그("N개월: 시작~만료")에 쓴다. */
+  granted_months: number | null;
   starts_at: string;
   expires_at: string | null;
   first_accessed_at: string | null;
@@ -125,6 +129,8 @@ type ParsedGrant = {
   totalCount: number | null;
   /** 잔여 회차(총회차 - 소비회차). totalCount가 null이면 null. */
   remaining: number | null;
+  /** 부여된 개월수 — 기간제 grant 분해 다이얼로그 표기용. */
+  grantedMonths: number | null;
   startsAt: Date;
   expiresAt: Date | null;
   /** 실제로 처음 이용을 시작한 시각 — 완료 카드의 "진단 완료"류 날짜 표기용. */
@@ -151,6 +157,8 @@ type ServiceCardViewModel = {
   actions: ServiceCardAction[];
   /** 서비스 단위 합산 카드라 배지 자체를 안 쓴다 — 항상 1(ServiceCard의 "결제 N건" 배지 미노출). */
   paymentCount: number;
+  /** 이용 중 카드의 메타 행 클릭 → grant별 유효기간 분해 다이얼로그. */
+  onMetaClick?: (() => void) | undefined;
 };
 
 // "YYYY.MM.DD" — 기간형 서비스의 이용기간 범위 표기.
@@ -203,6 +211,7 @@ function parseGrant(
     category: meta.category,
     totalCount,
     remaining,
+    grantedMonths: grant.granted_months,
     startsAt,
     expiresAt,
     firstAccessedAt,
@@ -225,6 +234,12 @@ type AggregatedService = {
   startsAt: Date | null;
   expiresAt: Date | null;
   firstAccessedAt: Date | null;
+  /**
+   * 이용 중일 때만 채운다(살아있는 grant 목록) — 유효기간 분해 다이얼로그가
+   * grant별 행을 그리는 데 쓴다. 완료 카드는 대표 1건뿐이라 분해할 게 없어
+   * 빈 배열이다(다이얼로그 자체를 안 연다).
+   */
+  liveGrants: ParsedGrant[];
 };
 
 function aggregateByProgramKey(
@@ -289,6 +304,7 @@ function aggregateByProgramKey(
         startsAt,
         expiresAt,
         firstAccessedAt: null,
+        liveGrants,
       };
     }
 
@@ -319,6 +335,7 @@ function aggregateByProgramKey(
       startsAt: representative.startsAt,
       expiresAt: representative.expiresAt,
       firstAccessedAt: representative.firstAccessedAt,
+      liveGrants: [],
     };
   });
 }
@@ -330,6 +347,7 @@ const DIAGNOSIS_RETAKE_BLOCKED_REASON =
 function toViewModel(
   agg: AggregatedService,
   diagnosisAccess: DiagnosisAccessResult | null,
+  onOpenValidityDetail: (agg: AggregatedService) => void,
 ): ServiceCardViewModel {
   const {
     category,
@@ -367,9 +385,12 @@ function toViewModel(
     metaRight = formatDateSpaced(firstAccessedAt ?? startsAt);
   } else if (totalCount !== null) {
     metaLeft = isOngoing ? `${totalCount}회권` : `총 ${totalCount}회 이용`;
+    // "최대" — 합산 카드는 grant마다 만료일이 달라(가장 늦은 것 기준) 이
+    // 숫자가 전부에게 똑같이 적용되는 값이 아니라는 걸 표시에서부터 알려준다
+    // (사용자 확정 카피, 2026-09-01). 클릭하면 grant별 실제 값을 보여준다.
     metaRight = isOngoing
       ? remainingDays !== null
-        ? `유효기간 ${remainingDays}일`
+        ? `유효기간 최대 ${remainingDays}일`
         : "-"
       : formatDateSpaced(startsAt);
   } else {
@@ -443,6 +464,10 @@ function toViewModel(
     metaRight,
     actions,
     paymentCount: 1,
+    // 이용 중 카드만 클릭 가능 — 완료 카드는 대표 grant 1건뿐이라 분해할
+    // 살아있는 grant 자체가 없다(agg.liveGrants가 빈 배열, 다이얼로그를 열
+    // 이유가 없다).
+    onMetaClick: isOngoing ? () => onOpenValidityDetail(agg) : undefined,
   };
 }
 
@@ -496,6 +521,111 @@ function Section({
   );
 }
 
+type ValidityDetailRow = {
+  key: string;
+  left: string;
+  right: string;
+};
+
+// grant별 유효기간 분해 다이얼로그(2026-09-01, 서비스 단위 합산 카드
+// QA 후속) — 카드 메타 행(예: "8회권 … 유효기간 최대 122일" / "2026.09.01
+// ~ 2027.01.01 … 122일 남음")은 여러 grant를 합친 값이라, 실제로 어떤
+// grant가 언제까지인지는 눌러서 펼쳐야 보인다. 회차제(잔여 있는 살아있는
+// grant, 만료 임박순)와 기간제(체이닝 구간별, 시작순)는 행 포맷이 다르다.
+// 완료 카드는 agg.liveGrants가 비어 있어 애초에 열리지 않는다(ServiceCard가
+// onMetaClick 자체를 안 만든다).
+function ServiceValidityDetailModal({
+  open,
+  service,
+  onClose,
+}: {
+  open: boolean;
+  service: AggregatedService | null;
+  onClose: () => void;
+}) {
+  if (!open || !service) return null;
+
+  const isSessionType = service.totalCount !== null;
+  const now = Date.now();
+
+  const rows: ValidityDetailRow[] = isSessionType
+    ? service.liveGrants
+        .filter((g) => g.totalCount !== null && (g.remaining ?? 0) > 0)
+        .slice()
+        .sort(
+          (a, b) =>
+            (a.expiresAt?.getTime() ?? 0) - (b.expiresAt?.getTime() ?? 0),
+        )
+        .map((g) => {
+          const days = g.expiresAt
+            ? Math.ceil((g.expiresAt.getTime() - now) / MS_PER_DAY)
+            : null;
+          return {
+            key: g.id,
+            left: `${g.remaining}회`,
+            right:
+              days !== null
+                ? `유효기간 ${days}일 (${formatDate(g.expiresAt)}까지)`
+                : "-",
+          };
+        })
+    : service.liveGrants
+        .slice()
+        .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())
+        .map((g) => ({
+          key: g.id,
+          left: g.grantedMonths ? `${g.grantedMonths}개월` : "-",
+          right: `${formatDate(g.startsAt)} ~ ${formatDate(g.expiresAt)}`,
+        }));
+
+  return (
+    <MyPageModalShell
+      open={open}
+      onClose={onClose}
+      size="sm"
+      // ⚠ 신규 카피 — 승인 필요. 조회 전용 모달이라 주변(RefundApprovalModal
+      // 등) 명사형 제목 관례를 따랐다.
+      title="이용권 유효기간"
+      footer={
+        <ModalFooter
+          buttons={[
+            {
+              key: "confirm",
+              label: "확인",
+              variant: "primary",
+              onClick: onClose,
+            },
+          ]}
+        />
+      }
+    >
+      <div className="flex-1 overflow-y-auto px-6 py-2">
+        <div className="flex flex-col">
+          {rows.map((row) => (
+            <div
+              key={row.key}
+              className="flex items-center justify-between gap-4 border-b border-line/60 py-3.75"
+            >
+              <span className="shrink-0 text-[0.875rem] font-semibold text-ink">
+                {row.left}
+              </span>
+              <span className="truncate text-right text-[0.875rem] text-ink-sub">
+                {row.right}
+              </span>
+            </div>
+          ))}
+        </div>
+        {isSessionType && (
+          // ⚠ 신규 카피 — 승인 필요.
+          <p className="mt-4 pb-2 text-[0.8125rem] leading-relaxed text-ink-sub">
+            먼저 만료되는 회차부터 자동 사용됩니다.
+          </p>
+        )}
+      </div>
+    </MyPageModalShell>
+  );
+}
+
 export default function MyServicesTab() {
   const { userId } = useAuth();
 
@@ -517,6 +647,11 @@ export default function MyServicesTab() {
   const [grants, setGrants] = useState<Grant[]>([]);
   const [usedByGrant, setUsedByGrant] = useState<Record<string, number>>({});
   const [loaded, setLoaded] = useState(false);
+  // 유효기간 분해 다이얼로그가 열려 있는 서비스 — 훅이라 조기 반환(로딩/빈
+  // 상태)보다 먼저 선언한다(React hooks 규칙).
+  const [detailService, setDetailService] = useState<AggregatedService | null>(
+    null,
+  );
 
   // 부여 원장(program_access_grants)+소비 원장(performance_credit_ledger)을
   // 본인 RLS로 직접 읽는다 — PaymentsTab.tsx의 이용완료 판정과 같은 조합·같은
@@ -530,7 +665,7 @@ export default function MyServicesTab() {
         supabase
           .from("program_access_grants")
           .select(
-            "id, program_key, granted_sessions, starts_at, expires_at, first_accessed_at",
+            "id, program_key, granted_sessions, granted_months, starts_at, expires_at, first_accessed_at",
           )
           .eq("profile_id", userId)
           .is("revoked_at", null)
@@ -573,7 +708,7 @@ export default function MyServicesTab() {
 
   const parsedGrants = grants.map((grant) => parseGrant(grant, usedByGrant));
   const cards = aggregateByProgramKey(parsedGrants).map((agg) =>
-    toViewModel(agg, diagnosisAccess),
+    toViewModel(agg, diagnosisAccess, setDetailService),
   );
   const ongoing = cards.filter((card) => card.isOngoing);
   const completed = cards.filter((card) => !card.isOngoing);
@@ -594,6 +729,12 @@ export default function MyServicesTab() {
           ))}
         </Section>
       )}
+
+      <ServiceValidityDetailModal
+        open={!!detailService}
+        service={detailService}
+        onClose={() => setDetailService(null)}
+      />
     </div>
   );
 }
