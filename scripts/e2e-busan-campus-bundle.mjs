@@ -855,6 +855,177 @@ try {
 
     await context.close();
   }
+
+  // ===========================================================================
+  // 시나리오 16 — fn_refund_quote DB 레벨: 번들 주문은 lines 1개, 환불액이
+  // 구성 3개 합산(before_start)으로 3배 뻥튀기되지 않고 정확히 클램프됨
+  // (fn_refund_quote_dedupe_bundle_lines, order_item_id 합산 검증).
+  // ===========================================================================
+  const parent16 = await mkUser("s16-parent", "parent");
+  const student16 = await mkUser("s16-student", "student", "위닝부산캠퍼스");
+  await linkPair(parent16, student16);
+  const order16 = `order_${RUN_TAG}_quote`;
+  {
+    const { error } = await requestEnrollment(
+      order16,
+      student16,
+      parent16,
+      busan,
+    );
+    check("S16 사전 신청 성공(DB)", !error, error?.message);
+    cleanup.orderIds.push(order16);
+    const paidAt16 = await approveAndPay(order16, parent16);
+    const { error: gErr } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order16,
+        p_user_id: parent16.id,
+        p_paid_at: paidAt16,
+      },
+    );
+    check("S16 grant 성공", !gErr, gErr?.message);
+
+    const { data: quoteRows, error: qErr } = await rpcAsUser(
+      parent16.email,
+      "fn_refund_quote",
+      { p_order_id: order16 },
+    );
+    check("S16 fn_refund_quote 성공", !qErr, JSON.stringify(qErr));
+    const quote = Array.isArray(quoteRows) ? quoteRows[0] : quoteRows;
+    check(
+      "S16 lines 1개(구성 3개가 중복 노출되지 않음)",
+      Array.isArray(quote?.lines) && quote.lines.length === 1,
+      JSON.stringify(quote?.lines),
+    );
+    check(
+      "S16 refund_amount = gross_amount(9,900, 3배 뻥튀기 없음)",
+      quote?.refund_amount === 9900 && quote?.gross_amount === 9900,
+      `refund_amount=${quote?.refund_amount} gross_amount=${quote?.gross_amount}`,
+    );
+    check(
+      "S16 scope = order",
+      quote?.scope === "order",
+      `scope=${quote?.scope}`,
+    );
+  }
+
+  // ===========================================================================
+  // UI 시나리오 17 — 나의 서비스: 번들 주문이 서비스별 카드 3장으로 펼쳐지고,
+  // 수행평가 카드의 "프로그램 가기" 링크가 /app/performance로 간다(마이페이지
+  // QA 이슈 1·2). order15(S15, busan 결제+부여 완료)를 재사용한다.
+  // ===========================================================================
+  {
+    const { context, page } = await freshPage(browser, student15.email);
+    await page.goto(`${APP_ORIGIN}/mypage?tab=services`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(1500);
+
+    const serviceHeadingCount = await page
+      .getByRole("heading", {
+        name: /^위닝 학습진단$|^위닝 목표관리$|^위닝 수행평가$/,
+      })
+      .count();
+    check(
+      "S17 번들 주문이 서비스 카드 3장으로 분리됨",
+      serviceHeadingCount === 3,
+      `count=${serviceHeadingCount}`,
+    );
+
+    const singleBundleCardCount = await page
+      .getByRole("heading", { name: /부산캠퍼스 특별할인/ })
+      .count();
+    check(
+      "S17 번들 단일 카드(구 버그) 미노출",
+      singleBundleCardCount === 0,
+      `count=${singleBundleCardCount}`,
+    );
+
+    const suhaengHeading = page.getByRole("heading", {
+      name: "위닝 수행평가",
+      exact: true,
+    });
+    const suhaengCard = suhaengHeading.locator(
+      "xpath=ancestor::div[contains(@class,'rounded-perf-modal')][1]",
+    );
+    const suhaengLink = suhaengCard.getByRole("link", {
+      name: /프로그램 가기/,
+    });
+    const suhaengHref = await suhaengLink
+      .getAttribute("href")
+      .catch(() => null);
+    check(
+      "S17 수행평가 카드 '프로그램 가기' 링크 = /app/performance",
+      suhaengHref === "/app/performance",
+      `href=${suhaengHref}`,
+    );
+
+    await context.close();
+  }
+
+  // ===========================================================================
+  // UI 시나리오 18 — 환불요청 모달: 번들 주문은 "구성서비스 선택" 체크박스가
+  // 뜨지 않고(부분환불 없음, 패키지 단일 항목), 최종 환불액이 정상 표기됨
+  // (마이페이지 QA 이슈 3).
+  // ===========================================================================
+  const parent18 = await mkUser("s18-parent", "parent");
+  const student18 = await mkUser("s18-student", "student", "위닝부산캠퍼스");
+  await linkPair(parent18, student18);
+  const order18 = `order_${RUN_TAG}_refundui`;
+  {
+    const { error } = await requestEnrollment(
+      order18,
+      student18,
+      parent18,
+      busan,
+    );
+    check("S18 사전 신청 성공(DB)", !error, error?.message);
+    cleanup.orderIds.push(order18);
+    const paidAt18 = await approveAndPay(order18, parent18);
+    const { error: gErr } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order18,
+        p_user_id: parent18.id,
+        p_paid_at: paidAt18,
+      },
+    );
+    check("S18 grant 성공", !gErr, gErr?.message);
+
+    const { context, page } = await freshPage(browser, parent18.email);
+    await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(1500);
+
+    await page
+      .getByText(order18.replace(/^order_/, ""), { exact: false })
+      .first()
+      .click();
+    await page.waitForTimeout(800);
+    await page.getByRole("button", { name: "환불 신청" }).click();
+    await page.waitForTimeout(1500);
+
+    const compositionCheckboxCount = await page
+      .getByText("구성서비스 선택")
+      .count();
+    check(
+      "S18 '구성서비스 선택' 체크박스 미노출(부분환불 없음)",
+      compositionCheckboxCount === 0,
+      `count=${compositionCheckboxCount}`,
+    );
+
+    const finalAmountVisible =
+      (await page
+        .getByText("최종 환불액")
+        .locator("xpath=..")
+        .getByText("9,900원", { exact: false })
+        .count()) > 0;
+    check("S18 최종 환불액 9,900원(3배 뻥튀기 없음)", finalAmountVisible);
+
+    await page.keyboard.press("Escape").catch(() => {});
+    await context.close();
+  }
 } finally {
   await browser.close();
 
