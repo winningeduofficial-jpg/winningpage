@@ -583,8 +583,7 @@ function ServiceValidityDetailModal({
       open={open}
       onClose={onClose}
       size="sm"
-      // ⚠ 신규 카피 — 승인 필요. 조회 전용 모달이라 주변(RefundApprovalModal
-      // 등) 명사형 제목 관례를 따랐다.
+      // 조회 전용 모달이라 주변(RefundApprovalModal 등) 명사형 제목 관례를 따랐다.
       title="이용권 유효기간"
       footer={
         <ModalFooter
@@ -616,7 +615,6 @@ function ServiceValidityDetailModal({
           ))}
         </div>
         {isSessionType && (
-          // ⚠ 신규 카피 — 승인 필요.
           <p className="mt-4 pb-2 text-[0.8125rem] leading-relaxed text-ink-sub">
             먼저 만료되는 회차부터 자동 사용됩니다.
           </p>
