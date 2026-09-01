@@ -1,7 +1,5 @@
 {
-  "regions": [
-    "icn1"
-  ],
+  "regions": ["icn1"],
   "rewrites": [
     {
       "source": "/((?!api/|@|src/|node_modules/|.*\\.).*)",
