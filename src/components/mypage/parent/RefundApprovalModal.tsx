@@ -268,7 +268,9 @@ export default function RefundApprovalModal({
               </>
             )}
             <div className="flex items-center justify-between border-t border-line pt-2 text-[0.9375rem] font-semibold">
-              <span className="text-ink">환불 금액</span>
+              {/* 약관 [별표 2] 최종 단계 문언 "최종 환불액" 그대로
+                  (사용자 확정 2026-09-01). */}
+              <span className="text-ink">최종 환불액</span>
               <span className="text-ink-strong">{formatKRW(refund)}</span>
             </div>
           </div>

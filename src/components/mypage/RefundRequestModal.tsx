@@ -469,9 +469,13 @@ export default function RefundRequestModal({
           {/* 구성서비스 선택(fn_refund_quote Ver10, 20260901) — 시안에 없는
               신규 UI. 구성서비스가 2개 이상인 주문에서만 나타난다. 기본은
               전체 선택 — 이 목록은 최초 응답 기준으로 고정한다(위 allLines
-              주석 참고). 섹션 안내 문구 자체는 디자인 확인 필요. */}
+              주석 참고). 제목 "구성서비스 선택"은 약관 용어(제33조의2 ①
+              "구성서비스") 차용 — 사용자 확정 2026-09-01. */}
           {allLines && allLines.length >= 2 && (
             <div className="mt-3 flex flex-col gap-2">
+              <p className="text-[0.8125rem] font-semibold text-ink">
+                구성서비스 선택
+              </p>
               {allLines.map((line) => {
                 const checked = selectedIds.has(line.order_item_id);
                 return (
@@ -533,10 +537,12 @@ export default function RefundRequestModal({
                   </span>
                 </div>
                 {/* 일부 선택(scope='items')일 때만 — 선택 범위의 결제액을
-                    별도로 보여준다. 전체 선택이면 결제 금액과 같아 생략한다. */}
+                    별도로 보여준다. 전체 선택이면 결제 금액과 같아 생략한다.
+                    라벨은 약관 [별표 2] 1단계 문언 "안분결제액" 그대로
+                    (사용자 확정 2026-09-01). */}
                 {quote?.scope === "items" && selectedPaidSum !== null && (
                   <div className="flex items-center justify-between text-[0.875rem]">
-                    <span className="text-ink-sub">선택 항목 결제액</span>
+                    <span className="text-ink-sub">안분결제액</span>
                     <span className="text-ink-strong">
                       {formatKRW(selectedPaidSum)}
                     </span>
@@ -553,7 +559,9 @@ export default function RefundRequestModal({
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-t border-line pt-2 text-[0.9375rem] font-semibold">
-                  <span className="text-ink">환불 금액</span>
+                  {/* 약관 [별표 2] 최종 단계 문언 "최종 환불액" 그대로
+                      (사용자 확정 2026-09-01). */}
+                  <span className="text-ink">최종 환불액</span>
                   <span className="text-ink-strong">
                     {formatKRW(refundAmount)}
                   </span>
