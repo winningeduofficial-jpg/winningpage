@@ -41,6 +41,10 @@ type EnrollmentOrder = {
     list_price?: number;
     price?: number;
     quantity?: number;
+    // 번들 구성 내역 표기(태스크6, bundleComposition.ts) — OrderAmountBreakdown이
+    // 소비한다. ParentPaymentsTab.tsx reloadPending의 select가 이미 이 컬럼을
+    // 담아 넘겨준다(그쪽 Order 타입과 동일 이유).
+    product_id?: string | null;
   }[];
   list_amount?: number;
   discount_amount?: number;
