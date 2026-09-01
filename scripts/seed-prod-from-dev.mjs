@@ -59,19 +59,23 @@ const TABLES = [
   { name: "terms", pk: "code,version", special: "terms" },
   // 결제 카탈로그
   { name: "programs" },
-  { name: "products" },
+  // products는 slug 기준 — prod 기존 행 id를 order_items/program_access_grants가
+  // 참조 중이라 id를 dev값으로 못 바꾼다(과거 수동 시딩 시대에 id가 갈라짐).
+  { name: "products", special: "products" },
   { name: "coupons" },
   // 학습진단 카피
   { name: "learning_diagnosis_v2_survey_copy" },
   // 랜딩/메뉴
   { name: "page_contents" },
-  { name: "program_categories" },
+  // mirror: 과거 수동 시딩으로 id가 갈라진 prod 전용 행이 남아 있는 테이블.
+  // upsert 전에 dev에 없는 id를 지워 콘텐츠 중복/잔재를 막는다(2026-09-01 실측).
+  { name: "program_categories", mirror: true },
   { name: "banners" },
   { name: "home_mentor_strategies" },
   { name: "home_side_banners" },
   { name: "popups" },
   { name: "app_settings", pk: "key" },
-  { name: "university_acceptances" },
+  { name: "university_acceptances", mirror: true },
   // 콘텐츠 게시판
   { name: "faqs" },
   { name: "galleries" },
@@ -84,7 +88,7 @@ const TABLES = [
   { name: "special_highschool_cases" },
   // 멘토 지원
   { name: "mentor_apply_copy" },
-  { name: "mentor_apply_faqs" },
+  { name: "mentor_apply_faqs", mirror: true },
   // 목표관리 정시 컷
   { name: "goal_university_cuts" },
   // 프리미엄 북
@@ -106,11 +110,11 @@ const TABLES = [
 
   // 대입 모집요강 마스터 (FK 없음 — university_key/department_key는 text)
   { name: "admission_universities" },
-  { name: "admission_results" }, // 43,170행 — id는 identity(BY DEFAULT)라 명시값 upsert 가능
+  { name: "admission_results", mirror: true }, // 43,170행 — id는 identity(BY DEFAULT)라 명시값 upsert 가능
   { name: "admission_university_resources" },
 
   // 콘텐츠 마스터
-  { name: "trending_departments" },
+  { name: "trending_departments", mirror: true },
   { name: "winning_assessment_knowledge_items" }, // RAG 지식베이스 (embedding vector 포함)
 ];
 
@@ -246,14 +250,84 @@ async function handleTerms(prodClient, rows) {
     .eq("is_active", true);
   if (deactivateError)
     throw new Error(`terms 비활성화 실패: ${deactivateError.message}`);
-  await upsertAll(prodClient, "terms", rows, "code,version");
-  const devIds = rows.map((r) => r.id);
-  const { error: pruneError } = await prodClient
-    .from("terms")
-    .delete()
-    .not("id", "in", `(${devIds.join(",")})`);
-  if (pruneError && pruneError.code !== "23503")
-    throw new Error(`terms 잔여 행 정리 실패: ${pruneError.message}`);
+  // id는 payload에서 뺀다 — prod 기존 행의 id는 user_term_agreements가 참조
+  // 중이라 dev id로 덮어쓰면 FK 위반. (code,version) 일치 행은 prod id를
+  // 유지하고, 신규 행만 default로 새 id를 받는다.
+  const payload = rows.map(({ id, ...rest }) => rest);
+  await upsertAll(prodClient, "terms", payload, "code,version");
+  // dev에 없는 (code,version) 행만 정리. 동의 기록이 참조하는 행은 지울 수
+  // 없으므로(23503) 비활성 상태로 남긴다.
+  const devKeys = new Set(rows.map((r) => `${r.code} ${r.version}`));
+  const prodTerms = await fetchAll(prodClient, "terms");
+  for (const row of prodTerms) {
+    if (devKeys.has(`${row.code} ${row.version}`)) continue;
+    const { error: pruneError } = await prodClient
+      .from("terms")
+      .delete()
+      .eq("id", row.id);
+    if (pruneError && pruneError.code !== "23503")
+      throw new Error(`terms 잔여 행 정리 실패: ${pruneError.message}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// mirror 테이블 — upsert 전에 dev에 없는 prod 전용 id를 삭제해 잔재/중복 제거.
+// 사용자 데이터 FK가 없는 콘텐츠 테이블에만 지정할 것.
+// ---------------------------------------------------------------------------
+
+async function mirrorPrune(prodClient, table, devRows) {
+  const devIds = new Set(devRows.map((r) => String(r.id)));
+  const prodRows = await fetchAll(prodClient, table);
+  const stale = prodRows.filter((r) => !devIds.has(String(r.id)));
+  if (!stale.length) return;
+  for (let i = 0; i < stale.length; i += PAGE) {
+    const chunk = stale.slice(i, i + PAGE).map((r) => r.id);
+    const { error } = await prodClient.from(table).delete().in("id", chunk);
+    if (error)
+      throw new Error(`${table} prod 전용 행 삭제 실패: ${error.message}`);
+  }
+  console.log(`  ${table}: prod 전용 잔재 ${stale.length}행 삭제`);
+}
+
+// ---------------------------------------------------------------------------
+// products 특수 처리 — slug 기준. prod 기존 행 id는 order_items /
+// program_access_grants가 참조하므로 유지하고, 내용만 dev로 갱신한다.
+// ---------------------------------------------------------------------------
+
+async function handleProducts(prodClient, rows) {
+  const payload = rows.map(({ id, ...rest }) => rest);
+  await upsertAll(prodClient, "products", payload, "slug");
+  // dev에 없는 slug의 prod 행 정리 — 주문/이용권이 참조 중이면 남기고 경고만.
+  const devSlugs = new Set(rows.map((r) => r.slug));
+  const prodRows = await fetchAll(prodClient, "products");
+  for (const row of prodRows) {
+    if (devSlugs.has(row.slug)) continue;
+    const [{ count: orderRefs }, { count: grantRefs }] = await Promise.all([
+      prodClient
+        .from("order_items")
+        .select("*", { count: "exact", head: true })
+        .eq("product_id", row.id),
+      prodClient
+        .from("program_access_grants")
+        .select("*", { count: "exact", head: true })
+        .eq("product_id", row.id),
+    ]);
+    if ((orderRefs ?? 0) > 0 || (grantRefs ?? 0) > 0) {
+      console.warn(
+        `  products: prod 전용 '${row.slug}'는 주문/이용권이 참조 중이라 남김(주문 ${orderRefs}, 이용권 ${grantRefs})`,
+      );
+      continue;
+    }
+    const { error } = await prodClient
+      .from("products")
+      .delete()
+      .eq("id", row.id);
+    if (error)
+      throw new Error(
+        `products 잔여 행 정리 실패(${row.slug}): ${error.message}`,
+      );
+    console.log(`  products: prod 전용 '${row.slug}' 삭제`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -467,35 +541,69 @@ async function createAdminMaster(prodClient) {
       `prod admin_roles에 '최고 관리자' 행이 없음: ${roleErr?.message ?? "not found"}`,
     );
 
+  // 이미 가입된 이메일이면 그 계정을 그대로 승격한다(비밀번호 불변).
+  let userId;
+  let reused = false;
   const { data: created, error: createErr } =
     await prodClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
     });
-  if (createErr) throw new Error(`auth 계정 생성 실패: ${createErr.message}`);
-  const userId = created.user.id;
+  if (createErr) {
+    if (!/already been registered/i.test(createErr.message))
+      throw new Error(`auth 계정 생성 실패: ${createErr.message}`);
+    const { data: page, error: listErr } =
+      await prodClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (listErr) throw new Error(`auth 사용자 조회 실패: ${listErr.message}`);
+    const existing = page.users.find(
+      (u) => u.email?.toLowerCase() === email.toLowerCase(),
+    );
+    if (!existing)
+      throw new Error(`기존 계정 조회 실패: ${email} 을 listUsers에서 못 찾음`);
+    userId = existing.id;
+    reused = true;
+  } else {
+    userId = created.user.id;
+  }
 
   // prod에는 auth 트리거(handle_new_user)가 없다 — profiles 행을 직접 넣는다.
+  // 기존 계정 재사용 시에는 role만 admin으로 올린다.
   const { error: profileErr } = await prodClient
     .from("profiles")
-    .insert({ id: userId, email, role: "admin" });
+    .upsert({ id: userId, email, role: "admin" }, { onConflict: "id" });
   if (profileErr)
     throw new Error(`profiles 행 생성 실패: ${profileErr.message}`);
 
-  const { error: memberErr } = await prodClient.from("admin_members").insert({
-    profile_id: userId,
-    role_id: roleRow.id,
-    status: "active",
-    activated_at: new Date().toISOString(),
-  });
-  if (memberErr)
-    throw new Error(`admin_members 행 생성 실패: ${memberErr.message}`);
+  const { data: memberRow } = await prodClient
+    .from("admin_members")
+    .select("id")
+    .eq("profile_id", userId)
+    .maybeSingle();
+  if (!memberRow) {
+    const { error: memberErr } = await prodClient.from("admin_members").insert({
+      profile_id: userId,
+      role_id: roleRow.id,
+      status: "active",
+      activated_at: new Date().toISOString(),
+    });
+    if (memberErr)
+      throw new Error(`admin_members 행 생성 실패: ${memberErr.message}`);
+  } else {
+    const { error: memberErr } = await prodClient
+      .from("admin_members")
+      .update({ role_id: roleRow.id, status: "active" })
+      .eq("profile_id", userId);
+    if (memberErr)
+      throw new Error(`admin_members 갱신 실패: ${memberErr.message}`);
+  }
 
   console.log(
-    `\n✓ 관리자 계정 생성 완료: ${email} (최고 관리자, profile_id=${userId})\n` +
-      "  비밀번호는 설정되지 않았습니다(랜덤값, 미출력). " +
-      "로그인 화면 → 비밀번호 재설정으로 본인 비밀번호를 설정하십시오.",
+    `\n✓ 관리자 계정 ${reused ? "승격(기존 계정 재사용)" : "생성"} 완료: ${email} (최고 관리자, profile_id=${userId})\n` +
+      (reused
+        ? "  기존 비밀번호 그대로 로그인 가능합니다."
+        : "  비밀번호는 설정되지 않았습니다(랜덤값, 미출력). " +
+          "로그인 화면 → 비밀번호 재설정으로 본인 비밀번호를 설정하십시오."),
   );
 }
 
@@ -663,6 +771,8 @@ async function main() {
 
     if (table.special === "terms") {
       await handleTerms(prodClient, replaced);
+    } else if (table.special === "products") {
+      await handleProducts(prodClient, replaced);
     } else if (table.special === "admin_roles") {
       const nameToProdId = await handleAdminRoles(prodClient, replaced);
       console.log(
@@ -687,6 +797,7 @@ async function main() {
       results.push({ table: table.name, devCount: rows.length, prodCount: n });
       continue;
     } else {
+      if (table.mirror) await mirrorPrune(prodClient, table.name, replaced);
       await upsertAll(prodClient, table.name, replaced, table.pk ?? "id");
     }
 
