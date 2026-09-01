@@ -594,6 +594,9 @@ try {
     // "입력"(입력 후엔 "변경"). 이 탭에서 "입력"은 소속코드 필드 하나뿐.
     const orgTrigger = page.getByRole("button", { name: "입력" });
     await orgTrigger.click({ timeout: 10000 });
+    const orgModalTitle =
+      (await page.getByText("소속코드를 입력해주세요").count()) > 0;
+    check("S12 소속코드 모달 제목(확정 카피)", orgModalTitle);
     const orgInput = page.locator(
       'input[placeholder="소속코드가 없으면 입력하지 마세요"]',
     );
@@ -622,6 +625,27 @@ try {
     const noCouponNotice =
       (await page.getByText("쿠폰 적용 대상이 아닙니다").count()) > 0;
     check("S12 구성·쿠폰 불가 고지 확인", noCouponNotice);
+    // ServiceCatalog.tsx — org 한정 상품 카드는 "구성: {라벨 N회권} + ..."
+    // 문구를 bundle_items 조회로 만든다(bc038ba6, service_desc 재사용 폐기).
+    const compositionLine =
+      (await page
+        .getByText(
+          "구성: 학습진단서비스 1회 + 목표관리서비스 1개월 + 수행평가서비스 2회권",
+          { exact: false },
+        )
+        .count()) > 0;
+    check("S12 카탈로그 카드 구성 라인(확정 카피)", compositionLine);
+    // 시드(20260901050445 bc038ba6)가 list_price=price=9900·badge=null 로
+    // 바뀌어 할인이 아닌 패키지 단일가다 — 정가 취소선(ServiceCatalog.tsx:507
+    // line-through, 구 list_price 40,000원)과 구 배지("75% 할인")가 이
+    // 카드에는 없어야 한다. 다른 서비스 카드의 정상 할인 배지와 안 겹치게
+    // 이 상품의 구 값으로만 특정해서 검사한다.
+    const strikethroughListPrice =
+      (await page.getByText("40,000원", { exact: false }).count()) > 0;
+    const discountBadge =
+      (await page.getByText("75% 할인", { exact: false }).count()) > 0;
+    check("S12 할인 표기(취소선) 미노출", !strikethroughListPrice);
+    check("S12 할인 표기(배지) 미노출", !discountBadge);
     await context.close();
   }
 
