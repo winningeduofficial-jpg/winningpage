@@ -79,6 +79,9 @@ type Order = {
     list_price?: number;
     price?: number;
     quantity?: number;
+    // 번들 구성 내역 표기(태스크6, bundleComposition.ts) 용 — useMyPageOrders.ts
+    // 와 동일 이유(그쪽 주석 참고).
+    product_id?: string | null;
   }[];
   list_amount?: number;
   discount_amount?: number;
@@ -146,7 +149,7 @@ export default function ParentPaymentsTab({
         // list_amount/discount_amount/coupon_redemptions — EnrollmentRequestModal의
         // "원금"/"할인 금액"/"쿠폰" 행 분해용(useMyPageOrders.ts와 동일 이유).
         .select(
-          "id, order_name, amount, status, approval_status, student_profile_id, created_at, order_items(name, list_price, price, quantity), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
+          "id, order_name, amount, status, approval_status, student_profile_id, created_at, order_items(name, list_price, price, quantity, product_id), list_amount, discount_amount, coupon_redemptions(discount_amount, voided_at, coupons(title))",
         )
         .eq("parent_profile_id", uid)
         .eq("status", "pending")

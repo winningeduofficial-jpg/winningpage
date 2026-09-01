@@ -12,6 +12,7 @@ import {
   installmentLabel,
   methodLabel,
 } from "@/lib/paymentReceiptFormat";
+import { useBundleCompositionMap } from "./bundleComposition";
 import MyPageModalShell from "./MyPageModalShell";
 import ModalFooter from "./modal/ModalFooter";
 import { formatProductNames } from "./paymentRows";
@@ -32,7 +33,7 @@ import { formatProductNames } from "./paymentRows";
 // 실제로 없는 데이터를 있는 것처럼 보이면 안 된다(팀 리드 지침).
 type ReceiptOrder = {
   order_name?: string;
-  order_items?: { name: string }[] | null;
+  order_items?: { name: string; product_id?: string | null }[] | null;
   method?: string | null;
   amount: number;
   vat?: number | string | null;
@@ -123,9 +124,13 @@ function buildAmountBreakdownRows(order: ReceiptOrder): ReceiptRow[] {
 function ReceiptSection({
   rows,
   dashedTop,
+  note,
 }: {
   rows: ReceiptRow[];
   dashedTop: boolean;
+  // 번들 구성 내역(태스크6) — 금액 없는 들여쓰기 보조 텍스트 행. 상품명 행
+  // 바로 아래에만 붙는다(현재 이 섹션을 쓰는 곳은 구매 상품 섹션뿐).
+  note?: string[];
 }) {
   if (rows.length === 0) return null;
   return (
@@ -135,14 +140,24 @@ function ReceiptSection({
       }`}
     >
       {rows.map((row) => (
-        <div
-          key={row.label}
-          className="flex items-center justify-between gap-4"
-        >
-          <dt className="shrink-0 text-[0.875rem] text-ink-sub">{row.label}</dt>
-          <dd className="truncate text-right text-[0.875rem] text-ink-strong">
-            {row.value}
-          </dd>
+        <div key={row.label}>
+          <div className="flex items-center justify-between gap-4">
+            <dt className="shrink-0 text-[0.875rem] text-ink-sub">
+              {row.label}
+            </dt>
+            <dd className="truncate text-right text-[0.875rem] text-ink-strong">
+              {row.value}
+            </dd>
+          </div>
+          {note && note.length > 0 && (
+            <div className="mt-1.5 flex flex-col gap-0.5 pl-3">
+              {note.map((line) => (
+                <p key={line} className="text-right text-xs text-ink-sub">
+                  {line}
+                </p>
+              ))}
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -154,7 +169,18 @@ export default function ReceiptModal({
   onClose,
   order,
 }: ReceiptModalProps) {
+  // Hooks must run unconditionally — order/open 가드보다 위에 둔다(order가
+  // null이면 productIds가 빈 배열이라 훅 내부에서 조용히 빈 map을 돌려준다).
+  const productIds = (order?.order_items ?? []).map((item) => item.product_id);
+  const bundleMap = useBundleCompositionMap(productIds);
+
   if (!open || !order) return null;
+
+  // 이 주문에 담긴 모든 항목의 구성 라인을 순서대로 이어 붙인다 — 번들 아닌
+  // 주문(bundleMap이 빈 상태)은 flatMap 결과가 빈 배열이라 note가 안 보인다.
+  const bundleNote = (order.order_items ?? []).flatMap(
+    (item) => bundleMap.get(item.product_id || "") ?? [],
+  );
 
   const sellerRows = buildSellerRows();
   const productRows = buildProductRows(order);
@@ -195,7 +221,7 @@ export default function ReceiptModal({
       <div className="flex-1 overflow-y-auto px-8.75">
         <dl className="mt-7.5 flex flex-col pb-8.75">
           <ReceiptSection rows={sellerRows} dashedTop={false} />
-          <ReceiptSection rows={productRows} dashedTop />
+          <ReceiptSection rows={productRows} dashedTop note={bundleNote} />
           <ReceiptSection rows={paymentRows} dashedTop />
           <ReceiptSection rows={breakdownRows} dashedTop />
           {/* 합계 — 위 세 블록과 점선으로 구분하고, 총 결제 금액은 굵게

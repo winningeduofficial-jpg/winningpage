@@ -54,6 +54,9 @@ type PaymentOrder = {
     list_price?: number;
     price?: number;
     quantity?: number;
+    // 번들 구성 내역 표기(태스크6, bundleComposition.ts) — OrderAmountBreakdown이
+    // 소비한다.
+    product_id?: string | null;
   }[];
   list_amount?: number;
   discount_amount?: number;
