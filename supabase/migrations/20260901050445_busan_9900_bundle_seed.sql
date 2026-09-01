@@ -16,6 +16,17 @@ declare
   v_sort       integer;
   v_product_id uuid;
 begin
+  -- ⚠️ 20260821000004 와 같은 관례 — baseline 은 스키마 전용(INSERT 0건)이라
+  -- 갓 만든 로컬/CI 재생 DB 에는 programs 행이 없다. bundle_items 는
+  -- programs(program_key) FK 를 가지므로, 세 키가 전부 있을 때만 시드하고
+  -- 없으면 조용히 건너뛴다(실 dev/prod 에는 programs 가 채워져 있어 적용됨).
+  if not exists (select 1 from public.programs where program_key = 'diagnose')
+     or not exists (select 1 from public.programs where program_key = 'target')
+     or not exists (select 1 from public.programs where program_key = 'suhaeng') then
+    raise notice 'busan-9900 시드 건너뜀 — programs 에 diagnose/target/suhaeng 이 없음(스키마 전용 DB)';
+    return;
+  end if;
+
   select least(-1, coalesce(min(service_sort_order), 0) - 1)
     into v_sort
     from public.products;

@@ -49,7 +49,9 @@ if (!(host === "127.0.0.1" || host === "localhost")) {
   process.exit(1);
 }
 const storageKey = `sb-${host.split(".")[0]}-auth-token`;
-console.log(`[env] 로컬 스택 확인 완료: ${SUPABASE_URL} (storageKey=${storageKey})`);
+console.log(
+  `[env] 로컬 스택 확인 완료: ${SUPABASE_URL} (storageKey=${storageKey})`,
+);
 
 const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
@@ -110,7 +112,8 @@ async function linkPair(parent, student) {
     })
     .select("id")
     .single();
-  if (error) throw new Error(`parent_child_links insert 실패: ${error.message}`);
+  if (error)
+    throw new Error(`parent_child_links insert 실패: ${error.message}`);
   cleanup.linkIds.push(data.id);
 }
 
@@ -125,7 +128,10 @@ async function mintSession(email) {
     body: JSON.stringify({ type: "magiclink", email }),
   });
   const glBody = await glRes.json();
-  if (!glRes.ok) throw new Error(`generate_link 실패: ${glRes.status} ${JSON.stringify(glBody)}`);
+  if (!glRes.ok)
+    throw new Error(
+      `generate_link 실패: ${glRes.status} ${JSON.stringify(glBody)}`,
+    );
   const tokenHash = glBody.hashed_token || glBody.properties?.hashed_token;
 
   const vfRes = await fetch(`${SUPABASE_URL}/auth/v1/verify`, {
@@ -163,14 +169,22 @@ async function rpcAsUser(email, fn, args) {
   });
   const body = await res.json().catch(() => null);
   if (!res.ok)
-    return { data: null, error: { message: body?.message || `HTTP ${res.status}`, code: body?.code } };
+    return {
+      data: null,
+      error: {
+        message: body?.message || `HTTP ${res.status}`,
+        code: body?.code,
+      },
+    };
   return { data: body, error: null };
 }
 
 // 흐름마다 완전히 새 컨텍스트 — storageState 공유 금지(세션별 격리 원칙).
 async function freshPage(browser, email) {
   const { storageVal } = await mintSession(email);
-  const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+  });
   await context.addInitScript(
     ([k, v]) => window.localStorage.setItem(k, v),
     [storageKey, storageVal],
@@ -185,7 +199,9 @@ async function freshPage(browser, email) {
 async function getProduct(slug) {
   const { data, error } = await admin
     .from("products")
-    .select("id, slug, service_key, name, list_price, price, org_code, sale_ends_at")
+    .select(
+      "id, slug, service_key, name, list_price, price, org_code, sale_ends_at",
+    )
     .eq("slug", slug)
     .single();
   if (error) throw new Error(`products(${slug}) 조회 실패: ${error.message}`);
@@ -216,13 +232,18 @@ async function requestEnrollment(orderId, student, parent, product) {
 }
 
 async function approveAndPay(orderId, parent) {
-  const { error: respErr } = await rpcAsUser(parent.email, "fn_respond_enrollment", {
-    p_order_id: orderId,
-    p_approve: true,
-    p_reject_reason: null,
-    p_coupon_ids: null,
-  });
-  if (respErr) throw new Error(`fn_respond_enrollment 실패: ${respErr.message}`);
+  const { error: respErr } = await rpcAsUser(
+    parent.email,
+    "fn_respond_enrollment",
+    {
+      p_order_id: orderId,
+      p_approve: true,
+      p_reject_reason: null,
+      p_coupon_ids: null,
+    },
+  );
+  if (respErr)
+    throw new Error(`fn_respond_enrollment 실패: ${respErr.message}`);
   const now = new Date().toISOString();
   const { error: payErr } = await admin
     .from("orders")
@@ -271,13 +292,20 @@ try {
   const paidAt1 = await approveAndPay(order1, parent1);
 
   {
-    const { data: grantRes, error } = await admin.rpc("fn_grant_program_access_for_order", {
-      p_order_id: order1,
-      p_user_id: parent1.id,
-      p_paid_at: paidAt1,
-    });
+    const { data: grantRes, error } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order1,
+        p_user_id: parent1.id,
+        p_paid_at: paidAt1,
+      },
+    );
     check("S3 fn_grant_program_access_for_order 성공", !error, error?.message);
-    check("S3 granted 3개 program_key", grantRes?.granted?.length === 3, JSON.stringify(grantRes?.granted));
+    check(
+      "S3 granted 3개 program_key",
+      grantRes?.granted?.length === 3,
+      JSON.stringify(grantRes?.granted),
+    );
   }
 
   {
@@ -286,11 +314,16 @@ try {
       .select("program_key, paid_amount, expires_at, revoked_at")
       .eq("order_id", order1)
       .is("revoked_at", null);
-    check("S3 grant 3행(diagnose/target/suhaeng)", !error && grants?.length === 3, JSON.stringify(grants));
+    check(
+      "S3 grant 3행(diagnose/target/suhaeng)",
+      !error && grants?.length === 3,
+      JSON.stringify(grants),
+    );
     const keys = (grants || []).map((g) => g.program_key).sort();
     check(
       "S3 program_key 구성 정확",
-      JSON.stringify(keys) === JSON.stringify(["diagnose", "suhaeng", "target"]),
+      JSON.stringify(keys) ===
+        JSON.stringify(["diagnose", "suhaeng", "target"]),
       JSON.stringify(keys),
     );
     const sum = (grants || []).reduce((s, g) => s + g.paid_amount, 0);
@@ -304,19 +337,30 @@ try {
 
   // 시나리오 4 — 멱등: 같은 주문 재부여 시 grant 중복 0.
   {
-    const { data: grantRes2, error } = await admin.rpc("fn_grant_program_access_for_order", {
-      p_order_id: order1,
-      p_user_id: parent1.id,
-      p_paid_at: paidAt1,
-    });
+    const { data: grantRes2, error } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order1,
+        p_user_id: parent1.id,
+        p_paid_at: paidAt1,
+      },
+    );
     check("S4 재부여 성공(에러 없음)", !error, error?.message);
-    check("S4 ledger_inserted = 0", grantRes2?.ledger_inserted === 0, JSON.stringify(grantRes2));
+    check(
+      "S4 ledger_inserted = 0",
+      grantRes2?.ledger_inserted === 0,
+      JSON.stringify(grantRes2),
+    );
     const { data: grants2 } = await admin
       .from("program_access_grants")
       .select("id")
       .eq("order_id", order1)
       .is("revoked_at", null);
-    check("S4 grant 행수 여전히 3(중복 없음)", grants2?.length === 3, `count=${grants2?.length}`);
+    check(
+      "S4 grant 행수 여전히 3(중복 없음)",
+      grants2?.length === 3,
+      `count=${grants2?.length}`,
+    );
   }
 
   // 시나리오 5 — 기존 단품 회귀: suhaeng-1 주문 부여 시 grant 1행.
@@ -325,15 +369,23 @@ try {
   await linkPair(parent5, student5);
   const order5 = `order_${RUN_TAG}_single`;
   {
-    const { error } = await requestEnrollment(order5, student5, parent5, suhaeng1);
+    const { error } = await requestEnrollment(
+      order5,
+      student5,
+      parent5,
+      suhaeng1,
+    );
     check("S5 단품 fn_request_enrollment 성공", !error, error?.message);
     cleanup.orderIds.push(order5);
     const paidAt5 = await approveAndPay(order5, parent5);
-    const { data: grantRes, error: gErr } = await admin.rpc("fn_grant_program_access_for_order", {
-      p_order_id: order5,
-      p_user_id: parent5.id,
-      p_paid_at: paidAt5,
-    });
+    const { data: grantRes, error: gErr } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order5,
+        p_user_id: parent5.id,
+        p_paid_at: paidAt5,
+      },
+    );
     check("S5 단품 grant 성공", !gErr, gErr?.message);
     const { data: grants5 } = await admin
       .from("program_access_grants")
@@ -345,15 +397,26 @@ try {
 
   // 시나리오 10 — 전체환불: 3행 일괄 revoke.
   {
-    const { data: revokeRes, error } = await admin.rpc("fn_revoke_program_access_for_order", {
-      p_order_id: order1,
-      p_user_id: parent1.id,
-      p_payment_status: "refunded",
-      p_reason: "qa_full_refund",
-      p_order_item_ids: null,
-    });
-    check("S10 fn_revoke_program_access_for_order 성공", !error, error?.message);
-    check("S10 revoked 3개 program_key", revokeRes?.revoked?.length === 3, JSON.stringify(revokeRes?.revoked));
+    const { data: revokeRes, error } = await admin.rpc(
+      "fn_revoke_program_access_for_order",
+      {
+        p_order_id: order1,
+        p_user_id: parent1.id,
+        p_payment_status: "refunded",
+        p_reason: "qa_full_refund",
+        p_order_item_ids: null,
+      },
+    );
+    check(
+      "S10 fn_revoke_program_access_for_order 성공",
+      !error,
+      error?.message,
+    );
+    check(
+      "S10 revoked 3개 program_key",
+      revokeRes?.revoked?.length === 3,
+      JSON.stringify(revokeRes?.revoked),
+    );
     const { data: revoked } = await admin
       .from("program_access_grants")
       .select("id, revoked_at")
@@ -371,7 +434,11 @@ try {
   {
     const order6 = `order_${RUN_TAG}_dup`;
     const { error } = await requestEnrollment(order6, student1, parent1, busan);
-    check("S6 두 번째 busan-9900 신청 WC066 거부", error?.code === "WC066", JSON.stringify(error));
+    check(
+      "S6 두 번째 busan-9900 신청 WC066 거부",
+      error?.code === "WC066",
+      JSON.stringify(error),
+    );
   }
 
   // ===========================================================================
@@ -383,7 +450,11 @@ try {
   {
     const order7 = `order_${RUN_TAG}_orgmismatch`;
     const { error } = await requestEnrollment(order7, student7, parent7, busan);
-    check("S7 org 불일치 WC064 거부", error?.code === "WC064", JSON.stringify(error));
+    check(
+      "S7 org 불일치 WC064 거부",
+      error?.code === "WC064",
+      JSON.stringify(error),
+    );
   }
 
   // ===========================================================================
@@ -401,7 +472,11 @@ try {
 
     const order8 = `order_${RUN_TAG}_expired`;
     const { error } = await requestEnrollment(order8, student8, parent8, busan);
-    check("S8 판매 마감 WC065 거부", error?.code === "WC065", JSON.stringify(error));
+    check(
+      "S8 판매 마감 WC065 거부",
+      error?.code === "WC065",
+      JSON.stringify(error),
+    );
 
     const { error: restoreErr } = await admin
       .from("products")
@@ -442,25 +517,35 @@ try {
     if (error) throw new Error(`coupons insert 실패: ${error.message}`);
     cleanup.couponIds.push(coupon.id);
 
-    const { data: usable, error: uErr } = await rpcAsUser(student9.email, "fn_usable_coupons", {
-      p_subtotal: busan.price,
-      p_student_profile_id: null,
-      p_order_id: order9,
-    });
+    const { data: usable, error: uErr } = await rpcAsUser(
+      student9.email,
+      "fn_usable_coupons",
+      {
+        p_subtotal: busan.price,
+        p_student_profile_id: null,
+        p_order_id: order9,
+      },
+    );
     check("S9 fn_usable_coupons RPC 성공", !uErr, JSON.stringify(uErr));
-    const row = Array.isArray(usable) ? usable.find((r) => r.id === coupon.id) : null;
+    const row = Array.isArray(usable)
+      ? usable.find((r) => r.id === coupon.id)
+      : null;
     check(
       "S9 fn_usable_coupons eligible=false, reason=org_product_excluded",
       row?.eligible === false && row?.reason === "org_product_excluded",
       JSON.stringify(row),
     );
 
-    const { data: byCode, error: cErr } = await rpcAsUser(student9.email, "fn_coupon_by_code", {
-      p_code: couponCode,
-      p_subtotal: busan.price,
-      p_student_profile_id: null,
-      p_order_id: order9,
-    });
+    const { data: byCode, error: cErr } = await rpcAsUser(
+      student9.email,
+      "fn_coupon_by_code",
+      {
+        p_code: couponCode,
+        p_subtotal: busan.price,
+        p_student_profile_id: null,
+        p_order_id: order9,
+      },
+    );
     check("S9 fn_coupon_by_code RPC 성공", !cErr, JSON.stringify(cErr));
     const codeRow = Array.isArray(byCode) ? byCode[0] : byCode;
     check(
@@ -474,11 +559,14 @@ try {
   // UI 시나리오 11 — 게스트 /pricing: 특가 카드 미노출.
   // ===========================================================================
   {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+    });
     const page = await context.newPage();
     await page.goto(`${APP_ORIGIN}/pricing`, { waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
-    const badgeVisible = (await page.getByText("부산캠퍼스 특별할인").count()) > 0;
+    const badgeVisible =
+      (await page.getByText("부산캠퍼스 특별할인").count()) > 0;
     check("S11 게스트 /pricing 특가 카드 미노출", !badgeVisible);
     await context.close();
   }
@@ -498,13 +586,17 @@ try {
     check("S12 org 없는 학생 결제요청 화면 특가 미노출", !before);
 
     // 마이페이지 → 소속코드 입력·저장.
-    await page.goto(`${APP_ORIGIN}/mypage?tab=profile`, { waitUntil: "networkidle" });
+    await page.goto(`${APP_ORIGIN}/mypage?tab=profile`, {
+      waitUntil: "networkidle",
+    });
     await page.waitForTimeout(1000);
     // ProfileTab.tsx — 소속코드 필드의 액션 버튼 라벨은 org_code 미입력 시
     // "입력"(입력 후엔 "변경"). 이 탭에서 "입력"은 소속코드 필드 하나뿐.
     const orgTrigger = page.getByRole("button", { name: "입력" });
     await orgTrigger.click({ timeout: 10000 });
-    const orgInput = page.locator('input[placeholder="소속코드가 없으면 입력하지 마세요"]');
+    const orgInput = page.locator(
+      'input[placeholder="소속코드가 없으면 입력하지 마세요"]',
+    );
     await orgInput.waitFor({ state: "visible", timeout: 10000 });
     await orgInput.fill("위닝부산캠퍼스");
     await page.getByRole("button", { name: "저장" }).click();
@@ -515,14 +607,20 @@ try {
       .select("org_code")
       .eq("id", student12.id)
       .single();
-    check("S12 소속코드 DB 저장 확인", profileRow?.org_code === "위닝부산캠퍼스", JSON.stringify(profileRow));
+    check(
+      "S12 소속코드 DB 저장 확인",
+      profileRow?.org_code === "위닝부산캠퍼스",
+      JSON.stringify(profileRow),
+    );
 
     // 결제요청 화면 재진입 — 특가 섹션 노출.
     await page.goto(`${APP_ORIGIN}/checkout`, { waitUntil: "networkidle" });
     await page.waitForTimeout(1500);
-    const afterBadge = (await page.getByText("부산캠퍼스 특별할인").count()) > 0;
+    const afterBadge =
+      (await page.getByText("부산캠퍼스 특별할인").count()) > 0;
     check("S12 소속코드 저장 후 특가 섹션 노출", afterBadge);
-    const noCouponNotice = (await page.getByText("쿠폰 적용 대상이 아닙니다").count()) > 0;
+    const noCouponNotice =
+      (await page.getByText("쿠폰 적용 대상이 아닙니다").count()) > 0;
     check("S12 구성·쿠폰 불가 고지 확인", noCouponNotice);
     await context.close();
   }
@@ -536,14 +634,24 @@ try {
   await linkPair(parent13, student13);
   const order13 = `order_${RUN_TAG}_ui13`;
   {
-    const { error } = await requestEnrollment(order13, student13, parent13, busan);
+    const { error } = await requestEnrollment(
+      order13,
+      student13,
+      parent13,
+      busan,
+    );
     check("S13 사전 신청 성공(DB)", !error, error?.message);
     cleanup.orderIds.push(order13);
 
     const { context, page } = await freshPage(browser, parent13.email);
-    await page.goto(`${APP_ORIGIN}/checkout?order=${order13}`, { waitUntil: "networkidle" });
+    await page.goto(`${APP_ORIGIN}/checkout?order=${order13}`, {
+      waitUntil: "networkidle",
+    });
     await page.waitForTimeout(1500);
-    const notice = (await page.getByText("본 특가 상품은 쿠폰 적용 대상이 아닙니다.").count()) > 0;
+    const notice =
+      (await page
+        .getByText("본 특가 상품은 쿠폰 적용 대상이 아닙니다.")
+        .count()) > 0;
     check("S13 학부모 결제 화면 쿠폰 섹션 안내문 대체", notice);
     await context.close();
   }
@@ -559,36 +667,53 @@ try {
   // history 행 — busan-9900 paid 주문(구성 3줄 표기 검증도 이 주문 재사용, S15).
   const order14History = `order_${RUN_TAG}_hist`;
   {
-    const { error } = await requestEnrollment(order14History, student14, parent14, busan);
+    const { error } = await requestEnrollment(
+      order14History,
+      student14,
+      parent14,
+      busan,
+    );
     check("S14 history용 신청 성공", !error, error?.message);
     cleanup.orderIds.push(order14History);
     const paidAt = await approveAndPay(order14History, parent14);
-    const { error: gErr } = await admin.rpc("fn_grant_program_access_for_order", {
-      p_order_id: order14History,
-      p_user_id: parent14.id,
-      p_paid_at: paidAt,
-    });
+    const { error: gErr } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order14History,
+        p_user_id: parent14.id,
+        p_paid_at: paidAt,
+      },
+    );
     check("S14 history용 grant 성공", !gErr, gErr?.message);
   }
 
   // pending 행 — suhaeng-1 신청만(승인 대기).
   const order14Pending = `order_${RUN_TAG}_pend`;
   {
-    const { error } = await requestEnrollment(order14Pending, student14, parent14, suhaeng1);
+    const { error } = await requestEnrollment(
+      order14Pending,
+      student14,
+      parent14,
+      suhaeng1,
+    );
     check("S14 pending용 신청 성공", !error, error?.message);
     cleanup.orderIds.push(order14Pending);
   }
 
   // refund 행 — history 주문에 대해 학생이 전액 환불 요청(requested).
   {
-    const { data: refundRow, error } = await rpcAsUser(student14.email, "fn_request_refund", {
-      p_order_id: order14History,
-      p_reason: "단순 변심",
-      p_refund_bank: null,
-      p_refund_account: null,
-      p_refund_holder: null,
-      p_order_item_ids: null,
-    });
+    const { data: refundRow, error } = await rpcAsUser(
+      student14.email,
+      "fn_request_refund",
+      {
+        p_order_id: order14History,
+        p_reason: "단순 변심",
+        p_refund_bank: null,
+        p_refund_account: null,
+        p_refund_holder: null,
+        p_order_item_ids: null,
+      },
+    );
     check("S14 refund용 학생 신청 성공", !error, JSON.stringify(error));
     check(
       "S14 refund 행 approval_status=requested",
@@ -599,14 +724,27 @@ try {
 
   {
     const { context, page } = await freshPage(browser, parent14.email);
-    await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, { waitUntil: "networkidle" });
+    await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, {
+      waitUntil: "networkidle",
+    });
     await page.waitForTimeout(1500);
 
-    const singleTableHeading = await page.getByRole("heading", { name: "지난 결제내역" }).count();
-    check("S14 '지난 결제내역' 단일 표 제목 1개", singleTableHeading === 1, `count=${singleTableHeading}`);
+    const singleTableHeading = await page
+      .getByRole("heading", { name: "지난 결제내역" })
+      .count();
+    check(
+      "S14 '지난 결제내역' 단일 표 제목 1개",
+      singleTableHeading === 1,
+      `count=${singleTableHeading}`,
+    );
     const threeSectionHeadings =
-      (await page.getByText("환불요청").count()) + (await page.getByText("결제 신청하기").count());
-    check("S14 3섹션(구) 제목 없음", threeSectionHeadings === 0, `count=${threeSectionHeadings}`);
+      (await page.getByText("환불요청").count()) +
+      (await page.getByText("결제 신청하기").count());
+    check(
+      "S14 3섹션(구) 제목 없음",
+      threeSectionHeadings === 0,
+      `count=${threeSectionHeadings}`,
+    );
 
     // refund 행 클릭 → 승인 모달.
     await page
@@ -614,7 +752,8 @@ try {
       .first()
       .click();
     await page.waitForTimeout(800);
-    const approvalModalOpen = (await page.getByRole("button", { name: /환불 승인/ }).count()) > 0;
+    const approvalModalOpen =
+      (await page.getByRole("button", { name: /환불 승인/ }).count()) > 0;
     check("S14 refund 행 클릭 → 승인 모달 오픈", approvalModalOpen);
     await page.keyboard.press("Escape").catch(() => {});
     await page.waitForTimeout(500);
@@ -646,21 +785,31 @@ try {
   await linkPair(parent15, student15);
   const order15 = `order_${RUN_TAG}_receipt`;
   {
-    const { error } = await requestEnrollment(order15, student15, parent15, busan);
+    const { error } = await requestEnrollment(
+      order15,
+      student15,
+      parent15,
+      busan,
+    );
     check("S15 사전 신청 성공(DB)", !error, error?.message);
     cleanup.orderIds.push(order15);
     const paidAt15 = await approveAndPay(order15, parent15);
-    const { error: gErr } = await admin.rpc("fn_grant_program_access_for_order", {
-      p_order_id: order15,
-      p_user_id: parent15.id,
-      p_paid_at: paidAt15,
-    });
+    const { error: gErr } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order15,
+        p_user_id: parent15.id,
+        p_paid_at: paidAt15,
+      },
+    );
     check("S15 grant 성공", !gErr, gErr?.message);
   }
 
   {
     const { context, page } = await freshPage(browser, parent15.email);
-    await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, { waitUntil: "networkidle" });
+    await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, {
+      waitUntil: "networkidle",
+    });
     await page.waitForTimeout(1500);
 
     await page
@@ -669,9 +818,13 @@ try {
       .click();
     await page.waitForTimeout(800);
 
-    const diagnoseLine = (await page.getByText("학습진단 1회", { exact: false }).count()) > 0;
-    const targetLine = (await page.getByText("목표관리 1개월", { exact: false }).count()) > 0;
-    const suhaengLine = (await page.getByText("수행평가 1개월 2회", { exact: false }).count()) > 0;
+    const diagnoseLine =
+      (await page.getByText("학습진단 1회", { exact: false }).count()) > 0;
+    const targetLine =
+      (await page.getByText("목표관리 1개월", { exact: false }).count()) > 0;
+    const suhaengLine =
+      (await page.getByText("수행평가 1개월 2회", { exact: false }).count()) >
+      0;
     check("S15 결제상세 구성 3줄(학습진단 1회)", diagnoseLine);
     check("S15 결제상세 구성 3줄(목표관리 1개월)", targetLine);
     check("S15 결제상세 구성 3줄(수행평가 1개월 2회)", suhaengLine);
@@ -686,9 +839,18 @@ try {
   // ---------------------------------------------------------------------------
   try {
     if (cleanup.orderIds.length > 0) {
-      await admin.from("refund_requests").delete().in("order_id", cleanup.orderIds);
-      await admin.from("program_access_grants").delete().in("order_id", cleanup.orderIds);
-      await admin.from("coupon_redemptions").delete().in("order_id", cleanup.orderIds);
+      await admin
+        .from("refund_requests")
+        .delete()
+        .in("order_id", cleanup.orderIds);
+      await admin
+        .from("program_access_grants")
+        .delete()
+        .in("order_id", cleanup.orderIds);
+      await admin
+        .from("coupon_redemptions")
+        .delete()
+        .in("order_id", cleanup.orderIds);
       await admin.from("order_items").delete().in("order_id", cleanup.orderIds);
       // orders 의 PK 는 order_id 가 아니라 id 다(order_items/refund_requests
       // 등 자식 테이블만 order_id 를 FK 로 쓴다) — 처음 이 조건을 order_id 로
