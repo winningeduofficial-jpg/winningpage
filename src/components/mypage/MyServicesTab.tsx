@@ -40,10 +40,26 @@ import ServiceCard from "./ServiceCard";
  * 않는다(20260821000005 주석 "free는 원장 미적재") — orders에도 안 잡혔던
  * 예전과 마찬가지로 이 탭에는 애초에 나타나지 않는다. 별도 처리 불필요.
  *
- * 카드 병합(같은 서비스 여러 결제를 "결제 N건"으로 합치던 옛 로직)도 폐기했다
- * — grant 1행 = 카드 1장 원칙과 상충한다. 재구매로 같은 program_key의 grant가
- * 여러 개(체이닝) 있으면 카드도 그만큼 뜬다 — 이 편이 실제 데이터를 있는
- * 그대로 보여준다.
+ * ── 서비스(program_key) 단위 합산(2026-09-01, 사용자 QA 후속) ──
+ * 처음엔 "grant 1행 = 카드 1장"이었다 — 하지만 재구매 체이닝(기간 만료 후
+ * 재구매, 회차권 추가 구매)이 실제로 grant를 여러 개 만들다 보니 같은
+ * 서비스가 카드 여러 장(예: 수행평가 "잔여 2회"+"잔여 6회" 2장)으로 쪼개져
+ * 보이는 걸 사용자가 명시적으로 재지적했다. 그래서 표시 단계에서 program_key
+ * 로 다시 묶는다(aggregateByProgramKey) — grant 자체는 여전히 원장 그대로
+ * 여러 행이고, 카드만 서비스 단위 1장으로 합산해 보여준다.
+ *
+ * 합산 규칙(살아있는 grant, revoked 제외):
+ *   회차제  잔여 = 살아있는 grant들의 (총회차 − 소비) 합. "유효기간"은 가장
+ *           늦은 expires_at까지 남은 일수(소진 순서가 expires_at asc라
+ *           마지막 만료가 실질 한도 — fn_refund_quote 소비 순서와 같은 근거).
+ *   기간제  이용기간 = 살아있는 grant들의 min(starts_at) ~ max(expires_at)
+ *           (재구매 체이닝은 다음 grant가 이전 grant의 만료 시점부터 시작하므로
+ *           이 구간이 곧 끊김 없는 전체 이용 구간이다). 남은 일수는 그 max
+ *           expires_at 기준.
+ *   완료    그 서비스에 살아있는 grant가 하나도 없을 때만 완료 카드 1장 —
+ *           가장 최근에 만료/소진된 grant를 대표로 삼는다(진단 완료 카드의
+ *           리포트/재검사 액션 정책은 그대로).
+ * 진행바도 같은 합산 구간(min~max) 기준 경과율이다.
  *
  * 로컬 QA 전용 FAKE_ENTITLEMENT_ENABLED(entitlement.ts)는 orders 목업이라 이
  * 컴포넌트에는 더 이상 영향을 주지 않는다 — 실제 grant가 있어야 카드가 뜬다.
@@ -113,10 +129,7 @@ type ParsedGrant = {
   expiresAt: Date | null;
   /** 실제로 처음 이용을 시작한 시각 — 완료 카드의 "진단 완료"류 날짜 표기용. */
   firstAccessedAt: Date | null;
-  remainingDays: number | null;
-  validityDays: number | null;
   isOngoing: boolean;
-  progressPercent: number;
 };
 
 type ServiceCardAction = {
@@ -136,7 +149,7 @@ type ServiceCardViewModel = {
   metaLeft: string;
   metaRight: string;
   actions: ServiceCardAction[];
-  /** grant 1행 = 카드 1장 원칙이라 항상 1 — ServiceCard의 "결제 N건" 배지는 뜨지 않는다. */
+  /** 서비스 단위 합산 카드라 배지 자체를 안 쓴다 — 항상 1(ServiceCard의 "결제 N건" 배지 미노출). */
   paymentCount: number;
 };
 
@@ -183,23 +196,6 @@ function parseGrant(
   const exhausted = totalCount !== null && used >= totalCount;
   const isOngoing = !expired && !exhausted;
 
-  const remainingDays = expiresAt
-    ? Math.ceil((expiresAt.getTime() - now) / MS_PER_DAY)
-    : null;
-  const validityDays = expiresAt
-    ? Math.round((expiresAt.getTime() - startsAt.getTime()) / MS_PER_DAY)
-    : null;
-
-  let progressPercent = 0;
-  if (!isOngoing) {
-    progressPercent = 100;
-  } else if (expiresAt) {
-    const totalMs = expiresAt.getTime() - startsAt.getTime();
-    const elapsedMs = now - startsAt.getTime();
-    progressPercent =
-      totalMs > 0 ? Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100)) : 0;
-  }
-
   return {
     id: grant.id,
     programKey: grant.program_key,
@@ -210,11 +206,121 @@ function parseGrant(
     startsAt,
     expiresAt,
     firstAccessedAt,
-    remainingDays,
-    validityDays,
     isOngoing,
-    progressPercent,
   };
+}
+
+// 서비스(program_key) 단위로 합산한 표시용 집계 — 카드 1장의 입력이다.
+// 필드 이름은 ParsedGrant와 맞췄다(뜻이 같다 — 다만 이용 중 카드는 살아있는
+// grant들의 합산값, 완료 카드는 대표 grant 1건의 값).
+type AggregatedService = {
+  id: string;
+  programKey: string;
+  serviceName: string;
+  category: ServiceCategory;
+  isOngoing: boolean;
+  progressPercent: number;
+  totalCount: number | null;
+  remaining: number | null;
+  startsAt: Date | null;
+  expiresAt: Date | null;
+  firstAccessedAt: Date | null;
+};
+
+function aggregateByProgramKey(
+  parsedGrants: ParsedGrant[],
+): AggregatedService[] {
+  const groups = new Map<string, ParsedGrant[]>();
+  for (const g of parsedGrants) {
+    const list = groups.get(g.programKey);
+    if (list) list.push(g);
+    else groups.set(g.programKey, [g]);
+  }
+
+  return Array.from(groups.entries()).map(([programKey, group]) => {
+    const meta = PROGRAM_KEY_META[programKey] ?? {
+      serviceName: programKey,
+      category: "duration" as ServiceCategory,
+      route: "/services",
+    };
+    const liveGrants = group.filter((g) => g.isOngoing);
+
+    if (liveGrants.length > 0) {
+      // 회차 보유분이 하나라도 있으면 회차제 표기(기존 단일 카드 규칙과 동일
+      // 원칙) — 순수 기간제 grant까지 섞여 있으면 그쪽은 회차 계산에서 빼고
+      // 이용기간 구간(시작~만료)에만 반영한다.
+      const sessionGrants = liveGrants.filter((g) => g.totalCount !== null);
+      const hasSessions = sessionGrants.length > 0;
+      const basisForWindow = hasSessions ? sessionGrants : liveGrants;
+
+      const startsAt = basisForWindow.reduce<Date | null>(
+        (min, g) => (!min || g.startsAt < min ? g.startsAt : min),
+        null,
+      );
+      const expiresAt = basisForWindow.reduce<Date | null>((max, g) => {
+        if (!g.expiresAt) return max;
+        return !max || g.expiresAt > max ? g.expiresAt : max;
+      }, null);
+
+      const now = Date.now();
+      let progressPercent = 0;
+      if (startsAt && expiresAt) {
+        const totalMs = expiresAt.getTime() - startsAt.getTime();
+        const elapsedMs = now - startsAt.getTime();
+        progressPercent =
+          totalMs > 0
+            ? Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100))
+            : 0;
+      }
+
+      return {
+        id: programKey,
+        programKey,
+        serviceName: meta.serviceName,
+        category: meta.category,
+        isOngoing: true,
+        progressPercent,
+        totalCount: hasSessions
+          ? sessionGrants.reduce((sum, g) => sum + (g.totalCount ?? 0), 0)
+          : null,
+        remaining: hasSessions
+          ? sessionGrants.reduce((sum, g) => sum + (g.remaining ?? 0), 0)
+          : null,
+        startsAt,
+        expiresAt,
+        firstAccessedAt: null,
+      };
+    }
+
+    // 완료 — 살아있는 grant가 없다. 가장 최근에 만료/소진된 grant 1건을
+    // 대표로 삼는다(만료일이 있으면 만료일, 없으면(진단처럼 만료 대신 소진만
+    // 있는 경우) 최초 이용일·시작일 순으로 폴백).
+    const representative = group.reduce((latest, g) => {
+      const latestKey =
+        latest.expiresAt?.getTime() ??
+        latest.firstAccessedAt?.getTime() ??
+        latest.startsAt.getTime();
+      const gKey =
+        g.expiresAt?.getTime() ??
+        g.firstAccessedAt?.getTime() ??
+        g.startsAt.getTime();
+      return gKey > latestKey ? g : latest;
+    });
+
+    return {
+      id: programKey,
+      programKey,
+      serviceName: meta.serviceName,
+      category: meta.category,
+      isOngoing: false,
+      progressPercent: 100,
+      totalCount: representative.totalCount,
+      remaining: representative.remaining,
+      startsAt: representative.startsAt,
+      expiresAt: representative.expiresAt,
+      firstAccessedAt: representative.firstAccessedAt,
+    };
+  });
 }
 
 // 학습진단 재검사 문구 — SurveyStepShell 진입 게이트 alert(QA 행 27 안내문)와 톤을 맞춘다.
@@ -222,7 +328,7 @@ const DIAGNOSIS_RETAKE_BLOCKED_REASON =
   "1회 이용권을 모두 사용했습니다. 이용권을 구매하시면 다시 이용하실 수 있습니다.";
 
 function toViewModel(
-  parsed: ParsedGrant,
+  agg: AggregatedService,
   diagnosisAccess: DiagnosisAccessResult | null,
 ): ServiceCardViewModel {
   const {
@@ -233,10 +339,16 @@ function toViewModel(
     startsAt,
     expiresAt,
     firstAccessedAt,
-    remainingDays,
-    validityDays,
     isOngoing,
-  } = parsed;
+  } = agg;
+
+  // 이용 중 카드의 "유효기간"은 이제 구간 길이가 아니라 가장 늦은 만료일까지
+  // 남은 일수다(합산 규칙 — 파일 상단 주석 참고, 소진 순서가 expires_at asc라
+  // 마지막 만료가 실질 한도).
+  const now = Date.now();
+  const remainingDays = expiresAt
+    ? Math.ceil((expiresAt.getTime() - now) / MS_PER_DAY)
+    : null;
 
   const statusLabel = (() => {
     if (!isOngoing) return "이용완료";
@@ -256,8 +368,8 @@ function toViewModel(
   } else if (totalCount !== null) {
     metaLeft = isOngoing ? `${totalCount}회권` : `총 ${totalCount}회 이용`;
     metaRight = isOngoing
-      ? validityDays
-        ? `유효기간 ${validityDays}일`
+      ? remainingDays !== null
+        ? `유효기간 ${remainingDays}일`
         : "-"
       : formatDateSpaced(startsAt);
   } else {
@@ -322,11 +434,11 @@ function toViewModel(
   }
 
   return {
-    id: parsed.id,
+    id: agg.id,
     serviceName: PROGRAM_KEY_META[programKey]?.serviceName ?? programKey,
     statusLabel,
     isOngoing,
-    progressPercent: parsed.progressPercent,
+    progressPercent: agg.progressPercent,
     metaLeft,
     metaRight,
     actions,
@@ -459,9 +571,10 @@ export default function MyServicesTab() {
     return <EmptyState />;
   }
 
-  const cards = grants
-    .map((grant) => parseGrant(grant, usedByGrant))
-    .map((parsed) => toViewModel(parsed, diagnosisAccess));
+  const parsedGrants = grants.map((grant) => parseGrant(grant, usedByGrant));
+  const cards = aggregateByProgramKey(parsedGrants).map((agg) =>
+    toViewModel(agg, diagnosisAccess),
+  );
   const ongoing = cards.filter((card) => card.isOngoing);
   const completed = cards.filter((card) => !card.isOngoing);
 

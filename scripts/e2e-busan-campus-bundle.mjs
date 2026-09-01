@@ -275,6 +275,8 @@ try {
 
   const busan = await getProduct("busan-9900");
   const suhaeng1 = await getProduct("suhaeng-1");
+  const suhaeng6 = await getProduct("suhaeng-6");
+  const goal3m = await getProduct("goal-3m");
 
   // ===========================================================================
   // 시나리오 3~5, 10 — busan-9900 번들 부여/멱등/전체환불 + 단품 회귀
@@ -1365,6 +1367,124 @@ try {
     );
 
     await page.keyboard.press("Escape").catch(() => {});
+    await context.close();
+  }
+
+  // ===========================================================================
+  // UI 시나리오 21 — 나의 서비스 서비스(program_key) 단위 합산(2026-09-01,
+  // 사용자 QA 후속): 같은 서비스로 grant가 여러 개(번들 1개월 2회 + 별도
+  // 수행평가 3개월 6회, 번들 목표관리 1개월 + 별도 goal-3m 3개월 체이닝)여도
+  // 카드는 서비스당 1장이어야 한다 — grant 1행=카드 1장이던 옛 규칙(6be5af13
+  // 다음 리팩터)이 되돌아오면 이 시나리오가 실패한다. 시연 데이터(demo-student)
+  // 와 동일한 조합을 별도 QA 계정으로 재현한다.
+  // ===========================================================================
+  const parent21 = await mkUser("s21-parent", "parent");
+  const student21 = await mkUser("s21-student", "student", "위닝부산캠퍼스");
+  await linkPair(parent21, student21);
+  const order21bundle = `order_${RUN_TAG}_agg_bundle`;
+  const order21suhaeng6 = `order_${RUN_TAG}_agg_suhaeng6`;
+  const order21goal3m = `order_${RUN_TAG}_agg_goal3m`;
+  {
+    const { error: e1 } = await requestEnrollment(
+      order21bundle,
+      student21,
+      parent21,
+      busan,
+    );
+    check("S21 번들 신청 성공(DB)", !e1, e1?.message);
+    cleanup.orderIds.push(order21bundle);
+    const paidAt1 = await approveAndPay(order21bundle, parent21);
+    const { error: g1 } = await admin.rpc("fn_grant_program_access_for_order", {
+      p_order_id: order21bundle,
+      p_user_id: parent21.id,
+      p_paid_at: paidAt1,
+    });
+    check("S21 번들 grant 성공", !g1, g1?.message);
+
+    const { error: e2 } = await requestEnrollment(
+      order21suhaeng6,
+      student21,
+      parent21,
+      suhaeng6,
+    );
+    check("S21 수행평가 6회권 신청 성공(DB)", !e2, e2?.message);
+    cleanup.orderIds.push(order21suhaeng6);
+    const paidAt2 = await approveAndPay(order21suhaeng6, parent21);
+    const { error: g2 } = await admin.rpc("fn_grant_program_access_for_order", {
+      p_order_id: order21suhaeng6,
+      p_user_id: parent21.id,
+      p_paid_at: paidAt2,
+    });
+    check("S21 수행평가 6회권 grant 성공", !g2, g2?.message);
+
+    const { error: e3 } = await requestEnrollment(
+      order21goal3m,
+      student21,
+      parent21,
+      goal3m,
+    );
+    check("S21 목표관리 3개월 신청 성공(DB)", !e3, e3?.message);
+    cleanup.orderIds.push(order21goal3m);
+    const paidAt3 = await approveAndPay(order21goal3m, parent21);
+    const { error: g3 } = await admin.rpc("fn_grant_program_access_for_order", {
+      p_order_id: order21goal3m,
+      p_user_id: parent21.id,
+      p_paid_at: paidAt3,
+    });
+    check("S21 목표관리 3개월 grant 성공(체이닝)", !g3, g3?.message);
+
+    const { context, page } = await freshPage(browser, student21.email);
+    await page.goto(`${APP_ORIGIN}/mypage?tab=services`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(1500);
+
+    const suhaengHeadingCount = await page
+      .getByRole("heading", { name: "위닝 수행평가", exact: true })
+      .count();
+    check(
+      "S21 수행평가 grant 2개(번들+6회권)가 카드 1장으로 합산됨",
+      suhaengHeadingCount === 1,
+      `count=${suhaengHeadingCount}`,
+    );
+    const goalHeadingCount = await page
+      .getByRole("heading", { name: "위닝 목표관리", exact: true })
+      .count();
+    check(
+      "S21 목표관리 grant 2개(번들+3개월, 체이닝)가 카드 1장으로 합산됨",
+      goalHeadingCount === 1,
+      `count=${goalHeadingCount}`,
+    );
+
+    function cardFor21(serviceName) {
+      return page
+        .getByRole("heading", { name: serviceName, exact: true })
+        .locator(
+          "xpath=ancestor::div[contains(@class,'rounded-perf-modal')][1]",
+        );
+    }
+
+    // 수행평가 잔여 = 번들 2회(미사용) + 6회권 6회(미사용) = 8회.
+    const suhaengCard21 = cardFor21("위닝 수행평가");
+    const suhaengRemaining8 =
+      (await suhaengCard21.getByText("잔여 8회", { exact: false }).count()) > 0;
+    check("S21 수행평가 합산 잔여 = 8회(2+6)", suhaengRemaining8);
+
+    // 목표관리 체이닝 — 두 번째 grant(3개월)가 번들 grant(1개월) 만료 시점부터
+    // 시작하므로(fn_grant_program_access_for_order의 같은 program_key 체이닝
+    // 규칙) 합산 만료일까지 남은 일수가 단일 1개월 grant보다 훨씬 길어야
+    // 한다 — 날짜 계산 대신 넉넉한 하한(60일)으로 체이닝 반영 여부만 본다
+    // (정확한 일수는 실행 시각에 따라 달라져 단언하지 않는다).
+    const goalCard21 = cardFor21("위닝 목표관리");
+    const goalMetaText = (await goalCard21.textContent().catch(() => "")) || "";
+    const goalDaysMatch = goalMetaText.match(/(\d+)일 남음/);
+    const goalRemainingDays = goalDaysMatch ? Number(goalDaysMatch[1]) : null;
+    check(
+      "S21 목표관리 합산 만료가 체이닝 반영(잔여일수 > 60일, 단일 1개월보다 훨씬 김)",
+      goalRemainingDays !== null && goalRemainingDays > 60,
+      `text=${goalMetaText}`,
+    );
+
     await context.close();
   }
 } finally {
