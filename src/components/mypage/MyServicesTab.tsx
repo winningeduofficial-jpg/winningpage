@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { useAuth } from "@/context/AuthProvider";
 import {
   checkDiagnosisAccess,
   type DiagnosisAccessResult,
@@ -8,68 +9,110 @@ import {
   SURVEY_FIRST_STEP_PATH,
   SURVEY_REPORT_PATH,
 } from "@/lib/renewalSurvey";
+import { supabase } from "@/lib/supabase";
 import ServiceCard from "./ServiceCard";
 
 /**
  * 마이페이지 "나의 서비스" 탭 — Figma hsokTD6OilcNEXyCR24sn4
  * (카드 상태: 노드 3762:18713 / 빈 상태: 노드 3762:20041).
  *
- * 이 서브에이전트 세션에는 Figma MCP 도구가 직접 붙지 않아, 팀리더가 대신 조회한
- * get_design_context 실측치 + 시안 스크린샷(1920px)을 근거로 구현했다. 픽셀 완벽 재현이
- * 목표가 아니라는 지침에 따라 세부는 재량으로 채웠다.
+ * ── 정본 전환(2026-09-01, 부산캠퍼스 번들 QA 후속) ──
+ * 예전에는 orders.order_name 문자열을 "[기간·횟수] 서비스명" 패턴으로 정규식
+ * 파싱해 서비스별 카드를 만들었다. 번들 상품(order_items 1건 → grant 3행)이
+ * 이 파서를 정면으로 못 통과해 카드 1장으로 뭉치는 버그가 났고, 그걸 고치려던
+ * 1차 수정(order_name 문자열을 합성해 파서에 억지로 태우는 방식, 6be5af13)은
+ * 팀 리드 판단으로 꼼수라 기각됐다 — "결제 후의 세계는 발급 원장(program_
+ * access_grants)이 정본이어야 하고, 번들 구매자와 단품 구매자의 마이페이지가
+ * 구분 가능해선 안 된다"는 원칙 때문이다.
  *
- * ── 데이터 유도 규칙 (스키마에 이용권 기간/횟수 전용 컬럼이 없어 문자열 파싱에 의존) ──
- * orders.order_name 은 "[기간·횟수] 서비스명" 형태로 저장된다.
- *   예) '[12개월] 위닝 목표관리', '[3개월 6회 이용권] 위닝 AI수행평가'
- *   (src/lib/entitlement.js getMockPaidOrders 참고 — MyPage.jsx가 orders 테이블에서 읽는
- *   컬럼 형태(id, order_name, amount, paid_at)와 맞춘 목업이 실제 스키마의 유일한 근거다.)
- * 대괄호 안에서 "N개월"·"N회"를 정규식으로 뽑아
- *   - 이용기간 종료일 = paid_at + N개월
- *   - 유효기간(일)  = 종료일 − paid_at
- *   - "N회권" 표기는 부여된 총 횟수다. 실제 사용 횟수를 차감하는 컬럼이 없어 시안의
- *     "1회 사용 / 3회권" 같은 사용분수 표기는 재현하지 못하고 총 횟수만 최선으로 보여준다.
- * 개월 정보가 없으면 종료일을 알 수 없으므로 "이용 완료"로 잘못 분류하지 않기 위해 기본값을
- * "이용 중"으로 둔다(단, 무료진단처럼 원래 즉시 완료되는 서비스는 카테고리로 예외 처리한다).
- * 정식 스키마(entitlement_months / entitlement_count 컬럼 등)가 생기면 이 파싱을 걷어내고
- * 그 값을 직접 써야 한다.
+ * 그래서 이 컴포넌트는 orders를 전혀 보지 않는다. 학생 본인 program_access_
+ * grants(RLS `program_access_grants_select_own`: profile_id = auth.uid())를
+ * 직접 읽고, 살아있는(revoked_at is null) 행 1개 = 카드 1장이다. 회차 소비는
+ * performance_credit_ledger(RLS 동일 원칙)에서 grant_id별로 합산한다 — 이
+ * 조합은 PaymentsTab.tsx의 이용완료 판정이 이미 쓰던 패턴 그대로다(중복 구현
+ * 아님, 같은 원장을 같은 방식으로 읽을 뿐).
  *
- * ── 한 주문에 여러 상품이 담긴 경우(order_items.length > 1) ──
- * order_name은 "대표 상품명 외 N건"으로 요약돼 있어(buildOrderNameFromItems 계열) 그대로
- * 쓰면 QA 지적대로 무슨 서비스가 묶였는지 알 수 없다. order_items가 2건 이상이면 order_name
- * 대신 항목별로 카드를 쪼갠다(expandOrder) — 단, order_items.name은 products.name 스냅샷
- * 그대로라 대괄호 기간·회차 표기가 없으므로, 쪼갠 카드는 기간 파싱 없이(months=null) 위
- * "개월 정보 없음" 폴백(기본 이용 중, 메타 '-')과 같은 경로를 그대로 탄다.
+ * 서비스명·카테고리·앱 라우트는 program_key(diagnose/target/suhaeng/mentor)
+ * 기반 고정 매핑이다 — 더 이상 서비스명 문자열 키워드 추측이 아니다. 매핑에
+ * 없는 program_key(카탈로그 확장 등)는 원문 그대로 노출한다(지어내지 않는다).
  *
- * ── 서비스명 → 표시 형식 분류 ──
- * 시안은 서비스 성격에 따라 메타 정보·하단 액션 문구가 다르다(콜멘토=세션형, 무료진단=1회성
- * 리포트형, 그 외=기간형). 서비스명 키워드로 분류하는 휴리스틱이며 실제 서비스 카탈로그
- * 컬럼이 생기면 그쪽을 정본으로 바꿔야 한다.
+ * 무료진단(회원가입 1회, diagnosis_attempts kind='free')은 grant를 만들지
+ * 않는다(20260821000005 주석 "free는 원장 미적재") — orders에도 안 잡혔던
+ * 예전과 마찬가지로 이 탭에는 애초에 나타나지 않는다. 별도 처리 불필요.
+ *
+ * 카드 병합(같은 서비스 여러 결제를 "결제 N건"으로 합치던 옛 로직)도 폐기했다
+ * — grant 1행 = 카드 1장 원칙과 상충한다. 재구매로 같은 program_key의 grant가
+ * 여러 개(체이닝) 있으면 카드도 그만큼 뜬다 — 이 편이 실제 데이터를 있는
+ * 그대로 보여준다.
+ *
+ * 로컬 QA 전용 FAKE_ENTITLEMENT_ENABLED(entitlement.ts)는 orders 목업이라 이
+ * 컴포넌트에는 더 이상 영향을 주지 않는다 — 실제 grant가 있어야 카드가 뜬다.
  */
 
-const DURATION_BRACKET_RE = /^\[(.+?)\]\s*(.+)$/;
-const MONTHS_RE = /(\d+)\s*개월/;
-const COUNT_RE = /(\d+)\s*회/;
 const MS_PER_DAY = 86400000;
 
-type Order = {
+type Grant = {
   id: string;
-  order_name?: string | null;
-  paid_at?: string | null;
-  status?: string | null;
-  is_fake_entitlement?: boolean;
-  order_items?: { name: string }[] | null;
+  program_key: string;
+  granted_sessions: number | null;
+  starts_at: string;
+  expires_at: string | null;
+  first_accessed_at: string | null;
 };
+
+type LedgerRow = { grant_id: string; delta: number };
 
 type ServiceCategory = "session" | "diagnosis" | "duration";
 
-type ParsedOrder = {
-  id: string;
+type ProgramKeyMeta = {
   serviceName: string;
   category: ServiceCategory;
-  months: number | null;
+  /** 이용 중 카드의 "프로그램 가기" 링크. 앱 라우트가 없는 서비스는 소개 페이지. */
+  route: string;
+};
+
+// program_key → 서비스명·카테고리·라우트 고정 매핑. programs 테이블(로컬 DB
+// 실측)의 활성 4종만 다룬다 — 매핑에 없는 program_key는 parseGrant의 폴백이
+// program_key 원문을 그대로 서비스명으로 쓴다(지어내지 않는다).
+const PROGRAM_KEY_META: Record<string, ProgramKeyMeta> = {
+  diagnose: {
+    serviceName: "위닝 학습진단",
+    category: "diagnosis",
+    route: "/services/learning-diagnosis",
+  },
+  target: {
+    serviceName: "위닝 목표관리",
+    category: "duration",
+    // 목표관리는 실제 앱(/app/goal) 진입이 가능하다(2026-08-10 확정).
+    route: "/app/goal",
+  },
+  suhaeng: {
+    serviceName: "위닝 수행평가",
+    category: "duration",
+    // 수행평가 하드 전환 완료 — /app/performance가 인덱스 경로
+    // (performanceAppRoutes.tsx).
+    route: "/app/performance",
+  },
+  mentor: {
+    serviceName: "위닝 콜멘토",
+    category: "session",
+    route: "/services/callmentor",
+  },
+};
+
+type ParsedGrant = {
+  id: string;
+  programKey: string;
+  serviceName: string;
+  category: ServiceCategory;
+  /** 부여된 총 회차. null이면 회차 개념이 없는 순수 기간제. */
   totalCount: number | null;
-  paidAt: Date | null;
-  endDate: Date | null;
+  /** 잔여 회차(총회차 - 소비회차). totalCount가 null이면 null. */
+  remaining: number | null;
+  startsAt: Date;
+  expiresAt: Date | null;
+  /** 실제로 처음 이용을 시작한 시각 — 완료 카드의 "진단 완료"류 날짜 표기용. */
+  firstAccessedAt: Date | null;
   remainingDays: number | null;
   validityDays: number | null;
   isOngoing: boolean;
@@ -93,37 +136,9 @@ type ServiceCardViewModel = {
   metaLeft: string;
   metaRight: string;
   actions: ServiceCardAction[];
-  /** 같은 서비스로 묶인 주문 건수. 2건 이상이면 카드에 "결제 N건" 표기. */
+  /** grant 1행 = 카드 1장 원칙이라 항상 1 — ServiceCard의 "결제 N건" 배지는 뜨지 않는다. */
   paymentCount: number;
 };
-
-// 서비스명 키워드 → 소개 페이지 라우트(src/App.jsx 등록 기준).
-const SERVICE_INTRO_ROUTES: {
-  test: (name: string) => boolean;
-  href: string;
-}[] = [
-  { test: (name) => name.includes("목표관리"), href: "/services/goal" },
-  { test: (name) => name.includes("콜멘토"), href: "/services/callmentor" },
-  {
-    test: (name) => name.includes("수행평가"),
-    href: "/services/performance",
-  },
-  {
-    test: (name) => name.includes("자기평가"),
-    href: "/services/self-assessment",
-  },
-  { test: (name) => name.includes("심화탐구"), href: "/services/research" },
-  {
-    test: (name) => name.includes("진단"),
-    href: "/services/learning-diagnosis",
-  },
-];
-
-function addMonths(date: Date, months: number) {
-  const result = new Date(date.getTime());
-  result.setMonth(result.getMonth() + months);
-  return result;
-}
 
 // "YYYY.MM.DD" — 기간형 서비스의 이용기간 범위 표기.
 function formatDate(date: Date | null) {
@@ -143,90 +158,58 @@ function formatDateSpaced(date: Date | null) {
   return `${y}. ${m}. ${d}`;
 }
 
-// 'session'(콜멘토·멘토 상담) | 'diagnosis'(무료진단, 1회성 리포트) | 'duration'(그 외, 기간제).
-function classifyService(serviceName: string): ServiceCategory {
-  if (serviceName.includes("콜멘토") || serviceName.includes("멘토"))
-    return "session";
-  if (serviceName.includes("진단")) return "diagnosis";
-  return "duration";
-}
+function parseGrant(
+  grant: Grant,
+  usedByGrant: Record<string, number>,
+): ParsedGrant {
+  const meta = PROGRAM_KEY_META[grant.program_key] ?? {
+    serviceName: grant.program_key,
+    category: "duration" as ServiceCategory,
+    route: "/services",
+  };
 
-// 목표관리만 실제 앱(/app/goal) 진입이 가능하고, 나머지는 아직 개인화된 대시보드 라우트가
-// 없어 서비스 소개 페이지로 보낸다. 무료진단 "다시 검사하기"는 설문 진입 라우트로 별도 처리.
-function programLink(serviceName: string) {
-  if (serviceName.includes("목표관리")) return "/app/goal";
-  const matched = SERVICE_INTRO_ROUTES.find((route) => route.test(serviceName));
-  return matched ? matched.href : "/services";
-}
-
-// order_items가 2건 이상인 주문(여러 상품을 한 번에 결제한 경우)은 order_name이
-// "대표 상품명 외 N건"으로 뭉개져 있어 항목별로 쪼갠다. 1건 이하면 기존 order_name
-// 파싱 경로를 그대로 쓴다 — order_items가 정확히 1건일 때는 order_name의 대괄호
-// 기간 표기가 그 1건에 대한 것이라 그대로 유지해야 정보 손실이 없다.
-function expandOrder(order: Order): Order[] {
-  const items = order.order_items;
-  if (!items || items.length <= 1) return [order];
-  return items.map((item, index) => ({
-    id: `${order.id}:${index}`,
-    order_name: item.name,
-    paid_at: order.paid_at ?? null,
-    status: order.status ?? null,
-    is_fake_entitlement: order.is_fake_entitlement ?? false,
-  }));
-}
-
-function parseOrder(order: Order): ParsedOrder {
-  const rawName = String(order?.order_name || "").trim();
-  const bracketMatch = rawName.match(DURATION_BRACKET_RE);
-  // DURATION_BRACKET_RE의 두 캡처그룹은 옵셔널(`?`)이 아니라 매치 성공 시 항상 존재한다.
-  const durationSpec = bracketMatch ? bracketMatch[1]! : "";
-  const serviceName = bracketMatch
-    ? bracketMatch[2]!.trim()
-    : rawName || "이용권";
-  const category = classifyService(serviceName);
-
-  const monthsMatch = durationSpec.match(MONTHS_RE);
-  const countMatch = durationSpec.match(COUNT_RE);
-  const months = monthsMatch ? Number(monthsMatch[1]) : null;
-  const totalCount = countMatch ? Number(countMatch[1]) : null;
-
-  const paidAtRaw = order?.paid_at ? new Date(order.paid_at) : null;
-  const paidAt =
-    paidAtRaw && !Number.isNaN(paidAtRaw.getTime()) ? paidAtRaw : null;
-  const endDate = paidAt && months ? addMonths(paidAt, months) : null;
-
-  const now = new Date();
-  const remainingDays = endDate
-    ? Math.ceil((endDate.getTime() - now.getTime()) / MS_PER_DAY)
+  const startsAt = new Date(grant.starts_at);
+  const expiresAt = grant.expires_at ? new Date(grant.expires_at) : null;
+  const firstAccessedAt = grant.first_accessed_at
+    ? new Date(grant.first_accessed_at)
     : null;
-  const validityDays =
-    endDate && paidAt
-      ? Math.round((endDate.getTime() - paidAt.getTime()) / MS_PER_DAY)
-      : null;
 
-  // 기간을 알 수 없는 주문은 기본적으로 "이용 중"으로 두지만, 무료진단은 원래 결제 즉시
-  // 리포트가 나오는 1회성 서비스라 기간 개념 자체가 없다 — 이 경우는 항상 완료로 취급한다.
-  let isOngoing = remainingDays === null ? true : remainingDays > 0;
-  if (category === "diagnosis" && months === null) isOngoing = false;
+  const totalCount = grant.granted_sessions;
+  const used = usedByGrant[grant.id] ?? 0;
+  const remaining = totalCount !== null ? Math.max(totalCount - used, 0) : null;
+
+  const now = Date.now();
+  const expired = expiresAt ? expiresAt.getTime() <= now : false;
+  const exhausted = totalCount !== null && used >= totalCount;
+  const isOngoing = !expired && !exhausted;
+
+  const remainingDays = expiresAt
+    ? Math.ceil((expiresAt.getTime() - now) / MS_PER_DAY)
+    : null;
+  const validityDays = expiresAt
+    ? Math.round((expiresAt.getTime() - startsAt.getTime()) / MS_PER_DAY)
+    : null;
 
   let progressPercent = 0;
   if (!isOngoing) {
     progressPercent = 100;
-  } else if (paidAt && endDate) {
-    const totalMs = endDate.getTime() - paidAt.getTime();
-    const elapsedMs = now.getTime() - paidAt.getTime();
+  } else if (expiresAt) {
+    const totalMs = expiresAt.getTime() - startsAt.getTime();
+    const elapsedMs = now - startsAt.getTime();
     progressPercent =
       totalMs > 0 ? Math.min(100, Math.max(0, (elapsedMs / totalMs) * 100)) : 0;
   }
 
   return {
-    id: order?.id,
-    serviceName,
-    category,
-    months,
+    id: grant.id,
+    programKey: grant.program_key,
+    serviceName: meta.serviceName,
+    category: meta.category,
     totalCount,
-    paidAt,
-    endDate,
+    remaining,
+    startsAt,
+    expiresAt,
+    firstAccessedAt,
     remainingDays,
     validityDays,
     isOngoing,
@@ -239,16 +222,17 @@ const DIAGNOSIS_RETAKE_BLOCKED_REASON =
   "1회 이용권을 모두 사용했습니다. 이용권을 구매하시면 다시 이용하실 수 있습니다.";
 
 function toViewModel(
-  parsed: ParsedOrder,
+  parsed: ParsedGrant,
   diagnosisAccess: DiagnosisAccessResult | null,
-  paymentCount: number,
 ): ServiceCardViewModel {
   const {
     category,
-    serviceName,
+    programKey,
     totalCount,
-    paidAt,
-    endDate,
+    remaining,
+    startsAt,
+    expiresAt,
+    firstAccessedAt,
     remainingDays,
     validityDays,
     isOngoing,
@@ -256,46 +240,53 @@ function toViewModel(
 
   const statusLabel = (() => {
     if (!isOngoing) return "이용완료";
-    if (totalCount) return `잔여 ${totalCount}회`;
+    if (remaining !== null) return `잔여 ${remaining}회`;
     return "이용중";
   })();
 
-  // 카테고리별 메타 한 줄(좌/우) — 시안이 서비스 성격마다 다른 정보를 보여주므로 분기한다.
+  // 메타 한 줄(좌/우) — 진단 완료 카드만 전용 문구, 나머지는 회차 유무(회차제
+  // vs 기간제)로 갈린다. 기간+회차를 동시에 가진 상품(수행평가 혼합형)도
+  // 회차제 표기를 쓴다 — 환불 산정(fn_refund_quote)이 같은 원칙(⑧ 후문
+  // 단서)으로 회차제를 우선하는 것과 표시를 맞춘다.
   let metaLeft = "-";
   let metaRight = "-";
-  if (category === "session") {
-    metaLeft = totalCount ? `${totalCount}회권` : "-";
-    metaRight = (() => {
-      if (!isOngoing) return formatDateSpaced(paidAt);
-      if (validityDays) return `유효기간 ${validityDays}일`;
-      return "-";
-    })();
-    if (!isOngoing)
-      metaLeft = totalCount ? `총 ${totalCount}회 이용` : "이용 완료";
-  } else if (category === "diagnosis") {
+  if (!isOngoing && category === "diagnosis") {
     metaLeft = "진단 완료";
-    metaRight = formatDateSpaced(paidAt);
+    metaRight = formatDateSpaced(firstAccessedAt ?? startsAt);
+  } else if (totalCount !== null) {
+    metaLeft = isOngoing ? `${totalCount}회권` : `총 ${totalCount}회 이용`;
+    metaRight = isOngoing
+      ? validityDays
+        ? `유효기간 ${validityDays}일`
+        : "-"
+      : formatDateSpaced(startsAt);
   } else {
     metaLeft =
-      paidAt || endDate
-        ? `${formatDate(paidAt)} ~ ${formatDate(endDate)}`
+      startsAt || expiresAt
+        ? `${formatDate(startsAt)} ~ ${formatDate(expiresAt)}`
         : "-";
-    metaRight = (() => {
-      if (!isOngoing) return "만료";
-      if (remainingDays !== null) return `${remainingDays}일 남음`;
-      return "-";
-    })();
+    metaRight = isOngoing
+      ? remainingDays !== null
+        ? `${remainingDays}일 남음`
+        : "-"
+      : "만료";
   }
 
-  const href = programLink(serviceName);
+  const href = PROGRAM_KEY_META[programKey]?.route ?? "/services";
 
   let actions: ServiceCardAction[];
-  if (isOngoing) {
+  if (isOngoing && category === "diagnosis") {
+    // 미사용 유료 1회권 — 소진 전에는 "이용중"이고, 할 일은 검사뿐이다(옛
+    // 구현은 진단을 무조건 완료로 취급해 이 상태 자체가 없었다).
+    actions = [
+      { kind: "link", label: "검사하기", href: SURVEY_FIRST_STEP_PATH },
+    ];
+  } else if (isOngoing) {
     const label = category === "session" ? "상담 기록 보기" : "프로그램 가기";
     actions = [{ kind: "link", label, href }];
   } else if (category === "diagnosis") {
-    // fail-open 정책 유지 — 조회 전(null)이거나 서버가 판정 불가면 활성 상태로 둔다.
-    // 서버가 명시적으로 allowed:false를 준 경우에만 비활성화한다.
+    // 소진(또는 만료) — 기존 완료 카드 정책 그대로: 리포트 보기 + 재검사
+    // 게이트(diagnosisAccess, fail-open).
     const retakeBlocked = diagnosisAccess !== null && !diagnosisAccess.allowed;
     actions = [
       {
@@ -332,46 +323,15 @@ function toViewModel(
 
   return {
     id: parsed.id,
-    serviceName,
+    serviceName: PROGRAM_KEY_META[programKey]?.serviceName ?? programKey,
     statusLabel,
     isOngoing,
     progressPercent: parsed.progressPercent,
     metaLeft,
     metaRight,
     actions,
-    paymentCount,
+    paymentCount: 1,
   };
-}
-
-// 같은 서비스를 여러 주문으로 보유한 경우 카드를 1장으로 합친다(QA 행247). 그룹 키는
-// parseOrder가 이미 대괄호 기간 표기를 걷어내고 뽑아둔 serviceName — expandOrder로
-// 쪼갠 order_items 항목도 order_name 그대로 파싱되므로 동일 서비스면 같은 키로 모인다.
-function pickRepresentativeOrder(group: ParsedOrder[]): ParsedOrder {
-  const activeOrders = group.filter((order) => order.isOngoing);
-  const candidates = activeOrders.length > 0 ? activeOrders : group;
-  return candidates.reduce((latest, order) => {
-    const latestPaidAt = latest.paidAt?.getTime() ?? 0;
-    const orderPaidAt = order.paidAt?.getTime() ?? 0;
-    return orderPaidAt > latestPaidAt ? order : latest;
-  });
-}
-
-function groupOrdersByService(
-  parsedOrders: ParsedOrder[],
-): { representative: ParsedOrder; paymentCount: number }[] {
-  const groups = new Map<string, ParsedOrder[]>();
-  for (const order of parsedOrders) {
-    const group = groups.get(order.serviceName);
-    if (group) {
-      group.push(order);
-    } else {
-      groups.set(order.serviceName, [order]);
-    }
-  }
-  return Array.from(groups.values()).map((group) => ({
-    representative: pickRepresentativeOrder(group),
-    paymentCount: group.length,
-  }));
 }
 
 // 빈 상태(3762:20041) — 결제한 서비스가 없을 때. 문구·버튼 라벨은 시안 스크린샷 실측.
@@ -387,6 +347,17 @@ function EmptyState() {
       >
         서비스 이용하러 가기
       </Link>
+    </div>
+  );
+}
+
+// 그랜트 조회 중 — orders prop이 없어져 부모가 이미 받아둔 데이터를 그대로
+// 못 쓴다(이 컴포넌트가 직접 비동기로 읽는다). 조회 전에 EmptyState를 먼저
+// 그리면 실제로는 서비스가 있는 사용자에게 빈 상태가 한 프레임 깜빡인다.
+function Loading() {
+  return (
+    <div className="flex min-h-80 items-center justify-center rounded-perf-modal bg-surface-04 px-8 py-16 text-center">
+      <p className="text-[1rem] leading-normal text-ink-sub">불러오는 중...</p>
     </div>
   );
 }
@@ -413,7 +384,9 @@ function Section({
   );
 }
 
-export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
+export default function MyServicesTab() {
+  const { userId } = useAuth();
+
   // "다시 검사하기" 활성 여부 판정 — 서버가 정본(diagnosisAccess.ts 참고). 조회 전엔
   // null(활성 취급)로 두고, 응답이 오면 완료 카드의 재검사 버튼에 반영한다.
   const [diagnosisAccess, setDiagnosisAccess] =
@@ -429,29 +402,66 @@ export default function MyServicesTab({ orders = [] }: { orders?: Order[] }) {
     };
   }, []);
 
-  // 상위(MyPage)는 표시·환불 판정을 위해 waiting_deposit(가상계좌 미입금) 주문도 함께
-  // 내려준다. 하지만 이용 권한은 결제 확정(paid) 시점에만 부여된다(api/confirm-payment.js
-  // — 가상계좌는 계좌만 발급됐고 돈은 아직 안 들어왔으므로 권한을 주지 않는다). 여기서
-  // 걸러내지 않으면 입금 전 주문이 "이용 중인 서비스"로 잘못 표시된다. 로컬 QA 전용
-  // 가짜 이용권 주문(status 필드 없음)은 이 필터에 걸리지 않고 그대로 노출된다.
-  // 상위(MyPage)는 신청 내역 표를 위해 pending/canceled/refunded 까지 내려준다
-  // (2026-08-13). 이용 권한은 결제 확정(paid)에만 붙으므로 여기서 좁힌다 —
-  // 예전에는 waiting_deposit 만 빼면 됐지만 이제 그 필터로는 부족하다.
-  // 로컬 QA 가짜 주문(status 없음)은 그대로 통과시킨다.
-  const usableOrders = orders.filter(
-    (order) => order.status === "paid" || order.is_fake_entitlement,
-  );
+  const [grants, setGrants] = useState<Grant[]>([]);
+  const [usedByGrant, setUsedByGrant] = useState<Record<string, number>>({});
+  const [loaded, setLoaded] = useState(false);
 
-  if (!usableOrders.length) {
+  // 부여 원장(program_access_grants)+소비 원장(performance_credit_ledger)을
+  // 본인 RLS로 직접 읽는다 — PaymentsTab.tsx의 이용완료 판정과 같은 조합·같은
+  // 근거(파일 상단 주석 참고).
+  useEffect(() => {
+    let alive = true;
+    if (!userId) return undefined;
+
+    (async () => {
+      const [g, l] = await Promise.all([
+        supabase
+          .from("program_access_grants")
+          .select(
+            "id, program_key, granted_sessions, starts_at, expires_at, first_accessed_at",
+          )
+          .eq("profile_id", userId)
+          .is("revoked_at", null)
+          .returns<Grant[]>(),
+        supabase
+          .from("performance_credit_ledger")
+          .select("grant_id, delta")
+          .eq("profile_id", userId)
+          .returns<LedgerRow[]>(),
+      ]);
+
+      if (!alive) return;
+
+      if (g.error) console.warn("부여 원장 조회 실패:", g.error.message);
+      if (l.error) console.warn("소비 원장 조회 실패:", l.error.message);
+
+      const used: Record<string, number> = {};
+      for (const row of l.data ?? []) {
+        used[row.grant_id] =
+          (used[row.grant_id] ?? 0) + -Number(row.delta || 0);
+      }
+
+      setUsedByGrant(used);
+      setGrants(g.data ?? []);
+      setLoaded(true);
+    })();
+
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
+  if (!loaded) {
+    return <Loading />;
+  }
+
+  if (!grants.length) {
     return <EmptyState />;
   }
 
-  const displayOrders = usableOrders.flatMap(expandOrder);
-  const parsedOrders = displayOrders.map(parseOrder);
-  const groupedOrders = groupOrdersByService(parsedOrders);
-  const cards = groupedOrders.map(({ representative, paymentCount }) =>
-    toViewModel(representative, diagnosisAccess, paymentCount),
-  );
+  const cards = grants
+    .map((grant) => parseGrant(grant, usedByGrant))
+    .map((parsed) => toViewModel(parsed, diagnosisAccess));
   const ongoing = cards.filter((card) => card.isOngoing);
   const completed = cards.filter((card) => !card.isOngoing);
 

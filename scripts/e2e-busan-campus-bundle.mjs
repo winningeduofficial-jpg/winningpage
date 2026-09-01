@@ -1,5 +1,6 @@
-// 부산캠퍼스 9,900원 특별할인 번들 E2E — DB 레벨(시나리오 1~10) + UI 레벨
-// (시나리오 11~15), busan-campus-bundle 브랜치 검증용(2026-09-01).
+// 부산캠퍼스 9,900원 특별할인 번들 E2E — DB 레벨(시나리오 1~10, 16, 19 일부) +
+// UI 레벨(시나리오 11~15, 17~19), busan-campus-bundle 브랜치 검증용
+// (2026-09-01). 17·19는 마이페이지 "나의 서비스" grants 정본 재작성 검증.
 //
 // 절대 규칙(e2e-refund-ver10.mjs 관례 그대로):
 //   - .env.local 이 가리키는 로컬 Supabase 스택(127.0.0.1:54321)만 대상으로
@@ -777,6 +778,24 @@ try {
     const approvalModalOpen =
       (await page.getByRole("button", { name: /환불 승인/ }).count()) > 0;
     check("S14 refund 행 클릭 → 승인 모달 오픈", approvalModalOpen);
+
+    // order14History는 busan 번들 전체환불 신청(위 fn_request_refund, order_item_ids
+    // null)이라 fn_refund_quote_dedupe_bundle_lines로 lines가 1개 — 학부모 승인
+    // 모달에도 구성 이용권 내역이 부속 라인으로 붙어야 한다(RefundApprovalModal,
+    // 2026-09-01 세부 표시 추가).
+    await page.waitForTimeout(500);
+    const approvalCompositionVisible =
+      (await page.getByText("학습진단서비스 1회", { exact: false }).count()) >
+        0 &&
+      (await page.getByText("목표관리서비스 1개월", { exact: false }).count()) >
+        0 &&
+      (await page.getByText("수행평가서비스 2회권", { exact: false }).count()) >
+        0;
+    check(
+      "S14 환불 승인 모달 구성 이용권 내역 부속 라인 노출",
+      approvalCompositionVisible,
+    );
+
     await page.keyboard.press("Escape").catch(() => {});
     await page.waitForTimeout(500);
 
@@ -855,6 +874,367 @@ try {
 
     await context.close();
   }
+
+  // ===========================================================================
+  // 시나리오 16 — fn_refund_quote DB 레벨: 번들 주문은 lines 1개, 환불액이
+  // 구성 3개 합산(before_start)으로 3배 뻥튀기되지 않고 정확히 클램프됨
+  // (fn_refund_quote_dedupe_bundle_lines, order_item_id 합산 검증).
+  // ===========================================================================
+  const parent16 = await mkUser("s16-parent", "parent");
+  const student16 = await mkUser("s16-student", "student", "위닝부산캠퍼스");
+  await linkPair(parent16, student16);
+  const order16 = `order_${RUN_TAG}_quote`;
+  {
+    const { error } = await requestEnrollment(
+      order16,
+      student16,
+      parent16,
+      busan,
+    );
+    check("S16 사전 신청 성공(DB)", !error, error?.message);
+    cleanup.orderIds.push(order16);
+    const paidAt16 = await approveAndPay(order16, parent16);
+    const { error: gErr } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order16,
+        p_user_id: parent16.id,
+        p_paid_at: paidAt16,
+      },
+    );
+    check("S16 grant 성공", !gErr, gErr?.message);
+
+    const { data: quoteRows, error: qErr } = await rpcAsUser(
+      parent16.email,
+      "fn_refund_quote",
+      { p_order_id: order16 },
+    );
+    check("S16 fn_refund_quote 성공", !qErr, JSON.stringify(qErr));
+    const quote = Array.isArray(quoteRows) ? quoteRows[0] : quoteRows;
+    check(
+      "S16 lines 1개(구성 3개가 중복 노출되지 않음)",
+      Array.isArray(quote?.lines) && quote.lines.length === 1,
+      JSON.stringify(quote?.lines),
+    );
+    check(
+      "S16 refund_amount = gross_amount(9,900, 3배 뻥튀기 없음)",
+      quote?.refund_amount === 9900 && quote?.gross_amount === 9900,
+      `refund_amount=${quote?.refund_amount} gross_amount=${quote?.gross_amount}`,
+    );
+    check(
+      "S16 scope = order",
+      quote?.scope === "order",
+      `scope=${quote?.scope}`,
+    );
+  }
+
+  // ===========================================================================
+  // UI 시나리오 17 — 나의 서비스(grants 정본 재작성, 2026-09-01): 번들 주문의
+  // 살아있는 grant 3행이 각각 카드로 뜨고(문자열 합성 전부 폐기), 미사용
+  // 상태라 셋 다 "이용 중"이다 — 학습진단도 이제 파싱 시절처럼 무조건 완료로
+  // 뭉개지지 않고 "검사하기" 액션의 이용중 카드로 뜬다. order15(S15, busan
+  // 결제+부여 완료, 아직 미사용)를 재사용한다.
+  // ===========================================================================
+  {
+    const { context, page } = await freshPage(browser, student15.email);
+    await page.goto(`${APP_ORIGIN}/mypage?tab=services`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(1500);
+
+    const serviceHeadingCount = await page
+      .getByRole("heading", {
+        name: /^위닝 학습진단$|^위닝 목표관리$|^위닝 수행평가$/,
+      })
+      .count();
+    check(
+      "S17 grant 3행이 서비스 카드 3장으로 뜸",
+      serviceHeadingCount === 3,
+      `count=${serviceHeadingCount}`,
+    );
+
+    const singleBundleCardCount = await page
+      .getByRole("heading", { name: /부산캠퍼스 특별할인/ })
+      .count();
+    check(
+      "S17 번들 단일 카드(구 버그) 미노출",
+      singleBundleCardCount === 0,
+      `count=${singleBundleCardCount}`,
+    );
+
+    // 셋 다 미사용이라 "이용 중인 서비스" 섹션에 전부 있어야 한다(완료 0).
+    const ongoingSection = page.locator("section", {
+      hasText: "이용 중인 서비스",
+    });
+    const completedSection = page.locator("section", {
+      hasText: "이용 완료된 서비스",
+    });
+    const ongoingCount = await ongoingSection
+      .getByRole("heading", {
+        name: /^위닝 학습진단$|^위닝 목표관리$|^위닝 수행평가$/,
+      })
+      .count();
+    check(
+      "S17 미사용 grant 3장 전부 이용 중 섹션",
+      ongoingCount === 3,
+      `count=${ongoingCount}`,
+    );
+    check(
+      "S17 완료 섹션 자체가 없음(미사용 3장뿐)",
+      (await completedSection.count()) === 0,
+    );
+
+    function cardFor(serviceName) {
+      return page
+        .getByRole("heading", { name: serviceName, exact: true })
+        .locator(
+          "xpath=ancestor::div[contains(@class,'rounded-perf-modal')][1]",
+        );
+    }
+
+    // 목표관리 — 이용중, 프로그램 가기 → /app/goal.
+    const goalHref = await cardFor("위닝 목표관리")
+      .getByRole("link", { name: /프로그램 가기/ })
+      .getAttribute("href")
+      .catch(() => null);
+    check("S17 목표관리 카드 링크 = /app/goal", goalHref === "/app/goal");
+
+    // 수행평가 — 이용중, 프로그램 가기 → /app/performance, 잔여 2회(미사용).
+    const suhaengCard = cardFor("위닝 수행평가");
+    const suhaengHref = await suhaengCard
+      .getByRole("link", { name: /프로그램 가기/ })
+      .getAttribute("href")
+      .catch(() => null);
+    check(
+      "S17 수행평가 카드 링크 = /app/performance",
+      suhaengHref === "/app/performance",
+    );
+    const suhaengRemaining2 =
+      (await suhaengCard.getByText("잔여 2회", { exact: false }).count()) > 0;
+    check("S17 수행평가 잔여 2회(미사용) 표시", suhaengRemaining2);
+
+    // 학습진단 — 파싱 시절엔 항상 완료였지만, 미사용 유료 1회권은 이제
+    // "이용중 + 검사하기"(QA 이슈 교정, 이번 재작성의 핵심).
+    const diagnoseCard = cardFor("위닝 학습진단");
+    const diagnoseTestLinkVisible =
+      (await diagnoseCard.getByRole("link", { name: "검사하기" }).count()) > 0;
+    check(
+      "S17 미사용 학습진단 1회권 = 이용중 + 검사하기",
+      diagnoseTestLinkVisible,
+    );
+    const diagnoseOldCompletedActionsAbsent =
+      (await diagnoseCard.getByText("결과 리포트 보기").count()) === 0;
+    check(
+      "S17 미사용 학습진단에 완료 카드 액션(결과 리포트 보기) 없음",
+      diagnoseOldCompletedActionsAbsent,
+    );
+
+    await context.close();
+  }
+
+  // ===========================================================================
+  // 시나리오 19 — 나의 서비스 소비 반영: 학습진단 소진 → 완료 카드 전환,
+  // 수행평가 회차 차감 → 잔여 표시 갱신(grants+ledger 재작성의 핵심 개선점 —
+  // 파싱 시절엔 실제 소비를 반영할 컬럼 자체가 없었다).
+  // ===========================================================================
+  const parent19 = await mkUser("s19-parent", "parent");
+  const student19 = await mkUser("s19-student", "student", "위닝부산캠퍼스");
+  await linkPair(parent19, student19);
+  const order19 = `order_${RUN_TAG}_consume`;
+  {
+    const { error } = await requestEnrollment(
+      order19,
+      student19,
+      parent19,
+      busan,
+    );
+    check("S19 사전 신청 성공(DB)", !error, error?.message);
+    cleanup.orderIds.push(order19);
+    const paidAt19 = await approveAndPay(order19, parent19);
+    const { error: gErr } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order19,
+        p_user_id: parent19.id,
+        p_paid_at: paidAt19,
+      },
+    );
+    check("S19 grant 성공", !gErr, gErr?.message);
+
+    const { data: grants19, error: grantsErr } = await admin
+      .from("program_access_grants")
+      .select("id, program_key")
+      .eq("order_id", order19)
+      .is("revoked_at", null);
+    check("S19 grant 3행 조회 성공", !grantsErr && grants19?.length === 3);
+    const diagnoseGrant = (grants19 || []).find(
+      (g) => g.program_key === "diagnose",
+    );
+    const suhaengGrant = (grants19 || []).find(
+      (g) => g.program_key === "suhaeng",
+    );
+
+    // 학습진단 1회권 소진 — consume_diagnosis_attempt RPC와 동일한 원장
+    // 기록(source_kind='diagnosis_attempt')을 직접 남긴다. 실제 RPC는 먼저
+    // 무료 1회를 우선 소비하므로(diagnosis_attempts kind='free' 게이트),
+    // 신규 QA 학생으로 그 RPC를 그대로 부르면 유료 grant가 아니라 무료분만
+    // 소비된다 — 이 카드가 검증하려는 대상(유료 1회권 소진 표시)과 어긋나서
+    // 원장에 직접 기록한다(같은 테이블·같은 컬럼, RPC가 쓰는 것과 동일 형태).
+    const { error: diagLedgerErr } = await admin
+      .from("performance_credit_ledger")
+      .insert({
+        profile_id: student19.id,
+        grant_id: diagnoseGrant?.id,
+        delta: -1,
+        reason: "e2e-test-consume",
+        source_kind: "diagnosis_attempt",
+      });
+    check(
+      "S19 학습진단 소비 원장 기록 성공",
+      !diagLedgerErr,
+      diagLedgerErr?.message,
+    );
+
+    // 수행평가 1회 소비 — consume_performance_credit이 요구하는 실제 형태
+    // (source_kind='performance_session' + session_id FK)를 그대로 맞추려면
+    // performance_sessions 행이 필요하다. 최소 유효 행 하나를 만든다.
+    const { data: sessionRow, error: sessionErr } = await admin
+      .from("performance_sessions")
+      .insert({ profile_id: student19.id, status: "draft" })
+      .select("id")
+      .single();
+    check("S19 수행평가 세션 생성 성공", !sessionErr, sessionErr?.message);
+    const { error: suhaengLedgerErr } = await admin
+      .from("performance_credit_ledger")
+      .insert({
+        profile_id: student19.id,
+        grant_id: suhaengGrant?.id,
+        session_id: sessionRow?.id,
+        delta: -1,
+        reason: "e2e-test-consume",
+        source_kind: "performance_session",
+      });
+    check(
+      "S19 수행평가 소비 원장 기록 성공",
+      !suhaengLedgerErr,
+      suhaengLedgerErr?.message,
+    );
+
+    const { context, page } = await freshPage(browser, student19.email);
+    await page.goto(`${APP_ORIGIN}/mypage?tab=services`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(1500);
+
+    const completedSection = page.locator("section", {
+      hasText: "이용 완료된 서비스",
+    });
+    const diagnoseCompletedCount = await completedSection
+      .getByRole("heading", { name: "위닝 학습진단", exact: true })
+      .count();
+    check(
+      "S19 학습진단 1회권 소진 → 완료 섹션으로 이동",
+      diagnoseCompletedCount === 1,
+      `count=${diagnoseCompletedCount}`,
+    );
+    const diagnoseReportLinkVisible =
+      (await completedSection.getByText("결과 리포트 보기").count()) > 0;
+    check(
+      "S19 소진된 학습진단 = 결과 리포트 보기 액션",
+      diagnoseReportLinkVisible,
+    );
+
+    const suhaengHeading = page.getByRole("heading", {
+      name: "위닝 수행평가",
+      exact: true,
+    });
+    const suhaengCard = suhaengHeading.locator(
+      "xpath=ancestor::div[contains(@class,'rounded-perf-modal')][1]",
+    );
+    const suhaengRemaining1 =
+      (await suhaengCard.getByText("잔여 1회", { exact: false }).count()) > 0;
+    check("S19 수행평가 1회 소비 후 잔여 1회로 갱신", suhaengRemaining1);
+
+    await context.close();
+  }
+
+  // ===========================================================================
+  // UI 시나리오 18 — 환불요청 모달: 번들 주문은 "구성서비스 선택" 체크박스가
+  // 뜨지 않고(부분환불 없음, 패키지 단일 항목), 최종 환불액이 정상 표기됨
+  // (마이페이지 QA 이슈 3).
+  // ===========================================================================
+  const parent18 = await mkUser("s18-parent", "parent");
+  const student18 = await mkUser("s18-student", "student", "위닝부산캠퍼스");
+  await linkPair(parent18, student18);
+  const order18 = `order_${RUN_TAG}_refundui`;
+  {
+    const { error } = await requestEnrollment(
+      order18,
+      student18,
+      parent18,
+      busan,
+    );
+    check("S18 사전 신청 성공(DB)", !error, error?.message);
+    cleanup.orderIds.push(order18);
+    const paidAt18 = await approveAndPay(order18, parent18);
+    const { error: gErr } = await admin.rpc(
+      "fn_grant_program_access_for_order",
+      {
+        p_order_id: order18,
+        p_user_id: parent18.id,
+        p_paid_at: paidAt18,
+      },
+    );
+    check("S18 grant 성공", !gErr, gErr?.message);
+
+    const { context, page } = await freshPage(browser, parent18.email);
+    await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(1500);
+
+    await page
+      .getByText(order18.replace(/^order_/, ""), { exact: false })
+      .first()
+      .click();
+    await page.waitForTimeout(800);
+    await page.getByRole("button", { name: "환불 신청" }).click();
+    await page.waitForTimeout(1500);
+
+    const compositionCheckboxCount = await page
+      .getByText("구성서비스 선택")
+      .count();
+    check(
+      "S18 '구성서비스 선택' 체크박스 미노출(부분환불 없음)",
+      compositionCheckboxCount === 0,
+      `count=${compositionCheckboxCount}`,
+    );
+
+    // 체크박스는 없어도 구성 이용권 내역(금액 없는 부속 라인)은 제목 아래
+    // 그대로 붙어야 한다(RefundRequestModal, 2026-09-01 세부 표시 추가).
+    const requestCompositionVisible =
+      (await page.getByText("학습진단서비스 1회", { exact: false }).count()) >
+        0 &&
+      (await page.getByText("목표관리서비스 1개월", { exact: false }).count()) >
+        0 &&
+      (await page.getByText("수행평가서비스 2회권", { exact: false }).count()) >
+        0;
+    check(
+      "S18 환불요청 모달 구성 이용권 내역 부속 라인 노출",
+      requestCompositionVisible,
+    );
+
+    const finalAmountVisible =
+      (await page
+        .getByText("최종 환불액")
+        .locator("xpath=..")
+        .getByText("9,900원", { exact: false })
+        .count()) > 0;
+    check("S18 최종 환불액 9,900원(3배 뻥튀기 없음)", finalAmountVisible);
+
+    await page.keyboard.press("Escape").catch(() => {});
+    await context.close();
+  }
 } finally {
   await browser.close();
 
@@ -862,6 +1242,20 @@ try {
   // 정리 — 이 실행이 만든 QA 데이터만 지운다(RUN_TAG 스코프).
   // ---------------------------------------------------------------------------
   try {
+    // S19이 남긴 소비 원장(performance_credit_ledger)·세션(performance_sessions)
+    // 부터 지운다 — grant_id FK가 ON DELETE RESTRICT라 program_access_grants를
+    // 먼저 지우면 이 행들이 참조를 막아 조용히 실패한다(delete()는 에러를
+    // 세우지 않고 그냥 남는다 — orders 정리 버그와 같은 함정).
+    if (cleanup.userIds.length > 0) {
+      await admin
+        .from("performance_credit_ledger")
+        .delete()
+        .in("profile_id", cleanup.userIds);
+      await admin
+        .from("performance_sessions")
+        .delete()
+        .in("profile_id", cleanup.userIds);
+    }
     if (cleanup.orderIds.length > 0) {
       await admin
         .from("refund_requests")

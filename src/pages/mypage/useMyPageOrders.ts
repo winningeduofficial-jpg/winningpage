@@ -143,9 +143,12 @@ export function useMyPageOrders(user: SessionUser | null) {
     if (generation !== generationRef.current) return;
 
     // 로컬 QA 전용: 이용권을 보유한 것으로 가정하는 가짜 결제 내역을 실제 조회 결과
-    // 앞에 합친다. "이용 중인 서비스" 목록에는 보이지만(MyServicesTab), 환불 신청
-    // 선택 목록에서는 반드시 제외해야 한다(PaymentsTab의 refundableOrders 필터 참고) —
-    // 가짜 주문에 환불을 걸면 실제 refund_requests 행이 DB에 생겨 데이터가 오염된다.
+    // 앞에 합친다. "신청 내역"(PaymentsTab) 등 orders를 그대로 쓰는 화면에는 보이지만,
+    // "나의 서비스"(MyServicesTab)는 2026-09-01부터 orders가 아니라 program_access_grants
+    // 원장을 직접 읽으므로 이 가짜 주문으로는 카드가 뜨지 않는다(실제 grant가 있어야
+    // 뜬다) — 로컬에서 이 탭을 확인하려면 실제 결제·부여를 거쳐야 한다. 환불 신청 선택
+    // 목록에서는 반드시 제외해야 한다(PaymentsTab의 refundableOrders 필터 참고) — 가짜
+    // 주문에 환불을 걸면 실제 refund_requests 행이 DB에 생겨 데이터가 오염된다.
     if (FAKE_ENTITLEMENT_ENABLED) {
       console.info(
         "[entitlement] 로컬 가짜 이용권 주문을 마이페이지에 표시합니다.",

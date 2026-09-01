@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useBundleCompositionMap } from "@/components/mypage/bundleComposition";
 import { formatKRW } from "@/data/pricingCatalog";
 import type { VirtualAccountInfo } from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
@@ -155,6 +156,20 @@ export default function RefundRequestModal({
   const [quoteError, setQuoteError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // 라인이 1개뿐이라(번들 등 부분환불 없는 주문) allLines가 비었을 때도 그
+  // 라인 아래에 구성 내역을 붙이려면 order_item_id가 필요하다 — 체크박스
+  // 유무와 무관하게 항상 채운다(체크박스 목록과 달리 재산정으로 사라지지
+  // 않는다, 첫 응답 그대로 고정).
+  const [initialLines, setInitialLines] = useState<QuoteLine[]>([]);
+  // order_item_id → product_id — 구성서비스 내역(bundleComposition)을 찾는
+  // 키. 이 모달이 받는 order prop에는 product_id가 없어 직접 조회한다
+  // (order_items RLS "select own"은 주문 당사자면 통과 — ReceiptModal과
+  // 같은 근거).
+  const [orderItemProductIds, setOrderItemProductIds] = useState<
+    Record<number, string | null>
+  >({});
+  const bundleMap = useBundleCompositionMap(Object.values(orderItemProductIds));
+
   const [reason, setReason] = useState("");
   const [etcText, setEtcText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -183,7 +198,9 @@ export default function RefundRequestModal({
     setQuote(null);
     setFullQuote(null);
     setAllLines(null);
+    setInitialLines([]);
     setSelectedIds(new Set());
+    setOrderItemProductIds({});
     setQuoteError("");
     setReason("");
     setEtcText("");
@@ -194,6 +211,20 @@ export default function RefundRequestModal({
     setRefundBank(prefill?.bank || "");
     setRefundAccount(prefill?.accountNumber || "");
     setRefundHolder(prefill?.holderName || "");
+
+    // 구성 내역(bundleComposition)에 필요한 order_item_id → product_id는
+    // 산정과 독립이라 병렬로 받는다. 실패해도 조용히 생략한다(구성 내역은
+    // 부가 정보 — 전체 모달을 막지 않는다, useBundleCompositionMap과 같은 방침).
+    supabase
+      .from("order_items")
+      .select("id, product_id")
+      .eq("order_id", orderId)
+      .then(({ data, error }) => {
+        if (!alive || error || !data) return;
+        const map: Record<number, string | null> = {};
+        for (const row of data) map[row.id] = row.product_id ?? null;
+        setOrderItemProductIds(map);
+      });
 
     (async () => {
       const { data, error } = await supabase.rpc("fn_refund_quote", {
@@ -221,6 +252,7 @@ export default function RefundRequestModal({
       // 구성서비스가 2개 이상인 주문만 부분해지 체크박스를 보여준다. 기본값은
       // 전체 선택 — 지금까지의 "주문 전체 환불" 동작과 결과가 같다.
       const rowLines: QuoteLine[] = Array.isArray(row.lines) ? row.lines : [];
+      setInitialLines(rowLines);
       if (rowLines.length >= 2) {
         setAllLines(rowLines);
         setSelectedIds(new Set(rowLines.map((l) => l.order_item_id)));
@@ -483,6 +515,32 @@ export default function RefundRequestModal({
             {order.order_name}
           </p>
 
+          {/* 구성 이용권 내역(bundleComposition, 2026-09-01) — 번들 라인은
+              부분환불 없이 1개로 유지하되(fn_refund_quote_dedupe_bundle_lines),
+              그 라인이 무엇으로 구성됐는지는 영수증(ReceiptModal)과 같은
+              방식으로 부속 라인에 보여준다. 금액 없이 구성만 — 라인이
+              1개뿐이라 체크박스 UI가 없을 때만 제목 바로 아래 붙는다(2개
+              이상이면 아래 각 체크박스 라인에 붙는다). */}
+          {initialLines.length === 1 &&
+            (() => {
+              const soleLine = initialLines[0];
+              if (!soleLine) return null;
+              const note =
+                bundleMap.get(
+                  orderItemProductIds[soleLine.order_item_id] || "",
+                ) ?? [];
+              if (note.length === 0) return null;
+              return (
+                <div className="mt-1.5 flex flex-col gap-0.5 pl-1">
+                  {note.map((line) => (
+                    <p key={line} className="text-xs text-ink-sub">
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              );
+            })()}
+
           {/* 구성서비스 선택(fn_refund_quote Ver10, 20260901) — 시안에 없는
               신규 UI. 구성서비스가 2개 이상인 주문에서만 나타난다. 기본은
               전체 선택 — 이 목록은 최초 응답 기준으로 고정한다(위 allLines
@@ -495,29 +553,45 @@ export default function RefundRequestModal({
               </p>
               {allLines.map((line) => {
                 const checked = selectedIds.has(line.order_item_id);
+                const note =
+                  bundleMap.get(
+                    orderItemProductIds[line.order_item_id] || "",
+                  ) ?? [];
                 return (
-                  <label
-                    key={line.order_item_id}
-                    className={`flex h-11 cursor-pointer items-center gap-3 rounded-xl border px-4 transition ${
-                      checked ? "border-accent bg-surface-info" : "border-line"
-                    } ${loading ? "opacity-60" : ""}`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      disabled={loading}
-                      onChange={() => toggleSelected(line.order_item_id)}
-                      className="h-4 w-4 shrink-0 rounded border-line accent-accent"
-                    />
-                    <span className="flex-1 truncate text-[0.875rem] text-ink">
-                      {line.item_name}
-                    </span>
-                    {!asStudent && (
-                      <span className="shrink-0 text-[0.8125rem] text-ink-sub">
-                        {formatKRW(Number(line.refund))}
+                  <div key={line.order_item_id}>
+                    <label
+                      className={`flex h-11 cursor-pointer items-center gap-3 rounded-xl border px-4 transition ${
+                        checked
+                          ? "border-accent bg-surface-info"
+                          : "border-line"
+                      } ${loading ? "opacity-60" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={loading}
+                        onChange={() => toggleSelected(line.order_item_id)}
+                        className="h-4 w-4 shrink-0 rounded border-line accent-accent"
+                      />
+                      <span className="flex-1 truncate text-[0.875rem] text-ink">
+                        {line.item_name}
                       </span>
+                      {!asStudent && (
+                        <span className="shrink-0 text-[0.8125rem] text-ink-sub">
+                          {formatKRW(Number(line.refund))}
+                        </span>
+                      )}
+                    </label>
+                    {note.length > 0 && (
+                      <div className="mt-1.5 flex flex-col gap-0.5 pl-4">
+                        {note.map((n) => (
+                          <p key={n} className="text-xs text-ink-sub">
+                            {n}
+                          </p>
+                        ))}
+                      </div>
                     )}
-                  </label>
+                  </div>
                 );
               })}
 
