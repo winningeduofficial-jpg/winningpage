@@ -6,6 +6,7 @@ import {
   formatApprovedAt,
   formatOrderId,
   formatProductNames,
+  refundTargetNames,
   resolveOrderStatus,
 } from "@/components/mypage/paymentRows";
 import ReceiptModal from "@/components/mypage/ReceiptModal";
@@ -100,6 +101,10 @@ type Refund = {
   approval_status?: string;
   student_profile_id?: string;
   created_at?: string;
+  // v10 부분해지 — useMyPageOrders.ts 와 동일 이유(그쪽 주석 참고).
+  quote?: unknown;
+  order_item_ids?: number[] | null;
+  terms_version?: string;
 };
 
 type ParentPaymentsTabProps = {
@@ -210,7 +215,10 @@ export default function ParentPaymentsTab({
             ...(r.order_id !== undefined && { idFull: r.order_id }),
             idText: formatOrderId(r.order_id),
             dateText: formatApprovedAt(r.created_at),
-            productText: r.order_name || "",
+            // 부분해지 신청이면 대상 항목명만 나열한다 — order_name(전체 주문
+            // 상품명)을 그대로 쓰면 환불 대상이 아닌 항목까지 포함된 것처럼
+            // 보인다.
+            productText: refundTargetNames(r) || r.order_name || "",
             amountText: formatKRW(r.gross_amount || r.amount),
             raw: r,
           }))}

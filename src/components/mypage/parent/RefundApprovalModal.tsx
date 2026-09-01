@@ -43,7 +43,26 @@ type RefundRequestRow = {
   gross_amount?: number | null;
   reason?: string;
   student_profile_id?: string;
+  // v10 구성서비스 단위 부분해지 — 산정 라인 배열(jsonb). 레거시 v9 행은 키
+  // 구성이 달라(order_item_id 없음) 소비 측에서 방어적으로 파싱한다.
+  quote?: unknown;
+  // NULL/빈 배열이면 주문 전체 환불, 값이 있으면 그 order_item_id 들만 대상.
+  order_item_ids?: number[] | null;
 };
+
+type RefundQuoteLine = {
+  item_name?: string;
+  paid_allocated?: number;
+  refund?: number;
+};
+
+function parseQuoteLines(quote: unknown): RefundQuoteLine[] {
+  if (!Array.isArray(quote)) return [];
+  return quote.filter(
+    (line): line is RefundQuoteLine =>
+      typeof line === "object" && line !== null,
+  );
+}
 
 type RefundApprovalModalProps = {
   open: boolean;
@@ -156,7 +175,21 @@ export default function RefundApprovalModal({
   // 근거가 없으므로 환불액만 보여준다.
   const gross = request.gross_amount ? Number(request.gross_amount) : null;
   const refund = Number(request.amount || 0);
-  const fee = gross === null ? null : gross - refund;
+  const quoteLines = parseQuoteLines(request.quote);
+  const isPartial = Boolean(
+    request.order_item_ids && request.order_item_ids.length > 0,
+  );
+  const paidAllocatedSum =
+    quoteLines.length > 0
+      ? quoteLines.reduce((sum, l) => sum + (l.paid_allocated ?? 0), 0)
+      : null;
+  // 부분해지(구성서비스 단위)는 gross(주문 전액)를 base로 쓰면 아직 남아 있는
+  // 다른 서비스분까지 이번 건의 공제로 오인된다 — quote 라인의 paid_allocated
+  // (안분결제액) 합을 base로 쓴다. 못 구하면(레거시 v9 등) 기존 gross 기반을
+  // 유지한다.
+  const feeBase =
+    isPartial && paidAllocatedSum !== null ? paidAllocatedSum : gross;
+  const fee = feeBase === null ? null : Math.max(0, feeBase - refund);
 
   return (
     <MyPageModalShell
@@ -189,6 +222,31 @@ export default function RefundApprovalModal({
             {request.order_name}
           </p>
 
+          {/* ⚠ 신규 카피 — 승인 필요. */}
+          {isPartial && (
+            <p className="mt-2 break-keep text-[0.8125rem] leading-relaxed text-ink-sub">
+              선택 항목만 환불하는 신청입니다. 나머지 서비스는 계속 이용할 수
+              있어요.
+            </p>
+          )}
+
+          {quoteLines.length >= 2 && (
+            <div className="mt-3 flex flex-col gap-1 rounded-xl bg-surface-04 px-4 py-3 text-[0.8125rem]">
+              <p className="font-semibold text-ink">항목별 내역</p>
+              {quoteLines.map((line, i) => (
+                <div
+                  key={line.item_name ?? i}
+                  className="flex items-center justify-between text-ink-sub"
+                >
+                  <span>{line.item_name ?? "-"}</span>
+                  <span className="text-ink-strong">
+                    {formatKRW(line.refund ?? 0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="mt-3 flex flex-col gap-2">
             {gross !== null && (
               <>
@@ -197,10 +255,13 @@ export default function RefundApprovalModal({
                   <span className="text-ink-strong">{formatKRW(gross)}</span>
                 </div>
                 <div className="flex items-center justify-between text-[0.875rem]">
-                  <span className="text-ink-sub">취소 수수료</span>
+                  {/* ⚠ 신규 카피 — RefundRequestModal 쪽도 같은 교체가 동시
+                      진행 중이다. */}
+                  <span className="text-ink-sub">이용분 공제</span>
                   <span className="text-error">
-                    {/* fee는 gross와 동일 조건(gross===null?null:...)으로 계산돼
-                        gross!==null 블록 안에서는 항상 non-null이다. */}
+                    {/* fee는 feeBase와 동일 조건(feeBase===null?null:...)으로
+                        계산돼 gross!==null 블록 안에서는 항상 non-null이다
+                        (isPartial 이 아니면 feeBase===gross). */}
                     {fee! > 0 ? `-${formatKRW(fee!)}` : formatKRW(0)}
                   </span>
                 </div>
