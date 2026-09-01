@@ -275,6 +275,8 @@ try {
 
   const busan = await getProduct("busan-9900");
   const suhaeng1 = await getProduct("suhaeng-1");
+  const suhaeng6 = await getProduct("suhaeng-6");
+  const goal3m = await getProduct("goal-3m");
 
   // ===========================================================================
   // 시나리오 3~5, 10 — busan-9900 번들 부여/멱등/전체환불 + 단품 회귀
@@ -1233,6 +1235,313 @@ try {
     check("S18 최종 환불액 9,900원(3배 뻥튀기 없음)", finalAmountVisible);
 
     await page.keyboard.press("Escape").catch(() => {});
+    await context.close();
+  }
+
+  // ===========================================================================
+  // UI 시나리오 20 — 학생 "신청 내역"을 학부모 "결제 내역" 형식으로 통일
+  // (B안, 2026-09-01): 표 4열(주문번호/일시/상품/상태, 금액 열 제거)·학부모
+  // 배지 어휘 재사용·PaymentDetailModal asStudent 공유(금액 비표시, 신청자·
+  // 결제담당 유지, 번들 구성 부속 라인 표시). 학부모 5열 표는 회귀 없이
+  // 그대로인지 S14가 이미 검증한다(별도 확인 불필요).
+  // ===========================================================================
+  const parent20 = await mkUser("s20-parent", "parent");
+  const student20 = await mkUser("s20-student", "student", "위닝부산캠퍼스");
+  await linkPair(parent20, student20);
+  const order20paid = `order_${RUN_TAG}_stdpaid`;
+  const order20pending = `order_${RUN_TAG}_stdpending`;
+  {
+    const { error } = await requestEnrollment(
+      order20paid,
+      student20,
+      parent20,
+      busan,
+    );
+    check("S20 결제완료용 신청 성공(DB)", !error, error?.message);
+    cleanup.orderIds.push(order20paid);
+    await approveAndPay(order20paid, parent20);
+
+    // 응답 대기 요청 — 승인/결제로 진행하지 않는다(approval_status='requested'
+    // 그대로 남겨 "승인 필요" 배지를 재현).
+    const { error: pendErr } = await requestEnrollment(
+      order20pending,
+      student20,
+      parent20,
+      suhaeng1,
+    );
+    check("S20 응답대기용 신청 성공(DB)", !pendErr, pendErr?.message);
+    cleanup.orderIds.push(order20pending);
+
+    const { context, page } = await freshPage(browser, student20.email);
+    await page.goto(`${APP_ORIGIN}/mypage?tab=payments`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(1500);
+
+    const headerRow = page.locator("table thead tr").first();
+    const headerText = (await headerRow.textContent()) || "";
+    check(
+      "S20 표 헤더 = 주문번호/일시/상품/상태(학부모와 동일 라벨)",
+      headerText.includes("주문번호") &&
+        headerText.includes("일시") &&
+        headerText.includes("상품") &&
+        headerText.includes("상태"),
+      headerText,
+    );
+    check(
+      "S20 옛 학생 전용 헤더(신청번호·이용금액) 미노출",
+      !headerText.includes("신청번호") && !headerText.includes("이용금액"),
+      headerText,
+    );
+
+    // 금액 열 자체가 없는지 확인한다 — 상품명("9,900원 부산캠퍼스…")은 정가가
+    // 마케팅 문구에 박힌 상품명이라 "원"이 들어가는 게 정상이다(정책이 막는
+    // 건 계산된 결제 금액 행이지 상품명 문자열이 아니다). 그래서 블랭킷 정규식
+    // 대신 실제 금액 열 헤더("금액"/"결제 금액") 부재로 판정한다.
+    check(
+      "S20 표에 금액 열 헤더 없음 — 금액 비표시 정책 유지",
+      !headerText.includes("금액"),
+      headerText,
+    );
+
+    check(
+      "S20 결제완료 주문 배지 = '결제 완료'(학부모 어휘, 옛 '이용 중' 아님)",
+      (await page.getByText("결제 완료", { exact: true }).count()) > 0 &&
+        (await page.getByText("이용 중", { exact: true }).count()) === 0,
+    );
+    check(
+      "S20 응답대기 주문 배지 = '승인 필요'(학부모 pending 어휘 재사용)",
+      (await page.getByText("승인 필요", { exact: true }).count()) > 0,
+    );
+
+    // 결제완료 주문 행 클릭 → asStudent 상세 모달.
+    await page
+      .getByText(order20paid.replace(/^order_/, ""), { exact: false })
+      .first()
+      .click();
+    await page.waitForTimeout(800);
+
+    check(
+      "S20 상세 모달 제목 = '신청 상세 내역'(학생 고유 프레이밍 유지)",
+      (await page.getByText("신청 상세 내역").count()) > 0,
+    );
+    check(
+      "S20 상세 모달에 신청자·결제담당 행 유지",
+      (await page.getByText("신청자").count()) > 0 &&
+        (await page.getByText("결제담당").count()) > 0,
+    );
+    check(
+      "S20 상세 모달에 결제 수단·영수증 보기 없음(금액 비표시)",
+      (await page.getByText("결제 수단").count()) === 0 &&
+        (await page.getByRole("button", { name: "영수증 보기" }).count()) === 0,
+    );
+    check(
+      "S20 상세 모달에 번들 구성 부속 라인 노출(금액 없는 정보)",
+      (await page.getByText("목표관리서비스 1개월", { exact: false }).count()) >
+        0,
+    );
+    // 상품명 자체에 정가가 박혀 있어("9,900원 부산캠퍼스…") 모달 전체에서
+    // "원" 유무로는 판정할 수 없다 — OrderAmountBreakdown이 쓰는 실제 금액
+    // 라벨("결제 금액"/"합계"/"할인액 총합")이 없는지로 정책 위반 여부를 본다.
+    const dialogText =
+      (await page
+        .getByRole("dialog")
+        .textContent()
+        .catch(() => "")) || "";
+    check(
+      "S20 상세 모달에 OrderAmountBreakdown 금액 라벨 없음",
+      !dialogText.includes("결제 금액") &&
+        !dialogText.includes("합계") &&
+        !dialogText.includes("할인액 총합"),
+      dialogText,
+    );
+
+    const refundButtonVisible =
+      (await page.getByRole("button", { name: "환불 신청" }).count()) > 0;
+    check("S20 결제완료 건에 환불 신청 버튼 노출", refundButtonVisible);
+    await page.getByRole("button", { name: "환불 신청" }).click();
+    await page.waitForTimeout(1000);
+    check(
+      "S20 환불 신청 버튼 → asStudent RefundRequestModal 오픈",
+      (await page.getByText("환불을 요청할게요").count()) > 0,
+    );
+
+    await page.keyboard.press("Escape").catch(() => {});
+    await context.close();
+  }
+
+  // ===========================================================================
+  // UI 시나리오 21 — 나의 서비스 서비스(program_key) 단위 합산(2026-09-01,
+  // 사용자 QA 후속): 같은 서비스로 grant가 여러 개(번들 1개월 2회 + 별도
+  // 수행평가 3개월 6회, 번들 목표관리 1개월 + 별도 goal-3m 3개월 체이닝)여도
+  // 카드는 서비스당 1장이어야 한다 — grant 1행=카드 1장이던 옛 규칙(6be5af13
+  // 다음 리팩터)이 되돌아오면 이 시나리오가 실패한다. 시연 데이터(demo-student)
+  // 와 동일한 조합을 별도 QA 계정으로 재현한다.
+  // ===========================================================================
+  const parent21 = await mkUser("s21-parent", "parent");
+  const student21 = await mkUser("s21-student", "student", "위닝부산캠퍼스");
+  await linkPair(parent21, student21);
+  const order21bundle = `order_${RUN_TAG}_agg_bundle`;
+  const order21suhaeng6 = `order_${RUN_TAG}_agg_suhaeng6`;
+  const order21goal3m = `order_${RUN_TAG}_agg_goal3m`;
+  {
+    const { error: e1 } = await requestEnrollment(
+      order21bundle,
+      student21,
+      parent21,
+      busan,
+    );
+    check("S21 번들 신청 성공(DB)", !e1, e1?.message);
+    cleanup.orderIds.push(order21bundle);
+    const paidAt1 = await approveAndPay(order21bundle, parent21);
+    const { error: g1 } = await admin.rpc("fn_grant_program_access_for_order", {
+      p_order_id: order21bundle,
+      p_user_id: parent21.id,
+      p_paid_at: paidAt1,
+    });
+    check("S21 번들 grant 성공", !g1, g1?.message);
+
+    const { error: e2 } = await requestEnrollment(
+      order21suhaeng6,
+      student21,
+      parent21,
+      suhaeng6,
+    );
+    check("S21 수행평가 6회권 신청 성공(DB)", !e2, e2?.message);
+    cleanup.orderIds.push(order21suhaeng6);
+    const paidAt2 = await approveAndPay(order21suhaeng6, parent21);
+    const { error: g2 } = await admin.rpc("fn_grant_program_access_for_order", {
+      p_order_id: order21suhaeng6,
+      p_user_id: parent21.id,
+      p_paid_at: paidAt2,
+    });
+    check("S21 수행평가 6회권 grant 성공", !g2, g2?.message);
+
+    const { error: e3 } = await requestEnrollment(
+      order21goal3m,
+      student21,
+      parent21,
+      goal3m,
+    );
+    check("S21 목표관리 3개월 신청 성공(DB)", !e3, e3?.message);
+    cleanup.orderIds.push(order21goal3m);
+    const paidAt3 = await approveAndPay(order21goal3m, parent21);
+    const { error: g3 } = await admin.rpc("fn_grant_program_access_for_order", {
+      p_order_id: order21goal3m,
+      p_user_id: parent21.id,
+      p_paid_at: paidAt3,
+    });
+    check("S21 목표관리 3개월 grant 성공(체이닝)", !g3, g3?.message);
+
+    const { context, page } = await freshPage(browser, student21.email);
+    await page.goto(`${APP_ORIGIN}/mypage?tab=services`, {
+      waitUntil: "networkidle",
+    });
+    await page.waitForTimeout(1500);
+
+    const suhaengHeadingCount = await page
+      .getByRole("heading", { name: "위닝 수행평가", exact: true })
+      .count();
+    check(
+      "S21 수행평가 grant 2개(번들+6회권)가 카드 1장으로 합산됨",
+      suhaengHeadingCount === 1,
+      `count=${suhaengHeadingCount}`,
+    );
+    const goalHeadingCount = await page
+      .getByRole("heading", { name: "위닝 목표관리", exact: true })
+      .count();
+    check(
+      "S21 목표관리 grant 2개(번들+3개월, 체이닝)가 카드 1장으로 합산됨",
+      goalHeadingCount === 1,
+      `count=${goalHeadingCount}`,
+    );
+
+    function cardFor21(serviceName) {
+      return page
+        .getByRole("heading", { name: serviceName, exact: true })
+        .locator(
+          "xpath=ancestor::div[contains(@class,'rounded-perf-modal')][1]",
+        );
+    }
+
+    // 수행평가 잔여 = 번들 2회(미사용) + 6회권 6회(미사용) = 8회.
+    const suhaengCard21 = cardFor21("위닝 수행평가");
+    const suhaengRemaining8 =
+      (await suhaengCard21.getByText("잔여 8회", { exact: false }).count()) > 0;
+    check("S21 수행평가 합산 잔여 = 8회(2+6)", suhaengRemaining8);
+
+    // 목표관리 체이닝 — 두 번째 grant(3개월)가 번들 grant(1개월) 만료 시점부터
+    // 시작하므로(fn_grant_program_access_for_order의 같은 program_key 체이닝
+    // 규칙) 합산 만료일까지 남은 일수가 단일 1개월 grant보다 훨씬 길어야
+    // 한다 — 날짜 계산 대신 넉넉한 하한(60일)으로 체이닝 반영 여부만 본다
+    // (정확한 일수는 실행 시각에 따라 달라져 단언하지 않는다).
+    const goalCard21 = cardFor21("위닝 목표관리");
+    const goalMetaText = (await goalCard21.textContent().catch(() => "")) || "";
+    const goalDaysMatch = goalMetaText.match(/(\d+)일 남음/);
+    const goalRemainingDays = goalDaysMatch ? Number(goalDaysMatch[1]) : null;
+    check(
+      "S21 목표관리 합산 만료가 체이닝 반영(잔여일수 > 60일, 단일 1개월보다 훨씬 김)",
+      goalRemainingDays !== null && goalRemainingDays > 60,
+      `text=${goalMetaText}`,
+    );
+
+    // ─────────────────────────────────────────────────────────────────────
+    // 유효기간 분해 다이얼로그(2026-09-01 카드 세부 확정) — 메타 행 문구
+    // "유효기간 최대 N일" 확인 + 클릭 시 grant별 표.
+    // ─────────────────────────────────────────────────────────────────────
+    const suhaengMetaText =
+      (await suhaengCard21.textContent().catch(() => "")) || "";
+    check(
+      "S21 수행평가 메타 문구 = '유효기간 최대 N일'",
+      /유효기간 최대 \d+일/.test(suhaengMetaText),
+      suhaengMetaText,
+    );
+
+    await suhaengCard21.getByRole("button").first().click();
+    await page.waitForTimeout(500);
+    check(
+      "S21 수행평가 다이얼로그 제목 노출",
+      (await page.getByText("이용권 유효기간").count()) > 0,
+    );
+    const suhaengDialogText =
+      (await page
+        .getByRole("dialog")
+        .textContent()
+        .catch(() => "")) || "";
+    check(
+      "S21 수행평가 다이얼로그 grant별 행(2회·6회, 만료 임박순) 노출",
+      /2회[\s\S]*유효기간[\s\S]*까지\)/.test(suhaengDialogText) &&
+        /6회[\s\S]*유효기간[\s\S]*까지\)/.test(suhaengDialogText),
+      suhaengDialogText,
+    );
+    check(
+      "S21 수행평가 다이얼로그 자동 사용 안내 노출",
+      suhaengDialogText.includes("먼저 만료되는 회차부터 자동 사용됩니다"),
+      suhaengDialogText,
+    );
+    await page.getByRole("button", { name: "확인" }).click();
+    await page.waitForTimeout(300);
+
+    await goalCard21.getByRole("button").first().click();
+    await page.waitForTimeout(500);
+    const goalDialogText =
+      (await page
+        .getByRole("dialog")
+        .textContent()
+        .catch(() => "")) || "";
+    check(
+      "S21 목표관리 다이얼로그 grant별 행(1개월·3개월, 시작순) 노출",
+      /1개월[\s\S]*~/.test(goalDialogText) &&
+        /3개월[\s\S]*~/.test(goalDialogText),
+      goalDialogText,
+    );
+    check(
+      "S21 목표관리 다이얼로그엔 자동 사용 안내 없음(기간제는 체이닝뿐)",
+      !goalDialogText.includes("먼저 만료되는 회차부터 자동 사용됩니다"),
+      goalDialogText,
+    );
+    await page.getByRole("button", { name: "확인" }).click();
+
     await context.close();
   }
 } finally {

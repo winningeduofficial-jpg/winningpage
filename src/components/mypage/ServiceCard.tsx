@@ -32,6 +32,11 @@ type ServiceCardData = {
   actions: ServiceCardAction[];
   /** 같은 서비스로 묶인 결제 건수. 2건 이상일 때만 "결제 N건" 배지를 보여준다. */
   paymentCount: number;
+  /**
+   * 이용 중 카드의 메타 행을 클릭 가능하게 만든다(2026-09-01, 서비스 단위
+   * 합산 카드의 grant별 분해 다이얼로그). 없으면 기존처럼 정적 텍스트.
+   */
+  onMetaClick?: (() => void) | undefined;
 };
 
 type ServiceCardProps = {
@@ -48,6 +53,7 @@ export default function ServiceCard({ card }: ServiceCardProps) {
     metaRight,
     actions,
     paymentCount,
+    onMetaClick,
   } = card;
 
   const statusPillClass = isOngoing
@@ -85,10 +91,24 @@ export default function ServiceCard({ card }: ServiceCardProps) {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-2 text-[0.875rem] leading-[1.4] tracking-[-0.0175rem] text-ink-sub">
-        <span>{metaLeft}</span>
-        <span>{metaRight}</span>
-      </div>
+      {onMetaClick ? (
+        // 서비스 단위 합산 카드의 grant별 분해 다이얼로그 진입점(2026-09-01) —
+        // 클릭 가능함을 링크 관례(hover 시 색만 짙어짐, 밑줄·아이콘 없음)로
+        // 최소한만 암시한다.
+        <button
+          type="button"
+          onClick={onMetaClick}
+          className="flex items-center justify-between gap-2 text-left text-[0.875rem] leading-[1.4] tracking-[-0.0175rem] text-ink-sub transition hover:text-ink"
+        >
+          <span>{metaLeft}</span>
+          <span>{metaRight}</span>
+        </button>
+      ) : (
+        <div className="flex items-center justify-between gap-2 text-[0.875rem] leading-[1.4] tracking-[-0.0175rem] text-ink-sub">
+          <span>{metaLeft}</span>
+          <span>{metaRight}</span>
+        </div>
+      )}
 
       {isOngoing ? (
         // 유일한 호출부(MyServicesTab.buildServiceCard)가 isOngoing=true일 때
