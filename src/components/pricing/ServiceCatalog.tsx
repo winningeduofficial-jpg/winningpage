@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
 import { Fragment, type KeyboardEvent } from "react";
 import { Link } from "react-router";
+import { useBundleCompositionMap } from "@/components/mypage/bundleComposition";
 import { formatKRW } from "@/data/pricingCatalog";
 import type { ServiceGroup, ServiceProduct } from "@/lib/products";
 
@@ -78,6 +79,14 @@ export default function ServiceCatalog({
   showDetailLinks = false,
   planNotice,
 }: ServiceCatalogProps) {
+  // org 한정 상품(부산캠퍼스 특가 등) 카드의 "구성: ..." 문구용 — bundle_items를
+  // 조회해 라벨·수량을 만든다(useBundleCompositionMap, mypage/bundleComposition.ts와
+  // 공유). 훅은 최상위에서만 호출해야 하므로 아래 서비스/상품 순회 루프 밖에서
+  // 대상 productId를 미리 모은다(org_code가 없는 일반 상품은 빈 배열).
+  const orgProductIds = services.flatMap((service) =>
+    service.products.filter((p) => p.orgCode).map((p) => p.id),
+  );
+  const bundleCompositionMap = useBundleCompositionMap(orgProductIds);
   // radiogroup 키보드 규약(WAI-ARIA APG) — 화살표 이동은 포커스만 옮기는 게 아니라
   // 그 자리에서 바로 선택도 함께 바꾼다(네이티브 <input type=radio> 그룹과 동일 동작).
   // Home/End 는 넣지 않았다 — 그룹당 최대 5개(수시예측)뿐이라 화살표만으로 왕복 비용이
@@ -540,14 +549,16 @@ export default function ServiceCatalog({
                         </span>
                       </span>
                     </button>
-                    {/* org 한정 상품(부산캠퍼스 특가 등) 구성 표기 — 하드코딩 매핑
-                  대신 이 서비스 그룹의 service_desc(위 섹션 설명문과 동일 출처,
-                  products.service_desc)를 그대로 재사용한다(카드 1종을 위한
-                  전용 상수를 추가하지 않는다, 팀 리드 지시). 쿠폰 제외 고지는
-                  이 상품군에 공통인 고정 문구다. */}
+                    {/* org 한정 상품(부산캠퍼스 특가 등) 구성 표기 — bundle_items를
+                  조회하는 useBundleCompositionMap(위 컴포넌트 최상위 호출)이
+                  만든 "라벨 N회권" 라인을 ' + '로 이어 붙인다(사용자 확정 카피,
+                  2026-09-01). 쿠폰 제외 고지는 이 상품군에 공통인 고정 문구다. */}
                     {product.orgCode && (
                       <p className="-mt-1 mb-1 break-keep text-[0.75rem] font-medium leading-4.25 text-ink-sub">
-                        {service.desc}
+                        구성:{" "}
+                        {(bundleCompositionMap.get(product.id) ?? []).join(
+                          " + ",
+                        )}
                         <span className="ml-1 text-error">
                           쿠폰 적용 대상이 아닙니다.
                         </span>

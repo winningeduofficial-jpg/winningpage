@@ -11,24 +11,29 @@ import { supabase } from "@/lib/supabase";
 // program_key → 한글 라벨 매핑 — 코드베이스에 기존 매핑이 없어(api/_lib/
 // serviceAccess.ts·카탈로그 어디에도 없음, 확인 완료) 이 용도 전용 소형
 // 매핑을 둔다. 매핑에 없는 program_key는 원문 그대로 노출한다(지어내지
-// 않는다).
+// 않는다). 라벨은 사용자 확정 카피(2026-09-01)로 "서비스"를 붙인다.
 const PROGRAM_KEY_LABELS: Record<string, string> = {
-  diagnose: "학습진단",
-  target: "목표관리",
-  suhaeng: "수행평가",
+  diagnose: "학습진단서비스",
+  target: "목표관리서비스",
+  suhaeng: "수행평가서비스",
 };
 
-// 수량 표기 — session_quota만 있으면 "N회", duration_months만 있으면
-// "N개월", 둘 다 있으면 "N개월 N회"(bundle_items_entitlement_shape_check가
-// 최소 하나는 있음을 보장한다).
+// 구성 라인 노출 순서 — 사용자 확정 카피(2026-09-01)로 list_price 정렬을
+// 버리고 diagnose → target → suhaeng 고정 순서를 쓴다.
+const PROGRAM_KEY_ORDER = ["diagnose", "target", "suhaeng"];
+
+// 수량 표기 — 회차·기간을 동시에 가진 항목(예: 수행평가 2회+1개월)은
+// 기간을 표기하지 않고 "N회권"으로 합쳐 보여준다(사용자 확정 카피,
+// 2026-09-01). 회차만 있으면 "N회", 기간만 있으면 "N개월"
+// (bundle_items_entitlement_shape_check가 최소 하나는 있음을 보장한다).
 function formatBundleQuantity(
   sessionQuota: number | null | undefined,
   durationMonths: number | null | undefined,
 ) {
-  const parts: string[] = [];
-  if (durationMonths) parts.push(`${durationMonths}개월`);
-  if (sessionQuota) parts.push(`${sessionQuota}회`);
-  return parts.join(" ");
+  if (sessionQuota && durationMonths) return `${sessionQuota}회권`;
+  if (sessionQuota) return `${sessionQuota}회`;
+  if (durationMonths) return `${durationMonths}개월`;
+  return "";
 }
 
 type BundleItemRow = {
@@ -67,7 +72,6 @@ export function useBundleCompositionMap(
           "product_id, program_key, duration_months, session_quota, list_price",
         )
         .in("product_id", key.split(","))
-        .order("list_price", { ascending: false })
         .returns<BundleItemRow[]>();
 
       if (!alive) return;
@@ -80,8 +84,16 @@ export function useBundleCompositionMap(
         return;
       }
 
+      const sorted = data
+        .slice()
+        .sort(
+          (a, b) =>
+            PROGRAM_KEY_ORDER.indexOf(a.program_key) -
+            PROGRAM_KEY_ORDER.indexOf(b.program_key),
+        );
+
       const next = new Map<string, string[]>();
-      for (const row of data) {
+      for (const row of sorted) {
         const label = PROGRAM_KEY_LABELS[row.program_key] || row.program_key;
         const qty = formatBundleQuantity(
           row.session_quota,

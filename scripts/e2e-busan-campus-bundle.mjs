@@ -649,9 +649,7 @@ try {
     });
     await page.waitForTimeout(1500);
     const notice =
-      (await page
-        .getByText("본 특가 상품은 쿠폰 적용 대상이 아닙니다.")
-        .count()) > 0;
+      (await page.getByText("쿠폰 적용 대상이 아닙니다.").count()) > 0;
     check("S13 학부모 결제 화면 쿠폰 섹션 안내문 대체", notice);
     await context.close();
   }
@@ -819,15 +817,17 @@ try {
     await page.waitForTimeout(800);
 
     const diagnoseLine =
-      (await page.getByText("학습진단 1회", { exact: false }).count()) > 0;
-    const targetLine =
-      (await page.getByText("목표관리 1개월", { exact: false }).count()) > 0;
-    const suhaengLine =
-      (await page.getByText("수행평가 1개월 2회", { exact: false }).count()) >
+      (await page.getByText("학습진단서비스 1회", { exact: false }).count()) >
       0;
-    check("S15 결제상세 구성 3줄(학습진단 1회)", diagnoseLine);
-    check("S15 결제상세 구성 3줄(목표관리 1개월)", targetLine);
-    check("S15 결제상세 구성 3줄(수행평가 1개월 2회)", suhaengLine);
+    const targetLine =
+      (await page.getByText("목표관리서비스 1개월", { exact: false }).count()) >
+      0;
+    const suhaengLine =
+      (await page.getByText("수행평가서비스 2회권", { exact: false }).count()) >
+      0;
+    check("S15 결제상세 구성 3줄(학습진단서비스 1회)", diagnoseLine);
+    check("S15 결제상세 구성 3줄(목표관리서비스 1개월)", targetLine);
+    check("S15 결제상세 구성 3줄(수행평가서비스 2회권)", suhaengLine);
 
     await context.close();
   }

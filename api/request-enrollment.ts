@@ -196,22 +196,16 @@ export default defineHandler({
             .json({ error: "결제 금액이 올바르지 않습니다." });
         }
         // WC064~066 은 20260901050440 이 fn_request_enrollment 에 추가하는 org
-        // 한정 상품(부산캠퍼스 특가 등) 검증 게이트다 — 정본은 DB 함수이고, 여기서는
-        // 사용자가 읽을 수 있는 한국어 메시지로만 표면화한다(별도 재검증 없음).
-        if (rpcError.code === "WC064") {
-          return void res
-            .status(403)
-            .json({ error: "소속 확인이 필요한 상품입니다." });
-        }
-        if (rpcError.code === "WC065") {
-          return void res
-            .status(410)
-            .json({ error: "판매가 종료된 상품입니다." });
-        }
-        if (rpcError.code === "WC066") {
+        // 한정 상품(부산캠퍼스 특가 등) 검증 게이트다 — 정본은 DB 함수이고, UI 단에서
+        // 이미 막혀 있어 개별 메시지 없이 범용 에러로만 표면화한다.
+        if (
+          rpcError.code === "WC064" ||
+          rpcError.code === "WC065" ||
+          rpcError.code === "WC066"
+        ) {
           return void res
             .status(409)
-            .json({ error: "이미 구매한 상품입니다." });
+            .json({ error: "결제요청에 실패했습니다." });
         }
         console.error("fn_request_enrollment 오류:", rpcError);
         return void res.status(500).json({ error: "결제요청에 실패했습니다." });

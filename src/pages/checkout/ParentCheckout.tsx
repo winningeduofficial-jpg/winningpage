@@ -95,7 +95,7 @@ const COUPON_REASON_TEXT: Record<string, string> = {
   // hasOrgProductInOrder 가 이미 쿠폰 섹션 자체를 안내문으로 대체해 이 문구가
   // 화면에 실제로 노출될 일은 없지만(방어적 매핑), 다른 경로에서 이 reason이
   // 새어 나와도 원문 코드가 아니라 한국어 문구로 보이게 해 둔다.
-  org_product_excluded: "본 특가 상품은 쿠폰 적용 대상이 아닙니다.",
+  org_product_excluded: "쿠폰 적용 대상이 아닙니다.",
 };
 const CODE_NOT_FOUND_TEXT = "유효하지 않은 쿠폰 코드입니다.";
 // Checkout.jsx:184 와 동일 문구(표시가/서버 청구가 불일치 안내) — fn_respond_enrollment 가
@@ -1154,7 +1154,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
                 쪽이 정본이다(팀 리드 지시). */}
             {!isResume && !hasChanged && hasOrgProductInOrder && (
               <p className="rounded-xl bg-surface-04 px-4 py-3 text-[0.875rem] leading-relaxed text-ink-sub">
-                본 특가 상품은 쿠폰 적용 대상이 아닙니다.
+                쿠폰 적용 대상이 아닙니다.
               </p>
             )}
 

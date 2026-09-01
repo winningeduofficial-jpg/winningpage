@@ -32,6 +32,8 @@ begin
     into v_sort
     from public.products;
 
+  -- list_price = price = 9900 (badge 없음) — 정가 대비 할인율 표기가 아니라
+  -- 패키지 자체의 단일가로 노출한다(2026-09-01, 카피 확정).
   insert into public.products (
     slug, service_key, service_name, service_desc,
     service_sort_order,
@@ -43,9 +45,9 @@ begin
     'busan-9900', 'special', '부산캠퍼스 특별할인',
     '위닝 부산캠퍼스 소속 회원 전용 특별할인 패키지입니다. 학습진단 1회, 목표관리 1개월, 수행평가 2회를 한 번의 결제로 이용할 수 있습니다.',
     v_sort,
-    '9,900원 부산캠퍼스 특별할인 학습관리 서비스', 40000, 9900,
+    '9,900원 부산캠퍼스 특별할인 학습관리 서비스', 9900, 9900,
     null, null, null, null,
-    true, true, false, '75% 할인',
+    true, true, false, null,
     '위닝부산캠퍼스', '2026-09-30T15:00:00Z'::timestamptz
   )
   on conflict (slug) do nothing;
