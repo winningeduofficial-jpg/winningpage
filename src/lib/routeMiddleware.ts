@@ -210,6 +210,26 @@ export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
     throw loginRedirect(request);
   }
 
+  // 다음 미들웨어(requireGoalOnboardingDoneMiddleware)의 온보딩 판정을 여기서
+  // 미리 시작한다 — 이용권 보유 여부와 온보딩 완료 여부는 서로 독립인데, 두
+  // 미들웨어가 서로 다른 라우트 그룹에 걸려 있어 middleware 체인 순서상
+  // 원래는 이 함수가 끝난 뒤에야 다음 함수가 시작돼 두 서버 호출이 직렬로
+  // 붙는다(콜드 실측 2.5초+1.4초, 목표관리 첫 진입 병목). isOnboardingDone은
+  // queryClient.ensureQueryData(goalStudentQueryOptions, 캐시 키 ['goal',
+  // 'student', userId])를 거치므로, 다음 미들웨어가 잠시 뒤 같은 userId로
+  // 다시 부르면 TanStack Query가 새 요청을 또 일으키지 않고 이미 진행 중인
+  // 이 호출에 합류한다(queryClient.ts goalStudentQueryOptions 상단 주석의
+  // 캐시 공유 원칙 그대로) — 그 결과 두 호출이 동시에 시작돼 총 대기시간이
+  // max(이용권, 온보딩)로 줄어든다. isOnboardingDone은 절대 예외를 던지지
+  // 않으므로(항상 true|false|null로 접는다, goalOnboarding.ts 주석) 결과를
+  // 여기서 안 받아도 unhandled rejection 걱정이 없다.
+  //
+  // 우선순위는 그대로다 — 아래서 이용권 판정을 기다렸다가 거부/판정불가면
+  // 그 자리에서 던지고 끝난다. 그 경우 대시보드 그룹의 다음 미들웨어 자체가
+  // 실행되지 않으므로 이 온보딩 조회는 그냥 버려질 뿐(결과를 아무도 안 읽음)
+  // 판정에는 아무 영향을 주지 않는다 — 캐시에만 남아 다음 진입 때 재사용된다.
+  void isOnboardingDone(user.id);
+
   // 판정 불가(allowed===null)는 이제 ensureQueryData가 throw한다(queryClient.ts
   // EntitlementCheckFailedError, 리뷰 H2) — middleware 밖으로 그대로 새면
   // RouteCheckFailedError가 아니라서 GoalAccessBoundary가 못 잡고 다시 던진다.

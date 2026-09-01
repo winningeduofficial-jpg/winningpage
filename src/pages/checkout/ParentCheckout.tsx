@@ -14,7 +14,12 @@ import sectionArrow from "@/assets/checkout/section-arrow-38.svg";
 import ConfirmModal from "@/components/checkout/ConfirmModal";
 import { formatKRW } from "@/data/pricingCatalog";
 import { useTermsDocs } from "@/hooks/useTermsDocs";
-import { type ServiceProduct, useProducts } from "@/lib/products";
+import {
+  filterOrgProducts,
+  type ServiceProduct,
+  useMatchedOrgCodes,
+  useProducts,
+} from "@/lib/products";
 import { supabase } from "@/lib/supabase";
 import { ANONYMOUS, getTossPayments } from "@/lib/toss";
 import { useEnrollmentOrder } from "./useEnrollmentOrder";
@@ -85,6 +90,12 @@ const COUPON_REASON_TEXT: Record<string, string> = {
   // 단체 쿠폰(coupons.org_code, 20260827010205) — 학생·학부모 둘 다 소속
   // 코드가 일치하지 않을 때.
   org_mismatch: "소속 코드가 일치하는 회원만 사용할 수 있는 단체 쿠폰입니다.",
+  // org 한정 상품(products.org_code, 2026-09-01) 포함 주문 — fn_usable_coupons/
+  // fn_coupon_by_code 에 p_order_id 를 넘기면 이 사유로 전부 배제된다. 아래
+  // hasOrgProductInOrder 가 이미 쿠폰 섹션 자체를 안내문으로 대체해 이 문구가
+  // 화면에 실제로 노출될 일은 없지만(방어적 매핑), 다른 경로에서 이 reason이
+  // 새어 나와도 원문 코드가 아니라 한국어 문구로 보이게 해 둔다.
+  org_product_excluded: "쿠폰 적용 대상이 아닙니다.",
 };
 const CODE_NOT_FOUND_TEXT = "유효하지 않은 쿠폰 코드입니다.";
 // Checkout.jsx:184 와 동일 문구(표시가/서버 청구가 불일치 안내) — fn_respond_enrollment 가
@@ -374,6 +385,18 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   } = useProducts(undefined, { orderableOnly: true });
   const hasNoServices = Boolean(productsError) || filteredServices.length === 0;
 
+  // org 한정 상품 노출 필터(2026-09-01) — 학생 소속 기준(order.student_profile_id).
+  // order 가 아직 로드되지 않은 동안은 undefined 로 호출돼(캐치올: 본인+연결된
+  // 상대) order 도착 후 재호출된다. 표시 전용, 정본은 fn_respond_enrollment/
+  // fn_parent_create_enrollment 의 서버 재검증.
+  const { codes: matchedOrgCodes, loaded: orgCodesLoaded } = useMatchedOrgCodes(
+    order?.student_profile_id,
+  );
+  const visibleServices = useMemo(
+    () => filterOrgProducts(filteredServices, matchedOrgCodes),
+    [filteredServices, matchedOrgCodes],
+  );
+
   // 서비스별 단일 선택: { [serviceKey]: productId }. 초기값은 orderItems(학생이
   // 이미 요청한 항목)에서 딱 한 번만 채운다 — orderItems 재조회로 이후 사용자
   // 선택을 덮어쓰면 안 된다.
@@ -443,7 +466,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
 
   const selectedItems = useMemo(() => {
     const items: SelectedItem[] = [];
-    filteredServices.forEach((service) => {
+    visibleServices.forEach((service) => {
       const pid = selected[service.key];
       if (!pid) return;
       const product = service.products.find((p) => p.id === pid);
@@ -458,7 +481,18 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
       });
     });
     return items;
-  }, [filteredServices, selected]);
+  }, [visibleServices, selected]);
+
+  // org 한정 상품(부산캠퍼스 특가 등) 포함 주문 — 쿠폰 섹션 자체를 안내문으로
+  // 대체한다(2026-09-01). service_key='special' 이 이 상품군 유일 식별자다(위
+  // 정본은 DB — fn_respond_enrollment/fn_revalidate_order_coupons 가 org
+  // 한정 상품 포함 주문의 쿠폰 적용을 서버에서도 재검증한다). 이 값은 상품을
+  // 바꾸지 않은 경로(hasChanged=false, 아래 쿠폰 섹션 렌더 조건과 동일)에서만
+  // 의미가 있어 orderItems(원 주문)를 그대로 기준으로 삼는다.
+  const hasOrgProductInOrder = useMemo(
+    () => orderItems.some((item) => item.service_key === "special"),
+    [orderItems],
+  );
 
   // 상품 변경 여부 — 원래 orderItems 의 product_id 집합과 현재 선택이 다르면
   // fn_parent_create_enrollment(신규 주문 생성) 경로로 보낸다(handlePay 참고).
@@ -492,20 +526,25 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   // 카탈로그(filteredServices, is_active=true 만)에서 찾지 못하면 selectedItems
   // 에서 조용히 빠져 학부모가 모르는 사이 일부 상품만 결제될 수 있다.
   const missingOrderItem = useMemo(() => {
+    // org 필터가 아직 판정되기 전(orgCodesLoaded=false)에는 org 한정 상품이
+    // 일시적으로 빈 배열(matchedOrgCodes=[])로 취급돼 정상 매칭 케이스에서도
+    // visibleServices 에서 빠져 있을 수 있다 — productsLoading 과 같은 이유로
+    // 이 창에서는 판정을 유보한다(오탐 방지).
     if (
       isResume ||
       productsLoading ||
+      !orgCodesLoaded ||
       orderItems.length === 0 ||
-      filteredServices.length === 0
+      visibleServices.length === 0
     )
       return false;
     return orderItems.some(
       (item) =>
-        !filteredServices.some((s) =>
+        !visibleServices.some((s) =>
           s.products.some((p) => p.id === item.product_id),
         ),
     );
-  }, [isResume, productsLoading, orderItems, filteredServices]);
+  }, [isResume, productsLoading, orgCodesLoaded, orderItems, visibleServices]);
 
   const selectedListTotal = useMemo(
     () =>
@@ -527,9 +566,13 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
   const fetchCoupons = useCallback(
     async ({ signalAlive }: { signalAlive?: () => boolean } = {}) => {
       if (!order) return;
+      // p_order_id(신규, 2026-09-01) — 이 주문에 org 한정 상품이 있으면 서버가
+      // 쿠폰을 전부 org_product_excluded 로 배제한다(하위호환 기본 NULL이라
+      // 넘기지 않으면 이 축이 평가되지 않는다 — 반드시 넘겨야 배선된다).
       const { data, error } = await supabase.rpc("fn_usable_coupons", {
         p_subtotal: order.amount,
         p_student_profile_id: order.student_profile_id,
+        p_order_id: order.id,
       });
       if (signalAlive && !signalAlive()) return;
       setCouponsLoaded(true);
@@ -632,10 +675,12 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
     const code = couponCode.trim();
     if (!code) return;
 
+    // p_order_id — fetchCoupons 와 동일 배선(위 주석 참고).
     const { data, error } = await supabase.rpc("fn_coupon_by_code", {
       p_code: code,
       p_subtotal: order.amount,
       p_student_profile_id: order.student_profile_id,
+      p_order_id: order.id,
     });
     if (error) {
       console.warn("쿠폰 코드 조회 실패:", error.message);
@@ -926,7 +971,7 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
 
                 {!productsLoading &&
                   !productsError &&
-                  filteredServices.map((service) => (
+                  visibleServices.map((service) => (
                     <div key={service.key} className="mb-10 last:mb-0">
                       <div className="flex items-center gap-3">
                         <h3
@@ -1102,10 +1147,22 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
               )}
             </div>
 
+            {/* org 한정 상품(부산캠퍼스 특가 등) 포함 주문 — 쿠폰 섹션 자체를
+                안내문으로 대체한다(2026-09-01, hasOrgProductInOrder 주석 참고).
+                fn_usable_coupons/fn_coupon_by_code 도 p_order_id 로 이미
+                eligible=false 처리하지만(방어), UX상 쿠폰 UI 자체를 숨기는
+                쪽이 정본이다(팀 리드 지시). */}
+            {!isResume && !hasChanged && hasOrgProductInOrder && (
+              <p className="rounded-xl bg-surface-04 px-4 py-3 text-[0.875rem] leading-relaxed text-ink-sub">
+                쿠폰 적용 대상이 아닙니다.
+              </p>
+            )}
+
             {/* 쿠폰 선택 — 재개 모드에서는 감춘다(위 isResume 주석). 상품을 바꾼
                 경로(hasChanged)는 새 주문이 쿠폰을 쓰지 않으므로(handlePay
-                fn_parent_create_enrollment 분기) 섹션 자체를 감춘다. */}
-            {!isResume && !hasChanged && (
+                fn_parent_create_enrollment 분기) 섹션 자체를 감춘다. org 한정
+                상품 포함 주문(hasOrgProductInOrder)도 위 안내문으로 대체한다. */}
+            {!isResume && !hasChanged && !hasOrgProductInOrder && (
               <div>
                 <h3 className={`mb-4 ${SECTION_HEADING}`}>쿠폰 선택</h3>
                 <div className="flex gap-2">

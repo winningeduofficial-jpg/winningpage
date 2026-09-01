@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthProvider";
-import { formatKRW } from "@/data/pricingCatalog";
 import { supabase } from "@/lib/supabase";
+import PaymentDetailModal from "./PaymentDetailModal";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import PaymentTable from "./PaymentTable";
 import {
@@ -12,28 +12,36 @@ import {
 } from "./paymentRows";
 import RefundNoticeModal from "./RefundNoticeModal";
 import RefundRequestModal from "./RefundRequestModal";
-import StudentRequestDetailModal from "./StudentRequestDetailModal";
 
 // 학생 "신청 내역" 탭 — 확정 디자인 3967:3016(목록) / 3967:2757(빈 상태).
 //
-// 학부모의 "결제 내역"과 같은 표를 쓰지만 관점이 다르다. 학생은 돈이 아니라
-// **신청과 이용**을 본다:
-//   · 열 라벨   신청번호 / 신청일 / 상품 / 이용금액 / 상태
-//   · 상태 어휘 이용 중 / 학부모 결제대기 / 신청 취소 / 이용 완료
-//   · 상세 모달 신청 상세 내역(금액 없음, 신청자·결제담당을 보여준다)
-// 금액을 학생에게 노출하지 않는 것은 2026-08-13 확정 사항이다 — 환불 금액도
-// 학부모 확인 화면에서만 보여준다.
+// ── 학부모 결제 내역과 형식 통일(2026-09-01, B안) ──
+// 예전엔 학생 전용 표(열 라벨 신청번호/신청일/이용금액/상태, 상태 어휘 이용
+// 중/학부모 결제대기/신청 취소/이용 완료)와 학생 전용 상세 모달
+// (StudentRequestDetailModal)을 따로 뒀다. 사용자 확정으로 "형식만 통일,
+// 금액 정책은 유지" — 표 열 라벨(주문번호/일시/상품/상태, 금액 열은 제외)과
+// 상태 배지 어휘를 학부모(ParentPaymentsTab)와 완전히 같은 것으로 바꾸고,
+// 상세 모달도 학부모 PaymentDetailModal을 asStudent 모드로 공유한다(그 안에서
+// 금액 관련 행·금액 분해·영수증 버튼만 빠진다 — PaymentDetailModal.tsx 상단
+// 주석 참고). 금액을 학생에게 노출하지 않는 원칙 자체는 그대로다(2026-08-13
+// 확정) — 환불 금액도 여전히 학부모 확인 화면에서만 보여준다.
 //
-// '이용 완료'(만료·소진) 판정은 orders 만으로는 못 한다 — 이용 기간·잔여 회차의
-// 정본은 부여 원장(program_access_grants)과 소비 원장(performance_credit_ledger)
-// 이다. 둘 다 학생 본인 행이 RLS 로 열려 있어(*_select_own) 직접 읽는다.
-// MyServicesTab 이 쓰는 order_name 문자열 파싱 휴리스틱은 복제하지 않았다.
+// 상태 판정은 resolveOrderStatus(paymentRows.ts)를 그대로 위임한다 —
+// ParentPaymentsTab의 historyOrders와 정확히 같은 함수라 같은 주문이 두
+// 화면에서 다른 배지로 보일 수 없다. order.status==='pending'(학부모 결제
+// 대기, 아직 승인/거절 전)만 학생 고유 분기다 — resolveOrderStatus는 이
+// 상태를 다루지 않는다(학부모 쪽도 그 상태는 별도 pendingOrders 섹션에서
+// enrollment_requested/enrollment_approved로 배지를 단다).
+//
+// '이용 완료'(만료·소진) 판정 — B안 통일로 학생 배지에서는 더 이상 안
+// 쓴다(파싱 시절과 달리 grants 원장으로 정확히 알 수 있게 됐지만, 통일 대상인
+// 학부모 배지 자체가 이 구분을 안 한다). program_access_grants 원장 조회도
+// 함께 걷어냈다 — 더 쓰는 곳이 없다.
 
 const STUDENT_HEADERS = {
-  id: "신청번호",
-  date: "신청일",
+  id: "주문번호",
+  date: "일시",
   product: "상품",
-  amount: "이용금액",
   status: "상태",
 };
 
@@ -47,7 +55,7 @@ type Order = {
   approval_status?: string;
   reject_reason?: string | null;
   is_fake_entitlement?: boolean;
-  order_items?: { name: string }[];
+  order_items?: { name: string; product_id?: string | null }[];
 };
 
 type Refund = {
@@ -62,29 +70,15 @@ type Refund = {
   created_at?: string;
 };
 
-// 학생 관점의 상태 판정. 환불이 걸린 건은 학부모와 같은 어휘를 쓴다 —
-// 환불 진행 상황은 학생도 그대로 알아야 하고, 달리 부를 이름도 없다.
-function resolveStudentStatus(
-  order: Order,
-  refunds: Refund[],
-  finishedByOrder: Record<string, boolean> = {},
-) {
-  // 학부모가 다른 상품 구성으로 새로 결제하며 이 주문을 대체한 경우다.
-  // status 는 canceled 로 같이 떨어지므로 아래 신청 취소 분기보다 먼저 걸러야 한다.
-  if (order.approval_status === "superseded") return "student_superseded";
-  // 학부모 반려도 status 가 canceled 로 떨어진다(fn_respond_enrollment) — 신청 취소
-  // 분기가 먼저 걸리면 학생 목록만 "신청 취소"로 떠서 학부모 화면·상세 모달의
-  // "학부모 반려"와 어긋난다(실동작 QA 2026-08-23 발견).
-  if (order.approval_status === "rejected") return "enrollment_parent_rejected";
-  if (order.status === "pending") return "student_waiting_parent";
-  if (order.status === "canceled" || order.status === "failed")
-    return "student_canceled";
-
-  const shared = resolveOrderStatus(order, refunds);
-  if (shared !== "paid") return shared;
-
-  // 환불이 걸리지 않은 결제 건만 이용 상태로 갈린다.
-  return finishedByOrder[order.id] === true ? "student_done" : "student_active";
+// 학부모 배지 상태 매핑 재사용(위 파일 상단 주석 참고). order.status==='pending'
+// (아직 학부모 승인/거절 전, 결제 자체가 시작되지 않음)만 학생 고유 분기다.
+function resolveStudentStatus(order: Order, refunds: Refund[]) {
+  if (order.status === "pending") {
+    return order.approval_status === "approved"
+      ? "enrollment_approved"
+      : "enrollment_requested";
+  }
+  return resolveOrderStatus(order, refunds);
 }
 
 type PaymentsTabProps = {
@@ -102,10 +96,6 @@ export default function PaymentsTab({
   const [refundOrder, setRefundOrder] = useState<Order | null>(null);
   const [noticeOpen, setNoticeOpen] = useState(false);
   const [names, setNames] = useState({ student: "", parent: "" });
-  // orderId → true(이용 완료). 부여 원장이 없는 주문은 키가 없다(판정 보류).
-  const [finishedByOrder, setFinishedByOrder] = useState<
-    Record<string, boolean>
-  >({});
 
   // 세션은 AuthProvider(전역 단일 구독)에서 읽는다(명세 B-3 §4).
   const { userId: uid } = useAuth();
@@ -141,70 +131,9 @@ export default function PaymentsTab({
     };
   }, [uid]);
 
-  // 이용 완료 판정 — 그 주문의 살아있는 부여가 하나도 남지 않았으면 완료다.
-  //   기간권: expires_at 이 지났으면 만료(배타 상한 — sql/64).
-  //   회차권: 사용 회차가 부여 회차를 채웠으면 소진.
-  //   revoked_at: 환불 등으로 회수된 부여는 애초에 세지 않는다.
-  // 부여가 한 줄도 없는 주문(무료 성격·부여 실패)은 판정하지 않고 비워 둔다 —
-  // 근거 없이 '이용 완료'라고 하면 멀쩡한 이용권을 끝난 것처럼 보이게 한다.
-  useEffect(() => {
-    let alive = true;
-    if (!uid) return undefined;
-
-    (async () => {
-      const [grants, ledger] = await Promise.all([
-        supabase
-          .from("program_access_grants")
-          .select("id, order_id, expires_at, granted_sessions, revoked_at")
-          .eq("profile_id", uid),
-        supabase
-          .from("performance_credit_ledger")
-          .select("grant_id, delta")
-          .eq("profile_id", uid),
-      ]);
-
-      if (!alive || grants.error) {
-        if (grants.error)
-          console.warn("부여 원장 조회 실패:", grants.error.message);
-        return;
-      }
-
-      const usedByGrant: Record<string, number> = {};
-      for (const row of ledger.data || []) {
-        usedByGrant[row.grant_id] =
-          (usedByGrant[row.grant_id] || 0) + -Number(row.delta || 0);
-      }
-
-      const now = Date.now();
-      const byOrder: Record<string, boolean> = {};
-      for (const g of grants.data || []) {
-        if (!g.order_id) continue;
-        if (g.revoked_at) continue;
-
-        const expired = g.expires_at
-          ? new Date(g.expires_at).getTime() <= now
-          : false;
-        const exhausted =
-          g.granted_sessions !== null &&
-          (usedByGrant[g.id] || 0) >= g.granted_sessions;
-
-        const live = !expired && !exhausted;
-        // 하나라도 살아 있으면 그 주문은 아직 이용 중이다.
-        byOrder[g.order_id] = byOrder[g.order_id] === false ? false : !live;
-        if (live) byOrder[g.order_id] = false;
-      }
-
-      setFinishedByOrder(byOrder);
-    })();
-
-    return () => {
-      alive = false;
-    };
-  }, [uid]);
-
-  const detailStatus = detailOrder
-    ? resolveStudentStatus(detailOrder, refunds, finishedByOrder)
-    : null;
+  const detailOrderStatus = detailOrder
+    ? resolveStudentStatus(detailOrder, refunds)
+    : undefined;
 
   return (
     <section>
@@ -214,6 +143,7 @@ export default function PaymentsTab({
 
       <PaymentTable
         headers={STUDENT_HEADERS}
+        showAmount={false}
         emptyText="아직 신청한 서비스가 없어요"
         rows={orders.map((o) => ({
           key: o.id,
@@ -222,36 +152,32 @@ export default function PaymentsTab({
           // 결제 전 건은 승인일시가 없다 — 신청 시각(created_at)이 이 표의 축이다.
           dateText: formatApprovedAt(o.created_at || o.paid_at),
           productText: formatProductNames(o),
-          amountText: formatKRW(o.amount),
           ...(o.is_fake_entitlement && { note: "(개발용)" }),
           raw: o,
         }))}
         onSelect={(row) => setDetailOrder(row.raw as Order)}
         renderStatus={(row) => (
           <PaymentStatusBadge
-            status={resolveStudentStatus(
-              row.raw as Order,
-              refunds,
-              finishedByOrder,
-            )}
+            status={resolveStudentStatus(row.raw as Order, refunds)}
           />
         )}
       />
 
-      <StudentRequestDetailModal
+      <PaymentDetailModal
         open={!!detailOrder}
         order={detailOrder}
+        asStudent
         studentName={names.student}
         parentName={names.parent}
-        // 환불은 결제가 끝난 건에만. 학부모 반려 건은 종결 — 재신청을 열지
-        // 않는다(사용자 확정 2026-08-19, sql/88 WC057 이 서버에서도 거부).
-        canRequestRefund={
-          !detailOrder?.is_fake_entitlement && detailStatus === "student_active"
-        }
+        {...(detailOrderStatus && { status: detailOrderStatus })}
         onClose={() => setDetailOrder(null)}
         onRequestRefund={() => {
           const target = detailOrder;
           setDetailOrder(null);
+          // 로컬 QA 가짜 이용권 주문은 실제 order_id가 DB에 없다 — 환불을
+          // 걸면 존재하지 않는 order_id가 refund_requests에 저장된다
+          // (ParentPaymentsTab.handleRequestRefund와 같은 가드).
+          if (target?.is_fake_entitlement) return;
           setRefundOrder(target);
         }}
       />

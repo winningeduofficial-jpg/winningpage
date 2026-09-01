@@ -1,6 +1,7 @@
 import { ChevronRight } from "lucide-react";
-import type { KeyboardEvent } from "react";
+import { Fragment, type KeyboardEvent } from "react";
 import { Link } from "react-router";
+import { useBundleCompositionMap } from "@/components/mypage/bundleComposition";
 import { formatKRW } from "@/data/pricingCatalog";
 import type { ServiceGroup, ServiceProduct } from "@/lib/products";
 
@@ -78,6 +79,14 @@ export default function ServiceCatalog({
   showDetailLinks = false,
   planNotice,
 }: ServiceCatalogProps) {
+  // org 한정 상품(부산캠퍼스 특가 등) 카드의 "구성: ..." 문구용 — bundle_items를
+  // 조회해 라벨·수량을 만든다(useBundleCompositionMap, mypage/bundleComposition.ts와
+  // 공유). 훅은 최상위에서만 호출해야 하므로 아래 서비스/상품 순회 루프 밖에서
+  // 대상 productId를 미리 모은다(org_code가 없는 일반 상품은 빈 배열).
+  const orgProductIds = services.flatMap((service) =>
+    service.products.filter((p) => p.orgCode).map((p) => p.id),
+  );
+  const bundleCompositionMap = useBundleCompositionMap(orgProductIds);
   // radiogroup 키보드 규약(WAI-ARIA APG) — 화살표 이동은 포커스만 옮기는 게 아니라
   // 그 자리에서 바로 선택도 함께 바꾼다(네이티브 <input type=radio> 그룹과 동일 동작).
   // Home/End 는 넣지 않았다 — 그룹당 최대 5개(수시예측)뿐이라 화살표만으로 왕복 비용이
@@ -351,42 +360,46 @@ export default function ServiceCatalog({
                 // 이 button 밖(서비스명 h2 · 자세히보기/셰브론 · 설명문 · 단일선택 안내 ·
                 // 컨테이너 패딩 · 요약바)은 접힘과 무관하고 각자 sm 근거가 따로 있어 손대지 않았다.
                 return (
-                  // biome-ignore lint/a11y/useSemanticElements: 아래 주석대로 재클릭 시 선택 해제되는 의도적 비-네이티브 동작이다 — 네이티브 radio input은 클릭으로 해제할 수 없어 이 상품을 "건너뛴다" 표현이 불가능해진다.
-                  <button
-                    type="button"
-                    key={product.id}
-                    // role="radio" + aria-checked — 위 radiogroup 주석 참고. posinset/setsize
-                    // 는 명시하지 않는다: DOM 상 radiogroup의 직계 자식이라 브라우저/AT가
-                    // 자동으로 "N개 중 M번째"를 계산한다(가상화·비직계 구조가 아니므로
-                    // 수동 지정이 불필요하다).
-                    // 클릭으로 선택 해제(toggle)가 되는 건 네이티브 radio 관행과 다르다 —
-                    // 여기 각 서비스는 전부 "안 사도 되는" 선택형 상품이라 "이 서비스는
-                    // 건너뛴다"를 표현할 방법이 필요했고, 그게 기존부터 있던 재클릭
-                    // 해제였다(이번 라운드에서 새로 만든 동작이 아니다). 화살표 키 이동은
-                    // 위 handleRadioKeyDown 에서 이동=선택이라 매번 그룹 안 어딘가는
-                    // 선택된 상태가 되지만, 클릭/스페이스는 여전히 토글이라 "전부 해제"도
-                    // 가능하다 — 의도적 절충이며 aria-checked 는 실제 상태를 그대로
-                    // 반영하므로 AT 에 거짓 정보를 주지 않는다.
-                    role="radio"
-                    aria-checked={isSelected}
-                    tabIndex={isRovingTabStop ? 0 : -1}
-                    onClick={() => onToggle(service.key, product.id)}
-                    onKeyDown={(e) =>
-                      handleRadioKeyDown(
-                        e,
-                        service.key,
-                        service.products,
-                        index,
-                      )
-                    }
-                    className={`flex min-h-16 w-full items-center justify-between gap-5 rounded-2xl border p-2.75 text-left transition lg:min-h-0 lg:gap-4 lg:p-5 ${
-                      isSelected
-                        ? "border-accent bg-surface-info ring-1 ring-accent/30"
-                        : "border-line bg-white hover:border-ink-sub"
-                    }`}
-                  >
-                    <span className="flex min-w-0 items-center gap-2 lg:gap-3">
-                      {/* 인디케이터 — 정사각 체크박스(rounded-md + 흰 체크 글리프)가 아니라
+                  // org 한정 상품(products.org_code, 2026-09-01) 카드는 구성 표기 +
+                  // 쿠폰 제외 고지를 button 바깥에 별도 문단으로 덧붙인다 — 그래서
+                  // 이 map 반환값이 두 형제 노드가 됐고, key는 Fragment가 갖는다
+                  // (button 자체의 key는 제거).
+                  <Fragment key={product.id}>
+                    {/* biome-ignore lint/a11y/useSemanticElements: 아래 주석대로 재클릭 시 선택 해제되는 의도적 비-네이티브 동작이다 — 네이티브 radio input은 클릭으로 해제할 수 없어 이 상품을 "건너뛴다" 표현이 불가능해진다. */}
+                    <button
+                      type="button"
+                      // role="radio" + aria-checked — 위 radiogroup 주석 참고. posinset/setsize
+                      // 는 명시하지 않는다: DOM 상 radiogroup의 직계 자식이라 브라우저/AT가
+                      // 자동으로 "N개 중 M번째"를 계산한다(가상화·비직계 구조가 아니므로
+                      // 수동 지정이 불필요하다).
+                      // 클릭으로 선택 해제(toggle)가 되는 건 네이티브 radio 관행과 다르다 —
+                      // 여기 각 서비스는 전부 "안 사도 되는" 선택형 상품이라 "이 서비스는
+                      // 건너뛴다"를 표현할 방법이 필요했고, 그게 기존부터 있던 재클릭
+                      // 해제였다(이번 라운드에서 새로 만든 동작이 아니다). 화살표 키 이동은
+                      // 위 handleRadioKeyDown 에서 이동=선택이라 매번 그룹 안 어딘가는
+                      // 선택된 상태가 되지만, 클릭/스페이스는 여전히 토글이라 "전부 해제"도
+                      // 가능하다 — 의도적 절충이며 aria-checked 는 실제 상태를 그대로
+                      // 반영하므로 AT 에 거짓 정보를 주지 않는다.
+                      role="radio"
+                      aria-checked={isSelected}
+                      tabIndex={isRovingTabStop ? 0 : -1}
+                      onClick={() => onToggle(service.key, product.id)}
+                      onKeyDown={(e) =>
+                        handleRadioKeyDown(
+                          e,
+                          service.key,
+                          service.products,
+                          index,
+                        )
+                      }
+                      className={`flex min-h-16 w-full items-center justify-between gap-5 rounded-2xl border p-2.75 text-left transition lg:min-h-0 lg:gap-4 lg:p-5 ${
+                        isSelected
+                          ? "border-accent bg-surface-info ring-1 ring-accent/30"
+                          : "border-line bg-white hover:border-ink-sub"
+                      }`}
+                    >
+                      <span className="flex min-w-0 items-center gap-2 lg:gap-3">
+                        {/* 인디케이터 — 정사각 체크박스(rounded-md + 흰 체크 글리프)가 아니라
                       원형 라디오(rounded-full + 내부 dot)다. 시각도 role="radio" 의미론과
                       맞춘 것이다 — 체크박스 모양은 "여러 개 고를 수 있다"는 낡은
                       어포던스를 남기고, role/aria 만 바꾸면 마우스 사용자는 여전히
@@ -409,18 +422,18 @@ export default function ServiceCatalog({
                       이유가 없다(글리프처럼 모서리가 있는 형태가 아니라 원 안의 원이라
                       여백이 나면 오히려 정상 라디오 모양이다) — outer 대비 50%
                       비율(8/16, 12/24)로 두 밴드 동일 비율을 유지했다. */}
-                      <span
-                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition lg:h-6 lg:w-6 ${
-                          isSelected
-                            ? "border-accent bg-white"
-                            : "border-line bg-white"
-                        }`}
-                      >
-                        {isSelected && (
-                          <span className="h-2 w-2 rounded-full bg-accent lg:h-3 lg:w-3" />
-                        )}
-                      </span>
-                      {/* 1023 이하는 대괄호 구간만(shortLabel), lg 이상은 상품명 전문
+                        <span
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border transition lg:h-6 lg:w-6 ${
+                            isSelected
+                              ? "border-accent bg-white"
+                              : "border-line bg-white"
+                          }`}
+                        >
+                          {isSelected && (
+                            <span className="h-2 w-2 rounded-full bg-accent lg:h-3 lg:w-3" />
+                          )}
+                        </span>
+                        {/* 1023 이하는 대괄호 구간만(shortLabel), lg 이상은 상품명 전문
                       (1920 시안 1882-10810 / 1280 시안 1882-15190).
                       한국어 상품명이 어절 중간에서 끊기지 않도록 truncate 대신 break-keep.
                       390 타이포는 시안 실측(1882:16307 라벨 TEXT 110×20)대로
@@ -438,17 +451,19 @@ export default function ServiceCatalog({
                       단일 클래스. 390 은 ls 가 붙어 글자폭이 오히려 줄어드므로 확정
                       예산(라벨 몫 156px, 최장 라벨 112.8px)에 여유가 더 생긴다.
                       색은 양쪽 시안 모두 #525252 = ink 다(기존 ink-title 은 근거 없음). */}
-                      {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — 반응형
+                        {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — 반응형
                       확대만 제거하고, shortLabel↔전문 전환(lg:hidden/hidden lg:inline)
                       은 폭 절약이 아니라 "서비스명 중복 회피"가 목적이라 그대로 둔다. */}
-                      {/* QA 행238 — 13px가 작다는 지적으로 14px로 올린다. 라벨 몫 예산
+                        {/* QA 행238 — 13px가 작다는 지적으로 14px로 올린다. 라벨 몫 예산
                       156px 대비 최장 라벨이 13px에서 112.8px(여유 43px)이라 14px로
                       올려도(≈121.5px) 예산 안에 그대로 들어간다. */}
-                      <span className="break-keep text-[0.875rem] font-medium leading-5 tracking-[-0.02em] text-ink">
-                        <span className="lg:hidden">{shortLabel}</span>
-                        <span className="hidden lg:inline">{product.name}</span>
-                      </span>
-                      {/* '추천' 배지는 1280·1920 시안에만 있고 390 시안(1882-16307, 1882-16017)
+                        <span className="break-keep text-[0.875rem] font-medium leading-5 tracking-[-0.02em] text-ink">
+                          <span className="lg:hidden">{shortLabel}</span>
+                          <span className="hidden lg:inline">
+                            {product.name}
+                          </span>
+                        </span>
+                        {/* '추천' 배지는 1280·1920 시안에만 있고 390 시안(1882-16307, 1882-16017)
                       에는 0건이라 1023 이하에서 숨긴다(노출 전환점도 라벨과 한 세트로
                       sm → lg 로 옮겼다 — 배지 타이포는 BP 고정 16px 이라 13px 라벨 옆에
                       남겨 두면 배지가 라벨보다 큰 위계 역전이 생기고, 390 확정 표현에는
@@ -456,28 +471,28 @@ export default function ServiceCatalog({
                       1920 은 1882-10810 이 2건, 3408-4832 가 3건이고 1280(1882-15190,
                       1882-15614)은 3건이다. 어느 상품에 붙는지는 시안이 아니라 DB
                       (products.recommended)가 정본이라 개수 차이는 코드에 반영하지 않는다. */}
-                      {/* 배지 타이포는 시안 인벤토리대로 16px w500 #ffffff
+                        {/* 배지 타이포는 시안 인벤토리대로 16px w500 #ffffff
                       (rem: 16px = 1rem). 기존 11px w700 은 시안에 없는 값이다.
                       base 값은 부모가 hidden lg:inline-block 이라 렌더되지 않는다.
                       (참고: 시안 텍스트 3408:4945 의 폭 28px 은 CJK 2자 × 14px 에 더
                       가까워 14px 일 여지가 있으나, 같은 프레임의 텍스트 노드들이
                       고정 크기로 리사이즈돼 있어 폭/높이로는 판정이 불가하다 →
                       REST 스타일 실측인 인벤토리 값 16px 을 따른다.) */}
-                      {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — 16px → 12px. */}
-                      {product.recommended && (
-                        <span className="hidden shrink-0 rounded-md bg-accent px-2 py-0.5 text-[0.75rem] font-medium text-white lg:inline-block">
-                          추천
-                        </span>
-                      )}
-                    </span>
+                        {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — 16px → 12px. */}
+                        {product.recommended && (
+                          <span className="hidden shrink-0 rounded-md bg-accent px-2 py-0.5 text-[0.75rem] font-medium text-white lg:inline-block">
+                            추천
+                          </span>
+                        )}
+                      </span>
 
-                    {/* 금액 블록 폭(126px 고정 + shrink-0, lg 이상 w-auto)은 레이아웃
+                      {/* 금액 블록 폭(126px 고정 + shrink-0, lg 이상 w-auto)은 레이아웃
                     기하라 유지한다 — 아래 lg 전용 배지·판매가가 MyPage 수준(0.8125rem)
                     으로 줄면서 더는 큰 글자를 위한 여유 lh(1.9375rem)가 필요 없어져
                     lg:leading-7.75 는 제거했다(MyPage 수준 통일, 사용자 확정
                     2026-08-19, 7f072f45). */}
-                    <span className="flex w-31.5 shrink-0 flex-col items-end leading-5 lg:w-auto">
-                      {/* 정가 취소선 — 390 12px w500 lh20 #d7d7d7 ls-0.24 /
+                      <span className="flex w-31.5 shrink-0 flex-col items-end leading-5 lg:w-auto">
+                        {/* 정가 취소선 — 390 12px w500 lh20 #d7d7d7 ls-0.24 /
                       1920 20px w400 lh28 #d9d9d9 ls-0.4.
                       #d9d9d9 는 토큰이 없어 가장 가까운 line(#d7d7d7, 차이 2)로 쓴다 —
                       390 시안이 이미 정확히 #d7d7d7 이라 두 밴드가 한 토큰으로 수렴한다.
@@ -486,54 +501,70 @@ export default function ServiceCatalog({
                       ls 는 양쪽 -0.02em(-0.24/12, -0.4/20).
                       기존 12px w400 #808080(ink-sub) 은 취소선인데도 본문 보조색과 같아
                       '비활성' 위계가 드러나지 않았다. */}
-                      {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — 반응형 확대 제거,
+                        {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — 반응형 확대 제거,
                       7f072f45의 취소선 span과 동일 위계. */}
-                      {hasDiscount && (
-                        <span className="text-[0.75rem] font-medium tracking-[-0.02em] text-line line-through">
-                          {formatKRW(product.listPrice)}
-                        </span>
-                      )}
-                      {/* 1023 이하(390 확정 표현): 할인 라벨과 금액이 한 줄 단일 텍스트
+                        {hasDiscount && (
+                          <span className="text-[0.75rem] font-medium tracking-[-0.02em] text-line line-through">
+                            {formatKRW(product.listPrice)}
+                          </span>
+                        )}
+                        {/* 1023 이하(390 확정 표현): 할인 라벨과 금액이 한 줄 단일 텍스트
                       ('약 11%할인 80,000원').
                       lg 이상: 시안(1920 = 1882-10810 / 1280 = 1882-15190)대로 라벨(blue)과
                       금액을 두 요소로 분리. 전환점 이동 근거는 위 button 주석 ★ 항목. */}
-                      {/* 390 금액 블록 폭이 시안대로 126px 이라 이 한 줄이 126px 안에 들어가야
+                        {/* 390 금액 블록 폭이 시안대로 126px 이라 이 한 줄이 126px 안에 들어가야
                       한다. 최장 문구 '40%할인 180,000원' 실측 폭은 15px 에서 141.5px 로
                       126 을 넘어 2줄이 됐다(행 높이 86px). 13px 이면 141.5×13/15 ≈ 122.6px
                       로 1줄이며, 라벨과 같은 13px 이라 390 타이포 단계도 일관된다.
                       14px 은 141.5×14/15 ≈ 132px 로 여전히 초과.
                       이 span 자체가 lg:hidden(1023 이하 전용)이고, lg 값은 아래 lg:flex
                       블록이 따로 정한다. */}
-                      {/* 390 확정 타이포(13px/lh20/w500 #525252 ls-0.26)를 그대로 쓴다.
+                        {/* 390 확정 타이포(13px/lh20/w500 #525252 ls-0.26)를 그대로 쓴다.
                       기존 w900 → w500, ink-title → ink 로만 내렸다. 무게가 줄고 ls 가
                       음수라 최장 문구('40%할인 180,000원') 폭은 기존 122.6px 보다 더
                       줄어들어 126px 예산이 깨질 위험이 없다. */}
-                      {/* QA 행238 — 라벨(위 span)은 14px로 올렸지만 이 span은 13px을
+                        {/* QA 행238 — 라벨(위 span)은 14px로 올렸지만 이 span은 13px을
                       유지한다. 바로 위 주석의 126px 예산 계산(14px면 최장 문구가
                       ≈132px로 넘침)이 그대로 걸리는 유일한 span이라, 여기만 올리면
                       2줄로 접혀 행 높이가 깨진다. */}
-                      <span className="text-[0.8125rem] font-medium tracking-[-0.02em] text-ink lg:hidden">
-                        {compactBadge
-                          ? `${compactBadge} ${formatKRW(product.price)}`
-                          : formatKRW(product.price)}
-                      </span>
-                      {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — lg 전용
+                        <span className="text-[0.8125rem] font-medium tracking-[-0.02em] text-ink lg:hidden">
+                          {compactBadge
+                            ? `${compactBadge} ${formatKRW(product.price)}`
+                            : formatKRW(product.price)}
+                        </span>
+                        {/* MyPage 수준 통일, 사용자 확정 2026-08-19(7f072f45) — lg 전용
                       배지・판매가를 390 한 줄 표현과 같은 위계로 내렸다. 기존 24px는
                       7f072f45 폐기 이전 확대 규약의 잔존값이었다.
                       QA 행238 — lg 컬럼은 폭 제약(w-31.5)이 없는 auto 폭이라(위 button
                       주석 참고) 라벨과 함께 14px로 올려도 줄바꿈 위험이 없다. */}
-                      <span className="hidden items-center gap-2 lg:flex">
-                        {product.badge && (
-                          <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-primary">
-                            {product.badge}
+                        <span className="hidden items-center gap-2 lg:flex">
+                          {product.badge && (
+                            <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-primary">
+                              {product.badge}
+                            </span>
+                          )}
+                          <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-ink">
+                            {formatKRW(product.price)}
                           </span>
-                        )}
-                        <span className="text-[0.875rem] font-medium tracking-[-0.02em] text-ink">
-                          {formatKRW(product.price)}
                         </span>
                       </span>
-                    </span>
-                  </button>
+                    </button>
+                    {/* org 한정 상품(부산캠퍼스 특가 등) 구성 표기 — bundle_items를
+                  조회하는 useBundleCompositionMap(위 컴포넌트 최상위 호출)이
+                  만든 "라벨 N회권" 라인을 ' + '로 이어 붙인다(사용자 확정 카피,
+                  2026-09-01). 쿠폰 제외 고지는 이 상품군에 공통인 고정 문구다. */}
+                    {product.orgCode && (
+                      <p className="-mt-1 mb-1 break-keep text-[0.75rem] font-medium leading-4.25 text-ink-sub">
+                        구성:{" "}
+                        {(bundleCompositionMap.get(product.id) ?? []).join(
+                          " + ",
+                        )}
+                        <span className="ml-1 text-error">
+                          쿠폰 적용 대상이 아닙니다.
+                        </span>
+                      </p>
+                    )}
+                  </Fragment>
                 );
               })}
             </div>

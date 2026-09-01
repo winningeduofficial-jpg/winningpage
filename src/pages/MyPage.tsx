@@ -99,7 +99,7 @@ export default function MyPage() {
         </div>
 
         <div className="mt-16">
-          {activeTab === "services" && <MyServicesTab orders={orders} />}
+          {activeTab === "services" && <MyServicesTab />}
 
           {activeTab === "children" && <ChildrenTab />}
 

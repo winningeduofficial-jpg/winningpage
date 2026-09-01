@@ -1,6 +1,8 @@
-import { useCallback, useId, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router";
 import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import ModalFooter from "@/components/mypage/modal/ModalFooter";
+import RejectReasonField from "@/components/mypage/modal/RejectReasonField";
 import OrderAmountBreakdown from "@/components/mypage/OrderAmountBreakdown";
 import { supabase } from "@/lib/supabase";
 
@@ -39,6 +41,10 @@ type EnrollmentOrder = {
     list_price?: number;
     price?: number;
     quantity?: number;
+    // 번들 구성 내역 표기(태스크6, bundleComposition.ts) — OrderAmountBreakdown이
+    // 소비한다. ParentPaymentsTab.tsx reloadPending의 select가 이미 이 컬럼을
+    // 담아 넘겨준다(그쪽 Order 타입과 동일 이유).
+    product_id?: string | null;
   }[];
   list_amount?: number;
   discount_amount?: number;
@@ -64,7 +70,6 @@ export default function EnrollmentRequestModal({
   onClose,
   onRejected,
 }: EnrollmentRequestModalProps) {
-  const titleId = useId();
   const navigate = useNavigate();
 
   const [rejecting, setRejecting] = useState(false);
@@ -109,23 +114,64 @@ export default function EnrollmentRequestModal({
     <MyPageModalShell
       open={open}
       onClose={onClose}
-      labelledBy={titleId}
-      className="w-104"
+      size="sm"
+      title="결제 요청을 확인해주세요"
+      subtitle={
+        childName
+          ? `${childName} 학생이 신청한 서비스예요.`
+          : "자녀가 신청한 서비스예요."
+      }
+      footer={
+        rejecting ? (
+          <ModalFooter
+            buttons={[
+              {
+                key: "cancel",
+                label: "취소",
+                variant: "neutral",
+                onClick: () => {
+                  setRejecting(false);
+                  setReason("");
+                  setErrorMsg("");
+                },
+              },
+              {
+                key: "reject",
+                label: saving ? "처리 중..." : "반려하기",
+                variant: "destructive",
+                disabled: saving,
+                onClick: reject,
+              },
+            ]}
+          />
+        ) : (
+          <ModalFooter
+            buttons={[
+              {
+                key: "close",
+                label: "닫기",
+                variant: "neutral",
+                onClick: onClose,
+              },
+              {
+                key: "reject",
+                label: "반려",
+                variant: "destructive-outline",
+                onClick: () => setRejecting(true),
+              },
+              {
+                key: "pay",
+                label: "결제",
+                variant: "primary",
+                onClick: () =>
+                  navigate(`/checkout?order=${encodeURIComponent(order.id)}`),
+              },
+            ]}
+          />
+        )
+      }
     >
-      <div className="flex-1 overflow-y-auto px-6 pt-8">
-        <h2
-          id={titleId}
-          className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title"
-        >
-          결제 요청을 확인해주세요
-        </h2>
-
-        <p className="mt-4 break-keep text-center text-[0.8125rem] leading-[1.6] text-ink-sub">
-          {childName
-            ? `${childName} 학생이 신청한 서비스예요.`
-            : "자녀가 신청한 서비스예요."}
-        </p>
-
+      <div className="flex-1 overflow-y-auto px-6">
         <div className="mt-6">
           <OrderAmountBreakdown
             order={order}
@@ -135,71 +181,15 @@ export default function EnrollmentRequestModal({
         </div>
 
         {rejecting && (
-          <textarea
-            rows={2}
+          <RejectReasonField
             value={reason}
-            onChange={(e) => setReason(e.target.value)}
+            onChange={setReason}
             placeholder="반려 사유를 입력해 주세요. 자녀에게 전달됩니다."
-            className="mt-4 w-full resize-none rounded-xl border border-line px-4 py-3 text-[0.875rem] text-ink outline-hidden focus:border-accent"
           />
         )}
 
         {errorMsg && (
           <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
-        )}
-      </div>
-
-      <div
-        className={`grid gap-2 px-6 py-5 ${rejecting ? "grid-cols-2" : "grid-cols-3"}`}
-      >
-        {rejecting ? (
-          <>
-            <button
-              type="button"
-              onClick={() => {
-                setRejecting(false);
-                setReason("");
-                setErrorMsg("");
-              }}
-              className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30"
-            >
-              취소
-            </button>
-            <button
-              type="button"
-              onClick={reject}
-              disabled={saving}
-              className="h-12 rounded-xl bg-error text-[0.875rem] font-semibold text-white transition hover:bg-error/90 disabled:opacity-60"
-            >
-              {saving ? "처리 중..." : "반려하기"}
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={onClose}
-              className="h-12 rounded-xl bg-surface-footer text-[0.875rem] font-semibold text-ink-sub transition hover:bg-line/30"
-            >
-              닫기
-            </button>
-            <button
-              type="button"
-              onClick={() => setRejecting(true)}
-              className="h-12 rounded-xl border border-error text-[0.875rem] font-semibold text-error transition hover:bg-error/10"
-            >
-              반려
-            </button>
-            <button
-              type="button"
-              onClick={() =>
-                navigate(`/checkout?order=${encodeURIComponent(order.id)}`)
-              }
-              className="h-12 rounded-xl bg-primary text-[0.875rem] font-semibold text-white transition hover:opacity-90"
-            >
-              결제
-            </button>
-          </>
         )}
       </div>
     </MyPageModalShell>

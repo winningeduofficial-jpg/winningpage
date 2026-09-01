@@ -128,6 +128,10 @@ export type DiscountOrderInput = {
         list_price?: number | null;
         price?: number | null;
         quantity?: number | null;
+        // 번들 구성 내역 표기(태스크6, bundleComposition.ts) 용 — itemRows와
+        // order_items는 항상 같은 순서·같은 길이라(computeDiscountBreakdown의
+        // .map()) 호출부(OrderAmountBreakdown)가 인덱스로 짝지어 쓴다.
+        product_id?: string | null;
       }[]
     | null;
   coupon_redemptions?:

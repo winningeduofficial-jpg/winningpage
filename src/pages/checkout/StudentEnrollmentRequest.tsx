@@ -7,7 +7,19 @@ import { useAuth } from "@/context/AuthProvider";
 import { formatKRW } from "@/data/pricingCatalog";
 import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
 import { getApprovedParentLink } from "@/lib/parentLink";
-import { useProducts } from "@/lib/products";
+import {
+  filterOrgProducts,
+  useMatchedOrgCodes,
+  useProducts,
+} from "@/lib/products";
+import { supabase } from "@/lib/supabase";
+
+// 부산캠퍼스 특가(2026-09-01, supabase/migrations/20260901050445) 학생당 1회
+// 구매 제한 — 서버는 WC066 으로 이미 막지만(fn_request_enrollment), UX상
+// 미노출이 정본이라(팀 리드 지시) 이미 구매(paid/waiting_deposit)한 학생에게는
+// 애초에 카드 자체를 보여주지 않는다. 이 상품은 service_key='special' 로
+// 유일해 그 값으로 그룹을 식별한다(다른 서비스와 충돌 없음).
+const BUSAN_9900_SERVICE_KEY = "special";
 
 // 학생 — 결제 요청(수강신청) 화면. Figma 실측 재작업(2026-08-12b, 팀 리드가
 // get_design_context 로 직접 뽑은 전문 기준 — 이전 라운드는 Figma 접근 없이
@@ -99,11 +111,59 @@ export default function StudentEnrollmentRequest() {
     refetch,
   } = useProducts(undefined, { orderableOnly: true });
 
+  // org 한정 상품 노출 필터(2026-09-01) — 학생 본인 기준(fn_matched_org_codes 를
+  // 인자 없이 호출 → 본인 + 연결된 학부모의 org_code). 표시 전용, 정본은
+  // fn_request_enrollment 의 서버 재검증(api/request-enrollment.ts WC064 매핑).
+  const { codes: matchedOrgCodes } = useMatchedOrgCodes();
+  const orgFilteredServices = useMemo(
+    () => filterOrgProducts(filteredServices, matchedOrgCodes),
+    [filteredServices, matchedOrgCodes],
+  );
+
   // 서비스별 단일 선택: { [serviceKey]: productId } — Pricing.jsx 와 동일 규칙
   // (그룹당 1개, 서로 다른 그룹은 동시 선택 가능).
   const [selected, setSelected] = useState<Record<string, string>>({});
   // 세션은 AuthProvider(전역 단일 구독)에서 읽는다(명세 B-3 §4).
   const { user } = useAuth();
+
+  // 부산캠퍼스 특가 학생당 1회 구매 제한(위 상단 주석) — 본인 orders 는 RLS로
+  // 조회 가능하다. 서버(fn_request_enrollment WC066)가 정본이고 이건 UX 전용.
+  const [hasPurchasedBusan9900, setHasPurchasedBusan9900] = useState(false);
+  useEffect(() => {
+    if (!user) return undefined;
+    let alive = true;
+    (async () => {
+      const { data, error: purchaseError } = await supabase
+        .from("orders")
+        .select("id, order_items(product_slug)")
+        .eq("student_profile_id", user.id)
+        .in("status", ["paid", "waiting_deposit"]);
+      if (!alive) return;
+      if (purchaseError) {
+        console.warn("구매 이력 조회 실패:", purchaseError.message);
+        return;
+      }
+      const purchased = (data || []).some((o) =>
+        (o.order_items || []).some(
+          (it: { product_slug: string | null }) =>
+            it.product_slug === "busan-9900",
+        ),
+      );
+      setHasPurchasedBusan9900(purchased);
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [user]);
+
+  const visibleServices = useMemo(
+    () =>
+      hasPurchasedBusan9900
+        ? orgFilteredServices.filter((s) => s.key !== BUSAN_9900_SERVICE_KEY)
+        : orgFilteredServices,
+    [orgFilteredServices, hasPurchasedBusan9900],
+  );
+
   const [submitting, setSubmitting] = useState(false);
   const [showFailModal, setShowFailModal] = useState(false);
   // { title, body } | null — 학부모 미연결 이외의 서버 제출 실패(일반 오류/중복 요청).
@@ -131,7 +191,7 @@ export default function StudentEnrollmentRequest() {
 
   const selectedItems = useMemo(() => {
     const items: SelectedItem[] = [];
-    filteredServices.forEach((service) => {
+    visibleServices.forEach((service) => {
       const pid = selected[service.key];
       if (!pid) return;
       const product = service.products.find((p) => p.id === pid);
@@ -148,7 +208,7 @@ export default function StudentEnrollmentRequest() {
       });
     });
     return items;
-  }, [filteredServices, selected]);
+  }, [visibleServices, selected]);
 
   const listTotal = selectedItems.reduce(
     (s, i) => s + Number(i.listPrice || i.price || 0),
@@ -352,7 +412,7 @@ export default function StudentEnrollmentRequest() {
 
           {!loading && !error && (
             <ServiceCatalog
-              services={filteredServices}
+              services={visibleServices}
               selected={selected}
               onToggle={toggle}
               planNotice={SINGLE_PLAN_NOTICE}
