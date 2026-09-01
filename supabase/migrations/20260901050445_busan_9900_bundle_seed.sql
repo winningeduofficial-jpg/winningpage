@@ -16,16 +16,17 @@ declare
   v_sort       integer;
   v_product_id uuid;
 begin
-  -- ⚠️ 20260821000004 와 같은 관례 — baseline 은 스키마 전용(INSERT 0건)이라
-  -- 갓 만든 로컬/CI 재생 DB 에는 programs 행이 없다. bundle_items 는
-  -- programs(program_key) FK 를 가지므로, 세 키가 전부 있을 때만 시드하고
-  -- 없으면 조용히 건너뛴다(실 dev/prod 에는 programs 가 채워져 있어 적용됨).
-  if not exists (select 1 from public.programs where program_key = 'diagnose')
-     or not exists (select 1 from public.programs where program_key = 'target')
-     or not exists (select 1 from public.programs where program_key = 'suhaeng') then
-    raise notice 'busan-9900 시드 건너뜀 — programs 에 diagnose/target/suhaeng 이 없음(스키마 전용 DB)';
-    return;
-  end if;
+  -- baseline 은 스키마 전용(INSERT 0건)이라 갓 만든 재생 DB(CI rehearse 포함)
+  -- 에는 programs 행이 없고, bundle_items 는 programs(program_key) FK 를
+  -- 가진다. FK 대상 3행을 dev 정본 값 그대로 멱등 시드한다 — 실 dev/prod 는
+  -- 이미 행이 있어 no-op 이고(기존 값 덮어쓰지 않음), 재생 DB 에서는 이
+  -- 마이그레이션이 자기 전제(FK 대상)를 스스로 채워 시드 경로 전체가 그대로
+  -- 리허설된다.
+  insert into public.programs (program_key, name, is_active, sort_order) values
+    ('target',   '위닝 목표관리 프로그램', true,  1),
+    ('suhaeng',  '위닝 수행평가 프로그램', true,  2),
+    ('diagnose', '위닝 학습진단',          false, 5)
+  on conflict (program_key) do nothing;
 
   select least(-1, coalesce(min(service_sort_order), 0) - 1)
     into v_sort
