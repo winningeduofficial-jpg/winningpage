@@ -83,8 +83,7 @@ export default function OrgCodeModal({
       open={open}
       onClose={onClose}
       size="sm"
-      // ⚠ 신규 카피 — 승인 필요.
-      title="소속코드를 입력해요"
+      title="소속코드를 입력해주세요"
       footer={
         <ModalFooter
           buttons={[
