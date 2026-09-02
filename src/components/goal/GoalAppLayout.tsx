@@ -1,4 +1,5 @@
 import { Outlet } from "react-router";
+import RouteLoadingOverlay from "@/components/ui/RouteLoadingOverlay";
 import GoalSidebar from "./GoalSidebar";
 
 // 접근 가드(로그인 → 이용권 → 온보딩 완료) 확정(2026-08-10) — App.jsx에서 이 레이아웃의
@@ -13,7 +14,11 @@ export default function GoalAppLayout() {
   return (
     <div className="flex min-h-screen bg-white">
       <GoalSidebar />
-      <main className="min-w-0 flex-1">
+      {/* relative: RouteLoadingOverlay(소프트 내비게이션 로딩 표시,
+          goal-mapping.md 행297)가 사이드바는 가리지 않고 본문 영역에만
+          덮이도록 하는 기준 컨테이너. */}
+      <main className="relative min-w-0 flex-1">
+        <RouteLoadingOverlay />
         <Outlet />
       </main>
     </div>
