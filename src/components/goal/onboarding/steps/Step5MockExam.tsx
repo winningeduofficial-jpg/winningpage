@@ -1,121 +1,250 @@
+import { useMemo } from "react";
 import GradeNumberField from "@/components/goal/onboarding/GradeNumberField";
-import NoneCheckbox from "@/components/goal/onboarding/NoneCheckbox";
 import {
-  MOCK_EXAM_ROUNDS,
-  MOCK_EXAM_SUBJECTS,
+  type FlowEntry,
+  flowLabel,
+  MOCK_FLOW,
+  MOCK_SUBJECTS,
 } from "@/components/goal/onboarding/onboardingOptions";
 import QuestionCard from "@/components/goal/onboarding/QuestionCard";
 import WizardActions from "@/components/goal/onboarding/WizardActions";
 import { useGoalOnboarding } from "@/context/GoalOnboardingContext";
+import { getPercentileChips } from "@/lib/goal/calc/index.js";
+
+// QA 행291 재설계 — qa3-held-high-design.md §3 / 팀장 지시. 원본(target 앱 IntakeForm.tsx)은
+// "마지막으로 본 모의고사 1개 선택(학년별 시퀀스, 고3은 5・7모 포함 6회) + 최근 3회차 ×
+// 국/수/영/탐구1/탐구2 등급 + 백분위 칩(컷/안정/최고) + 탐구 트랙(과탐/사탐)"이었다. 우리 구
+// 5단계(고정 4회차 × 등급만, 밴드 중앙값 추정)를 그 구조로 교체한다.
+//
+// 등급 입력 후 나오는 백분위 칩은 getPercentileChips(GRADE_PERCENTILE 9구간, jeongsi.js)를
+// 그대로 재사용한다 — 서버 밴드와 클라이언트 칩이 같은 값을 가리켜야 하기 때문이다.
+
+const RANK: Record<"g1" | "g2" | "g3", number> = { g1: 0, g2: 1, g3: 2 };
 
 function isValidGrade(raw: string) {
   const num = Number(raw);
   return raw !== "" && Number.isFinite(num) && num >= 1 && num <= 9;
 }
 
-// GoalOnboardingContext.tsx가 export하지 않는 로컬 타입이라 여기서만 그대로 재선언한다
-// (updateMockExam의 partial 인자 타입과 구조가 같아야 캐스트가 의미를 갖는다).
-type MockExamRound = { none: boolean } & Record<string, string>;
-
-function emptySubjects(): Record<string, string> {
-  return Object.fromEntries(
-    MOCK_EXAM_SUBJECTS.map((subject) => [subject.key, ""]),
-  );
-}
+type PercentileSubjectKey = "kor" | "math" | "tam1" | "tam2";
 
 type Step5MockExamProps = {
   goPrev: () => void;
   goNext: () => void;
 };
 
-// 5단계 — docs/figma-goal/part-03.md #7. 모의고사 4회차(3/6/9/10월) × 5과목(국/수/영/탐구1/2)
-// 등급. 회차별 "없음" 체크 시 해당 회차 5과목 입력을 모두 비우고 완료 처리한다(추정).
 export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
-  const { mockExam, updateMockExam } = useGoalOnboarding();
-  // 전 회차 "없음"은 이미 정상 경로다(서버가 currentMogo=0으로 두고 정시 확률만 0으로 접는다).
-  // 입력·검증은 그대로 두고, 확률이 0으로 뜨는 이유를 미리 알려 오해를 막는 안내문만 붙인다.
-  //
-  // 문구 주의: "계산에서 제외"가 아니라 "0%에서 시작"이다. 정시 컷이 있는 목표대학이면
-  // base_*_jungsi 가 null 이 아니라 0 으로 저장되고(api/goal/intake.js) rate 도 정상값이라
-  // jungsiAvailable=true(goalRepo.js:364, 컷 존재 여부만 본다) → 대시보드가 "데이터 준비 중"이
-  // 아니라 0%에서 자라는 정시 게이지를 그린다. 제외된다고 말하면 화면과 어긋난다.
-  // mockExam은 MOCK_EXAM_ROUNDS/MOCK_EXAM_SUBJECTS로부터 빌드되어 모든 key가 항상 존재한다.
-  const allNone = MOCK_EXAM_ROUNDS.every(({ key }) => mockExam[key]!.none);
-  const canProceed = MOCK_EXAM_ROUNDS.every(({ key }) => {
-    const round = mockExam[key]!;
-    return (
-      round.none ||
-      MOCK_EXAM_SUBJECTS.every(({ key: subjectKey }) =>
-        isValidGrade(round[subjectKey]!),
-      )
-    );
-  });
+  const {
+    mockExam,
+    grade,
+    setMockLastRound,
+    setMockTrack,
+    updateMockSubject,
+    setMockEnglishGrade,
+  } = useGoalOnboarding();
+
+  const safeGrade: "g1" | "g2" | "g3" =
+    grade === "g1" || grade === "g2" || grade === "g3" ? grade : "g1";
+
+  // 학년까지 절단된 회차 목록 — 고1이면 3・6・9・10모 4개, 고3이면 5・7모 포함 6개(그 앞
+  // 학년 것까지 포함해 최대 14개).
+  const visibleRounds = useMemo(
+    () => MOCK_FLOW.filter((round) => RANK[round.grade] <= RANK[safeGrade]),
+    [safeGrade],
+  );
+
+  const allNone = mockExam.lastRound === "";
+  const selectedIndex = MOCK_FLOW.findIndex(
+    (round) => round.key === mockExam.lastRound,
+  );
+  // 선택 회차 포함 역순(최신순) 최대 3개. 고1이면 자연히 고1 회차만 나온다(예: 6모 선택 시
+  // 3모・6모 2개뿐).
+  const recentRounds: FlowEntry[] =
+    selectedIndex === -1
+      ? []
+      : MOCK_FLOW.slice(
+          Math.max(0, selectedIndex - 2),
+          selectedIndex + 1,
+        ).reverse();
+
+  // "다음" 활성 조건 — 선택한 마지막 회차(currentMogo/report가 실제로 쓰는 값)는 5과목
+  // 전부 입력해야 하고, 탐구 트랙도 골라야 한다. 그 앞의 참고용 회차 2개는 선택 입력이다
+  // (표시만 되고 진행을 막지 않는다).
+  const selectedRound =
+    selectedIndex === -1
+      ? null
+      : (mockExam.rounds[MOCK_FLOW[selectedIndex]!.key] ?? null);
+  const canProceed =
+    allNone ||
+    (mockExam.track !== "" &&
+      selectedRound != null &&
+      isValidGrade(selectedRound.kor.grade) &&
+      isValidGrade(selectedRound.math.grade) &&
+      isValidGrade(selectedRound.eng.grade) &&
+      isValidGrade(selectedRound.tam1.grade) &&
+      isValidGrade(selectedRound.tam2.grade));
 
   return (
     <>
       <QuestionCard
         step="5"
         label="성적 입력"
-        title="마지막으로 본 모의고사 등급을 입력해 주세요."
-        description={
-          '목표 대학과의 격차를 계산하는 기준 데이터입니다. 아직 시험을 보지 않았다면 "없음"을 선택하세요.'
-        }
+        title="마지막으로 본 모의고사를 선택해 주세요."
+        description="목표 대학과의 격차를 계산하는 기준 데이터입니다. 아직 모의고사를 보지 않았다면 '없음'을 선택하세요."
       >
-        <div className="flex flex-col gap-10">
-          {MOCK_EXAM_ROUNDS.map(({ key: roundKey, label: roundLabel }) => {
-            // mockExam은 MOCK_EXAM_ROUNDS로부터 빌드되어 모든 key가 항상 존재한다.
-            const round = mockExam[roundKey]!;
-            return (
-              <div key={roundKey}>
-                <p className="mb-3 text-[0.9375rem] font-semibold text-ink-strong">
-                  {roundLabel}
-                </p>
-                <div className="flex flex-wrap gap-4">
-                  {MOCK_EXAM_SUBJECTS.map(
-                    ({ key: subjectKey, label: subjectLabel }) => (
-                      <GradeNumberField
-                        key={subjectKey}
-                        label={subjectLabel}
-                        value={round[subjectKey]!}
-                        disabled={round.none}
-                        width="6.25rem"
-                        placeholder="1~9"
-                        onChange={(event) =>
-                          updateMockExam(roundKey, {
-                            [subjectKey]: event.target.value,
-                          })
-                        }
-                      />
-                    ),
-                  )}
-                </div>
-                <NoneCheckbox
-                  checked={round.none}
-                  onChange={(event) =>
-                    updateMockExam(
-                      roundKey,
-                      // GoalOnboardingContext.tsx의 MockExamRound = {none:boolean} & Record<string,string>
-                      // 교차 타입은 Partial<MockExamRound>가 "none" 필드까지 string 인덱스 시그니처
-                      // 제약에 묶어버려(boolean이 string에 배정 불가) 정상적인 부분 갱신 객체가 구조적으로
-                      // 거부된다 — 컨텍스트 타입은 동결 대상이라 여기서만 단언한다.
-                      {
-                        none: event.target.checked,
-                        ...(event.target.checked ? emptySubjects() : {}),
-                      } as Partial<MockExamRound>,
-                    )
-                  }
-                />
-              </div>
-            );
-          })}
+        <div className="flex flex-wrap gap-2">
+          {visibleRounds.map((round) => (
+            <button
+              key={round.key}
+              type="button"
+              onClick={() => setMockLastRound(round.key)}
+              className={`rounded-xl border-2 px-4 py-2.5 text-[0.8125rem] font-bold transition-colors ${
+                mockExam.lastRound === round.key
+                  ? "border-accent bg-accent text-white"
+                  : "border-line text-ink-sub hover:border-accent"
+              }`}
+            >
+              {flowLabel(round)}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setMockLastRound("")}
+            className={`rounded-xl border-2 px-4 py-2.5 text-[0.8125rem] font-bold transition-colors ${
+              allNone
+                ? "border-accent bg-accent text-white"
+                : "border-line text-ink-sub hover:border-accent"
+            }`}
+          >
+            없음
+          </button>
         </div>
 
-        {allNone && (
+        {allNone ? (
           <p className="mt-8 rounded-xl bg-surface-03 px-5 py-4 text-[0.875rem] leading-normal text-ink-sub">
             모의고사 성적이 없어 정시 합격 확률은 0%에서 시작합니다. 지금은
             내신(수시) 기준으로 계산하고, 모의고사를 보고 성적을 입력하면 정시가
             반영돼요.
           </p>
+        ) : (
+          <>
+            <div className="mt-8">
+              <p className="mb-2 text-[0.875rem] text-ink-sub">
+                탐구 선택 과목
+              </p>
+              <div className="flex gap-2">
+                {(["과탐", "사탐"] as const).map((track) => (
+                  <button
+                    key={track}
+                    type="button"
+                    onClick={() => setMockTrack(track)}
+                    className={`rounded-xl border-2 px-5 py-2.5 text-[0.875rem] font-bold transition-colors ${
+                      mockExam.track === track
+                        ? "border-accent bg-accent text-white"
+                        : "border-line text-ink-sub hover:border-accent"
+                    }`}
+                  >
+                    {track}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {recentRounds.length > 0 && (
+              <div className="mt-10 flex flex-col gap-8">
+                {recentRounds.map((round) => {
+                  const roundState = mockExam.rounds[round.key];
+                  if (!roundState) return null;
+                  return (
+                    <div key={round.key}>
+                      <p className="mb-3 inline-block rounded-lg bg-surface-03 px-2.5 py-1 text-[0.8125rem] font-black text-accent">
+                        {flowLabel(round)}
+                      </p>
+                      <div className="flex flex-col gap-3">
+                        {MOCK_SUBJECTS.map((subject) => {
+                          const subjectKey =
+                            subject.key as PercentileSubjectKey;
+                          const entry = roundState[subjectKey];
+                          const chips = getPercentileChips(entry.grade);
+                          return (
+                            <div
+                              key={subject.key}
+                              className="rounded-xl border border-line p-4"
+                            >
+                              <div className="flex flex-wrap items-center gap-3">
+                                <span className="w-14 shrink-0 text-[0.875rem] font-bold text-ink-strong">
+                                  {subject.label}
+                                </span>
+                                <GradeNumberField
+                                  value={entry.grade}
+                                  width="6.25rem"
+                                  placeholder="1~9"
+                                  onChange={(event) =>
+                                    updateMockSubject(round.key, subjectKey, {
+                                      grade: event.target.value,
+                                      // 등급이 바뀌면 이전 등급 기준으로 고른 백분위 칩은
+                                      // 더 이상 유효하지 않다 — 다시 고르게 비운다.
+                                      pct: "",
+                                    })
+                                  }
+                                />
+                                {chips.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {chips.map((chip) => (
+                                      <button
+                                        key={chip.value}
+                                        type="button"
+                                        onClick={() =>
+                                          updateMockSubject(
+                                            round.key,
+                                            subjectKey,
+                                            { pct: String(chip.value) },
+                                          )
+                                        }
+                                        className={`rounded-full border px-3 py-1 text-[0.75rem] font-bold transition-colors ${
+                                          entry.pct === String(chip.value)
+                                            ? "border-accent bg-accent text-white"
+                                            : "border-line text-ink-sub hover:border-accent"
+                                        }`}
+                                      >
+                                        {chip.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        <div className="rounded-xl border border-line p-4">
+                          <div className="flex items-center gap-3">
+                            <span className="w-14 shrink-0 text-[0.875rem] font-bold text-ink-strong">
+                              영어
+                            </span>
+                            <GradeNumberField
+                              value={roundState.eng.grade}
+                              width="6.25rem"
+                              placeholder="1~9"
+                              onChange={(event) =>
+                                setMockEnglishGrade(
+                                  round.key,
+                                  event.target.value,
+                                )
+                              }
+                            />
+                            <span className="text-[0.75rem] text-ink-sub">
+                              절대평가 · 백분위 없음
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </QuestionCard>
 
