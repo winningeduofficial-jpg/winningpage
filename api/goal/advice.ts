@@ -28,6 +28,7 @@ import {
   toNum,
 } from "../../src/lib/goal/report/aggregate.js";
 import { buildDirectionSummary } from "../../src/lib/goal/report/insights.js";
+import { WEEKDAY_LABELS } from "../../src/lib/goalPlanUtils.js";
 import { callText } from "../_lib/gemini.js";
 import {
   ADVICE_RESPONSE_SCHEMA,
@@ -219,6 +220,16 @@ export function isValidAdviceSource(
   return value === "intake" || value === "daily";
 }
 
+/**
+ * getDayIndexFromYMDServer 결과(0~6, 월~일) → 한글 요일 라벨. WEEKDAY_LABELS
+ * (src/lib/goalPlanUtils.js)는 VIRTUAL_DAY_NAMES와 같은 월~일 순서다 — VIRTUAL_DAY_NAMES
+ * 값(monday 등 영문 키)을 그대로 이어붙이면 "thursday요일" 같은 오타가 난다(2026-09-02
+ * 로컬 E2E 발견, 팀장 지시로 수정). 범위 밖 인덱스는 방어적으로 "내일"을 쓴다.
+ */
+export function resolveDayNameKr(dayIndex: number): string {
+  return WEEKDAY_LABELS[dayIndex] || "내일";
+}
+
 // ---------------------------------------------------------------------------
 // 프롬프트 입력 조립 — DB 행 → AdvicePromptInput(api/_lib/goalAdvice.ts 계약).
 // ---------------------------------------------------------------------------
@@ -268,7 +279,7 @@ async function buildPromptInput(
   };
   const subjectTargets = await fetchSubjectTargets(supabaseAdmin, profileId);
   const tomorrow = {
-    dayNameKr: `${tomorrowDayName}요일`,
+    dayNameKr: resolveDayNameKr(tomorrowDayIndex),
     idealHours: num(tomorrowSchedule.ideal) ?? 0,
     minHours: num(tomorrowSchedule.min) ?? 0,
     planItems: buildTomorrowPlanItems(

@@ -202,6 +202,20 @@ describe("buildRuleFallback — Gemini 실패/키 미설정 시 규칙 기반 �
     expect(result.majorTips).toHaveLength(2);
     expect(result.majorTips[0]?.department).toBe("서울대 컴퓨터공학과");
   });
+
+  test("majorTips 문구는 '은(는)' 같은 조사 병기를 쓰지 않는다", () => {
+    // 2026-09-02 로컬 E2E에서 "고려대학교 경영대학은(는)…"으로 나온 회귀 재현.
+    const result = buildRuleFallback(makeInput());
+    for (const tip of result.majorTips) {
+      expect(tip.text).not.toContain("은(는)");
+      expect(tip.text).not.toContain("이(가)");
+      expect(tip.text).not.toContain("을(를)");
+      expect(tip.text).not.toContain("과(와)");
+    }
+    expect(result.majorTips[0]?.text).toBe(
+      "서울대 컴퓨터공학과: 관련 교과 성취와 전공 연계 활동을 꾸준히 쌓아가면 좋습니다.",
+    );
+  });
 });
 
 describe("buildAdvicePayload — source별 라벨, origin 전달", () => {

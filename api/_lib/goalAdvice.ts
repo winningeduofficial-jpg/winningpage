@@ -469,17 +469,20 @@ function buildRuleTomorrowPlan(tomorrow: AdviceTomorrowContext): string {
 function buildRuleMajorTips(
   student: AdviceStudentContext,
 ): { department: string; text: string }[] {
+  // "은(는)" 처럼 두 조사를 병기하면 부자연스럽다(2026-09-02 로컬 E2E 발견, 팀장 지시로
+  // 수정) — 어간에 받침 유무를 판정해 조사를 고르는 대신, 학과명 뒤에 조사가 아예
+  // 필요 없는 문형(콜론)으로 바꿔 조사 자체를 없앤다.
   const tips: { department: string; text: string }[] = [];
   if (student.idealName) {
     tips.push({
       department: student.idealName,
-      text: `${student.idealName}은(는) 관련 교과 성취와 전공 연계 활동을 꾸준히 쌓아가면 좋습니다.`,
+      text: `${student.idealName}: 관련 교과 성취와 전공 연계 활동을 꾸준히 쌓아가면 좋습니다.`,
     });
   }
   if (student.minName) {
     tips.push({
       department: student.minName,
-      text: `${student.minName}은(는) 기본 개념 학습과 함께 관련 진로 정보를 틈틈이 살펴보면 도움이 됩니다.`,
+      text: `${student.minName}: 기본 개념 학습과 함께 관련 진로 정보를 틈틈이 살펴보면 도움이 됩니다.`,
     });
   }
   return tips;
