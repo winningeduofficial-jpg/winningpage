@@ -1,0 +1,100 @@
+import { Link } from "react-router";
+import { SERVICE_NAME_ROUTES } from "@/data/navigation";
+import { resolvePromotedSlugLink } from "@/hooks/useNavGroups";
+import ServiceCardText from "./ServiceCardText";
+import ServiceIllustration from "./ServiceIllustration";
+
+// program_categories 활성 row(sort_order asc).
+export type Service = {
+  id: string;
+  name: string;
+  description?: string;
+  link?: string;
+  icon_image_url?: string;
+  sort_order?: number;
+  is_premium?: boolean;
+};
+
+// 레거시 '/services' 스텁 페이지(헤더/푸터 없는 플레이스홀더, 실 목적지 아님) — DB
+// link 컬럼에 남아 있는 죽은 값. 이 값은 링크 없음과 동일하게 취급한다.
+const DEAD_SERVICE_LINK = "/services";
+
+// service.link 해석 순서: 1) 서비스명이 SERVICE_NAME_ROUTES에 있으면 그 정본 내부 라우트를
+// 최우선 사용(상단 메뉴/메가패널과 동일한 라우트·동일한 전환 방식을 강제 — DB link 컬럼에
+// 실수로 외부 절대 URL이 들어가 있어도 새 탭으로 튀지 않는다) 2) 없으면 /page/services-*
+// 구슬러그를 신규 라우트로 승격(useNavGroups와 동일 매핑 재사용, 일반 경로는 그대로 통과)
+// 3) 그래도 죽은 값('/services')·빈 값이면 null — 카드는 뜨되 클릭할 수 없다.
+//
+// 종전에는 3)에서 학습진단으로 폴백했다(QA 2026-08-25 제거). 어드민이 새 서비스를
+// 등록하면서 link 를 아직 안 채웠을 때 엉뚱한 페이지로 보내는 것보다, 카드가 비활성인 게
+// 눈에 띄어 어드민이 link 를 채우게 만드는 편이 맞다 — 데이터가 없으면 동작도 없다.
+function resolveServiceLink(service: Service): string | null {
+  const knownRoute =
+    SERVICE_NAME_ROUTES[
+      String(service?.name || "").trim() as keyof typeof SERVICE_NAME_ROUTES
+    ];
+  if (knownRoute) return knownRoute;
+
+  const raw = String(service?.link || "").trim();
+  if (!raw) return null;
+
+  const promoted = resolvePromotedSlugLink(raw);
+  if (!promoted || promoted === DEAD_SERVICE_LINK) return null;
+
+  return promoted;
+}
+
+// 카드 셸 — Figma 4885:18474 실측(px÷16=rem). px 32px(2rem), flex row, items-center,
+// justify-between, radius 24.8px(1.55rem), border 1px #d7d7d7, shadow
+// 0 3.3px 3.3px rgba(128,128,128,.3)(0.2063rem/0.2063rem). lg 고정 352×180(그리드 3열이
+// 열 폭을 결정하므로 폭은 w-full, 높이만 h-45 고정). hover/focus는 시안에 없는 구현측
+// 인터랙션 — 동작은 유지.
+const CARD_CLASS =
+  "group flex w-full flex-row items-center justify-between gap-4 rounded-[1.55rem] " +
+  "border border-[#d7d7d7] bg-white px-8 py-6 shadow-[0_0.2063rem_0.2063rem_rgba(128,128,128,0.3)] " +
+  "transition-[background-color,box-shadow] duration-200 " +
+  "[@media(hover:hover)]:hover:bg-[#f6fbff] [@media(hover:hover)]:hover:shadow-[0_0.375rem_1rem_0.25rem_rgba(128,128,128,0.4)] " +
+  "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 " +
+  "lg:h-45";
+
+export default function ServiceCard({ service }: { service: Service }) {
+  const link = resolveServiceLink(service);
+  const isExternal = link !== null && /^https?:\/\//i.test(link);
+
+  const content = (
+    <>
+      <ServiceCardText name={service.name} description={service.description} />
+      <ServiceIllustration src={service.icon_image_url} />
+    </>
+  );
+
+  // 링크가 없는 카드(어드민이 link 를 아직 안 채운 신규 서비스) — 클릭 영역 없이 카드만
+  // 보여준다. hover/focus 스타일은 링크형 카드와 같은 CARD_CLASS 를 쓰되 커서만 기본값.
+  if (link === null) {
+    return <div className={`${CARD_CLASS} cursor-default`}>{content}</div>;
+  }
+
+  if (isExternal) {
+    return (
+      <a
+        href={link}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`${service.name} 바로가기`}
+        className={CARD_CLASS}
+      >
+        {content}
+      </a>
+    );
+  }
+
+  return (
+    <Link
+      to={link}
+      aria-label={`${service.name} 바로가기`}
+      className={CARD_CLASS}
+    >
+      {content}
+    </Link>
+  );
+}

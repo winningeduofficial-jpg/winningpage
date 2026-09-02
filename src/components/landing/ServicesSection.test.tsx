@@ -3,28 +3,18 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 import ServicesSection from "./ServicesSection";
-
-// ServicesSection.tsx의 Service 타입은 export되지 않으므로 테스트 픽스처용으로 동일 형태를
-// 재선언한다(9카드 배치 검증 픽스처의 채움 카드가 description/link 없이도 통과하도록).
-type ServiceFixture = {
-  id: string;
-  name: string;
-  description?: string;
-  link?: string;
-  icon_image_url?: string;
-  sort_order?: number;
-  is_premium?: boolean;
-};
+import type { Service } from "./services/ServiceCard";
 
 // QA 시트 행29·60 — 핵심 서비스 9카드(3×3) 확장. 기존 6카드 + 성장설계·컨설팅
-// 프리미엄·국제·해외 프리미엄. is_premium 카드는 PREMIUM 배지가 뜬다.
-const baseServices: ServiceFixture[] = [
+// 프리미엄·국제·해외 프리미엄. PREMIUM 배지는 2026-09-03부터 일러스트 PNG에 이미
+// 합성돼 있으므로 DOM에는 별도로 렌더되지 않는다(is_premium 은 타입에만 남는다).
+const baseServices: Service[] = [
   {
     id: "svc-1",
     name: "학습진단",
     description: "무료로 경험하는\n위닝 AE시스템",
     link: "/services/learning-diagnosis",
-    icon_image_url: "/images/landing/services/free-diagnosis.png",
+    icon_image_url: "/images/landing/services/learning-diagnosis.png",
     sort_order: 1,
   },
   {
@@ -58,7 +48,7 @@ const baseServices: ServiceFixture[] = [
   },
 ];
 
-function renderSection(services: ServiceFixture[] = baseServices) {
+function renderSection(services: Service[] = baseServices) {
   return render(
     <MemoryRouter>
       <ServicesSection services={services} />
@@ -81,59 +71,6 @@ describe("ServicesSection", () => {
     expect(names).toHaveLength(4);
   });
 
-  test("is_premium 카드에만 PREMIUM 배지가 보인다", () => {
-    renderSection();
-
-    const badges = screen.getAllByText("PREMIUM");
-    expect(badges).toHaveLength(2);
-
-    const consultingLink = screen.getByRole("link", {
-      name: "컨설팅 프리미엄 바로가기",
-    });
-    const growthLink = screen.getByRole("link", {
-      name: "성장설계 바로가기",
-    });
-
-    expect(consultingLink).toContainElement(badges[0]!);
-    expect(growthLink).not.toHaveTextContent("PREMIUM");
-  });
-
-  // ILLUSTRATION_LAYOUTS는 sort_order가 아니라 렌더된 배열 위치(index)로 매칭되므로,
-  // 컨설팅·국제 프리미엄이 실제 카드별 배치(index 7·8)를 받도록 sort_order 2~6 자리에
-  // 채움 카드를 넣어 9장 전체를 재현한다(4885:18466/18468/18470 실측 배치 검증용 전용 픽스처).
-  test("is_premium 카드의 배지가 일러스트 박스 내부에 절대좌표로 렌더된다", () => {
-    const nineServices = [
-      baseServices[0]!,
-      ...[2, 3, 4, 5, 6].map((sortOrder) => ({
-        id: `filler-${sortOrder}`,
-        name: `채움${sortOrder}`,
-        sort_order: sortOrder,
-      })),
-      baseServices[1]!,
-      baseServices[2]!,
-      baseServices[3]!,
-    ];
-    renderSection(nineServices);
-
-    const badge = screen
-      .getAllByText("PREMIUM")
-      .find(
-        (el) =>
-          el.closest("a")?.getAttribute("aria-label") ===
-          "컨설팅 프리미엄 바로가기",
-      )!;
-
-    // 배지는 카드 모서리(bottom-0/right-0)가 아니라 일러스트 박스(144×180, lg 고정폭 w-36)
-    // 내부에 절대좌표(lg:left/top)로 렌더돼야 한다 — 카드 모서리에 걸리던 버그의 회귀 방지.
-    const illustrationBox = badge.parentElement;
-    expect(illustrationBox).toHaveClass("w-36");
-    expect(illustrationBox?.className).toMatch(/lg:h-\(--illo-box-h\)/);
-    expect(badge).toHaveClass(
-      "lg:left-(--illo-badge-left)",
-      "lg:top-(--illo-badge-top)",
-    );
-  });
-
   test("설명의 줄바꿈이 whitespace-pre-line 텍스트 노드로 그대로 렌더된다", () => {
     renderSection();
 
@@ -143,6 +80,20 @@ describe("ServicesSection", () => {
         "대입 컨설팅 프로그램\n특목고 입학 프로그램\n대학원 입학 프로그램",
     );
     expect(description).toHaveClass("whitespace-pre-line");
+  });
+
+  test("일러스트 이미지는 icon_image_url 을 그대로 src 로 사용한다(배지·그림자는 이미지에 합성됨)", () => {
+    renderSection();
+
+    const img = screen
+      .getByRole("link", {
+        name: "컨설팅 프리미엄 바로가기",
+      })
+      .querySelector("img");
+    expect(img).toHaveAttribute(
+      "src",
+      "/images/landing/services/consulting-premium.png",
+    );
   });
 
   test("서비스 데이터가 없으면 섹션 자체를 렌더하지 않는다", () => {
