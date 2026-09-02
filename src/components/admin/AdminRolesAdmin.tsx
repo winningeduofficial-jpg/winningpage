@@ -1,5 +1,6 @@
 import { Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 import { ADMIN_PERMISSION_LEVEL_OPTIONS } from "@/pages/admin/configs/adminSettings";
 import {
@@ -430,7 +431,7 @@ export default function AdminRolesAdmin({ config }: AdminRolesAdminProps) {
           데이터를 불러오는 중입니다.
         </div>
       ) : (
-        <div className="overflow-x-auto bg-white shadow-sm">
+        <ScrollArea axis="x" className="bg-white shadow-sm">
           <table className="w-full min-w-[820px] text-sm">
             <thead>
               <tr className="border-b border-[#edf0f4] bg-[#fafafa] text-left">
@@ -507,7 +508,7 @@ export default function AdminRolesAdmin({ config }: AdminRolesAdminProps) {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       )}
     </div>
   );

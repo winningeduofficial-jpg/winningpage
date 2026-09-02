@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   buildDailyTrend,
   buildProgramShare,
@@ -116,31 +117,35 @@ export default function RevenueDashboard({
             </p>
           ) : (
             <>
-              <div className="mt-4 flex h-40 items-end gap-1 overflow-x-auto">
-                {trend.map((point) => (
-                  <div
-                    key={point.ymd}
-                    className="flex min-w-8 flex-1 flex-col items-center gap-1"
-                    title={`${point.ymd} · 실납부 ${formatMoney(point.paid)} · 환불 ${formatMoney(point.refund)}`}
-                  >
-                    <div className="flex h-32 w-full items-end justify-center gap-0.5">
-                      <div
-                        className="w-2 bg-[#2348ff]"
-                        style={{ height: `${(point.paid / trendMax) * 100}%` }}
-                      />
-                      <div
-                        className="w-2 bg-[#e5484d]"
-                        style={{
-                          height: `${(point.refund / trendMax) * 100}%`,
-                        }}
-                      />
+              <ScrollArea axis="x" className="mt-4 h-40">
+                <div className="flex h-40 items-end gap-1">
+                  {trend.map((point) => (
+                    <div
+                      key={point.ymd}
+                      className="flex min-w-8 flex-1 flex-col items-center gap-1"
+                      title={`${point.ymd} · 실납부 ${formatMoney(point.paid)} · 환불 ${formatMoney(point.refund)}`}
+                    >
+                      <div className="flex h-32 w-full items-end justify-center gap-0.5">
+                        <div
+                          className="w-2 bg-[#2348ff]"
+                          style={{
+                            height: `${(point.paid / trendMax) * 100}%`,
+                          }}
+                        />
+                        <div
+                          className="w-2 bg-[#e5484d]"
+                          style={{
+                            height: `${(point.refund / trendMax) * 100}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="text-[10px] font-bold text-gray-400">
+                        {point.ymd.slice(5).replace("-", "/")}
+                      </div>
                     </div>
-                    <div className="text-[10px] font-bold text-gray-400">
-                      {point.ymd.slice(5).replace("-", "/")}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              </ScrollArea>
 
               <div className="mt-3 flex gap-4 text-[11px] font-bold text-gray-500">
                 <span className="flex items-center gap-1">
