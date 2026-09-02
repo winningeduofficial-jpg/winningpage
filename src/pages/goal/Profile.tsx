@@ -9,7 +9,7 @@ export default function Profile() {
         title="내 정보 수정"
         subcopy="학생 정보와 목표 설정을 관리합니다."
       />
-      <div className="max-w-goal-content px-12 pb-24">
+      <div className="max-w-goal-content px-4 pb-24 md:px-12">
         <div className="rounded-2xl border border-dashed border-line bg-surface-04 px-6 py-20 text-center text-sm leading-[1.6] text-ink-sub">
           이 화면은 준비 중입니다.
         </div>

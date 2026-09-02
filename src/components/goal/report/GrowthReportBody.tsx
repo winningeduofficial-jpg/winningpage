@@ -164,7 +164,7 @@ export default function GrowthReportBody({
   });
 
   return (
-    <div className="max-w-goal-content px-12 pb-24 pt-perf-inset">
+    <div className="max-w-goal-content px-4 pb-24 pt-perf-inset md:px-12">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <GoalTabs
           tabs={PERIOD_TABS}

@@ -245,7 +245,7 @@ export default function Timer() {
         title="열공 타이머"
         subcopy="측정한 시간은 종료 시 오늘의 공부 기록과 순공 시간에 자동 반영됩니다."
       />
-      <div className="max-w-goal-content px-12 pb-24">
+      <div className="max-w-goal-content px-4 pb-24 md:px-12">
         <p className="mb-6 text-[0.9375rem] leading-[1.4] text-ink-sub">
           한 번에 한 과목만 측정돼요. 다른 과목을 시작하면 이전 과목은 자동으로
           멈춥니다.

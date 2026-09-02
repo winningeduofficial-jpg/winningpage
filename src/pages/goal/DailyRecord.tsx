@@ -251,7 +251,7 @@ export default function DailyRecord() {
         meta={formatTodayDateMeta()}
         subcopy="하루를 마감하며 기록하면 달성률과 리포트에 반영됩니다."
       />
-      <div className="max-w-goal-content flex flex-col gap-5 px-12 pb-24">
+      <div className="max-w-goal-content flex flex-col gap-5 px-4 pb-24 md:px-12">
         <div
           ref={studyTimeRef}
           className={`rounded-2xl transition-shadow ${highlightStudyTime ? "ring-2 ring-red-400" : ""}`}

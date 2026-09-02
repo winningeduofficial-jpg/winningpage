@@ -62,7 +62,7 @@ export default function TargetUniversity() {
           title="내 목표 대학"
           subcopy="이상 목표와 최소 목표를 이원으로 관리합니다. 목표를 바꾸면 격차 분석과 학습 시간이 다시 계산돼요."
         />
-        <div className="max-w-goal-content flex flex-col gap-5 px-12 pb-24">
+        <div className="max-w-goal-content flex flex-col gap-5 px-4 pb-24 md:px-12">
           <GoalCard tone="neutral" className="px-8 py-7">
             <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
               {message}
@@ -108,7 +108,7 @@ export default function TargetUniversity() {
         title="내 목표 대학"
         subcopy="이상 목표와 최소 목표를 이원으로 관리합니다. 목표를 바꾸면 격차 분석과 학습 시간이 다시 계산돼요."
       />
-      <div className="max-w-goal-content flex flex-col gap-5 px-12 pb-24">
+      <div className="max-w-goal-content flex flex-col gap-5 px-4 pb-24 md:px-12">
         <div className="grid grid-cols-2 gap-5">
           <TargetUniversityCard
             label={upper.label}

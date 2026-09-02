@@ -514,7 +514,7 @@ export default function Dashboard() {
   // 잘림이 브라우저에서는 "화면이 확대된 것처럼" 보인다(행328). 그리드 자체를 유동형으로 바꾼다
   // (아래 grid-cols-[minmax(0,1fr)_23.25rem], xl=80rem 미만은 1열 스택). 93rem 값·outerClassName은
   // 그대로 두고 그리드 트랙 정의만 고정 rem → minmax로 바꿔 max-w는 "상한"으로만 작동하게 한다.
-  const outerClassName = "px-12 pb-24 pt-25";
+  const outerClassName = "px-4 pb-24 pt-25 md:px-12";
 
   if (result === null) {
     return (
@@ -618,8 +618,20 @@ export default function Dashboard() {
             <div className="flex min-w-0 flex-col gap-5 xl:col-start-1 xl:row-start-2">
               {/* 오늘의 목표: GET /api/goal/daily-record(studyHours) + student.weeklySchedule(오늘
                 목표 시간)을 합쳐 mapTodayGoal()이 만든 실데이터. 저장 성공 시
-                reloadDailyRecord로 이 카드와 게이지를 함께 최신화한다. */}
-              <TodayGoalCard data={todayGoalData} onSaved={reloadDailyRecord} />
+                reloadDailyRecord로 이 카드와 게이지를 함께 최신화한다.
+                overflow-x-auto 래퍼(모바일 셸 대응, 2026-09-02) — TodayGoalCard 내부
+                과목별 진행 행이 라벨/값 칼럼에 shrink-0 고정폭을 쓰고 있어 390px 좁은
+                화면에서 총 필요폭이 컨테이너보다 커진다. 그 컴포넌트는
+                src/components/goal/dashboard/(파일 소유권 별도, 위 TargetUniversityCard
+                주석과 동일 사유) 소속이라 내부를 직접 고치지 않고, 넘치는 폭을 여기
+                래퍼에서 가로 스크롤로 흡수한다(body의 overflow-x:hidden으로 조용히
+                잘리던 값을 스크롤 가능하게 바꿔 정보 손실을 막는다). */}
+              <div className="overflow-x-auto">
+                <TodayGoalCard
+                  data={todayGoalData}
+                  onSaved={reloadDailyRecord}
+                />
+              </div>
 
               {/* QA 행292/328 — 원래 각 카드가 w-132.5(33.125rem) 고정이라 좌측 컬럼이 그리드
                 트랙 폭과 무관하게 항상 67.25rem을 요구했다. flex-1 min-w-0으로 바꿔 좌측

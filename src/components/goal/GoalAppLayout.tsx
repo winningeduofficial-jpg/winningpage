@@ -12,7 +12,10 @@ import GoalSidebar from "./GoalSidebar";
 // SiteLayout 밖에 별도 그룹으로 둔다.
 export default function GoalAppLayout() {
   return (
-    <div className="flex min-h-screen bg-white">
+    // 모바일(< md)은 상단 앱바 + 본문 세로 스택, 데스크톱(>= md)은 고정 사이드바 +
+    // 본문 가로 배치 — GoalSidebar 내부가 반응형으로 앱바/드로어 vs aside를 갈라
+    // 렌더하므로 이 컨테이너는 방향만 바꿔주면 된다.
+    <div className="flex min-h-screen flex-col bg-white md:flex-row">
       <GoalSidebar />
       {/* relative: RouteLoadingOverlay(소프트 내비게이션 로딩 표시,
           goal-mapping.md 행297)가 사이드바는 가리지 않고 본문 영역에만

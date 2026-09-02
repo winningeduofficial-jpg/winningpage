@@ -185,7 +185,7 @@ export default function WeeklyPlan() {
         actions={headerActions}
         subcopy="저장한 계획은 대시보드의 요일 학습 계획에 자동 반영됩니다."
       />
-      <div className="max-w-goal-content px-12 pb-24">
+      <div className="max-w-goal-content px-4 pb-24 md:px-12">
         {result === null && (
           <GoalCard tone="neutral" className="px-8 py-7">
             <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
