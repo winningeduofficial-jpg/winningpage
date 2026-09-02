@@ -7,9 +7,11 @@ import { sortShelvedBooksNewestFirst } from "@/lib/goal/workbookProgress";
 
 // 완독 문제집 책장 시각화 — Figma 4026:6046. EffortSubjectCard 하단 선반 위에서 쓴다.
 //
-// 책 1권 = 274×32 바(w-full h-8, 카드 인셋 박스와 같은 폭), radius 6, bg 과목 라이트,
-// 좌측 8px 책등(과목 다크, 좌측만 radius). 제목은 책등 다음 14px(pl-3.5)부터, 과목
-// 다크 톤 16px Medium. 세로 pitch 40px(32 바 + 8 gap) — gap-2.
+// 책 1권 = w-full h-8(2rem) 바, 카드 인셋 박스와 같은 폭(부모가 px-1로 좌우
+// 인셋을 준다), radius rounded-md(0.375rem), bg 과목 라이트, 좌측 w-2(0.5rem)
+// 책등(과목 다크, 좌측만 radius). 제목은 책등 다음 pl-3.5(0.875rem)부터, 과목
+// 다크 톤 text-[1rem] font-medium. 세로 gap-2(0.5rem, 바 2rem + gap 0.5rem = pitch
+// 2.5rem).
 //
 // 정렬: 최신 완독이 위(sortShelvedBooksNewestFirst, src/lib/goal/workbookProgress.ts).
 // 컨테이너는 flex-col 그대로 두고 정렬된 배열의 첫 항목(최신)을 맨 위에 그린다 —

@@ -98,6 +98,12 @@
   --color-goal-book-etc-light: #e8dff4;
   --color-goal-book-etc-dark: #6f5b8f;
 
+  /* 나의 노력 완독 카운트 뱃지(Efforts.tsx CountBadge) — 정확한 시안 HEX가 없어
+     근사 연보라 톤(추정, part-10 §219 "연보라 필 + 보라 텍스트(추정)"). 전에는
+     Efforts.tsx에 bg-[#EFE9F6]/text-[#6B4FA0]로 로컬 하드코딩돼 있던 걸 토큰화한다. */
+  --color-goal-badge-purple-bg: #efe9f6;
+  --color-goal-badge-purple-text: #6b4fa0;
+
   --color-goal-weekday-mon: #fce7ee;
   --color-goal-weekday-tue: #fdebdd;
   --color-goal-weekday-wed: #fdf6d8;

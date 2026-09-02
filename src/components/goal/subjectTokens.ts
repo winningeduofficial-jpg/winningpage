@@ -112,6 +112,7 @@ export function getSubjectStrongClass(key?: string | null) {
 // WORKBOOK_SUBJECT_IDS 5종만 대상이다(social/history/second_lang은 워크북 자체가 없어
 // 토큰도 안 만든다) — 그 3종이 들어오면 etc로 접는다. 위 SUBJECT_BG_CLASSES 등과 마찬가지
 // 이유(Tailwind v4 리터럴 스캔)로 템플릿 문자열이 아니라 맵 조회로 고정한다.
+// 사용처: EffortWorkbookRow(진행바 채움, 완독 버튼 배경) + BookStack(책 바 배경).
 const BOOK_LIGHT_BG_CLASSES: Record<string, string> = {
   korean: "bg-goal-book-korean-light",
   math: "bg-goal-book-math-light",
@@ -120,6 +121,7 @@ const BOOK_LIGHT_BG_CLASSES: Record<string, string> = {
   etc: "bg-goal-book-etc-light",
 };
 
+// 사용처: BookStack 책등(좌측 8px 세로 바)만. 진행바/완독 버튼은 쓰지 않는다.
 const BOOK_DARK_BG_CLASSES: Record<string, string> = {
   korean: "bg-goal-book-korean-dark",
   math: "bg-goal-book-math-dark",
@@ -128,6 +130,7 @@ const BOOK_DARK_BG_CLASSES: Record<string, string> = {
   etc: "bg-goal-book-etc-dark",
 };
 
+// 사용처: EffortWorkbookRow 완독 버튼 텍스트 + BookStack 책 제목 텍스트.
 const BOOK_DARK_TEXT_CLASSES: Record<string, string> = {
   korean: "text-goal-book-korean-dark",
   math: "text-goal-book-math-dark",
