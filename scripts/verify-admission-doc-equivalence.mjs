@@ -490,7 +490,12 @@ class MiniDOMParser {
 }
 
 async function loadAdmissionSectionView() {
-  globalThis.DOMParser = MiniDOMParser;
+  // MiniDOMParser는 실제 DOM 명세를 흉내낸 최소 목(mock)이라 parseFromString이
+  // 진짜 Document를 반환하지 않는다(esbuild SSR 번들이 렌더 결과 비교용으로만
+  // 쓴다) — 타입만 DOMParser로 캐스트하고 런타임 동작은 그대로 둔다.
+  globalThis.DOMParser = /** @type {typeof DOMParser} */ (
+    /** @type {unknown} */ (MiniDOMParser)
+  );
   const result = await esbuild.build({
     entryPoints: [ADMISSION_SECTION_VIEW_ENTRY],
     bundle: true,

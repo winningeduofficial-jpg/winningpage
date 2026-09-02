@@ -57,6 +57,15 @@ const TABLE = "admission_university_resources";
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
 const MAX_DIFF_SAMPLES = 30;
 
+/**
+ * admission_university_resources 조회 행. 동적 select(columns)라
+ * supabase-js가 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는
+ * university_name만 선언하고, 카테고리별 html/json 컬럼은 전부 동적 키
+ * (row[key])로만 접근하므로(noImplicitAny 꺼짐) 별도 선언 없이 암시적
+ * any로 통과한다.
+ * @typedef {{ university_name: string }} ResourceRow
+ */
+
 // CLI 인자는 직접 실행(isMainModule) 분기 안에서만 파싱해 함수 인자로
 // 넘긴다 — runDriftVerification은 export된 함수라 다른 스크립트가
 // import해서 재사용할 수 있는데, 예전엔 파일 최상위에서 parseArgs를
@@ -80,6 +89,9 @@ async function resolveCredentials(keysFileOverride) {
   };
 }
 
+/**
+ * @param {{ verbose?: boolean, admissionYear?: number, keysFile?: string }} [options]
+ */
 export async function runDriftVerification({
   verbose = true,
   admissionYear = 2027,
@@ -99,11 +111,12 @@ export async function runDriftVerification({
     ...CATEGORY_KEYS.map((key) => HWP_SECTION_JSON_KEYS[key]),
   ].join(", ");
 
-  const { data: rows, error } = await supabase
+  const { data: rawRows, error } = await supabase
     .from(TABLE)
     .select(columns)
     .eq("admission_year", admissionYear);
   if (error) throw new Error(`행 조회 실패: ${error.message}`);
+  const rows = /** @type {ResourceRow[]} */ (/** @type {unknown} */ (rawRows));
 
   let total = 0;
   let matched = 0;

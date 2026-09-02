@@ -133,7 +133,31 @@ async function assertBackupFileDoesNotExist(path) {
 // 순수 분류 로직(테스트 가능, DB/네트워크 의존 없음)
 // -----------------------------------------------------------------------
 
+/** @typedef {import("../src/lib/admissionDoc.ts").AdmissionDoc} AdmissionDoc */
+/** @typedef {import("../src/lib/admissionDoc.ts").SectionKey} SectionKey */
+
+/**
+ * admission_university_resources 조회 행. 동적 select 컬럼 목록(baseColumns
+ * + jsonColumns) 때문에 supabase-js가 이 쿼리의 결과 타입을 추론하지 못해
+ * GenericStringError로 떨어진다. 실제로 dot 접근하는 컬럼만 명시하고, 카테고리별
+ * raw/html/json 컬럼은 전부 동적 키(row[key] 형태)로만 접근하므로 별도 선언 없이도
+ * (인덱스 시그니처가 없는 한) 암시적 any로 통과한다 — noImplicitAny가 꺼져 있다.
+ * @typedef {{
+ *   id: string,
+ *   university_name: string,
+ *   university_key: string,
+ *   campus: string | null,
+ *   detail_status: string | null,
+ *   updated_at: string,
+ * }} ResourceRow
+ */
+
 // legacy-html 분류 시 만드는 doc — RawHtmlBlock으로 저장 html을 무손실 보존한다.
+/**
+ * @param {SectionKey} sectionKey
+ * @param {string} html
+ * @returns {AdmissionDoc}
+ */
 export function buildCuratedHtmlDoc(sectionKey, html) {
   return {
     v: 1,
@@ -293,7 +317,13 @@ async function main() {
     );
   }
 
-  const rows = limit ? allRows.slice(0, limit) : allRows;
+  // allRows는 동적 select라 GenericStringError[]로 추론된다(런타임은 정상 행
+  // 배열). 위 두 쿼리(query/retryQuery)가 실제로 채우는 컬럼만 아는 로컬 타입으로
+  // 캐스트한다 — 데이터 자체는 손대지 않는다.
+  const typedAllRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (allRows)
+  );
+  const rows = limit ? typedAllRows.slice(0, limit) : typedAllRows;
   await writeFile(backupFile, JSON.stringify(allRows, null, 2), "utf-8");
   console.log(`백업 완료: ${allRows.length}행(전체) → ${backupFile}`);
   console.log(`처리 대상: ${rows.length}행`);
@@ -472,9 +502,12 @@ async function main() {
     .select([...baseColumns, ...jsonColumns].join(", "))
     .order("id");
   if (verifyError) throw new Error(`재감사 조회 실패: ${verifyError.message}`);
+  const typedVerifyRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (verifyRows)
+  );
 
   let residual = 0;
-  verifyRows.forEach((row) => {
+  typedVerifyRows.forEach((row) => {
     if (args.university && row.university_name !== args.university) return;
     targetCategories.forEach((key) => {
       const rawValue = row[key];

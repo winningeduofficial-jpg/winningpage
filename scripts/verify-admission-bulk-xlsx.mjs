@@ -50,6 +50,24 @@ const JSON_COLUMNS = Object.values(HWP_SECTION_JSON_KEYS);
 // (admissionDoc.js 참고).
 const CATEGORY_RAW_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
 
+/**
+ * admission_university_resources 조회 행. 동적 select(selectColumns)라
+ * supabase-js가 이 쿼리 결과를 GenericStringError로 추론한다. 이 스크립트
+ * 전역에서 dot 접근하는 컬럼을 명시하고, exportAdmissionRowsToXlsx /
+ * buildExistingRowsMap이 요구하는 Record<string, unknown>도 인덱스
+ * 시그니처로 그대로 만족시킨다(나머지 컬럼은 기존처럼 동적 키로 접근).
+ * @typedef {{
+ *   id: string,
+ *   admission_year: number,
+ *   university_name: string,
+ *   university_key: string,
+ *   region: string,
+ *   recruitment_quota: string | null,
+ *   recruitment_quota_json: import("../src/lib/admissionDoc.ts").AdmissionDoc | null,
+ *   [key: string]: unknown,
+ * }} ResourceRow
+ */
+
 let failCount = 0;
 let passCount = 0;
 
@@ -246,11 +264,14 @@ async function main() {
     ...ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS,
     ...JSON_COLUMNS,
   ].join(", ");
-  const { data: dbRows, error } = await supabase
+  const { data: rawDbRows, error } = await supabase
     .from(TABLE)
     .select(selectColumns)
     .order("id");
   if (error) throw new Error(`DB 조회 실패: ${error.message}`);
+  const dbRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (rawDbRows)
+  );
   console.log(`대상: ${dbRows.length}행`);
 
   const existingRows = buildExistingRowsMap(dbRows);

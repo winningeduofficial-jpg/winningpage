@@ -54,6 +54,19 @@ import {
   looksLikeHtml,
 } from "../src/lib/admissionParsing.js";
 
+/**
+ * admission_university_resources 조회 행. 동적 select라 supabase-js가
+ * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만 선언하고,
+ * 카테고리별 raw/html 컬럼은 전부 동적 키(row[key])로만 접근하므로
+ * (noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다.
+ * @typedef {{
+ *   id: string,
+ *   university_name: string,
+ *   university_key: string,
+ *   detail_status: string | null,
+ * }} ResourceRow
+ */
+
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const TABLE = "admission_university_resources";
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
@@ -319,11 +332,14 @@ async function buildDbCorpus(admissionYear) {
     .eq("admission_year", admissionYear)
     .order("id");
   if (error) throw new Error(`행 조회 실패: ${error.message}`);
+  const typedRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (rows)
+  );
 
   const corpusByCategory = Object.fromEntries(
     CATEGORY_KEYS.map((key) => [key, []]),
   );
-  (rows || []).forEach((row) => {
+  (typedRows || []).forEach((row) => {
     CATEGORY_KEYS.forEach((key) => {
       const htmlKey = HWP_SECTION_HTML_KEYS[key];
       corpusByCategory[key].push({

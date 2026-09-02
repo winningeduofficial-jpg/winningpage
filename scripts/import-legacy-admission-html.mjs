@@ -60,6 +60,33 @@ import {
 } from "../src/lib/admissionHtmlImport.js";
 import { HWP_SECTION_HTML_KEYS } from "../src/lib/admissionParsing.js";
 
+/** @typedef {import("../src/lib/admissionDoc.ts").AdmissionDoc} AdmissionDoc */
+
+/**
+ * admission_university_resources 조회 행. 동적 select라 supabase-js가
+ * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만
+ * 선언하고, 카테고리별 html/json 컬럼은 전부 동적 키(row[key])로만
+ * 접근하므로(noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다.
+ * @typedef {{
+ *   id: string,
+ *   university_name: string,
+ *   detail_status: string | null,
+ *   updated_at: string,
+ * }} ResourceRow
+ */
+
+/**
+ * importCell(admissionHtmlImport.ts)의 반환 판별합집합을 로컬로 재선언한다.
+ * 원본 함수에 반환 타입 주석이 없어 skip/needsReview 분기의 classification이
+ * string으로 widen되며 판별 유니온이 깨진다(src/ 수정 금지 제약이라 원본은
+ * 못 고친다) — 호출부에서 캐스트로 원래 의도한 판별 유니온을 복원한다.
+ * @typedef {
+ *   | { classification: "skip" }
+ *   | { classification: "imported", doc: AdmissionDoc, candidateName: string }
+ *   | { classification: "needsReview", reason: string, kind: string, doc?: AdmissionDoc }
+ * } ImportCellResult
+ */
+
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_BACKUP_DIR = "/Users/hyunsoo/uwellnow/.admission-doc-backups";
 const TABLE = "admission_university_resources";
@@ -188,8 +215,11 @@ async function main() {
   if (args.university) query = query.eq("university_name", args.university);
   const { data: allRows, error: fetchError } = await query;
   if (fetchError) throw new Error(`행 조회 실패: ${fetchError.message}`);
+  const typedAllRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (allRows)
+  );
 
-  const rows = limit ? allRows.slice(0, limit) : allRows;
+  const rows = limit ? typedAllRows.slice(0, limit) : typedAllRows;
   await writeFile(backupFile, JSON.stringify(allRows, null, 2), "utf-8");
   console.log(`백업 완료: ${allRows.length}행 → ${backupFile}`);
   console.log(`처리 대상: ${rows.length}행`);
@@ -212,7 +242,9 @@ async function main() {
 
     targetCategories.forEach((key) => {
       const dbHtml = row[HWP_SECTION_HTML_KEYS[key]];
-      const result = importCell(key, dbHtml, row);
+      const result = /** @type {ImportCellResult} */ (
+        importCell(key, dbHtml, row)
+      );
       stats[key][result.classification] += 1;
       if (
         result.classification === "needsReview" &&
@@ -352,13 +384,18 @@ async function main() {
     )
     .order("id");
   if (verifyError) throw new Error(`재감사 조회 실패: ${verifyError.message}`);
+  const typedVerifyRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (verifyRows)
+  );
 
   let residual = 0;
-  verifyRows.forEach((row) => {
+  typedVerifyRows.forEach((row) => {
     if (args.university && row.university_name !== args.university) return;
     targetCategories.forEach((key) => {
       const dbHtml = row[HWP_SECTION_HTML_KEYS[key]];
-      const expected = importCell(key, dbHtml, row);
+      const expected = /** @type {ImportCellResult} */ (
+        importCell(key, dbHtml, row)
+      );
       if (expected.classification !== "imported") return;
       const actualDoc = row[HWP_SECTION_JSON_KEYS[key]];
       if (

@@ -59,6 +59,19 @@ const DEFAULT_KEYS_FILE =
 const DEFAULT_BACKUP_DIR = "/Users/hyunsoo/uwellnow/.admission-html-backups";
 const TABLE = "admission_university_resources";
 
+/**
+ * admission_university_resources 조회 행. 동적 select라 supabase-js가
+ * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만 선언하고,
+ * html 컬럼들은 전부 동적 키(row[col])로만 접근하므로(noImplicitAny 꺼짐)
+ * 별도 선언 없이 암시적 any로 통과한다.
+ * @typedef {{
+ *   id: string,
+ *   university_name: string,
+ *   campus: string | null,
+ *   region: string | null,
+ * }} ResourceRow
+ */
+
 // 카테고리 key -> DB html 컬럼 매핑. load-admission-content.mjs와 동일.
 const CATEGORY_HTML_KEY = {
   previous_year_changes: "previous_year_changes_html",
@@ -372,9 +385,12 @@ async function main() {
     .select(selectColumns)
     .order("id");
   if (fetchError) throw new Error(`행 조회 실패: ${fetchError.message}`);
+  const typedRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (rows)
+  );
 
   await writeFile(backupFile, JSON.stringify(rows, null, 2), "utf-8");
-  console.log(`백업 완료: ${rows.length}행 → ${backupFile}`);
+  console.log(`백업 완료: ${typedRows.length}행 → ${backupFile}`);
 
   console.log("\n=== 2) 정규화 계산 ===");
   const changesByColumn = Object.fromEntries(HTML_COLUMNS.map((c) => [c, []]));
@@ -383,7 +399,7 @@ async function main() {
   const emptyShellFindings = [];
   const legacyRecruitFindings = [];
 
-  rows.forEach((row) => {
+  typedRows.forEach((row) => {
     const label = `${row.university_name}${row.campus ? `(${row.campus})` : ""}`;
 
     HTML_COLUMNS.forEach((col) => {
