@@ -381,8 +381,9 @@ describe("Header — 로그인 회색존 상단 정렬(2026-09-03, 빈 제목 �
 
 describe("Header — 햄버거 위치(§6-7, 2026-09-03 계정 그룹 마지막으로 이동)", () => {
   it("햄버거는 로고와 함께 좌표계 1 밴드(justify-between)의 마지막 자식에 위치한다", () => {
-    // nav는 0d3f8487 이전 구조로 되돌아가 좌표계 2(absolute overlay)에 별도로 뜬다 —
-    // 더는 이 밴드의 형제가 아니라서 nav 대비 DOM 순서로는 검증할 수 없다. 대신 "로고
+    // nav는 0d3f8487 이전 구조로 되돌아가 좌표계 2(2026-09-03부터 fixed overlay, 이전
+    // 좌측선 재조정 커밋 참고)에 별도로 뜬다 — 더는 이 밴드의 형제가 아니라서 nav 대비
+    // DOM 순서로는 검증할 수 없다. 대신 "로고
     // 옆에 붙는" 버그(§6-7)의 실제 원인이었던 구조 — 좌표계 1 밴드가 정확히 [로고,
     // 햄버거+계정 그룹] 2개 자식만 갖고 justify-between으로 배치되는지를 검증한다.
     mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
@@ -394,6 +395,20 @@ describe("Header — 햄버거 위치(§6-7, 2026-09-03 계정 그룹 마지막�
     expect(band?.className).toContain("justify-between");
     expect(band?.children).toHaveLength(2);
     expect(band?.lastElementChild?.contains(hamburger)).toBe(true);
+  });
+
+  it("nav 오버레이는 메가 패널과 동일한 fixed 포지셔닝을 쓴다(2026-09-03 좌측선 재조정)", () => {
+    // nav가 absolute(조상 header의 fixed에 얹힌 containing block)였을 때 메가 컬럼
+    // 좌측선과 실측으로 8px(1440~1680)/5px(1920) 어긋났다 — 메가 패널과 동일하게
+    // `fixed left-0 top-0 w-full`로 통일해 두 계산식을 실제로 같게 만든다.
+    mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
+    const { container } = renderHeader();
+    const nav = container.querySelector("header > nav");
+
+    expect(nav?.className).toContain("fixed");
+    expect(nav?.className).not.toMatch(/(?:^|\s)absolute(?:\s|$)/);
+    expect(nav?.className).toContain("left-0");
+    expect(nav?.className).toContain("w-full");
   });
 
   it("게스트 상태에서 햄버거는 계정 그룹(로그인·회원가입) 다음의 마지막 자식이다", () => {

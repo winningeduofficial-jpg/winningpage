@@ -856,8 +856,11 @@ export default function Header() {
         </div>
       </div>
 
-      {/* 좌표계 2(72.75rem 컨텐츠 영역): nav 5개. header가 position:fixed라 이 nav의 containing
-          block이 되므로 별도 wrapper 없이 absolute로 좌표계 1(로고/계정 그룹) 위에 겹쳐 그린다.
+      {/* 좌표계 2(72.75rem 컨텐츠 영역): nav 5개. 2026-09-03부터 `<nav>` 자체를 메가 컬럼
+          회색 밴드(아래)와 동일한 `position:fixed left-0 top-0 w-full`로 통일했다(좌측선
+          어긋남 재조정, 아래 nav 태그 앞 주석 참고) — header의 `position:fixed`에 얹혀
+          containing block을 물려받는 `absolute` 대신, nav도 뷰포트를 직접 기준 삼는 별도
+          `fixed` 요소로 좌표계 1(로고/계정 그룹) 위에 겹쳐 그린다.
           바깥 두 겹(overlay, mx-auto 컨테이너)은 pointer-events-none이라 로고/계정 그룹 클릭을
           가리지 않고, 실제 nav 아이템을 감싸는 안쪽 div만 pointer-events-auto로 되살린다.
           상태 불변 nav 그리드: nav 아이템은 로그인/비로그인 상태와 무관하게 항상
@@ -881,8 +884,21 @@ export default function Header() {
             1512px: nav 우측 끝 x≈1034px, 계정 그룹 좌측 끝 추정 x≈1093px → 여유 ≈+59px
             1920px: nav 우측 끝 x≈1102px, 계정 그룹 좌측 끝 추정 x≈1394px → 여유 ≈+292px
           (1440px 구간은 겹침 위험이 남아 있다 — 완화 방안은 코드로 임의 적용하지 않고
-          커밋 보고에서 제안만 한다, 사용자 결정 대기.) */}
-      <nav className="pointer-events-none absolute inset-x-0 top-0 hidden h-16 desktop:block">
+          커밋 보고에서 제안만 한다, 사용자 결정 대기.)
+          2026-09-03 좌측선 재조정: 로고 가로형 교체(123e7e5a) 후 리드 실측 결과 nav 좌측 x와
+          메가 컬럼 좌측 x가 어긋났다(1440~1680 −8px, 1920 −5px) — NAV_GUARD=MEGA_GUARD로 같은
+          상수를 쓰는데도 실제로는 다르게 반응한 원인은 두 컨테이너의 포지셔닝 매커니즘 차이였다.
+          이 `<nav>`는 `position:absolute`(가장 가까운 포지션드 조상 = `<header>`, 그 자체가
+          fixed)였고, 메가 컬럼이 속한 아래쪽 회색 밴드는 `<header>`에 중첩된 별도의
+          `position:fixed left-0 w-full` 요소였다 — 스펙상 두 방식 모두 결국 뷰포트(ICB)
+          기준으로 귀결돼야 하지만, 중첩된 `fixed`가 그 조상 `fixed`를 containing block으로
+          쓰는지 여부는 브라우저마다 처리가 갈릴 수 있는 지점이라(nested position:fixed 관련
+          공지된 엔진 간 차이) absolute와 100% 동일하다고 보장할 수 없었다. "같은 상수를 쓰면
+          당연히 정렬된다"는 구조적 가정 대신, 두 컨테이너의 포지셔닝 매커니즘 자체를
+          `fixed left-0 top-0 w-full`로 완전히 통일해 계산식을 실제로 같게 만든다(아래
+          `inset-x-0` 대신 메가 패널 wrapper와 동일한 `left-0 w-full` 표기로 맞췄다) — 1440
+          /1512/1680/1920 재정렬 여부는 리드가 재실측한다. */}
+      <nav className="pointer-events-none fixed left-0 top-0 hidden h-16 w-full desktop:block">
         <div className="pointer-events-none mx-auto flex h-full w-full max-w-content items-center px-8">
           {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 메가메뉴 닫힘 타이머를 관리하는 데스크톱 편의 동작 — 실제 nav 링크는 클릭·키보드 모두로 접근 가능하다. */}
           <div
