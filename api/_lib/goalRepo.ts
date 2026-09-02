@@ -187,6 +187,47 @@ export function narrowGoalSession(session: GoalSessionResult): {
   };
 }
 
+/**
+ * 두 프로필이 현재 approved 상태로 연결된 학부모-학생 쌍인지 SECURITY DEFINER RPC로
+ * 확인한다(fn_is_linked_pair, supabase/migrations/20260821000000_baseline.sql). 학부모가
+ * 자녀 목표관리 리포트를 열람하는 경로(api/goal/report.ts studentId 쿼리) 전용 — 순서는
+ * 무관하다. 조회 실패는 fail-closed로 접는다(checkProgramAccessTable과 동일 판단,
+ * api/_lib/serviceAccess.ts — 판정 불가를 "연결됨"으로 오인해 남의 리포트를 열어주지 않는다).
+ */
+export async function checkLinkedPair(
+  supabaseAdmin: SupabaseClient,
+  profileA: string,
+  profileB: string,
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin.rpc("fn_is_linked_pair", {
+    p_a: profileA,
+    p_b: profileB,
+  });
+  if (error) {
+    console.error("fn_is_linked_pair 호출 실패:", profileA, profileB, error);
+    return false;
+  }
+  return data === true;
+}
+
+/**
+ * 임의 프로필의 목표관리 이용권 판정. openGoalSession의 allowed는 항상 요청자 본인
+ * 기준으로만 계산되므로(위 JSDoc 규약 1), 학부모가 자녀(studentId) 리포트를 열람할 때처럼
+ * 요청자와 다른 프로필의 이용권을 다시 판정해야 하는 예외 경로 전용이다.
+ */
+export async function hasGoalAccessFor(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+): Promise<boolean> {
+  const { allowed } = await hasPaidServiceAccess(
+    supabaseAdmin,
+    profileId,
+    // biome-ignore lint/style/noNonNullAssertion: goal 키는 SERVICE_CONFIGS에 정적으로 정의돼 있음
+    SERVICE_CONFIGS.goal!,
+  );
+  return allowed;
+}
+
 // ---------------------------------------------------------------------------
 // 조회
 // ---------------------------------------------------------------------------

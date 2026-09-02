@@ -1,4 +1,4 @@
-// GET /api/goal/report?type=weekly|monthly|direction&period=...&track=naesin|jeongsi&reportId=...
+// GET /api/goal/report?type=weekly|monthly|direction&period=...&track=naesin|jeongsi&reportId=...&studentId=...
 // (reportId는 type=direction 전용 — 저장된 goal_direction_reports 행의 id. period는
 // weekly/monthly 전용으로 남는다.)
 // Authorization: Bearer <access_token>
@@ -7,6 +7,18 @@
 // 엔드포인트. 하우스 스타일은 api/goal/student.js·daily-record.js 그대로 따른다 —
 // GET-only(조회형), 405 → 401(openGoalSession) → 미결제 200 {allowed:false} →
 // 온보딩 게이트 409 → 400(쿼리 검증) → 500.
+//
+// studentId(선택, QA 시트 행210) — 학부모가 마이페이지 자녀 카드에서 자녀의 목표관리
+// 성장 리포트를 열람하는 경로다. 생략하면 기존 동작 그대로(요청자 본인 리포트).
+// 있으면 weekly/monthly 전용이다(direction은 이번 범위 밖 — 함께 오면 400). 요청자가
+// 곧 그 학생이 아니면 fn_is_linked_pair(goalRepo.checkLinkedPair)로 approved 학부모-학생
+// 쌍인지 서버가 재확인하고, 아니면 403 {error:{code:"NOT_LINKED", message}}(coded shape,
+// api/_lib/httpResponse.ts)를 돌려준다. 통과하면 그 뒤 파이프라인(이용권 allowed 판정 —
+// 이번엔 요청자가 아니라 studentId 기준으로 다시 계산한다·온보딩 게이트·weekly/monthly
+// 집계)은 본인 조회 경로와 완전히 동일하게 studentId를 대상으로 실행한다. 학부모 열람은
+// 읽기 전용이고 buildGrowthReport 내부는 전부 조회(fetch*)뿐이라 건너뛸 부수효과가 없다
+// (direction 전용 ensureDirectionReports의 저장은 direction 자체가 막혀 있어 자연히
+// 도달하지 않는다).
 //
 // 집계 산술은 전부 src/lib/goal/report/aggregate.js(순수 함수, supabase 미의존)에
 // 있다 — 이 파일은 DB 조회(api/_lib/goalRepo.js) → aggregate.js 입력 조립 →
@@ -55,6 +67,7 @@ import {
 } from "../../src/lib/goal/report/insights.js";
 import { buildGoalDirectionReport } from "../_lib/goalDirectionReport.js";
 import {
+  checkLinkedPair,
   fetchActiveCohortProfileIds,
   fetchDailyRecordsForProfilesInRange,
   fetchEarliestProbabilityLog,
@@ -64,6 +77,7 @@ import {
   fetchRecordsInRange,
   fetchStudentRow,
   fetchTimerSessionsInRange,
+  hasGoalAccessFor,
   listGoalDirectionReports,
   narrowGoalSession,
   openGoalSession,
@@ -74,6 +88,20 @@ import { sendError } from "../_lib/httpResponse.js";
 export const config = { runtime: "nodejs" };
 
 const VALID_TYPES = ["weekly", "monthly", "direction"];
+
+/**
+ * studentId 쿼리 파라미터 파싱 — 빈 문자열/배열(중복 쿼리 키)은 "없음"으로 접는다.
+ * VercelRequest.query 값은 string | string[] | undefined 셋 다 나올 수 있다(express 계열
+ * 쿼리 파서 공통 동작) — 배열이 오면 studentId를 하나로 특정할 수 없으므로 방어적으로
+ * 무시한다(정상 클라이언트 호출로는 나오지 않는다, src/lib/goalApi.ts fetchGoalReport는
+ * 단일 값만 보낸다).
+ */
+export function parseStudentIdParam(
+  query: Partial<Record<string, string | string[]>> | undefined,
+): string | undefined {
+  const raw = query?.studentId;
+  return typeof raw === "string" && raw.length > 0 ? raw : undefined;
+}
 
 function formatHoursMinutesLabel(hoursFloat) {
   const totalMinutes = Math.round(hoursFloat * 60);
@@ -531,12 +559,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       );
     }
 
-    const { allowed } = session;
-
-    // 조회형 규약 — student.js와 동일하게 미결제는 에러가 아니다.
-    if (!allowed) {
-      return res.status(200).json({ allowed: false });
-    }
+    const { supabaseAdmin, profileId: requesterId } =
+      narrowGoalSession(session);
 
     const type = req.query?.type;
     if (typeof type !== "string" || !VALID_TYPES.includes(type)) {
@@ -545,7 +569,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const { supabaseAdmin, profileId } = narrowGoalSession(session);
+    const studentId = parseStudentIdParam(req.query);
+    if (studentId && type === "direction") {
+      return res.status(400).json({
+        detail: "studentId는 weekly|monthly 조회에서만 사용할 수 있습니다.",
+      });
+    }
+
+    // 학부모가 자녀 리포트를 여는 경로 — profileId를 요청자에서 자녀로 바꿔치기하기 전에
+    // 먼저 승인된 쌍인지 서버가 재확인한다(UI 게이트인 fn_parent_children와는 별개 축).
+    let profileId = requesterId;
+    let allowed = session.allowed;
+    if (studentId && studentId !== requesterId) {
+      const linked = await checkLinkedPair(
+        supabaseAdmin,
+        requesterId,
+        studentId,
+      );
+      if (!linked) {
+        return sendError(
+          res,
+          "coded",
+          403,
+          "연결된 자녀가 아닙니다.",
+          "NOT_LINKED",
+        );
+      }
+      profileId = studentId;
+      allowed = await hasGoalAccessFor(supabaseAdmin, profileId);
+    }
+
+    // 조회형 규약 — student.js와 동일하게 미결제는 에러가 아니다.
+    if (!allowed) {
+      return res.status(200).json({ allowed: false });
+    }
+
     const student = await fetchStudentRow(supabaseAdmin, profileId);
 
     // daily-record.js requireActiveStudent와 동일한 판정 순서 — 온보딩 미완료/컷 대기 학생은
