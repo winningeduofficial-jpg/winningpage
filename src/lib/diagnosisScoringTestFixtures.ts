@@ -105,7 +105,11 @@ export function scoreAreasOf(input: unknown): Record<string, number> {
  * 셰이프(likert1/profile/scores/goal 등)를 그대로 신뢰해도 되는 테스트 전용 캐스팅이다. */
 export function normalizeAnswersOf(
   answers: unknown,
-  meta?: { diagnosedAt?: string | null; name?: string | null },
+  meta?: {
+    diagnosedAt?: string | null;
+    name?: string | null;
+    attemptId?: string | null;
+  },
   // biome-ignore lint/suspicious/noExplicitAny: normalizeAnswers 반환 셰이프가 소스에 타입 주석이 없다.
 ): any {
   return normalizeAnswers((answers ?? {}) as Record<string, unknown>, meta);
