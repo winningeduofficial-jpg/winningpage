@@ -506,8 +506,25 @@ export function validateIntakeBody(body: unknown) {
   }
 
   // 최근 시험별 과목군 평균 — 선택 사항(리포트 유닛 입력용, 온보딩 진행을 막지 않는다).
-  // FLOW 밖 키・과목군 밖 키는 조용히 무시하고(화이트리스트 밖 데이터를 저장하지 않는다),
-  // 군 평균이 없는 군도 조용히 건너뛴다("빈 군은 저장 제외" 규칙).
+  // 표시 창(선택 시험 포함 역순 최대 3개, Step4Naesin.tsx recentExams와 동일 규칙) 밖의
+  // 시험은 무시한다 — mockRounds와 같은 이유(GoalOnboardingContext가 NAESIN_EXAM_FLOW
+  // 12개 키를 전부 빈 객체로 들고 있고, lastExam을 바꿔도 이전에 입력해 둔 다른 시험의
+  // 데이터를 지우지 않는다 — buildInitialNaesinExams 주석 참고). FLOW 밖 키・과목군 밖
+  // 키도 조용히 무시하고(화이트리스트 밖 데이터를 저장하지 않는다), 군 평균이 없는 군도
+  // 조용히 건너뛴다("빈 군은 저장 제외" 규칙).
+  const naesinWindowKeys = new Set<string>();
+  if (!naesinAllNone) {
+    const lastIndex = NAESIN_FLOW.findIndex((e) => e.key === naesinLastExamKey);
+    if (lastIndex !== -1) {
+      for (const entry of NAESIN_FLOW.slice(
+        Math.max(0, lastIndex - 2),
+        lastIndex + 1,
+      )) {
+        naesinWindowKeys.add(entry.key);
+      }
+    }
+  }
+
   const naesinExams: {
     key: string;
     groups: Record<
@@ -519,7 +536,7 @@ export function validateIntakeBody(body: unknown) {
     ? body.naesin.exams
     : {};
   for (const [examKey, examValue] of Object.entries(rawNaesinExams)) {
-    if (!NAESIN_FLOW_BY_KEY[examKey]) continue;
+    if (!naesinWindowKeys.has(examKey)) continue; // 창 밖은 무조건 무시(FLOW 밖 키도 자동 제외).
     if (!isPlainObject(examValue) || !isPlainObject(examValue.groups)) continue;
 
     const groups: Record<
@@ -585,8 +602,28 @@ export function validateIntakeBody(body: unknown) {
     return { error: fail("탐구 선택 과목(과탐/사탐)을 골라 주세요.") };
   }
 
+  // 로컬 E2E 버그 — "표시 창"(선택 회차 포함 역순 최대 3개, Step5MockExam.tsx
+  // recentRounds와 동일 규칙) 밖의 회차는 클라이언트가 무엇을 보내든(빈 값이든, 이전에
+  // 다른 lastRound를 고르며 남은 스테일 데이터든) 무시한다 — 학생이 "고3 10모"를 고르고
+  // 입력했다가 마음을 바꿔 "고2 6모"로 다시 고르면, GoalOnboardingContext는 고3 회차
+  // 데이터를 지우지 않고 그대로 들고 있는다(다른 회차를 다시 고를 때 입력이 사라지지
+  // 않게 하려는 설계, buildInitialMockRounds 주석 참고) — 그 남은 데이터가 조용히
+  // 저장되는 걸 여기서 막는다.
+  const mockWindowKeys = new Set<string>();
+  if (!mockAllNone) {
+    const lastIndex = MOCK_FLOW.findIndex((r) => r.key === mockLastRoundKey);
+    if (lastIndex !== -1) {
+      for (const entry of MOCK_FLOW.slice(
+        Math.max(0, lastIndex - 2),
+        lastIndex + 1,
+      )) {
+        mockWindowKeys.add(entry.key);
+      }
+    }
+  }
+
   // 값이 하나라도 있는 회차는 국/수/영/탐구1/탐구2 전부 채워야 한다(부분 회차는 종합
-  // 백분위 계산을 왜곡한다 — buildMogoScores 주석 참고). FLOW 밖 키는 조용히 무시한다.
+  // 백분위 계산을 왜곡한다 — buildMogoScores 주석 참고).
   const mockRounds: Record<
     string,
     {
@@ -607,16 +644,22 @@ export function validateIntakeBody(body: unknown) {
     : {};
   for (const flowEntry of MOCK_FLOW) {
     const roundKey = flowEntry.key;
+    if (!mockWindowKeys.has(roundKey)) continue; // 창 밖은 무조건 무시(FLOW 밖 키도 자동 제외).
     const roundValue = rawMockRounds[roundKey];
     if (!isPlainObject(roundValue)) continue;
 
+    // "값이 있다"의 정의 — isNumericInput만으로는 grade:""(미입력 기본값)도 "문자열이니
+    // 숫자로 해석해도 되는 값"으로 통과시켜, 완전히 빈 회차까지 "값이 있다"고 오판했다
+    // (로컬 E2E에서 재현된 400의 원인 — GoalOnboardingContext가 MOCK_FLOW 14개 키를
+    // 전부 빈 객체로 채워 두므로, 이 가드 없이는 창 안의 빈 회차조차 5과목 필수 검증에
+    // 걸린다). clean()으로 실제 비어있지 않은지까지 확인한다.
     const hasAnyInput =
       MOCK_SUBJECTS.some((subject) => {
         const entry = roundValue[subject];
-        return isPlainObject(entry) && isNumericInput(entry.grade);
+        return isPlainObject(entry) && clean(entry.grade) !== "";
       }) ||
-      (isPlainObject(roundValue.eng) && isNumericInput(roundValue.eng.grade));
-    if (!hasAnyInput) continue; // 완전히 빈 회차는 저장하지 않는다.
+      (isPlainObject(roundValue.eng) && clean(roundValue.eng.grade) !== "");
+    if (!hasAnyInput) continue; // 완전히 빈 회차는 저장하지 않는다(선택 회차 포함).
 
     const label = flowLabel(flowEntry);
     const round: Record<string, unknown> = {};

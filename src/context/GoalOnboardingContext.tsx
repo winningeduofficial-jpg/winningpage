@@ -72,7 +72,7 @@ export interface NaesinExamState {
 // 시험까지의 전체 평균 + 최근 시험별 과목군" 방식(신)으로 재설계했다(qa3-held-high-design.md
 // §2). lastExam이 ""면 "아직 없음"이고, 그 경우에만 priorNaesinGrade를 쓴다(학년별로 도메인이
 // 다르다 — 고1은 중학교 평균 점수 0~100, 고2·고3은 평균 등급 1~9. Step4Naesin이 분기한다).
-interface NaesinState {
+export interface NaesinState {
   lastExam: string;
   overall: string;
   priorNaesinGrade: string;
@@ -81,7 +81,7 @@ interface NaesinState {
   exams: Record<string, NaesinExamState>;
 }
 
-interface MockSubjectState {
+export interface MockSubjectState {
   grade: string;
   // 사용자가 등급 입력 후 고른 백분위 칩 값(문자열). 미선택이면 ""(제출 직전 서버 기본값
   // "안정"/중앙값으로 대체된다 — Step5MockExam이 기본 칩을 미리 선택해 두므로 정상 경로에서는
@@ -89,7 +89,7 @@ interface MockSubjectState {
   pct: string;
 }
 
-interface MockRoundState {
+export interface MockRoundState {
   kor: MockSubjectState;
   math: MockSubjectState;
   eng: { grade: string };
@@ -101,7 +101,7 @@ interface MockRoundState {
 // 시퀀스(MOCK_FLOW, 고3 5・7모 포함) 방식(신)으로 재설계했다. track은 회차마다 따로 두지
 // 않고 섹션 전체에서 하나만 고른다(원본과 동일 — 탐구 선택 과목은 학년 내내 거의 바뀌지
 // 않는다는 전제).
-interface MockState {
+export interface MockState {
   lastRound: string;
   track: "과탐" | "사탐" | "";
   rounds: Record<string, MockRoundState>;
