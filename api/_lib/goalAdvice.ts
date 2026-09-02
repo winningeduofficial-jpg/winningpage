@@ -158,6 +158,21 @@ const naOr = (value: unknown, unit = ""): string =>
     : `${value}${unit}`;
 
 /**
+ * 내신 등급(1~9, 낮을수록 우세) 전용 표기 — 단위·방향을 문장에 명시한다. 2026-09-02
+ * 로컬 E2E에서 모델이 백분위(currentMogo)를 "%"로 오기했다(단위 없이 숫자만 주면
+ * 모델이 임의로 단위를 추측한다) — 같은 문제를 막기 위해 등급도 동일하게 명시한다.
+ */
+const formatGradeValue = (value: number | null): string =>
+  value === null ? "미입력" : `${value}등급(9등급제, 1이 최상)`;
+
+/**
+ * 정시 백분위(0~100, 높을수록 우세) 전용 표기. "%"를 붙이지 않는다 — 백분위는
+ * 퍼센트가 아니다(모델이 "모의고사 29.67%"처럼 오기했던 원인).
+ */
+const formatPercentileValue = (value: number | null): string =>
+  value === null ? "미입력" : `종합 백분위 ${value}(100이 최상)`;
+
+/**
  * "확인 필요" 표기 — 원본이 참고 데이터 없을 때 쓰던 자리표시자(App.tsx `?? '확인 필요'`)
  * 그대로다. 프롬프트 안에서만 쓰는 문구라 no-fallback-constants 대상이 아니다(화면에
  * 노출되는 문자열이 아니라 모델 입력이다).
@@ -222,9 +237,9 @@ export function buildAdvicePrompt(input: AdvicePromptInput): string {
 요청1 입시 조언
 학년 ${naOr(student.grade)}
 학교구분 ${naOr(student.schoolType)}
-현재 내신 ${naOr(student.currentScore)}
-현재 모의고사 ${naOr(student.currentMogo)}
-변환등급 ${naOr(student.convertedGrade)}
+현재 내신 ${formatGradeValue(student.currentScore)}
+현재 모의고사 ${formatPercentileValue(student.currentMogo)}
+변환등급 ${formatGradeValue(student.convertedGrade)}
 
 이상목표 ${student.idealName || "미입력"}
 이상목표 수시 ${naOr(student.idealSusi, "%")}
@@ -355,6 +370,17 @@ const CLASSIFICATION_REPLACEMENTS: [RegExp, string][] = [
 ];
 
 /**
+ * 백분위 단위 오기 교정 — 2026-09-02 로컬 E2E에서 모델이 정시 백분위(currentMogo,
+ * 100이 최상, %가 아니다)를 "모의고사 29.67%"처럼 퍼센트로 오기했다. 프롬프트에
+ * 단위·방향을 명시(formatPercentileValue)했지만 모델이 여전히 "%"를 붙일 수 있어
+ * 마지막 방어선을 둔다 — "백분위"/"모의고사" 뒤 10자 이내에 나온 숫자+%의 "%"만
+ * 제거한다(다른 문맥의 정상적인 퍼센트 표현, 예: 이상목표 수시 40% 는 건드리지 않는다).
+ */
+const PERCENTILE_UNIT_FIX: [RegExp, string][] = [
+  [/(백분위|모의고사)([^%\n]{0,10}?)(\d+(?:\.\d+)?)\s*%/g, "$1$2$3"],
+];
+
+/**
  * 고객사 컴플라이언스 필터(Dashboard.tsx:44-52 확정 문구 — "반드시/100%/보장" 같은 확정
  * 단정, "늦었다/돌이킬 수 없다" 같은 공포 소구, "의지가 약하다" 같은 낙인 문구 금지).
  * 모델이 지시를 어기고 이런 표현을 냈을 때의 마지막 방어선이다 — 프롬프트 지시만으로는
@@ -386,6 +412,9 @@ export function postprocessAdviceText(raw: string): string {
   let text = String(raw ?? "");
 
   for (const [pattern, replacement] of CLASSIFICATION_REPLACEMENTS) {
+    text = text.replace(pattern, replacement);
+  }
+  for (const [pattern, replacement] of PERCENTILE_UNIT_FIX) {
     text = text.replace(pattern, replacement);
   }
   for (const [pattern, replacement] of COMPLIANCE_REPLACEMENTS) {
