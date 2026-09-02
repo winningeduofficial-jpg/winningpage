@@ -3,7 +3,10 @@
 // 않는다). workbooks.pages.test.ts와 동일하게 handler 밖으로 뽑은 순수 검증
 // 함수를 직접 부른다.
 import { expect, test } from "vitest";
-import { validateWorkbookLinkFields } from "./plan-tasks.js";
+import {
+  validateWeeklyRepeatWithWorkbook,
+  validateWorkbookLinkFields,
+} from "./plan-tasks.js";
 
 test("세 필드가 전부 없으면 손대지 않음(value undefined)", () => {
   const result = validateWorkbookLinkFields({ title: "문제 풀기" });
@@ -83,4 +86,29 @@ test("pageFrom/pageTo가 1 미만이면 400", () => {
     pageTo: 10,
   });
   expect(result.error?.status).toBe(400);
+});
+
+test("weeklyRepeat와 workbook_id가 함께 있으면 400", () => {
+  const error = validateWeeklyRepeatWithWorkbook(
+    { weeklyRepeat: true },
+    { workbook_id: 7, page_from: null, page_to: null },
+  );
+  expect(error?.status).toBe(400);
+  expect(error?.body.detail).toContain("매주 반복으로 만들 수 없습니다");
+});
+
+test("weeklyRepeat가 있어도 문제집 연결이 없으면 통과한다", () => {
+  const error = validateWeeklyRepeatWithWorkbook(
+    { weeklyRepeat: true },
+    undefined,
+  );
+  expect(error).toBeNull();
+});
+
+test("문제집이 연결돼 있어도 weeklyRepeat가 없으면 통과한다(이번 주만은 허용)", () => {
+  const error = validateWeeklyRepeatWithWorkbook(
+    {},
+    { workbook_id: 7, page_from: 10, page_to: 20 },
+  );
+  expect(error).toBeNull();
 });

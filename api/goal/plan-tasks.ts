@@ -229,6 +229,26 @@ export function validateWorkbookLinkFields(body: Record<string, unknown>): {
   };
 }
 
+/**
+ * 문제집 연결 과제는 "매주 반복"으로 만들 수 없다(임무 지시 후속, 2026-09-02) —
+ * 페이지 범위가 매주 영원히 반복될 이유가 없다("이번 주만"은 이번 주 7일 각각
+ * 같은 구간을 복습하는 의도적 사용이라 허용한다, AddTaskModal 주석과 동일 판단).
+ *
+ * weeklyRepeat는 클라이언트가 "매주 반복" 일정을 펼쳐 여러 plan_date를 POST할
+ * 때만 실어 보내는 자기신고 신호다(단건 POST 자체엔 반복 개념이 없다, 파일 헤더
+ * §"일정" 주석) — AddTaskModal이 이미 이 조합을 못 고르게 막지만, API를 직접
+ * 두드리는 우회를 막는 방어선을 한 겹 더 둔다.
+ */
+export function validateWeeklyRepeatWithWorkbook(
+  body: Record<string, unknown>,
+  link: WorkbookLinkPatch | undefined,
+): ReturnType<typeof fail> | null {
+  if (body.weeklyRepeat === true && link?.workbook_id != null) {
+    return fail(400, "문제집 연결 과제는 매주 반복으로 만들 수 없습니다.");
+  }
+  return null;
+}
+
 const PLAN_TASK_STATUSES = new Set(["pending", "done", "fail"]);
 
 /** @returns {{error?:object, value?:"pending"|"done"|"fail"}} */
@@ -346,6 +366,10 @@ async function handlePost(
 
   const link = validateWorkbookLinkFields(body);
   if (link.error) return res.status(link.error.status).json(link.error.body);
+
+  const weeklyRepeatError = validateWeeklyRepeatWithWorkbook(body, link.value);
+  if (weeklyRepeatError)
+    return res.status(weeklyRepeatError.status).json(weeklyRepeatError.body);
 
   const linkError = await verifyWorkbookLink(
     supabaseAdmin,
