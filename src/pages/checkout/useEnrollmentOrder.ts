@@ -5,7 +5,7 @@ export interface Order {
   id: string;
   status: string;
   approval_status: string;
-  order_name: string;
+  order_name: string | null;
   list_amount: number;
   discount_amount: number;
   amount: number;
@@ -13,13 +13,14 @@ export interface Order {
 }
 
 export interface OrderItem {
-  id: string;
+  // order_items.id는 bigint PK다(uuid가 아니다).
+  id: number;
   name: string;
   list_price: number;
   price: number;
   quantity: number;
-  product_id: string;
-  service_key: string;
+  product_id: string | null;
+  service_key: string | null;
 }
 
 export interface ApprovedOrder {

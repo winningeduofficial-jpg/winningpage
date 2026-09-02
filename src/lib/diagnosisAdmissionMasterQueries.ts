@@ -15,8 +15,17 @@ import { supabase } from "./supabase";
 
 type QueryResult<T> = { data: T[]; error: unknown };
 
-type UniversityRow = { university_key: string; university_name: string };
-type DepartmentRow = { department_key: string; department_name: string };
+// admission_result_university_index/admission_result_department_index는 집계
+// 뷰라 생성 타입이 group by 대상 컬럼도 nullable로 낸다(admissionResultsQueries.ts의
+// 동일 주석 참고) — 실제 쿼리 결과와 맞춰 null을 허용한다.
+type UniversityRow = {
+  university_key: string | null;
+  university_name: string | null;
+};
+type DepartmentRow = {
+  department_key: string | null;
+  department_name: string | null;
+};
 type TrackRow = {
   result_year: number;
   main_track: string | null;

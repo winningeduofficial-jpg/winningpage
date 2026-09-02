@@ -226,7 +226,9 @@ export async function incrementBoardView(
   try {
     const { error } = await supabase.rpc("increment_board_view", {
       p_source: table,
-      p_id: id,
+      // p_id는 text 인자다 — 게시판마다 id 컬럼 타입(uuid/bigint)이 달라
+      // 이 함수 시그니처가 string | number를 받는다.
+      p_id: String(id),
     });
 
     if (error) {

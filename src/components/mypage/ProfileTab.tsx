@@ -7,7 +7,9 @@
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import type { SignupProfileRpcResult } from "@/lib/parentLink";
 import { supabase } from "@/lib/supabase";
+import type { Tables } from "@/types/database.types";
 import ChangeEmailModal from "./ChangeEmailModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ChangePhoneModal from "./ChangePhoneModal";
@@ -86,17 +88,25 @@ type ProfileUser = {
   email?: string;
 };
 
-type Profile = {
-  id?: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  school_type?: string;
-  school_name?: string;
-  birth_date?: string | null;
-  gender?: string | null;
-  org_code?: string | null;
-};
+// 생성 타입(Tables<"profiles">)에서 파생시켜 null 가능 여부가 실제 스키마와
+// 어긋나지 않게 한다. 전부 optional인 이유 — 이 prop은 마이페이지 셸
+// (useMyPageProfile.Profile, 컬럼 집합이 다름)이 넘겨주는데, 셸이 어떤 컬럼을
+// select 했는지 이 컴포넌트가 강제할 수 없다(위 174번째 줄 주석과 동일한 사유로
+// birth_date/gender/org_code는 이 컴포넌트가 직접 다시 읽어 보강한다).
+type Profile = Partial<
+  Pick<
+    Tables<"profiles">,
+    | "id"
+    | "name"
+    | "email"
+    | "phone"
+    | "school_type"
+    | "school_name"
+    | "birth_date"
+    | "gender"
+    | "org_code"
+  >
+>;
 
 type ParentLink = {
   id: string;
@@ -223,6 +233,10 @@ export default function ProfileTab({
       }
       // RPC가 approved를 먼저 정렬해 돌려준다 — 첫 행만 쓴다.
       const row = data[0];
+      if (!row) {
+        setParentLink(null);
+        return;
+      }
       setParentLink({
         id: row.link_id,
         status: row.link_status,
@@ -264,6 +278,10 @@ export default function ProfileTab({
 
   // 공용 저장 헬퍼 — src/pages/MyPage.jsx handleSubmit의 upsert 흐름을 재사용한다.
   async function persistProfile(fields: Record<string, unknown>) {
+    // profiles.id는 PK라 upsert onConflict("id")에 반드시 값이 있어야 한다.
+    // 호출부는 전부 profileId가 로드된 뒤에만 노출되는 버튼이라 실질적으로는
+    // 항상 참이지만, 생성 Update 타입이 string을 요구해(undefined 불가) 방어적으로 막는다.
+    if (!profileId) return false;
     const payload = {
       id: profileId,
       updated_at: new Date().toISOString(),
@@ -328,7 +346,10 @@ export default function ProfileTab({
       );
       return;
     }
-    if (data?.link_code) setLinkCode(data.link_code);
+    // 생성 타입은 RPC 반환을 Json으로만 표현한다 — 실제 payload 모양은
+    // SignupProfileRpcResult(src/lib/parentLink.ts, reissue_link_code도 { ok, link_code } 형태).
+    const result = data as unknown as SignupProfileRpcResult;
+    if (result?.link_code) setLinkCode(result.link_code);
   }
 
   const schoolSummary =

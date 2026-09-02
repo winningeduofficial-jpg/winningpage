@@ -27,6 +27,7 @@ import {
 import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
 import { apiFetch, getAuthHeader } from "@/lib/apiFetch";
+import type { SignupProfileRpcResult } from "@/lib/parentLink";
 import {
   DUPLICATE_PHONE_MESSAGE,
   formatPhoneInput,
@@ -490,9 +491,12 @@ export default function ParentForm() {
           p_email: normalizedEmail,
           // 학부모 폼은 지역/재학구분/학교명을 받지 않는다 → sql/40 [13]에서
           // 이 셋을 학생 전용 필수로 바꿨다.
-          p_region: null,
-          p_school_type: null,
-          p_school_name: null,
+          // 세 인자 모두 DEFAULT가 없어 PostgREST가 값을 요구하지만, 함수 본문이
+          // coalesce(p_region, '')로 NULL을 받아준다(supabase/migrations/20260825093735_signup_identity_fields.sql:88-90).
+          // 생성 타입은 DEFAULT 유무로만 nullable을 추정해 명시적 null 전달을 못 표현한다.
+          p_region: null as unknown as string,
+          p_school_type: null as unknown as string,
+          p_school_name: null as unknown as string,
           p_member_type: "parent",
           p_terms_service_agreed: agreements.service,
           p_privacy_required_agreed: agreements.privacyRequired,
@@ -504,7 +508,12 @@ export default function ParentForm() {
           // T8(QA 2026-08-22): 생년월일·성별 필수, 소속코드는 선택.
           p_birth_date: `${formData.parentBirthDate.slice(0, 4)}-${formData.parentBirthDate.slice(4, 6)}-${formData.parentBirthDate.slice(6, 8)}`,
           p_gender: formData.gender,
-          p_org_code: formData.orgCode.trim() || null,
+          // p_org_code는 DEFAULT NULL이 있는 optional 인자다. exactOptionalPropertyTypes
+          // 하에서는 undefined 값을 명시적으로 넣는 것도 금지라 키 자체를 조건부로 스프레드한다
+          // (인자 생략이 명시적 null과 런타임에서 동일하다).
+          ...(formData.orgCode.trim() && {
+            p_org_code: formData.orgCode.trim(),
+          }),
         },
       );
 
@@ -520,7 +529,11 @@ export default function ParentForm() {
         return;
       }
 
-      if (!result?.ok) {
+      // 생성 타입은 RPC 반환을 Json으로만 표현한다 — 실제 payload 모양은
+      // SignupProfileRpcResult(src/lib/parentLink.ts) 참고.
+      const signupResult = result as unknown as SignupProfileRpcResult;
+
+      if (!signupResult?.ok) {
         setFormError(
           "회원 정보 저장 결과를 확인할 수 없습니다. 다시 시도해 주세요.",
         );

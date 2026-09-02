@@ -17,14 +17,16 @@ import {
   fetchAdmissionUniversities,
 } from "@/lib/diagnosisAdmissionMasterQueries";
 
+// diagnosisAdmissionMasterQueries.ts의 UniversityRow/DepartmentRow가 집계 뷰
+// 컬럼이라 string | null이다(그쪽 주석 참고) — 그 셰이프를 그대로 좁혀 받는다.
 interface UniversityRow {
-  university_key: string;
-  university_name: string;
+  university_key: string | null;
+  university_name: string | null;
 }
 
 interface DepartmentRow {
-  department_key: string;
-  department_name: string;
+  department_key: string | null;
+  department_name: string | null;
 }
 
 interface TrackRow {

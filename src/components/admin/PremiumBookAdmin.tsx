@@ -24,7 +24,8 @@ interface PremiumBookAdminConfig {
 }
 
 interface PremiumBookPageRow {
-  id: number | string;
+  // premium_book_pages.id는 identity 정수 PK다(생성 타입 대조 결과) — string이 아니다.
+  id: number;
   sort_order: number;
   image_url: string;
   [key: string]: unknown;
@@ -186,10 +187,16 @@ export default function PremiumBookAdmin({
         return;
       }
     } else {
+      if (editingRow === null) {
+        // 방어적 가드 — edit 모드는 항상 editRow()가 먼저 editingRow를 채운
+        // 뒤에만 진입한다. 타입상 number|undefined라 eq() 앞에서 좁힌다.
+        reportAdminError("수정 실패", new Error("editingRow가 비어 있습니다."));
+        return;
+      }
       const { error } = await supabase
         .from("premium_book_pages")
         .update(payload)
-        .eq("id", editingRow?.id);
+        .eq("id", editingRow.id);
       if (error) {
         reportAdminError("수정 실패", error);
         return;

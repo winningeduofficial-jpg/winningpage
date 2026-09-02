@@ -61,6 +61,28 @@ const MESSAGES: Record<string, string> = {
 
 type ParentLinkFail = { ok: false; reason: string; message: string };
 
+/**
+ * complete_signup_profile RPC(jsonb 반환)의 성공 payload 모양.
+ * 생성 타입(database.types.ts)은 RPC 반환을 Json으로만 표현해 .ok/.link_code
+ * 접근이 막힌다 — StudentForm/Under14Form/ParentForm/ProfileTab(reissue_link_code도
+ * 같은 모양)이 호출 직후 이 타입으로 한 번 캐스트해 공유한다.
+ */
+export type SignupProfileRpcResult = {
+  ok: boolean;
+  link_code?: string | null;
+};
+
+/**
+ * request_parent_link RPC(jsonb 반환)의 성공 payload 모양. 위와 같은 이유로
+ * LinkChildModal.tsx도 이 타입을 공유한다.
+ */
+export type RequestParentLinkRpcResult = {
+  ok?: boolean;
+  link_id?: string | null;
+  status?: string;
+  student_name?: string;
+};
+
 export type LookupChildResult =
   | {
       ok: true;
@@ -163,11 +185,16 @@ export async function requestParentLink(
     return fail(raw in MESSAGES ? raw : "unknown");
   }
 
+  // 생성 타입은 RPC 반환을 Json으로만 표현한다 — 실제 payload 모양은
+  // RequestParentLinkRpcResult(위 정의, supabase/migrations/20260821000000_baseline.sql
+  // request_parent_link의 jsonb_build_object 참고).
+  const result = data as unknown as RequestParentLinkRpcResult;
+
   return {
     ok: true,
-    linkId: data?.link_id || null,
-    status: data?.status || "approved",
-    studentName: data?.student_name || "",
+    linkId: result?.link_id || null,
+    status: result?.status || "approved",
+    studentName: result?.student_name || "",
   };
 }
 

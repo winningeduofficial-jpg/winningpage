@@ -120,21 +120,32 @@ export default function AdmissionResults() {
 
   const universityOptions = useMemo(
     () =>
-      universities.map((row) => ({
-        key: row.university_key,
-        label: row.university_name || row.university_key,
-        meta: formatDeptCount(row.dept_count),
-      })),
+      // university_key가 null인 행은 선택 불가능한 값이라 후보에서 제외한다
+      // (집계 뷰 컬럼이 nullable로 나올 뿐 실질적으로는 항상 채워져 있다 —
+      // admissionResultsQueries.ts의 UniversityIndexRow 주석 참고).
+      universities
+        .filter((row): row is typeof row & { university_key: string } =>
+          Boolean(row.university_key),
+        )
+        .map((row) => ({
+          key: row.university_key,
+          label: row.university_name || row.university_key,
+          meta: formatDeptCount(row.dept_count),
+        })),
     [universities],
   );
 
   const departmentOptions = useMemo(
     () =>
-      departments.map((row) => ({
-        key: row.department_key,
-        label: row.department_name || row.department_key,
-        meta: formatTrackTags(row.tracks),
-      })),
+      departments
+        .filter((row): row is typeof row & { department_key: string } =>
+          Boolean(row.department_key),
+        )
+        .map((row) => ({
+          key: row.department_key,
+          label: row.department_name || row.department_key,
+          meta: formatTrackTags(row.tracks),
+        })),
     [departments],
   );
 
@@ -171,10 +182,13 @@ export default function AdmissionResults() {
         label:
           `${row.university_name ?? ""} ${row.department_name ?? ""}`.trim(),
         // 비활성 칩은 키를 넘기지 않는다 — TrendingChips 가 키 유무로 disabled 를 정한다.
+        // row.university_key/department_key는 admissionResultsQueries.ts의
+        // TrendingDepartmentRow가 string | null이라 linkable로 이미 truthy를
+        // 확인했어도 TS는 좁혀주지 않는다 — ?? undefined로 null만 걷어낸다.
         ...(linkable
           ? {
-              universityKey: row.university_key,
-              departmentKey: row.department_key,
+              universityKey: row.university_key ?? undefined,
+              departmentKey: row.department_key ?? undefined,
             }
           : {}),
         logoUrl: row.logo_url ?? "",
