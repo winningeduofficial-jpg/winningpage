@@ -22,10 +22,11 @@
 //   1920에서 각각 10rem/3rem에 도달하고 그 이상은 clamp 상한(10rem/3rem)에 고정, 1440에서는
 //   각각 120px(7.5rem)/36px(2.25rem)로 줄어든다(클램프 하한).
 // NAV_GUARD / MEGA_GUARD (좁은 데스크톱 충돌 가드, 메가 컬럼용):
-//   marginLeft: max(0px, calc(18.385rem − (100vw − 72.75rem) / 2))
-//   18.385rem = 2xl 밴드 패딩(px-30=7.5rem) + LOGO_W(10.885rem, 신규 가로형 로고
-//   174.161×22 실측, h-[1.375rem] 기준 렌더 폭) = 2xl 기준 로고 우측 끝까지의 안전영역.
-//   72.75rem은 max-w-content 토큰(메가 컬럼이 속한 좌표계 2의 폭, 이번 변경 대상 아님).
+//   marginLeft: max(0px, calc(14rem − (100vw − 72.75rem) / 2))
+//   14rem = 2xl 밴드 패딩(px-30=7.5rem) + LOGO_W(6.5rem, dev 현행 스택형 로고 — 2026-09-03
+//   사용자 결정으로 신규 시안 가로형 로고 대신 유지, Header.tsx LOGO_W 주석 참고) = 2xl
+//   기준 로고 우측 끝까지의 안전영역. 72.75rem은 max-w-content 토큰(메가 컬럼이 속한
+//   좌표계 2의 폭, 이번 변경 대상 아님).
 //   nav는 이제 3존 flex(로고 shrink-0/nav flex-1/계정 shrink-0, QA 행327 결정)로 렌더되어
 //   이 상수를 직접 소비하지 않는다 — 계정 그룹 실폭에 따라 nav 시작 x가 유동적이라
 //   NAV_GUARD 같은 뷰포트 전용 계산과 원천적으로 안 맞기 때문이다(Header.tsx return 블록
@@ -38,7 +39,7 @@ import {
   PREMIUM_PROGRAM_PATH_PREFIX,
 } from "@/components/premium/premiumRoutesPaths";
 
-export const NAV_GUARD = "max(0px, calc(18.385rem - (100vw - 72.75rem) / 2))";
+export const NAV_GUARD = "max(0px, calc(14rem - (100vw - 72.75rem) / 2))";
 export const MEGA_GUARD = NAV_GUARD;
 export const NAV_CELL_W = "clamp(7.5rem, 8.3333vw, 10rem)";
 export const NAV_CELL_GAP = "clamp(2.25rem, 2.5vw, 3rem)";

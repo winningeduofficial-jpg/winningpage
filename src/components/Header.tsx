@@ -3,7 +3,6 @@ import { Menu } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import chevronIcon from "@/assets/header/chevron.svg";
-import headerLogoImg from "@/assets/header/logo.svg";
 import { useAuth } from "@/context/AuthProvider";
 import {
   MEGA_COL_GAP,
@@ -31,11 +30,14 @@ const MS_PER_DAY = 86400000;
 //   clamp() 가드 수식이 원인이라 좁은 데스크톱 구간에서 nav·계정 그룹이 실제로 겹쳤다 — 상세
 //   경위는 아래 return 블록 헤더 주석 참고). MEGA_GUARD·MEGA_COL_W·MEGA_COL_GAP(메가 패널
 //   컬럼 격자)은 이번 변경 대상이 아니라 기존 방식을 그대로 유지한다.
-// LOGO_W: 2026-09-03 신규 시안(header-footer-figma-2026-09.md §1)에서 가로형 로고
-//   (174.161×22, docs/figma-assets/header-logo.svg)로 다시 교체했다 — 스택형(QA 행320)은
-//   이번 시안 채택 전 임시 결정이었다. h-[1.375rem](22px)로 렌더하고 원본 비율
-//   (174.161/22.0002=7.9164)로 환산한 실렌더 폭이 10.885rem(174.16px)이다.
-const LOGO_W = "10.885rem";
+// LOGO_W: 2026-09-03 사용자 결정 — 로고는 dev 현행 그대로 유지한다(스택형, "W" 아래
+//   회사명, SVG viewBox 763:324, public/images/winning-logo-stacked.svg, QA 행320 근거).
+//   신규 시안(header-footer-figma-2026-09.md §1)의 가로형 로고(174×22)는 이미 정본이
+//   적용돼 있다는 사용자 판단에 따라 채택하지 않는다 — docs/figma-assets/header-logo.svg로
+//   교체했던 것을 되돌렸다. 헤더 높이(h-16=64px)에 맞춰 h-11(44px)로 렌더하고, 실렌더
+//   폭은 스택형 원본 비율(763/324)로 환산한 6.5rem(104px)이다. 로고 존 폭(NAV_GUARD 등
+//   nav 안전영역 계산)도 이 값을 그대로 쓴다(navigation.ts 참고).
+const LOGO_W = "6.5rem";
 // 프로모 카드 폭: 시안 §3 풀스케일 460px = 28.75rem(0.8 컴팩트 스케일 폐기, §8 사용자 결정).
 // 패딩 p-8(32px), 요소간 gap-8(32px), rounded-3xl(24px), 타이틀 26px Bold, 서브 18px Medium,
 // 이미지 프레임 282×188(17.625rem×11.75rem), CTA px-15 py-6(60px/24px) 모두 아래 카드 JSX에
@@ -728,9 +730,9 @@ export default function Header() {
           onMouseLeave={scheduleMegaClose}
         >
           <img
-            src={headerLogoImg}
+            src="/images/winning-logo-stacked.svg"
             alt="위닝에듀"
-            className="h-5.5 w-auto object-contain"
+            className="h-11 w-auto object-contain"
           />
         </Link>
 
