@@ -1,15 +1,23 @@
 import type { User } from "@supabase/supabase-js";
-import { Menu, Settings } from "lucide-react";
+import { Menu } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
-import megaPromoDiagnosisImg from "@/assets/mega/promo-diagnosis.png";
+import chevronIcon from "@/assets/header/chevron.svg";
+import headerLogoImg from "@/assets/header/logo.svg";
 import { useAuth } from "@/context/AuthProvider";
-import { MEGA_COL_GAP, MEGA_COL_W, MEGA_GUARD } from "@/data/navigation";
+import {
+  MEGA_COL_GAP,
+  MEGA_COL_W,
+  MEGA_GUARD,
+  NAV_CELL_GAP,
+  NAV_CELL_W,
+} from "@/data/navigation";
 import { cleanText, isSameObject, useNavGroups } from "@/hooks/useNavGroups";
 import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
 import type { Tables } from "@/types/database.types";
 import MobileNavDrawer from "./MobileNavDrawer";
+import { buildMyMenu, resolveMyMenuRole } from "./myMenuItems";
 
 const CSAT_DATE = "2026-11-19";
 const HEADER_PROFILE_CACHE_KEY = "winning-header-profile";
@@ -23,39 +31,30 @@ const MS_PER_DAY = 86400000;
 //   clamp() 가드 수식이 원인이라 좁은 데스크톱 구간에서 nav·계정 그룹이 실제로 겹쳤다 — 상세
 //   경위는 아래 return 블록 헤더 주석 참고). MEGA_GUARD·MEGA_COL_W·MEGA_COL_GAP(메가 패널
 //   컬럼 격자)은 이번 변경 대상이 아니라 기존 방식을 그대로 유지한다.
-// LOGO_W: 헤더 로고를 푸터형(스택형, "W" 아래 회사명, SVG viewBox 763:324)으로 교체했다
-//   (QA 행320 — 기존 가로형 winning-logo-horizontal.svg는 폭이 넓어 헤더처럼 높이가
-//   좁은 자리에서 클릭 영역이 어색했다). 헤더 높이(h-16=64px)에 맞춰 h-11(44px)로
-//   렌더하고, 실렌더 폭은 스택형 원본 비율(763/324)로 환산한 6.5rem(104px)이다.
-// 표준 상태(로그인/관리자, 배지+마이페이지+관리자+로그아웃) 우측 그룹 실측폭
-//   (devadmin@gmail.com, D-day 3자리 + 이름 max-w-5rem truncate 상한 당시 기준) = 31.176rem(498.8125px).
-//   이후 이름 truncate 상한을 제거해(이름 전체 노출 정책) 계정 그룹 폭은 이름 길이에 따라
-//   가변이 되었다 — 위 실측치는 상한 존재 당시 기준값이며, 긴 이름에서의 유동 gap·90rem
-//   전환점 상호작용은 Playwright 실측으로 별도 검증한다.
-const LOGO_W = "6.5rem";
-// 프로모 카드 폭: Figma 1483:926 실측 460×478 → 컴팩트 스케일 0.8 적용 = 368px = 23rem.
-// (get_design_context 1483:926 실값 기준으로 재확인 완료 — 패딩 p-[32px], 요소간 gap-[32px],
-// radius-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px, 버튼 68px 도 모두
-// 동일 0.8 스케일로 환산해 아래 카드 JSX에 반영했다.)
-const MEGA_PROMO_W = "23rem";
-// 프로모 카드 콘텐츠(로그인 상태별 분기, 시안 3153:5209 로그인된 메가헤더 / 카드 프레임
-// 3144:2883 — 크기·간격·그림자·타이포는 비로그인 카드(1483:926)와 완전히 동일해 상수는
-// 그대로 재사용하고, 콘텐츠(타이틀/서브/이미지/CTA)만 이 두 상수 객체로 분기한다.
+// LOGO_W: 2026-09-03 신규 시안(header-footer-figma-2026-09.md §1)에서 가로형 로고
+//   (174.161×22, docs/figma-assets/header-logo.svg)로 다시 교체했다 — 스택형(QA 행320)은
+//   이번 시안 채택 전 임시 결정이었다. h-[1.375rem](22px)로 렌더하고 원본 비율
+//   (174.161/22.0002=7.9164)로 환산한 실렌더 폭이 10.885rem(174.16px)이다.
+const LOGO_W = "10.885rem";
+// 프로모 카드 폭: 시안 §3 풀스케일 460px = 28.75rem(0.8 컴팩트 스케일 폐기, §8 사용자 결정).
+// 패딩 p-8(32px), 요소간 gap-8(32px), rounded-3xl(24px), 타이틀 26px Bold, 서브 18px Medium,
+// 이미지 프레임 282×188(17.625rem×11.75rem), CTA px-15 py-6(60px/24px) 모두 아래 카드 JSX에
+// 실값 그대로 반영했다.
+const MEGA_PROMO_W = "28.75rem";
+// 프로모 카드는 비로그인 상태에서만 노출한다(§6-4 사용자 결정 — 로그인 시 카드 자리에
+// 6번째 MY 컬럼이 대신 들어간다, 아래 return 블록 참고). 로그인 전용 콘텐츠(구
+// MEGA_PROMO_MEMBER)는 폐기했다.
+// subtitle은 시안 §3에 두 줄로 고정돼 있어(줄바꿈 위치까지 지정) 배열로 두고 아래 JSX에서
+// 줄마다 <br/>로 렌더한다.
 const MEGA_PROMO_GUEST = {
   title: "흔들리지 않는 학습·진로 관리의 시작!",
-  subtitle:
-    "학습진단, 목표관리, 수행, 탐구, 성장설계까지 완벽히 점검해 드립니다",
+  subtitleLines: [
+    "학습진단, 목표관리, 수행, 탐구, 성장설계까지",
+    "완벽히 점검해 드립니다",
+  ],
   image: "/images/mega-menu-promo.png",
   ctaLabel: "로그인하기",
   ctaTo: "/login",
-};
-const MEGA_PROMO_MEMBER = {
-  title: "흔들리지 않는 학습·진로 관리의 시작!",
-  subtitle:
-    "학습진단, 목표관리, 수행, 탐구, 성장설계까지 완벽히 점검해 드립니다",
-  image: megaPromoDiagnosisImg,
-  ctaLabel: "학습진단 하기",
-  ctaTo: "/services/learning-diagnosis",
 };
 // 메가 회색 존(#F9FAFB — Figma 1483:846 get_design_context 실값, 기존 #F7F7F7 추정치 폐기):
 // 프로모 카드(MEGA_PROMO_W)를 상하좌우 정확히 동일한 2.5rem(p-10 — 기존 카드 상단 여백
@@ -111,6 +110,13 @@ function getMemberLabel(profile: Profile | null) {
   if (raw === "mentor" || raw === "teacher" || raw === "멘토" || raw === "교사")
     return "멘토회원";
   return raw.endsWith("회원") ? raw : `${raw}회원`;
+}
+
+// 이름 라벨 truncate(§6-6 사용자 결정, 이름 max 5자) — 계정 그룹 폭 겹침 방지(QA 행327)
+// 이후 폐지됐던 이름 truncate 상한을 헤더 이름 칩에 한해 다시 도입한다.
+function truncateDisplayName(name: string, max = 5) {
+  const trimmed = name.trim();
+  return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
 }
 
 function readCachedProfile(): Profile | null {
@@ -258,6 +264,15 @@ const MEGA_CLOSE_DELAY_MS = 100;
 const MEGA_PANEL_CLOSING_MS = 120;
 const CSAT_DDAY_REFRESH_MS = 60 * 60 * 1000;
 const LOGOUT_FALLBACK_TIMEOUT_MS = 1800;
+// activeMega는 원래 "어떤 nav 그룹이 열렸는가"만 표현했다. §8 사용자 결정으로 로고·이름
+// 칩·D-day 배지·chevron도 패널을 여는데, 이 요소들은 특정 nav 그룹을 강조하면 안 된다
+// (강조 없이 패널만 오픈). 이 sentinel을 activeMega에 넣으면 어떤 group.title과도 일치하지
+// 않아 패널은 열리되(megaPanelPhase 이펙트는 truthy 값만 본다) nav 항목 하이라이트는 전부
+// 꺼진다 — 기존 열림/닫힘 타이머·이펙트를 그대로 재사용할 수 있는 최소 변경이다.
+const MEGA_GENERIC_TRIGGER = "__mega-generic__";
+// 계정 그룹 버튼(로그인/회원가입/로그아웃) 폭 — 시안 §1 w 90px(5.625rem), 1920 기준.
+// nav 셀과 동일한 1440~1919 clamp(vw) 비례 축소 원칙을 적용한다(90*1440/1920=67.5px).
+const ACCOUNT_BTN_W_CLAMP = "clamp(4.21875rem, 4.6875vw, 5.625rem)";
 
 export default function Header() {
   // 세션 구독 자체는 AuthProvider(전역 단일 구독, src/context/AuthProvider.tsx)에
@@ -555,69 +570,103 @@ export default function Header() {
   const shouldShowLoggedInHeader = isLoggedIn && hasProfile;
   const displayName = cleanText(profile?.name) || "";
   const memberLabel = getMemberLabel(profile);
-  // isParentMember는 MobileNavDrawer의 드로어 마이페이지 메뉴(buildMyMenu) 분기에
-  // 쓰인다 — 헤더 데스크톱 쪽은 QA 행241로 이름 칩 자체가 /mypage 링크가 돼 더는 쓰지 않는다.
-  const isParentMember =
-    cleanText(profile?.member_type).toLowerCase() === "parent";
-  const isAdmin = cleanText(profile?.role).toLowerCase() === "admin";
+  // MY 메뉴 역할 판정·목록은 myMenuItems.ts(단일 소스, §6-3 사용자 결정)를 그대로 쓴다 —
+  // 데스크톱 메가 패널 6번째 컬럼(아래 return 블록)과 모바일 드로어(MobileNavDrawer)가
+  // 이 두 값을 공유한다. profile이 아직 로딩 중이어도 안전한 기본값(student)으로
+  // resolveMyMenuRole이 수렴하므로 그냥 항상 계산해 둔다.
+  const myMenuRole = resolveMyMenuRole({
+    role: profile?.role ?? null,
+    memberType: profile?.member_type ?? null,
+  });
+  const myMenuItems = buildMyMenu(myMenuRole);
 
-  // 메가 패널 콘텐츠(모든 navGroups 컬럼 + 프로모 카드)는 activeMega와 무관하게 항상 동일하다
-  // (어떤 그룹을 hover해도 5개 컬럼 전체가 함께 보이는 구조 — activeMega는 nav 버튼 하이라이트와
-  // 패널 표시 여부만 결정한다). 그래서 패널 자체는 open 여부(megaPanelPhase)만으로 gate하면 되고,
-  // 그룹별 콘텐츠 스위칭 로직은 불필요하다.
+  // 메가 패널 콘텐츠(모든 navGroups 컬럼)는 activeMega와 무관하게 항상 동일하다(어떤
+  // 그룹을 hover해도 5개 컬럼 전체가 함께 보이는 구조 — activeMega는 nav 버튼 하이라이트와
+  // 패널 표시 여부만 결정한다). 그래서 패널 자체는 open 여부(megaPanelPhase)만으로 gate하면
+  // 되고, 그룹별 콘텐츠 스위칭 로직은 불필요하다.
   const isMegaPanelOpen = megaPanelPhase === "open";
   const isMegaPanelClosing = megaPanelPhase === "closing";
-  // 프로모 카드 콘텐츠는 프로필 로딩 완료 여부(shouldShowLoggedInHeader)와 무관하게
-  // "로그인했는가"만으로 2분기한다(사용자 확정).
-  const megaPromo = isLoggedIn ? MEGA_PROMO_MEMBER : MEGA_PROMO_GUEST;
+  // 우측 회색존 콘텐츠(프로모 카드 vs 6번째 MY 컬럼) 분기 — 프로필 로딩 완료 여부
+  // (shouldShowLoggedInHeader)와 무관하게 "로그인했는가"만으로 2분기한다(사용자 확정,
+  // §6-4). 로그인 전용 프로모(구 MEGA_PROMO_MEMBER)는 폐기했다 — 로그인 시 카드 자리에
+  // MY 컬럼이 대신 들어간다.
+  const showMegaMyColumn = isLoggedIn;
+  const megaPromo = MEGA_PROMO_GUEST;
 
   // 계정 그룹(로그인 로딩 placeholder / 로그인+프로필 완료 / 로그인만·프로필 로딩 중 /
   // 비로그인 4분기)을 별도 노드로 뽑아둔다 — 아래 헤더 행에서 실제로 그리는 것 외에,
   // return 블록 헤더 주석에 적은 이유로 헤더 nav 존의 "실제로 남는 폭"을 구하기 위해
   // 같은 내용을 그대로 한 번 더(보이지 않게) 렌더해야 하기 때문이다.
   // QA 행241 — 우측 상단 "마이페이지" 단독 버튼을 없애고, 이름 칩 자체를 /mypage 링크로
-  // 바꾼다(호버 시 언더라인+색 변화, aria-label로 목적지 명시). 관리자 링크·로그아웃은 유지.
+  // 바꾼다(호버 시 언더라인+색 변화, aria-label로 목적지 명시).
+  // §6-1(2026-09-03 사용자 결정) — 관리자 단독 버튼("관리자" 링크+Settings 아이콘)을
+  // 없앤다. 관리자 구분은 메가 패널 MY 컬럼의 "관리자 메뉴" 항목(buildMyMenu)으로만 한다.
+  // §8 — 로그인/로그아웃/회원가입 버튼을 제외한 계정 그룹 요소(D-day 배지·이름 칩·chevron)는
+  // hover 시 메가 패널을 강조 없이 연다(MEGA_GENERIC_TRIGGER).
   const accountGroupNode = (() => {
     if (!isAuthReady)
       return <div className="h-8 w-[16rem]" aria-hidden="true" />;
     if (shouldShowLoggedInHeader)
       return (
         <>
-          <Link
-            to="/mypage"
-            aria-label="마이페이지"
-            className="flex shrink-0 items-center rounded-lg bg-[#d9d9d9] px-3 py-1.5 text-sm font-medium text-primary whitespace-nowrap transition hover:text-[#012347] hover:underline"
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: hover 전용 메가 패널
+              오픈 트리거(§8)다 — 실제 조작 가능한 컨트롤은 안쪽 이름 칩(Link)뿐이고, 이
+              래퍼는 키보드 등가가 필요 없는 순수 호버 감지 영역이다(포커스 이동은 이름
+              칩 자체의 onFocus 등가가 필요 없다 — 마우스 전용 패널 프리뷰라 Tab만으로도
+              이름 칩까지 정상 도달한다). */}
+          <div
+            className="flex shrink-0 items-center gap-3"
+            onMouseEnter={() => {
+              clearMegaCloseTimer();
+              setActiveMega(MEGA_GENERIC_TRIGGER);
+            }}
+            onMouseLeave={scheduleMegaClose}
           >
-            {displayName}님{memberLabel ? ` ${memberLabel}` : ""}
-          </Link>
+            <span className="shrink-0 whitespace-nowrap rounded-sm bg-primary px-2.5 py-1 text-xs text-white">
+              {csatDDay}
+            </span>
 
-          {isAdmin && (
-            <Link
-              to="/admin"
-              className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg border border-line bg-white px-4 py-1.5 text-sm font-medium leading-5 text-[#1e293b] transition hover:border-primary hover:text-primary"
-            >
-              <Settings size={14} />
-              관리자
-            </Link>
-          )}
+            <div className="flex shrink-0 items-center gap-2">
+              <Link
+                to="/mypage"
+                aria-label="마이페이지"
+                className="flex shrink-0 items-center whitespace-nowrap py-1.5 text-sm font-medium text-primary transition hover:text-[#012347] hover:underline"
+              >
+                {truncateDisplayName(displayName)}님
+                {memberLabel ? ` ${memberLabel}` : ""}
+              </Link>
+
+              <img
+                src={chevronIcon}
+                alt=""
+                aria-hidden="true"
+                data-testid="header-mega-chevron"
+                className={`h-6 w-6 shrink-0 transition-transform duration-200 ${
+                  isMegaPanelOpen ? "rotate-90" : "rotate-0"
+                }`}
+              />
+            </div>
+          </div>
 
           <button
             type="button"
             onClick={handleLogout}
-            className="inline-flex shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+            style={{ width: ACCOUNT_BTN_W_CLAMP }}
+            className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-surface-04 px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#ebebef]"
           >
             로그아웃
           </button>
         </>
       );
     if (isLoggedIn)
-      // 프로필(이름) 로딩 중이라 아직 이름 칩을 그릴 수 없다 — 마이페이지 단독 버튼도
-      // QA 행241로 제거 대상이라, 이 분기는 로그아웃만 노출한다(이름 도착 즉시 위 분기로 전환).
+      // 프로필(이름) 로딩 중이라 아직 이름 칩을 그릴 수 없다 — 이 분기는 로그아웃만
+      // 노출한다(이름 도착 즉시 위 분기로 전환).
       return (
         <button
           type="button"
           onClick={handleLogout}
-          className="inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-4 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+          style={{ width: ACCOUNT_BTN_W_CLAMP }}
+          className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-surface-04 px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#ebebef]"
         >
           로그아웃
         </button>
@@ -626,14 +675,16 @@ export default function Header() {
       <>
         <Link
           to="/login"
-          className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
+          style={{ width: ACCOUNT_BTN_W_CLAMP }}
+          className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
         >
           로그인
         </Link>
 
         <Link
           to="/signup"
-          className="inline-flex h-8 w-22.5 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+          style={{ width: ACCOUNT_BTN_W_CLAMP }}
+          className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
         >
           회원가입
         </Link>
@@ -643,54 +694,60 @@ export default function Header() {
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white">
-      {/* (QA 행327 재작업) 로고·nav·계정 그룹을 max-w-[120rem] 밴드 하나를 공유하는 3존 flex
-          행(로고 shrink-0 / nav flex-1 / 계정 그룹 shrink-0)에 배치한다.
-          옛 구조는 로고+계정 그룹(max-w-[120rem] 밴드)과 nav(max-w-content 72.75rem 컨텐츠
-          영역, header를 containing block 삼아 absolute로 위에 겹쳐 그림)가 서로 다른 축으로
-          독립 중앙정렬됐고, nav 시작 위치는 뷰포트 폭만 보는 clamp() 가드 수식(NAV_GUARD)으로
-          보정했다. 그런데 계정 그룹 실폭은 로그인 상태·이름 길이에 따라 달라지는데
-          NAV_GUARD는 그 실폭을 전혀 모르는 수식이라, 좁은 데스크톱 구간(1440~1600px대,
-          관리자처럼 계정 그룹이 넓은 상태)에서 nav 마지막 항목과 계정 그룹이 실제로 겹쳤다
-          (Playwright로 재현: 1440px 폭·관리자 계정 그룹 기준 nav 우측 끝이 계정 그룹 좌측
-          안으로 약 84px 파고듦).
+      {/* (QA 행327 재작업, 2026-09-03 신규 시안 유지) 로고·nav·계정 그룹을 max-w-[120rem]
+          밴드 하나를 공유하는 3존 flex 행(로고 shrink-0 / nav flex-1 / 계정 그룹 shrink-0)에
+          배치한다. 옛 구조는 로고+계정 그룹(max-w-[120rem] 밴드)과 nav(max-w-content 72.75rem
+          컨텐츠 영역)가 서로 다른 축으로 독립 중앙정렬됐고, nav 시작 위치는 뷰포트 폭만 보는
+          clamp() 가드 수식(NAV_GUARD)으로 보정했다. 그런데 계정 그룹 실폭은 로그인
+          상태·이름 길이에 따라 달라지는데 NAV_GUARD는 그 실폭을 전혀 모르는 수식이라, 좁은
+          데스크톱 구간(1440~1600px대)에서 nav 마지막 항목과 계정 그룹이 실제로 겹쳤다
+          (Playwright로 재현: 1440px 폭 기준 nav 우측 끝이 계정 그룹 좌측 안으로 파고듦).
           3존 flex는 계정 그룹이 실제로 차지한 폭만큼 브라우저가 자동으로 nav 존(flex-1) 폭을
           줄여주므로 상태·이름 길이와 무관하게 항상 "남는 공간만" nav가 차지해 구조적으로
-          겹침이 불가능하다. nav 항목도 고정폭 셀(옛 NAV_CELL_W) 대신 텍스트 자연폭을 쓴다 —
-          고정 100px 셀은 실제 텍스트("서비스" 등)보다 넓어 불필요하게 공간을 더 요구했었다.
-          항목 사이 gap은 nav 존을 @container로 감싸 존 폭이 좁아지면 단계적으로 줄어들게
-          했다(gap은 flexbox가 자동으로 줄여주지 않는 유일한 값이라 컨테이너 쿼리로 직접
-          반응시켰다) — 0729 시안 gap 48px(3rem, gap-12)은 존이 넉넉한 구간(@[48rem]=768px
-          이상)에서만 적용되고, 더 좁으면 24px(gap-6)로 축소된다. nav에 min-w-0 +
-          overflow-hidden도 추가해, 있을 수 없는 극단값(예: 매우 긴 이름)에서도 겹침 대신
-          nav 끝쪽이 잘리는 쪽으로만 실패하게 안전장치를 뒀다.
-          메가 패널 컬럼(MEGA_GUARD/MEGA_COL_W 기반, 아래)은 이번 변경 대상이 아니다 — nav
-          항목이 고정폭에서 자연폭으로 바뀌어 메가 컬럼과의 좌측선 공유가 더 이상 항상
-          보장되진 않지만, 메가 패널은 호버로 뜨는 별도 레이어라 계정 그룹과 공간을 다투지
-          않아 QA 대상 겹침과는 무관하고 "러프 디자인 구현" 범위에서 허용했다. */}
-      <div className="mx-auto flex h-16 max-w-[120rem] items-center gap-6 px-8 2xl:px-30">
+          겹침이 불가능하다 — 이번 시안(header-footer-figma-2026-09.md §1)이 nav 항목을 다시
+          고정폭(160px/10rem)으로 되돌렸지만, 셀 자체가 flex-1 존 안에서 justify-center로
+          중앙 정렬되므로(아래) 겹침 방지 구조는 그대로 유지된다. 고정폭·gap은 1920(120rem)
+          이상에서 시안 실값(10rem/3rem)에 도달하고 desktop 하한(90rem)까지 clamp(vw)로
+          비례 축소한다(§7 가정, NAV_CELL_W/NAV_CELL_GAP 정의는 navigation.ts 참고). nav에
+          min-w-0 + overflow-hidden도 유지해, 있을 수 없는 극단값에서도 겹침 대신 nav
+          끝쪽이 잘리는 쪽으로만 실패하게 안전장치를 뒀다.
+          메가 패널 컬럼(MEGA_GUARD/MEGA_COL_W 기반, 아래)은 nav와 같은 폭·gap 상수를
+          공유하지만 서로 다른 좌표계(nav=max-w-[120rem] 밴드, 메가 컬럼=mx-auto
+          max-w-content)라 완벽한 좌측선 정렬은 보장되지 않는다 — "러프 디자인 구현"
+          범위에서 허용된 편차다(navigation.ts 상단 주석 참고). */}
+      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between gap-6 px-8 2xl:px-30">
         <Link
           to="/"
           className="flex shrink-0 items-center"
           style={{ width: LOGO_W }}
           onClick={() => setActiveMega(null)}
+          onMouseEnter={() => {
+            clearMegaCloseTimer();
+            setActiveMega(MEGA_GENERIC_TRIGGER);
+          }}
+          onMouseLeave={scheduleMegaClose}
         >
           <img
-            src="/images/winning-logo-stacked.svg"
+            src={headerLogoImg}
             alt="위닝에듀"
-            className="h-11 w-auto object-contain"
+            className="h-5.5 w-auto object-contain"
           />
         </Link>
 
         <nav
-          className="hidden min-w-0 flex-1 overflow-hidden @container desktop:block"
+          className="hidden min-w-0 flex-1 overflow-hidden desktop:block"
           onMouseEnter={clearMegaCloseTimer}
           onMouseLeave={scheduleMegaClose}
         >
-          <div className="flex items-center justify-center gap-6 @[48rem]:gap-12">
+          <div
+            className="flex items-center justify-center"
+            style={{ gap: NAV_CELL_GAP }}
+          >
             {navGroups.map((group) => {
               const hasDropdown =
                 Array.isArray(group.items) && group.items.length > 0;
               const isPathActive = activePathTitle === group.title;
+              const isOpenHighlight = activeMega === group.title;
 
               return (
                 <button
@@ -699,6 +756,7 @@ export default function Header() {
                   aria-haspopup="true"
                   aria-expanded={activeMega === group.title}
                   aria-current={isPathActive ? "page" : undefined}
+                  style={{ width: NAV_CELL_W }}
                   onFocus={() => {
                     clearMegaCloseTimer();
                     hasDropdown && setActiveMega(group.title);
@@ -711,12 +769,12 @@ export default function Header() {
                         prev === group.title ? null : group.title,
                       );
                   }}
-                  className={`shrink-0 cursor-default whitespace-nowrap py-4 text-base leading-[1.4] tracking-[-0.02em] transition ${
-                    isPathActive
+                  className={`shrink-0 cursor-default whitespace-nowrap py-4 text-left text-base leading-[1.4] tracking-[-0.02em] transition ${
+                    isPathActive || isOpenHighlight
                       ? "font-semibold text-primary"
-                      : activeMega === group.title
-                        ? "font-medium text-primary"
-                        : "font-medium text-ink-header hover:text-primary"
+                      : isMegaPanelOpen
+                        ? "font-medium text-ink"
+                        : "font-medium text-ink-header"
                   }`}
                 >
                   {group.title}
@@ -734,9 +792,9 @@ export default function Header() {
             aria-expanded={mobileNavOpen}
             aria-controls="mobile-nav-drawer"
             aria-label="전체 메뉴 열기"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-line bg-white text-[#1e293b] transition hover:border-primary hover:text-primary desktop:hidden"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-04 text-primary transition hover:bg-[#ebebef] desktop:hidden"
           >
-            <Menu size={22} />
+            <Menu size={18} />
           </button>
 
           <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
@@ -794,26 +852,21 @@ export default function Header() {
                 겹쳐 그린다. absolute 오버레이 대신 grid 겹침을 쓴 이유: 두 레이어 중 더 큰 쪽이
                 패널의 자연 높이(hug)를 그대로 결정하게 하기 위함(absolute는 문서 흐름에서 빠져
                 높이에 기여하지 못한다). */}
-        <div className="grid">
-          {/* (QA 행327 재작업 이후) 메가 컬럼은 여전히 옛 좌표계 2(72.75rem 컨텐츠 영역,
-                  mx-auto max-w-content px-8 + MEGA_GUARD marginLeft)를 그대로 쓴다 — 위 nav
-                  행은 고정폭 셀에서 텍스트 자연폭 + 반응형 gap으로 바뀌어(return 블록 헤더
-                  주석 참고) 더는 "컬럼 0의 시작 x = nav 셀 0의 텍스트 시작 x"가 항상 보장되진
-                  않는다(뷰포트·계정 그룹 폭에 따라 nav 항목 x가 유동적이라 고정폭 컬럼과
-                  매 순간 좌측선을 공유할 방법이 없다). 메가 패널은 호버로 뜨는 별도 레이어라
-                  계정 그룹과 공간을 다투지 않아 QA 대상 겹침(행327)과는 무관하고, 정렬 오차는
-                  "러프 디자인 구현" 범위에서 의도적으로 허용했다 — 시각적으로는 여전히 nav
-                  아래 대체로 같은 위치에 컬럼이 뜬다(1920 기준 넉넉한 gap 구간에서는 거의 일치).
-                  컬럼 폭은 8.75rem(140px) 그대로 유지 — "국제・해외고 국내대 입학컨설팅" 등
-                  긴 서브아이템 라벨이 줄바꿈되는 것을 막기 위함이며, 컬럼 gap 0.5rem(8px)도
-                  변경하지 않았다(자세한 계산은 src/data/navigation.js 상단 주석 참고).
-                  타이포: Figma 1483:882 get_design_context 실값 기준 — 컬럼 폭(140px)이 이미
-                  시안(132px)과 거의 1:1이라 0.8 컴팩트 스케일 없이 실측값을 그대로 쓴다.
-                  아이템 14px/#525252/Pretendard Medium, 행간 gap-[12px]=0.75rem(gap-3),
-                  행 line-height 20px=leading-5.
-                  컬럼 상단 그룹 타이틀(서비스/프리미엄/...)은 바로 위 nav 아이템과 문구가
-                  완전히 중복되어 제거했다 — 첫 아이템이 기존 타이틀 자리(패널 상단 py-6=1.5rem)
-                  에서 바로 시작하며, 타이틀이 쓰던 간격은 패널 상단 패딩이 그대로 흡수한다. */}
+        <div
+          className="grid"
+          style={shouldShowLoggedInHeader ? { minHeight: "35rem" } : undefined}
+        >
+          {/* (QA 행327 재작업 이후, 2026-09-03 신규 시안 §2 반영) 메가 컬럼은 여전히 옛
+                  좌표계 2(72.75rem 컨텐츠 영역, mx-auto max-w-content px-8 + MEGA_GUARD
+                  marginLeft)를 그대로 쓴다. nav가 고정폭 셀로 복귀하며 폭·gap 상수는 nav와
+                  다시 통일했지만(MEGA_COL_W=NAV_CELL_W, navigation.ts 참고), 좌표계 자체는
+                  여전히 다른 축이라(nav=max-w-[120rem] 밴드, 컬럼=mx-auto max-w-content)
+                  완벽한 좌측선 정렬은 보장되지 않는다 — "러프 디자인 구현" 범위에서 의도적으로
+                  허용했다.
+                  컬럼 제목을 재도입했다(시안 §2 — 이전엔 nav 아이템과 중복돼 제거했었으나
+                  이번 시안은 제목을 명시적으로 요구한다): 14px SemiBold #808080(text-ink-natural)
+                  tracking -0.02em leading-5, 제목-아이템 gap 20px(mt-5). 아이템은 14px
+                  Medium #525252(text-ink), 아이템 간 gap 16px(gap-4). */}
           <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
             <div
               className="grid"
@@ -824,94 +877,123 @@ export default function Header() {
               }}
             >
               {navGroups.map((group) => (
-                <div
-                  key={`mega-col-${group.title}`}
-                  className="flex flex-col gap-3"
-                >
-                  {group.items.map((item) => {
-                    const isItemActive = item.to === pathname;
-                    return (
-                      <Link
-                        key={`mega-${group.title}-${item.to}-${item.label}`}
-                        to={item.to}
-                        onClick={() => setActiveMega(null)}
-                        aria-current={isItemActive ? "page" : undefined}
-                        className={`break-keep text-sm leading-5 transition hover:text-primary ${
-                          isItemActive
-                            ? "font-semibold text-primary"
-                            : "font-medium text-ink"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
+                <div key={`mega-col-${group.title}`} className="flex flex-col">
+                  <p className="text-sm font-semibold leading-5 tracking-[-0.02em] text-ink-natural">
+                    {group.title}
+                  </p>
+                  <div className="mt-5 flex flex-col gap-4">
+                    {group.items.map((item) => {
+                      const isItemActive = item.to === pathname;
+                      return (
+                        <Link
+                          key={`mega-${group.title}-${item.to}-${item.label}`}
+                          to={item.to}
+                          onClick={() => setActiveMega(null)}
+                          aria-current={isItemActive ? "page" : undefined}
+                          className={`break-keep text-sm leading-5 transition hover:text-primary ${
+                            isItemActive
+                              ? "font-semibold text-primary"
+                              : "font-medium text-ink"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* 좌표계 1(1920 밴드): 회색 존 + 프로모 카드. 헤더 Band 1(로고+계정 그룹)과 동일한
-                  mx-auto max-w-[120rem] 축을 공유한다. 컬럼 레이어와 같은 grid cell에 겹치므로
-                  바깥 겹은 pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 카드 자체만
-                  pointer-events-auto로 되살린다(헤더 nav 오버레이와 동일한 기법). */}
+          {/* 좌표계 1(1920 밴드): 회색 존 + (게스트) 프로모 카드 또는 (로그인) 6번째 MY 컬럼
+                  (§6-4 사용자 결정 — 로그인 시 프로모 카드 대신 MY 메뉴가 회색존 안에 들어간다,
+                  회색존 자체는 로그인 여부와 무관하게 항상 유지). 헤더 Band 1(로고+계정 그룹)과
+                  동일한 mx-auto max-w-[120rem] 축을 공유한다. 컬럼 레이어와 같은 grid cell에
+                  겹치므로 바깥 겹은 pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 안쪽
+                  콘텐츠만 pointer-events-auto로 되살린다(헤더 nav 오버레이와 동일한 기법). */}
           <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
-            {/* 회색 존: 카드를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기 박스
-                    (파일 상단 상수 주석 참고). ml-auto로 밴드 래퍼 바깥쪽 우측 끝(패딩 이전)에
+            {/* 회색 존: 안쪽 콘텐츠를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기
+                    박스(파일 상단 상수 주석 참고). ml-auto로 밴드 래퍼 바깥쪽 우측 끝(패딩 이전)에
                     붙인다 — 뷰포트가 120rem(1920px)을 넘으면 밴드 자체가 중앙 정렬되며 캡 안쪽에
-                    서므로 존 우측 끝은 항상 밴드 우측 끝과 일치한다. 박스 자연 높이(카드+5rem)가
-                    grid cell 높이에 기여해 컬럼이 더 짧아도 패널이 존 높이만큼 확보되고, 컬럼이
-                    더 길면 존은 상단 고정. 색상 #f9fafb는 Figma 1483:846 실측값.
-                    translateX(0.5rem): 존 박스의 p-10(2.5rem)은 헤더 Band 1(px-8=2rem)보다
-                    0.5rem(8px) 두꺼워 카드 우측 끝이 계정 그룹 우측 끝보다 8px 안쪽에 있었다.
-                    4방향 동일 패딩(p-10)은 그대로 두고 박스 자체의 우측 기준점만 8px 우측으로
-                    옮겨(밴드 우측 끝을 8px 넘어서도록) 카드 우측 끝을 계정 그룹 축에 정확히
-                    맞춘다 — 레이아웃(grid/폭)에는 영향 없는 순수 시각 보정. */}
+                    서므로 존 우측 끝은 항상 밴드 우측 끝과 일치한다. 색상 #f9fafb는 Figma
+                    1483:846 실측값. translateX(0.5rem): 존 박스의 p-10(2.5rem)은 헤더 Band 1
+                    (px-8=2rem)보다 0.5rem(8px) 두꺼워 안쪽 콘텐츠 우측 끝이 계정 그룹 우측
+                    끝보다 8px 안쪽에 있었다 — 박스 자체의 우측 기준점만 8px 우측으로 옮겨
+                    (밴드 우측 끝을 8px 넘어서도록) 계정 그룹 축에 맞춘다. */}
             <div
               className="pointer-events-none ml-auto w-fit bg-surface-footer p-10"
               style={{ transform: "translateX(0.5rem)" }}
             >
-              {/* 프로모 카드: 콘텐츠 하드코딩(로그인 상태별 분기, megaPromo). 추후 admin에서
-                      편집 가능한 배너로 전환 후보.
-                      Figma 1483:926 get_design_context 실측(460×478, p-[32px], gap-[32px],
-                      rounded-[24px], 타이틀 26px Bold, 서브 18px Medium, 일러 컨테이너 188px,
-                      버튼 68px/rounded-[16px]/20px SemiBold) 기준 0.8 컴팩트 스케일 환산.
-                      쉐도우는 실측 이펙트 그대로 적용: DROP_SHADOW(0,4,16,rgba(0,0,0,.06)) +
-                      inset 하이라이트(회색 존 위에 얹힌 카드의 유리질감 재현), 기존
-                      shadow-[0_18px_45px_...]는 패널 전체 쉐도우를 잘못 재사용한 값이었다.
-                      로그인 분기 근거: 시안 3153:5209(로그인된 메가헤더) — 카드 프레임 3144:2883은
-                      비로그인 카드(1483:926)와 크기·간격·그림자·타이포가 완전히 동일해 위 스케일
-                      값은 그대로 재사용하고, 콘텐츠(타이틀/서브/이미지/CTA)만 megaPromo
-                      (MEGA_PROMO_GUEST/MEGA_PROMO_MEMBER)로 교체한다. */}
-              <div
-                className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-6 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
-                style={{ width: MEGA_PROMO_W }}
-              >
+              {showMegaMyColumn ? (
+                // 6번째 MY 컬럼(시안 §2 "로그인된" variant, w 120px). 제목은 다른 컬럼과
+                // baseline을 맞추기 위해 빈 줄(&nbsp;)만 넣는다 — 시안 원문 그대로.
                 <div
-                  className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(255,255,255,0.24),inset_0px_-0.9px_0px_0px_rgba(0,0,0,0.04)]"
-                  aria-hidden="true"
-                />
-                <p className="text-xl font-bold leading-[1.3] tracking-[-0.02em] text-[#1e293b]">
-                  {megaPromo.title}
-                </p>
-                <p className="mt-2 break-keep text-sm leading-[1.4] text-ink">
-                  {megaPromo.subtitle}
-                </p>
-
-                <img
-                  src={megaPromo.image}
-                  alt=""
-                  className="mx-auto mt-6 h-38 w-auto object-contain"
-                />
-
-                <Link
-                  to={megaPromo.ctaTo}
-                  onClick={() => setActiveMega(null)}
-                  className="mt-6 flex h-14 items-center justify-center rounded-xl bg-primary text-base font-semibold text-white transition hover:bg-[#012347]"
+                  className="pointer-events-auto flex flex-col"
+                  style={{ width: "7.5rem" }}
                 >
-                  {megaPromo.ctaLabel}
-                </Link>
-              </div>
+                  <p
+                    className="text-sm font-semibold leading-5 tracking-[-0.02em] text-ink-natural"
+                    aria-hidden="true"
+                  >
+                    &nbsp;
+                  </p>
+                  <div className="mt-5 flex flex-col gap-4">
+                    {myMenuItems.map((item) => (
+                      <Link
+                        key={item.label}
+                        to={item.to}
+                        onClick={() => setActiveMega(null)}
+                        className="break-keep text-sm font-medium leading-5 text-ink transition hover:text-primary"
+                      >
+                        {item.label}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                // 프로모 카드: 콘텐츠 하드코딩(MEGA_PROMO_GUEST). 추후 admin에서 편집 가능한
+                // 배너로 전환 후보. 시안 §3 풀스케일 실값(460×460, p-8, gap-8, rounded-3xl,
+                // 타이틀 26px Bold, 서브 18px Medium, 이미지 프레임 282×188, CTA px-15 py-6
+                // rounded-2xl 20px SemiBold) 그대로 반영. 쉐도우는 기존 3중 그림자 유지
+                // (DROP_SHADOW 0/4/16 rgba(0,0,0,.06) + inset 하이라이트 2종).
+                <div
+                  className="pointer-events-auto relative shrink-0 rounded-3xl bg-white p-8 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
+                  style={{ width: MEGA_PROMO_W }}
+                >
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(255,255,255,0.24),inset_0px_-0.9px_0px_0px_rgba(0,0,0,0.04)]"
+                    aria-hidden="true"
+                  />
+                  <div className="flex flex-col gap-2.5">
+                    <p className="text-2xl font-bold leading-[1.3] tracking-[-0.02em] text-ink">
+                      {megaPromo.title}
+                    </p>
+                    <p className="break-keep text-lg font-medium leading-[1.4] text-ink">
+                      {megaPromo.subtitleLines[0]}
+                      <br />
+                      {megaPromo.subtitleLines[1]}
+                    </p>
+                  </div>
+
+                  <div className="relative mx-auto mt-8 h-[11.75rem] w-[17.625rem] overflow-hidden">
+                    <img
+                      src={megaPromo.image}
+                      alt=""
+                      className="absolute left-0 w-full max-w-none object-cover"
+                      style={{ height: "120.21%", top: "-10.64%" }}
+                    />
+                  </div>
+
+                  <Link
+                    to={megaPromo.ctaTo}
+                    onClick={() => setActiveMega(null)}
+                    className="mt-8 flex items-center justify-center whitespace-nowrap rounded-2xl bg-primary px-15 py-6 text-xl font-semibold text-white transition hover:bg-[#012347]"
+                  >
+                    {megaPromo.ctaLabel}
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -925,9 +1007,8 @@ export default function Header() {
         isLoggedIn={isLoggedIn}
         displayName={displayName}
         memberLabel={memberLabel}
-        isParentMember={isParentMember}
+        myMenuRole={myMenuRole}
         csatDDay={csatDDay}
-        isAdmin={isAdmin}
         onLogout={handleLogout}
         triggerRef={mobileNavTriggerRef}
         activeGroupTitle={activePathTitle}
