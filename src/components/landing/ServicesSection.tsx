@@ -23,6 +23,7 @@ type Service = {
   icon?: string;
   icon_image_url?: string;
   sort_order?: number;
+  is_premium?: boolean;
 };
 
 // 레거시 '/services' 스텁 페이지(헤더/푸터 없는 플레이스홀더, 실 목적지 아님) — DB
@@ -179,7 +180,51 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
     shadowH: "1.49rem",
     shadowBottom: "1.19rem",
   },
+  // 성장설계 — 신규(4885:18474, 144×180 일러스트 영역 실측 대체). 원본 600×219(가로형)라
+  // 본체는 낮고 넓게, 세로 중앙에 가깝게 배치.
+  {
+    boxW: "8.5rem",
+    w: "8.5rem",
+    h: "3.1rem",
+    right: "2.2rem",
+    top: "3.4rem",
+    rotate: "0deg",
+    shadowW: "7rem",
+    shadowH: "1.49rem",
+    shadowBottom: "1.1rem",
+  },
+  // 컨설팅 프리미엄 — 신규. 원본 600×325.
+  {
+    boxW: "8rem",
+    w: "8rem",
+    h: "4.33rem",
+    right: "2.5rem",
+    top: "2.1rem",
+    rotate: "0deg",
+    shadowW: "7rem",
+    shadowH: "1.49rem",
+    shadowBottom: "1.1rem",
+  },
+  // 국제·해외 프리미엄 — 신규. 원본 600×600(정방형).
+  {
+    boxW: "7.5rem",
+    w: "7.5rem",
+    h: "7.5rem",
+    right: "2.75rem",
+    top: "1.7rem",
+    rotate: "0deg",
+    shadowW: "7rem",
+    shadowH: "1.49rem",
+    shadowBottom: "1.1rem",
+  },
 ];
+
+// PREMIUM 배지 — 4885:18474 실측(px÷16=rem): 78.8×25, radius 9999, 그라데이션
+// #8947f3→#4f298d, 테두리 2px #ddc7ff, 텍스트 12px Bold 흰색. 일러스트 영역 하단 우측 고정.
+const PREMIUM_BADGE_CLASS =
+  "pointer-events-none absolute bottom-0 right-0 z-20 flex h-[1.5625rem] w-[4.925rem] " +
+  "items-center justify-center rounded-full border-2 border-[#ddc7ff] " +
+  "bg-gradient-to-b from-[#8947f3] to-[#4f298d] text-[0.75rem] font-bold text-white";
 
 function ServiceCard({
   service,
@@ -252,6 +297,12 @@ function ServiceCard({
             loading="lazy"
             className="-mt-6 h-7.25 w-34 object-contain opacity-90 lg:absolute lg:bottom-(--illo-shadow-bottom) lg:left-1/2 lg:mt-0 lg:h-(--illo-shadow-h) lg:w-(--illo-shadow-w) lg:-translate-x-1/2"
           />
+          {/* 프리미엄 배지 — is_premium 행만, 일러스트 하단 우측 고정(회전 미적용) */}
+          {service.is_premium && (
+            <span aria-hidden="true" className={PREMIUM_BADGE_CLASS}>
+              PREMIUM
+            </span>
+          )}
         </span>
       ) : (
         <span
@@ -306,10 +357,12 @@ type ServicesSectionProps = {
 
 /**
  * 핵심 서비스 섹션 (명세 3.3)
- * - 아이브로우(accent) + 2줄 2톤 대제목(1행 #525252, 2행 #013262) + 3열×2행 카드 그리드
- *   (0729 시안 2207:12970, 1100 캔버스, 카드 352×179px÷16=rem)
+ * - 아이브로우(accent) + 2줄 2톤 대제목(1행 #525252, 2행 #013262) + 3열×3행 카드 그리드
+ *   (기본 셸: 0729 시안 2207:12970, 1100 캔버스, 카드 352×179px÷16=rem. 9카드 확장은
+ *   QA 시트 행29·60 — 성장설계·컨설팅 프리미엄·국제·해외 프리미엄 3행 추가, 4885:18474)
  * - 카드: 좌측 텍스트(제목/설명) + 우측 3D 일러스트(icon_image_url, 없으면 lucide 폴백)
  * - 일러스트: lg 미만은 세로 중앙, lg는 시안 카드별 상단 기준 배치(크기·여백·회전 차등)
+ * - is_premium 행은 일러스트 하단 우측에 PREMIUM 배지 고정 표시
  * - 카드 전체가 link 필드로 이동하는 클릭 영역 (resolveServiceLink — 서비스명 매칭도
  *   안 되고 link 도 죽은 값/공백이면 링크 없는 카드로 렌더, 폴백 목적지 없음)
  */
@@ -344,7 +397,7 @@ export default function ServicesSection({
           </span>
         </h2>
 
-        {/* 3열×2행 카드 그리드 (모바일+태블릿 1열 → lg 3열, 시안과 동일)
+        {/* 3열×3행 카드 그리드(9카드 기본, 모바일+태블릿 1열 → lg 3열, 시안과 동일)
             — md(768px)에서 2열로 전환하면 카드 폭이 좁아져 2줄 고정 설명이 3~4줄로 깨짐(태블릿 실측).
             768~1023 구간은 1열로 유지해 모바일과 같은 넉넉한 카드 폭(텍스트 공간)을 확보한다.
             lg 3열: 콘텐츠 1100px 기준 열폭 (1100 − 2×20)/3 = 352px(grid 1fr로 자동).
@@ -354,7 +407,8 @@ export default function ServicesSection({
             <li key={service.id} className="w-full max-w-[28.0938rem]">
               <ServiceCard
                 service={service}
-                // 시안 일러스트 배치는 6장 기준 — 7장째부터는 같은 배치를 순환한다.
+                // 시안 일러스트 배치는 9장 기준(성장설계·컨설팅 프리미엄·국제·해외 프리미엄 포함)
+                // — 10장째부터는 같은 배치를 순환한다.
                 layout={
                   ILLUSTRATION_LAYOUTS[index % ILLUSTRATION_LAYOUTS.length]!
                 }

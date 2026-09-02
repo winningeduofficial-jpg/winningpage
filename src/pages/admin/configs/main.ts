@@ -343,7 +343,7 @@ export const mainConfigs: Record<string, MainConfig> = {
     searchPlaceholder: "핵심 서비스명을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `랜딩 '핵심 서비스'에는 사용 중 항목이 최대 6개까지 노출됩니다. 설명 입력 시 줄바꿈(Enter)한 위치가 랜딩 카드에 그대로 반영됩니다. 카드 1개당 2줄 배치를 권장합니다.`,
+    guideText: `랜딩 '핵심 서비스'는 사용 중 항목이 9개(3×3)까지 노출을 권장합니다. 10개 이상이면 다음 행으로 자연히 이어집니다. 설명 입력 시 줄바꿈(Enter)한 위치가 랜딩 카드에 그대로 반영됩니다. 카드 1개당 2~3줄 배치를 권장합니다. '프리미엄 배지'를 켜면 카드에 PREMIUM 배지가 표시됩니다.`,
     columns: [
       { key: "name", label: "명칭" },
       { key: "description", label: "설명" },
@@ -351,6 +351,7 @@ export const mainConfigs: Record<string, MainConfig> = {
       { key: "icon_image_url", label: "카드 일러스트", type: "image" },
       { key: "icon", label: "아이콘" },
       { key: "sort_order", label: "순서" },
+      { key: "is_premium", label: "프리미엄 배지", type: "boolean" },
       { key: "is_active", label: "사용", type: "boolean" },
     ],
     fields: [
@@ -395,6 +396,12 @@ export const mainConfigs: Record<string, MainConfig> = {
         ],
       },
       { key: "sort_order", label: "순서", type: "number" },
+      {
+        key: "is_premium",
+        label: "프리미엄 배지",
+        type: "radioBoolean",
+        help: "켜면 카드 일러스트 하단 우측에 PREMIUM 배지가 표시됩니다.",
+      },
     ],
     defaults: {
       is_active: true,
@@ -404,6 +411,7 @@ export const mainConfigs: Record<string, MainConfig> = {
       icon: "default",
       icon_image_url: "",
       sort_order: 1,
+      is_premium: false,
     },
   },
 
