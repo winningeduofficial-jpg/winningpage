@@ -651,13 +651,16 @@ export default function Dashboard() {
                 컬럼(위 xl:col-start-1)이 유동 폭을 받아도 두 카드가 함께 줄어들게 한다. */}
               <div className="flex gap-4">
                 <div className="min-w-0 flex-1">
-                  {/* AdviceCard: GET /api/goal/advice의 sections+majorTips(§QA 행295·306).
-                    displayedAdvice가 null이면(로딩 중/아직 미생성) 제목만 그린다. */}
+                  {/* AdviceCard: GET /api/goal/advice의 오늘 섹션(sections[0])+majorTips만
+                    그린다(§QA 행295·306). "내일 계획 제시" 섹션은 TomorrowPlanCard 소유라
+                    여기서는 참조하지 않는다(2026-09-02 후속 지시 — 두 카드 텍스트 중복 제거).
+                    displayedAdvice가 null이거나 오늘 섹션이 아직 없으면(로딩 중/미생성)
+                    제목만 그린다. */}
                   <AdviceCard
                     data={
-                      displayedAdvice
+                      displayedAdvice?.sections?.[0]
                         ? {
-                            sections: displayedAdvice.sections,
+                            section: displayedAdvice.sections[0],
                             majorTips: displayedAdvice.majorTips,
                           }
                         : null
@@ -667,8 +670,9 @@ export default function Dashboard() {
                 <div className="min-w-0 flex-1">
                   {/* TomorrowPlanCard: buildTomorrowPlan()의 과목별 시간 배분(규칙 기반, §3.16
                     ③, 그대로 유지) 위에 displayedAdvice의 "내일 계획 제시"/"다음 계획 제시"
-                    본문(sections[1])을 문장으로 덧붙인다. 내일 목표 시간이 0/미설정이면 빈
-                    배열이라 위젯이 스스로 "준비 중" 빈 상태를 그린다. */}
+                    본문(sections[1])만 문장으로 덧붙인다(AdviceCard는 더 이상 이 섹션을
+                    그리지 않는다). 내일 목표 시간이 0/미설정이면 빈 배열이라 위젯이 스스로
+                    "준비 중" 빈 상태를 그린다. */}
                   <TomorrowPlanCard
                     plan={tomorrowPlan}
                     narrative={displayedAdvice?.sections?.[1]?.body ?? null}
