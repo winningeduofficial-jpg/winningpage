@@ -36,6 +36,11 @@ type PlanTask = {
   durationMinutes?: number;
   done?: boolean;
   sortOrder?: number;
+  // 문제집 연결(QA 행286-B, 선택) — 연결이 없으면 workbookTitle이 null.
+  workbookId?: number | null;
+  pageFrom?: number | null;
+  pageTo?: number | null;
+  workbookTitle?: string | null;
 };
 
 type PlanTasksResult =
@@ -88,11 +93,17 @@ export default function WeeklyPlan() {
     taskText,
     duration,
     schedule,
+    workbookId,
+    pageFrom,
+    pageTo,
   }: {
     subject: string;
     taskText: string;
     duration: string;
     schedule: string;
+    workbookId?: number;
+    pageFrom?: number;
+    pageTo?: number;
   }) {
     // handleAddTask가 모달을 열기 전에 selectedDate를 항상 먼저 채운다("오늘만" 제출은
     // 이 흐름을 통해서만 도달한다).
@@ -106,6 +117,9 @@ export default function WeeklyPlan() {
           title: taskText,
           subject,
           durationMinutes,
+          ...(workbookId !== undefined ? { workbookId } : {}),
+          ...(pageFrom !== undefined ? { pageFrom } : {}),
+          ...(pageTo !== undefined ? { pageTo } : {}),
         }),
       ),
     );
@@ -152,6 +166,9 @@ export default function WeeklyPlan() {
         id: task.id,
         subject: task.subject,
         title: task.title,
+        workbookTitle: task.workbookTitle ?? null,
+        pageFrom: task.pageFrom ?? null,
+        pageTo: task.pageTo ?? null,
       })),
     }));
   }
