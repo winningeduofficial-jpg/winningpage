@@ -326,9 +326,12 @@ export function computeCompletionScore({
  * 없는 값이면 pending으로 방어한다(goalRepo.js normalizePlanTaskStatus와
  * 동일 규칙 — 이 파일은 supabase를 모르므로 값만 다시 좁혀 쓴다).
  */
-export function summarizePlanTaskCompletion(
-  tasks: { status?: unknown }[],
-): { done: number; fail: number; pending: number; total: number } {
+export function summarizePlanTaskCompletion(tasks: { status?: unknown }[]): {
+  done: number;
+  fail: number;
+  pending: number;
+  total: number;
+} {
   let done = 0;
   let fail = 0;
   let pending = 0;

@@ -35,19 +35,31 @@ describe("buildPlanTaskPayload — status가 단일 원본, done은 파생값", 
   };
 
   test("status='done' 행은 done:true를 함께 돌려준다", () => {
-    const payload = buildPlanTaskPayload({ ...baseRow, status: "done", done: true });
+    const payload = buildPlanTaskPayload({
+      ...baseRow,
+      status: "done",
+      done: true,
+    });
     expect(payload.status).toBe("done");
     expect(payload.done).toBe(true);
   });
 
   test("status='fail' 행은 done:false다(구 done=true와 무관하게 status가 이긴다)", () => {
-    const payload = buildPlanTaskPayload({ ...baseRow, status: "fail", done: true });
+    const payload = buildPlanTaskPayload({
+      ...baseRow,
+      status: "fail",
+      done: true,
+    });
     expect(payload.status).toBe("fail");
     expect(payload.done).toBe(false);
   });
 
   test("status='pending' 행은 done:false다", () => {
-    const payload = buildPlanTaskPayload({ ...baseRow, status: "pending", done: false });
+    const payload = buildPlanTaskPayload({
+      ...baseRow,
+      status: "pending",
+      done: false,
+    });
     expect(payload.status).toBe("pending");
     expect(payload.done).toBe(false);
   });

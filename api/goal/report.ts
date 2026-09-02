@@ -41,8 +41,8 @@ import {
   resolveMonthlyPeriod,
   resolveWeeklyPeriod,
   round1,
-  summarizePlanTaskCompletion,
   sumHoursByProfile,
+  summarizePlanTaskCompletion,
   toNum,
 } from "../../src/lib/goal/report/aggregate.js";
 import {

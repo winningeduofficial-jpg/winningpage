@@ -27,8 +27,8 @@ import {
   percentileToGrade,
   resolveMonthlyPeriod,
   resolveWeeklyPeriod,
-  summarizePlanTaskCompletion,
   sumHoursByProfile,
+  summarizePlanTaskCompletion,
 } from "./aggregate.ts";
 
 // ---------------------------------------------------------------------------
