@@ -1,8 +1,8 @@
 import type { CSSProperties, MutableRefObject } from "react";
 import { Link } from "react-router";
-import heroBrowserV2 from "@/assets/renewal/landing/hero-browser-v2.png";
 import heroGlow from "@/assets/renewal/landing/hero-glow.svg";
 import heroGrain from "@/assets/renewal/landing/hero-grain.png";
+import heroReportPages from "@/assets/renewal/landing/hero-report-pages.png";
 import iconFolder from "@/assets/renewal/landing/icon-folder-v2.png";
 import iconLock from "@/assets/renewal/landing/icon-lock-v2.png";
 import iconShield from "@/assets/renewal/landing/icon-shield-v2.png";
@@ -255,16 +255,22 @@ function HeroSection() {
           지금 시작하기
         </Link>
 
+        {/* 2026-09-02 QA 시트 행 357: 브라우저 목업(heroBrowserV2)을 파일27 리포트 합성
+            이미지로 교체. 옛 이미지는 브라우저 크롬(주소창)까지 PNG 안에 그려 넣은
+            사각 스크린샷이라 바깥 div가 rounded+box-shadow로 사각 프레임을 잡아줬다.
+            새 이미지는 리포트 카드 3장을 사각 캔버스 밖 여백을 완전 투명(RGBA 코너
+            alpha 0)으로 비운 채 흩뿌려 배치했고 카드마다 자체 그림자를 이미 구웠다.
+            그대로 rounded+overflow-hidden+box-shadow를 씌우면 투명 여백 경계에서
+            보이지도 않는 사각형 그림자가 떠 어색해, 프레임/셰도우 wrapper를 걷어내고
+            섹션 배경(bg-white)에 카드들이 직접 놓이도록 둔다. */}
         <div className="relative z-10 mx-auto mt-8 w-full max-w-267 sm:mt-10 md:mt-12.25 lg:mb-[-7.89375rem]">
-          <div className="overflow-hidden rounded-[0.3125rem] shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)]">
-            <img
-              src={heroBrowserV2}
-              alt="위닝에듀 학습진단 문항 화면이 담긴 브라우저 목업"
-              width={1280}
-              height={553}
-              className="w-full"
-            />
-          </div>
+          <img
+            src={heroReportPages}
+            alt="학습진단 리포트 3장 미리보기"
+            width={1678}
+            height={838}
+            className="w-full"
+          />
         </div>
       </div>
     </section>
