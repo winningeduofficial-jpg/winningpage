@@ -6,6 +6,10 @@ import {
   type DiagnosisAccessResult,
 } from "@/lib/diagnosisAccess";
 import {
+  type DiagnosisReportRow,
+  fetchLatestDiagnosisReport,
+} from "@/lib/diagnosisReportQueries";
+import {
   SURVEY_FIRST_STEP_PATH,
   SURVEY_REPORT_PATH,
 } from "@/lib/renewalSurvey";
@@ -40,7 +44,18 @@ import ServiceCard from "./ServiceCard";
  *
  * 무료진단(회원가입 1회, diagnosis_attempts kind='free')은 grant를 만들지
  * 않는다(20260821000005 주석 "free는 원장 미적재") — orders에도 안 잡혔던
- * 예전과 마찬가지로 이 탭에는 애초에 나타나지 않는다. 별도 처리 불필요.
+ * 예전과 마찬가지로 program_access_grants 기반 카드 목록엔 애초에 나타나지
+ * 않는다.
+ *
+ * ── 무료 진단 전용 합성 카드(2026-09-02) ──
+ * 위 문단이 뜻하는 건 "grant가 없다"이지 "리포트가 없다"가 아니다 —
+ * diagnosis_reports(attempt_id·profile_id·diagnosed_at·payload)에 결과가
+ * 영속 저장되면서, 무료 진단만 이용한 학생은 카드 자체가 아예 없어 결과
+ * 리포트로 돌아갈 진입점이 없는 문제가 생겼다. 그래서 이 컴포넌트는 로그인
+ * 학생의 diagnosis_reports 최신 행을 별도로 조회해(latestDiagnosisReport,
+ * 유료 완료 카드의 "결과 리포트 보기" 링크와 같은 조회를 공유한다) grant
+ * 기반 diagnose 카드가 이미 없을 때만 카드 1장을 합성한다(buildFreeDiagnosisCard).
+ * grant 기반 diagnose 카드가 있으면(유료 이용 이력) 중복 없이 그 카드만 쓴다.
  *
  * ── 서비스(program_key) 단위 합산(2026-09-01, 사용자 QA 후속) ──
  * 처음엔 "grant 1행 = 카드 1장"이었다 — 하지만 재구매 체이닝(기간 만료 후
@@ -91,15 +106,21 @@ type ProgramKeyMeta = {
   route: string;
 };
 
+// diagnose 메타 — 무료 진단 합성 카드(buildFreeDiagnosisCard)가 인덱스
+// 접근(PROGRAM_KEY_META["diagnose"]) 없이 직접 참조한다. Record<string, ...>
+// 타입의 동적 인덱스 접근은 noUncheckedIndexedAccess로 undefined 가능성이
+// 붙어 non-null 단언이 필요해지는데, 이 상수는 그 문제 없이 항상 정의돼 있다.
+const DIAGNOSE_META: ProgramKeyMeta = {
+  serviceName: "위닝 학습진단",
+  category: "diagnosis",
+  route: "/services/learning-diagnosis",
+};
+
 // program_key → 서비스명·카테고리·라우트 고정 매핑. programs 테이블(로컬 DB
 // 실측)의 활성 4종만 다룬다 — 매핑에 없는 program_key는 parseGrant의 폴백이
 // program_key 원문을 그대로 서비스명으로 쓴다(지어내지 않는다).
 const PROGRAM_KEY_META: Record<string, ProgramKeyMeta> = {
-  diagnose: {
-    serviceName: "위닝 학습진단",
-    category: "diagnosis",
-    route: "/services/learning-diagnosis",
-  },
+  diagnose: DIAGNOSE_META,
   target: {
     serviceName: "위닝 목표관리",
     category: "duration",
@@ -344,9 +365,15 @@ function aggregateByProgramKey(
 const DIAGNOSIS_RETAKE_BLOCKED_REASON =
   "1회 이용권을 모두 사용했습니다. 이용권을 구매하시면 다시 이용하실 수 있습니다.";
 
+// 영속 리포트(diagnosis_reports) 조회 전 또는 결측(과거 데이터·조회 실패)일 때의 안내 —
+// DIAGNOSIS_RETAKE_BLOCKED_REASON과 같은 톤(ServiceCard.tsx의 disabledReason 표시 자리 공유).
+const DIAGNOSIS_REPORT_UNAVAILABLE_REASON =
+  "리포트를 준비하고 있습니다. 잠시 후 다시 확인해 주세요.";
+
 function toViewModel(
   agg: AggregatedService,
   diagnosisAccess: DiagnosisAccessResult | null,
+  latestDiagnosisAttemptId: string | null,
   onOpenValidityDetail: (agg: AggregatedService) => void,
 ): ServiceCardViewModel {
   const {
@@ -421,12 +448,23 @@ function toViewModel(
     // 소진(또는 만료) — 기존 완료 카드 정책 그대로: 리포트 보기 + 재검사
     // 게이트(diagnosisAccess, fail-open).
     const retakeBlocked = diagnosisAccess !== null && !diagnosisAccess.allowed;
+    // B4-c — 리포트 보기는 이제 정적 SURVEY_REPORT_PATH(세션 경로, 다른 탭·기기에서는
+    // 설문으로 튕기는 버그가 있었다)가 아니라 diagnosis_reports 최신 attemptId로 연다.
+    // 아직 조회 전이거나 결측이면 disabled(기존 disabled 패턴, 위 재검사 게이트와 동일).
     actions = [
-      {
-        kind: "outline-solid",
-        label: "결과 리포트 보기",
-        href: SURVEY_REPORT_PATH,
-      },
+      latestDiagnosisAttemptId
+        ? {
+            kind: "outline-solid",
+            label: "결과 리포트 보기",
+            href: `/learning-diagnosis/report/${latestDiagnosisAttemptId}`,
+          }
+        : {
+            kind: "outline-solid",
+            label: "결과 리포트 보기",
+            href: SURVEY_REPORT_PATH,
+            disabled: true,
+            disabledReason: DIAGNOSIS_REPORT_UNAVAILABLE_REASON,
+          },
       retakeBlocked
         ? {
             kind: "solid",
@@ -468,6 +506,54 @@ function toViewModel(
     // 살아있는 grant 자체가 없다(agg.liveGrants가 빈 배열, 다이얼로그를 열
     // 이유가 없다).
     onMetaClick: isOngoing ? () => onOpenValidityDetail(agg) : undefined,
+  };
+}
+
+// 무료 진단(회원가입 1회) 전용 합성 카드 — grant가 없어 aggregateByProgramKey
+// 입력에 아예 안 잡힌다(파일 상단 주석 참고). diagnosis_reports에 결과가 있고
+// grant 기반 diagnose 카드가 없을 때만 이 함수가 카드 1장을 별도로 만든다.
+// 유료 완료 카드(toViewModel의 diagnosis 분기)와 문구·액션 규칙을 맞췄다.
+//
+// ── 신규 카피 — 승인 대기 ──
+// 상태 배지 "무료 1회"는 이 카드가 유료 완료 카드("이용완료")와 다르다는 걸
+// 알려주려는 추정 문구다(시안 근거 없음).
+function buildFreeDiagnosisCard(
+  report: Pick<DiagnosisReportRow, "attempt_id" | "diagnosed_at">,
+  diagnosisAccess: DiagnosisAccessResult | null,
+): ServiceCardViewModel {
+  const diagnosedAt = new Date(report.diagnosed_at);
+  const retakeBlocked = diagnosisAccess !== null && !diagnosisAccess.allowed;
+
+  return {
+    id: "diagnose-free",
+    serviceName: DIAGNOSE_META.serviceName,
+    statusLabel: "무료 1회",
+    isOngoing: false,
+    progressPercent: 100,
+    metaLeft: "진단 완료",
+    metaRight: formatDateSpaced(diagnosedAt),
+    actions: [
+      {
+        kind: "outline-solid",
+        label: "결과 리포트 보기",
+        href: `/learning-diagnosis/report/${report.attempt_id}`,
+      },
+      retakeBlocked
+        ? {
+            kind: "solid",
+            label: "다시 검사하기",
+            href: SURVEY_FIRST_STEP_PATH,
+            disabled: true,
+            disabledReason: DIAGNOSIS_RETAKE_BLOCKED_REASON,
+          }
+        : {
+            kind: "solid",
+            label: "다시 검사하기",
+            href: SURVEY_FIRST_STEP_PATH,
+          },
+    ],
+    paymentCount: 1,
+    onMetaClick: undefined,
   };
 }
 
@@ -644,6 +730,28 @@ export default function MyServicesTab() {
     };
   }, []);
 
+  // 본인의 가장 최근 diagnosis_reports 행 — 유료 완료 diagnose 카드의 "결과
+  // 리포트 보기" 링크 대상이자, 무료 진단 전용 합성 카드(buildFreeDiagnosisCard)의
+  // 데이터 원천이다(같은 조회를 두 용도가 공유한다). null은 조회 전 또는
+  // 결측 둘 다를 뜻한다 — reportLoaded로 조회 완료 여부를 따로 구분한다.
+  const [latestDiagnosisReport, setLatestDiagnosisReport] =
+    useState<DiagnosisReportRow | null>(null);
+  const [reportLoaded, setReportLoaded] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    if (!userId) return undefined;
+    fetchLatestDiagnosisReport(userId).then((row) => {
+      if (alive) {
+        setLatestDiagnosisReport(row);
+        setReportLoaded(true);
+      }
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
   const [grants, setGrants] = useState<Grant[]>([]);
   const [usedByGrant, setUsedByGrant] = useState<Record<string, number>>({});
   const [loaded, setLoaded] = useState(false);
@@ -698,18 +806,37 @@ export default function MyServicesTab() {
     };
   }, [userId]);
 
-  if (!loaded) {
+  if (!loaded || !reportLoaded) {
     return <Loading />;
   }
 
-  if (!grants.length) {
+  // grant 기반 diagnose 카드가 이미 있으면(유료 이용 이력) 무료 진단 합성
+  // 카드는 만들지 않는다 — 중복 방지(파일 상단 주석 참고).
+  const hasDiagnoseGrantCard = grants.some(
+    (grant) => grant.program_key === "diagnose",
+  );
+  const freeDiagnosisCard =
+    latestDiagnosisReport && !hasDiagnoseGrantCard
+      ? buildFreeDiagnosisCard(latestDiagnosisReport, diagnosisAccess)
+      : null;
+
+  if (!grants.length && !freeDiagnosisCard) {
     return <EmptyState />;
   }
 
   const parsedGrants = grants.map((grant) => parseGrant(grant, usedByGrant));
   const cards = aggregateByProgramKey(parsedGrants).map((agg) =>
-    toViewModel(agg, diagnosisAccess, setDetailService),
+    toViewModel(
+      agg,
+      diagnosisAccess,
+      latestDiagnosisReport?.attempt_id ?? null,
+      setDetailService,
+    ),
   );
+  if (freeDiagnosisCard) {
+    // 기존 카드들 뒤에 둔다 — "완료된 서비스" 섹션의 마지막 카드가 된다.
+    cards.push(freeDiagnosisCard);
+  }
   const ongoing = cards.filter((card) => card.isOngoing);
   const completed = cards.filter((card) => !card.isOngoing);
 

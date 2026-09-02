@@ -116,8 +116,10 @@ export default defineHandler({
         variables: {
           학생명: target.studentName,
           N월: String(month),
-          // 월간 키 = 'YYYY-MM'.
-          reportId: targetMonth,
+          // reportId = <월간 키('YYYY-MM')>.<학생 profile id> — 학부모가 알림톡
+          // 링크를 눌렀을 때 어느 자녀의 리포트인지 구분하기 위해서다
+          // (src/routes/alimtalkLinkRoutes.tsx parseReportId, QA 시트 행210).
+          reportId: `${targetMonth}.${target.studentProfileId}`,
         },
       });
 

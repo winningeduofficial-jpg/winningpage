@@ -1316,6 +1316,51 @@ export type Database = {
           },
         ];
       };
+      diagnosis_reports: {
+        Row: {
+          attempt_id: string;
+          created_at: string;
+          diagnosed_at: string;
+          payload: Json;
+          profile_id: string;
+          schema_version: string;
+          snapshot: Json;
+        };
+        Insert: {
+          attempt_id: string;
+          created_at?: string;
+          diagnosed_at: string;
+          payload: Json;
+          profile_id: string;
+          schema_version: string;
+          snapshot: Json;
+        };
+        Update: {
+          attempt_id?: string;
+          created_at?: string;
+          diagnosed_at?: string;
+          payload?: Json;
+          profile_id?: string;
+          schema_version?: string;
+          snapshot?: Json;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "diagnosis_reports_attempt_id_fkey";
+            columns: ["attempt_id"];
+            isOneToOne: true;
+            referencedRelation: "diagnosis_attempts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "diagnosis_reports_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       enrollments: {
         Row: {
           application_status: string | null;

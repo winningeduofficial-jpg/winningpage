@@ -17,11 +17,19 @@ import {
 // 리포트 '페이지'가 아니라 storage 모듈만 import 한다 — 페이지를 가져오면 인쇄 CSS 가 설문 번들로 끌려온다.
 // 저장 키·직렬화·스키마 검증의 정의처도 그 모듈 하나다(여기에 리터럴을 두면 읽기 쪽과 갈라진다).
 import { submitDiagnosisAnswers } from "@/lib/diagnosisInputStorage";
+// 리포트 영속화(diagnosis_reports, QA 행210) — buildReportFromInput 도 diagnosisReportBuild.ts
+// 하나뿐인 정본이다(FreeDiagnosisReport.tsx 의 ctx 조립 로직과 동일 규칙, 그 페이지는 아직
+// 이 헬퍼로 교체되지 않았다). saveDiagnosisReport 는 실패해도 던지지 않는다 — 저장 실패는
+// 열람(sessionStorage 경로)을 막지 않고, 리포트 페이지의 ensureDiagnosisReportSaved 가
+// 재시도한다.
+import { saveDiagnosisReport } from "@/lib/diagnosisReportApi";
+import { buildReportFromInput } from "@/lib/diagnosisReportBuild";
 // sql/72(2026-08-13 확정) — 문항 제목/안내문구/선택지 라벨/리커트 문장 어드민 오버라이드.
 // mount 1회 fetch, 실패·0행이면 빈 Map(= 정적 문구 그대로) — MentorFaq.jsx 의 키 단위 폴백과 같은 계약이다.
 import { fetchSurveyCopyOverrides } from "@/lib/diagnosisSurveyCopyOverrides";
 // 이용개시 시작 로그(programEntry.ts) — 진입 게이트가 allowed를 확인한 직후 기록한다.
 import { markProgramEntry } from "@/lib/programEntry";
+import type { Json } from "@/types/database.types";
 // Q-01(2026-08-11 확정) — 제출 시점에 로그인 학생 이름을 조회한다. 비로그인·조회 실패는 null.
 import { fetchLoggedInStudentName } from "./diagnosisStudentName";
 
@@ -153,7 +161,8 @@ export default function SurveyStepShell() {
       // 실측). awaitCuts() 가 진행 중인 조회를 기다린 뒤 그 순간의 확정 결과를 직접 돌려준다.
       awaitCuts(),
     ]);
-    return submitDiagnosisAnswers(answers, {
+    const attemptId = diagnosisAttemptIdRef.current;
+    const payload = submitDiagnosisAnswers(answers, {
       name,
       // submitDiagnosisAnswers(범위 밖 파일)의 admissionCuts는 Record<string, unknown> | null 시그니처다.
       // useAdmissionCascade의 CutsData(범위 밖 파일)는 필드가 이미 알려진 값이라 값 타입은 항상 unknown의 부분집합.
@@ -164,7 +173,31 @@ export default function SurveyStepShell() {
       // F-22 — 참조 비교(ADMISSION_FETCH_ERROR)로 판정해 올린 불리언. 이 한 줄이 없으면
       // '조회 실패'가 payload 에서 통째로 사라져 리포트가 일시 오류를 '자료 영구 부재'로 단정한다.
       admissionCutsError: admissionResolved.cutsError,
+      attemptId,
     });
+
+    // 리포트 영속화 — diagnosedAt 은 항상 이 함수(submitDiagnosisAnswers)가 방금 new
+    // Date().toISOString() 으로 채웠으므로 실제로는 항상 존재한다(엔진 자체는 시계를 읽지
+    // 않아 타입은 string|null 로 넓게 잡혀 있다). null 이면(있을 수 없는 손상 상태) 저장을
+    // 건너뛴다 — 저장 실패와 동일하게 열람 경로는 막지 않는다.
+    if (attemptId && payload.meta.diagnosedAt) {
+      const report = buildReportFromInput(payload);
+      const saveResult = await saveDiagnosisReport({
+        attemptId,
+        snapshot: payload as unknown as Json,
+        payload: report as unknown as Json,
+        schemaVersion: payload.meta.schemaVersion,
+        diagnosedAt: payload.meta.diagnosedAt,
+      });
+      if (!saveResult.ok) {
+        console.warn(
+          "[SurveyStepShell] 학습진단 리포트 저장 실패 — 열람은 sessionStorage 경로로 계속 가능:",
+          saveResult.reason,
+        );
+      }
+    }
+
+    return payload;
     // awaitCuts 는 훅 안에서 useCallback(빈 deps)로 안정된 참조라 이 콜백도 answers 가 바뀔 때만
     // 재생성된다 — admissionCascade 객체 전체를 deps 에 넣으면 매 렌더 재생성되어 의미가 없다.
   }, [answers, awaitCuts, navigate]);

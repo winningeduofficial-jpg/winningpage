@@ -12,12 +12,11 @@
 //    자리에 [삭제하기]를 두고 있고, 삭제 확인 모달(3709:2630)도 존재한다.
 //    구현 가능한 동작이 삭제 하나뿐이라 [삭제하기]로 뒀다 — [관리]가 별도
 //    화면이라면 디자인이 필요하다.
-// 3) "학습 리포트 보기 →" 는 /mypage/children/:studentId/report(학부모 뷰어,
-//    src/pages/mypage/ChildReport.jsx)로 간다. 수락 전(pending)에는 볼 것이
-//    없으므로 링크를 걸지 않는다.
-//    ⚠ 그 리포트 본문은 아직 실데이터가 아니다(GrowthReportBody 가 goalReportMock
-//    을 직접 읽는다) — 뷰어가 상단에 샘플 표시를 띄운다. 자세한 사정은 ChildReport
-//    파일 상단 주석 참고.
+// 3) 하단 링크는 두 개다(QA 시트 행210). "학습진단 리포트 →"는 자녀의 학습진단
+//    결과 리포트로(경로만 여기서 정의 — 라우트 등록은 별도 단위), "목표관리
+//    리포트 →"는 /mypage/children/:studentId/report(학부모 뷰어,
+//    src/pages/mypage/ChildReport.tsx)로 간다. 수락 전(pending)에는 볼 것이
+//    없으므로 둘 다 링크를 걸지 않는다.
 
 import { Link } from "react-router";
 
@@ -142,27 +141,46 @@ export default function ChildCard({ child, onRemove }: ChildCardProps) {
         )}
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-3">
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <span className="text-[0.75rem] text-ink-sub">
           {formatLinkedAt(child.linked_at)}{" "}
           {child.link_status === "approved" ? "연결" : "요청"}
         </span>
-        {child.link_status === "approved" ? (
-          <Link
-            to={`/mypage/children/${child.student_profile_id}/report`}
-            className="text-[0.8125rem] font-medium text-accent transition hover:brightness-90"
-          >
-            학습 리포트 보기 →
-          </Link>
-        ) : (
-          <span
-            aria-disabled="true"
-            title="자녀가 연결 요청을 수락하면 열람할 수 있어요."
-            className="cursor-not-allowed text-[0.8125rem] font-medium text-ink-sub/60"
-          >
-            학습 리포트 보기 →
-          </span>
-        )}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          {child.link_status === "approved" ? (
+            <>
+              <Link
+                to={`/mypage/children/${child.student_profile_id}/report/diagnosis`}
+                className="text-[0.8125rem] font-medium text-accent transition hover:brightness-90"
+              >
+                학습진단 리포트 →
+              </Link>
+              <Link
+                to={`/mypage/children/${child.student_profile_id}/report`}
+                className="text-[0.8125rem] font-medium text-accent transition hover:brightness-90"
+              >
+                목표관리 리포트 →
+              </Link>
+            </>
+          ) : (
+            <>
+              <span
+                aria-disabled="true"
+                title="자녀가 연결 요청을 수락하면 열람할 수 있어요."
+                className="cursor-not-allowed text-[0.8125rem] font-medium text-ink-sub/60"
+              >
+                학습진단 리포트 →
+              </span>
+              <span
+                aria-disabled="true"
+                title="자녀가 연결 요청을 수락하면 열람할 수 있어요."
+                className="cursor-not-allowed text-[0.8125rem] font-medium text-ink-sub/60"
+              >
+                목표관리 리포트 →
+              </span>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );

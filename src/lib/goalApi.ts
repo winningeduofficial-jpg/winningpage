@@ -1534,6 +1534,9 @@ export async function addGoalTimerSubject(subject: string) {
 //   { kind: 'not-allowed' }       — 200 {allowed:false}. 이용권 없음.
 //   { kind: 'not-onboarded' }     — 409 reason:'not_onboarded'. 온보딩 자체를 시작 안 함.
 //   { kind: 'awaiting-cuts' }     — 409 reason:'awaiting_cuts'. 컷 대기 중이라 rate/target 미확정.
+//   { kind: 'not-linked' }        — 403 {error:{code:'NOT_LINKED'}}. studentId로 학부모가
+//     조회할 때만 나온다 — 서버가 fn_is_linked_pair로 재확인한 결과 승인된 쌍이 아니다
+//     (api/goal/report.ts checkLinkedPair, QA 시트 행210).
 //   { kind: 'success', report }   — 200 {ok:true, report}. report는 type별로 모양이 다르다
 //     (GrowthReportBody.jsx / DirectionReportBody.jsx가 그대로 소비하는 shape — api/goal/report.js
 //     buildGrowthReport()/buildDirectionReport() 참고). 이 파일은 discriminated union 판별자만
@@ -1543,6 +1546,7 @@ export type FetchGoalReportResult =
   | { kind: "not-allowed" }
   | { kind: "not-onboarded" }
   | { kind: "awaiting-cuts" }
+  | { kind: "not-linked" }
   // biome-ignore lint/suspicious/noExplicitAny: report는 type(weekly/monthly/direction)별로 모양이 다르다 — 호출부가 자신의 로컬 타입으로 좁혀 쓴다.
   | { kind: "success"; report: any }
   | { kind: "error" };
@@ -1603,6 +1607,12 @@ export async function fetchGoalReport(
       kind:
         body?.reason === "awaiting_cuts" ? "awaiting-cuts" : "not-onboarded",
     };
+  }
+
+  // coded shape(api/_lib/httpResponse.ts) — studentId로 조회했는데 서버 재확인 결과
+  // 승인된 학부모-학생 쌍이 아닌 경우만 이 코드가 온다(api/goal/report.ts checkLinkedPair).
+  if (response.status === 403 && body?.error?.code === "NOT_LINKED") {
+    return { kind: "not-linked" };
   }
 
   console.error(
