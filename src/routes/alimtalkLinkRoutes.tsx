@@ -174,18 +174,23 @@ function GoalReportRedirect() {
     // 자녀가 둘 이상이고 reportId 로 특정할 수 없으면(구 형식 발송분 등) 고른다.
     const search = buildReportSearch(String(safePeriod), at);
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-white px-5 pt-16">
+      <main className="flex min-h-screen flex-col items-center justify-center bg-white px-5 pt-16">
         <p className="text-[0.9375rem] font-medium text-ink">
           어느 자녀의 리포트를 보시겠어요?
         </p>
-        <div className="flex w-full max-w-xs flex-col gap-2.5">
+        <div className="mt-6 flex w-full max-w-sm flex-col gap-2.5">
           {children.map((child) => (
             <Link
               key={child.student_profile_id}
               to={`/mypage/children/${child.student_profile_id}/report?${search}`}
-              className="rounded-lg border border-line px-5 py-3 text-center text-[0.875rem] font-medium text-ink transition hover:bg-surface-04"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-white px-5 py-4 transition hover:bg-surface-04"
             >
-              {child.student_name}
+              <span className="text-[0.9375rem] font-semibold text-ink">
+                {child.student_name}
+              </span>
+              <span className="shrink-0 text-[0.8125rem] font-medium text-accent">
+                리포트 보기 →
+              </span>
             </Link>
           ))}
         </div>
