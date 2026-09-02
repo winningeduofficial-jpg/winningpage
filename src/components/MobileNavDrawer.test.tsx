@@ -101,6 +101,16 @@ describe.each(["student", "parent", "admin"] as const)(
   },
 );
 
+describe("MobileNavDrawer — 스크롤 컨테이너", () => {
+  it("그룹 목록·MY 섹션이 ScrollArea(OverlayScrollbars) 안에 있다", () => {
+    renderDrawer();
+
+    const scrollArea = document.querySelector('[data-slot="scroll-area"]');
+    expect(scrollArea).not.toBeNull();
+    expect(scrollArea?.querySelector('a[href="/mypage"]')).toBeInTheDocument();
+  });
+});
+
 describe("MobileNavDrawer — Sheet 오버레이 농도", () => {
   it("shadcn Sheet 기본값(bg-black/10)이 아니라 원래 농도(bg-black/40)를 쓴다", () => {
     renderDrawer();

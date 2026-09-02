@@ -8,6 +8,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
   SheetClose,
@@ -92,7 +93,7 @@ export default function MobileNavDrawer({
         finalFocus={triggerRef}
         aria-modal="true"
         overlayClassName="bg-black/40 duration-100"
-        className="z-60 gap-0 overflow-y-auto rounded-none border-none bg-white p-0 shadow-[-18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-open:translate-x-0 data-closed:translate-x-full data-starting-style:opacity-100 data-ending-style:opacity-100 data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[85vw] data-[side=right]:max-w-88 data-[side=right]:border-l-0 data-[side=right]:data-starting-style:translate-x-full data-[side=right]:data-ending-style:translate-x-full data-[side=right]:sm:max-w-88"
+        className="z-60 gap-0 rounded-none border-none bg-white p-0 shadow-[-18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-open:translate-x-0 data-closed:translate-x-full data-starting-style:opacity-100 data-ending-style:opacity-100 data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[85vw] data-[side=right]:max-w-88 data-[side=right]:border-l-0 data-[side=right]:data-starting-style:translate-x-full data-[side=right]:data-ending-style:translate-x-full data-[side=right]:sm:max-w-88"
       >
         <SheetHeader className="flex-row items-center justify-between gap-0 space-y-0 border-b border-[#eeeeee] px-6 py-5">
           <SheetTitle className="sr-only">
@@ -128,149 +129,154 @@ export default function MobileNavDrawer({
           </SheetClose>
         </SheetHeader>
 
-        <nav className="flex-1 px-2 py-2">
-          <Accordion
-            value={openGroup === null ? [] : [openGroup]}
-            onValueChange={(next) => {
-              const nextValue = next[0];
-              setOpenGroup(typeof nextValue === "string" ? nextValue : null);
-            }}
-          >
-            {navGroups.map((group) => {
-              const hasDropdown =
-                Array.isArray(group.items) && group.items.length > 0;
-              const isOpen = openGroup === group.title;
-              const isGroupActive = activeGroupTitle === group.title;
+        <ScrollArea className="flex-1">
+          <nav className="px-2 py-2">
+            <Accordion
+              value={openGroup === null ? [] : [openGroup]}
+              onValueChange={(next) => {
+                const nextValue = next[0];
+                setOpenGroup(typeof nextValue === "string" ? nextValue : null);
+              }}
+            >
+              {navGroups.map((group) => {
+                const hasDropdown =
+                  Array.isArray(group.items) && group.items.length > 0;
+                const isOpen = openGroup === group.title;
+                const isGroupActive = activeGroupTitle === group.title;
 
-              if (!hasDropdown) {
-                // 하위 항목이 없는 그룹은 토글할 아코디언이 없으니 헤더 자체가 목적지다.
+                if (!hasDropdown) {
+                  // 하위 항목이 없는 그룹은 토글할 아코디언이 없으니 헤더 자체가 목적지다.
+                  return (
+                    <div
+                      key={group.title}
+                      className="border-b border-[#eeeeee]"
+                    >
+                      <Link
+                        to={group.to}
+                        onClick={onClose}
+                        aria-current={isGroupActive ? "page" : undefined}
+                        className={`block whitespace-nowrap px-4 py-4 text-lg ${
+                          isGroupActive
+                            ? "font-semibold text-primary"
+                            : "font-medium text-[#1e293b]"
+                        }`}
+                      >
+                        {group.title}
+                      </Link>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={group.title} className="border-b border-[#eeeeee]">
-                    <Link
-                      to={group.to}
-                      onClick={onClose}
-                      aria-current={isGroupActive ? "page" : undefined}
-                      className={`block whitespace-nowrap px-4 py-4 text-lg ${
+                  <AccordionItem
+                    key={group.title}
+                    value={group.title}
+                    className="border-b border-[#eeeeee]"
+                  >
+                    {/* 그룹 헤더 = 아코디언 토글. 이동은 하위 항목 클릭에서만 일어난다
+                      (group.to로의 헤더 자체 이동은 폐지 — 단일 열림 아코디언으로 대체).
+                      기본 shadcn 아이콘 스왑 대신 회전 트랜지션이 있는 기존 ChevronDown을 쓴다. */}
+                    <AccordionTrigger
+                      className={`items-center gap-2 whitespace-nowrap rounded-none border-none px-4 py-4 text-lg hover:no-underline focus-visible:ring-0 **:data-[slot=accordion-trigger-icon]:hidden ${
                         isGroupActive
                           ? "font-semibold text-primary"
                           : "font-medium text-[#1e293b]"
                       }`}
                     >
                       {group.title}
-                    </Link>
-                  </div>
+                      <ChevronDown
+                        size={18}
+                        strokeWidth={2.2}
+                        className={`shrink-0 transition ${isOpen ? "rotate-180" : ""}`}
+                      />
+                    </AccordionTrigger>
+
+                    <AccordionContent className="pb-0 [&_a]:no-underline [&_a]:hover:text-primary">
+                      {group.items.map((item) => {
+                        const isItemActive = item.to === pathname;
+                        return (
+                          <Link
+                            key={`${group.title}-${item.to}-${item.label}`}
+                            to={item.to}
+                            onClick={onClose}
+                            aria-current={isItemActive ? "page" : undefined}
+                            className={`block whitespace-nowrap px-8 py-3 text-base transition hover:text-primary ${
+                              isItemActive
+                                ? "font-semibold text-primary"
+                                : "text-ink"
+                            }`}
+                          >
+                            {item.label}
+                          </Link>
+                        );
+                      })}
+                    </AccordionContent>
+                  </AccordionItem>
                 );
-              }
+              })}
+            </Accordion>
+          </nav>
 
-              return (
-                <AccordionItem
-                  key={group.title}
-                  value={group.title}
-                  className="border-b border-[#eeeeee]"
-                >
-                  {/* 그룹 헤더 = 아코디언 토글. 이동은 하위 항목 클릭에서만 일어난다
-                      (group.to로의 헤더 자체 이동은 폐지 — 단일 열림 아코디언으로 대체).
-                      기본 shadcn 아이콘 스왑 대신 회전 트랜지션이 있는 기존 ChevronDown을 쓴다. */}
-                  <AccordionTrigger
-                    className={`items-center gap-2 whitespace-nowrap rounded-none border-none px-4 py-4 text-lg hover:no-underline focus-visible:ring-0 **:data-[slot=accordion-trigger-icon]:hidden ${
-                      isGroupActive
-                        ? "font-semibold text-primary"
-                        : "font-medium text-[#1e293b]"
-                    }`}
-                  >
-                    {group.title}
-                    <ChevronDown
-                      size={18}
-                      strokeWidth={2.2}
-                      className={`shrink-0 transition ${isOpen ? "rotate-180" : ""}`}
-                    />
-                  </AccordionTrigger>
-
-                  <AccordionContent className="pb-0 [&_a]:no-underline [&_a]:hover:text-primary">
-                    {group.items.map((item) => {
-                      const isItemActive = item.to === pathname;
-                      return (
-                        <Link
-                          key={`${group.title}-${item.to}-${item.label}`}
-                          to={item.to}
-                          onClick={onClose}
-                          aria-current={isItemActive ? "page" : undefined}
-                          className={`block whitespace-nowrap px-8 py-3 text-base transition hover:text-primary ${
-                            isItemActive
-                              ? "font-semibold text-primary"
-                              : "text-ink"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </AccordionContent>
-                </AccordionItem>
-              );
-            })}
-          </Accordion>
-        </nav>
-
-        <div className="border-t border-[#eeeeee] px-4 py-4">
-          {shouldShowLoggedInHeader ? (
-            <>
-              {/* 역할별 단일 소스(myMenuItems.buildMyMenu) — 관리자도 별도 버튼 없이
+          <div className="border-t border-[#eeeeee] px-4 py-4">
+            {shouldShowLoggedInHeader ? (
+              <>
+                {/* 역할별 단일 소스(myMenuItems.buildMyMenu) — 관리자도 별도 버튼 없이
                   이 목록의 "관리자 메뉴" 항목으로 진입한다. */}
-              {buildMyMenu(myMenuRole).map((item) => (
-                <Link
-                  key={item.label}
-                  to={item.to}
-                  onClick={onClose}
-                  className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
-                >
-                  {item.label}
-                </Link>
-              ))}
+                {buildMyMenu(myMenuRole).map((item) => (
+                  <Link
+                    key={item.label}
+                    to={item.to}
+                    onClick={onClose}
+                    className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
 
+                <Button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onLogout();
+                  }}
+                  className="mt-2 h-auto w-full justify-center gap-2 rounded-lg border-none bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] hover:bg-[#012347]"
+                >
+                  <LogOut size={16} className="size-4" />
+                  로그아웃
+                </Button>
+              </>
+            ) : isLoggedIn ? (
               <Button
                 type="button"
+                variant="outline"
                 onClick={() => {
                   onClose();
                   onLogout();
                 }}
-                className="mt-2 h-auto w-full justify-center gap-2 rounded-lg border-none bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] hover:bg-[#012347]"
+                className="h-auto w-full justify-center gap-2 border-line bg-transparent px-6 py-3 text-base font-medium text-[#1e293b] hover:border-primary hover:bg-transparent hover:text-primary"
               >
-                <LogOut size={16} className="size-4" />
                 로그아웃
               </Button>
-            </>
-          ) : isLoggedIn ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                onClose();
-                onLogout();
-              }}
-              className="h-auto w-full justify-center gap-2 border-line bg-transparent px-6 py-3 text-base font-medium text-[#1e293b] hover:border-primary hover:bg-transparent hover:text-primary"
-            >
-              로그아웃
-            </Button>
-          ) : (
-            <div className="flex flex-col gap-3">
-              <Button
-                variant="outline"
-                render={<Link to="/login" onClick={onClose} />}
-                className="h-auto w-full justify-center border-line bg-transparent px-6 py-3 text-base font-medium text-[#1e293b] hover:border-primary hover:bg-transparent hover:text-primary"
-              >
-                로그인
-              </Button>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <Button
+                  variant="outline"
+                  render={<Link to="/login" onClick={onClose} />}
+                  className="h-auto w-full justify-center border-line bg-transparent px-6 py-3 text-base font-medium text-[#1e293b] hover:border-primary hover:bg-transparent hover:text-primary"
+                >
+                  로그인
+                </Button>
 
-              <Button
-                render={<Link to="/signup" onClick={onClose} />}
-                className="h-auto w-full justify-center rounded-lg border-none bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] hover:bg-[#012347]"
-              >
-                회원가입
-              </Button>
-            </div>
-          )}
-        </div>
+                <Button
+                  render={<Link to="/signup" onClick={onClose} />}
+                  className="h-auto w-full justify-center rounded-lg border-none bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] hover:bg-[#012347]"
+                >
+                  회원가입
+                </Button>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
       </SheetContent>
     </Sheet>
   );
