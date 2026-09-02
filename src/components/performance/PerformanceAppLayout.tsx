@@ -1,4 +1,5 @@
 import { Outlet } from "react-router";
+import RouteLoadingOverlay from "@/components/ui/RouteLoadingOverlay";
 import {
   PerformanceShellProvider,
   usePerformanceShell,
@@ -24,6 +25,12 @@ import QuotaExhaustedBanner from "./quota/QuotaExhaustedBanner";
 // 헤더 유무(수행평가만 캔버스 타이틀), 콘텐츠 폭 규칙이 서로 다르고 시안도 독립적으로
 // 개정된다. 지금 공통화하면 공통 컴포넌트가 곧 분기 플래그 덩어리가 되고, 그 리스크를
 // 이미 dev에 머지된 목표관리 화면이 진다.
+//
+// 예외 하나: RouteLoadingOverlay(소프트 내비게이션 로딩 표시)는 순수 UI라 두 셸이
+// 그대로 공유한다 — 사이드바・콘텐츠 폭 같은 화면 고유 규칙이 전혀 없고, 판정 방식이
+// 다른(수행평가는 middleware가 아니라 RequireEntitlement) 두 셸에도 useNavigation()
+// 훅 자체는 동일하게 동작하기 때문이다(App.tsx가 두 라우트 그룹을 같은
+// createBrowserRouter 하나로 묶는다).
 //
 // TODO(반응형): 명세서는 인앱 셸의 브레이크포인트를 정의하지 않았다(§11.3에도 항목 없음).
 //   그래서 §3.1 제안대로 **데스크톱 1920 기준 고정 레이아웃**으로 둔다 — 사이드바 고정
@@ -61,7 +68,8 @@ function PerformanceShellContent() {
       {/* 캔버스. 좌 인셋만 지정해 좌기준선 384px(사이드바 324 + 60)을 맞추고, 우측은
           콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」 규칙).
           pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전 여백일 뿐이다. */}
-      <main className="min-w-0 flex-1 pb-25 pl-perf-inset pr-perf-inset pt-25">
+      <main className="relative min-w-0 flex-1 pb-25 pl-perf-inset pr-perf-inset pt-25">
+        <RouteLoadingOverlay />
         <div className="max-w-perf-content">
           {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
               조건 판정은 이 컴포넌트가 하지 않는다 — 채팅 페이지(Outlet 자식)가
