@@ -63,10 +63,13 @@ describe("SiteFooter — Figma 4782:3568", () => {
     }
   });
 
-  it("로고 마크·워드마크 이미지를 각각 alt와 함께 렌더한다", () => {
+  it("정본 로고(winning-logo-stacked.svg)를 alt와 함께 렌더한다", () => {
     renderFooter();
-    expect(screen.getByAltText("위닝에듀 마크")).toBeInTheDocument();
-    expect(screen.getAllByAltText("위닝에듀").length).toBeGreaterThan(0);
+    const logos = screen.getAllByAltText("위닝에듀");
+    expect(logos.length).toBeGreaterThan(0);
+    for (const logo of logos) {
+      expect(logo).toHaveAttribute("src", "/images/winning-logo-stacked.svg");
+    }
   });
 
   it("이용약관·개인정보처리방침 링크의 href가 올바르다", () => {

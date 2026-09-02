@@ -1,6 +1,4 @@
 import { Link } from "react-router";
-import footerMark from "@/assets/footer/footer-mark.svg";
-import footerWordmark from "@/assets/footer/footer-wordmark.svg";
 import { COMPANY } from "@/data/company";
 import { useNavGroups } from "@/hooks/useNavGroups";
 
@@ -9,7 +7,9 @@ import { useNavGroups } from "@/hooks/useNavGroups";
 // lg+ 데스크톱: Figma 4782:3568(1920 기준) — 상단 블록 px 220/py 100, 로고 그룹↔컬럼
 // gap 300px, 컬럼 간 gap 100px. 1920 미만(lg~1919)은 px/gap을 clamp()로 뷰포트 비례
 // 축소하고, 1920 이상은 max-w-[120rem]로 캡해 실측값을 그대로 유지한다(1440~1919 비례
-// 축소·1920 실값 일치 방침, docs/header-footer-figma-2026-09.md §7).
+// 축소·1920 실값 일치 방침, docs/header-footer-figma-2026-09.md §7). 로고는 정본
+// /images/winning-logo-stacked.svg(dev 기준)를 그대로 유지한다 — 시안의 마크/워드마크
+// 분리 배치는 폐기.
 // 시안에는 컬럼별 고정폭이 없어(구 2207:13215 스펙과 달리) 컬럼은 hug(auto width)로 둔다.
 
 export default function SiteFooter() {
@@ -60,17 +60,12 @@ export default function SiteFooter() {
         <div className="mx-auto hidden w-full max-w-[120rem] items-start justify-between gap-[clamp(3rem,15.625vw,18.75rem)] px-[clamp(3.75rem,11.4583vw,13.75rem)] lg:flex">
           <Link
             to="/company-news"
-            className="relative h-25 w-[14.724rem] shrink-0"
+            className="inline-flex shrink-0 items-center"
           >
             <img
-              src={footerMark}
-              alt="위닝에듀 마크"
-              className="absolute left-[3.635rem] top-0 h-[4.102rem] w-[7.454rem]"
-            />
-            <img
-              src={footerWordmark}
+              src="/images/winning-logo-stacked.svg"
               alt="위닝에듀"
-              className="absolute left-0 top-[5.333rem] h-[0.917rem] w-[14.724rem]"
+              className="h-auto w-46.25"
             />
           </Link>
 
