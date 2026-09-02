@@ -1,3 +1,4 @@
+import { Plus } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import GoalCard from "@/components/goal/GoalCard";
 import GoalChecklistRow from "@/components/goal/GoalChecklistRow";
@@ -30,6 +31,11 @@ type PlanTask = {
   durationMinutes?: number;
   status: PlanTaskStatus;
   sortOrder?: number;
+  // 문제집 연결(QA 행286-B, 선택) — 연결이 없으면 workbookTitle이 null.
+  workbookId?: number | null;
+  pageFrom?: number | null;
+  pageTo?: number | null;
+  workbookTitle?: string | null;
 };
 
 type PlanTasksResult =
@@ -106,11 +112,17 @@ export default function StudyPlanRail() {
     taskText,
     duration,
     schedule,
+    workbookId,
+    pageFrom,
+    pageTo,
   }: {
     subject: string;
     taskText: string;
     duration: string;
     schedule: string;
+    workbookId?: number;
+    pageFrom?: number;
+    pageTo?: number;
   }) {
     const targetDates = schedule === "오늘만" ? [today] : getWeekDates(0);
     const durationMinutes = durationLabelToMinutes(duration);
@@ -122,6 +134,9 @@ export default function StudyPlanRail() {
           title: taskText,
           subject,
           durationMinutes,
+          ...(workbookId !== undefined ? { workbookId } : {}),
+          ...(pageFrom !== undefined ? { pageFrom } : {}),
+          ...(pageTo !== undefined ? { pageTo } : {}),
         }),
       ),
     );
@@ -141,8 +156,9 @@ export default function StudyPlanRail() {
   // "오늘 학습 계획 저장하기" — 체크/삭제가 이미 개별 즉시 저장(PUT/DELETE)이라 이 버튼이
   // 다시 저장할 미확정 상태가 없다(임무 지시 판단 위임 절). 최신 서버 상태를 다시 끌어와
   // "저장 확인/새로고침" 역할로 재배정한다(판단 기록).
+  // 재조회 도중에도 기존 목록을 그대로 보여준다(setResult(null)로 비우지 않는다) —
+  // "로딩 중" 깜빡임 없이 loadTasks() 완료 시 최신 목록으로만 교체된다.
   function handleRefresh() {
-    setResult(null);
     loadTasks();
   }
 
@@ -172,25 +188,39 @@ export default function StudyPlanRail() {
           return (
             <>
               <ul className="flex flex-col gap-2">
-                {tasks.map((task, index) => (
-                  <GoalChecklistRow
-                    key={task.id}
-                    index={index + 1}
-                    text={task.title}
-                    status={task.status}
-                    onCheck={() => handleCheck(task)}
-                    onFail={() => handleFail(task)}
-                  />
-                ))}
+                {tasks.map((task, index) => {
+                  // 문제집 연결 캡션(QA 행286-B) — 연결이 없으면 undefined라 caption
+                  // 자체를 넘기지 않는다(exactOptionalPropertyTypes, AddTaskModal
+                  // day prop과 동일 관례).
+                  const caption = task.workbookTitle
+                    ? `${task.workbookTitle}${
+                        task.pageFrom != null && task.pageTo != null
+                          ? ` p.${task.pageFrom}–${task.pageTo}`
+                          : ""
+                      }`
+                    : null;
+                  return (
+                    <GoalChecklistRow
+                      key={task.id}
+                      index={index + 1}
+                      text={task.title}
+                      {...(caption ? { caption } : {})}
+                      status={task.status}
+                      onCheck={() => handleCheck(task)}
+                      onFail={() => handleFail(task)}
+                    />
+                  );
+                })}
               </ul>
-              {/* part-06 §279: "+ 버튼을 눌러 과제를 추가하세요"는 행이 있어도 상시 노출되는 안내문 —
-                  실제 + 버튼 노드는 시안에 없어 텍스트 자체를 클릭 가능한 트리거로 만들었다(추정). */}
+              {/* 항목이 있으면 안내 문장 대신 아이콘형 "+ 과제 추가" 버튼만 남긴다(임무 지시
+                  §4) — part-06 §279의 상시 노출 안내문은 빈 상태(GoalEmptyState) 전용으로 좁혔다. */}
               <button
                 type="button"
                 onClick={() => setModalOpen(true)}
-                className="text-center text-[0.75rem] leading-[1.4] text-ink-sub underline-offset-2 hover:underline"
+                className="flex items-center justify-center gap-1 text-center text-[0.75rem] leading-[1.4] text-ink-sub transition-colors hover:text-ink-strong"
               >
-                + 버튼을 눌러 과제를 추가하세요
+                <Plus size={12} aria-hidden="true" />
+                과제 추가
               </button>
               <button
                 type="button"

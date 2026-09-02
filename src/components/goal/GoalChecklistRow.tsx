@@ -34,6 +34,9 @@ const STATUS_LABEL: Record<string, string> = {
 type GoalChecklistRowProps = {
   index?: number;
   text?: string;
+  // 연결된 문제집 캡션(QA 행286-B, 선택) — "책제목 p.10–20" 형태. 없으면(undefined)
+  // 캡션 줄 자체를 렌더하지 않아 기존 단일 행 높이가 그대로 유지된다.
+  caption?: string;
   status?: "done" | "fail" | "pending";
   onCheck?: () => void;
   onFail?: () => void;
@@ -42,6 +45,7 @@ type GoalChecklistRowProps = {
 export default function GoalChecklistRow({
   index,
   text,
+  caption,
   status = "pending",
   onCheck,
   onFail,
@@ -50,19 +54,28 @@ export default function GoalChecklistRow({
   const isFail = status === "fail";
 
   return (
-    <li className="flex h-9.5 items-center justify-between gap-2 rounded-lg bg-white px-3">
-      <span
-        className={`flex min-w-0 items-center gap-2 truncate text-[0.875rem] leading-[1.4] ${
-          isFail
-            ? "text-error"
-            : struck[status]
-              ? "text-ink-sub line-through"
-              : "text-ink-strong"
-        }`}
-      >
-        <span className="shrink-0 text-ink-sub">{index}</span>
-        <span className="truncate">{text}</span>
-        <span className="sr-only">({STATUS_LABEL[status]})</span>
+    <li
+      className={`flex min-h-9.5 items-center justify-between gap-2 rounded-lg bg-white px-3 ${caption ? "py-1.5" : ""}`}
+    >
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span
+          className={`flex min-w-0 items-center gap-2 truncate text-[0.875rem] leading-[1.4] ${
+            isFail
+              ? "text-error"
+              : struck[status]
+                ? "text-ink-sub line-through"
+                : "text-ink-strong"
+          }`}
+        >
+          <span className="shrink-0 text-ink-sub">{index}</span>
+          <span className="truncate">{text}</span>
+          <span className="sr-only">({STATUS_LABEL[status]})</span>
+        </span>
+        {caption && (
+          <span className="truncate pl-[1.375rem] text-[0.75rem] leading-[1.4] text-ink-sub">
+            {caption}
+          </span>
+        )}
       </span>
       <span className="flex shrink-0 items-center gap-1">
         <button
