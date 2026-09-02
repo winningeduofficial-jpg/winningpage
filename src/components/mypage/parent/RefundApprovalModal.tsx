@@ -5,6 +5,7 @@ import ModalFooter from "@/components/mypage/modal/ModalFooter";
 import RefundAmountSummary from "@/components/mypage/modal/RefundAmountSummary";
 import RejectReasonField from "@/components/mypage/modal/RejectReasonField";
 import RefundAccountFields from "@/components/mypage/RefundAccountFields";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatKRW } from "@/data/pricingCatalog";
 import type { VirtualAccountInfo } from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
@@ -295,7 +296,7 @@ export default function RefundApprovalModal({
         )
       }
     >
-      <div className="flex-1 overflow-y-auto px-6">
+      <ScrollArea className="flex-1 px-6">
         <div className="mt-6">
           <p
             className="truncate text-[0.9375rem] font-semibold text-ink"
@@ -398,7 +399,7 @@ export default function RefundApprovalModal({
         {errorMsg && (
           <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
         )}
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }

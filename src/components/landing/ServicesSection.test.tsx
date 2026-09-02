@@ -3,16 +3,18 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 import ServicesSection from "./ServicesSection";
+import type { Service } from "./services/ServiceCard";
 
 // QA 시트 행29·60 — 핵심 서비스 9카드(3×3) 확장. 기존 6카드 + 성장설계·컨설팅
-// 프리미엄·국제·해외 프리미엄. is_premium 카드는 PREMIUM 배지가 뜬다.
-const baseServices = [
+// 프리미엄·국제·해외 프리미엄. PREMIUM 배지는 2026-09-03부터 일러스트 PNG에 이미
+// 합성돼 있으므로 DOM에는 별도로 렌더되지 않는다(is_premium 은 타입에만 남는다).
+const baseServices: Service[] = [
   {
     id: "svc-1",
     name: "학습진단",
     description: "무료로 경험하는\n위닝 AE시스템",
     link: "/services/learning-diagnosis",
-    icon_image_url: "/images/landing/services/free-diagnosis.png",
+    icon_image_url: "/images/landing/services/learning-diagnosis.png",
     sort_order: 1,
   },
   {
@@ -46,7 +48,7 @@ const baseServices = [
   },
 ];
 
-function renderSection(services = baseServices) {
+function renderSection(services: Service[] = baseServices) {
   return render(
     <MemoryRouter>
       <ServicesSection services={services} />
@@ -69,24 +71,10 @@ describe("ServicesSection", () => {
     expect(names).toHaveLength(4);
   });
 
-  test("is_premium 카드에만 PREMIUM 배지가 보인다", () => {
-    renderSection();
-
-    const badges = screen.getAllByText("PREMIUM");
-    expect(badges).toHaveLength(2);
-
-    const consultingLink = screen.getByRole("link", {
-      name: "컨설팅 프리미엄 바로가기",
-    });
-    const growthLink = screen.getByRole("link", {
-      name: "성장설계 바로가기",
-    });
-
-    expect(consultingLink).toContainElement(badges[0]!);
-    expect(growthLink).not.toHaveTextContent("PREMIUM");
-  });
-
-  test("설명의 줄바꿈이 whitespace-pre-line 텍스트 노드로 그대로 렌더된다", () => {
+  // 카드 폭 ≥21rem(컨테이너 쿼리)에서만 whitespace-pre로 전환된다(사용자 확정 최종
+  // 사이징 규칙) — jsdom은 컨테이너 쿼리를 평가하지 않으므로 기본(whitespace-pre-line)
+  // 클래스와 전환용 @[21rem]: 클래스가 둘 다 붙어 있는지만 확인한다.
+  test("설명의 줄바꿈이 whitespace-pre-line 기본 + @[21rem]:whitespace-pre 전환 클래스로 렌더된다", () => {
     renderSection();
 
     const description = screen.getByText(
@@ -94,11 +82,38 @@ describe("ServicesSection", () => {
         el?.textContent ===
         "대입 컨설팅 프로그램\n특목고 입학 프로그램\n대학원 입학 프로그램",
     );
-    expect(description).toHaveClass("whitespace-pre-line");
+    expect(description).toHaveClass(
+      "whitespace-pre-line",
+      "@[21rem]:whitespace-pre",
+    );
+  });
+
+  test("일러스트 이미지는 icon_image_url 을 그대로 src 로 사용한다(배지·그림자는 이미지에 합성됨)", () => {
+    renderSection();
+
+    const img = screen
+      .getByRole("link", {
+        name: "컨설팅 프리미엄 바로가기",
+      })
+      .querySelector("img");
+    expect(img).toHaveAttribute(
+      "src",
+      "/images/landing/services/consulting-premium.png",
+    );
   });
 
   test("서비스 데이터가 없으면 섹션 자체를 렌더하지 않는다", () => {
     const { container } = renderSection([]);
     expect(container).toBeEmptyDOMElement();
+  });
+
+  // 컨테이너 쿼리 기준점(@container)은 카드가 아니라 패딩 없는 그리드 li — 카드(패딩
+  // 있음)에 걸면 cqw가 콘텐츠 박스 기준으로 잡혀 일러스트가 의도보다 작아진다(실측 버그).
+  test("그리드 li가 컨테이너 쿼리 기준점(@container)이다", () => {
+    renderSection();
+
+    const card = screen.getByRole("link", { name: "학습진단 바로가기" });
+    const li = card.closest("li");
+    expect(li).toHaveClass("@container");
   });
 });

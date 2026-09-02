@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   addDaysYMD,
   CONDITION_MULTIPLIER,
@@ -800,7 +801,7 @@ export default function GoalStudentsAdmin({
             명
           </div>
 
-          <div className="overflow-x-auto">
+          <ScrollArea axis="x">
             <table className="w-full min-w-325 border-collapse text-sm">
               <thead>
                 {/* 표 폭이 컨테이너보다 넓으면 가로 스크롤로 처리한다(§4-1 관행).
@@ -919,7 +920,7 @@ export default function GoalStudentsAdmin({
                 )}
               </tbody>
             </table>
-          </div>
+          </ScrollArea>
 
           <div className="mt-6 flex items-center justify-center gap-1">
             <button
@@ -1566,7 +1567,7 @@ function GoalStudentDetail({
             <GoalDetailRow label="주간 최소">
               {student.week_min ?? "-"} 시간
             </GoalDetailRow>
-            <div className="overflow-x-auto px-4 py-3">
+            <ScrollArea axis="x" className="px-4 py-3">
               <table className="w-full min-w-100 border-collapse text-xs">
                 <thead>
                   <tr className="border-y border-gray-200 text-left">
@@ -1600,7 +1601,7 @@ function GoalStudentDetail({
               <p className="mt-2 text-xs font-bold text-gray-400">
                 주간 합계는 월~토만 더합니다(일요일 제외).
               </p>
-            </div>
+            </ScrollArea>
           </GoalCard>
 
           {/* 성적 원자료 — 목록 미노출, 상세 접힘 기본(§3-D6) */}
@@ -1621,17 +1622,31 @@ function GoalStudentDetail({
                   <div className="mb-1 text-xs font-black text-gray-500">
                     naesin_scores
                   </div>
-                  <pre className="overflow-x-auto border border-gray-200 bg-[#fafafa] p-3 text-xs">
-                    {JSON.stringify(student.naesin_scores ?? null, null, 2)}
-                  </pre>
+                  <ScrollArea
+                    axis="x"
+                    className="border border-gray-200 bg-[#fafafa] p-3 text-xs"
+                  >
+                    <pre>
+                      {JSON.stringify(student.naesin_scores ?? null, null, 2)}
+                    </pre>
+                  </ScrollArea>
                 </div>
                 <div>
                   <div className="mb-1 text-xs font-black text-gray-500">
                     mock_exam_scores
                   </div>
-                  <pre className="overflow-x-auto border border-gray-200 bg-[#fafafa] p-3 text-xs">
-                    {JSON.stringify(student.mock_exam_scores ?? null, null, 2)}
-                  </pre>
+                  <ScrollArea
+                    axis="x"
+                    className="border border-gray-200 bg-[#fafafa] p-3 text-xs"
+                  >
+                    <pre>
+                      {JSON.stringify(
+                        student.mock_exam_scores ?? null,
+                        null,
+                        2,
+                      )}
+                    </pre>
+                  </ScrollArea>
                 </div>
               </div>
             ) : (
@@ -1645,7 +1660,7 @@ function GoalStudentDetail({
         {/* ── C-2 우측: 게이지 분해 + C-3 컷 diff ────────────────────── */}
         <div>
           <GoalCard title="확률 분해 (base + Σdelta = 현재)">
-            <div className="overflow-x-auto">
+            <ScrollArea axis="x">
               <table className="w-full min-w-120 border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-left">
@@ -1695,7 +1710,7 @@ function GoalStudentDetail({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
 
             <div className="border-t border-[#edf0f4] px-5 py-3 text-xs font-bold leading-6 text-gray-500">
               rate = (100 − base) ÷ (기준일까지 남은 일수 + 학년 오프셋)입니다.
@@ -1713,7 +1728,7 @@ function GoalStudentDetail({
 
           {/* ── C-3 컷 스냅샷 vs 현재 컷 diff ────────────────────────── */}
           <GoalCard title="컷 스냅샷 vs 현재 컷">
-            <div className="overflow-x-auto">
+            <ScrollArea axis="x">
               <table className="w-full min-w-136 border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-gray-200 text-left">
@@ -1796,7 +1811,7 @@ function GoalStudentDetail({
                   })}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
 
             <div className="border-t border-[#edf0f4] px-5 py-3">
               {state?.status === "awaiting_cuts" ? (
@@ -1822,7 +1837,7 @@ function GoalStudentDetail({
             {/* 0건일 때 차트를 그리지 않는다 — 아래 표가 이미 같은 빈 상태 문구를 낸다. */}
             {logs.length > 0 && <GoalProbabilityChart logs={logs} />}
 
-            <div className="overflow-x-auto border-t border-[#edf0f4]">
+            <ScrollArea axis="x" className="border-t border-[#edf0f4]">
               <table className="w-full min-w-136 border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-gray-200 text-left">
@@ -1872,7 +1887,7 @@ function GoalStudentDetail({
                   )}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           </GoalCard>
         </div>
       </div>
@@ -1891,7 +1906,7 @@ function GoalStudentDetail({
           ) : null
         }
       >
-        <div className="overflow-x-auto">
+        <ScrollArea axis="x">
           <table className="w-full min-w-250 border-collapse text-xs">
             <thead>
               <tr className="border-b border-gray-200 text-left">
@@ -2043,7 +2058,7 @@ function GoalStudentDetail({
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       </GoalCard>
     </div>
   );

@@ -4,6 +4,7 @@ import RevenueDashboard, {
   type RevenuePending,
 } from "@/components/admin/RevenueDashboard";
 import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 import { downloadCsv } from "@/pages/admin/shared/csvExport";
 import { ActionButton } from "@/pages/admin/shared/formFields";
@@ -436,7 +437,7 @@ export default function RevenueAdmin() {
           데이터를 불러오는 중입니다.
         </div>
       ) : (
-        <div className="overflow-x-auto bg-white shadow-sm">
+        <ScrollArea axis="x" className="bg-white shadow-sm">
           <table className="w-full min-w-[1000px] text-sm">
             <thead>
               <tr className="border-b border-[#edf0f4] bg-[#fafafa] text-left">
@@ -499,7 +500,7 @@ export default function RevenueAdmin() {
               )}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       )}
     </div>
   );

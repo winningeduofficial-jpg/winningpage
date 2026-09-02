@@ -2,6 +2,7 @@ import { useState } from "react";
 import DeltaBadge from "@/components/goal/DeltaBadge";
 import GoalCardHeader from "@/components/goal/GoalCardHeader";
 import GoalEmptyState from "@/components/goal/GoalEmptyState";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const COLUMNS = [
   { key: "term", label: "회차" },
@@ -96,7 +97,7 @@ export default function GoalTable({
           />
         </div>
       ) : (
-        <div className="mt-5 overflow-x-auto">
+        <ScrollArea axis="x" className="mt-5">
           <table className="w-full min-w-180 border-collapse text-left text-[0.8125rem] leading-[1.4]">
             <thead>
               <tr className="border-b border-[#EDEDED] text-ink-sub">
@@ -207,7 +208,7 @@ export default function GoalTable({
               })}
             </tbody>
           </table>
-        </div>
+        </ScrollArea>
       )}
     </div>
   );

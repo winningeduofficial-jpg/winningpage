@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 import MyPageModalShell from "./MyPageModalShell";
 import ModalFooter from "./modal/ModalFooter";
@@ -104,7 +105,7 @@ export default function OrgCodeModal({
         />
       }
     >
-      <div className="flex-1 overflow-y-auto px-6">
+      <ScrollArea className="flex-1 px-6">
         <label className="mt-6 block">
           <span className="text-[0.8125rem] font-semibold text-ink">
             소속코드
@@ -128,7 +129,7 @@ export default function OrgCodeModal({
         {errorMsg && (
           <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
         )}
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }

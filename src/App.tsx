@@ -1,3 +1,4 @@
+import { useOverlayScrollbars } from "overlayscrollbars-react";
 import { useEffect } from "react";
 import {
   createBrowserRouter,
@@ -9,6 +10,7 @@ import {
 } from "react-router";
 import SessionKickGuard from "./components/SessionKickGuard";
 import SiteLayout from "./components/SiteLayout";
+import { scrollbarsOptions } from "./lib/scrollbarOptions";
 import adminRoutes from "./routes/adminRoutes";
 import admissionRoutes from "./routes/admissionRoutes";
 import alimtalkLinkRoutes from "./routes/alimtalkLinkRoutes";
@@ -43,7 +45,27 @@ function ScrollToTop() {
 // 트리 최상단 레이아웃 라우트로 옮겼다(예전엔 <BrowserRouter> 바로 아래
 // <Routes>의 형제였다. 데이터 라우터는 RouterProvider 바깥에 임의 형제를 둘 수
 // 없어 라우트 엘리먼트 안으로 편입해야 한다).
+// body 오버레이 스크롤바 초기화 — 네이티브 스크롤바가 차지하던 레이아웃 폭을
+// 없애 드로어/모달이 열려 배경 스크롤이 잠길 때 생기던 레이아웃 밀림(15px)을
+// 없앤다(사용자 결정 C안). index.html의 <body data-overlayscrollbars-initialize>는
+// OverlayScrollbars가 준비되기 전까지 네이티브 스크롤바를 CSS로 미리 숨겨(FOUC 방지)
+// 두고, 이 훅이 실제 JS 인스턴스를 붙인다. defer: true라 브라우저가 유휴 상태일 때
+// (또는 다음 프레임에) 초기화되므로 최초 페인트를 막지 않는다.
+//
+// base-ui Dialog(드로어/모달)의 스크롤 잠금은 body에 직접 overflow:hidden을
+// 걸어 네이티브 스크롤을 막는 방식이라, body가 오버레이 스크롤바로 전환돼도
+// 그 잠금 자체와는 충돌하지 않는다 — 잠겼다 풀렸다 하는 동안 body가 다른
+// 레이아웃 폭을 차지하지 않으므로 밀림이 사라진다.
 function RootLayout() {
+  const [initialize] = useOverlayScrollbars({
+    defer: true,
+    options: { scrollbars: scrollbarsOptions },
+  });
+
+  useEffect(() => {
+    initialize(document.body);
+  }, [initialize]);
+
   return (
     <>
       <ScrollToTop />

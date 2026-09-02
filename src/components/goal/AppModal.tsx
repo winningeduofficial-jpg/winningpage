@@ -8,6 +8,7 @@ import {
   DialogOverlay,
   DialogPortal,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type AppModalProps = {
   open: boolean;
@@ -82,7 +83,7 @@ export default function AppModal({
             <X size={16} />
           </DialogClose>
 
-          <div className="flex-1 overflow-y-auto px-7.5 pt-7.5">
+          <ScrollArea className="flex-1 px-7.5 pt-7.5">
             {(title || subtitle) && (
               <div className="mb-6.75 pr-6">
                 {title && (
@@ -105,7 +106,7 @@ export default function AppModal({
                 필드 블록 사이는 별도 큰 gap 없이 살짝만(0.5rem) 띄운다 — ModalField가 라벨→컨트롤
                 간격(1.6875rem)을 자체 보유하므로 여기서는 블록 간 최소 여백만 추가. */}
             <div className="flex flex-col gap-2 pb-7.5">{children}</div>
-          </div>
+          </ScrollArea>
 
           <div className="grid grid-cols-2 gap-2 border-t border-[#F0F0F0] px-7.5 py-5">
             <button

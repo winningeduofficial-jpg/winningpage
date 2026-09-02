@@ -4,6 +4,7 @@ import EffortWorkbookRow, {
   type EffortBook,
 } from "@/components/goal/plan/EffortWorkbookRow";
 import { resolveSubjectId } from "@/components/goal/subjectTokens";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // 나의 노력 과목 카드 — Figma 4026:6046(디자이너 시안 재구현).
 //
@@ -147,7 +148,7 @@ export default function EffortSubjectCard({
       <div className="mt-3 flex min-h-0 flex-1 flex-col">
         {/* 그림자(아래 4px 오프셋+4px 블러)가 스크롤 컨테이너에 잘리지 않도록
             하단·좌우 여백을 둔다 — 여백 없이는 맨 아래 책의 그림자가 통째로 사라진다. */}
-        <div className="mt-auto max-h-50 overflow-y-auto px-1 pb-2.5">
+        <ScrollArea className="mt-auto max-h-50 px-1 pb-2.5">
           {hasCompletedBooks && (
             <BookStack
               books={completedBooks}
@@ -155,7 +156,7 @@ export default function EffortSubjectCard({
               droppingId={droppingBookId ?? null}
             />
           )}
-        </div>
+        </ScrollArea>
         {/* 선반 바 폭을 책 바(BookStack, 위 px-1 안쪽 w-full)와 맞춘다 — 전에는
             w-36.75(147px) 고정이라 카드 폭이 늘어나면 선반만 짧게 붕 떠 보였다.
             items-stretch로 이 줄 컨테이너를 카드 폭까지 채우고 mx-1로 책 바와

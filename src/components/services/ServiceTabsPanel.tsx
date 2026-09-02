@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { CARD_DESC_MUTED_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
@@ -69,8 +70,9 @@ export default function ServiceTabsPanel({
 
   return (
     <>
-      <div
-        className="mt-8 flex items-center gap-5 overflow-x-auto sm:mt-10 lg:mt-11.5 lg:gap-7.5"
+      <ScrollArea
+        axis="x"
+        className="mt-8 flex items-center gap-5 sm:mt-10 lg:mt-11.5 lg:gap-7.5"
         role="tablist"
         aria-label={ariaLabel}
       >
@@ -105,7 +107,7 @@ export default function ServiceTabsPanel({
             </Fragment>
           );
         })}
-      </div>
+      </ScrollArea>
 
       <div
         id={`${idPrefix}-tabpanel`}

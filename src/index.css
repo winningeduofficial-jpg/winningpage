@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "overlayscrollbars/overlayscrollbars.css";
 /*
   ---break---
 */
@@ -307,21 +308,42 @@ body {
   background: rgba(214, 176, 106, 0.26);
 }
 
-::-webkit-scrollbar {
-  width: 10px;
+/* 오버레이 스크롤바(overlayscrollbars) 공용 테마 — body 초기화(src/main.tsx)와
+   ScrollArea(src/components/ui/scroll-area.tsx)가 함께 참조하는 단일 테마다.
+   node_modules/overlayscrollbars/styles/overlayscrollbars.css의 .os-theme-dark/
+   .os-theme-light와 같은 방식(--os-* 커스텀 프로퍼티)으로 확장한다 — 예전
+   ::-webkit-scrollbar 4규칙(레이아웃 폭을 차지하는 네이티브 스크롤바)을 대체한다.
+   폭은 네이티브(10px)보다 얇은 0.5rem — 오버레이라 콘텐츠를 가리는 폭은 더 좁게 잡는다. */
+.os-theme-winning {
+  box-sizing: border-box;
+  --os-size: 0.5rem;
+  --os-padding-perpendicular: 0.125rem;
+  --os-padding-axis: 0.125rem;
+  --os-track-border-radius: 999px;
+  --os-handle-interactive-area-offset: 0.25rem;
+  --os-handle-border-radius: 999px;
+  --os-track-bg: transparent;
+  --os-handle-bg: #b8b1a2;
+  --os-handle-bg-hover: #0d1b2a;
+  --os-handle-bg-active: #0d1b2a;
 }
 
-::-webkit-scrollbar-track {
-  background: #f0eee8;
+/* 전역 안전망(사용자 확정: "전체 적용") — ScrollArea가 아직 닿지 않은 네이티브
+   overflow 컨테이너도 레이아웃 폭을 차지하는 스크롤바를 그리지 않게 한다.
+   OverlayScrollbars가 만드는 내부 뷰포트([data-overlayscrollbars-viewport])는
+   이미 자체 CSS(node_modules/overlayscrollbars/styles/overlayscrollbars.css의
+   `[data-overlayscrollbars-viewport~=scrollbarHidden]` 규칙)로 네이티브 스크롤바를
+   숨기므로 이 안전망과 충돌하지 않는다 — 두 규칙이 같은 결론(숨김)을 내린다.
+   커스텀 스크롤바(.os-scrollbar)는 실제 overflow 요소가 아닌 별도 div라 애초에
+   네이티브 스크롤바 렌더링 대상이 아니어서 제외할 selector가 필요 없다. */
+* {
+  scrollbar-width: none;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #b8b1a2;
-  border-radius: 999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #0d1b2a;
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .site-dark-bg {

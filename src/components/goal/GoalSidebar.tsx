@@ -9,6 +9,7 @@ import {
   DialogOverlay,
   DialogPortal,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/context/AuthProvider";
 import { kstYMD } from "@/lib/goal/calc/index.js";
 import type { FetchTodayGoalRecordResult } from "@/lib/goalApi";
@@ -200,21 +201,23 @@ export default function GoalSidebar() {
             finalFocus={hamburgerRef}
             aria-modal="true"
             aria-label="목표관리 메뉴"
-            className="fixed inset-y-0 left-0 z-60 flex h-full w-[85vw] max-w-perf-sidebar flex-col overflow-y-auto bg-goal-sidebar shadow-[18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-closed:-translate-x-full data-open:translate-x-0 md:hidden"
+            className="fixed inset-y-0 left-0 z-60 flex h-full w-[85vw] max-w-perf-sidebar flex-col bg-goal-sidebar shadow-[18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-closed:-translate-x-full data-open:translate-x-0 md:hidden"
           >
-            <div className="flex justify-end px-2.5 pt-4">
-              <DialogClose
-                aria-label="메뉴 닫기"
-                className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-sub transition-colors hover:bg-goal-activePill/60"
-              >
-                <X size={20} />
-              </DialogClose>
-            </div>
-            <GoalSidebarContent
-              profile={profile}
-              navBadgeData={navBadgeData}
-              onNavigate={() => setDrawerOpen(false)}
-            />
+            <ScrollArea className="flex-1">
+              <div className="flex justify-end px-2.5 pt-4">
+                <DialogClose
+                  aria-label="메뉴 닫기"
+                  className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-sub transition-colors hover:bg-goal-activePill/60"
+                >
+                  <X size={20} />
+                </DialogClose>
+              </div>
+              <GoalSidebarContent
+                profile={profile}
+                navBadgeData={navBadgeData}
+                onNavigate={() => setDrawerOpen(false)}
+              />
+            </ScrollArea>
           </DialogPrimitive.Popup>
         </DialogPortal>
       </Dialog>

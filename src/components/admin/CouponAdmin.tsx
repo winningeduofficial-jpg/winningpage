@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 import type { TablesInsert, TablesUpdate } from "@/types/database.types";
@@ -1244,7 +1245,7 @@ export default function CouponAdmin() {
               전체 <span className="text-blue-600">{coupons.length}</span>건
             </div>
 
-            <div className="overflow-x-auto">
+            <ScrollArea axis="x">
               <table className="w-full min-w-285 border-collapse text-sm">
                 <thead>
                   <tr className="border-y border-gray-300">
@@ -1427,7 +1428,7 @@ export default function CouponAdmin() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           </div>
         )}
       </>
@@ -1482,7 +1483,7 @@ export default function CouponAdmin() {
               전체 <span className="text-blue-600">{historyRows.length}</span>건
             </div>
 
-            <div className="overflow-x-auto">
+            <ScrollArea axis="x">
               <table className="w-full min-w-250 border-collapse text-sm">
                 <thead>
                   <tr className="border-y border-gray-300">
@@ -1622,7 +1623,7 @@ export default function CouponAdmin() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           </div>
         )}
       </>
@@ -1775,7 +1776,7 @@ export default function CouponAdmin() {
               전체 <span className="text-blue-600">{grantRows.length}</span>건
             </div>
 
-            <div className="overflow-x-auto">
+            <ScrollArea axis="x">
               <table className="w-full min-w-250 border-collapse text-sm">
                 <thead>
                   <tr className="border-y border-gray-300">
@@ -1908,7 +1909,7 @@ export default function CouponAdmin() {
                   )}
                 </tbody>
               </table>
-            </div>
+            </ScrollArea>
           </div>
         )}
       </>

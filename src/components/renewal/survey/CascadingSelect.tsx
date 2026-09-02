@@ -1,5 +1,6 @@
 import { Check, ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // 플레이스홀더는 Figma 시안 `1889:10708`(survey-10656.md §2.6)의 필드 표시값 원문이다
 // (`건국대학교` / `경영학과` / `학생부종합` / `KU자기추천`). 안내문이 아니라 예시 값이며,
@@ -327,11 +328,11 @@ export default function CascadingSelect({
             )}
 
             {isOpen && (
-              <div
+              <ScrollArea
                 id={listboxId}
                 role="listbox"
                 aria-label={level.label}
-                className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-72 overflow-y-auto rounded-2xl border border-[#EDEDED] bg-white p-2 shadow-[0_1rem_2.5rem_rgba(15,23,42,0.12)]"
+                className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-30 max-h-72 rounded-2xl border border-[#EDEDED] bg-white p-2 shadow-[0_1rem_2.5rem_rgba(15,23,42,0.12)]"
               >
                 {(() => {
                   if (level.loading)
@@ -436,7 +437,7 @@ export default function CascadingSelect({
                     );
                   });
                 })()}
-              </div>
+              </ScrollArea>
             )}
           </div>
         );

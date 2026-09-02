@@ -17,6 +17,7 @@ import { QUICK_ADD_HOURS } from "@/components/goal/goalFormOptions";
 import GapToTargetCard from "@/components/goal/study/GapToTargetCard";
 import { DEFAULT_TIMER_SUBJECTS } from "@/components/goal/studyRecordOptions";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/context/AuthProvider";
 import {
   getDayIndexFromYMDServer,
@@ -649,12 +650,12 @@ export default function Dashboard() {
                 주석과 동일 사유) 소속이라 내부를 직접 고치지 않고, 넘치는 폭을 여기
                 래퍼에서 가로 스크롤로 흡수한다(body의 overflow-x:hidden으로 조용히
                 잘리던 값을 스크롤 가능하게 바꿔 정보 손실을 막는다). */}
-              <div className="overflow-x-auto">
+              <ScrollArea axis="x">
                 <TodayGoalCard
                   data={todayGoalData}
                   onSaved={reloadDailyRecord}
                 />
-              </div>
+              </ScrollArea>
 
               {/* QA 행292/328 — 원래 각 카드가 w-132.5(33.125rem) 고정이라 좌측 컬럼이 그리드
                 트랙 폭과 무관하게 항상 67.25rem을 요구했다. flex-1 min-w-0으로 바꿔 좌측

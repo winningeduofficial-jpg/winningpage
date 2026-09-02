@@ -1,6 +1,7 @@
 import { Download, Eye, EyeOff, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 import { AdminTable } from "@/pages/admin/shared/AdminEngine";
 import { getFreshSupabaseAccessTokenOrSignOut } from "@/pages/admin/shared/adminSession";
@@ -1006,7 +1007,7 @@ function PayPane({
         ))}
       </div>
 
-      <div className="overflow-x-auto bg-white shadow-sm">
+      <ScrollArea axis="x" className="bg-white shadow-sm">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b border-[#edf0f4] bg-[#fafafa] text-left">
@@ -1058,7 +1059,7 @@ function PayPane({
             )}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
     </>
   );
 }
@@ -1132,7 +1133,7 @@ function MessagePane({
         </div>
       </div>
 
-      <div className="overflow-x-auto bg-white shadow-sm">
+      <ScrollArea axis="x" className="bg-white shadow-sm">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b border-[#edf0f4] bg-[#fafafa] text-left">
@@ -1184,7 +1185,7 @@ function MessagePane({
             )}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
     </>
   );
 }
