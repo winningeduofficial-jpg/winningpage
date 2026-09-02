@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   PREMIUM_BEIGE_BG_CLASS,
   PREMIUM_GRADUATE_GREEN,
@@ -37,7 +38,7 @@ export default function PremiumCompareTable({
 
   return (
     <div className="w-full">
-      <div className="overflow-x-auto rounded-lg border border-line">
+      <ScrollArea axis="x" className="rounded-lg border border-line">
         <table className="w-full min-w-[40rem] border-collapse text-left">
           <thead>
             <tr>
@@ -91,7 +92,7 @@ export default function PremiumCompareTable({
             ))}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
       {footnote ? (
         <div
           className={`mt-4 break-keep text-[0.75rem] leading-[1.6] ${PREMIUM_NATURAL_TEXT_CLASS}`}
