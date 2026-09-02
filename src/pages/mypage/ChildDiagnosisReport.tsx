@@ -140,5 +140,19 @@ export default function ChildDiagnosisReport() {
     );
   }
 
-  return <DiagnosisReportView data={report.payload as DiagnosisReportData} />;
+  // 리포트 시트 위에 목록으로 돌아가는 길만 얹는다 — 자녀 이름·진단일은 시트 1페이지가
+  // 이미 크게 보여주므로 헤딩을 중복하지 않는다. fd-no-print 로 인쇄·PDF 에서는 빠진다.
+  return (
+    <>
+      <div className="fd-no-print mx-auto w-full max-w-content px-5 pt-8 sm:px-8">
+        <Link
+          to={`/mypage/children/${studentId}/report/diagnosis`}
+          className="text-[0.875rem] font-medium text-ink-sub underline underline-offset-4 transition hover:text-ink"
+        >
+          ← 리포트 목록
+        </Link>
+      </div>
+      <DiagnosisReportView data={report.payload as DiagnosisReportData} />
+    </>
+  );
 }
