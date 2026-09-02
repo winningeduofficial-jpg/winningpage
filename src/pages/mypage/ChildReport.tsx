@@ -47,7 +47,7 @@ type ChildReportResult =
   | { kind: "not-started" }
   | { kind: "error" };
 
-// ⚠ 신규 카피 — 승인 필요.
+// 안내 문구 — 2026-09-02 승인(QA 시트 행 210, 목표관리 화면 기존 문구와 동일 어조).
 const NOT_STARTED_NOTICE = "자녀가 아직 목표관리를 시작하지 않았어요.";
 
 export default function ChildReport() {

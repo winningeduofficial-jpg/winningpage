@@ -114,7 +114,7 @@ const MISSING_ORDER_ITEM_TEXT =
   "신청 상품이 변경되어 결제를 진행할 수 없어요. 자녀에게 다시 신청을 요청해 주세요.";
 const ALREADY_PROCESSED_TEXT = "이미 처리된 결제 요청입니다.";
 const NOT_PARENT_TEXT = "학부모 본인만 진행할 수 있는 결제 요청이에요.";
-// ⚠ 신규 카피 — 승인 필요(QA 시트 338행, 2026-09-02). 상품을 바꾼 경로
+// 상품 변경 시 쿠폰 안내 — 2026-09-02 승인(QA 시트 338행). 상품을 바꾼 경로
 // (hasChanged)는 새 주문이 쿠폰을 받지 않는다(fn_parent_create_enrollment
 // 주석 — "coupon_id NULL, 범위 밖"). 지금까지는 이 경로에서 쿠폰 섹션이
 // 아무 설명 없이 통째로 사라져(org 한정 상품 배너·isResume 배너 조건 모두
