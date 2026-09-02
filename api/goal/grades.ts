@@ -48,11 +48,14 @@
 // 405 → 401 → (조회 200 {allowed:false} / 쓰기 403 PAID_MESSAGE) → 검증 → 처리 → 500.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { GRADE_PERCENTILE } from "../../src/lib/goal/calc/jeongsi.js";
+import { buildGoalDirectionReport } from "../_lib/goalDirectionReport.js";
 import {
   fetchStudentRow,
   narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
+  saveGoalDirectionReport,
   updateStudentGrades,
 } from "../_lib/goalRepo.js";
 import { sendError } from "../_lib/httpResponse.js";
@@ -358,6 +361,28 @@ async function handlePost(
   }
 
   await updateStudentGrades(supabaseAdmin, profileId, patch);
+
+  // QA 행301(b) — 이 회차를 학습방향 리포트 이력에 1건 남긴다. naesinScores/
+  // mockExamScores를 넘기지 않아 buildGoalDirectionReport가 레거시(4과목 flat)
+  // 분기로만 해석하도록 강제한다 — 이 지점의 목적은 "방금 입력한 이 회차"의
+  // 스냅샷이지, 학생의 현재 과목군 평균 집계(naesin_scores.groupAverages, 병렬
+  // 유닛 소유)가 아니기 때문이다(판단 지점, api/_lib/goalDirectionReport.ts
+  // resolveNaesinSubjectAverage/resolveJungsiSubjectAverage 헤더 주석 참고).
+  const { payload, snapshot } = buildGoalDirectionReport({
+    kind: type === "naesin" ? "naesin" : "jungsi",
+    sourceType: type === "naesin" ? "naesin" : "mogo",
+    sourceLabel: record.term,
+    grade: row.grade,
+    legacyEntry: record,
+    gradePercentile: GRADE_PERCENTILE,
+  });
+  await saveGoalDirectionReport(supabaseAdmin, profileId, {
+    kind: type === "naesin" ? "naesin" : "jungsi",
+    sourceType: type === "naesin" ? "naesin" : "mogo",
+    sourceLabel: record.term,
+    payload,
+    snapshot,
+  });
 
   return res.status(200).json({ ok: true, record, records });
 }

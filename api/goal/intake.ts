@@ -44,6 +44,7 @@ import {
   round1,
 } from "../../src/lib/goal/calc/index.js";
 import type { CutsInput } from "../../src/lib/goal/calc/pipeline.js";
+import { buildGoalDirectionReport } from "../_lib/goalDirectionReport.js";
 
 import {
   appendProbabilityLog,
@@ -55,6 +56,7 @@ import {
   narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
+  saveGoalDirectionReport,
   upsertStudentRow,
 } from "../_lib/goalRepo.js";
 import { sendError } from "../_lib/httpResponse.js";
@@ -852,6 +854,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       baseProbsForStorage,
       "intake",
     );
+
+    // 11-b) QA 행301(a) — 온보딩 최초 학습방향 리포트(내신·정시 각 1건, source_type=
+    //       'intake', source_label='내 현재 위치')를 생성해 저장한다. naesin_scores/
+    //       mock_exam_scores는 savedRow 그대로 넘겨 새 shape(groupAverages/rounds,
+    //       병렬 유닛 소유)이 이미 반영돼 있으면 우선 쓰고, 아니면 이 지점에서
+    //       파이프라인이 막 계산한 대표값(converted_grade/current_mogo)으로
+    //       폴백한다(report.ts ensureDirectionReports의 fallback과 동일 값 소스).
+    for (const kind of ["naesin", "jungsi"] as const) {
+      const legacyEntry =
+        kind === "naesin"
+          ? { value: savedRow.converted_grade }
+          : { value: savedRow.current_mogo };
+      const { payload, snapshot } = buildGoalDirectionReport({
+        kind,
+        sourceType: "intake",
+        sourceLabel: "내 현재 위치",
+        grade: savedRow.grade,
+        naesinScores: savedRow.naesin_scores,
+        mockExamScores: savedRow.mock_exam_scores,
+        legacyEntry,
+        gradePercentile: GRADE_PERCENTILE,
+      });
+      await saveGoalDirectionReport(supabaseAdmin, profileId, {
+        kind,
+        sourceType: "intake",
+        sourceLabel: "내 현재 위치",
+        payload,
+        snapshot,
+      });
+    }
 
     // 12) 응답 — GET /api/goal/student 와 완전히 같은 본문을 담는다.
     //     뷰를 다시 읽는 이유는 두 엔드포인트가 같은 조립 경로를 타게 하기 위해서다
