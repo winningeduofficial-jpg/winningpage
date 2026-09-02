@@ -430,8 +430,10 @@ function buildRuleTodayAdviceDaily(
   if (student.studentType?.weakSubjects) {
     parts.push(`${student.studentType.weakSubjects} 위주로 보완하면 좋습니다.`);
   } else if (student.idealName && student.minName) {
+    // "은(는)" 조사 병기 대신 받침 유무와 무관한 "에"를 쓴다(2026-09-02 로컬 E2E
+    // 발견, 팀장 지시로 수정 — buildRuleMajorTips와 같은 조치).
     parts.push(
-      `${student.minName}은(는) 가까워지고 있으니 ${student.idealName} 목표까지 이 페이스를 유지해 보세요.`,
+      `최소 목표 ${student.minName}에 가까워지고 있으니 이상 목표 ${student.idealName}까지 이 페이스를 유지해 보세요.`,
     );
   }
 
@@ -446,8 +448,9 @@ function buildRuleTodayAdviceDaily(
 function buildRuleTodayAdviceIntake(student: AdviceStudentContext): string {
   const parts = ["온보딩 진단이 완료되어 목표까지의 현재 위치를 확인했습니다."];
   if (student.idealName && student.minName) {
+    // "과(와)" 조사 병기 대신 쉼표로 나열한다(buildRuleTodayAdviceDaily와 동일 조치).
     parts.push(
-      `이상 목표 ${student.idealName}과(와) 최소 목표 ${student.minName} 사이의 격차를 오늘부터 하나씩 좁혀가 보세요.`,
+      `이상 목표 ${student.idealName}, 최소 목표 ${student.minName} 사이의 격차를 오늘부터 하나씩 좁혀가 보세요.`,
     );
   }
   return parts.join(" ");
@@ -469,17 +472,20 @@ function buildRuleTomorrowPlan(tomorrow: AdviceTomorrowContext): string {
 function buildRuleMajorTips(
   student: AdviceStudentContext,
 ): { department: string; text: string }[] {
+  // "은(는)" 처럼 두 조사를 병기하면 부자연스럽다(2026-09-02 로컬 E2E 발견, 팀장 지시로
+  // 수정) — 어간에 받침 유무를 판정해 조사를 고르는 대신, 학과명 뒤에 조사가 아예
+  // 필요 없는 문형(콜론)으로 바꿔 조사 자체를 없앤다.
   const tips: { department: string; text: string }[] = [];
   if (student.idealName) {
     tips.push({
       department: student.idealName,
-      text: `${student.idealName}은(는) 관련 교과 성취와 전공 연계 활동을 꾸준히 쌓아가면 좋습니다.`,
+      text: `${student.idealName}: 관련 교과 성취와 전공 연계 활동을 꾸준히 쌓아가면 좋습니다.`,
     });
   }
   if (student.minName) {
     tips.push({
       department: student.minName,
-      text: `${student.minName}은(는) 기본 개념 학습과 함께 관련 진로 정보를 틈틈이 살펴보면 도움이 됩니다.`,
+      text: `${student.minName}: 기본 개념 학습과 함께 관련 진로 정보를 틈틈이 살펴보면 도움이 됩니다.`,
     });
   }
   return tips;

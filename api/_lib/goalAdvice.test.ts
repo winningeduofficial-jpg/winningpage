@@ -176,11 +176,31 @@ describe("buildRuleFallback — Gemini 실패/키 미설정 시 규칙 기반 �
     expect(Array.isArray(result.majorTips)).toBe(true);
   });
 
+  test("source='daily' todayAdvice는 '은(는)' 조사 병기를 쓰지 않는다", () => {
+    // 2026-09-02 로컬 E2E 발견 회귀 재현 — studentType이 없어(makeStudent 기본값 null)
+    // idealName/minName 비교 문장 분기를 탄다.
+    const result = buildRuleFallback(makeInput());
+    expect(result.todayAdvice).not.toContain("은(는)");
+    expect(result.todayAdvice).toContain(
+      "최소 목표 한양대 소프트웨어학과에 가까워지고 있으니 이상 목표 서울대 컴퓨터공학과까지",
+    );
+  });
+
   test("source='intake'는 today 없이도 todayAdvice를 만든다(최초 진단 맥락)", () => {
     const result = buildRuleFallback(
       makeInput({ source: "intake", today: null }),
     );
     expect(result.todayAdvice).toContain("온보딩");
+  });
+
+  test("source='intake' todayAdvice는 '과(와)' 조사 병기를 쓰지 않는다", () => {
+    const result = buildRuleFallback(
+      makeInput({ source: "intake", today: null }),
+    );
+    expect(result.todayAdvice).not.toContain("과(와)");
+    expect(result.todayAdvice).toContain(
+      "이상 목표 서울대 컴퓨터공학과, 최소 목표 한양대 소프트웨어학과 사이의 격차",
+    );
   });
 
   test("내일 목표 시간이 0이면 일정 등록 안내 문장을 만든다(억지 산출 금지)", () => {
@@ -201,6 +221,20 @@ describe("buildRuleFallback — Gemini 실패/키 미설정 시 규칙 기반 �
     const result = buildRuleFallback(makeInput());
     expect(result.majorTips).toHaveLength(2);
     expect(result.majorTips[0]?.department).toBe("서울대 컴퓨터공학과");
+  });
+
+  test("majorTips 문구는 '은(는)' 같은 조사 병기를 쓰지 않는다", () => {
+    // 2026-09-02 로컬 E2E에서 "고려대학교 경영대학은(는)…"으로 나온 회귀 재현.
+    const result = buildRuleFallback(makeInput());
+    for (const tip of result.majorTips) {
+      expect(tip.text).not.toContain("은(는)");
+      expect(tip.text).not.toContain("이(가)");
+      expect(tip.text).not.toContain("을(를)");
+      expect(tip.text).not.toContain("과(와)");
+    }
+    expect(result.majorTips[0]?.text).toBe(
+      "서울대 컴퓨터공학과: 관련 교과 성취와 전공 연계 활동을 꾸준히 쌓아가면 좋습니다.",
+    );
   });
 });
 

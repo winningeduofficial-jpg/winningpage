@@ -1,14 +1,16 @@
 // api/goal/advice.ts 순수 함수 검증 — grades.test.ts와 동일 방침: DB·Gemini I/O가 있는
 // 핸들러 전체(openGoalSession/handleGet/handlePost)는 여기서 돌리지 않고, 분리 가능한
-// 순수 함수(buildTomorrowPlanItems/buildRecentUsedText/isValidAdviceSource)만 검증한다.
-// 세션 게이트(401/403/409)·캐시 히트·Gemini 호출 경로는 로컬 스택 QA로 확인한다
-// (daily-record.ts 등 같은 컨벤션의 다른 goal 라우트도 핸들러 단위 테스트 파일이 없다).
+// 순수 함수(buildTomorrowPlanItems/buildRecentUsedText/isValidAdviceSource/
+// resolveDayNameKr)만 검증한다. 세션 게이트(401/403/409)·캐시 히트·Gemini 호출 경로는
+// 로컬 스택 QA로 확인한다(daily-record.ts 등 같은 컨벤션의 다른 goal 라우트도 핸들러
+// 단위 테스트 파일이 없다).
 
 import { describe, expect, test } from "vitest";
 import {
   buildRecentUsedText,
   buildTomorrowPlanItems,
   isValidAdviceSource,
+  resolveDayNameKr,
 } from "./advice.js";
 
 describe("isValidAdviceSource — POST body.source 400 분기 판정", () => {
@@ -93,5 +95,21 @@ describe("buildRecentUsedText — 최근 기록 요약(오늘 제외, 500자 컷
     }));
     const text = buildRecentUsedText(records, "2026-09-02");
     expect(text.length).toBeLessThanOrEqual(500);
+  });
+});
+
+describe("resolveDayNameKr — getDayIndexFromYMDServer(0~6, 월~일) → 한글 요일 라벨", () => {
+  test("월~일 인덱스를 한글 요일로 정확히 매핑한다(VIRTUAL_DAY_NAMES 영문 키를 그대로 쓰지 않는다)", () => {
+    // 2026-09-02 로컬 E2E에서 "thursday요일에는…"으로 나온 회귀 재현 — 목요일은 인덱스 3.
+    expect(resolveDayNameKr(3)).toBe("목요일");
+    expect(resolveDayNameKr(3)).not.toContain("thursday");
+
+    expect(resolveDayNameKr(0)).toBe("월요일");
+    expect(resolveDayNameKr(6)).toBe("일요일");
+  });
+
+  test("범위 밖 인덱스는 방어적으로 '내일'을 쓴다", () => {
+    expect(resolveDayNameKr(7)).toBe("내일");
+    expect(resolveDayNameKr(-1)).toBe("내일");
   });
 });
