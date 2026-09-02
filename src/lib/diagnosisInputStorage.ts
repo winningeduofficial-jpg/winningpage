@@ -25,7 +25,7 @@ const DIAGNOSIS_INPUT_STORAGE_KEY = "winning.freeDiagnosis.input";
  *
  * @param {Record<string, any>} answers 설문 셸이 들고 있는 원시 응답
  * @param {{ name?: string|null, admissionCuts?: object|null, admissionMeta?: object|null,
- *           admissionCutsError?: boolean }} [options]
+ *           admissionCutsError?: boolean, attemptId?: string|null }} [options]
  *   name 은 로그인 학생 이름(Q-01, 익명이면 undefined/null). admissionCuts/admissionMeta 는 B-1 —
  *   스텝5 캐스케이드가 이미 조회해 둔 입결 컷이다(리포트 페이지가 다시 조회하지 않도록 여기 싣는다).
  *   셋 다 DiagnosisInput 스펙(§3) 밖의 필드라 normalizeAnswers 결과에 얹지 않고 저장 payload에만
@@ -42,6 +42,10 @@ type SubmitDiagnosisOptions = {
   admissionCuts?: Record<string, unknown> | null;
   admissionMeta?: Record<string, unknown> | null;
   admissionCutsError?: boolean;
+  // 리포트 영속화(diagnosis_reports) — SurveyStepShell이 제출 플로우당 1회 만든
+  // attemptId(consumeDiagnosisAttempt에도 같이 넘긴 값)를 meta에 실어 둔다. 리포트
+  // 페이지가 새로고침·재진입 시 이 값으로 ensureDiagnosisReportSaved 재시도를 건다.
+  attemptId?: string | null;
 };
 
 export function submitDiagnosisAnswers(
@@ -53,11 +57,13 @@ export function submitDiagnosisAnswers(
     admissionCuts = null,
     admissionMeta = null,
     admissionCutsError = false,
+    attemptId = null,
   } = options;
   // 시각은 여기서 찍는다 — 엔진은 순수 함수라 시계를 읽지 않는다(같은 입력이 매번 같은 리포트를 내야 한다).
   const input = normalizeAnswers(answers, {
     diagnosedAt: new Date().toISOString(),
     name,
+    attemptId,
   });
   // 실패 사실은 컷이 없을 때만 의미가 있다. 조건에 admissionCutsError 를 포함하지 않으면
   // "조회에 실패했다"는 유일한 신호가 payload 에서 통째로 사라진다(그 경우 cuts 도 null 이라
