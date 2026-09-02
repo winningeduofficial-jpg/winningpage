@@ -450,6 +450,13 @@ export default function Dashboard() {
   // `grid-cols-[67.25rem_23.25rem] gap-x-10` = 93rem 고정이라 6rem이 컨테이너를 넘쳤다
   // (결함2). 이제 max-w-goal-dashboard는 패딩의 영향을 받지 않는 안쪽 컨테이너에 붙어 93rem을
   // 온전히 쓴다. `max-w-goal-dashboard` 토큰 값(93rem) 자체는 그대로 둔다.
+  //
+  // QA 행292/328(2026-09-02) — 사이드바(20.25rem 고정) + 이 px-12(6rem) + 그리드 93rem 고정폭 =
+  // 119.25rem(1908px)이 대시보드 최소 폭이라 1440/1536 노트북에서 우측 레일이 화면 밖으로
+  // 밀려 body{overflow-x:hidden}(index.html)에 잘렸다(행292 "확률 게이지가 잘려 보임") — 그
+  // 잘림이 브라우저에서는 "화면이 확대된 것처럼" 보인다(행328). 그리드 자체를 유동형으로 바꾼다
+  // (아래 grid-cols-[minmax(0,1fr)_23.25rem], xl=80rem 미만은 1열 스택). 93rem 값·outerClassName은
+  // 그대로 두고 그리드 트랙 정의만 고정 rem → minmax로 바꿔 max-w는 "상한"으로만 작동하게 한다.
   const outerClassName = "px-12 pb-24 pt-25";
 
   if (result === null) {
@@ -517,27 +524,30 @@ export default function Dashboard() {
   return (
     <div className={outerClassName}>
       <div className="max-w-goal-dashboard">
-        <div className="grid grid-cols-[67.25rem_23.25rem] gap-x-10 gap-y-19.5">
+        <div className="grid grid-cols-1 gap-x-10 gap-y-19.5 xl:grid-cols-[minmax(0,1fr)_23.25rem]">
           <DashboardPageHeader
             adviceType="ai"
             dateLabel={formatTodayDateLabel()}
             headline={advice.headline}
-            className="col-start-1 row-start-1"
+            className="xl:col-start-1 xl:row-start-1"
           />
 
-          <div className="col-start-1 row-start-2 flex min-w-0 flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-5 xl:col-start-1 xl:row-start-2">
             {/* 오늘의 목표: GET /api/goal/daily-record(studyHours) + student.weeklySchedule(오늘
                 목표 시간)을 합쳐 mapTodayGoal()이 만든 실데이터. 저장 성공 시
                 reloadDailyRecord로 이 카드와 게이지를 함께 최신화한다. */}
             <TodayGoalCard data={todayGoalData} onSaved={reloadDailyRecord} />
 
+            {/* QA 행292/328 — 원래 각 카드가 w-132.5(33.125rem) 고정이라 좌측 컬럼이 그리드
+                트랙 폭과 무관하게 항상 67.25rem을 요구했다. flex-1 min-w-0으로 바꿔 좌측
+                컬럼(위 xl:col-start-1)이 유동 폭을 받아도 두 카드가 함께 줄어들게 한다. */}
             <div className="flex gap-4">
-              <div className="w-132.5">
+              <div className="min-w-0 flex-1">
                 {/* AdviceCard: buildProbabilitySummary()의 확률 요약(§3.16 ①) — AI 생성이
                     아니라 규칙 기반 조립이다. */}
                 <AdviceCard data={advice} />
               </div>
-              <div className="w-132.5">
+              <div className="min-w-0 flex-1">
                 {/* TomorrowPlanCard: buildTomorrowPlan()의 과목별 시간 배분(§3.16 ③). 내일
                     목표 시간이 0/미설정이면 빈 배열이라 위젯이 스스로 "준비 중" 빈 상태를
                     그린다. */}
@@ -546,10 +556,10 @@ export default function Dashboard() {
             </div>
 
             <div className="flex gap-4">
-              <div className="w-132.5">
+              <div className="min-w-0 flex-1">
                 <MockExamCard data={mockExamData} />
               </div>
-              <div className="w-132.5">
+              <div className="min-w-0 flex-1">
                 <NaesinCard data={naesinData} />
               </div>
             </div>
@@ -559,7 +569,7 @@ export default function Dashboard() {
             <AchievementChart data={student.probabilityHistory} />
           </div>
 
-          <div className="col-start-2 row-start-2 flex min-w-0 flex-col gap-5">
+          <div className="flex min-w-0 flex-col gap-5 xl:col-start-2 xl:row-start-2">
             <TargetUniversityRail data={targetUniversities} />
             {/* StudyPlanRail: 오늘 과제 조회(GET /api/goal/plan-tasks)를 위젯이 직접 한다
                 (StudyPlanRail.jsx 참고). Dashboard는 tasks를 내려주지 않는다. */}
