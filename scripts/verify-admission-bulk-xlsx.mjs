@@ -27,7 +27,7 @@ import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 
 import {
-  BULK_XLSX_COLUMNS,
+  ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS,
   exportAdmissionRowsToXlsx,
   parseAdmissionRowsFromXlsx,
   TRUNCATION_MARKER,
@@ -38,6 +38,10 @@ import { clean } from "../src/lib/admissionParsing.js";
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_KEYS_FILE = fileURLToPath(
   new URL("../.dev-keys.json", import.meta.url),
+);
+const SCHEMA_PATH = new URL(
+  "../supabase/migrations/20260821000000_baseline.sql",
+  import.meta.url,
 );
 const TABLE = "admission_university_resources";
 const JSON_COLUMNS = Object.values(HWP_SECTION_JSON_KEYS);
@@ -107,7 +111,7 @@ function buildExistingRowsMap(dbRows) {
     });
     // "업로드 raw == 기존 DB raw" 1차 판정 비교에 쓴다(admissionBulkXlsx.js
     // 의 existingRows 계약 — raw 카테고리 컬럼도 포함해야 한다).
-    // BULK_XLSX_COLUMNS에 이미 포함된 컬럼이라 dbRows select에는 추가
+    // ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS에 이미 포함된 컬럼이라 dbRows select에는 추가
     // 컬럼이 필요 없다(1번 섹션의 selectColumns 참고).
     CATEGORY_RAW_KEYS.forEach((col) => {
       entry[col] = row[col];
@@ -158,26 +162,27 @@ function roundTripWorkbook(workbook) {
   return XLSX.read(buffer, { type: "buffer" });
 }
 
-// admission_university_resources의 NOT NULL 컬럼 목록을 sql/00_base_
-// schema.sql의 CREATE TABLE 정의에서 직접 읽는다(하드코딩 회피 —
-// team-lead 지시). information_schema 조회(실제 dev DB에 쿼리)가 더
-// 권위 있는 소스이지만, 이 테이블은 ALTER TABLE로 NOT NULL을 바꾼
-// 이력이 없고(sql/ 전체에서 admission_university_resources를 건드리는
-// alter는 컬럼 추가뿐 — grep 확인됨) CREATE TABLE 시점 정의가 곧
-// 현재 제약과 같다. 파일 파싱이 DB 왕복 없이 더 빠르고, 이 리포에서
-// sql/이 스키마 정본이라는 컨벤션과도 맞는다.
+// admission_university_resources의 NOT NULL 컬럼 목록을 supabase/migrations/
+// 의 baseline 마이그레이션(pg_dump 산출물) CREATE TABLE 정의에서 직접 읽는다
+// (하드코딩 회피 — team-lead 지시). information_schema 조회(실제 dev DB에
+// 쿼리)가 더 권위 있는 소스이지만, 이 테이블은 baseline 이후 NOT NULL을
+// 바꾼 마이그레이션이 없어(supabase/migrations 전체 grep 확인) CREATE TABLE
+// 시점 정의가 곧 현재 제약과 같다. 파일 파싱이 DB 왕복 없이 더 빠르다.
+//
+// 2026-08-21 sql/ 디렉터리 폐기 → supabase CLI 마이그레이션 전환 이후
+// 옛 경로(sql/00_base_schema.sql)를 읽던 이 함수가 ENOENT로 죽어 있었다
+// (npm run verify가 CI에 없어 2026-09-01 첫 야간 감사에서 발견).
 async function getNotNullColumnsFromSchema() {
-  const schemaPath = new URL("../sql/00_base_schema.sql", import.meta.url);
-  const sql = await readFile(schemaPath, "utf-8");
+  const sql = await readFile(SCHEMA_PATH, "utf-8");
   // 정확히 이 테이블만 잡는다(끝에 닫는 따옴표가 바로 오는지 확인) —
-  // admission_university_resources_backup_20260709/_backup_before_fix6
-  // 같은 백업 테이블은 이름이 더 길어 이 마커와 매칭되지 않는다.
+  // admission_university_resources_backup_* 같은 백업 테이블은 이름이 더
+  // 길어 이 마커와 매칭되지 않는다. pg_dump는 식별자를 전부 따옴표로 감싼다.
   const startMarker =
-    'create table if not exists public."admission_university_resources" (';
+    'CREATE TABLE IF NOT EXISTS "public"."admission_university_resources" (';
   const startIdx = sql.indexOf(startMarker);
   if (startIdx === -1) {
     throw new Error(
-      "sql/00_base_schema.sql에서 admission_university_resources 테이블 정의를 못 찾음",
+      `${SCHEMA_PATH.pathname}에서 admission_university_resources 테이블 정의를 못 찾음`,
     );
   }
   const afterStart = sql.slice(startIdx + startMarker.length);
@@ -193,7 +198,8 @@ async function getNotNullColumnsFromSchema() {
     const trimmed = line.trim();
     if (!trimmed || trimmed.toLowerCase().startsWith("constraint")) return;
     if (/\bNOT NULL\b/i.test(trimmed)) {
-      notNullColumns.push(trimmed.split(/\s+/)[0]);
+      // pg_dump 형식: `"column_name" "type" ... NOT NULL,` — 따옴표를 벗긴다.
+      notNullColumns.push(trimmed.split(/\s+/)[0].replace(/^"|"$/g, ""));
     }
   });
   return notNullColumns;
@@ -232,11 +238,14 @@ async function main() {
 
   const notNullColumns = await getNotNullColumnsFromSchema();
   console.log(
-    `admission_university_resources NOT NULL 컬럼(sql/00_base_schema.sql 실측): ${notNullColumns.join(", ")}`,
+    `admission_university_resources NOT NULL 컬럼(baseline 마이그레이션 실측): ${notNullColumns.join(", ")}`,
   );
 
   console.log("=== 1) DB 조회(읽기 전용) ===");
-  const selectColumns = [...BULK_XLSX_COLUMNS, ...JSON_COLUMNS].join(", ");
+  const selectColumns = [
+    ...ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS,
+    ...JSON_COLUMNS,
+  ].join(", ");
   const { data: dbRows, error } = await supabase
     .from(TABLE)
     .select(selectColumns)
@@ -432,7 +441,7 @@ async function main() {
   check(
     "잘린 셀이 1개뿐이면 그 카테고리만 스킵, 나머지 25컬럼/5카테고리는 정상 반영",
     () => {
-      const header = BULK_XLSX_COLUMNS;
+      const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
       const bulletText = "- 항목 1\n- 항목 2";
       const row = header.map((col) => {
         if (col === "admission_year") return 2099;
@@ -512,7 +521,7 @@ async function main() {
   // === 4) 신규 연도 / 신규 대학 insert 분류 ===
   console.log("\n=== 4) 신규 연도/신규 대학 분류(합성) ===");
   check("완전히 새 연도 → insert + newYears에 포함, 경고 없음", () => {
-    const header = BULK_XLSX_COLUMNS;
+    const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
     const row = header.map((col) => {
       if (col === "admission_year") return 9999;
       if (col === "university_key") return "brand-new-university";
@@ -554,7 +563,7 @@ async function main() {
       Boolean(knownYear),
       "DB에서 admission_year 샘플을 못 찾음(선행 조건 실패)",
     );
-    const header = BULK_XLSX_COLUMNS;
+    const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
     const row = header.map((col) => {
       if (col === "admission_year") return knownYear;
       if (col === "university_key") return "brand-new-university-same-year";
@@ -593,7 +602,7 @@ async function main() {
   check(
     "admission_year/university_key 누락 행 → 에러 집계, payload 미포함",
     () => {
-      const header = BULK_XLSX_COLUMNS;
+      const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
       const row = header.map((col) =>
         col === "university_name" ? "이름만있음대학교" : "",
       );
@@ -652,7 +661,7 @@ async function main() {
       ],
     ]);
 
-    const header = BULK_XLSX_COLUMNS;
+    const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
     const row = header.map((col) => {
       if (col === "admission_year") return 2099;
       if (col === "university_key") return "regression-test-university";
@@ -707,7 +716,7 @@ async function main() {
           },
         ],
       ]);
-      const header = BULK_XLSX_COLUMNS;
+      const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
       const row = header.map((col) => {
         if (col === "admission_year") return 2099;
         if (col === "university_key") return "raw-unchanged-test";
@@ -761,7 +770,7 @@ async function main() {
           },
         ],
       ]);
-      const header = BULK_XLSX_COLUMNS;
+      const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
       const row = header.map((col) => {
         if (col === "admission_year") return 2099;
         if (col === "university_key") return "raw-changed-test";
@@ -823,7 +832,7 @@ async function main() {
           },
         ],
       ]);
-      const header = BULK_XLSX_COLUMNS;
+      const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
       const row = header.map((col) => {
         if (col === "admission_year") return 2099;
         if (col === "university_key")
@@ -863,7 +872,7 @@ async function main() {
       const existing = new Map([
         ["2099::no-existing-doc-test", { id: "fake-id-no-doc" }],
       ]); // json/raw 둘 다 없음
-      const header = BULK_XLSX_COLUMNS;
+      const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
       const row = header.map((col) => {
         if (col === "admission_year") return 2099;
         if (col === "university_key") return "no-existing-doc-test";
@@ -941,7 +950,7 @@ async function main() {
       );
 
       // 값 자체가 원본과 정확히 동일한지(접두사 미삽입) 확인
-      const memoCol = BULK_XLSX_COLUMNS.indexOf("memo");
+      const memoCol = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS.indexOf("memo");
       const grid = XLSX.utils.sheet_to_json(ws, { header: 1 });
       DANGEROUS_PREFIXES.forEach((value, idx) => {
         const cellValue = grid[idx + 1][memoCol];
@@ -1046,7 +1055,7 @@ async function main() {
           },
         ],
       ]);
-      const header = BULK_XLSX_COLUMNS;
+      const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
       const row = header.map((col) => {
         if (col === "admission_year") return sample.admission_year;
         if (col === "university_key") return sample.university_key;
@@ -1171,7 +1180,7 @@ async function main() {
   check(
     "region이 빈 셀이면 신규/기존 무관하게 행 거부(NOT NULL이고 DB 기본값이 없는 필드 — 조용한 null 삽입 방지)",
     () => {
-      const header = BULK_XLSX_COLUMNS;
+      const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
       const row = header.map((col) => {
         if (col === "admission_year") return 2099;
         if (col === "university_key") return "region-missing-test";
@@ -1216,7 +1225,7 @@ async function main() {
           },
         ],
       ]);
-      const header = BULK_XLSX_COLUMNS;
+      const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
       const row = header.map((col) => {
         if (col === "admission_year") return 2099;
         if (col === "university_key") return "raw-empty-preserved-test";
@@ -1303,7 +1312,9 @@ async function main() {
         const reread = XLSX.read(buf, { type: "buffer" });
         const ws2 = reread.Sheets[reread.SheetNames[0]];
         const grid2 = XLSX.utils.sheet_to_json(ws2, { header: 1 });
-        const colIdx = BULK_XLSX_COLUMNS.indexOf(sample.column);
+        const colIdx = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS.indexOf(
+          sample.column,
+        );
         assert(
           grid2[1][colIdx] === sample.value,
           `왕복 후 값이 원본과 다름: 기대="${sample.value}" 실제="${grid2[1][colIdx]}"`,
