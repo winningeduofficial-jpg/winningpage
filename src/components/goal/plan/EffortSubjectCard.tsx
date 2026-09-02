@@ -100,7 +100,9 @@ export default function EffortSubjectCard({
       {/* 완독 책장 — BookStack(1권 이상)은 스크롤 가능한 flex-1 영역에, 선반 바+캡션은
           시안대로 책 유무와 무관하게 항상 표시한다. */}
       <div className="mt-3 flex min-h-0 flex-1 flex-col">
-        <div className="flex min-h-0 flex-1 flex-col justify-end overflow-y-auto">
+        {/* 스크롤 컨테이너가 그림자(아래 4px 오프셋+4px 블러)를 잘라내지 않도록
+            하단·좌우 여백을 둔다 — 여백 없이는 맨 아래 책의 그림자가 통째로 사라진다. */}
+        <div className="flex min-h-0 flex-1 flex-col justify-end overflow-y-auto px-1 pb-2.5">
           {hasCompletedBooks && (
             <BookStack books={completedBooks} subject={subjectId} />
           )}
