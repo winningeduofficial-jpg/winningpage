@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import AppModal from "@/components/goal/AppModal";
 import ModalField from "@/components/goal/ModalField";
 
@@ -66,16 +66,22 @@ type AddNaesinGradeModalProps = {
   open: boolean;
   onClose: () => void;
   onSubmit: (entry: NaesinEntry) => Promise<{ ok: boolean; detail?: string }>;
+  // 편집 모드(회차 수정) 전용 — 있으면 폼을 이 값으로 채우고 타이틀·저장 버튼 문구를
+  // 수정 모드로 바꾼다(성적관리 행322, 팀장 지시 "기존 폼을 편집 모드로 재사용"). 없으면
+  // 기존 추가 모드 그대로.
+  initialEntry?: NaesinEntry;
 };
 
 // onSubmit: async (entry) => {ok:boolean, detail?:string} — entry = {term, enteredAt, subjects}.
-// 실제 API 호출(addGoalGrade)은 호출부(Grades.jsx / NaesinCard.jsx)가 맡는다 — 이 모달은
+// 실제 API 호출(addGoalGrade/updateGoalGrade)은 호출부(Grades.jsx)가 맡는다 — 이 모달은
 // 입력 UI와 폼 상태만 소유한다(house 패턴, AddMockExamGradeModal과 동일).
 export default function AddNaesinGradeModal({
   open,
   onClose,
   onSubmit,
+  initialEntry,
 }: AddNaesinGradeModalProps) {
+  const isEditMode = Boolean(initialEntry);
   const [semester, setSemester] = useState("");
   const [enteredAt, setEnteredAt] = useState(todayDateValue());
   const [grades, setGrades] = useState<Record<string, string>>({
@@ -87,19 +93,38 @@ export default function AddNaesinGradeModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  function resetForm() {
+    if (initialEntry) {
+      setSemester(initialEntry.term);
+      setEnteredAt(initialEntry.enteredAt);
+      setGrades({
+        korean: String(initialEntry.subjects.korean ?? ""),
+        math: String(initialEntry.subjects.math ?? ""),
+        english: String(initialEntry.subjects.english ?? ""),
+        science: String(initialEntry.subjects.science ?? ""),
+      });
+    } else {
+      setSemester("");
+      setEnteredAt(todayDateValue());
+      setGrades({ korean: "", math: "", english: "", science: "" });
+    }
+    setError("");
+  }
+
+  // AppModal은 열려 있는 동안 언마운트되지 않는다(Dialog가 내부에서 열림 상태만 토글) —
+  // 그래서 open으로 전환될 때마다 initialEntry 기준으로 폼을 다시 채운다(수정 대상이
+  // 바뀌었거나, 직전 추가/수정 이후 남은 값을 지우기 위해).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resetForm은 매 렌더 새로 생성되는 클로저라 deps에 넣으면 무한 루프가 된다 — open/initialEntry 변경 시에만 재실행하는 것이 의도.
+  useEffect(() => {
+    if (open) resetForm();
+  }, [open, initialEntry]);
+
   const canSubmit =
     !submitting &&
     semester.trim().length > 0 &&
     enteredAt.trim().length > 0 &&
     // SUBJECTS의 key는 grades 초기값에 항상 존재하는 고정 필드다.
     SUBJECTS.every(({ key }) => grades[key]!.toString().trim().length > 0);
-
-  function resetForm() {
-    setSemester("");
-    setEnteredAt(todayDateValue());
-    setGrades({ korean: "", math: "", english: "", science: "" });
-    setError("");
-  }
 
   function handleClose() {
     resetForm();
@@ -128,11 +153,13 @@ export default function AddNaesinGradeModal({
     <AppModal
       open={open}
       onClose={handleClose}
-      title="내신 성적 추가"
+      title={isEditMode ? "내신 성적 수정" : "내신 성적 추가"}
       subtitle="학기별 과목 등급을 입력하면 평균이 자동 환산돼요"
       cancelLabel="취소"
       onCancel={handleClose}
-      submitLabel={submitting ? "저장 중…" : "성적 저장하기"}
+      submitLabel={
+        submitting ? "저장 중…" : isEditMode ? "수정 저장하기" : "성적 저장하기"
+      }
       onSubmit={handleSubmit}
       submitDisabled={!canSubmit}
     >
