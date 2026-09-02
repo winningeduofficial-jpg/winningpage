@@ -311,12 +311,12 @@ export default function EffortWorkbookRow({
           }
           onBlur={flushPendingSave}
           onKeyDown={blurOnEnter}
-          className="h-7 w-[5ch] min-w-14 rounded-md border border-dashed border-line bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus-visible:ring-2 focus-visible:ring-ink-strong/40 focus:outline-hidden"
+          className="h-7 w-[7ch] min-w-16 rounded-md border border-dashed border-line bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus-visible:ring-2 focus-visible:ring-ink-strong/40 focus:outline-hidden"
         />
         <span className="text-[1rem] font-medium text-ink-natural">/</span>
         <output
           aria-label="전체 페이지"
-          className="flex h-7 w-[5ch] min-w-14 items-center rounded-md border border-surface-01 bg-goal-activePill px-2 text-[1rem] text-ink-sub"
+          className="flex h-7 w-[7ch] min-w-16 items-center rounded-md border border-surface-01 bg-goal-activePill px-2 text-[1rem] text-ink-sub"
         >
           {totalPages}
         </output>
