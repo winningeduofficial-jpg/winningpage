@@ -14,6 +14,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   buildWorkbookPayload,
+  canShelveWorkbook,
   computeWorkbookStatus,
   deleteWorkbookOwned,
   fetchWorkbookOwned,
@@ -164,6 +165,21 @@ function validateUpdateBody(body: unknown) {
   return { value: { id, patch } };
 }
 
+/**
+ * "완독! 책장에 꽂기" 전용 PUT 바디({id, shelve:true})를 검증한다. title/totalPages/
+ * currentPage와는 다른 액션이라 별도 검증 함수로 둔다 — 섞여 들어오면 shelve를
+ * 우선시하고 나머지 필드는 무시한다(핸들러 분기 참고).
+ */
+function validateShelveBody(body: unknown) {
+  if (!isPlainObject(body))
+    return { error: fail("요청 본문이 올바르지 않습니다.") };
+
+  const id = validateId(body.id);
+  if (!id) return { error: fail("문제집을 찾을 수 없습니다.") };
+
+  return { value: { id } };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!["GET", "POST", "PUT", "DELETE"].includes(req.method || "")) {
     return sendError(res, "detail", 405, "Method not allowed");
@@ -220,6 +236,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === "PUT") {
+      // "완독! 책장에 꽂기" — status='done'으로 자동 계산된 문제집을 학생이 직접
+      // BookStack으로 옮기는 별도 액션이다(Figma 4026:6046). 시안/원본은 100% 달성 즉시
+      // 자동으로 책장에 꽂지 않고 이 버튼을 눌러야 넘어간다 — title/totalPages/currentPage
+      // 수정 PUT과는 다른 요청이라 body.shelve로 먼저 분기한다.
+      if (isPlainObject(body) && body.shelve === true) {
+        const validated = validateShelveBody(body);
+        if (validated.error)
+          return res.status(validated.error.status).json(validated.error.body);
+
+        const { id } = validated.value;
+        const existing = await fetchWorkbookOwned(supabaseAdmin, id, profileId);
+        if (!existing)
+          return res.status(404).json({ detail: "문제집을 찾을 수 없습니다." });
+
+        if (!canShelveWorkbook(existing.status)) {
+          return res.status(400).json({
+            detail: "아직 완독하지 않은 문제집은 책장에 꽂을 수 없습니다.",
+          });
+        }
+
+        // 이미 꽂혀 있으면 그대로 되돌린다(중복 클릭 방어 — shelved_at을 불필요하게
+        // 다시 밀지 않는다, 최신 완독이 위로 오는 BookStack 정렬이 흔들리지 않게).
+        if (existing.shelved_at) {
+          return res
+            .status(200)
+            .json({ ok: true, workbook: buildWorkbookPayload(existing) });
+        }
+
+        const updated = await updateWorkbookOwned(
+          supabaseAdmin,
+          id,
+          profileId,
+          {
+            shelved_at: new Date().toISOString(),
+          },
+        );
+        if (!updated)
+          return res.status(404).json({ detail: "문제집을 찾을 수 없습니다." });
+        return res
+          .status(200)
+          .json({ ok: true, workbook: buildWorkbookPayload(updated) });
+      }
+
       const validated = validateUpdateBody(body);
       if (validated.error)
         return res.status(validated.error.status).json(validated.error.body);

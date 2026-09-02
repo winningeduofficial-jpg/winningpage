@@ -146,6 +146,9 @@ interface GoalWorkbook {
   totalPages: number | null;
   currentPage: number | null;
   status: string;
+  // "책장에 꽂기" 수동 전이(Figma 4026:6046) — null이면 status='done'이어도 아직
+  // BookStack에 안 옮겨진 상태.
+  shelvedAt: string | null;
 }
 
 /** GET /api/goal/timer 응답의 summary 블록(camelCase). api/goal/timer.ts 참고. */
@@ -631,6 +634,22 @@ export async function updateGoalWorkbook(
   | { kind: "success"; workbook: GoalWorkbook }
 > {
   const outcome = await goalWorkbooksRequest("PUT", payload);
+  if (outcome.kind !== "success") return outcome;
+  return { kind: "success", workbook: outcome.result?.workbook };
+}
+
+/**
+ * PUT {id, shelve:true} — "완독! 책장에 꽂기". status='done'인 문제집만 허용되고,
+ * 아직 완독하지 않은 행을 보내면 서버가 400(validation-error)을 돌려준다
+ * (api/goal/workbooks.ts canShelveWorkbook 검증).
+ */
+export async function shelveGoalWorkbook(
+  id: number,
+): Promise<
+  | Exclude<GoalWorkbooksRequestResult, { kind: "success" }>
+  | { kind: "success"; workbook: GoalWorkbook }
+> {
+  const outcome = await goalWorkbooksRequest("PUT", { id, shelve: true });
   if (outcome.kind !== "success") return outcome;
   return { kind: "success", workbook: outcome.result?.workbook };
 }

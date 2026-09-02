@@ -9,33 +9,36 @@ describe("BookStack", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  test("책 제목을 전부 렌더한다(6권 이하)", () => {
+  test("책 제목을 전부 렌더한다(스택은 개수 상한 없이 전부 그린다, 스크롤은 부모가 담당)", () => {
     render(
       <BookStack
         books={[
-          { id: 1, title: "수능특강 독서" },
-          { id: 2, title: "자이스토리" },
+          {
+            id: 1,
+            title: "수능특강 독서",
+            shelvedAt: "2026-08-01T00:00:00.000Z",
+          },
+          { id: 2, title: "자이스토리", shelvedAt: "2026-09-01T00:00:00.000Z" },
         ]}
         subject="math"
       />,
     );
     expect(screen.getByText("수능특강 독서")).toBeInTheDocument();
     expect(screen.getByText("자이스토리")).toBeInTheDocument();
-    expect(screen.queryByText(/^\+\d+권$/)).not.toBeInTheDocument();
   });
 
-  test("6권을 넘으면 최근 6권만 그리고 나머지는 +n권 뱃지로 접는다", () => {
-    const books = Array.from({ length: 9 }, (_, i) => ({
-      id: i,
-      title: `문제집${i}`,
-    }));
-    render(<BookStack books={books} subject="english" />);
+  test("최신 완독(shelvedAt이 늦은 책)이 DOM 맨 앞(스택 맨 위)에 온다", () => {
+    render(
+      <BookStack
+        books={[
+          { id: 1, title: "오래된 책", shelvedAt: "2026-08-01T00:00:00.000Z" },
+          { id: 2, title: "최근 책", shelvedAt: "2026-09-01T00:00:00.000Z" },
+        ]}
+        subject="english"
+      />,
+    );
 
-    // 오래된 순 배열이므로 앞의 3권(0,1,2)은 숨고 뒤의 6권(3~8)만 보인다.
-    expect(screen.queryByText("문제집0")).not.toBeInTheDocument();
-    expect(screen.queryByText("문제집2")).not.toBeInTheDocument();
-    expect(screen.getByText("문제집3")).toBeInTheDocument();
-    expect(screen.getByText("문제집8")).toBeInTheDocument();
-    expect(screen.getByText("+3권")).toBeInTheDocument();
+    const titles = screen.getAllByText(/책$/).map((el) => el.textContent);
+    expect(titles).toEqual(["최근 책", "오래된 책"]);
   });
 });
