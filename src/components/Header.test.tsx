@@ -110,6 +110,12 @@ describe("Header — 로그인 상태 계정 그룹(QA 행241)", () => {
     expect(
       screen.queryByRole("button", { name: "마이페이지" }),
     ).not.toBeInTheDocument();
+
+    // 로그아웃도 shadcn Button(data-slot=button)으로 렌더된다(2026-09-03).
+    expect(screen.getByRole("button", { name: "로그아웃" })).toHaveAttribute(
+      "data-slot",
+      "button",
+    );
   });
 
   it("로그인은 됐지만 프로필이 없으면 마이페이지 버튼 없이 로그아웃만 보인다", async () => {
@@ -171,6 +177,23 @@ describe("Header — 비로그인 상태", () => {
     const img = logo.querySelector("img");
 
     expect(img).toHaveAttribute("src", "/images/winning-logo-horizontal.svg");
+  });
+
+  it("로그인·회원가입·햄버거는 shadcn Button(data-slot=button)으로 렌더된다", () => {
+    mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
+    renderHeader();
+
+    expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute(
+      "data-slot",
+      "button",
+    );
+    expect(screen.getByRole("link", { name: "회원가입" })).toHaveAttribute(
+      "data-slot",
+      "button",
+    );
+    expect(
+      screen.getByRole("button", { name: "전체 메뉴 열기" }),
+    ).toHaveAttribute("data-slot", "button");
   });
 });
 

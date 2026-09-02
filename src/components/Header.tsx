@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Link, useLocation } from "react-router";
 import chevronIcon from "@/assets/header/chevron.svg";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthProvider";
 import {
   MEGA_COL_GAP,
@@ -735,46 +736,50 @@ export default function Header() {
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
             onClick={handleLogout}
             style={{ width: ACCOUNT_BTN_W_CLAMP }}
-            className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-surface-04 px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#ebebef]"
+            className="h-8 shrink-0 rounded-lg bg-surface-04 px-3 text-sm font-medium leading-5 text-primary hover:bg-[#ebebef]"
           >
             로그아웃
-          </button>
+          </Button>
         </>
       );
     if (isLoggedIn)
       // 프로필(이름) 로딩 중이라 아직 이름 칩을 그릴 수 없다 — 이 분기는 로그아웃만
       // 노출한다(이름 도착 즉시 위 분기로 전환).
       return (
-        <button
+        <Button
           type="button"
+          variant="ghost"
           onClick={handleLogout}
           style={{ width: ACCOUNT_BTN_W_CLAMP }}
-          className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-surface-04 px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#ebebef]"
+          className="h-8 shrink-0 rounded-lg bg-surface-04 px-3 text-sm font-medium leading-5 text-primary hover:bg-[#ebebef]"
         >
           로그아웃
-        </button>
+        </Button>
       );
     return (
       <>
-        <Link
-          to="/login"
+        <Button
+          render={<Link to="/login" />}
+          variant="ghost"
           style={{ width: ACCOUNT_BTN_W_CLAMP }}
-          className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-white px-3 py-1.5 text-sm font-medium leading-5 text-primary transition hover:bg-[#f5f8fb]"
+          className="h-8 shrink-0 rounded-lg bg-white px-3 text-sm font-medium leading-5 text-primary hover:bg-[#f5f8fb]"
         >
           로그인
-        </Link>
+        </Button>
 
-        <Link
-          to="/signup"
+        <Button
+          render={<Link to="/signup" />}
+          variant="ghost"
           style={{ width: ACCOUNT_BTN_W_CLAMP }}
-          className="inline-flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-lg bg-primary px-3 py-1.5 text-sm font-medium leading-5 text-[#f5f5f5] transition hover:bg-[#012347]"
+          className="h-8 shrink-0 rounded-lg bg-primary px-3 text-sm font-medium leading-5 text-[#f5f5f5] hover:bg-[#012347]"
         >
           회원가입
-        </Link>
+        </Button>
       </>
     );
   })();
@@ -828,17 +833,26 @@ export default function Header() {
             {accountGroupNode}
           </div>
 
-          <button
-            ref={mobileNavTriggerRef}
+          <Button
+            ref={(el) => {
+              // Button은 base-ui Button.Props의 Ref<HTMLElement>를 받는다 —
+              // variant/size만 쓰고 render prop을 안 줬으니 실제로는 항상 <button>을
+              // 그린다. mobileNavTriggerRef(HTMLButtonElement) 계약은 MobileNavDrawer의
+              // finalFocus에 그대로 넘어가므로(파일 소유권 밖) 여기서 콜백 ref로 좁혀
+              // 할당한다.
+              mobileNavTriggerRef.current = el as HTMLButtonElement | null;
+            }}
             type="button"
+            variant="ghost"
+            size="icon"
             onClick={() => setMobileNavOpen(true)}
             aria-expanded={mobileNavOpen}
             aria-controls="mobile-nav-drawer"
             aria-label="전체 메뉴 열기"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-04 text-primary transition hover:bg-[#ebebef]"
+            className="shrink-0 rounded-lg bg-surface-04 text-primary hover:bg-[#ebebef]"
           >
-            <Menu size={18} />
-          </button>
+            <Menu size={18} className="size-[1.125rem]" />
+          </Button>
         </div>
       </div>
 
