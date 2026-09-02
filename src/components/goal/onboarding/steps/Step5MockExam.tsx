@@ -26,6 +26,16 @@ function isValidGrade(raw: string) {
   return raw !== "" && Number.isFinite(num) && num >= 1 && num <= 9;
 }
 
+// 등급을 입력하면 백분위 칩 중 "안정"(밴드 중앙값)을 기본 선택값으로 미리 골라 둔다 —
+// 사용자가 칩을 직접 누르지 않아도 서버 기본값(gradeToPercentile 밴드 중앙값 대체)과
+// 화면 표시가 항상 일치하게 하기 위함이다. 로컬 E2E 후속 — 등급만 입력하고 칩을 안
+// 누르면 어떤 칩도 선택 상태로 보이지 않던 문제를 고친다.
+function stablePercentile(gradeStr: string): string {
+  const chips = getPercentileChips(gradeStr);
+  const stable = chips.find((chip) => chip.label.includes("안정"));
+  return stable ? String(stable.value) : "";
+}
+
 type PercentileSubjectKey = "kor" | "math" | "tam1" | "tam2";
 
 type Step5MockExamProps = {
@@ -179,37 +189,45 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
                                   value={entry.grade}
                                   width="6.25rem"
                                   placeholder="1~9"
-                                  onChange={(event) =>
+                                  onChange={(event) => {
+                                    const nextGrade = event.target.value;
                                     updateMockSubject(round.key, subjectKey, {
-                                      grade: event.target.value,
+                                      grade: nextGrade,
                                       // 등급이 바뀌면 이전 등급 기준으로 고른 백분위 칩은
-                                      // 더 이상 유효하지 않다 — 다시 고르게 비운다.
-                                      pct: "",
-                                    })
-                                  }
+                                      // 더 이상 유효하지 않다 — "안정"(밴드 중앙값)을
+                                      // 기본 선택으로 다시 골라 둔다(원본 추정과 동일한
+                                      // 서버 기본값, stablePercentile 참고).
+                                      pct: stablePercentile(nextGrade),
+                                    });
+                                  }}
                                 />
                                 {chips.length > 0 && (
                                   <div className="flex flex-wrap gap-1.5">
-                                    {chips.map((chip) => (
-                                      <button
-                                        key={chip.value}
-                                        type="button"
-                                        onClick={() =>
-                                          updateMockSubject(
-                                            round.key,
-                                            subjectKey,
-                                            { pct: String(chip.value) },
-                                          )
-                                        }
-                                        className={`rounded-full border px-3 py-1 text-[0.75rem] font-bold transition-colors ${
-                                          entry.pct === String(chip.value)
-                                            ? "border-accent bg-accent text-white"
-                                            : "border-line text-ink-sub hover:border-accent"
-                                        }`}
-                                      >
-                                        {chip.label}
-                                      </button>
-                                    ))}
+                                    {chips.map((chip) => {
+                                      const selected =
+                                        entry.pct === String(chip.value);
+                                      return (
+                                        <button
+                                          key={chip.value}
+                                          type="button"
+                                          aria-pressed={selected}
+                                          onClick={() =>
+                                            updateMockSubject(
+                                              round.key,
+                                              subjectKey,
+                                              { pct: String(chip.value) },
+                                            )
+                                          }
+                                          className={`rounded-full border px-3 py-1 text-[0.75rem] font-bold transition-colors ${
+                                            selected
+                                              ? "border-accent bg-accent text-white"
+                                              : "border-line text-ink-sub hover:border-accent"
+                                          }`}
+                                        >
+                                          {chip.label}
+                                        </button>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </div>

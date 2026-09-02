@@ -2,6 +2,10 @@ import { useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router";
 import OnboardingCalculatingOverlay from "@/components/goal/onboarding/OnboardingCalculatingOverlay";
 import OnboardingStepShell from "@/components/goal/onboarding/OnboardingStepShell";
+import {
+  MOCK_FLOW,
+  NAESIN_EXAM_FLOW,
+} from "@/components/goal/onboarding/onboardingOptions";
 import Step1School from "@/components/goal/onboarding/steps/Step1School";
 import Step2UpperUniversity from "@/components/goal/onboarding/steps/Step2UpperUniversity";
 import Step3LowerUniversity from "@/components/goal/onboarding/steps/Step3LowerUniversity";
@@ -11,10 +15,77 @@ import Step6StudyHours from "@/components/goal/onboarding/steps/Step6StudyHours"
 import Step7DailySchedule from "@/components/goal/onboarding/steps/Step7DailySchedule";
 import {
   GoalOnboardingProvider,
+  type MockRoundState,
+  type NaesinExamState,
   useGoalOnboarding,
 } from "@/context/GoalOnboardingContext";
 import { generateGoalAdvice, submitGoalIntake } from "@/lib/goalApi";
 import { queryClient } from "@/lib/queryClient";
+
+// 로컬 E2E 버그(팀장 지시) — GoalOnboardingContext는 naesin.exams/mockExam.rounds에
+// FLOW 전체 키(내신 12개・모의고사 14개)를 항상 빈 객체로 채워 들고 있다가(다른 시험/
+// 회차를 다시 고르면 이전에 입력해 둔 값이 사라지지 않게 하려는 설계, 각 buildInitial*
+// 주석 참고) 제출 시 통째로 서버에 실어 보낸다. 서버는 이제 "표시 창"(선택 회차 포함
+// 역순 최대 3개) 밖・빈 회차를 무시하도록 방어했지만(api/goal/intake.ts), 클라이언트도
+// 애초에 화면에 보이지도 않는 빈/스테일 데이터를 굳이 실어 보낼 필요가 없다 — 여기서
+// 한 번 더 창 안 + 실제 값이 있는 회차만 걸러 payload를 sparse하게 만든다.
+
+function hasNaesinGroupData(exam: NaesinExamState | undefined): boolean {
+  if (!exam) return false;
+  return Object.values(exam.groups).some(
+    (group) => group.avg.trim() !== "" || group.subjects.length > 0,
+  );
+}
+
+// Step4Naesin.tsx recentExams와 동일한 창 규칙(선택 시험 포함 역순 최대 3개)으로,
+// 실제 데이터가 있는 시험만 골라 sparse exams를 만든다.
+export function buildNaesinExamsPayload(
+  lastExam: string,
+  exams: Record<string, NaesinExamState>,
+): Record<string, NaesinExamState> {
+  if (lastExam === "") return {};
+  const index = NAESIN_EXAM_FLOW.findIndex((exam) => exam.key === lastExam);
+  if (index === -1) return {};
+
+  const payload: Record<string, NaesinExamState> = {};
+  for (const entry of NAESIN_EXAM_FLOW.slice(
+    Math.max(0, index - 2),
+    index + 1,
+  )) {
+    const exam = exams[entry.key];
+    if (hasNaesinGroupData(exam)) payload[entry.key] = exam!;
+  }
+  return payload;
+}
+
+function hasMockRoundData(round: MockRoundState | undefined): boolean {
+  if (!round) return false;
+  return (
+    round.kor.grade.trim() !== "" ||
+    round.math.grade.trim() !== "" ||
+    round.eng.grade.trim() !== "" ||
+    round.tam1.grade.trim() !== "" ||
+    round.tam2.grade.trim() !== ""
+  );
+}
+
+// Step5MockExam.tsx recentRounds와 동일한 창 규칙으로, 실제 값이 있는 회차만 골라
+// sparse rounds를 만든다.
+export function buildMockRoundsPayload(
+  lastRound: string,
+  rounds: Record<string, MockRoundState>,
+): Record<string, MockRoundState> {
+  if (lastRound === "") return {};
+  const index = MOCK_FLOW.findIndex((round) => round.key === lastRound);
+  if (index === -1) return {};
+
+  const payload: Record<string, MockRoundState> = {};
+  for (const entry of MOCK_FLOW.slice(Math.max(0, index - 2), index + 1)) {
+    const round = rounds[entry.key];
+    if (hasMockRoundData(round)) payload[entry.key] = round!;
+  }
+  return payload;
+}
 
 // 목표관리 온보딩 7단계 위저드 — docs/figma-goal/00-INDEX.md §3 G1 / §4-1.
 // 라우트 계약(다른 에이전트가 App.jsx에 배선): `/app/goal/onboarding/:step` → 이 파일.
@@ -123,10 +194,20 @@ function OnboardingWizard() {
       grade,
       upperUniversity,
       lowerUniversity,
-      // naesin은 {lastExam, overall, priorNaesinGrade, exams}를 통째로 싣는다. priorNaesinGrade는
+      // naesin은 {lastExam, overall, priorNaesinGrade, exams}를 싣는다. priorNaesinGrade는
       // lastExam==="" ("아직 없음")일 때만 서버가 읽는다(그 외에는 무시하고 저장도 하지 않는다).
-      naesin,
-      mockExam,
+      // exams는 그대로 보내지 않는다 — Context가 FLOW 전체 키(12개)를 항상 빈 객체로 들고
+      // 있으므로, buildNaesinExamsPayload로 표시 창(선택 시험 포함 역순 최대 3개) 안에서
+      // 실제 값이 있는 시험만 골라 sparse하게 줄인다(로컬 E2E 버그 수정).
+      naesin: {
+        ...naesin,
+        exams: buildNaesinExamsPayload(naesin.lastExam, naesin.exams),
+      },
+      // mockExam.rounds도 같은 이유로 sparse하게 줄인다.
+      mockExam: {
+        ...mockExam,
+        rounds: buildMockRoundsPayload(mockExam.lastRound, mockExam.rounds),
+      },
       studyHours,
       weekSchedule,
     });

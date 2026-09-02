@@ -175,6 +175,28 @@ describe("validateIntakeBody — 내신", () => {
     expect(Object.keys(exam?.groups ?? {})).toEqual(["korean"]);
     expect(exam?.groups.korean?.avg).toBe(2);
   });
+
+  it("표시 창(선택 시험 포함 역순 최대 3개) 밖의 시험 데이터는 저장하지 않는다", () => {
+    // g3_s2mid(선택, NAESIN_FLOW index 10) 기준 창은 [g3_s1mid, g3_s1final, g3_s2mid]
+    // (index 8~10) 3개다. g1_s1mid(index 0)는 그 창 밖이라 채워져 있어도 무시된다.
+    const result = validateIntakeBody(
+      baseBody({
+        naesin: {
+          lastExam: "g3_s2mid",
+          overall: "3",
+          priorNaesinGrade: "",
+          exams: {
+            g3_s2mid: { groups: { korean: { avg: "2", subjects: [] } } },
+            g1_s1mid: { groups: { korean: { avg: "4", subjects: [] } } },
+          },
+        },
+      }),
+    );
+    expect(result.error).toBeUndefined();
+    expect(
+      (result.input?.naesinExams ?? []).map((e: { key: string }) => e.key),
+    ).toEqual(["g3_s2mid"]);
+  });
 });
 
 describe("validateIntakeBody — 모의고사", () => {
@@ -243,6 +265,84 @@ describe("validateIntakeBody — 모의고사", () => {
     expect(result.error).toBeUndefined();
     expect(result.input?.mockRounds.g3_mar?.kor.pct).toBe(92);
     expect(result.input?.mockRounds.g3_mar?.math.pct).toBeNull();
+  });
+});
+
+// 로컬 E2E 버그(팀장 지시) — GoalOnboardingContext는 mockExam.rounds에 MOCK_FLOW 14개
+// 키를 전부 빈 객체({kor:{grade:"",pct:""}, ...})로 채워 항상 들고 있다가 그대로 서버에
+// 보낸다. 서버가 "표시 창"(선택 회차 포함 역순 최대 3개) 밖도 전부 검증 대상으로 삼으면
+// 빈 회차까지 "5과목 모두 채워야 한다"에 걸려 400이 났다. 재현 payload: 팀장 지시 그대로
+// lastRound=g2_jun(5과목 입력), g2_mar・g1_oct는 빈 값(윈도우 안, 스킵돼야 함), 그 밖(예:
+// g1_mar)은 완전히 창 밖(무시돼야 함).
+function emptyMockRound() {
+  return {
+    kor: { grade: "", pct: "" },
+    math: { grade: "", pct: "" },
+    eng: { grade: "" },
+    tam1: { grade: "", pct: "" },
+    tam2: { grade: "", pct: "" },
+  };
+}
+
+function filledMockRound(grade = "3") {
+  return {
+    kor: { grade, pct: "" },
+    math: { grade, pct: "" },
+    eng: { grade },
+    tam1: { grade, pct: "" },
+    tam2: { grade, pct: "" },
+  };
+}
+
+describe("validateIntakeBody — 모의고사 표시 창(윈도우)", () => {
+  it("창 안의 완전히 빈 회차(g2_mar・g1_oct)와 창 밖 빈 회차(전부)는 400을 내지 않는다", () => {
+    const rounds: Record<string, unknown> = {};
+    for (const round of MOCK_FLOW) rounds[round.key] = emptyMockRound();
+    rounds.g2_jun = filledMockRound("3");
+
+    const result = validateIntakeBody(
+      baseBody({
+        grade: "g2",
+        mockExam: { lastRound: "g2_jun", track: "과탐", rounds },
+      }),
+    );
+    expect(result.error).toBeUndefined();
+    // 빈 회차(g2_mar・g1_oct 포함)는 저장하지 않는다 — g2_jun만 남는다.
+    expect(Object.keys(result.input?.mockRounds ?? {})).toEqual(["g2_jun"]);
+  });
+
+  it("창 안이지만 lastRound가 아닌 회차가 일부만 채워지면 400", () => {
+    const rounds: Record<string, unknown> = {};
+    for (const round of MOCK_FLOW) rounds[round.key] = emptyMockRound();
+    rounds.g2_jun = filledMockRound("3");
+    // g2_mar(창 안, 참고용 회차)를 국어만 채운다 — 부분 입력.
+    rounds.g2_mar = { ...emptyMockRound(), kor: { grade: "2", pct: "" } };
+
+    const result = validateIntakeBody(
+      baseBody({
+        grade: "g2",
+        mockExam: { lastRound: "g2_jun", track: "과탐", rounds },
+      }),
+    );
+    expect(result.error?.status).toBe(400);
+  });
+
+  it("창 밖의 스테일 데이터(전에 다른 회차를 고르며 채워 둔 값)는 저장하지 않는다", () => {
+    const rounds: Record<string, unknown> = {};
+    for (const round of MOCK_FLOW) rounds[round.key] = emptyMockRound();
+    rounds.g2_jun = filledMockRound("3");
+    // g1_mar은 g2_jun 기준 창(g1_oct・g2_mar・g2_jun) 밖인데도 완전히 채워져 있다 —
+    // 예전에 lastRound를 g1_mar로 골랐다가 g2_jun으로 바꾼 흔적이라고 가정한다.
+    rounds.g1_mar = filledMockRound("5");
+
+    const result = validateIntakeBody(
+      baseBody({
+        grade: "g2",
+        mockExam: { lastRound: "g2_jun", track: "과탐", rounds },
+      }),
+    );
+    expect(result.error).toBeUndefined();
+    expect(Object.keys(result.input?.mockRounds ?? {})).toEqual(["g2_jun"]);
   });
 });
 
