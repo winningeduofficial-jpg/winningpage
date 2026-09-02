@@ -194,6 +194,13 @@ function GoalReportRedirect() {
             </Link>
           ))}
         </div>
+        {/* SiteLayout 밖(헤더 없음)이라 여기서 빠져나갈 길을 하나 둔다 — 문구는 ChildReport 기존 카피 재사용. */}
+        <Link
+          to="/mypage?tab=children"
+          className="text-[0.875rem] font-medium text-ink-sub underline underline-offset-4 transition hover:text-ink"
+        >
+          자녀 목록으로
+        </Link>
       </main>
     );
   }
