@@ -431,17 +431,22 @@ function HeroSection() {
             리포트 화면 1장으로 한 번 채웠는데, QA 시트 행 38·81·354(2026-09-02)가 리포트
             결과 1장 대신 실제 진행 단계 캡처 4컷을 순서대로 보여달라고 지적해 지금 구성으로
             교체했다. 크롬은 이 컴포넌트가 그리므로 캡처 쪽 크롬·그림자는 버렸다.
-            래퍼는 원래 목업 이미지(2198×814, ≈2.7:1)와 동일한 종횡비를 유지해 프레임이
-            차지하던 높이를 그대로 지킨다 — md 이상에서는 프레임 자체의 aspect-1280/553이
-            높이를 고정하므로 md:aspect-auto md:flex-1로 넘겨준다. 2×2(모바일~md)에서
-            4×1(lg 이상)로 열이 바뀌어도 grid-rows로 트랙을 고정해 각 셀이 행/열 높이를
-            꽉 채우고, 그 안에서 이미지는 object-contain + object-top으로 잘리지 않게
-            축소해 상단 정렬한다(캡처 4장의 원본 비율이 제각각이라 object-cover면 내용이
-            잘린다). 좌상단 숫자 배지(1~4)는 순서를 명시해 달라는 QA 요구사항이다. */}
+            높이 — md 이상에서는 프레임 자체의 aspect-1280/553이 높이를 고정하므로 래퍼는
+            md:min-h-0 md:flex-1로 남은 공간을 받는다. md 미만은 프레임에 고정 비율이 없어
+            래퍼 대신 셀에 세로 비율(aspect-4/5)을 줘 2×2 각 칸이 세로 캡처를 읽을 수 있는
+            크기로 선다(래퍼에 옛 목업 비율 2198:814를 주면 390px 폭에서 이미지 높이가
+            46px로 뭉개졌다 — 2026-09-02 실측). md 이상은 처음부터 4×1이다(md에서 2×2를
+            유지하면 프레임 높이 안에서 셀이 가로로 눕는다). 이미지는 object-contain +
+            object-top으로 잘리지 않게 축소해 상단 정렬한다(캡처 4장의 원본 비율이
+            제각각이라 object-cover면 내용이 잘린다). 좌상단 숫자 배지(1~4)는 순서를
+            명시해 달라는 QA 요구사항이다. */}
         <ServiceHeroBrowserFrame>
-          <div className="grid aspect-2198/814 grid-cols-2 grid-rows-2 gap-px bg-[#E5E7EB] md:aspect-auto md:min-h-0 md:flex-1 lg:grid-cols-4 lg:grid-rows-1">
+          <div className="grid grid-cols-2 gap-px bg-[#E5E7EB] md:min-h-0 md:flex-1 md:grid-cols-4">
             {HERO_PROCESS_SCREENSHOTS.map((screenshot, index) => (
-              <div key={screenshot.alt} className="relative bg-white p-2">
+              <div
+                key={screenshot.alt}
+                className="relative aspect-4/5 bg-white p-2 md:aspect-auto md:min-h-0"
+              >
                 <span className="absolute left-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
                   {index + 1}
                 </span>
