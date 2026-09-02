@@ -1248,6 +1248,36 @@ export async function updateStudentGrades(
   return data;
 }
 
+/**
+ * 정시(jungsi) 확률·컷·rate 6개 컬럼만 부분 갱신한다(GET /api/goal/student 의
+ * 지연 재계산 전용, 행296·332 QA3 §9-5 결정3). updateStudentGrades 와 같은
+ * 이유로 upsert(전체 row) 대신 update 를 쓴다 — 이 경로는 온보딩 이후 딱
+ * 이 6개 컬럼만 알고 호출되므로, 명시하지 않은 컬럼(확률 base_susi·주간계획
+ * 등)을 건드리지 않는 update 가 안전하다.
+ */
+export async function updateStudentJungsiProb(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  patch: {
+    ideal_jungsi_cut: number;
+    min_jungsi_cut: number;
+    base_ideal_jungsi: number;
+    base_min_jungsi: number;
+    rate_ideal_jungsi: number;
+    rate_min_jungsi: number;
+  },
+): Promise<Row> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_STUDENTS)
+    .update(patch)
+    .eq("profile_id", profileId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export const TABLE_TIMER_SESSIONS = "goal_timer_sessions";
 export const TABLE_SUBJECT_TARGETS = "goal_subject_targets";
 
