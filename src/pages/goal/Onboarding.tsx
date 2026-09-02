@@ -62,7 +62,6 @@ function OnboardingWizard() {
     upperUniversity,
     lowerUniversity,
     naesin,
-    priorNaesinGrade,
     mockExam,
     studyHours,
     weekSchedule,
@@ -124,11 +123,9 @@ function OnboardingWizard() {
       grade,
       upperUniversity,
       lowerUniversity,
+      // naesin은 {lastExam, overall, priorNaesinGrade, exams}를 통째로 싣는다. priorNaesinGrade는
+      // lastExam==="" ("아직 없음")일 때만 서버가 읽는다(그 외에는 무시하고 저장도 하지 않는다).
       naesin,
-      // 내신 4회차가 전부 "없음"일 때만 서버가 읽는다(그 외에는 무시하고 저장도 하지 않는다).
-      // 값이 ''일 수 있지만 항상 실어 보낸다 — 4회차 전부 없음인데 비어 있으면 서버가 400으로
-      // 막고, 프론트도 같은 조건에서 4단계 "다음"을 비활성화해 두었다.
-      priorNaesinGrade,
       mockExam,
       studyHours,
       weekSchedule,

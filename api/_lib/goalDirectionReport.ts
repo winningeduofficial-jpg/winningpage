@@ -623,14 +623,20 @@ export function resolveJungsiSubjectAverage(
   gradePercentile: Record<number, { min: number; max: number }>,
 ): JungsiInputResolution {
   const scores = isPlainObject(mockExamScores) ? mockExamScores : {};
-  const rounds = Array.isArray(scores.rounds)
-    ? (scores.rounds as JungsiRound[])
-    : [];
-  const round = rounds.length > 0 ? rounds[rounds.length - 1] : null;
+  // 실제 저장 shape(api/goal/intake.ts, qa3-goal2-grades 병렬 유닛)은 rounds가 배열이
+  // 아니라 회차 키(MOCK_FLOW 순서로 삽입된) → 회차 객체 Record이고, track은 회차별이
+  // 아니라 mock_exam_scores 최상위 필드 하나다(탐구 선택 과목은 온보딩 섹션 전체에서
+  // 한 번만 고른다). Object 키 삽입 순서가 학년순(MOCK_FLOW)이므로 Object.values의
+  // 마지막 원소가 곧 lastRound(가장 최근 회차)다.
+  const roundsRecord = isPlainObject(scores.rounds)
+    ? (scores.rounds as Record<string, JungsiRound>)
+    : {};
+  const roundList = Object.values(roundsRecord);
+  const round = roundList.length > 0 ? roundList[roundList.length - 1] : null;
+  const track: InquiryTrack =
+    scores.track === "사탐" ? "사탐" : scores.track === "과탐" ? "과탐" : "";
 
   if (round) {
-    const track: InquiryTrack =
-      round.track === "사탐" ? "사탐" : round.track === "과탐" ? "과탐" : "";
     const items: {
       key: string;
       label: string;

@@ -14,28 +14,48 @@ import {
   validateEntry,
 } from "./grades.js";
 
+// QA 행290 재설계 — 내신은 4과목 flat에서 6과목군(NAESIN_SUBJECT_KEYS)으로 확장됐다.
 const naesinEntry = (overrides: Partial<Record<string, unknown>> = {}) => ({
   term: "고2 2학기 중간",
   enteredAt: "2026-09-01",
-  subjects: { korean: 2, math: 3, english: 1, science: 2 },
+  subjects: {
+    korean: 2,
+    math: 3,
+    english: 1,
+    social_history: 2,
+    science: 2,
+    second_language: 2,
+  },
+  ...overrides,
+});
+
+// QA 행291 재설계 — 모의고사는 탐구 단일에서 탐구1・탐구2로 확장됐다(MOCK_SUBJECT_KEYS).
+const mockEntry = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  term: "고3 6모",
+  examDate: "2026-06-04",
+  subjects: { korean: 80, math: 80, english: 80, tam1: 80, tam2: 80 },
   ...overrides,
 });
 
 describe("validateEntry", () => {
-  test("naesin: 정상 입력은 4과목 평균을 value로 계산한다", () => {
+  test("naesin: 정상 입력은 6과목군 평균을 value로 계산한다", () => {
     const result = validateEntry(naesinEntry(), "naesin");
     expect(result.error).toBeUndefined();
     expect(result.record?.value).toBeCloseTo(2, 5);
     expect(result.record?.term).toBe("고2 2학기 중간");
   });
 
+  test("mock: 정상 입력은 5과목(탐구1・탐구2 포함) 평균을 value로 계산한다", () => {
+    const result = validateEntry(mockEntry(), "mock");
+    expect(result.error).toBeUndefined();
+    expect(result.record?.value).toBeCloseTo(80, 5);
+  });
+
   test("mock: 백분위 도메인(0~100)을 벗어나면 400", () => {
     const result = validateEntry(
-      {
-        term: "6월 모의고사",
-        examDate: "2026-06-04",
-        subjects: { korean: 101, math: 80, english: 80, science: 80 },
-      },
+      mockEntry({
+        subjects: { korean: 101, math: 80, english: 80, tam1: 80, tam2: 80 },
+      }),
       "mock",
     );
     expect(result.error?.status).toBe(400);

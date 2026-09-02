@@ -31,9 +31,10 @@ import {
   useState,
 } from "react";
 import {
-  MOCK_EXAM_ROUNDS,
-  MOCK_EXAM_SUBJECTS,
-  NAESIN_EXAMS,
+  MOCK_FLOW,
+  MOCK_SUBJECTS,
+  NAESIN_EXAM_FLOW,
+  NAESIN_SUBJECT_GROUPS,
   WEEK_SCHEDULE_DEFAULT_SCHOOL_END,
   WEEK_SCHEDULE_DEFAULT_SCHOOL_START,
   WEEK_SCHEDULE_DEFAULT_SLEEP,
@@ -53,13 +54,58 @@ interface UniversityChoice {
   department: string;
 }
 
-interface NaesinEntry {
-  value: string;
-  none: boolean;
+// QA 행290 재설계 — 과목군 1개 항목. avg는 직접 입력 또는 subjects[]에서 자동 산출한
+// 값(둘 다 string, 서버 전송 직전에만 숫자로 접는다). subjects가 비어 있으면 avg를
+// 그대로 쓰고, subjects가 있으면 그 평균이 avg를 덮어쓴다(NaesinGroupRow가 갱신).
+export interface NaesinGroupState {
+  avg: string;
+  subjects: { name: string; grade: string }[];
 }
 
-// 회차별 과목 점수(string) + 전체 "없음" 플래그(boolean)를 한 객체에 담는다.
-type MockExamRound = { none: boolean } & Record<string, string>;
+export type NaesinGroups = Record<string, NaesinGroupState>;
+
+export interface NaesinExamState {
+  groups: NaesinGroups;
+}
+
+// 내신 섹션 상태 — 고정 4회차 체크박스 방식(구)에서 "마지막 시험 1개 선택 + 그
+// 시험까지의 전체 평균 + 최근 시험별 과목군" 방식(신)으로 재설계했다(qa3-held-high-design.md
+// §2). lastExam이 ""면 "아직 없음"이고, 그 경우에만 priorNaesinGrade를 쓴다(학년별로 도메인이
+// 다르다 — 고1은 중학교 평균 점수 0~100, 고2·고3은 평균 등급 1~9. Step4Naesin이 분기한다).
+interface NaesinState {
+  lastExam: string;
+  overall: string;
+  priorNaesinGrade: string;
+  // NAESIN_EXAM_FLOW 12개 키 전부를 항상 채워 둔다 — "마지막 시험"을 바꿔도 다른 시험에
+  // 입력해 둔 과목군 값이 사라지지 않게 하기 위해서다(구 naesin[key] 관례와 동일한 이유).
+  exams: Record<string, NaesinExamState>;
+}
+
+interface MockSubjectState {
+  grade: string;
+  // 사용자가 등급 입력 후 고른 백분위 칩 값(문자열). 미선택이면 ""(제출 직전 서버 기본값
+  // "안정"/중앙값으로 대체된다 — Step5MockExam이 기본 칩을 미리 선택해 두므로 정상 경로에서는
+  // 거의 비지 않는다).
+  pct: string;
+}
+
+interface MockRoundState {
+  kor: MockSubjectState;
+  math: MockSubjectState;
+  eng: { grade: string };
+  tam1: MockSubjectState;
+  tam2: MockSubjectState;
+}
+
+// 모의고사 섹션 상태 — 고정 4회차(3/6/9/10월, 학년 무구분) 방식(구)에서 학년별 전체
+// 시퀀스(MOCK_FLOW, 고3 5・7모 포함) 방식(신)으로 재설계했다. track은 회차마다 따로 두지
+// 않고 섹션 전체에서 하나만 고른다(원본과 동일 — 탐구 선택 과목은 학년 내내 거의 바뀌지
+// 않는다는 전제).
+interface MockState {
+  lastRound: string;
+  track: "과탐" | "사탐" | "";
+  rounds: Record<string, MockRoundState>;
+}
 
 // 학원(또는 과외) 1건의 등원·하원 시각 — 원본 계약(target/components/IntakeForm.tsx:1814-1920)
 // 그대로 0~30 시각쌍이다(자정 넘김은 24 초과로 표현).
@@ -85,31 +131,64 @@ interface GoalOnboardingState {
   grade: Grade;
   upperUniversity: UniversityChoice;
   lowerUniversity: UniversityChoice;
-  naesin: Record<string, NaesinEntry>;
-  priorNaesinGrade: string;
-  mockExam: Record<string, MockExamRound>;
+  naesin: NaesinState;
+  mockExam: MockState;
   studyHours: Record<string, number>;
   weekSchedule: Record<string, DayScheduleInput>;
 }
 
-function buildInitialNaesin(): Record<string, NaesinEntry> {
+function buildEmptyNaesinGroups(): NaesinGroups {
   return Object.fromEntries(
-    NAESIN_EXAMS.map((exam) => [exam.key, { value: "", none: false }]),
+    NAESIN_SUBJECT_GROUPS.map((group) => [
+      group.key,
+      { avg: "", subjects: [] } as NaesinGroupState,
+    ]),
   );
 }
 
-function buildInitialMockExam(): Record<string, MockExamRound> {
+function buildInitialNaesinExams(): Record<string, NaesinExamState> {
   return Object.fromEntries(
-    MOCK_EXAM_ROUNDS.map((round) => [
+    NAESIN_EXAM_FLOW.map((exam) => [
+      exam.key,
+      { groups: buildEmptyNaesinGroups() },
+    ]),
+  );
+}
+
+function buildInitialNaesin(): NaesinState {
+  return {
+    lastExam: "",
+    overall: "",
+    priorNaesinGrade: "",
+    exams: buildInitialNaesinExams(),
+  };
+}
+
+function buildEmptyMockSubject(): MockSubjectState {
+  return { grade: "", pct: "" };
+}
+
+function buildInitialMockRounds(): Record<string, MockRoundState> {
+  return Object.fromEntries(
+    MOCK_FLOW.map((round) => [
       round.key,
       {
-        none: false,
-        ...Object.fromEntries(
-          MOCK_EXAM_SUBJECTS.map((subject) => [subject.key, ""]),
-        ),
-      },
+        kor: buildEmptyMockSubject(),
+        math: buildEmptyMockSubject(),
+        eng: { grade: "" },
+        tam1: buildEmptyMockSubject(),
+        tam2: buildEmptyMockSubject(),
+      } as MockRoundState,
     ]),
-  ) as Record<string, MockExamRound>;
+  );
+}
+
+function buildInitialMockExam(): MockState {
+  return {
+    lastRound: "",
+    track: "",
+    rounds: buildInitialMockRounds(),
+  };
 }
 
 function buildInitialStudyHours(): Record<string, number> {
@@ -148,11 +227,6 @@ function buildDefaultState(): GoalOnboardingState {
     upperUniversity: { university: "", department: "" },
     lowerUniversity: { university: "", department: "" },
     naesin: buildInitialNaesin(),
-    // 내신 4회차가 "전부 없음"일 때만 의미를 갖는 이전 학년까지의 내신 평균 등급(1~9, 문자열).
-    // 고1이면 중학교 평균, 고2면 고1까지, 고3이면 고2까지의 누적 평균이며 한 칸을 공유한다.
-    // 다른 성적 입력(naesin[key].value)과 같게 문자열로 두고 숫자 변환은 서버가 한 번만 한다.
-    // 반드시 여기(defaults)에 있어야 sessionStorage 복구 병합(buildInitialState)에서 살아남는다.
-    priorNaesinGrade: "",
     mockExam: buildInitialMockExam(),
     studyHours: buildInitialStudyHours(),
     weekSchedule: buildInitialWeekSchedule(),
@@ -226,8 +300,27 @@ function buildInitialState(
       ...defaults.lowerUniversity,
       ...(stored.lowerUniversity || {}),
     },
-    naesin: mergeKeyedObject(defaults.naesin, stored.naesin),
-    mockExam: mergeKeyedObject(defaults.mockExam, stored.mockExam),
+    // naesin/mockExam은 이제 "고정 회차 키 → 값" 평평한 레코드가 아니라 exams/rounds
+    // 서브필드만 그런 형태다 — mergeKeyedObject를 최상위에 바로 쓰면 lastExam/overall/track
+    // 같은 평평한 필드가 "값이 object가 아니다"에 걸려 전부 defaults로 되돌아간다. 평평한
+    // 필드는 얕은 스프레드로, exams/rounds만 키 단위로 병합한다.
+    naesin: {
+      ...defaults.naesin,
+      ...(stored.naesin || {}),
+      exams: mergeKeyedObject(
+        defaults.naesin.exams,
+        (stored.naesin as GoalOnboardingState["naesin"] | undefined)?.exams,
+      ),
+    },
+    mockExam: {
+      ...defaults.mockExam,
+      ...(stored.mockExam || {}),
+      rounds: mergeKeyedObject(
+        defaults.mockExam.rounds,
+        (stored.mockExam as GoalOnboardingState["mockExam"] | undefined)
+          ?.rounds,
+      ),
+    },
     studyHours: { ...defaults.studyHours, ...(stored.studyHours || {}) },
     // 필드명이 dailySchedule → weekSchedule로 바뀌었다(QA 행293) — 옛 세션 저장값은
     // stored.weekSchedule이 애초에 없어 defaults로만 채워진다(버전 키 없이도 자동 이행,
@@ -250,9 +343,23 @@ interface GoalOnboardingContextValue extends GoalOnboardingState {
   setGrade: (grade: Grade) => void;
   setUpperUniversity: (partial: Partial<UniversityChoice>) => void;
   setLowerUniversity: (partial: Partial<UniversityChoice>) => void;
-  updateNaesin: (examKey: string, partial: Partial<NaesinEntry>) => void;
+  setNaesinLastExam: (examKey: string) => void;
+  setNaesinOverall: (value: string) => void;
   setPriorNaesinGrade: (value: string) => void;
-  updateMockExam: (roundKey: string, partial: Partial<MockExamRound>) => void;
+  setNaesinGroupAvg: (examKey: string, groupKey: string, avg: string) => void;
+  setNaesinGroupSubjects: (
+    examKey: string,
+    groupKey: string,
+    subjects: { name: string; grade: string }[],
+  ) => void;
+  setMockLastRound: (roundKey: string) => void;
+  setMockTrack: (track: "과탐" | "사탐" | "") => void;
+  updateMockSubject: (
+    roundKey: string,
+    subjectKey: "kor" | "math" | "tam1" | "tam2",
+    partial: Partial<MockSubjectState>,
+  ) => void;
+  setMockEnglishGrade: (roundKey: string, grade: string) => void;
   setStudyHour: (dayKey: string, value: number) => void;
   setWeekScheduleDay: (
     dayKey: string,
@@ -292,7 +399,13 @@ export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
     // '중3' 치환(페널티 +0.10)에서 remainingNaesin=6 오버라이드로 통째로 뒤집힌다.
     // 실제로 바뀔 때만 비운다 — 같은 학년을 다시 눌렀다고 입력을 날리지 않는다.
     setState((prev) =>
-      prev.grade === grade ? prev : { ...prev, grade, priorNaesinGrade: "" },
+      prev.grade === grade
+        ? prev
+        : {
+            ...prev,
+            grade,
+            naesin: { ...prev.naesin, priorNaesinGrade: "" },
+          },
     );
   }, []);
 
@@ -316,43 +429,154 @@ export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const updateNaesin = useCallback(
-    (examKey: string, partial: Partial<NaesinEntry>) => {
-      setState((prev) => ({
-        ...prev,
-        naesin: {
-          ...prev.naesin,
-          // examKey는 항상 buildInitialNaesin으로 채워진 기존 키다.
-          [examKey]: { ...prev.naesin[examKey]!, ...partial },
-        },
-      }));
+  // 마지막으로 본 내신 시험 선택. NAESIN_EXAM_FLOW 키 또는 "아직 없음"이면 "".
+  const setNaesinLastExam = useCallback((examKey: string) => {
+    setState((prev) => ({
+      ...prev,
+      naesin: { ...prev.naesin, lastExam: examKey },
+    }));
+  }, []);
+
+  const setNaesinOverall = useCallback((value: string) => {
+    setState((prev) => ({
+      ...prev,
+      naesin: { ...prev.naesin, overall: value },
+    }));
+  }, []);
+
+  // 내신 "아직 없음" 특례 입력 — 고1은 중학교 평균 점수(0~100), 고2・고3은 이전 학년까지의
+  // 평균 등급(1~9). Step4Naesin이 grade로 도메인을 분기한다.
+  const setPriorNaesinGrade = useCallback((value: string) => {
+    setState((prev) => ({
+      ...prev,
+      naesin: { ...prev.naesin, priorNaesinGrade: value },
+    }));
+  }, []);
+
+  const setNaesinGroupAvg = useCallback(
+    (examKey: string, groupKey: string, avg: string) => {
+      setState((prev) => {
+        // examKey/groupKey는 항상 buildInitialNaesinExams/buildEmptyNaesinGroups로
+        // 채워진 기존 키다.
+        const exam = prev.naesin.exams[examKey]!;
+        const group = exam.groups[groupKey]!;
+        return {
+          ...prev,
+          naesin: {
+            ...prev.naesin,
+            exams: {
+              ...prev.naesin.exams,
+              [examKey]: {
+                groups: { ...exam.groups, [groupKey]: { ...group, avg } },
+              },
+            },
+          },
+        };
+      });
     },
     [],
   );
 
-  // 내신 전 회차 "없음" 특례 입력. 4회차 중 하나라도 "없음"이 해제되면 Step4가 ''로 비운다.
-  const setPriorNaesinGrade = useCallback((value: string) => {
-    setState((prev) => ({ ...prev, priorNaesinGrade: value }));
+  // "세부 과목" 편집 — subjects 배열이 바뀔 때마다 군 평균(avg)을 유효 등급의 단순
+  // 평균(round2)으로 자동 재계산한다(원본 NaesinSubjectEditor 규칙, target-app-analysis.md
+  // §4.2와 동일). 유효 등급이 하나도 없으면 avg를 비워 "미입력"으로 되돌린다 — 빈 값을
+  // 0으로 접으면 그 군이 실제로 0등급을 받은 것처럼 보인다.
+  const setNaesinGroupSubjects = useCallback(
+    (
+      examKey: string,
+      groupKey: string,
+      subjects: { name: string; grade: string }[],
+    ) => {
+      setState((prev) => {
+        const exam = prev.naesin.exams[examKey]!;
+        const group = exam.groups[groupKey]!;
+        const validGrades = subjects
+          .map((s) => Number(s.grade))
+          .filter((n) => Number.isFinite(n) && n >= 1 && n <= 9);
+        const avg =
+          validGrades.length > 0
+            ? String(
+                Math.round(
+                  (validGrades.reduce((a, b) => a + b, 0) /
+                    validGrades.length) *
+                    100,
+                ) / 100,
+              )
+            : "";
+        return {
+          ...prev,
+          naesin: {
+            ...prev.naesin,
+            exams: {
+              ...prev.naesin.exams,
+              [examKey]: {
+                groups: {
+                  ...exam.groups,
+                  [groupKey]: { ...group, subjects, avg },
+                },
+              },
+            },
+          },
+        };
+      });
+    },
+    [],
+  );
+
+  // 마지막으로 본 모의고사 선택. MOCK_FLOW 키 또는 "없음"이면 "".
+  const setMockLastRound = useCallback((roundKey: string) => {
+    setState((prev) => ({
+      ...prev,
+      mockExam: { ...prev.mockExam, lastRound: roundKey },
+    }));
   }, []);
 
-  const updateMockExam = useCallback(
-    (roundKey: string, partial: Partial<MockExamRound>) => {
-      setState((prev) => ({
+  const setMockTrack = useCallback((track: "과탐" | "사탐" | "") => {
+    setState((prev) => ({ ...prev, mockExam: { ...prev.mockExam, track } }));
+  }, []);
+
+  const updateMockSubject = useCallback(
+    (
+      roundKey: string,
+      subjectKey: "kor" | "math" | "tam1" | "tam2",
+      partial: Partial<MockSubjectState>,
+    ) => {
+      setState((prev) => {
+        // roundKey는 항상 buildInitialMockRounds로 채워진 기존 키다.
+        const round = prev.mockExam.rounds[roundKey]!;
+        return {
+          ...prev,
+          mockExam: {
+            ...prev.mockExam,
+            rounds: {
+              ...prev.mockExam.rounds,
+              [roundKey]: {
+                ...round,
+                [subjectKey]: { ...round[subjectKey], ...partial },
+              },
+            },
+          },
+        };
+      });
+    },
+    [],
+  );
+
+  const setMockEnglishGrade = useCallback((roundKey: string, grade: string) => {
+    setState((prev) => {
+      const round = prev.mockExam.rounds[roundKey]!;
+      return {
         ...prev,
         mockExam: {
           ...prev.mockExam,
-          // roundKey는 항상 buildInitialMockExam으로 채워진 기존 키다. partial의 string 인덱스
-          // 시그니처가 개별 필드 옵셔널을 만들어 병합 결과가 구조적으로 MockExamRound와 어긋나
-          // 보이므로 단언한다(값 자체는 항상 유효한 MockExamRound 형태로 병합된다).
-          [roundKey]: {
-            ...prev.mockExam[roundKey]!,
-            ...partial,
-          } as MockExamRound,
+          rounds: {
+            ...prev.mockExam.rounds,
+            [roundKey]: { ...round, eng: { grade } },
+          },
         },
-      }));
-    },
-    [],
-  );
+      };
+    });
+  }, []);
 
   const setStudyHour = useCallback((dayKey: string, value: number) => {
     setState((prev) => ({
@@ -473,9 +697,15 @@ export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
       setGrade,
       setUpperUniversity,
       setLowerUniversity,
-      updateNaesin,
+      setNaesinLastExam,
+      setNaesinOverall,
       setPriorNaesinGrade,
-      updateMockExam,
+      setNaesinGroupAvg,
+      setNaesinGroupSubjects,
+      setMockLastRound,
+      setMockTrack,
+      updateMockSubject,
+      setMockEnglishGrade,
       setStudyHour,
       setWeekScheduleDay,
       addAcademy,
@@ -490,9 +720,15 @@ export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
       setGrade,
       setUpperUniversity,
       setLowerUniversity,
-      updateNaesin,
+      setNaesinLastExam,
+      setNaesinOverall,
       setPriorNaesinGrade,
-      updateMockExam,
+      setNaesinGroupAvg,
+      setNaesinGroupSubjects,
+      setMockLastRound,
+      setMockTrack,
+      updateMockSubject,
+      setMockEnglishGrade,
       setStudyHour,
       setWeekScheduleDay,
       addAcademy,

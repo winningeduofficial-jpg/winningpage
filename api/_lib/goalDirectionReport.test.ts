@@ -220,17 +220,20 @@ describe("resolveNaesinSubjectAverage — 입력 shape 우선순위", () => {
 
 describe("resolveJungsiSubjectAverage — 입력 shape 우선순위", () => {
   it("새 shape(rounds) 우선 사용 — 5과목 grade+percentile+track", () => {
+    // 실제 저장 shape(api/goal/intake.ts) — rounds는 배열이 아니라 회차 키(MOCK_FLOW
+    // 순서) → 회차 객체 Record이고, track은 회차별이 아니라 mock_exam_scores 최상위
+    // 필드 하나다(온보딩 섹션 전체에서 탐구 선택 과목을 한 번만 고른다).
     const mockExamScores = {
-      rounds: [
-        {
-          track: "과탐",
+      track: "과탐",
+      rounds: {
+        g3_mar: {
           kor: { grade: 2, pct: 88 },
           math: { grade: 3, pct: 80 },
           eng: { grade: 2, pct: 90 },
           tam1: { grade: 1, pct: 97 },
           tam2: { grade: 2, pct: 91 },
         },
-      ],
+      },
     };
     const resolved = resolveJungsiSubjectAverage(
       mockExamScores,
