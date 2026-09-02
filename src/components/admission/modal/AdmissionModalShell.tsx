@@ -7,6 +7,7 @@ import {
   type RefObject,
   useRef,
 } from "react";
+import { ScrollArea, type ScrollAreaHandle } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 // 대학모집요강 모달의 공용 "껍데기".
@@ -88,6 +89,16 @@ const PUBLIC_FOOTER_CLASS =
 const SHEET_POSITION_CLASS =
   "fixed left-1/2 top-1/2 z-10000 max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2";
 
+// 본문 컨테이너 오버레이 스크롤바 전환(2026-09) — 소비처가 이 셸을 공유한다:
+// 공개(AdmissionGuidelines.tsx)와 어드민(AdmissionMetaEditModal.tsx). 어드민은
+// modalProxyXScroll.ts 헤더 주석("어드민 편집 모달에는 이 훅을 쓰지 않는다" —
+// 트랙 폭 계산이 셸 padding == 본문 padding을 전제, 대상 선택이 오버플로 최대
+// 1개만 고름)과 커밋 9a9f3f0(공개 전용 스코프 CSS가 어드민에 새 나가 표 스크롤
+// 수단을 잃은 사고)이 보여주듯 이 영역을 건드리면 조용히 깨지는 이력이 있다.
+// 그래서 기본은 기존 div 그대로 유지하고(`useOverlayScrollbar` 기본 false —
+// 어드민은 아무것도 안 넘기므로 자동으로 이 분기), 공개 페이지만 명시적으로
+// `useOverlayScrollbar`+`bodyOsRef`를 넘겨 옵트인한다. `bodyRef`(구 계약)는
+// 그대로 남아 있어 어드민 타입·동작이 1바이트도 바뀌지 않는다.
 export default function AdmissionModalShell({
   open = true,
   onClose,
@@ -96,6 +107,8 @@ export default function AdmissionModalShell({
   idPrefix = "admission-modal",
   sheetClassName = PUBLIC_SHEET_CLASS,
   bodyRef,
+  useOverlayScrollbar = false,
+  bodyOsRef,
   bodyProps,
   bodyClassName = PUBLIC_BODY_CLASS,
   belowBody = null,
@@ -114,6 +127,11 @@ export default function AdmissionModalShell({
   // 아니다(불변). useRef<T>(null)의 반환 타입이 RefObject<T | null>이므로 호출부와
   // 맞추려면 여기도 명시적으로 null을 더해야 한다.
   bodyRef?: RefObject<HTMLDivElement | null>;
+  /** true면 본문을 ScrollArea(오버레이 스크롤바)로 렌더한다 — 기본 false(기존 div). */
+  useOverlayScrollbar?: boolean;
+  /** useOverlayScrollbar가 true일 때만 쓰는 ref — ScrollAreaHandle을 받는다
+   * (osInstance()로 실제 스크롤 뷰포트에 접근, 예: scrollTop 리셋). */
+  bodyOsRef?: RefObject<ScrollAreaHandle | null>;
   // ComponentPropsWithoutRef<"div">는 data-* 인덱스 시그니처가 없어(호출부가
   // 넘기는 { "data-section": ... } 실사용과 어긋난다) 명시적으로 얹는다.
   bodyProps?: ComponentPropsWithoutRef<"div"> & {
@@ -174,9 +192,25 @@ export default function AdmissionModalShell({
               {title}
             </h3>
           </div>
-          <div ref={bodyRef} {...bodyProps} className={bodyClassName}>
-            {children}
-          </div>
+          {useOverlayScrollbar ? (
+            // defer={false} — 프록시 가로 스크롤바 배선(useModalProxyXScroll)과
+            // scrollTop 리셋 effect가 부모(AdmissionGuidelines.tsx)에서 이 컴포넌트의
+            // 마운트 effect **다음**에 돈다(자식 effect가 먼저 실행). defer 기본값(true,
+            // 유휴/다음 프레임까지 초기화 지연)을 쓰면 그 시점에 실제 뷰포트가 아직
+            // 없어 두 배선이 조용히 no-op이 될 수 있어 이 인스턴스만 즉시 초기화한다.
+            <ScrollArea
+              osRef={bodyOsRef}
+              defer={false}
+              {...bodyProps}
+              className={bodyClassName}
+            >
+              {children}
+            </ScrollArea>
+          ) : (
+            <div ref={bodyRef} {...bodyProps} className={bodyClassName}>
+              {children}
+            </div>
+          )}
           {belowBody}
           <div className={footerClassName}>{footer}</div>
         </DialogPrimitive.Popup>

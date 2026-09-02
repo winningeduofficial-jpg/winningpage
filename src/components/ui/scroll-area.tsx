@@ -67,7 +67,7 @@ type ScrollAreaProps = Omit<React.ComponentProps<"div">, "children" | "ref"> & {
   /** `ref`와 동일한 값(ScrollAreaHandle)을 받는 별도 채널 — 둘 다 넘겨도 충돌하지 않는다.
    * "이 컴포넌트가 OverlayScrollbars라는 걸 호출부 코드에서 명시하고 싶을 때"(예:
    * `osRef.current?.osInstance()?.elements().viewport`) ref 대신 이름으로 구분해 쓴다. */
-  osRef?: React.Ref<ScrollAreaHandle>;
+  osRef?: React.Ref<ScrollAreaHandle | null> | undefined;
   viewportProps?: ScrollAreaViewportProps;
 };
 
