@@ -1,10 +1,10 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { ChevronDown, LogOut, Settings, X } from "lucide-react";
+import { ChevronDown, LogOut, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router";
 import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
 import type { useNavGroups } from "@/hooks/useNavGroups";
-import { buildMyMenu } from "./myMenuItems";
+import { buildMyMenu, type MyMenuRole } from "./myMenuItems";
 
 type NavGroups = ReturnType<typeof useNavGroups>;
 
@@ -16,9 +16,8 @@ type MobileNavDrawerProps = {
   isLoggedIn: boolean;
   displayName: string;
   memberLabel: string;
-  isParentMember?: boolean;
+  myMenuRole: MyMenuRole;
   csatDDay: string;
-  isAdmin: boolean;
   onLogout: () => void;
   triggerRef: React.RefObject<HTMLButtonElement | null>;
   // 현재 경로가 속한 nav 그룹 타이틀 — Header의 activePathTitle(정확 일치 → 첫 세그먼트
@@ -46,9 +45,8 @@ export default function MobileNavDrawer({
   isLoggedIn,
   displayName,
   memberLabel,
-  isParentMember = false,
+  myMenuRole,
   csatDDay,
-  isAdmin,
   onLogout,
   triggerRef,
   activeGroupTitle = null,
@@ -188,8 +186,9 @@ export default function MobileNavDrawer({
           <div className="border-t border-[#eeeeee] px-4 py-4">
             {shouldShowLoggedInHeader ? (
               <>
-                {/* QA 행253·254 — 아이콘 제거, 항목(내정보/수강신청·결제/환불신청)은 유지. */}
-                {buildMyMenu(isParentMember).map((item) => (
+                {/* 역할별 단일 소스(myMenuItems.buildMyMenu) — 관리자도 별도 버튼 없이
+                    이 목록의 "관리자 메뉴" 항목으로 진입한다. */}
+                {buildMyMenu(myMenuRole).map((item) => (
                   <Link
                     key={item.label}
                     to={item.to}
@@ -199,17 +198,6 @@ export default function MobileNavDrawer({
                     {item.label}
                   </Link>
                 ))}
-
-                {isAdmin && (
-                  <Link
-                    to="/admin"
-                    onClick={onClose}
-                    className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
-                  >
-                    <Settings size={18} />
-                    관리자
-                  </Link>
-                )}
 
                 <button
                   type="button"
