@@ -1111,6 +1111,129 @@ export async function addGoalGrade(
   return { kind: "error" };
 }
 
+export type UpdateGoalGradeResult =
+  | { kind: "no-session" }
+  | { kind: "not-allowed" }
+  | { kind: "not-onboarded" }
+  | { kind: "not-found" }
+  | { kind: "validation-error"; detail: string }
+  | { kind: "success"; record?: GoalGradeRecord; records: GoalGradeRecord[] }
+  | { kind: "error" };
+
+/**
+ * PUT /api/goal/grades — 회차 id(term) 기준 전체 갱신(api/goal/grades.ts handlePut 참고).
+ *
+ * 반환 계약:
+ *   { kind: 'no-session' | 'not-allowed' | 'error' }
+ *   { kind: 'not-onboarded' | 'not-found' }             — 404. not-found는 originalTerm이
+ *     가리키는 회차 자체가 없는 경우(reason:'record_not_found'), not-onboarded는 온보딩
+ *     행 자체가 없는 경우(reason:'not_onboarded') — 서버가 detail만 주고 reason 필드는
+ *     디버깅용이라 이 래퍼는 구분하지 않고 404 전체를 not-found로 접지 않는다: 두 reason이
+ *     서로 다른 사용자 안내가 필요할 수 있어(addGoalGrade의 not-onboarded와 동일 관례로
+ *     맞춘다) 분리해 둔다.
+ *   { kind: 'validation-error', detail }                — 400(입력 검증 실패 또는 이름 충돌).
+ *   { kind: 'success', record, records }                — 200. records = 갱신된 전체 배열.
+ */
+export async function updateGoalGrade(
+  type: "naesin" | "mock",
+  originalTerm: string,
+  entry: GoalGradeEntryInput,
+): Promise<UpdateGoalGradeResult> {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: "no-session" };
+
+  let response: Response;
+  try {
+    response = await apiFetch("/api/goal/grades", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...authHeader },
+      body: JSON.stringify({ type, term: originalTerm, entry }),
+    });
+  } catch (error) {
+    console.error("[goalApi] PUT /api/goal/grades 호출 오류:", error);
+    return { kind: "error" };
+  }
+
+  const result = await parseJsonSafe(response);
+
+  if (response.status === 200) {
+    return {
+      kind: "success",
+      record: result?.record,
+      records: result?.records || [],
+    };
+  }
+  if (response.status === 400)
+    return { kind: "validation-error", detail: result?.detail };
+  if (response.status === 401) return { kind: "no-session" };
+  if (response.status === 403) return { kind: "not-allowed" };
+  if (response.status === 404) {
+    return result?.reason === "record_not_found"
+      ? { kind: "not-found" }
+      : { kind: "not-onboarded" };
+  }
+
+  console.error(
+    "[goalApi] PUT /api/goal/grades 실패:",
+    response.status,
+    result?.detail,
+  );
+  return { kind: "error" };
+}
+
+export type DeleteGoalGradeResult =
+  | { kind: "no-session" }
+  | { kind: "not-allowed" }
+  | { kind: "not-onboarded" }
+  | { kind: "not-found" }
+  | { kind: "success"; records: GoalGradeRecord[] }
+  | { kind: "error" };
+
+/**
+ * DELETE /api/goal/grades — 회차 id(term) 기준 삭제(api/goal/grades.ts handleDelete 참고).
+ * kind 분기는 updateGoalGrade와 동일 관례(validation-error만 없음 — 삭제는 term 누락 외
+ * 별도 바디 검증이 없다).
+ */
+export async function deleteGoalGrade(
+  type: "naesin" | "mock",
+  term: string,
+): Promise<DeleteGoalGradeResult> {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: "no-session" };
+
+  let response: Response;
+  try {
+    response = await apiFetch("/api/goal/grades", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json", ...authHeader },
+      body: JSON.stringify({ type, term }),
+    });
+  } catch (error) {
+    console.error("[goalApi] DELETE /api/goal/grades 호출 오류:", error);
+    return { kind: "error" };
+  }
+
+  const result = await parseJsonSafe(response);
+
+  if (response.status === 200) {
+    return { kind: "success", records: result?.records || [] };
+  }
+  if (response.status === 401) return { kind: "no-session" };
+  if (response.status === 403) return { kind: "not-allowed" };
+  if (response.status === 404) {
+    return result?.reason === "record_not_found"
+      ? { kind: "not-found" }
+      : { kind: "not-onboarded" };
+  }
+
+  console.error(
+    "[goalApi] DELETE /api/goal/grades 실패:",
+    response.status,
+    result?.detail,
+  );
+  return { kind: "error" };
+}
+
 // GET /api/goal/student · POST /api/goal/intake · GET/POST /api/goal/timer 공용 클라이언트.
 // ---------------------------------------------------------------------------
 // 열공 타이머(#25) — GET/POST /api/goal/timer
