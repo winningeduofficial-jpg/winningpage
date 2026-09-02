@@ -33,6 +33,12 @@ export type StaleWhileRevalidateClient = {
   getQueryData: <T>(queryKey: readonly unknown[]) => T | undefined;
   fetchQuery: <T>(options: { queryKey: readonly unknown[] }) => Promise<T>;
   ensureQueryData: <T>(options: { queryKey: readonly unknown[] }) => Promise<T>;
+  /** invalidateQueries()로 무효화된 캐시를 구분하기 위해 읽는다 — 실제
+   * QueryClient.getQueryState와 같은 시그니처(필요한 필드만). 없으면 무효화
+   * 판정을 건너뛴다(테스트용 최소 구현 허용). */
+  getQueryState?: (
+    queryKey: readonly unknown[],
+  ) => { isInvalidated: boolean } | undefined;
 };
 
 /** entitlementQueryOptions/goalStudentQueryOptions(queryOptions() 반환값)를
@@ -48,8 +54,13 @@ export async function resolveStaleWhileRevalidate<T>(
   options: ResolvableQueryOptions<T>,
 ): Promise<T> {
   const cached = client.getQueryData<T>(options.queryKey);
+  // 호출부가 invalidateQueries()로 명시 무효화한 캐시(예: 온보딩 제출 직후의
+  // "미온보딩" 판정)는 stale 통과 대상이 아니다 — 그 값으로 통과시키면 방금
+  // 온보딩을 마친 학생이 다시 step-1로 튕긴다(2026-09-02 E2E 실측). 무효화된
+  // 캐시는 첫 조회와 똑같이 블로킹 조회로 최신 값을 받는다.
+  const invalidated = client.getQueryState?.(options.queryKey)?.isInvalidated;
 
-  if (cached !== undefined) {
+  if (cached !== undefined && !invalidated) {
     // 백그라운드 재검증 — 결과를 기다리지 않고, 실패해도 호출부에 전파하지
     // 않는다(위 헤더 주석). unhandled rejection 방지를 위해 반드시 catch한다.
     void client.fetchQuery<T>(options).catch(() => {});
