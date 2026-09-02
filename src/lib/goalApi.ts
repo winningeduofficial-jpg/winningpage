@@ -907,11 +907,12 @@ interface GoalPlanTaskInput {
   workbookId?: number | null;
   pageFrom?: number | null;
   pageTo?: number | null;
-  // "매주 반복" 일정으로 만들어지는 호출임을 서버에 알린다(QA 행286-B 후속,
-  // 2026-09-02) — 문제집이 연결된 과제는 매주 반복을 허용하지 않는다(모달이
-  // 이미 그 조합을 못 고르게 막지만, 서버도 같은 규칙을 한 번 더 확인한다).
-  // true일 때만 보낸다 — 그 외 호출부는 이 필드를 몰라도 된다.
-  weeklyRepeat?: boolean;
+  // 여러 plan_date로 펼쳐지는 호출(schedule !== "오늘만")임을 서버에 알린다
+  // (QA 행286-B 정정, 2026-09-02) — 문제집이 연결된 과제는 완전히 단일 날짜
+  // 1건만 허용한다("이번 주만"의 7일 복제도 포함해서 막는다). 모달이 이미 이
+  // 조합을 못 고르게(일정 select 자체를 비활성) 막지만, 서버도 같은 규칙을 한
+  // 번 더 확인한다. true일 때만 보낸다 — 그 외 호출부는 이 필드를 몰라도 된다.
+  repeatSchedule?: boolean;
 }
 
 /** 과제 1건 생성. 성공 시 { kind:'success', task }. */
@@ -923,7 +924,7 @@ export async function createGoalPlanTask({
   workbookId,
   pageFrom,
   pageTo,
-  weeklyRepeat,
+  repeatSchedule,
 }: GoalPlanTaskInput) {
   const result = await requestPlanTasks("POST", {
     body: {
@@ -934,7 +935,7 @@ export async function createGoalPlanTask({
       ...(workbookId !== undefined ? { workbookId } : {}),
       ...(pageFrom !== undefined ? { pageFrom } : {}),
       ...(pageTo !== undefined ? { pageTo } : {}),
-      ...(weeklyRepeat ? { weeklyRepeat } : {}),
+      ...(repeatSchedule ? { repeatSchedule } : {}),
     },
   });
   if (result.kind !== "success") return result;

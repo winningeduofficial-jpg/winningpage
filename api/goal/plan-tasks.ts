@@ -230,21 +230,28 @@ export function validateWorkbookLinkFields(body: Record<string, unknown>): {
 }
 
 /**
- * 문제집 연결 과제는 "매주 반복"으로 만들 수 없다(임무 지시 후속, 2026-09-02) —
- * 페이지 범위가 매주 영원히 반복될 이유가 없다("이번 주만"은 이번 주 7일 각각
- * 같은 구간을 복습하는 의도적 사용이라 허용한다, AddTaskModal 주석과 동일 판단).
+ * 문제집 연결 과제는 완전히 단일 날짜(선택한 그 날) 1건만 만들 수 있다(임무 지시
+ * 정정, 2026-09-02) — "이번 주만"의 7일 복제도 포함해서 막는다. 페이지 범위는
+ * 그 문제집의 그 구간을 가리키는데, 같은 구간을 여러 날짜에 복제하면 "완료" 체크가
+ * 여러 번 눌려도 진도는 max()로 한 번만 반영돼(nextWorkbookPageAfterTaskDone) 나머지
+ * 요일 체크가 눈속임이 된다 — 그래서 애초에 문제집 연결 과제는 1일 1행으로만
+ * 허용한다.
  *
- * weeklyRepeat는 클라이언트가 "매주 반복" 일정을 펼쳐 여러 plan_date를 POST할
- * 때만 실어 보내는 자기신고 신호다(단건 POST 자체엔 반복 개념이 없다, 파일 헤더
- * §"일정" 주석) — AddTaskModal이 이미 이 조합을 못 고르게 막지만, API를 직접
- * 두드리는 우회를 막는 방어선을 한 겹 더 둔다.
+ * repeatSchedule는 클라이언트가 "이번 주만"/"매주 반복"처럼 여러 plan_date로
+ * 펼쳐 POST할 때만 실어 보내는 자기신고 신호다(단건 POST 자체엔 반복 개념이
+ * 없다, 파일 헤더 §"일정" 주석) — AddTaskModal이 문제집 연결 시 일정 select
+ * 자체를 비활성해 이미 이 조합을 못 고르게 막지만, API를 직접 두드리는 우회를
+ * 막는 방어선을 한 겹 더 둔다.
  */
-export function validateWeeklyRepeatWithWorkbook(
+export function validateRepeatScheduleWithWorkbook(
   body: Record<string, unknown>,
   link: WorkbookLinkPatch | undefined,
 ): ReturnType<typeof fail> | null {
-  if (body.weeklyRepeat === true && link?.workbook_id != null) {
-    return fail(400, "문제집 연결 과제는 매주 반복으로 만들 수 없습니다.");
+  if (body.repeatSchedule === true && link?.workbook_id != null) {
+    return fail(
+      400,
+      "문제집 연결 과제는 선택한 날짜 하루에만 추가할 수 있습니다.",
+    );
   }
   return null;
 }
@@ -367,9 +374,14 @@ async function handlePost(
   const link = validateWorkbookLinkFields(body);
   if (link.error) return res.status(link.error.status).json(link.error.body);
 
-  const weeklyRepeatError = validateWeeklyRepeatWithWorkbook(body, link.value);
-  if (weeklyRepeatError)
-    return res.status(weeklyRepeatError.status).json(weeklyRepeatError.body);
+  const repeatScheduleError = validateRepeatScheduleWithWorkbook(
+    body,
+    link.value,
+  );
+  if (repeatScheduleError)
+    return res
+      .status(repeatScheduleError.status)
+      .json(repeatScheduleError.body);
 
   const linkError = await verifyWorkbookLink(
     supabaseAdmin,

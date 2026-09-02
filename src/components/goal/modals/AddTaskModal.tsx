@@ -155,14 +155,14 @@ export default function AddTaskModal({
       })
     : workbooks;
 
-  // 문제집을 연결한 과제는 "매주 반복"을 허용하지 않는다(임무 지시 후속,
-  // 2026-09-02) — 페이지 10~20을 매주 영원히 반복하는 건 의미가 없다("이번 주만"
-  // 은 이번 주 7일 각각 같은 구간을 복습하는 의도적 사용이라 그대로 둔다).
-  const scheduleOptions = SCHEDULE_OPTIONS.map((option) =>
-    selectedWorkbook && option.value === "매주 반복"
-      ? { ...option, disabled: true }
-      : option,
-  );
+  // 문제집을 연결한 과제는 완전히 단일 날짜(선택한 그 날)만 허용한다(임무 지시
+  // 정정, 2026-09-02) — "이번 주만"의 7일 복제도 막는다. 선택지 자체를 "선택한
+  // 날짜에만" 하나로 좁히고 select를 통째로 비활성해 값을 바꿀 수 없게 한다.
+  // 내부 값은 그대로 "오늘만"을 쓴다 — StudyPlanRail/WeeklyPlan의 단일 날짜
+  // 분기(`schedule === "오늘만"`)를 그대로 재사용하기 위해서다.
+  const scheduleOptions = selectedWorkbook
+    ? [{ value: "오늘만", label: "선택한 날짜에만" }]
+    : SCHEDULE_OPTIONS;
 
   const canSubmit =
     Boolean(subject) &&
@@ -271,6 +271,7 @@ export default function AddTaskModal({
           value={schedule}
           onChange={(event) => setSchedule(event.target.value)}
           options={scheduleOptions}
+          disabled={Boolean(selectedWorkbook)}
           {...(selectedWorkbook
             ? { hint: "문제집 연결 과제는 해당 날짜에만 추가됩니다" }
             : {})}
@@ -290,11 +291,10 @@ export default function AddTaskModal({
           setWorkbookId(nextWorkbookId);
           setPageFrom("");
           setPageTo("");
-          // 문제집을 연결하는 순간 "매주 반복"이 선택돼 있었다면 허용되는 값으로
-          // 되돌린다(위 scheduleOptions가 그 옵션을 disabled로 막는 것과 짝).
-          if (nextWorkbookId && schedule === "매주 반복") {
-            setSchedule("이번 주만");
-          }
+          // 문제집을 연결하면 일정을 완전히 단일 날짜로 고정한다(임무 지시 정정,
+          // 2026-09-02) — 위 scheduleOptions가 select 자체를 비활성하는 것과 짝.
+          // 연결을 해제하면(nextWorkbookId === "") 다시 기본값으로 되돌린다.
+          setSchedule(nextWorkbookId ? "오늘만" : DEFAULT_SCHEDULE);
         }}
         options={[
           { value: "", label: "연결 안 함" },

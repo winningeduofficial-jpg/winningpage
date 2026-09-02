@@ -4,7 +4,7 @@
 // 함수를 직접 부른다.
 import { expect, test } from "vitest";
 import {
-  validateWeeklyRepeatWithWorkbook,
+  validateRepeatScheduleWithWorkbook,
   validateWorkbookLinkFields,
 } from "./plan-tasks.js";
 
@@ -88,25 +88,25 @@ test("pageFrom/pageTo가 1 미만이면 400", () => {
   expect(result.error?.status).toBe(400);
 });
 
-test("weeklyRepeat와 workbook_id가 함께 있으면 400", () => {
-  const error = validateWeeklyRepeatWithWorkbook(
-    { weeklyRepeat: true },
+test("repeatSchedule과 workbook_id가 함께 있으면 400 — 이번 주만 복제도 포함해서 막는다", () => {
+  const error = validateRepeatScheduleWithWorkbook(
+    { repeatSchedule: true },
     { workbook_id: 7, page_from: null, page_to: null },
   );
   expect(error?.status).toBe(400);
-  expect(error?.body.detail).toContain("매주 반복으로 만들 수 없습니다");
+  expect(error?.body.detail).toContain("선택한 날짜 하루에만");
 });
 
-test("weeklyRepeat가 있어도 문제집 연결이 없으면 통과한다", () => {
-  const error = validateWeeklyRepeatWithWorkbook(
-    { weeklyRepeat: true },
+test("repeatSchedule이 있어도 문제집 연결이 없으면 통과한다", () => {
+  const error = validateRepeatScheduleWithWorkbook(
+    { repeatSchedule: true },
     undefined,
   );
   expect(error).toBeNull();
 });
 
-test("문제집이 연결돼 있어도 weeklyRepeat가 없으면 통과한다(이번 주만은 허용)", () => {
-  const error = validateWeeklyRepeatWithWorkbook(
+test("문제집이 연결돼 있어도 repeatSchedule이 없으면 통과한다(선택한 날짜 1건만)", () => {
+  const error = validateRepeatScheduleWithWorkbook(
     {},
     { workbook_id: 7, page_from: 10, page_to: 20 },
   );

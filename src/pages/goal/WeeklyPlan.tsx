@@ -109,10 +109,10 @@ export default function WeeklyPlan() {
     // 이 흐름을 통해서만 도달한다).
     const targetDates = schedule === "오늘만" ? [selectedDate!] : weekDates;
     const durationMinutes = durationLabelToMinutes(duration);
-    // 문제집 연결 과제는 "매주 반복"을 못 고르게 AddTaskModal이 이미 막지만
-    // (schedule select disabled 옵션), API에도 같은 신호를 실어 보내 서버가 한 번
-    // 더 확인하게 한다(임무 지시 후속, 2026-09-02).
-    const weeklyRepeat = schedule === "매주 반복";
+    // 문제집 연결 과제는 여러 날짜로 못 펼치게 AddTaskModal이 이미 막지만(문제집
+    // 연결 시 일정 select 자체를 비활성), API에도 같은 신호를 실어 보내 서버가
+    // 한 번 더 확인하게 한다(임무 지시 정정, 2026-09-02 — "이번 주만" 복제도 포함).
+    const repeatSchedule = schedule !== "오늘만";
 
     const results = await Promise.all(
       targetDates.map((planDate) =>
@@ -124,7 +124,7 @@ export default function WeeklyPlan() {
           ...(workbookId !== undefined ? { workbookId } : {}),
           ...(pageFrom !== undefined ? { pageFrom } : {}),
           ...(pageTo !== undefined ? { pageTo } : {}),
-          ...(weeklyRepeat ? { weeklyRepeat } : {}),
+          ...(repeatSchedule ? { repeatSchedule } : {}),
         }),
       ),
     );
