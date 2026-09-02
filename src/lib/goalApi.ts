@@ -1505,3 +1505,130 @@ export async function fetchGoalReport(
   );
   return { kind: "error" };
 }
+
+// ---------------------------------------------------------------------------
+// GET/POST /api/goal/advice — QA 행295·306 AI 입시조언(intake) / 오늘의 조언·
+// 내일 계획(daily). 응답 shape은 api/_lib/goalAdvice.ts AdvicePayload와 같다.
+// ---------------------------------------------------------------------------
+
+export interface GoalAdviceSection {
+  label: string;
+  body: string;
+}
+
+export interface GoalMajorTip {
+  department: string;
+  text: string;
+}
+
+export interface GoalAdvicePayload {
+  source: "intake" | "daily";
+  origin: "ai" | "rule";
+  probabilitySummary: string;
+  sections: GoalAdviceSection[];
+  majorTips: GoalMajorTip[];
+}
+
+export type FetchGoalAdviceResult =
+  | { kind: "no-session" }
+  | { kind: "not-allowed" }
+  | { kind: "not-active" }
+  | {
+      kind: "success";
+      intake: GoalAdvicePayload | null;
+      daily: GoalAdvicePayload | null;
+    }
+  | { kind: "error" };
+
+/** GET /api/goal/advice — 오늘자 캐시(두 소스) 조회. 생성은 하지 않는다(POST 전용). */
+export async function fetchGoalAdvice(): Promise<FetchGoalAdviceResult> {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: "no-session" };
+
+  let response: Response;
+  try {
+    response = await apiFetch("/api/goal/advice", {
+      method: "GET",
+      headers: authHeader,
+    });
+  } catch (error) {
+    console.error("[goalApi] GET /api/goal/advice 호출 오류:", error);
+    return { kind: "error" };
+  }
+
+  if (response.status === 401) return { kind: "no-session" };
+  if (response.status === 409) return { kind: "not-active" };
+
+  if (!response.ok) {
+    console.error("[goalApi] GET /api/goal/advice 실패:", response.status);
+    return { kind: "error" };
+  }
+
+  const body = await parseJsonSafe(response);
+
+  if (body?.allowed === false) return { kind: "not-allowed" };
+
+  if (body?.ok === true) {
+    return {
+      kind: "success",
+      intake: body.intake ?? null,
+      daily: body.daily ?? null,
+    };
+  }
+
+  console.error("[goalApi] GET /api/goal/advice 예상 밖 응답 모양:", body);
+  return { kind: "error" };
+}
+
+export type GenerateGoalAdviceResult =
+  | { kind: "no-session" }
+  | { kind: "not-allowed" }
+  | { kind: "not-active" }
+  | { kind: "validation-error"; detail: string }
+  | { kind: "success"; advice: GoalAdvicePayload }
+  | { kind: "error" };
+
+/**
+ * POST /api/goal/advice — 온보딩 완료(source:'intake')·기록 저장(source:'daily') 직후
+ * fire-and-forget으로 호출한다. 오늘 이미 생성됐으면 서버가 캐시를 그대로 돌려준다
+ * (재호출해도 Gemini가 다시 불리지 않는다).
+ */
+export async function generateGoalAdvice(
+  source: "intake" | "daily",
+): Promise<GenerateGoalAdviceResult> {
+  const authHeader = await getAuthHeader();
+  if (!authHeader) return { kind: "no-session" };
+
+  let response: Response;
+  try {
+    response = await apiFetch("/api/goal/advice", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeader },
+      body: JSON.stringify({ source }),
+    });
+  } catch (error) {
+    console.error("[goalApi] POST /api/goal/advice 호출 오류:", error);
+    return { kind: "error" };
+  }
+
+  const result = await parseJsonSafe(response);
+
+  if (response.status === 200 && result?.ok === true) {
+    const { ok, ...advice } = result;
+    return { kind: "success", advice: advice as GoalAdvicePayload };
+  }
+
+  if (response.status === 401) return { kind: "no-session" };
+  if (response.status === 403) return { kind: "not-allowed" };
+  if (response.status === 409) return { kind: "not-active" };
+  if (response.status === 400) {
+    return { kind: "validation-error", detail: result?.detail };
+  }
+
+  console.error(
+    "[goalApi] POST /api/goal/advice 실패:",
+    response.status,
+    result?.detail,
+  );
+  return { kind: "error" };
+}
