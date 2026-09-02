@@ -23,7 +23,9 @@ type MockExamCardData = {
   dday?: string | number;
   metricLabel: string;
   metricValue: ReactNode;
-  advice: string;
+  // QA 행295·306 — 과목별 조언 데이터 소스가 없어(Dashboard.tsx mapMockExam) 옵셔널로
+  // 두고, 없으면 "학습 조언" 블록 자체를 렌더하지 않는다(no-fallback-constants).
+  advice?: string;
 };
 
 // api/goal/grades.js 회차 기록 — mockRecords 원소. recentHistory()가 delta 를 파생시켜 붙인다.
@@ -139,14 +141,16 @@ export default function MockExamCard({ data }: MockExamCardProps) {
           </div>
         </div>
       ) : (
-        <div className="mt-auto flex flex-col gap-2">
-          <p className="text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
-            학습 조언
-          </p>
-          <p className="text-[0.875rem] leading-normal text-ink">
-            {data.advice}
-          </p>
-        </div>
+        data.advice && (
+          <div className="mt-auto flex flex-col gap-2">
+            <p className="text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
+              학습 조언
+            </p>
+            <p className="text-[0.875rem] leading-normal text-ink">
+              {data.advice}
+            </p>
+          </div>
+        )
       )}
 
       <AddMockExamGradeModal

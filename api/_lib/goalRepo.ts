@@ -1793,3 +1793,56 @@ export async function addTimerSubject(
 
   return fetchVisibleTimerSubjects(supabaseAdmin, profileId);
 }
+
+// ---------------------------------------------------------------------------
+// AI 조언 캐시(goal_advice_cache, QA 행295·306) — api/goal/advice.ts 전용.
+// ---------------------------------------------------------------------------
+
+export const TABLE_ADVICE_CACHE = "goal_advice_cache";
+
+export type AdviceCacheSource = "intake" | "daily";
+export type AdviceCacheOrigin = "ai" | "rule";
+
+/** (profile_id, source, generated_for) 1행. 없으면 null(오늘 아직 생성 안 함 = 캐시 미스). */
+export async function fetchAdviceCache(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  source: AdviceCacheSource,
+  generatedFor: string,
+): Promise<Row | null> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_ADVICE_CACHE)
+    .select("*")
+    .eq("profile_id", profileId)
+    .eq("source", source)
+    .eq("generated_for", generatedFor)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * upsert — (profile_id, source, generated_for) UNIQUE라 재시도·재제출은 같은 하루 값을
+ * 덮어쓴다(goal_daily_records upsert와 동일 정책). 레이트리밋은 이 캐시 자체다 — 호출부가
+ * fetchAdviceCache로 먼저 확인해 캐시 히트면 Gemini를 아예 부르지 않는다.
+ */
+export async function upsertAdviceCache(
+  supabaseAdmin: SupabaseClient,
+  payload: {
+    profile_id: string;
+    source: AdviceCacheSource;
+    generated_for: string;
+    origin: AdviceCacheOrigin;
+    payload: Record<string, unknown>;
+  },
+): Promise<Row> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_ADVICE_CACHE)
+    .upsert(payload, { onConflict: "profile_id,source,generated_for" })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}

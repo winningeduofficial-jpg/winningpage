@@ -22,6 +22,7 @@ import type {
 import {
   fetchGoalTimer,
   fetchTodayGoalRecord,
+  generateGoalAdvice,
   submitDailyRecord,
 } from "@/lib/goalApi";
 import {
@@ -224,6 +225,16 @@ export default function DailyRecord() {
         // 이번 기록 반영 최신 값으로 다시 조회되게 한다 — 안 하면 stale 캐시가 15초간
         // (staleTime, queryClient.ts) 이전 확률을 계속 보여준다.
         queryClient.invalidateQueries({ queryKey: ["goal", "student"] });
+        // QA 행306 — 오늘의 조언/내일 계획을 이번 기록 기준으로 1회 재생성한다
+        // (fire-and-forget, 화면 이동을 막지 않는다). 대시보드가 GET으로 다시
+        // 조회하도록 캐시도 함께 무효화한다.
+        generateGoalAdvice("daily")
+          .catch((error) => {
+            console.error("[DailyRecord] 오늘의 조언 생성 요청 실패:", error);
+          })
+          .finally(() => {
+            queryClient.invalidateQueries({ queryKey: ["goal", "advice"] });
+          });
         navigate("/app/goal", {
           state: {
             dailyRecordSaved: {
