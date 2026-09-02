@@ -185,4 +185,34 @@ describe("EffortWorkbookRow", () => {
     expect(onUpdate).toHaveBeenCalledWith(1, { currentPage: 240 });
     expect(calls).toEqual(["update", "shelve"]);
   });
+
+  test("blur 없이도 입력이 멈추면 자동 저장된다(디바운스)", async () => {
+    vi.useFakeTimers();
+    try {
+      const onUpdate = vi.fn().mockResolvedValue(true);
+      render(
+        <EffortWorkbookRow
+          book={BOOK}
+          subject="korean"
+          onUpdate={onUpdate}
+          onDelete={vi.fn()}
+          onShelve={vi.fn()}
+        />,
+      );
+
+      fireEvent.change(screen.getByLabelText("현재 페이지"), {
+        target: { value: "12" },
+      });
+      fireEvent.change(screen.getByLabelText("현재 페이지"), {
+        target: { value: "120" },
+      });
+      expect(onUpdate).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(700);
+      expect(onUpdate).toHaveBeenCalledTimes(1);
+      expect(onUpdate).toHaveBeenCalledWith(1, { currentPage: 120 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
