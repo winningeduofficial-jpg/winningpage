@@ -4,9 +4,9 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import SiteFooter from "./SiteFooter";
 
-// Figma 4782:3568 회귀 테스트. useNavGroups는 실제 구현을 쓰지 않고 5개 그룹 고정값으로
-// 대체한다(Header.test.tsx의 관례를 따름) — 실 Supabase 조회가 테스트에 영향을 주지 않게
-// 하기 위함이다.
+// 푸터 회귀 테스트(dev 레이아웃 기준). useNavGroups는 실제 구현을 쓰지 않고 5개 그룹
+// 고정값으로 대체한다(Header.test.tsx의 관례를 따름) — 실 Supabase 조회가 테스트에
+// 영향을 주지 않게 하기 위함이다.
 vi.mock("@/hooks/useNavGroups", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/hooks/useNavGroups")>();
   return {
@@ -49,7 +49,7 @@ function renderFooter() {
   );
 }
 
-describe("SiteFooter — Figma 4782:3568", () => {
+describe("SiteFooter", () => {
   it("5개 컬럼 제목을 모두 렌더한다", () => {
     renderFooter();
     for (const title of [
