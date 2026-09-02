@@ -57,39 +57,22 @@ export const WEEKDAY_OPTIONS = [
   { key: "sun", label: "일요일" },
 ];
 
-// #10 카피 그대로 — 기상・취침은 시각(time-of-day), 학교체류・학원과외는 지속시간(duration)이라
-// 단위가 "시"와 "시간"으로 다르다(part-04 구현 노트).
-export const DAILY_SCHEDULE_FIELDS = [
-  {
-    key: "wakeUpHour",
-    label: "기상 시간",
-    unit: "시",
-    min: 0,
-    max: 23,
-    defaultValue: 7,
-  },
-  {
-    key: "sleepHour",
-    label: "취침 시간",
-    unit: "시",
-    min: 0,
-    max: 24,
-    defaultValue: 24,
-  },
-  {
-    key: "schoolStayHours",
-    label: "학교 체류",
-    unit: "시간",
-    min: 0,
-    max: 24,
-    defaultValue: 8,
-  },
-  {
-    key: "academyHours",
-    label: "학원・과외",
-    unit: "시간",
-    min: 0,
-    max: 24,
-    defaultValue: 2,
-  },
-];
+// #10 요일별 하루 일정 — QA 행293(schedule.js `calcAvailableHours` 원본 계약 이식,
+// 2026-09-02). 이전 단일 세트 4필드(DAILY_SCHEDULE_FIELDS, 근사 어댑터 전용)는 삭제됐다
+// (마지막 형태는 git 이력 참고). 기상・취침은 시각(0.5h 스텝), 학교체류・학원은 등・하원
+// 시각 쌍으로 받는다 — 단위 표기가 필요 없어졌다.
+export const WEEK_SCHEDULE_TIME_STEP = 0.5;
+export const WEEK_SCHEDULE_WAKE_MAX = 24;
+// 취침은 자정을 넘는 값(다음날 새벽)을 24 초과로 표현한다 — 원본 계약(target/components/
+// IntakeForm.tsx:1814-1920 "자정 넘김은 24 가산").
+export const WEEK_SCHEDULE_SLEEP_MAX = 30;
+export const WEEK_SCHEDULE_SCHOOL_TIME_MAX = 30;
+export const WEEK_SCHEDULE_ACADEMY_TIME_MAX = 30;
+export const WEEK_SCHEDULE_MAX_ACADEMIES = 5;
+
+// 요일별 하루 일정 기본값 — 평일은 등교, 주말은 등교 아님(원본 DAYS_CONFIG와 동일).
+export const WEEK_SCHEDULE_DEFAULT_WAKE = 7;
+export const WEEK_SCHEDULE_DEFAULT_SLEEP = 24;
+export const WEEK_SCHEDULE_DEFAULT_SCHOOL_START = 8.5;
+export const WEEK_SCHEDULE_DEFAULT_SCHOOL_END = 16.5;
+export const WEEKEND_KEYS = ["sat", "sun"];
