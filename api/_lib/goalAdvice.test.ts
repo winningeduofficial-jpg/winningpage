@@ -130,6 +130,24 @@ describe("buildAdvicePrompt", () => {
     expect(prompt).toContain("이상목표 정시 미산출");
     expect(prompt).toContain("최소목표 정시 미산출");
   });
+
+  test("모의고사(백분위)와 내신(등급)에 단위·방향을 명시해 모델이 %로 오기하지 않게 한다", () => {
+    // 2026-09-02 로컬 E2E에서 모델이 currentMogo(백분위)를 "모의고사 29.67%"로
+    // 오기한 회귀 재현 — 단위 없이 숫자만 주면 모델이 임의로 단위를 추측한다.
+    const prompt = buildAdvicePrompt(
+      makeInput({
+        student: makeStudent({
+          currentScore: 3.7,
+          currentMogo: 29.67,
+          convertedGrade: 3.7,
+        }),
+      }),
+    );
+    expect(prompt).toContain("현재 내신 3.7등급(9등급제, 1이 최상)");
+    expect(prompt).toContain("현재 모의고사 종합 백분위 29.67(100이 최상)");
+    expect(prompt).toContain("변환등급 3.7등급(9등급제, 1이 최상)");
+    expect(prompt).not.toContain("29.67%");
+  });
 });
 
 describe("postprocessAdviceText — 컴플라이언스 후처리", () => {
@@ -139,6 +157,21 @@ describe("postprocessAdviceText — 컴플라이언스 후처리", () => {
     ).toBe("목표 시간을 과목별로 나누어 계획을 세워라");
     expect(postprocessAdviceText("컨디션관리형으로 접근하자")).toBe(
       "컨디션 관리으로 접근하자",
+    );
+  });
+
+  test("'백분위'/'모의고사' 뒤에 붙은 숫자+%에서 %만 제거한다(백분위는 퍼센트가 아니다)", () => {
+    expect(postprocessAdviceText("모의고사 29.67%를 기록했습니다")).toBe(
+      "모의고사 29.67를 기록했습니다",
+    );
+    expect(postprocessAdviceText("종합 백분위 92.3%로 상위권입니다")).toBe(
+      "종합 백분위 92.3로 상위권입니다",
+    );
+  });
+
+  test("'백분위'/'모의고사'와 무관한 정상적인 퍼센트 표현은 그대로 둔다", () => {
+    expect(postprocessAdviceText("이상목표 수시 40%입니다")).toBe(
+      "이상목표 수시 40%입니다",
     );
   });
 
