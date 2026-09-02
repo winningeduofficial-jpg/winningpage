@@ -4,9 +4,21 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, test } from "vitest";
 import ServicesSection from "./ServicesSection";
 
+// ServicesSection.tsx의 Service 타입은 export되지 않으므로 테스트 픽스처용으로 동일 형태를
+// 재선언한다(9카드 배치 검증 픽스처의 채움 카드가 description/link 없이도 통과하도록).
+type ServiceFixture = {
+  id: string;
+  name: string;
+  description?: string;
+  link?: string;
+  icon_image_url?: string;
+  sort_order?: number;
+  is_premium?: boolean;
+};
+
 // QA 시트 행29·60 — 핵심 서비스 9카드(3×3) 확장. 기존 6카드 + 성장설계·컨설팅
 // 프리미엄·국제·해외 프리미엄. is_premium 카드는 PREMIUM 배지가 뜬다.
-const baseServices = [
+const baseServices: ServiceFixture[] = [
   {
     id: "svc-1",
     name: "학습진단",
@@ -46,7 +58,7 @@ const baseServices = [
   },
 ];
 
-function renderSection(services = baseServices) {
+function renderSection(services: ServiceFixture[] = baseServices) {
   return render(
     <MemoryRouter>
       <ServicesSection services={services} />
@@ -84,6 +96,42 @@ describe("ServicesSection", () => {
 
     expect(consultingLink).toContainElement(badges[0]!);
     expect(growthLink).not.toHaveTextContent("PREMIUM");
+  });
+
+  // ILLUSTRATION_LAYOUTS는 sort_order가 아니라 렌더된 배열 위치(index)로 매칭되므로,
+  // 컨설팅·국제 프리미엄이 실제 카드별 배치(index 7·8)를 받도록 sort_order 2~6 자리에
+  // 채움 카드를 넣어 9장 전체를 재현한다(4885:18466/18468/18470 실측 배치 검증용 전용 픽스처).
+  test("is_premium 카드의 배지가 일러스트 박스 내부에 절대좌표로 렌더된다", () => {
+    const nineServices = [
+      baseServices[0]!,
+      ...[2, 3, 4, 5, 6].map((sortOrder) => ({
+        id: `filler-${sortOrder}`,
+        name: `채움${sortOrder}`,
+        sort_order: sortOrder,
+      })),
+      baseServices[1]!,
+      baseServices[2]!,
+      baseServices[3]!,
+    ];
+    renderSection(nineServices);
+
+    const badge = screen
+      .getAllByText("PREMIUM")
+      .find(
+        (el) =>
+          el.closest("a")?.getAttribute("aria-label") ===
+          "컨설팅 프리미엄 바로가기",
+      )!;
+
+    // 배지는 카드 모서리(bottom-0/right-0)가 아니라 일러스트 박스(144×180, lg 고정폭 w-36)
+    // 내부에 절대좌표(lg:left/top)로 렌더돼야 한다 — 카드 모서리에 걸리던 버그의 회귀 방지.
+    const illustrationBox = badge.parentElement;
+    expect(illustrationBox).toHaveClass("w-36");
+    expect(illustrationBox?.className).toMatch(/lg:h-\(--illo-box-h\)/);
+    expect(badge).toHaveClass(
+      "lg:left-(--illo-badge-left)",
+      "lg:top-(--illo-badge-top)",
+    );
   });
 
   test("설명의 줄바꿈이 whitespace-pre-line 텍스트 노드로 그대로 렌더된다", () => {

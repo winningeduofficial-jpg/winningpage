@@ -99,8 +99,18 @@ type IllustrationLayout = {
   shadowBottom: string;
   /** 시안(4885:18474)이 원본을 잘라 쓰는 카드(프리미엄 3종)만 "cover" — 기본은 contain. */
   fit?: "cover";
-  /** fit="cover"일 때 object-position. 시안 크롭 창의 중심을 %로 옮긴 값. */
+  /** object-position(%). cover 크롭 중심 또는 contain 정렬(예: 성장설계 "50% 100%"=하단)에 쓴다. */
   position?: string;
+  /** 4885:18466/18468/18470 전용 절대 배치 모드 — 정의되면 박스(boxW×boxH, lg 고정 크기) 안에서
+   *  이미지·그림자·배지를 좌상단 기준 절대좌표로 배치한다(top 필드를 imgTop으로 겸용).
+   *  미정의(기존 6장)는 종전 중앙정렬 + margin-top + 하단중앙 그림자 방식을 그대로 쓴다. */
+  boxH?: string;
+  imgLeft?: string;
+  shadowLeft?: string;
+  shadowTop?: string;
+  /** PREMIUM 배지의 박스 기준 절대좌표(rem). 정의되면 lg에서 bottom-0/right-0 대신 이 좌표를 쓴다. */
+  badgeLeft?: string;
+  badgeTop?: string;
 };
 
 /* 카드별 일러스트 배치 (lg 전용) — 0729 시안(2207:12970, 1100 캔버스, 카드 상대좌표) 실측(px÷16=rem).
@@ -184,56 +194,78 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
     shadowH: "1.49rem",
     shadowBottom: "1.19rem",
   },
-  // 프리미엄 3종 — 4885:18474 실측(px÷16=rem). 시안은 가로형 원본을 카드 안에서 잘라(cover)
-  // 세로로 크게 보여준다 — 이전 contain 배치는 원본 비율대로 납작해져 시안보다 작게 보였다
-  // (QA 시트 행 244 "박스 크기 > 원장님 팔 영역까지", 2026-09-02). right는 카드 우변 기준.
-  // 성장설계 — 시안 107×120 / top 26 / right 45. 원본 1024×374, 시안 object-bottom 크롭.
+  // 프리미엄 3종 — 4885:18466/18468/18470 실측(docs/services-cards-figma-2026-09.md, px÷16=rem).
+  // 공통 "일러스트 박스" 144×180(9rem×11.25rem, lg 고정) 좌상단 기준 절대 배치로 전환
+  // (이전 중앙정렬 방식은 배지가 카드 모서리에 걸리고 성장설계 크롭이 깨졌었다 — 2026-09-03 QA).
+  // right는 박스 자체의 카드 우변 기준 오프셋(이미지가 아님), top/imgLeft는 박스 안 이미지
+  // 좌상단 오프셋, shadowLeft/Top은 박스 안 그림자 좌상단, badgeLeft/Top은 박스 안 배지 좌상단.
+  // 성장설계 — 이미지 107×120 ml19 mt26, 크롭 없이 contain+object-bottom(원본 1024×374,
+  // 가로로 넓어 이전 cover 크롭 시 세로로 크게 잘려 차트 일부만 보였다). 그림자 ml24 mt136.
   {
-    boxW: "6.69rem",
-    w: "6.69rem",
+    boxW: "9rem",
+    boxH: "11.25rem",
+    w: "6.6875rem",
     h: "7.5rem",
-    right: "2.81rem",
-    top: "1.63rem",
+    right: "1.65rem",
+    top: "1.625rem",
+    imgLeft: "1.1875rem",
     rotate: "0deg",
-    shadowW: "7rem",
-    shadowH: "1.49rem",
-    shadowBottom: "1.1rem",
-    fit: "cover",
     position: "50% 100%",
+    shadowW: "6.3125rem",
+    shadowH: "1.375rem",
+    shadowLeft: "1.5rem",
+    shadowTop: "8.5rem",
+    shadowBottom: "1.1rem",
   },
-  // 컨설팅 프리미엄 — 시안 130×116 / top 28 / right 27. 원본 1704×923을 시안이 215%×130%로
-  // 확대해 원장(가운데 오른쪽)을 잘라 보여준다 → 크롭 창 중심 약 (55%, 43%).
+  // 컨설팅 프리미엄 — 이미지 130.274×115.663 ml13 mt28. 원본 1704×923을 215%×130%로 확대해
+  // 원장(가운데 오른쪽)을 잘라 보여준다 → 크롭 창 중심 약 (55%, 43%). 그림자 ml30 mt144.
+  // 배지 박스 기준 (39, 122) — 일러스트 하단에 겹치는 위치(카드 모서리 아님).
   {
-    boxW: "8.14rem",
-    w: "8.14rem",
-    h: "7.23rem",
+    boxW: "9rem",
+    boxH: "11.25rem",
+    w: "8.1421rem",
+    h: "7.2289rem",
     right: "1.67rem",
     top: "1.75rem",
+    imgLeft: "0.8125rem",
     rotate: "0deg",
-    shadowW: "7rem",
-    shadowH: "1.49rem",
+    shadowW: "6.3125rem",
+    shadowH: "1.375rem",
+    shadowLeft: "1.875rem",
+    shadowTop: "9rem",
     shadowBottom: "1.1rem",
     fit: "cover",
     position: "55% 43%",
+    badgeLeft: "2.4375rem",
+    badgeTop: "7.625rem",
   },
-  // 국제·해외 프리미엄 — 시안 124×121 / top 28 / right 26. 원본 정방형, 시안 크롭 109%×112%.
+  // 국제·해외 프리미엄 — 이미지 124×120.737 ml20 mt28. 원본 정방형, 크롭 109%×112%(중심 50/50%).
+  // 그림자 ml32 mt144. 배지 박스 기준 (42, 122).
   {
-    boxW: "7.75rem",
+    boxW: "9rem",
+    boxH: "11.25rem",
     w: "7.75rem",
-    h: "7.55rem",
+    h: "7.5461rem",
     right: "1.63rem",
     top: "1.75rem",
+    imgLeft: "1.25rem",
     rotate: "0deg",
     fit: "cover",
     position: "50% 50%",
-    shadowW: "7rem",
-    shadowH: "1.49rem",
+    shadowW: "6.3125rem",
+    shadowH: "1.375rem",
+    shadowLeft: "2rem",
+    shadowTop: "9rem",
     shadowBottom: "1.1rem",
+    badgeLeft: "2.625rem",
+    badgeTop: "7.625rem",
   },
 ];
 
-// PREMIUM 배지 — 4885:18474 실측(px÷16=rem): 78.8×25, radius 9999, 그라데이션
-// #8947f3→#4f298d, 테두리 2px #ddc7ff, 텍스트 12px Bold 흰색. 일러스트 영역 하단 우측 고정.
+// PREMIUM 배지 — 4885:18468/18470 실측(px÷16=rem): 78.8×25, radius 9999, 그라데이션
+// #8947f3→#4f298d, 테두리 2px #ddc7ff, 텍스트 12px Bold 흰색. 기본(모바일/lg 미지정)은
+// 일러스트 영역 하단 우측 고정, layout.badgeLeft/Top이 있으면 lg에서 박스 기준 절대좌표로 대체
+// (일러스트 하단에 겹치는 위치 — 카드 모서리에 걸렸던 이전 버그 수정).
 const PREMIUM_BADGE_CLASS =
   "pointer-events-none absolute bottom-0 right-0 z-20 flex h-[1.5625rem] w-[4.925rem] " +
   "items-center justify-center rounded-full border-2 border-[#ddc7ff] " +
@@ -286,40 +318,58 @@ function ServiceCard({
           style={
             {
               "--illo-box-w": layout.boxW,
+              "--illo-box-h": layout.boxH ?? layout.boxW,
               "--illo-w": layout.w,
               "--illo-h": layout.h,
               "--illo-right": layout.right,
               "--illo-top": layout.top,
+              "--illo-img-left": layout.imgLeft ?? "0rem",
               "--illo-rotate": layout.rotate,
               "--illo-shadow-w": layout.shadowW,
               "--illo-shadow-h": layout.shadowH,
               "--illo-shadow-bottom": layout.shadowBottom,
+              "--illo-shadow-left": layout.shadowLeft ?? "0rem",
+              "--illo-shadow-top": layout.shadowTop ?? "0rem",
+              "--illo-badge-left": layout.badgeLeft ?? "0rem",
+              "--illo-badge-top": layout.badgeTop ?? "0rem",
             } as React.CSSProperties
           }
-          className={`pointer-events-none absolute inset-y-0 right-4 flex w-36 origin-right scale-[0.45] flex-col items-center justify-center sm:right-10 sm:scale-100 lg:right-(--illo-right) lg:w-(--illo-box-w) lg:justify-start ${ILLUSTRATION_LIFT_CLASS}`}
+          className={`pointer-events-none absolute inset-y-0 right-4 flex w-36 origin-right scale-[0.45] flex-col items-center justify-center sm:right-10 sm:scale-100 lg:right-(--illo-right) lg:w-(--illo-box-w) lg:justify-start ${layout.boxH ? "lg:h-(--illo-box-h)" : ""} ${ILLUSTRATION_LIFT_CLASS}`}
         >
           <img
             src={service.icon_image_url}
             alt=""
             loading="lazy"
             style={
-              layout.fit === "cover"
-                ? { objectPosition: layout.position }
-                : undefined
+              layout.position ? { objectPosition: layout.position } : undefined
             }
-            className={`relative z-10 h-38 w-28 lg:mt-(--illo-top) lg:h-(--illo-h) lg:w-(--illo-w) lg:rotate-(--illo-rotate) ${
-              layout.fit === "cover" ? "object-cover" : "object-contain"
-            }`}
+            className={`relative z-10 h-38 w-28 lg:h-(--illo-h) lg:w-(--illo-w) lg:rotate-(--illo-rotate) ${
+              layout.imgLeft
+                ? "lg:absolute lg:left-(--illo-img-left) lg:top-(--illo-top)"
+                : "lg:mt-(--illo-top)"
+            } ${layout.fit === "cover" ? "object-cover" : "object-contain"}`}
           />
           <img
             src={ICON_SHADOW_SRC}
             alt=""
             loading="lazy"
-            className="-mt-6 h-7.25 w-34 object-contain opacity-90 lg:absolute lg:bottom-(--illo-shadow-bottom) lg:left-1/2 lg:mt-0 lg:h-(--illo-shadow-h) lg:w-(--illo-shadow-w) lg:-translate-x-1/2"
+            className={`-mt-6 h-7.25 w-34 object-contain opacity-90 lg:h-(--illo-shadow-h) lg:w-(--illo-shadow-w) ${
+              layout.shadowLeft
+                ? "lg:absolute lg:left-(--illo-shadow-left) lg:top-(--illo-shadow-top) lg:mt-0"
+                : "lg:absolute lg:bottom-(--illo-shadow-bottom) lg:left-1/2 lg:mt-0 lg:-translate-x-1/2"
+            }`}
           />
-          {/* 프리미엄 배지 — is_premium 행만, 일러스트 하단 우측 고정(회전 미적용) */}
+          {/* 프리미엄 배지 — is_premium 행만. 기본은 일러스트 하단 우측 고정(회전 미적용),
+              badgeLeft/Top이 있으면 lg에서 박스 기준 절대좌표로 대체(일러스트 안쪽 겹침 위치). */}
           {service.is_premium && (
-            <span aria-hidden="true" className={PREMIUM_BADGE_CLASS}>
+            <span
+              aria-hidden="true"
+              className={`${PREMIUM_BADGE_CLASS} ${
+                layout.badgeLeft
+                  ? "lg:left-(--illo-badge-left) lg:top-(--illo-badge-top) lg:right-auto lg:bottom-auto"
+                  : ""
+              }`}
+            >
               PREMIUM
             </span>
           )}
