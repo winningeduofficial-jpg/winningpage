@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useBundleCompositionMap } from "@/components/mypage/bundleComposition";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatKRW } from "@/data/pricingCatalog";
 import type { VirtualAccountInfo } from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
@@ -501,7 +502,7 @@ export default function RefundRequestModal({
         />
       }
     >
-      <div className="flex-1 overflow-y-auto px-6">
+      <ScrollArea className="flex-1 px-6">
         {/* 취소/환불 규정 안내 */}
         <p className="mt-6 text-[0.8125rem] font-semibold text-ink">
           취소/환불 규정 안내
@@ -731,7 +732,7 @@ export default function RefundRequestModal({
         {submitError && (
           <p className="mt-4 text-[0.875rem] text-error">{submitError}</p>
         )}
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }

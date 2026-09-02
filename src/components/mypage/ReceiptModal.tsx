@@ -1,3 +1,4 @@
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { COMPANY } from "@/data/company";
 import { formatKRW } from "@/data/pricingCatalog";
 import type {
@@ -246,7 +247,7 @@ export default function ReceiptModal({
     >
       {/* 시안(3762:19227)에는 우상단 X 닫기 버튼이 없다 — 하단 닫기/인쇄 버튼만 유지하고
           ESC·배경 클릭 닫기(Base UI Dialog 내장)는 그대로 둔다. */}
-      <div className="flex-1 overflow-y-auto px-8.75">
+      <ScrollArea className="flex-1 px-8.75">
         <dl className="mt-7.5 flex flex-col pb-8.75">
           <ReceiptSection rows={sellerRows} dashedTop={false} />
           <ReceiptSection rows={productRows} dashedTop note={bundleNote} />
@@ -263,7 +264,7 @@ export default function ReceiptModal({
             </dd>
           </div>
         </dl>
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }

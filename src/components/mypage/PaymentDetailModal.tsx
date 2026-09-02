@@ -1,5 +1,6 @@
 import { useBundleCompositionMap } from "@/components/mypage/bundleComposition";
 import OrderAmountBreakdown from "@/components/mypage/OrderAmountBreakdown";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import type { CashReceiptInfo } from "@/hooks/usePaymentConfirmation";
 import MyPageModalShell from "./MyPageModalShell";
 import InfoRowList from "./modal/InfoRowList";
@@ -250,7 +251,7 @@ export default function PaymentDetailModal({
         />
       }
     >
-      <div className="flex-1 overflow-y-auto px-8.75">
+      <ScrollArea className="flex-1 px-8.75">
         {isSuperseded && asStudent && (
           <p className="mt-5 rounded-lg bg-surface-04 px-4 py-3 text-center text-[0.875rem] text-ink-sub">
             학부모님이 다른 상품으로 결제하셨어요.
@@ -306,7 +307,7 @@ export default function PaymentDetailModal({
             </div>
           )}
         </dl>
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }

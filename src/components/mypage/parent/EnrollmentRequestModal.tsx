@@ -4,6 +4,7 @@ import MyPageModalShell from "@/components/mypage/MyPageModalShell";
 import ModalFooter from "@/components/mypage/modal/ModalFooter";
 import RejectReasonField from "@/components/mypage/modal/RejectReasonField";
 import OrderAmountBreakdown from "@/components/mypage/OrderAmountBreakdown";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 
 // 학부모 결제요청 확인 모달 — 자녀가 올린 결제 요청을 결제하거나 반려한다.
@@ -172,7 +173,7 @@ export default function EnrollmentRequestModal({
         )
       }
     >
-      <div className="flex-1 overflow-y-auto px-6">
+      <ScrollArea className="flex-1 px-6">
         <div className="mt-6">
           <OrderAmountBreakdown
             order={order}
@@ -192,7 +193,7 @@ export default function EnrollmentRequestModal({
         {errorMsg && (
           <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
         )}
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }
