@@ -703,7 +703,12 @@ export async function appendProbabilityLog(
 // 주석) 이 스코프가 유일한 방어선이다.
 // ---------------------------------------------------------------------------
 
-/** 기간(from~to, 양끝 포함) 과제 목록. plan_date → sort_order → id 순. */
+/**
+ * 기간(from~to, 양끝 포함) 과제 목록. plan_date → sort_order → id 순.
+ * workbook_id가 걸린 행은 연결된 문제집 제목도 함께 끌어온다(FK
+ * goal_plan_tasks_workbook_id_fkey를 PostgREST가 인식해 임베드 조인) —
+ * buildPlanTaskPayload가 workbookTitle을 채우는 데 쓴다.
+ */
 export async function fetchPlanTasks(
   supabaseAdmin: SupabaseClient,
   profileId: string,
@@ -712,7 +717,7 @@ export async function fetchPlanTasks(
 ): Promise<Row[]> {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
-    .select("*")
+    .select("*, workbook:goal_workbooks(title)")
     .eq("profile_id", profileId)
     .gte("plan_date", fromDate)
     .lte("plan_date", toDate)
@@ -724,7 +729,11 @@ export async function fetchPlanTasks(
   return (data as Row[]) || [];
 }
 
-/** 과제 1건 생성. */
+/**
+ * 과제 1건 생성. select에 workbook 임베드 조인을 함께 걸어 반환 즉시
+ * buildPlanTaskPayload가 workbookTitle까지 채울 수 있게 한다(fetchPlanTasks와
+ * 동일 조인 — GET을 다시 안 불러도 방금 만든 과제 캡션이 보인다).
+ */
 export async function insertPlanTask(
   supabaseAdmin: SupabaseClient,
   row: Row,
@@ -732,7 +741,7 @@ export async function insertPlanTask(
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
     .insert(row)
-    .select("*")
+    .select("*, workbook:goal_workbooks(title)")
     .single();
 
   if (error) throw error;
@@ -756,7 +765,7 @@ export async function updatePlanTask(
     .update(patch)
     .eq("id", id)
     .eq("profile_id", profileId)
-    .select("*")
+    .select("*, workbook:goal_workbooks(title)")
     .maybeSingle();
 
   if (error) throw error;
@@ -797,6 +806,14 @@ export type PlanTaskPayload = {
   status: PlanTaskStatus;
   done: boolean;
   sortOrder: number;
+  // 문제집 연결(QA 행286-B), 셋 다 선택 — 연결이 없으면 workbookId는 null,
+  // pageFrom/pageTo도 null, workbookTitle도 null.
+  workbookId: unknown;
+  pageFrom: number | null;
+  pageTo: number | null;
+  // fetchPlanTasks의 임베드 조인(workbook:goal_workbooks(title))에서만 채워진다 —
+  // insertPlanTask/updatePlanTask 직후의 단건 반환 행에는 없을 수 있어 그때는 null.
+  workbookTitle: string | null;
 };
 
 /**
@@ -815,7 +832,27 @@ export function buildPlanTaskPayload(row: Row): PlanTaskPayload {
     status,
     done: status === "done",
     sortOrder: num(row.sort_order) ?? 0,
+    workbookId: row.workbook_id ?? null,
+    pageFrom: num(row.page_from),
+    pageTo: num(row.page_to),
+    workbookTitle: row.workbook?.title ?? null,
   };
+}
+
+/**
+ * status가 done으로 바뀌고 workbook_id·pageTo가 함께 있을 때 goal_workbooks.
+ * current_page를 얼마나 전진시킬지 계산하는 순수 함수(QA 행286-B) —
+ * max(기존 진도, 이번 과제 pageTo), 상한은 total_pages. done→pending으로
+ * 되돌려도 이 함수는 호출되지 않는다(진도 롤백 없음, api/goal/plan-tasks.ts
+ * handlePut 참고) — 페이지를 되감으면 다른 과제가 이미 더 앞서 있던 진도까지
+ * 함께 밀릴 수 있어 명시적으로 하지 않기로 했다.
+ */
+export function nextWorkbookPageAfterTaskDone(
+  existingCurrentPage: number,
+  pageTo: number,
+  totalPages: number,
+): number {
+  return Math.min(Math.max(existingCurrentPage, pageTo), totalPages);
 }
 
 // ---------------------------------------------------------------------------
