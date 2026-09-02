@@ -7,11 +7,18 @@ import ModalField from "@/components/goal/ModalField";
 // `AddMockExamGradeModal`(part-08 #22, 모의고사 표 전용)과 동일한 셸 패턴(회차/응시일 2열 +
 // 과목별 입력 리스트)을 따르되 필드 구성이 다르다: 회차 셀렉트 대신 `학기` 텍스트, 응시일 대신
 // `입력일`, 백분위 대신 등급(1~9, 소수 1자리).
+// QA 행290 재설계(팀장 지시 항목10) — 4과목 flat(국/수/영/"탐구"로 잘못 라벨된 4번째 칸)에서
+// 6과목군(온보딩 NAESIN_SUBJECT_GROUPS와 같은 키)으로 바꾼다. 내신에는 원래 "탐구"라는
+// 과목이 없다 — 구판의 science 키는 실제로 "과학"이 아니라 "탐구" 라벨을 달고 있었는데,
+// 이는 온보딩 구조가 없던 시절의 임시 대체였다(api/goal/grades.ts NAESIN_SUBJECT_KEYS와
+// 키가 같아야 한다).
 const SUBJECTS = [
   { key: "korean", label: "국어" },
   { key: "math", label: "수학" },
   { key: "english", label: "영어" },
-  { key: "science", label: "탐구" },
+  { key: "social_history", label: "사회・역사" },
+  { key: "science", label: "과학" },
+  { key: "second_language", label: "제2외국어" },
 ];
 
 function todayDateValue() {
@@ -88,7 +95,9 @@ export default function AddNaesinGradeModal({
     korean: "",
     math: "",
     english: "",
+    social_history: "",
     science: "",
+    second_language: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -101,12 +110,21 @@ export default function AddNaesinGradeModal({
         korean: String(initialEntry.subjects.korean ?? ""),
         math: String(initialEntry.subjects.math ?? ""),
         english: String(initialEntry.subjects.english ?? ""),
+        social_history: String(initialEntry.subjects.social_history ?? ""),
         science: String(initialEntry.subjects.science ?? ""),
+        second_language: String(initialEntry.subjects.second_language ?? ""),
       });
     } else {
       setSemester("");
       setEnteredAt(todayDateValue());
-      setGrades({ korean: "", math: "", english: "", science: "" });
+      setGrades({
+        korean: "",
+        math: "",
+        english: "",
+        social_history: "",
+        science: "",
+        second_language: "",
+      });
     }
     setError("");
   }

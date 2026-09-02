@@ -64,7 +64,21 @@ export const config = { runtime: "nodejs" };
 // 추론해 재사용한다(중복 선언 없이 goalRepo.js JSDoc이 바뀌면 여기도 함께 따라간다).
 type GoalSession = Awaited<ReturnType<typeof openGoalSession>>;
 
-const SUBJECT_KEYS = ["korean", "math", "english", "science"];
+// QA 행290・291 재설계로 온보딩 입력 구조가 바뀐 것에 맞춰 성적관리 모달의 과목 구성도
+// 확장한다(팀장 지시 항목10) — 내신은 4과목 flat에서 6과목군(NAESIN_SUBJECT_GROUPS,
+// onboardingOptions.ts와 같은 키)으로, 모의고사는 탐구 단일에서 탐구1・탐구2로 나눈다.
+// 도메인은 그대로다(내신 1~9 등급, 모의고사 0~100 백분위 — 시안 실측대로 "백분위 저장
+// 유지", 팀장 지시). 기존에 저장된 4과목 레코드(레거시)는 GET이 원본 그대로 돌려주고
+// 화면이 있는 값만 표시하므로 이 파일은 읽기 경로를 따로 손대지 않는다(하위 호환).
+const NAESIN_SUBJECT_KEYS = [
+  "korean",
+  "math",
+  "english",
+  "social_history",
+  "science",
+  "second_language",
+];
+const MOCK_SUBJECT_KEYS = ["korean", "math", "english", "tam1", "tam2"];
 
 const GRADE_DOMAIN = { min: 1, max: 9 };
 const PERCENTILE_DOMAIN = { min: 0, max: 100 };
@@ -114,7 +128,7 @@ function fail(status: number, detail: string) {
 }
 
 /**
- * 공통 바디 검증 — term(회차 라벨) · 날짜 · 과목 4종(국/수/영/탐구).
+ * 공통 바디 검증 — term(회차 라벨) · 날짜 · 과목(내신 6과목군 / 모의고사 5과목).
  * naesin 은 1~9 등급, mock 은 0~100 백분위 도메인만 다르다(시안 실측, 위 헤더 주석 참고).
  */
 export function validateEntry(entry: unknown, type: "naesin" | "mock") {
@@ -140,9 +154,11 @@ export function validateEntry(entry: unknown, type: "naesin" | "mock") {
 
   const domain = type === "naesin" ? GRADE_DOMAIN : PERCENTILE_DOMAIN;
   const domainLabel = type === "naesin" ? "1~9 등급" : "0~100 백분위";
+  const subjectKeys =
+    type === "naesin" ? NAESIN_SUBJECT_KEYS : MOCK_SUBJECT_KEYS;
 
   const subjects: Record<string, number> = {};
-  for (const key of SUBJECT_KEYS) {
+  for (const key of subjectKeys) {
     const raw = entry.subjects[key];
     if (!isInDomain(raw, domain)) {
       return {
@@ -153,12 +169,12 @@ export function validateEntry(entry: unknown, type: "naesin" | "mock") {
   }
 
   const value = round1(
-    SUBJECT_KEYS.reduce(
+    subjectKeys.reduce(
       (sum, key) =>
-        // biome-ignore lint/style/noNonNullAssertion: subjects는 바로 위 루프에서 SUBJECT_KEYS 전체를 채웠으므로 항상 존재한다.
+        // biome-ignore lint/style/noNonNullAssertion: subjects는 바로 위 루프에서 subjectKeys 전체를 채웠으므로 항상 존재한다.
         sum + subjects[key]!,
       0,
-    ) / SUBJECT_KEYS.length,
+    ) / subjectKeys.length,
   );
 
   return {
