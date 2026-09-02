@@ -813,7 +813,11 @@ export const renewalSurveyQuestions = [
       "INQUIRY_OK",
       "AVERAGE",
       "UNKNOWN",
-      "UNKNOWN",
+      // 2026-09-02 — 두 선택지가 같은 코드(UNKNOWN)를 쓰면 어드민 문구 오버라이드
+      // (`q17.option.UNKNOWN`)가 두 칩에 같이 걸려 라벨이 중복되고 React key도 충돌했다
+      // (설문 콘솔 "Encountered two children with the same key"). 별도 코드로 분리하되
+      // 채점은 JONGHAP_DELTA.UNSURE = UNKNOWN 과 같은 -5 로 둔다.
+      "UNSURE",
     ],
     extra: {},
   },

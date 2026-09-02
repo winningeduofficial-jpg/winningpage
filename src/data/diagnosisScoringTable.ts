@@ -329,8 +329,9 @@ export const OPTION_CODES = {
     "INQUIRY_OK",
     "AVERAGE",
     "UNKNOWN",
-    // "잘 모르겠어요" 신설(QA 행348) — 기존 UNKNOWN 재사용(renewalSurveyQuestions.ts q17 주석 참고).
-    "UNKNOWN",
+    // "잘 모르겠어요" 신설(QA 행348). 처음엔 UNKNOWN 을 재사용했으나 코드 중복이 라벨 중복·
+    // React key 충돌을 일으켜 2026-09-02 UNSURE 로 분리(JONGHAP_DELTA.UNSURE 동일 -5).
+    "UNSURE",
   ],
   Q18: [
     "CONFIDENT",
@@ -667,6 +668,8 @@ export const JONGHAP_DELTA = {
   INQUIRY_OK: 0,
   AVERAGE: 0,
   UNKNOWN: -5,
+  // q17 "잘 모르겠어요"(2026-09-02 코드 분리) — UNKNOWN 과 같은 감점.
+  UNSURE: -5,
 };
 export const INTERVIEW_DELTA = {
   CONFIDENT: 5,

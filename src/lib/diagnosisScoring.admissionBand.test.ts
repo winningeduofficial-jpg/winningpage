@@ -301,8 +301,9 @@ Object.keys(CSAT_MIN_DELTA).forEach((csatMin) => {
     });
   });
 });
-test("가감 조합 전량(5×6×6)", () => {
-  expect(DELTA_COMBOS.length).toEqual(180);
+// JONGHAP_DELTA 는 2026-09-02 q17 "잘 모르겠어요" 코드 분리(UNSURE)로 7종이 됐다.
+test("가감 조합 전량(5×6×7)", () => {
+  expect(DELTA_COMBOS.length).toEqual(210);
 });
 
 const producedProbabilities = new Set<number>();
