@@ -4,6 +4,18 @@ import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import Header from "./Header";
 
+// jsdom에는 ResizeObserver가 없다 — 로그인 메가 패널 회색존 좌측 정렬(2026-09-03)이
+// useLayoutEffect에서 계정 그룹 ref에 ResizeObserver를 붙이므로, 이 스텁이 없으면 로그인
+// 상태를 렌더하는 테스트가 "ResizeObserver is not defined"로 즉시 실패한다. observe/
+// disconnect만 no-op으로 두면 충분하다 — 실측 좌표(getBoundingClientRect)는 jsdom에서
+// 항상 0이라 어차피 픽셀 단위 검증은 여기서 하지 않는다(계산 근거는 커밋 보고 참고).
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal("ResizeObserver", ResizeObserverStub);
+
 // QA 행241·242·327 회귀 테스트. useNavGroups는 실제 구현(cleanText·isSameObject 등)을
 // 그대로 쓰고 그룹 목록만 고정값으로 바꾼다 — 실 Supabase 조회가 테스트에 영향을 주지
 // 않게 하기 위함이다(Onboarding.test.tsx의 useAuth 스텁 관례를 따른다).
@@ -284,6 +296,53 @@ describe("Header — MY 컬럼 역할별 항목(§6-3, buildMyMenu 단일 소스
     expect(screen.getByText("내 정보 수정")).toBeInTheDocument();
     expect(screen.queryByText("나의 서비스")).not.toBeInTheDocument();
     expect(screen.queryByText("자녀 등록 및 수정")).not.toBeInTheDocument();
+  });
+});
+
+describe("Header — 로그인 회색존 상단 정렬(2026-09-03, 빈 제목 줄 제거)", () => {
+  it("MY 컬럼은 빈 제목 줄 없이 pt-6로 시작하고 항목이 존의 첫 콘텐츠다", async () => {
+    mockProfileRow = {
+      id: "u1",
+      email: "student@test.com",
+      name: "홍길동",
+      member_type: "student",
+      role: "student",
+    };
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: "u1", email: "student@test.com" } },
+      user: { id: "u1", email: "student@test.com" },
+      isReady: true,
+    });
+
+    renderHeader();
+    const nameChip = await screen.findByRole("link", { name: "마이페이지" });
+    fireEvent.mouseOver(nameChip.parentElement?.parentElement as Element);
+
+    const myPageLink = await screen.findByText("MY페이지");
+    const itemsContainer = myPageLink.parentElement;
+    const zoneBox = itemsContainer?.parentElement;
+
+    // 다른 5개 컬럼의 py-6(상단 1.5rem)과 맞추기 위해 상단만 pt-6를 쓰고, 좌/우/하단은
+    // 계정 그룹 축 기준 p-10 계열을 유지한다(pl-10/pr-10/pb-10) — 균일 p-10은 더 이상
+    // 아니다.
+    expect(zoneBox?.className).toContain("pt-6");
+    expect(zoneBox?.className).not.toMatch(/(?:^|\s)p-10(?:\s|$)/);
+
+    // 빈 제목 <p aria-hidden> 줄이 사라져 아이템 목록(itemsContainer)이 존의 첫 자식이다.
+    expect(zoneBox?.firstElementChild).toBe(itemsContainer);
+  });
+
+  it("게스트 회색존은 변경 없이 균일 p-10을 유지한다", () => {
+    mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
+    renderHeader();
+
+    const logo = screen.getByRole("link", { name: "위닝에듀" });
+    fireEvent.mouseOver(logo);
+
+    const ctaLink = screen.getByRole("link", { name: "로그인하기" });
+    // 카드(ctaLink의 조부모) → 회색존(카드의 부모)까지 두 단계 위로 올라간다.
+    const zoneBox = ctaLink.parentElement?.parentElement;
+    expect(zoneBox?.className).toMatch(/(?:^|\s)p-10(?:\s|$)/);
   });
 });
 

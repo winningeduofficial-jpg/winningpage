@@ -1,6 +1,13 @@
 import type { User } from "@supabase/supabase-js";
 import { Menu } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link, useLocation } from "react-router";
 import chevronIcon from "@/assets/header/chevron.svg";
 import { useAuth } from "@/context/AuthProvider";
@@ -65,16 +72,16 @@ const MEGA_PROMO_GUEST = {
   ctaTo: "/login",
 };
 // 메가 회색 존(#F9FAFB — Figma 1483:846 get_design_context 실값, 기존 #F7F7F7 추정치 폐기):
-// 게스트(프로모 카드)·로그인(6번째 MY 컬럼) 두 상태가 완전히 같은 고정 크기(GREY_ZONE_W×
-// GREY_ZONE_H)를 쓴다(2026-09-03 사용자 결정) — 이전엔 로그인 존이 MY 컬럼 폭(7.5rem)에
-// w-fit으로 맞춰져 게스트 존(28rem)보다 훨씬 좁아, 게스트↔로그인 전환 시(로그아웃 등) 존
-// 폭·패널 높이가 튀는 문제가 있었다. 이제 두 상태 모두 이 고정 박스를 상하좌우 동일한
-// 2.5rem(p-10) 패딩으로 채우고, 안쪽 콘텐츠(카드 또는 MY 컬럼)는 좌측 상단에서 시작한다
-// (MY 컬럼은 7.5rem만 차지하고 나머지는 빈 회색 여백 — 시안 3857:3552 스크린샷과 동일).
-// GREY_ZONE_W = MEGA_PROMO_W(23rem) + p-10×2(5rem) = 28rem.
-// GREY_ZONE_H = 게스트 카드 자연 높이 + p-10×2 ≈ 28.9rem(사용자 산정값) — 로그인 존도
-// 동일 상수를 쓰므로 패널 높이가 로그인/게스트 상태를 오가도 변하지 않는다(구
-// `shouldShowLoggedInHeader ? {minHeight:"35rem"}` 조건부 스타일은 폐기).
+// 게스트(프로모 카드) 존은 고정 크기(GREY_ZONE_W×GREY_ZONE_H)를 그대로 쓴다 — 상하좌우
+// 동일한 2.5rem(p-10) 패딩, ml-auto로 밴드 우측 끝에 고정.
+// GREY_ZONE_W = MEGA_PROMO_W(23rem) + p-10×2(5rem) = 28rem. 게스트 전용 상수다.
+// GREY_ZONE_H는 두 상태 공용 — 게스트 카드 자연 높이 + p-10×2 ≈ 28.9rem(사용자 산정값).
+// 로그인(6번째 MY 컬럼) 존도 같은 높이를 써서 패널 높이가 로그인/게스트 전환에 변하지
+// 않는다(구 `shouldShowLoggedInHeader ? {minHeight:"35rem"}` 조건부 스타일은 폐기).
+// 로그인 존의 폭·좌측 위치는 2026-09-03 사용자 결정으로 GREY_ZONE_W 고정을 버리고
+// 계정 그룹(D-day 배지) 좌측 x에 유동적으로 맞춘다 — accountGroupRef/zoneBandRef +
+// useLayoutEffect(아래 컴포넌트 본문)와 return 블록의 로그인 존 JSX 참고. myZoneRect
+// 측정 전(첫 페인트 찰나)에는 이 GREY_ZONE_W를 폴백값으로 재사용한다.
 const GREY_ZONE_W = "28rem";
 const GREY_ZONE_H = "28.9rem";
 
@@ -311,6 +318,20 @@ export default function Header() {
   const mobileNavTriggerRef = useRef<HTMLButtonElement>(null);
   const navGroups = useNavGroups();
   const { pathname } = useLocation();
+
+  // 로그인 메가 패널 회색존 좌측 정렬(2026-09-03 사용자 결정) — 회색존 좌측 x를 헤더
+  // 계정 그룹(D-day 배지) 좌측 x에 유동적으로 맞춘다(고정 28rem 폭 폐기, 로그인 상태만).
+  // accountGroupRef: D-day 배지+이름 칩+chevron을 감싸는 트리거 div(shouldShowLoggedInHeader
+  // 분기에서만 렌더) — 배지가 그 안의 첫 자식이라 이 div의 좌측 x = 배지 좌측 x다.
+  // zoneBandRef: 회색존이 실제로 속한 "1920 밴드"(mx-auto max-w-[120rem], 아래 메가 패널
+  // return 블록) — 이 밴드 기준 상대 좌표(marginLeft)로 존 위치를 잡아야 뷰포트·2xl 패딩
+  // 전환에도 안전하다.
+  const accountGroupRef = useRef<HTMLDivElement>(null);
+  const zoneBandRef = useRef<HTMLDivElement>(null);
+  const [myZoneRect, setMyZoneRect] = useState<{
+    marginLeft: number;
+    width: number;
+  } | null>(null);
 
   // 현재 경로 기반 GNB 활성 그룹 판정(사용자 확정 스펙, 2단계):
   // 1단계 — 그룹의 후보 경로(group.to + items[].to 중 내부 경로만) 중 pathname과 정확히
@@ -605,6 +626,57 @@ export default function Header() {
   const showMegaMyColumn = isLoggedIn;
   const megaPromo = MEGA_PROMO_GUEST;
 
+  // 회색존 좌측 x를 계정 그룹(D-day 배지) 좌측 x에 맞춘다(위 accountGroupRef/zoneBandRef
+  // 주석 참고). 우측 끝은 "현행대로"(기존 게스트 존이 translateX(0.5rem)로 밴드 우측 끝을
+  // 8px 넘어서게 맞추던 것과 동일한 지점)를 유지한다 — zoneBandRect.right + 8을 목표
+  // 우측 x로 두고, marginLeft/width를 밴드(zoneBandRef) 기준 상대값으로 환산한다.
+  // ResizeObserver로 계정 그룹 자체의 폭 변화(역할·이름 길이)를, window resize로 뷰포트에
+  // 따른 밴드·계정 그룹의 위치 이동(2xl 패딩 전환 등 콘텐츠 크기 변화가 없는 경우)을 각각
+  // 잡는다 — 계정 그룹 리사이즈만으로는 순수 위치 이동을 못 잡고, window resize만으로는
+  // 콘텐츠 폭 변화(예: 프로필 로딩 완료로 이름이 늦게 채워지는 경우)를 못 잡는다.
+  useLayoutEffect(() => {
+    if (!showMegaMyColumn) return undefined;
+
+    const accountEl = accountGroupRef.current;
+    const bandEl = zoneBandRef.current;
+    // shouldShowLoggedInHeader를 여기서도 명시적으로 확인한다 — accountEl 자체가 그
+    // 상태일 때만 렌더되는 D-day 배지 트리거 div라 사실상 항상 함께 참이지만, 아래
+    // deps 배열에 shouldShowLoggedInHeader를 넣는 근거(프로필 로딩 완료 시 재실행)를
+    // biome exhaustive-deps 검사와도 일치시키기 위해 조건에 직접 포함한다.
+    if (!shouldShowLoggedInHeader || !accountEl || !bandEl) return undefined;
+
+    function measure() {
+      if (!accountEl || !bandEl) return;
+
+      const accountRect = accountEl.getBoundingClientRect();
+      const bandRect = bandEl.getBoundingClientRect();
+      const ZONE_RIGHT_NUDGE_PX = 8; // translateX(0.5rem)와 동일한 우측 보정(위 주석 참고)
+
+      setMyZoneRect({
+        marginLeft: accountRect.left - bandRect.left,
+        width: bandRect.right + ZONE_RIGHT_NUDGE_PX - accountRect.left,
+      });
+    }
+
+    measure();
+
+    const resizeObserver = new ResizeObserver(measure);
+    resizeObserver.observe(accountEl);
+    window.addEventListener("resize", measure);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+    // shouldShowLoggedInHeader도 deps에 넣는다 — accountGroupRef는 그 조건이 true일 때만
+    // 렌더되는 D-day 배지 트리거 div에 달려 있다. showMegaMyColumn(=isLoggedIn)은 세션
+    // 확정 즉시 true가 되지만 프로필(이름) 로딩은 비동기라, shouldShowLoggedInHeader가
+    // 나중에 false→true로 바뀔 때(accountGroupRef.current가 그제서야 채워질 때) 이 효과가
+    // 다시 실행되지 않으면 최초 measure()가 항상 "아직 ref 없음"으로 조기 반환해 실측이
+    // 영영 일어나지 않는다(재현: 로그인 세션을 가진 채 새로고침 — 세션은 즉시 확정되지만
+    // 프로필은 한 박자 늦게 옴).
+  }, [showMegaMyColumn, shouldShowLoggedInHeader]);
+
   // 계정 그룹(로그인 로딩 placeholder / 로그인+프로필 완료 / 로그인만·프로필 로딩 중 /
   // 비로그인 4분기)을 별도 노드로 뽑아둔다 — 아래 헤더 행에서 실제로 그리는 것 외에,
   // return 블록 헤더 주석에 적은 이유로 헤더 nav 존의 "실제로 남는 폭"을 구하기 위해
@@ -627,6 +699,7 @@ export default function Header() {
               칩 자체의 onFocus 등가가 필요 없다 — 마우스 전용 패널 프리뷰라 Tab만으로도
               이름 칩까지 정상 도달한다). */}
           <div
+            ref={accountGroupRef}
             className="flex shrink-0 items-center gap-3"
             onMouseEnter={() => {
               clearMegaCloseTimer();
@@ -955,61 +1028,79 @@ export default function Header() {
                   동일한 mx-auto max-w-[120rem] 축을 공유한다. 컬럼 레이어와 같은 grid cell에
                   겹치므로 바깥 겹은 pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 안쪽
                   콘텐츠만 pointer-events-auto로 되살린다(헤더 nav 오버레이와 동일한 기법). */}
-          <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
-            {/* 회색 존: 게스트·로그인 두 상태가 완전히 같은 고정 크기(GREY_ZONE_W×GREY_ZONE_H,
-                    파일 상단 상수 주석 참고)를 쓴다 — 상태 전환 시 존 폭/패널 높이가 튀지 않게
-                    하기 위한 2026-09-03 사용자 결정. 안쪽 콘텐츠(카드 또는 MY 컬럼)는 상하좌우
-                    동일한 2.5rem(p-10) 패딩 안에서 좌측 상단부터 채워지고, 남는 공간은 빈 회색
-                    여백으로 남는다(로그인 시 MY 컬럼이 7.5rem만 차지 — 시안 3857:3552 그대로).
-                    ml-auto로 밴드 래퍼 바깥쪽 우측 끝(패딩 이전)에 붙인다 — 뷰포트가 120rem
-                    (1920px)을 넘으면 밴드 자체가 중앙 정렬되며 캡 안쪽에 서므로 존 우측 끝은
-                    항상 밴드 우측 끝과 일치한다. 색상 #f9fafb는 Figma 1483:846 실측값.
-                    translateX(0.5rem): 존 박스의 p-10(2.5rem)은 헤더 Band 1(px-8=2rem)보다
-                    0.5rem(8px) 두꺼워 안쪽 콘텐츠 우측 끝이 계정 그룹 우측 끝보다 8px 안쪽에
-                    있었다 — 박스 자체의 우측 기준점만 8px 우측으로 옮겨(밴드 우측 끝을 8px
-                    넘어서도록) 계정 그룹 축에 맞춘다. */}
-            <div
-              className="pointer-events-none ml-auto bg-surface-footer p-10"
-              style={{
-                width: GREY_ZONE_W,
-                height: GREY_ZONE_H,
-                transform: "translateX(0.5rem)",
-              }}
-            >
-              {showMegaMyColumn ? (
-                // 6번째 MY 컬럼(시안 §2 "로그인된" variant, w 120px). 제목은 다른 컬럼과
-                // baseline을 맞추기 위해 빈 줄(&nbsp;)만 넣는다 — 시안 원문 그대로.
+          <div
+            ref={zoneBandRef}
+            className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]"
+          >
+            {showMegaMyColumn ? (
+              // 로그인 회색존(2026-09-03 사용자 결정) — 좌측 x를 계정 그룹(D-day 배지) 좌측
+              // x에 유동적으로 맞춘다(고정 28rem 폭 폐기, 위 accountGroupRef/zoneBandRef +
+              // useLayoutEffect 주석 참고). myZoneRect가 아직 측정 전(첫 페인트 찰나)이면
+              // 게스트 존과 동일한 ml-auto+GREY_ZONE_W로 폴백해 레이아웃이 순간적으로
+              // 무너지지 않게 한다. 높이는 GREY_ZONE_H로 게스트와 동일하게 고정해 패널
+              // 높이가 상태 전환에도 변하지 않는다. 색상 #f9fafb는 Figma 1483:846 실측값.
+              // 상단 패딩만 pt-6(1.5rem)로 다른 5개 컬럼의 py-6과 맞춘다 — MY 컬럼 첫
+              // 항목("MY페이지")이 빈 제목 줄 없이 바로 다른 컬럼 제목 행과 같은 y에서
+              // 시작하게 하기 위함(좌/우/하단은 계정 그룹 축 기준 p-10=2.5rem 유지).
+              <div
+                className="pointer-events-none bg-surface-footer pt-6 pr-10 pb-10 pl-10"
+                style={
+                  myZoneRect
+                    ? {
+                        marginLeft: `${myZoneRect.marginLeft}px`,
+                        width: `${myZoneRect.width}px`,
+                        height: GREY_ZONE_H,
+                      }
+                    : {
+                        marginLeft: "auto",
+                        width: GREY_ZONE_W,
+                        height: GREY_ZONE_H,
+                      }
+                }
+              >
+                {/* 6번째 MY 컬럼(시안 §2 "로그인된" variant, w 120px). 빈 제목 줄은
+                    제거했다(위 존 pt-6 주석 참고) — 항목이 곧 컬럼의 첫 콘텐츠다. */}
                 <div
-                  className="pointer-events-auto flex flex-col"
+                  className="pointer-events-auto flex flex-col gap-4"
                   style={{ width: "7.5rem" }}
                 >
-                  <p
-                    className="text-sm font-semibold leading-5 tracking-[-0.02em] text-ink-natural"
-                    aria-hidden="true"
-                  >
-                    &nbsp;
-                  </p>
-                  <div className="mt-5 flex flex-col gap-4">
-                    {myMenuItems.map((item) => (
-                      <Link
-                        key={item.label}
-                        to={item.to}
-                        onClick={() => setActiveMega(null)}
-                        className="break-keep text-sm font-medium leading-5 text-ink transition hover:text-primary"
-                      >
-                        {item.label}
-                      </Link>
-                    ))}
-                  </div>
+                  {myMenuItems.map((item) => (
+                    <Link
+                      key={item.label}
+                      to={item.to}
+                      onClick={() => setActiveMega(null)}
+                      className="break-keep text-sm font-medium leading-5 text-ink transition hover:text-primary"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
                 </div>
-              ) : (
-                // 프로모 카드: 콘텐츠 하드코딩(MEGA_PROMO_GUEST). 추후 admin에서 편집 가능한
-                // 배너로 전환 후보. 0.8 컴팩트 스케일(파일 상단 MEGA_PROMO_W 주석 참고) —
-                // 카드 23rem, p-[1.6rem], gap-[1.6rem], rounded-[1.2rem], 타이틀
-                // text-[1.3rem] Bold, 서브 text-[0.9rem] Medium, 이미지 프레임
-                // 14.1rem×9.4rem, CTA px-[3rem] py-[1.2rem] rounded-2xl text-base
-                // SemiBold. 쉐도우는 기존 3중 그림자 유지(DROP_SHADOW 0/4/16
-                // rgba(0,0,0,.06) + inset 하이라이트 2종).
+              </div>
+            ) : (
+              // 게스트 회색존: 변경 없음(2026-09-03 사용자 결정 — 게스트 상태는 그대로 둔다).
+              // 카드(MEGA_PROMO_W)를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정
+              // 크기(GREY_ZONE_W×GREY_ZONE_H) 박스. ml-auto로 밴드 래퍼 바깥쪽 우측 끝
+              // (패딩 이전)에 붙인다 — 뷰포트가 120rem(1920px)을 넘으면 밴드 자체가 중앙
+              // 정렬되며 캡 안쪽에 서므로 존 우측 끝은 항상 밴드 우측 끝과 일치한다.
+              // translateX(0.5rem): 존 박스의 p-10(2.5rem)은 헤더 Band 1(px-8=2rem)보다
+              // 0.5rem(8px) 두꺼워 카드 우측 끝이 계정 그룹 우측 끝보다 8px 안쪽에 있었다 —
+              // 박스 자체의 우측 기준점만 8px 우측으로 옮겨 계정 그룹 축에 맞춘다(로그인
+              // 존의 ZONE_RIGHT_NUDGE_PX=8과 같은 보정, 위 useLayoutEffect 주석 참고).
+              <div
+                className="pointer-events-none ml-auto bg-surface-footer p-10"
+                style={{
+                  width: GREY_ZONE_W,
+                  height: GREY_ZONE_H,
+                  transform: "translateX(0.5rem)",
+                }}
+              >
+                {/* 프로모 카드: 콘텐츠 하드코딩(MEGA_PROMO_GUEST). 추후 admin에서 편집 가능한
+                    배너로 전환 후보. 0.8 컴팩트 스케일(파일 상단 MEGA_PROMO_W 주석 참고) —
+                    카드 23rem, p-[1.6rem], gap-[1.6rem], rounded-[1.2rem], 타이틀
+                    text-[1.3rem] Bold, 서브 text-[0.9rem] Medium, 이미지 프레임
+                    14.1rem×9.4rem, CTA px-[3rem] py-[1.2rem] rounded-2xl text-base
+                    SemiBold. 쉐도우는 기존 3중 그림자 유지(DROP_SHADOW 0/4/16
+                    rgba(0,0,0,.06) + inset 하이라이트 2종). */}
                 <div
                   className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-[1.6rem] shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
                   style={{ width: MEGA_PROMO_W }}
@@ -1046,8 +1137,8 @@ export default function Header() {
                     {megaPromo.ctaLabel}
                   </Link>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
