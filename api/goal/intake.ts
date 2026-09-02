@@ -266,8 +266,16 @@ export function isValidHours(raw: unknown, max: number) {
 // QA 행290・291 재설계 — priorNaesinGrade(0~100 또는 1~9)・naesin.overall(1~naesinScale)・
 // mock 백분위(0~100) 세 군데가 각자 다른 정의역의 숫자 하나만 검증하면 되는 공통 패턴이라
 // isValidHours(하한 0 고정)를 일반화한다.
+//
+// ⚠ 로컬 E2E 버그 — isNumericInput만으로는 부족하다. Number('') === 0 이라 하한이 0인
+// 도메인(모의고사 백분위 0~100, 고1 priorNaesinGrade 0~100)에서는 "미입력"(빈 문자열,
+// 백분위 칩을 안 고른 기본값)이 조용히 유효한 0으로 통과했다. 그 결과 deriveMogo가
+// gradeToPercentile 밴드 중앙값 대체 경로를 아예 타지 않고 pct=0을 그대로 써서
+// currentMogo가 크게 낮게 나왔다(재현: 국어만 칩 선택, 나머지 3과목 pct 미선택 →
+// 종합 백분위 29.67, 기대값 86.5). clean()으로 "실제 값이 있는지"까지 확인한다.
 function isInRange(raw: unknown, min: number, max: number) {
   if (!isNumericInput(raw)) return false;
+  if (clean(raw) === "") return false;
   const num = Number(raw);
   return Number.isFinite(num) && num >= min && num <= max;
 }
@@ -856,12 +864,73 @@ function gradeToPercentile(rawGrade) {
   return Math.round((band.min + band.max) / 2);
 }
 
+type RawMockRounds = Record<
+  string,
+  {
+    kor: { grade: string; pct: number | null };
+    math: { grade: string; pct: number | null };
+    eng: { grade: string };
+    tam1: { grade: string; pct: number | null };
+    tam2: { grade: string; pct: number | null };
+  }
+>;
+
+type ResolvedMockRounds = Record<
+  string,
+  {
+    kor: { grade: string; pct: number };
+    math: { grade: string; pct: number };
+    eng: { grade: string };
+    tam1: { grade: string; pct: number };
+    tam2: { grade: string; pct: number };
+  }
+>;
+
 /**
- * calcJeongsiCompositeFE(jeongsi.js:195-212)가 요구하는 회차별 객체를 만든다.
+ * 회차별 pct(사용자가 고른 백분위 칩)를 확정한다 — pct가 있으면 그대로, 없으면(칩을 안
+ * 골랐으면) gradeToPercentile 밴드 중앙값으로 대체한다.
  *
- * QA 행291 재설계 — 등급만 받던 구판과 달리 이제 회차별로 사용자가 고른 백분위 칩
- * (entry.pct)이 있으면 그 값을 그대로 쓰고, 없으면(칩을 안 골랐으면) 구판과 동일하게
- * gradeToPercentile 밴드 중앙값으로 대체한다.
+ * ⚠ 로컬 E2E 버그 — 이 대체 로직 자체는 원래도 있었지만(구 buildMogoScores), 앞단
+ * isInRange('', 0, 100)이 Number('')===0 을 유효 범위로 오판해 "칩 미선택"을 pct=0으로
+ * 확정해 버려서(isInRange 주석 참고) 이 함수가 그 오판된 0을 "값이 있다"고 여기고 대체를
+ * 건너뛰었다. isInRange를 고친 지금은 미선택이 정확히 null로 넘어오므로 이 함수가 항상
+ * 올바르게 동작한다.
+ *
+ * currentMogo 계산(buildMogoScores)과 저장(mock_exam_scores.rounds) 양쪽이 반드시 같은
+ * 확정값을 봐야 한다 — "계산엔 86.5를 쓰고 저장엔 null을 남긴다"처럼 두 표가 다른
+ * 이야기를 하면 안 된다(§9 baseProbsForStorage와 동일한 원칙).
+ */
+function resolveMockRoundPercentiles(
+  mockRounds: RawMockRounds,
+): ResolvedMockRounds {
+  const resolved: ResolvedMockRounds = {};
+  for (const [key, round] of Object.entries(mockRounds)) {
+    resolved[key] = {
+      kor: {
+        grade: round.kor.grade,
+        pct: round.kor.pct ?? gradeToPercentile(round.kor.grade),
+      },
+      math: {
+        grade: round.math.grade,
+        pct: round.math.pct ?? gradeToPercentile(round.math.grade),
+      },
+      eng: { grade: round.eng.grade },
+      tam1: {
+        grade: round.tam1.grade,
+        pct: round.tam1.pct ?? gradeToPercentile(round.tam1.grade),
+      },
+      tam2: {
+        grade: round.tam2.grade,
+        pct: round.tam2.pct ?? gradeToPercentile(round.tam2.grade),
+      },
+    };
+  }
+  return resolved;
+}
+
+/**
+ * calcJeongsiCompositeFE(jeongsi.js:195-212)가 요구하는 회차별 객체를 만든다. 입력은
+ * 이미 resolveMockRoundPercentiles를 거쳐 pct가 전부 확정된 회차만 받는다.
  *
  * 주의점(전부 원본 동작이며 파리티를 유지해야 한다):
  *  - eng 는 백분위가 아니라 **등급 문자열** 그대로다(getEnglishPenaltyFE 가
@@ -872,18 +941,7 @@ function gradeToPercentile(rawGrade) {
  *  - 값이 없는 회차는 mockRounds에 아예 없다(검증부가 완전히 빈 회차를 저장하지 않는다).
  *    전 회차가 없으면(mockAllNone) 이 함수 자체를 호출하지 않는다(deriveMogo 참고).
  */
-function buildMogoScores(
-  mockRounds: Record<
-    string,
-    {
-      kor: { grade: string; pct: number | null };
-      math: { grade: string; pct: number | null };
-      eng: { grade: string };
-      tam1: { grade: string; pct: number | null };
-      tam2: { grade: string; pct: number | null };
-    }
-  >,
-) {
+function buildMogoScores(resolvedMockRounds: ResolvedMockRounds) {
   const scores: Record<
     string,
     {
@@ -895,19 +953,13 @@ function buildMogoScores(
     }
   > = {};
 
-  for (const [key, round] of Object.entries(mockRounds)) {
+  for (const [key, round] of Object.entries(resolvedMockRounds)) {
     scores[key] = {
-      kor: { percentile: round.kor.pct ?? gradeToPercentile(round.kor.grade) },
-      math: {
-        percentile: round.math.pct ?? gradeToPercentile(round.math.grade),
-      },
+      kor: { percentile: round.kor.pct },
+      math: { percentile: round.math.pct },
       eng: round.eng.grade,
-      exp1: {
-        percentile: round.tam1.pct ?? gradeToPercentile(round.tam1.grade),
-      },
-      exp2: {
-        percentile: round.tam2.pct ?? gradeToPercentile(round.tam2.grade),
-      },
+      exp1: { percentile: round.tam1.pct },
+      exp2: { percentile: round.tam2.pct },
     };
   }
 
@@ -915,7 +967,8 @@ function buildMogoScores(
 }
 
 /**
- * 정시 종합 백분위(currentMogo) + 표시용 마지막 회차 라벨 + 남은 회차.
+ * 정시 종합 백분위(currentMogo) + 표시용 마지막 회차 라벨 + 남은 회차 + 확정된 회차
+ * (resolvedRounds, pct가 전부 채워짐 — mock_exam_scores.rounds 저장에 그대로 쓴다).
  *
  * remain_mogo도 deriveNaesin과 같은 이유로 이 함수가 직접 계산한다 — lastRound가 학생의
  * 현재 학년보다 이전 학년 회차일 수 있어(예: 고3인데 마지막이 "고2 10모")
@@ -933,16 +986,20 @@ export function deriveMogo(input) {
       currentMogo: 0,
       lastMogoExam: "",
       remainMogo: MOGO_NONE_REMAINING[gradeLabel] ?? null,
+      resolvedRounds: {} as ResolvedMockRounds,
     };
   }
 
+  const resolvedRounds = resolveMockRoundPercentiles(mockRounds);
+
   return {
-    currentMogo: calcJeongsiCompositeFE(buildMogoScores(mockRounds)),
+    currentMogo: calcJeongsiCompositeFE(buildMogoScores(resolvedRounds)),
     lastMogoExam: flowLabel(selectedMockRound),
     remainMogo: getRemainingMogo(
       selectedMockRound.gradeLabel,
       selectedMockRound.examLabel,
     ),
+    resolvedRounds,
   };
 }
 
@@ -1078,7 +1135,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //    (deriveNaesin/deriveMogo 주석 참고, QA 행290・291 재설계로 아래 옛 remainingNaesin/
     //    remainingMogo 오버라이드 표 계산은 필요 없어졌다).
     const { currentScore, lastNaesinExam, remainNaesin } = deriveNaesin(input);
-    const { currentMogo, lastMogoExam, remainMogo } = deriveMogo(input);
+    const {
+      currentMogo,
+      lastMogoExam,
+      remainMogo,
+      resolvedRounds: resolvedMockRounds,
+    } = deriveMogo(input);
 
     // 6) 목표 대학 컷 4회 조회
     //    파이프라인은 컷 누락을 에러로 알려주지 않는다 — calcNaesinProb 이 이를
@@ -1213,10 +1275,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ? { priorNaesinGrade: Number(input.priorNaesinGrade) }
           : {}),
       },
+      // rounds는 deriveMogo가 확정한 resolvedMockRounds를 쓴다 — pct가 전부 채워져
+      // 있어(로컬 E2E 버그 수정) 저장값과 currentMogo 계산이 같은 백분위를 본다.
       mock_exam_scores: {
         lastRound: input.mockLastRoundKey,
         track: input.mockTrack,
-        rounds: input.mockRounds,
+        rounds: resolvedMockRounds,
       },
 
       // 컷이 없으면 확률을 null 로 둔다 — "0%"와 "미산출"은 다른 상태다(§5 말미).

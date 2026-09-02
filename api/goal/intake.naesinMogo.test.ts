@@ -484,4 +484,65 @@ describe("deriveMogo", () => {
     expect(currentMogo).toBe(0);
     expect(remainMogo).toBe(10);
   });
+
+  it("resolvedRounds에 pct가 전부 채워져 있다(mock_exam_scores 저장용)", () => {
+    const { resolvedRounds } = deriveMogo({
+      mockAllNone: false,
+      gradeLabel: "고3",
+      selectedMockRound: { key: "g3_mar", gradeLabel: "고3", examLabel: "3모" },
+      mockRounds: {
+        g3_mar: {
+          kor: { grade: "2", pct: 95 },
+          math: { grade: "3", pct: null },
+          eng: { grade: "2" },
+          tam1: { grade: "2", pct: null },
+          tam2: { grade: "3", pct: null },
+        },
+      },
+    });
+    expect(resolvedRounds.g3_mar?.kor.pct).toBe(95);
+    // pct를 안 골랐던 과목도 null이 아니라 gradeToPercentile 밴드 중앙값으로 채워진다.
+    expect(resolvedRounds.g3_mar?.math.pct).toBe(83);
+    expect(resolvedRounds.g3_mar?.tam1.pct).toBe(92);
+    expect(resolvedRounds.g3_mar?.tam2.pct).toBe(83);
+  });
+});
+
+// 로컬 E2E 실버그(팀장 지시) — isInRange('', 0, 100)이 Number('')===0을 유효 범위로
+// 오판해, 백분위 칩을 안 고른 과목(pct='')이 gradeToPercentile 대체 없이 그대로 0으로
+// 확정됐다. validateIntakeBody(와이어 그대로) → deriveMogo 전체 경로를 재현해 고정한다.
+// 재현 입력: 고2 6모 국어 2등급(칩 95 선택), 수학 3등급(칩 미선택), 탐1 2등급(미선택),
+// 탐2 3등급(미선택), 영어 2등급 → 기대 currentMogo ≈ 86.5(팀장 산출).
+describe("로컬 E2E 실버그 재현 — 빈 pct('')가 0으로 확정되던 문제", () => {
+  it("칩을 안 고른 과목은 pct=0이 아니라 gradeToPercentile 밴드 중앙값으로 대체돼 currentMogo ≈ 86.5가 나온다", () => {
+    const validated = validateIntakeBody(
+      baseBody({
+        grade: "g2",
+        mockExam: {
+          lastRound: "g2_jun",
+          track: "사탐",
+          rounds: {
+            g2_jun: {
+              kor: { grade: "2", pct: "95" },
+              math: { grade: "3", pct: "" },
+              eng: { grade: "2" },
+              tam1: { grade: "2", pct: "" },
+              tam2: { grade: "3", pct: "" },
+            },
+          },
+        },
+      }),
+    );
+    expect(validated.error).toBeUndefined();
+    // validateIntakeBody 단계에서 빈 pct는 정확히 null이어야 한다(0이면 이 버그가 재발한 것).
+    expect(validated.input?.mockRounds.g2_jun?.math.pct).toBeNull();
+
+    const { currentMogo, resolvedRounds } = deriveMogo(validated.input);
+    expect(currentMogo).toBeCloseTo(86.5, 5);
+    // 저장값(mock_exam_scores.rounds)도 보정된 pct로 채워져야 한다 — null이 남으면 안 된다.
+    expect(resolvedRounds.g2_jun?.math.pct).toBe(83);
+    expect(resolvedRounds.g2_jun?.tam1.pct).toBe(92);
+    expect(resolvedRounds.g2_jun?.tam2.pct).toBe(83);
+    expect(resolvedRounds.g2_jun?.kor.pct).toBe(95);
+  });
 });
