@@ -1,5 +1,7 @@
 import type { RouteObject } from "react-router";
 import MyPage from "@/pages/MyPage";
+import ChildDiagnosisReport from "@/pages/mypage/ChildDiagnosisReport";
+import ChildDiagnosisReports from "@/pages/mypage/ChildDiagnosisReports";
 import ChildReport from "@/pages/mypage/ChildReport";
 
 const mypageRoutes: RouteObject[] = [
@@ -14,6 +16,19 @@ const mypageRoutes: RouteObject[] = [
   // 이용자가 아니라 열람자라서 사이드바 메뉴(타이머·일일기록 등)가 의미가
   // 없기 때문이다. 권한 판정은 ChildReport 안에서 fn_parent_children 으로 한다.
   { path: "/mypage/children/:studentId/report", Component: ChildReport },
+
+  // B5 — 학부모가 자녀의 학습진단 리포트를 여는 뷰어(목록 → 회차 상세).
+  // 위 성장 리포트와 같은 셸 원칙(SiteLayout 안, fn_parent_children 게이트)을 쓰지만
+  // 별도 라우트 세그먼트(report/diagnosis)로 둔다 — 서비스가 다르면 리포트 도메인도
+  // 다르다(diagnosis_reports는 goal report와 무관한 별도 테이블·권한 판정 경로).
+  {
+    path: "/mypage/children/:studentId/report/diagnosis",
+    Component: ChildDiagnosisReports,
+  },
+  {
+    path: "/mypage/children/:studentId/report/diagnosis/:attemptId",
+    Component: ChildDiagnosisReport,
+  },
 ];
 
 export default mypageRoutes;
