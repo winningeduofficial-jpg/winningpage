@@ -38,11 +38,16 @@ const MS_PER_DAY = 86400000;
 //   폭은 스택형 원본 비율(763/324)로 환산한 6.5rem(104px)이다. 로고 존 폭(NAV_GUARD 등
 //   nav 안전영역 계산)도 이 값을 그대로 쓴다(navigation.ts 참고).
 const LOGO_W = "6.5rem";
-// 프로모 카드 폭: 시안 §3 풀스케일 460px = 28.75rem(0.8 컴팩트 스케일 폐기, §8 사용자 결정).
-// 패딩 p-8(32px), 요소간 gap-8(32px), rounded-3xl(24px), 타이틀 26px Bold, 서브 18px Medium,
-// 이미지 프레임 282×188(17.625rem×11.75rem), CTA px-15 py-6(60px/24px) 모두 아래 카드 JSX에
-// 실값 그대로 반영했다.
-const MEGA_PROMO_W = "28.75rem";
+// 프로모 카드 폭: 2026-09-03 사용자 결정으로 풀스케일(460px)을 폐기하고 0.8 컴팩트
+// 스케일로 되돌린다 — 시안 §3 실값(460×478, p-8/gap-8/rounded-3xl/타이틀 26px Bold/
+// 서브 18px Medium/이미지 프레임 282×188/CTA px-15 py-6 rounded-2xl 20px SemiBold)에
+// 전부 ×0.8을 적용한 값(카드 368px=23rem, p 1.6rem, gap 1.6rem, radius 1.2rem, 타이틀
+// 1.3rem(20.8px)/tracking -0.026rem, 서브 0.9rem(14.4px), 이미지 프레임 225.6×150.4px
+// =14.1rem×9.4rem, CTA px-[3rem] py-[1.2rem] rounded-2xl(1rem) text-base)을 아래 카드
+// JSX에 그대로 반영했다. 이미지 크롭 구조(absolute+height 120.21%/top -10.64%)·타이포
+// 색(#525252=text-ink)·오픈 트리거 로직(§8)은 풀스케일 작업 때 새로 정리한 것을 그대로
+// 유지한다 — 스케일만 되돌리는 변경이다.
+const MEGA_PROMO_W = "23rem";
 // 프로모 카드는 비로그인 상태에서만 노출한다(§6-4 사용자 결정 — 로그인 시 카드 자리에
 // 6번째 MY 컬럼이 대신 들어간다, 아래 return 블록 참고). 로그인 전용 콘텐츠(구
 // MEGA_PROMO_MEMBER)는 폐기했다.
@@ -59,14 +64,18 @@ const MEGA_PROMO_GUEST = {
   ctaTo: "/login",
 };
 // 메가 회색 존(#F9FAFB — Figma 1483:846 get_design_context 실값, 기존 #F7F7F7 추정치 폐기):
-// 프로모 카드(MEGA_PROMO_W)를 상하좌우 정확히 동일한 2.5rem(p-10 — 기존 카드 상단 여백
-// py-10과 동일 값) 패딩으로 감싸는 고정 크기 박스. 존 크기 = 카드 + 2.5rem×2 상수로,
-// 컬럼 높이와 무관하게 항상 동일하게 보인다. 패널 전체 높이는 grid 겹침 구조에 의해
-// max(컬럼 콘텐츠, 존 박스)로 결정되며, 컬럼이 더 길면 존은 상단 고정된 채 크기를 유지한다.
-// 존 우측 끝은 1920 밴드 래퍼 바깥쪽 우측 끝(패딩 이전) 기준 — 기존 "컬럼 끝~밴드 우측 끝
-// 풀 높이 스트립"(NAV_BLOCK_RIGHT_EDGE 기반 MEGA_ZONE_LEFT 산정)은 컬럼 높이를 따라
-// 세로로 늘어나는 구조여서 폐기했고, 관련 상수도 함께 제거했다. 카드 우측 끝은 밴드 우측
-// 끝에서 2.5rem 안쪽(기존 px-8=2rem 대비 0.5rem 이동) — 4방향 동일 패딩 원칙이 우선한다.
+// 게스트(프로모 카드)·로그인(6번째 MY 컬럼) 두 상태가 완전히 같은 고정 크기(GREY_ZONE_W×
+// GREY_ZONE_H)를 쓴다(2026-09-03 사용자 결정) — 이전엔 로그인 존이 MY 컬럼 폭(7.5rem)에
+// w-fit으로 맞춰져 게스트 존(28rem)보다 훨씬 좁아, 게스트↔로그인 전환 시(로그아웃 등) 존
+// 폭·패널 높이가 튀는 문제가 있었다. 이제 두 상태 모두 이 고정 박스를 상하좌우 동일한
+// 2.5rem(p-10) 패딩으로 채우고, 안쪽 콘텐츠(카드 또는 MY 컬럼)는 좌측 상단에서 시작한다
+// (MY 컬럼은 7.5rem만 차지하고 나머지는 빈 회색 여백 — 시안 3857:3552 스크린샷과 동일).
+// GREY_ZONE_W = MEGA_PROMO_W(23rem) + p-10×2(5rem) = 28rem.
+// GREY_ZONE_H = 게스트 카드 자연 높이 + p-10×2 ≈ 28.9rem(사용자 산정값) — 로그인 존도
+// 동일 상수를 쓰므로 패널 높이가 로그인/게스트 상태를 오가도 변하지 않는다(구
+// `shouldShowLoggedInHeader ? {minHeight:"35rem"}` 조건부 스타일은 폐기).
+const GREY_ZONE_W = "28rem";
+const GREY_ZONE_H = "28.9rem";
 
 function getCsatDay() {
   const now = new Date();
@@ -854,10 +863,7 @@ export default function Header() {
                 겹쳐 그린다. absolute 오버레이 대신 grid 겹침을 쓴 이유: 두 레이어 중 더 큰 쪽이
                 패널의 자연 높이(hug)를 그대로 결정하게 하기 위함(absolute는 문서 흐름에서 빠져
                 높이에 기여하지 못한다). */}
-        <div
-          className="grid"
-          style={shouldShowLoggedInHeader ? { minHeight: "35rem" } : undefined}
-        >
+        <div className="grid">
           {/* (QA 행327 재작업 이후, 2026-09-03 신규 시안 §2 반영) 메가 컬럼은 여전히 옛
                   좌표계 2(72.75rem 컨텐츠 영역, mx-auto max-w-content px-8 + MEGA_GUARD
                   marginLeft)를 그대로 쓴다. nav가 고정폭 셀로 복귀하며 폭·gap 상수는 nav와
@@ -915,17 +921,25 @@ export default function Header() {
                   겹치므로 바깥 겹은 pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 안쪽
                   콘텐츠만 pointer-events-auto로 되살린다(헤더 nav 오버레이와 동일한 기법). */}
           <div className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]">
-            {/* 회색 존: 안쪽 콘텐츠를 상하좌우 동일한 2.5rem(p-10) 패딩으로 감싸는 고정 크기
-                    박스(파일 상단 상수 주석 참고). ml-auto로 밴드 래퍼 바깥쪽 우측 끝(패딩 이전)에
-                    붙인다 — 뷰포트가 120rem(1920px)을 넘으면 밴드 자체가 중앙 정렬되며 캡 안쪽에
-                    서므로 존 우측 끝은 항상 밴드 우측 끝과 일치한다. 색상 #f9fafb는 Figma
-                    1483:846 실측값. translateX(0.5rem): 존 박스의 p-10(2.5rem)은 헤더 Band 1
-                    (px-8=2rem)보다 0.5rem(8px) 두꺼워 안쪽 콘텐츠 우측 끝이 계정 그룹 우측
-                    끝보다 8px 안쪽에 있었다 — 박스 자체의 우측 기준점만 8px 우측으로 옮겨
-                    (밴드 우측 끝을 8px 넘어서도록) 계정 그룹 축에 맞춘다. */}
+            {/* 회색 존: 게스트·로그인 두 상태가 완전히 같은 고정 크기(GREY_ZONE_W×GREY_ZONE_H,
+                    파일 상단 상수 주석 참고)를 쓴다 — 상태 전환 시 존 폭/패널 높이가 튀지 않게
+                    하기 위한 2026-09-03 사용자 결정. 안쪽 콘텐츠(카드 또는 MY 컬럼)는 상하좌우
+                    동일한 2.5rem(p-10) 패딩 안에서 좌측 상단부터 채워지고, 남는 공간은 빈 회색
+                    여백으로 남는다(로그인 시 MY 컬럼이 7.5rem만 차지 — 시안 3857:3552 그대로).
+                    ml-auto로 밴드 래퍼 바깥쪽 우측 끝(패딩 이전)에 붙인다 — 뷰포트가 120rem
+                    (1920px)을 넘으면 밴드 자체가 중앙 정렬되며 캡 안쪽에 서므로 존 우측 끝은
+                    항상 밴드 우측 끝과 일치한다. 색상 #f9fafb는 Figma 1483:846 실측값.
+                    translateX(0.5rem): 존 박스의 p-10(2.5rem)은 헤더 Band 1(px-8=2rem)보다
+                    0.5rem(8px) 두꺼워 안쪽 콘텐츠 우측 끝이 계정 그룹 우측 끝보다 8px 안쪽에
+                    있었다 — 박스 자체의 우측 기준점만 8px 우측으로 옮겨(밴드 우측 끝을 8px
+                    넘어서도록) 계정 그룹 축에 맞춘다. */}
             <div
-              className="pointer-events-none ml-auto w-fit bg-surface-footer p-10"
-              style={{ transform: "translateX(0.5rem)" }}
+              className="pointer-events-none ml-auto bg-surface-footer p-10"
+              style={{
+                width: GREY_ZONE_W,
+                height: GREY_ZONE_H,
+                transform: "translateX(0.5rem)",
+              }}
             >
               {showMegaMyColumn ? (
                 // 6번째 MY 컬럼(시안 §2 "로그인된" variant, w 120px). 제목은 다른 컬럼과
@@ -955,30 +969,32 @@ export default function Header() {
                 </div>
               ) : (
                 // 프로모 카드: 콘텐츠 하드코딩(MEGA_PROMO_GUEST). 추후 admin에서 편집 가능한
-                // 배너로 전환 후보. 시안 §3 풀스케일 실값(460×460, p-8, gap-8, rounded-3xl,
-                // 타이틀 26px Bold, 서브 18px Medium, 이미지 프레임 282×188, CTA px-15 py-6
-                // rounded-2xl 20px SemiBold) 그대로 반영. 쉐도우는 기존 3중 그림자 유지
-                // (DROP_SHADOW 0/4/16 rgba(0,0,0,.06) + inset 하이라이트 2종).
+                // 배너로 전환 후보. 0.8 컴팩트 스케일(파일 상단 MEGA_PROMO_W 주석 참고) —
+                // 카드 23rem, p-[1.6rem], gap-[1.6rem], rounded-[1.2rem], 타이틀
+                // text-[1.3rem] Bold, 서브 text-[0.9rem] Medium, 이미지 프레임
+                // 14.1rem×9.4rem, CTA px-[3rem] py-[1.2rem] rounded-2xl text-base
+                // SemiBold. 쉐도우는 기존 3중 그림자 유지(DROP_SHADOW 0/4/16
+                // rgba(0,0,0,.06) + inset 하이라이트 2종).
                 <div
-                  className="pointer-events-auto relative shrink-0 rounded-3xl bg-white p-8 shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
+                  className="pointer-events-auto relative shrink-0 rounded-[1.2rem] bg-white p-[1.6rem] shadow-[0px_4px_16px_rgba(0,0,0,0.06)]"
                   style={{ width: MEGA_PROMO_W }}
                 >
                   <div
                     className="pointer-events-none absolute inset-0 rounded-[inherit] shadow-[inset_0px_4px_4px_0px_rgba(255,255,255,0.24),inset_0px_-0.9px_0px_0px_rgba(0,0,0,0.04)]"
                     aria-hidden="true"
                   />
-                  <div className="flex flex-col gap-2.5">
-                    <p className="text-2xl font-bold leading-[1.3] tracking-[-0.02em] text-ink">
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[1.3rem] font-bold leading-[1.3] tracking-[-0.026rem] text-ink">
                       {megaPromo.title}
                     </p>
-                    <p className="break-keep text-lg font-medium leading-[1.4] text-ink">
+                    <p className="break-keep text-[0.9rem] font-medium leading-[1.4] text-ink">
                       {megaPromo.subtitleLines[0]}
                       <br />
                       {megaPromo.subtitleLines[1]}
                     </p>
                   </div>
 
-                  <div className="relative mx-auto mt-8 h-[11.75rem] w-[17.625rem] overflow-hidden">
+                  <div className="relative mx-auto mt-[1.6rem] h-[9.4rem] w-[14.1rem] overflow-hidden">
                     <img
                       src={megaPromo.image}
                       alt=""
@@ -990,7 +1006,7 @@ export default function Header() {
                   <Link
                     to={megaPromo.ctaTo}
                     onClick={() => setActiveMega(null)}
-                    className="mt-8 flex items-center justify-center whitespace-nowrap rounded-2xl bg-primary px-15 py-6 text-xl font-semibold text-white transition hover:bg-[#012347]"
+                    className="mt-[1.6rem] flex items-center justify-center whitespace-nowrap rounded-2xl bg-primary px-[3rem] py-[1.2rem] text-base font-semibold text-white transition hover:bg-[#012347]"
                   >
                     {megaPromo.ctaLabel}
                   </Link>
