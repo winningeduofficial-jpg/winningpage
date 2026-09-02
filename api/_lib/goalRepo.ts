@@ -996,6 +996,15 @@ export function computeWorkbookStatus(
   return currentPage >= totalPages ? "done" : "reading";
 }
 
+/**
+ * "완독! 책장에 꽂기"(PUT {shelve:true})는 status='done'인 행에만 허용한다 — 페이지
+ * 진도가 100%에 못 미치는데 책장에 먼저 꽂히는 상태를 막는다(supabase/migrations/
+ * 20260902043539_goal_workbooks_shelved_at.sql 컬럼 코멘트와 동일 규약).
+ */
+export function canShelveWorkbook(status: unknown): boolean {
+  return status === "done";
+}
+
 /** 본인 문제집 전체 목록. 등록 순서(오래된 순)를 그대로 보존한다. */
 export async function fetchWorkbooks(
   supabaseAdmin: SupabaseClient,
@@ -1087,6 +1096,9 @@ export type WorkbookPayload = {
   totalPages: number | null;
   currentPage: number | null;
   status: unknown;
+  // "책장에 꽂기" 수동 전이(Figma 4026:6046) — null이면 status='done'이어도 아직
+  // BookStack으로 안 옮겨진 상태(공부 중인 책 목록에 "완독! 책장에 꽂기" 버튼과 함께 남는다).
+  shelvedAt: string | null;
 };
 
 /** DB 스네이크 → API 카멜. subject는 id 그대로 실어 보낸다(한글 라벨 변환은 프론트 subjectTokens.js 담당). */
@@ -1098,6 +1110,7 @@ export function buildWorkbookPayload(row: Row): WorkbookPayload {
     totalPages: num(row.total_pages),
     currentPage: num(row.current_page),
     status: row.status,
+    shelvedAt: row.shelved_at ?? null,
   };
 }
 

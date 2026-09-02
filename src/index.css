@@ -82,6 +82,22 @@
   --color-goal-subjectStrong-second_lang: #4dd0e1;
   --color-goal-subjectStrong-etc: #bcafa0;
 
+  /* "나의 노력" 카드 전용 색(Figma 4026:6046) — 진행바 채움/완독 버튼/책 스택 책등에
+     쓴다. 위 goal-subject(-Strong)*은 다른 화면(칩·타이머 카드)의 정본 색이라 그대로
+     쓰지 않는다 — 시안 실측값이 달라 별도 토큰으로 둔다. goal_workbooks 5종만
+     대상이라(WORKBOOK_SUBJECT_IDS) social/history/second_lang은 없다. etc는 시안에
+     없어 헤더 필 톤(보라 계열)을 자의적으로 골랐다(작업 보고 참고).  */
+  --color-goal-book-korean-light: #f7dad8;
+  --color-goal-book-korean-dark: #98504d;
+  --color-goal-book-math-light: #fbe0ce;
+  --color-goal-book-math-dark: #a16a42;
+  --color-goal-book-english-light: #f5ebcb;
+  --color-goal-book-english-dark: #9a843f;
+  --color-goal-book-science-light: #dceadf;
+  --color-goal-book-science-dark: #47745a;
+  --color-goal-book-etc-light: #e8dff4;
+  --color-goal-book-etc-dark: #6f5b8f;
+
   --color-goal-weekday-mon: #fce7ee;
   --color-goal-weekday-tue: #fdebdd;
   --color-goal-weekday-wed: #fdf6d8;

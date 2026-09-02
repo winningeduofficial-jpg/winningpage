@@ -17,10 +17,11 @@ import {
   deleteGoalWorkbook,
   fetchGoalTimer,
   fetchGoalWorkbooks,
+  shelveGoalWorkbook,
   updateGoalWorkbook,
 } from "@/lib/goalApi";
 
-// 나의 노력(#30 빈 / #32 채움) — docs/figma-goal/part-10.md·part-11.md.
+// 나의 노력 — Figma 4026:6046(디자이너 시안 재구현).
 // 실데이터 배선(mockEfforts 제거) — src/data/goalPlanMock.js의 mockEfforts/mockEffortsEmpty는
 // 더 이상 이 화면이 쓰지 않는다(디자인 참고용으로만 파일에 남겨둔다, 소비처 재확인 후 정리는
 // 이번 범위 밖).
@@ -52,12 +53,15 @@ type Workbook = {
   // api/_lib/goalRepo.js computeWorkbookStatus() 반환값 그대로("in_progress"가 아니라
   // "reading" — 이전 주석이 실제 서버 값과 어긋나 있었다).
   status: "reading" | "done" | string;
+  // "책장에 꽂기" 수동 전이(Figma 4026:6046) — null이면 status='done'이어도 아직
+  // BookStack으로 안 옮겨진 상태. 카드 그리드는 이제 status가 아니라 이 필드로
+  // "공부 중인 책"과 "완독 책장"을 나눈다.
+  shelvedAt: string | null;
 };
 
 export default function Efforts() {
   const [modalOpen, setModalOpen] = useState(false);
   const [presetSubject, setPresetSubject] = useState<string | null>(null);
-  const [editingWorkbook, setEditingWorkbook] = useState<Workbook | null>(null);
   const [workbooks, setWorkbooks] = useState<Workbook[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [addSubjectOpen, setAddSubjectOpen] = useState(false);
@@ -123,55 +127,37 @@ export default function Efforts() {
 
   function openModal(subjectLabel: string | null) {
     setPresetSubject(subjectLabel ?? null);
-    setEditingWorkbook(null);
-    setModalOpen(true);
-  }
-
-  function openEditModal(book: Workbook) {
-    setEditingWorkbook(book);
-    setPresetSubject(null);
     setModalOpen(true);
   }
 
   function closeModal() {
     setModalOpen(false);
     setPresetSubject(null);
-    setEditingWorkbook(null);
   }
 
-  // AddWorkbookModal의 onSubmit 계약: id가 있으면 진도 수정(PUT), 없으면 신규 등록(POST).
-  // false를 돌려주면 모달이 닫히지 않는다(제출 실패 시 입력을 잃지 않도록).
+  // AddWorkbookModal은 이제 신규 등록에만 쓴다(편집은 EffortWorkbookRow 인라인 입력으로
+  // 이동, 팀장 지시 — 시안에 별도 수정 모달이 없다). false를 돌려주면 모달이 닫히지
+  // 않는다(제출 실패 시 입력을 잃지 않도록).
   async function handleModalSubmit({
-    id,
     subject,
     title,
     currentPage,
     totalPage,
   }: {
-    id?: string | number;
     subject: string;
     title: string;
     currentPage: number;
     totalPage: number;
   }) {
-    const outcome = id
-      ? await updateGoalWorkbook({
-          // GoalWorkbook.id는 항상 DB 숫자 PK다 — 모달이 재사용 목적으로 넓게 잡은
-          // string|number 타입만 여기서 좁힌다.
-          id: id as number,
-          title,
-          currentPage,
-          totalPages: totalPage,
-        })
-      : await createGoalWorkbook({
-          subject,
-          title,
-          totalPages: totalPage,
-          currentPage,
-        });
+    const outcome = await createGoalWorkbook({
+      subject,
+      title,
+      totalPages: totalPage,
+      currentPage,
+    });
 
     if (outcome.kind !== "success") {
-      console.error("[Efforts] 문제집 저장 실패:", outcome);
+      console.error("[Efforts] 문제집 등록 실패:", outcome);
       return false;
     }
 
@@ -179,10 +165,30 @@ export default function Efforts() {
     return true;
   }
 
-  // AddWorkbookModal의 onDelete 계약 — deleteGoalWorkbook과 동일하게 실패 시 false를
-  // 돌려줘 모달이 닫히지 않게 한다(handleModalSubmit과 동일 규약, QA 행321).
+  // EffortWorkbookRow의 onUpdate 계약 — 제목/현재·전체 페이지 인라인 편집(blur/Enter)이
+  // 여기로 온다.
+  async function handleUpdateWorkbook(
+    id: string | number,
+    patch: { title?: string; currentPage?: number; totalPages?: number },
+  ) {
+    const outcome = await updateGoalWorkbook({
+      // GoalWorkbook.id는 항상 DB 숫자 PK다 — 행이 재사용 목적으로 넓게 잡은
+      // string|number 타입만 여기서 좁힌다.
+      id: id as number,
+      ...patch,
+    });
+
+    if (outcome.kind !== "success") {
+      console.error("[Efforts] 문제집 수정 실패:", outcome);
+      return false;
+    }
+
+    await loadWorkbooks();
+    return true;
+  }
+
+  // EffortWorkbookRow의 onDelete 계약 — 삭제도 이제 카드 인라인 ×에서 온다(QA 행321).
   async function handleDeleteWorkbook(id: string | number) {
-    // GoalWorkbook.id는 항상 DB 숫자 PK다(handleModalSubmit의 동일 주석 참고).
     const outcome = await deleteGoalWorkbook(id as number);
     if (outcome.kind !== "success") {
       console.error("[Efforts] 문제집 삭제 실패:", outcome);
@@ -193,8 +199,23 @@ export default function Efforts() {
     return true;
   }
 
+  // EffortWorkbookRow의 onShelve 계약 — "완독! 책장에 꽂기" 버튼(달성률 100%에서만
+  // 노출)이 호출한다. 서버가 status='done'이 아니면 400(validation-error)을 준다.
+  async function handleShelveWorkbook(id: string | number) {
+    const outcome = await shelveGoalWorkbook(id as number);
+    if (outcome.kind !== "success") {
+      console.error("[Efforts] 책장에 꽂기 실패:", outcome);
+      return false;
+    }
+
+    await loadWorkbooks();
+    return true;
+  }
+
+  // 완독 N권 카운터는 status가 아니라 shelvedAt 기준이다 — status='done'이지만 아직
+  // 책장에 안 꽂은 책은 세지 않는다(위 Workbook 타입 주석 참고).
   const totalCompleted = workbooks.filter(
-    (book) => book.status === "done",
+    (book) => book.shelvedAt !== null,
   ).length;
 
   return (
@@ -233,27 +254,26 @@ export default function Efforts() {
             const subjectBooks = workbooks.filter(
               (book) => book.subject === id,
             );
-            // 완독 책은 completed 카운터 + BookStack 시각화(completedBooks) 두 군데서
-            // 쓴다(QA 행282).
-            const completedBooks = subjectBooks.filter(
-              (book) => book.status === "done",
+            // 완독 책장(BookStack) = shelvedAt이 채워진 행만. status='done'인데 아직
+            // 안 꽂았으면 아래 registeredBooks 쪽에 완독 버튼과 함께 남는다.
+            const shelvedBooks = subjectBooks.filter(
+              (book) => book.shelvedAt !== null,
             );
-            // 목록은 "등록(공부 중인 책)"만 담는다 — 완독한 책은 completed 카운터/
-            // completedBooks로만 세고 진행 중 목록에서는 빠진다(goalPlanMock.js 옛 목업
-            // 주석의 등록/완독 분리 규약을 그대로 실데이터에 적용, part-11 §183).
             const registeredBooks = subjectBooks.filter(
-              (book) => book.status !== "done",
+              (book) => book.shelvedAt === null,
             );
 
             return (
               <EffortSubjectCard
                 key={id}
                 subject={label}
-                completed={completedBooks.length}
+                completed={shelvedBooks.length}
                 books={registeredBooks}
-                completedBooks={completedBooks}
+                completedBooks={shelvedBooks}
                 onAddBook={() => openModal(label)}
-                onEditBook={openEditModal}
+                onUpdateBook={handleUpdateWorkbook}
+                onDeleteBook={handleDeleteWorkbook}
+                onShelveBook={handleShelveWorkbook}
               />
             );
           })}
@@ -271,9 +291,7 @@ export default function Efforts() {
         open={modalOpen}
         onClose={closeModal}
         initialSubject={presetSubject}
-        editingWorkbook={editingWorkbook}
         onSubmit={handleModalSubmit}
-        onDelete={handleDeleteWorkbook}
       />
     </>
   );

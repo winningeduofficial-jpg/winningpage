@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { SUBJECT_IDS } from "../../../api/goal/workbooks";
 import {
+  getBookDarkBgClass,
+  getBookDarkTextClass,
+  getBookLightBgClass,
   getSubjectBgClass,
   getSubjectLabel,
   getSubjectStrongClass,
@@ -46,4 +49,20 @@ test("과목 색 클래스는 Tailwind가 스캔할 수 있는 리터럴이라 8
     expect(getSubjectStrongClass(id)).toBe(`bg-goal-subjectStrong-${id}`);
   }
   expect(getSubjectStrongClass("없는과목")).toBe("bg-goal-subjectStrong-etc");
+});
+
+// "나의 노력" 카드 전용 book 색 — WORKBOOK_SUBJECT_IDS 5종만 실제 토큰이 있고,
+// social/history/second_lang(워크북 미지원 3종)은 etc로 접혀야 한다.
+test("book 색 클래스는 WORKBOOK_SUBJECT_IDS 5종만 실제 리터럴을 돌려주고 나머지는 etc로 접힌다", () => {
+  for (const id of WORKBOOK_SUBJECT_IDS) {
+    expect(getBookLightBgClass(id)).toBe(`bg-goal-book-${id}-light`);
+    expect(getBookDarkBgClass(id)).toBe(`bg-goal-book-${id}-dark`);
+    expect(getBookDarkTextClass(id)).toBe(`text-goal-book-${id}-dark`);
+  }
+
+  for (const id of ["social", "history", "second_lang"]) {
+    expect(getBookLightBgClass(id)).toBe("bg-goal-book-etc-light");
+    expect(getBookDarkBgClass(id)).toBe("bg-goal-book-etc-dark");
+    expect(getBookDarkTextClass(id)).toBe("text-goal-book-etc-dark");
+  }
 });
