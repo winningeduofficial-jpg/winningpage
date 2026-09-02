@@ -34,6 +34,9 @@ type EffortWorkbookRowProps = {
   onShelve: (id: string | number) => Promise<boolean>;
 };
 
+/** 키 입력이 멈춘 뒤 자동 저장까지의 지연. */
+const AUTOSAVE_DELAY_MS = 600;
+
 export default function EffortWorkbookRow({
   book,
   subject,
@@ -79,6 +82,29 @@ export default function EffortWorkbookRow({
   }
   const lightBg = getBookLightBgClass(subject);
   const darkText = getBookDarkTextClass(subject);
+
+  // 자동 저장(사용자 확정 2026-09-02): 별도 저장 버튼 없이 입력이 멈추면 저장한다.
+  // blur/Enter 저장(commitTitle/commitPages)은 그대로 두되, 키 입력 후 일정 시간
+  // 지나면 먼저 저장해 "언제 저장되지?"가 없게 한다. 저장이 끝나면 부모가 새 book을
+  // 내려보내 위 useEffect가 상태를 맞추므로 여기서 되돌릴 건 실패 시뿐이다.
+  useEffect(() => {
+    const trimmed = title.trim();
+    if (!trimmed || trimmed === book.title) return;
+    const timer = window.setTimeout(() => {
+      void onUpdate(book.id, { title: trimmed });
+    }, AUTOSAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [title, book.id, book.title, onUpdate]);
+
+  useEffect(() => {
+    if (currentPage === "") return;
+    const next = Math.min(Math.max(Number(currentPage) || 0, 0), totalPages);
+    if (next === (book.currentPage ?? 0)) return;
+    const timer = window.setTimeout(() => {
+      void onUpdate(book.id, { currentPage: next });
+    }, AUTOSAVE_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [currentPage, totalPages, book.id, book.currentPage, onUpdate]);
 
   async function commitTitle() {
     const trimmed = title.trim();
@@ -197,12 +223,12 @@ export default function EffortWorkbookRow({
           className="h-7 w-15 rounded-md border border-dashed border-surface-01 bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus:outline-hidden"
         />
         <span className="text-[1rem] font-medium text-ink-natural">/</span>
-        <span
+        <output
           aria-label="전체 페이지"
           className="flex h-7 w-15 items-center rounded-md border border-surface-01 bg-goal-activePill px-2 text-[1rem] text-ink-sub"
         >
           {totalPages}
-        </span>
+        </output>
         <span className="ml-auto text-[0.75rem] text-ink-natural">{rate}%</span>
       </div>
 
