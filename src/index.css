@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "overlayscrollbars/overlayscrollbars.css";
 /*
   ---break---
 */
@@ -307,21 +308,30 @@ body {
   background: rgba(214, 176, 106, 0.26);
 }
 
-::-webkit-scrollbar {
-  width: 10px;
+/* 오버레이 스크롤바(overlayscrollbars) 공용 테마 — body 초기화(src/main.tsx)와
+   ScrollArea(src/components/ui/scroll-area.tsx)가 함께 참조하는 단일 테마다.
+   node_modules/overlayscrollbars/styles/overlayscrollbars.css의 .os-theme-dark/
+   .os-theme-light와 같은 방식(--os-* 커스텀 프로퍼티)으로 확장한다 — 예전
+   ::-webkit-scrollbar 4규칙(레이아웃 폭을 차지하는 네이티브 스크롤바)을 대체한다.
+   폭은 네이티브(10px)보다 얇은 0.5rem — 오버레이라 콘텐츠를 가리는 폭은 더 좁게 잡는다. */
+.os-theme-winning {
+  box-sizing: border-box;
+  --os-size: 0.5rem;
+  --os-padding-perpendicular: 0.125rem;
+  --os-padding-axis: 0.125rem;
+  --os-track-border-radius: 999px;
+  --os-handle-interactive-area-offset: 0.25rem;
+  --os-handle-border-radius: 999px;
+  --os-track-bg: transparent;
+  --os-handle-bg: #b8b1a2;
+  --os-handle-bg-hover: #0d1b2a;
+  --os-handle-bg-active: #0d1b2a;
 }
 
-::-webkit-scrollbar-track {
-  background: #f0eee8;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #b8b1a2;
-  border-radius: 999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #0d1b2a;
+/* 스크립트가 아직 초기화하지 못한 순간(느린 네트워크 등)이나 스크립트가 꺼진
+   환경을 위한 네이티브 폴백 — 오버레이 없이도 얇은 스크롤바를 보여준다. */
+html {
+  scrollbar-width: thin;
 }
 
 .site-dark-bg {
