@@ -196,11 +196,9 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
   },
   // 프리미엄 3종 — 4885:18466/18468/18470 실측(docs/services-cards-figma-2026-09.md, px÷16=rem).
   // 공통 "일러스트 박스" 144×180(9rem×11.25rem, lg 고정) 좌상단 기준 절대 배치로 전환
-  // (이전 중앙정렬 방식은 배지가 카드 모서리에 걸리고, cover 크롭이 세 일러스트 본체를
-  // 잘라내 시안(전체가 온전히 보임)과 어긋났다 — 2026-09-03 QA). 3장 모두 fit 미지정(기본
-  // object-contain)이라 본체가 잘리지 않는다. right는 박스 자체의 카드 우변 기준 오프셋
-  // (이미지가 아님), top/imgLeft는 박스 안 이미지 좌상단 오프셋, shadowLeft/Top은 박스 안
-  // 그림자 좌상단, badgeLeft/Top은 박스 안 배지 좌상단.
+  // (이전 중앙정렬 방식은 배지가 카드 모서리에 걸리고 성장설계 크롭이 깨졌었다 — 2026-09-03 QA).
+  // right는 박스 자체의 카드 우변 기준 오프셋(이미지가 아님), top/imgLeft는 박스 안 이미지
+  // 좌상단 오프셋, shadowLeft/Top은 박스 안 그림자 좌상단, badgeLeft/Top은 박스 안 배지 좌상단.
   // 성장설계 — 시안 프레임 107×120은 원본(1024×374, 가로로 넓은 이미지)을 세로로 늘린
   // 상태라 그대로 못 쓴다(contain 시 107×39px로 다른 카드 대비 1/3 크기가 됨 — 2026-09-03
   // 팀리드 브라우저 실측). 비율 유지로 폭 8.75rem(140px)까지 키우고 높이는 원본 비율
@@ -223,11 +221,9 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
     shadowTop: "8.5rem",
     shadowBottom: "1.1rem",
   },
-  // 컨설팅 프리미엄 — 이미지 프레임 130.274×115.663 ml13 mt28. 시안 % 크롭(215%×130%)은
-  // 원본 1704×923 캔버스의 투명 여백을 잘라내는 값이지 인물·테이블을 잘라내는 값이 아니다
-  // (시안 스크린샷 4885:18474엔 두 인물+테이블+말풍선 보드가 전부 온전히 보인다, 2026-09-03
-  // 팀리드 재검토) — object-cover 대신 contain으로 본체 잘림 없이 프레임에 맞춘다.
-  // 그림자 ml30 mt144. 배지 박스 기준 (39, 122) — 일러스트 하단에 겹치는 위치(카드 모서리 아님).
+  // 컨설팅 프리미엄 — 이미지 130.274×115.663 ml13 mt28. 원본 1704×923을 215%×130%로 확대해
+  // 원장(가운데 오른쪽)을 잘라 보여준다 → 크롭 창 중심 약 (55%, 43%). 그림자 ml30 mt144.
+  // 배지 박스 기준 (39, 122) — 일러스트 하단에 겹치는 위치(카드 모서리 아님).
   {
     boxW: "9rem",
     boxH: "11.25rem",
@@ -237,17 +233,17 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
     top: "1.75rem",
     imgLeft: "0.8125rem",
     rotate: "0deg",
-    position: "50% 50%",
     shadowW: "6.3125rem",
     shadowH: "1.375rem",
     shadowLeft: "1.875rem",
     shadowTop: "9rem",
     shadowBottom: "1.1rem",
+    fit: "cover",
+    position: "55% 43%",
     badgeLeft: "2.4375rem",
     badgeTop: "7.625rem",
   },
-  // 국제·해외 프리미엄 — 이미지 프레임 124×120.737 ml20 mt28. 원본 정방형(1254×1254) —
-  // 컨설팅과 동일 이유로 cover 크롭 대신 contain(지구본+비행기+핀 전체가 시안에 온전히 보임).
+  // 국제·해외 프리미엄 — 이미지 124×120.737 ml20 mt28. 원본 정방형, 크롭 109%×112%(중심 50/50%).
   // 그림자 ml32 mt144. 배지 박스 기준 (42, 122).
   {
     boxW: "9rem",
@@ -258,6 +254,7 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
     top: "1.75rem",
     imgLeft: "1.25rem",
     rotate: "0deg",
+    fit: "cover",
     position: "50% 50%",
     shadowW: "6.3125rem",
     shadowH: "1.375rem",
