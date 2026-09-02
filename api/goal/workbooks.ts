@@ -29,7 +29,9 @@ import { sendError } from "../_lib/httpResponse.js";
 export const config = { runtime: "nodejs" };
 
 // sql/76_goal_workbooks.sql goal_workbooks_subject_check와 정확히 같은 5종.
-const SUBJECT_IDS = ["korean", "math", "english", "science", "etc"];
+// export: src/components/goal/subjectTokens.ts WORKBOOK_SUBJECT_IDS와의 parity
+// 테스트(subjectTokens.test.ts)가 이 배열을 그대로 가져다 비교한다.
+export const SUBJECT_IDS = ["korean", "math", "english", "science", "etc"];
 
 const TITLE_MAX_LENGTH = 100;
 // 페이지 수 상한 — 실제 문제집 규모를 훨씬 웃도는 값으로 여유를 두되, 오입력(자릿수

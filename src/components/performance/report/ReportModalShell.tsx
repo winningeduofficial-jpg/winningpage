@@ -2,6 +2,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import type { ReactNode, RefObject } from "react";
 import { useRef } from "react";
 import { useReactToPrint } from "react-to-print";
+import { REPORT_PRINT_PAGE_BASE_STYLE } from "@/lib/report/printPageStyle";
 
 // 대형 리포트 모달의 **껍데기** — docs/수행평가-상세-명세.md §5.13(`3754:4722` 설계 리포트) /
 // §5.16(`3754:4512` 평가 리포트) 공통.
@@ -179,20 +180,14 @@ export default function ReportModalShell({
   );
 }
 
-// @page 여백 + 고정 높이/내부 스크롤 → 문서 흐름 전환. react-to-print가 문서의 다른
-// 스타일시트(Tailwind 빌드 산출물 + `PerformanceReportSurface`의 인라인 `<style>`)를 그대로
-// iframe에 복사하므로, 여기서는 그 규칙들이 못 미치는 크롬 쪽 나머지만 채운다. 색 정규화
-// 기본값(`react-to-print` 기본 `pageStyle`에 포함된 `print-color-adjust: exact`)은 이
-// `pageStyle`이 기본값을 완전히 대체하므로 여기서 다시 선언한다.
+// 고정 높이/내부 스크롤 → 문서 흐름 전환. react-to-print가 문서의 다른 스타일시트
+// (Tailwind 빌드 산출물 + `PerformanceReportSurface`의 인라인 `<style>`)를 그대로 iframe에
+// 복사하므로, 여기서는 그 규칙들이 못 미치는 크롬 쪽 나머지만 채운다. `@page` 여백 +
+// 색 정규화 베이스는 `REPORT_PRINT_PAGE_BASE_STYLE`(공용, `src/lib/report/printPageStyle.ts`)
+// 이 두 화면(이 모달 + 목표관리 성장 리포트)을 위해 갖고, 이 상수는 그 뒤에 모달
+// 크롬 전용 규칙만 이어붙인다.
 const PRINT_PAGE_STYLE = `
-  @page { margin: 15mm; }
-  @media print {
-    body {
-      color-adjust: exact;
-      print-color-adjust: exact;
-      -webkit-print-color-adjust: exact;
-    }
-  }
+  ${REPORT_PRINT_PAGE_BASE_STYLE}
   /* 인셋은 @page 여백(15mm)이 대신한다. **헤더와 본문을 같이 걷는다** — 본문만 0으로
      만들면 제목·부제만 좌측으로 들여쓰인 채 남아 좌측 정렬이 어긋난다. */
   .performance-report-head,

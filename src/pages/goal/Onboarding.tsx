@@ -14,6 +14,7 @@ import {
   useGoalOnboarding,
 } from "@/context/GoalOnboardingContext";
 import { submitGoalIntake } from "@/lib/goalApi";
+import { queryClient } from "@/lib/queryClient";
 
 // 목표관리 온보딩 7단계 위저드 — docs/figma-goal/00-INDEX.md §3 G1 / §4-1.
 // 라우트 계약(다른 에이전트가 App.jsx에 배선): `/app/goal/onboarding/:step` → 이 파일.
@@ -138,6 +139,10 @@ function OnboardingWizard() {
         0,
         CALCULATING_DURATION_MS - (Date.now() - startedAt),
       );
+      // 진입 가드(isOnboardingDone)가 ['goal','student'] 캐시를 stale-while-
+      // revalidate로 통과시키므로, 방금 저장된 "온보딩 완료"를 캐시가 모르는 채
+      // 대시보드로 가면 step-1로 되돌아온다. 이동 전에 명시 무효화한다.
+      await queryClient.invalidateQueries({ queryKey: ["goal", "student"] });
       window.setTimeout(() => {
         resetOnboardingFlow();
         navigate("/app/goal");

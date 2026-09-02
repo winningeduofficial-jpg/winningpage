@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
+import { useRef } from "react";
+import { useReactToPrint } from "react-to-print";
 import GoalTabs from "@/components/goal/GoalTabs";
+import { REPORT_PRINT_PAGE_BASE_STYLE } from "@/lib/report/printPageStyle";
 import AdmissionChanceCard from "./AdmissionChanceCard";
 import ConditionListCard from "./ConditionListCard";
 import ConditionTileCard from "./ConditionTileCard";
@@ -7,6 +10,7 @@ import CoreItemsCard from "./CoreItemsCard";
 import DistractionCard from "./DistractionCard";
 import ExpectedEffectCard from "./ExpectedEffectCard";
 import GoalAchievementCard from "./GoalAchievementCard";
+import { buildGoalReportFileName } from "./goalReportFileName";
 import LearningTypeCard from "./LearningTypeCard";
 import MentorCommentCard from "./MentorCommentCard";
 import ReportHeroCard from "./ReportHeroCard";
@@ -141,111 +145,140 @@ export default function GrowthReportBody({
   const { overview, execution, outcome, strategy, mentorComment, admission } =
     report;
 
+  // PDF 저장(QA 행319) — 수행평가 리포트 모달과 같은 react-to-print(iframe 격리) 패턴을
+  // 재사용한다(`ReportModalShell.tsx`). 이 페이지는 모달이 아니라 전체 페이지라 딤·포털이
+  // 필요 없고, 인쇄 대상만 `contentRef`로 감싼다 — 탭/버튼 툴바는 그 밖에 두어 인쇄에서
+  // 자연히 빠진다(사이드바는 애초에 이 컴포넌트의 형제 노드라 별도 처리가 필요 없다,
+  // `GoalAppLayout.tsx`). 베이스 인쇄 스타일(`@page` 여백 + 색 보존)은 두 화면이 공유하는
+  // `REPORT_PRINT_PAGE_BASE_STYLE`을 그대로 쓴다 — 모달 크롬 규칙이 없어 이 페이지는
+  // 추가로 이어붙일 규칙도 없다(카드들은 전부 div 기반 CSS 바/게이지라 SVG/canvas 대체
+  // 문제 자체가 없다).
+  const contentRef = useRef<HTMLDivElement>(null);
+  const print = useReactToPrint({
+    contentRef,
+    pageStyle: REPORT_PRINT_PAGE_BASE_STYLE,
+    documentTitle: buildGoalReportFileName({
+      period,
+      periodLabel: report.periodLabel,
+    }),
+  });
+
   return (
     <div className="max-w-goal-content px-12 pb-24 pt-perf-inset">
-      <GoalTabs
-        tabs={PERIOD_TABS}
-        value={period}
-        onChange={onPeriodChange}
-        ariaLabel="리포트 기간"
-        gap="1.875rem"
-      />
-
-      <div className="mt-6 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">
-          {report.heading}
-        </h1>
-        <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">
-          {report.periodLabel}
-        </span>
-      </div>
-
-      <div className="mt-6">
-        <ReportHeroCard
-          narrative={report.hero.narrative}
-          kpis={report.hero.kpis}
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <GoalTabs
+          tabs={PERIOD_TABS}
+          value={period}
+          onChange={onPeriodChange}
+          ariaLabel="리포트 기간"
+          gap="1.875rem"
         />
+        <button
+          type="button"
+          onClick={print}
+          className="flex h-9 shrink-0 items-center rounded-lg border border-line px-4 text-[0.8125rem] font-semibold leading-[1.2] text-ink-strong transition-colors hover:bg-surface-04"
+        >
+          PDF 저장
+        </button>
       </div>
 
-      <div className="mt-10 flex flex-col gap-10">
-        <ReportSection label={overview.label} subLabel={overview.subLabel}>
-          {/* Row1 — 비균등 3열. 시안 실측 372/720/196을 그대로 고정폭 쓰지 않고 가운데 칸을
-              fr로 흘려보내 콘텐츠 우측 끝까지 재배분한다(결함8: 월간 Row1 우측 끝 1414 미정렬 수정). */}
-          <div className="grid grid-cols-1 gap-5 lg:grid-cols-[23.25rem_1fr_12.25rem]">
-            <GoalAchievementCard
-              title={overview.achievement.title}
-              variant={period}
-              rows={overview.achievement.rows}
-              weeks={overview.achievement.weeks}
-            />
-            <StudyTimeBarChartCard
-              title={overview.studyTime.title}
-              bars={overview.studyTime.bars}
-              unit={overview.studyTime.unit}
-            />
-            <ConditionListCard
-              title={overview.condition.title}
-              rows={overview.condition.rows}
-            />
-          </div>
-        </ReportSection>
+      <div ref={contentRef}>
+        <div className="mt-6 flex flex-wrap items-baseline gap-3">
+          <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">
+            {report.heading}
+          </h1>
+          <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">
+            {report.periodLabel}
+          </span>
+        </div>
 
-        <ReportSection label={execution.label} subLabel={execution.subLabel}>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            <SubjectShareCard {...execution.subjectShare} />
-            <TimeSlotEfficiencyCard
-              title={execution.timeSlot.title}
-              rows={execution.timeSlot.rows}
-              tip={execution.timeSlot.tip}
-            />
-            <DistractionCard
-              title={execution.distraction.title}
-              rows={execution.distraction.rows}
-              tip={execution.distraction.tip}
-            />
-          </div>
-        </ReportSection>
-
-        <ReportSection label={outcome.label} subLabel={outcome.subLabel}>
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-            <CoreItemsCard
-              title={outcome.coreItems.title}
-              rows={outcome.coreItems.rows}
-              tip={outcome.coreItems.tip}
-            />
-            <ConditionTileCard
-              title={outcome.conditionTiles.title}
-              tiles={outcome.conditionTiles.tiles}
-              tip={outcome.conditionTiles.tip}
-            />
-            <AdmissionChanceCard
-              title={outcome.admission.title}
-              data={admission}
-            />
-          </div>
-        </ReportSection>
-
-        {period === "monthly" && strategy && (
-          <ReportSection label={strategy.label} subLabel={strategy.subLabel}>
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[15rem_1fr_27rem]">
-              <LearningTypeCard {...strategy.learningType} />
-              <StrategyListCard {...strategy.plan} />
-              <ExpectedEffectCard {...strategy.expectedEffect} />
-            </div>
-          </ReportSection>
-        )}
-      </div>
-
-      {/* 멘토가 이 기간에 아직 코멘트를 쓰지 않았으면(goal_mentor_comments 행 없음) 카드
-          자체를 렌더하지 않는다(팀장 확정 "리포트에서 코멘트 행 없으면 멘토 카드 자체 미렌더"). */}
-      {mentorComment && (
-        <div className="mt-10">
-          <MentorCommentCard
-            dateLabel={mentorComment.dateLabel}
-            body={mentorComment.body}
+        <div className="mt-6">
+          <ReportHeroCard
+            narrative={report.hero.narrative}
+            kpis={report.hero.kpis}
           />
         </div>
-      )}
+
+        <div className="mt-10 flex flex-col gap-10">
+          <ReportSection label={overview.label} subLabel={overview.subLabel}>
+            {/* Row1 — 비균등 3열. 시안 실측 372/720/196을 그대로 고정폭 쓰지 않고 가운데 칸을
+              fr로 흘려보내 콘텐츠 우측 끝까지 재배분한다(결함8: 월간 Row1 우측 끝 1414 미정렬 수정). */}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-[23.25rem_1fr_12.25rem]">
+              <GoalAchievementCard
+                title={overview.achievement.title}
+                variant={period}
+                rows={overview.achievement.rows}
+                weeks={overview.achievement.weeks}
+              />
+              <StudyTimeBarChartCard
+                title={overview.studyTime.title}
+                bars={overview.studyTime.bars}
+                unit={overview.studyTime.unit}
+              />
+              <ConditionListCard
+                title={overview.condition.title}
+                rows={overview.condition.rows}
+              />
+            </div>
+          </ReportSection>
+
+          <ReportSection label={execution.label} subLabel={execution.subLabel}>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+              <SubjectShareCard {...execution.subjectShare} />
+              <TimeSlotEfficiencyCard
+                title={execution.timeSlot.title}
+                rows={execution.timeSlot.rows}
+                tip={execution.timeSlot.tip}
+              />
+              <DistractionCard
+                title={execution.distraction.title}
+                rows={execution.distraction.rows}
+                tip={execution.distraction.tip}
+              />
+            </div>
+          </ReportSection>
+
+          <ReportSection label={outcome.label} subLabel={outcome.subLabel}>
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+              <CoreItemsCard
+                title={outcome.coreItems.title}
+                rows={outcome.coreItems.rows}
+                tip={outcome.coreItems.tip}
+              />
+              <ConditionTileCard
+                title={outcome.conditionTiles.title}
+                tiles={outcome.conditionTiles.tiles}
+                tip={outcome.conditionTiles.tip}
+              />
+              <AdmissionChanceCard
+                title={outcome.admission.title}
+                data={admission}
+              />
+            </div>
+          </ReportSection>
+
+          {period === "monthly" && strategy && (
+            <ReportSection label={strategy.label} subLabel={strategy.subLabel}>
+              <div className="grid grid-cols-1 gap-5 lg:grid-cols-[15rem_1fr_27rem]">
+                <LearningTypeCard {...strategy.learningType} />
+                <StrategyListCard {...strategy.plan} />
+                <ExpectedEffectCard {...strategy.expectedEffect} />
+              </div>
+            </ReportSection>
+          )}
+        </div>
+
+        {/* 멘토가 이 기간에 아직 코멘트를 쓰지 않았으면(goal_mentor_comments 행 없음) 카드
+            자체를 렌더하지 않는다(팀장 확정 "리포트에서 코멘트 행 없으면 멘토 카드 자체 미렌더"). */}
+        {mentorComment && (
+          <div className="mt-10">
+            <MentorCommentCard
+              dateLabel={mentorComment.dateLabel}
+              body={mentorComment.body}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

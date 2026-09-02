@@ -5,17 +5,21 @@
 //   fail    — 텍스트 회색 + 취소선 + 빨강, 체크 버튼 연초록 아웃라인, X 버튼 빨강 채움(활성)
 //   pending — 텍스트 진한 검정, 체크/X 둘 다 연한 아웃라인
 //
-// ✓/✕는 실 데이터 배선 이후 실제 액션이다(임무 지시 "단계 E" 배선 절) — ✓는 완료 토글
-// (PUT), ✕는 삭제(DELETE)다. goal_plan_tasks 스키마(sql/75)에는 done boolean만 있고 "미실행
-// (fail)" 상태에 대응하는 컬럼이 없다 — 그래서 실데이터 소비처(StudyPlanRail.jsx)는 status를
-// done/pending 2종만 만든다. fail 렌더링·prop 계약 자체는 지우지 않는다(향후 기한 초과 판정
-// 등으로 자연스럽게 채울 수 있는 자리이고, 이 컴포넌트만 보면 상태 3종 스펙이 그대로 읽혀야
-// 한다). onCheck/onDelete가 없으면(prop 미지정) 버튼은 조용히 no-op이다.
+// ✓/✕는 실 데이터 배선 액션이다 — ✓는 done↔pending 토글, ✕는 fail↔pending 토글이다
+// (goal_plan_tasks.status 3상태, QA 행305). 둘 다 PUT(status 전환)이고 DELETE가 아니다 —
+// "미달성 표시"는 삭제가 아니라 상태 전환이라는 게 이번 수정의 핵심이다. 다음 status
+// 계산은 src/lib/goalPlanUtils.ts의 nextPlanTaskStatus(순수 함수, 테스트됨)가 하고, 이
+// 컴포넌트는 그 결과로 이미 갱신된 status를 그대로 렌더만 한다. onCheck/onFail이 없으면
+// (prop 미지정) 버튼은 조용히 no-op이다.
 //
 // 접근성(코드 검수 §3): ✓/✕ 인디케이터가 둘 다 aria-hidden이고 done/fail이 색+line-through로만
 // 구분돼 스크린리더에선 동일하게 읽혔다. 상태 텍스트를 sr-only로 노출하고, done/fail을 시각적으로도
 // 구분한다(fail은 취소선 대신 빨간 텍스트). 표시 전용 span을 실제 버튼으로 승격하며 aria-label을
-// 추가해 액션의 의미(완료 처리/취소, 삭제)를 아이콘이 아니라 텍스트로도 전달한다.
+// 추가해 액션의 의미(완료 처리/취소, 미달성 처리/취소)를 아이콘이 아니라 텍스트로도 전달한다.
+//
+// 행284 BUG 수정: X 버튼이 비활성(pending/done)일 때 글리프가 text-transparent라 아예
+// 안 보여 장식 무늬처럼 보였다("클릭하면 사라짐" QA 오인의 실제 원인) — 테두리와 같은
+// 톤의 옅은 텍스트 색으로 바꿔 항상 눈에 보이는 X로 렌더한다.
 const struck: Record<string, boolean> = {
   done: true,
   fail: false,
@@ -32,7 +36,7 @@ type GoalChecklistRowProps = {
   text?: string;
   status?: "done" | "fail" | "pending";
   onCheck?: () => void;
-  onDelete?: () => void;
+  onFail?: () => void;
 };
 
 export default function GoalChecklistRow({
@@ -40,7 +44,7 @@ export default function GoalChecklistRow({
   text,
   status = "pending",
   onCheck,
-  onDelete,
+  onFail,
 }: GoalChecklistRowProps) {
   const isDone = status === "done";
   const isFail = status === "fail";
@@ -76,12 +80,13 @@ export default function GoalChecklistRow({
         </button>
         <button
           type="button"
-          onClick={onDelete}
-          aria-label="과제 삭제"
+          onClick={onFail}
+          aria-label={isFail ? "미달성 취소" : "미달성 처리"}
+          aria-pressed={isFail}
           className={`flex h-5 w-5 items-center justify-center rounded-md border text-[0.625rem] font-bold transition-colors ${
             isFail
               ? "border-transparent bg-error text-white"
-              : "border-[#F3C4C4] text-transparent"
+              : "border-[#F3C4C4] text-error/60"
           }`}
         >
           ✕

@@ -462,7 +462,11 @@ export async function fetchTimerSessionsInRange(
   return (data as Row[]) || [];
 }
 
-/** goal_plan_tasks — profile_id 1건, plan_date 구간 전량(D3 완성도 계획 축). */
+/**
+ * goal_plan_tasks — profile_id 1건, plan_date 구간 전량(D3 완성도 계획 축 +
+ * 행305 달성/미달성/미기록 집계). 단일 원본은 status — done은 하위 호환
+ * 파생값이라 함께 선택은 하되 집계는 항상 status 기준으로 한다.
+ */
 export async function fetchPlanTasksInRange(
   supabaseAdmin: SupabaseClient,
   profileId: string,
@@ -471,7 +475,7 @@ export async function fetchPlanTasksInRange(
 ): Promise<Row[]> {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
-    .select("done")
+    .select("status, done")
     .eq("profile_id", profileId)
     .gte("plan_date", fromYmd)
     .lte("plan_date", toYmd);
@@ -777,18 +781,30 @@ export async function deletePlanTask(
   return Boolean(data);
 }
 
+export type PlanTaskStatus = "pending" | "done" | "fail";
+
+/** status 컬럼 값을 3종으로 좁힌다 — 알 수 없는/누락 값은 pending으로 방어한다. */
+export function normalizePlanTaskStatus(value: unknown): PlanTaskStatus {
+  return value === "done" || value === "fail" ? value : "pending";
+}
+
 export type PlanTaskPayload = {
   id: unknown;
   planDate: string | null;
   title: unknown;
   subject: string;
   durationMinutes: number;
+  status: PlanTaskStatus;
   done: boolean;
   sortOrder: number;
 };
 
-/** goal_plan_tasks 행 → API 카멜 케이스. subject 는 한글 라벨로 되돌린다. */
+/**
+ * goal_plan_tasks 행 → API 카멜 케이스. subject 는 한글 라벨로 되돌린다.
+ * status가 단일 원본, done은 status에서 파생한 하위 호환 값(QA 행305).
+ */
 export function buildPlanTaskPayload(row: Row): PlanTaskPayload {
+  const status = normalizePlanTaskStatus(row.status);
   return {
     id: row.id,
     planDate: ymd(row.plan_date),
@@ -796,7 +812,8 @@ export function buildPlanTaskPayload(row: Row): PlanTaskPayload {
     subject:
       SUBJECT_CODE_TO_LABEL[row.subject as string] || (row.subject as string),
     durationMinutes: num(row.duration_minutes) ?? 0,
-    done: Boolean(row.done),
+    status,
+    done: status === "done",
     sortOrder: num(row.sort_order) ?? 0,
   };
 }

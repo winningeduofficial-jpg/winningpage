@@ -147,7 +147,8 @@ const DAILY_SCHEDULE_LIMITS = {
 };
 
 const NAME_MAX_LENGTH = 100;
-const STUDY_HOURS_MAX = 24;
+// QA 행290 — 0.1시간 단위 직접 입력(SliderRow.tsx round2) 회귀 테스트가 참조하도록 export.
+export const STUDY_HOURS_MAX = 24;
 
 // ---------------------------------------------------------------------------
 // 입력 검증 — 클라이언트 값을 하나도 믿지 않는다
@@ -199,7 +200,10 @@ function normalizeGrade(raw: unknown) {
   return String(Number(raw));
 }
 
-function isValidHours(raw: unknown, max: number) {
+// QA 행290 — 정수만 받는지 확인 요청이 있었으나, 이미 Number.isInteger 제약이 없어
+// 0.1시간 단위(round2) 입력을 그대로 통과시킨다. export는 그 사실을 회귀 테스트로
+// 고정하기 위함(intake.studyHours.test.ts).
+export function isValidHours(raw: unknown, max: number) {
   if (!isNumericInput(raw)) return false;
   const num = Number(raw);
   return Number.isFinite(num) && num >= 0 && num <= max;
