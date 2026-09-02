@@ -34,9 +34,17 @@ export default function Step6StudyHours({
               label={label}
               value={studyHours[key]!}
               onChange={(value) => setStudyHour(key, value)}
+              step={0.1}
             />
           ))}
         </div>
+
+        {/* QA 행290 — 산정식 안내. 표시 시간(h)이 실제로는 "총 공부시간(분) ÷ 60"을
+            소수 둘째 자리까지 반올림한 값이라는 것을 밝힌다(round2, SliderRow.tsx). */}
+        <p className="mt-4 text-[0.8125rem] leading-[1.4] text-ink-sub">
+          입력한 시간은 총 공부시간(분) ÷ 60, 소수 둘째 자리 반올림으로
+          계산돼요.
+        </p>
       </QuestionCard>
 
       <WizardActions
