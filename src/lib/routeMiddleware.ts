@@ -10,6 +10,7 @@ import { isOnboardingDone } from "./goalOnboarding";
 import { markProgramEntry } from "./programEntry";
 import { entitlementQueryOptions, queryClient } from "./queryClient";
 import { getCached, setCached } from "./routeMiddlewareCache";
+import { resolveStaleWhileRevalidate } from "./staleWhileRevalidateQuery";
 import { supabase } from "./supabase";
 
 // 라우트 미들웨어(future.v8_middleware) 이관본 — 기존 ProtectedRoute.jsx /
@@ -197,9 +198,19 @@ export const requireAdminMiddleware: MiddlewareFunction = async ({
 // queryClient(entitlementQueryOptions, staleTime 15초)가 맡는다 — Dashboard.tsx가
 // 소비하는 useQuery(['entitlement', userId, 'goal'])와 같은 키를 공유해야 "이
 // 미들웨어가 이미 물어본 값"을 화면이 다시 조회하지 않는다(명세 B-2 §5).
-// ensureQueryData는 캐시가 fresh하면 네트워크를 타지 않고, 없거나 stale이면
-// 조회 후 캐싱한다. queryKey에 user.id를 넣는 이유는 queryClient.ts 상단 주석
-// (리뷰 C1) 참고 — 계정 전환 시 캐시 오염을 막는다.
+// queryKey에 user.id를 넣는 이유는 queryClient.ts 상단 주석(리뷰 C1) 참고 —
+// 계정 전환 시 캐시 오염을 막는다.
+//
+// 2026-09-02: ensureQueryData 단독 호출 → resolveStaleWhileRevalidate로 교체
+// (staleWhileRevalidateQuery.ts 헤더 주석, goal-mapping.md 행296·297 원인) —
+// React Router v8 Data Mode는 이 middleware를 소프트 내비게이션마다 재실행하는데
+// (routeMiddlewareCache.ts 상단 주석), staleTime(15초) 경과 후 이동하면
+// ensureQueryData가 서버리스 콜드 스타트까지 그대로 기다려 목표관리 내 메뉴
+// 이동이 실측 2.5초 이상 멈춘 것처럼 보였다. 캐시에 이전 성공 판정이 있으면
+// (fresh/stale 무관) 그 값으로 즉시 라우트를 통과시키고, 재검증은 fetchQuery로
+// 백그라운드에서 진행한다 — 판정이 "허용→거부"로 뒤집혀도 그 결과는 다음 이동
+// 부터만 반영된다(자의적 판단, staleWhileRevalidateQuery.ts 헤더 주석 참고).
+// 캐시가 아예 없는 첫 진입(하드 로드)은 기존과 동일하게 블로킹 조회한다.
 export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
   request,
 }) => {
@@ -236,7 +247,8 @@ export const requireGoalAccessMiddleware: MiddlewareFunction = async ({
   // 여기서 잡아 기존과 동일한 RouteCheckFailedError("entitlement")로 변환한다.
   let allowed: boolean;
   try {
-    const entitlement = await queryClient.ensureQueryData(
+    const entitlement = await resolveStaleWhileRevalidate(
+      queryClient,
       entitlementQueryOptions("goal", user.id),
     );
     allowed = entitlement.allowed === true;

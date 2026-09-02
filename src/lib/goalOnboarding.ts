@@ -12,6 +12,7 @@
 // 않는다. Onboarding.jsx의 handleFinish()도 더 이상 markOnboardingDone()을 호출하지
 // 않는다(서버가 진실이므로 클라이언트 완료 플래그를 세울 이유가 없다).
 import { goalStudentQueryOptions, queryClient } from "./queryClient";
+import { resolveStaleWhileRevalidate } from "./staleWhileRevalidateQuery";
 
 const ONBOARDING_DONE_KEY = "winning-goal-onboarding-done-v1";
 
@@ -40,10 +41,17 @@ const FAKE_ONBOARDING_DONE_ENABLED =
 //     그 판정은 1・2단계의 책임이므로 이 함수는 세 경우 모두 null로 접어 호출부가
 //     재시도 UI로 연결하게 한다(false로 단정하지 않는다).
 // GET /api/goal/student 조회는 queryClient(entitlementQueryOptions와 같은 계열,
-// src/lib/queryClient.ts)의 ensureQueryData를 거친다 — requireGoalOnboardingDoneMiddleware와
+// src/lib/queryClient.ts)를 거친다 — requireGoalOnboardingDoneMiddleware와
 // Dashboard.tsx가 같은 ['goal','student', userId] 캐시를 공유해야 goal 진입 시 이
 // 엔드포인트가 한 번만 불린다(명세 B-2 §5·§7, 캐시 키의 userId는 리뷰 C1). userId는
 // 호출부(requireGoalOnboardingDoneMiddleware)가 이미 확인한 세션에서 넘겨받는다.
+//
+// 2026-09-02: ensureQueryData 단독 호출 → resolveStaleWhileRevalidate로 교체
+// (staleWhileRevalidateQuery.ts 헤더 주석) — 목표관리 내 메뉴 이동이 staleTime
+// (15초) 경과 후 매번 서버 응답을 기다려 수 초씩 멈추던 문제(goal-mapping.md
+// 행296·297) 대응. 캐시에 이전 성공 값이 있으면 그 값으로 즉시 통과시키고
+// 재검증은 백그라운드에서 진행한다 — 이 함수의 반환 계약(true|false|null)은
+// 바뀌지 않는다(캐시된 마지막 성공 판정을 그대로 매핑할 뿐).
 //
 // ⚠️ fetchGoalStudent() 자체의 discriminated union 계약(예외를 던지지 않음)은
 // 그대로다 — 다만 queryClient.ts의 goalStudentQueryOptions가 kind:'error'만은
@@ -53,7 +61,8 @@ export async function isOnboardingDone(userId: string) {
   if (FAKE_ONBOARDING_DONE_ENABLED) return true;
 
   try {
-    const result = await queryClient.ensureQueryData(
+    const result = await resolveStaleWhileRevalidate(
+      queryClient,
       goalStudentQueryOptions(userId),
     );
 
