@@ -97,6 +97,10 @@ type IllustrationLayout = {
   shadowW: string;
   shadowH: string;
   shadowBottom: string;
+  /** 시안(4885:18474)이 원본을 잘라 쓰는 카드(프리미엄 3종)만 "cover" — 기본은 contain. */
+  fit?: "cover";
+  /** fit="cover"일 때 object-position. 시안 크롭 창의 중심을 %로 옮긴 값. */
+  position?: string;
 };
 
 /* 카드별 일러스트 배치 (lg 전용) — 0729 시안(2207:12970, 1100 캔버스, 카드 상대좌표) 실측(px÷16=rem).
@@ -180,39 +184,48 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
     shadowH: "1.49rem",
     shadowBottom: "1.19rem",
   },
-  // 성장설계 — 신규(4885:18474, 144×180 일러스트 영역 실측 대체). 원본 600×219(가로형)라
-  // 본체는 낮고 넓게, 세로 중앙에 가깝게 배치.
+  // 프리미엄 3종 — 4885:18474 실측(px÷16=rem). 시안은 가로형 원본을 카드 안에서 잘라(cover)
+  // 세로로 크게 보여준다 — 이전 contain 배치는 원본 비율대로 납작해져 시안보다 작게 보였다
+  // (QA 시트 행 244 "박스 크기 > 원장님 팔 영역까지", 2026-09-02). right는 카드 우변 기준.
+  // 성장설계 — 시안 107×120 / top 26 / right 45. 원본 1024×374, 시안 object-bottom 크롭.
   {
-    boxW: "8.5rem",
-    w: "8.5rem",
-    h: "3.1rem",
-    right: "2.2rem",
-    top: "3.4rem",
-    rotate: "0deg",
-    shadowW: "7rem",
-    shadowH: "1.49rem",
-    shadowBottom: "1.1rem",
-  },
-  // 컨설팅 프리미엄 — 신규. 원본 600×325.
-  {
-    boxW: "8rem",
-    w: "8rem",
-    h: "4.33rem",
-    right: "2.5rem",
-    top: "2.1rem",
-    rotate: "0deg",
-    shadowW: "7rem",
-    shadowH: "1.49rem",
-    shadowBottom: "1.1rem",
-  },
-  // 국제·해외 프리미엄 — 신규. 원본 600×600(정방형).
-  {
-    boxW: "7.5rem",
-    w: "7.5rem",
+    boxW: "6.69rem",
+    w: "6.69rem",
     h: "7.5rem",
-    right: "2.75rem",
-    top: "1.7rem",
+    right: "2.81rem",
+    top: "1.63rem",
     rotate: "0deg",
+    shadowW: "7rem",
+    shadowH: "1.49rem",
+    shadowBottom: "1.1rem",
+    fit: "cover",
+    position: "50% 100%",
+  },
+  // 컨설팅 프리미엄 — 시안 130×116 / top 28 / right 27. 원본 1704×923을 시안이 215%×130%로
+  // 확대해 원장(가운데 오른쪽)을 잘라 보여준다 → 크롭 창 중심 약 (55%, 43%).
+  {
+    boxW: "8.14rem",
+    w: "8.14rem",
+    h: "7.23rem",
+    right: "1.67rem",
+    top: "1.75rem",
+    rotate: "0deg",
+    shadowW: "7rem",
+    shadowH: "1.49rem",
+    shadowBottom: "1.1rem",
+    fit: "cover",
+    position: "55% 43%",
+  },
+  // 국제·해외 프리미엄 — 시안 124×121 / top 28 / right 26. 원본 정방형, 시안 크롭 109%×112%.
+  {
+    boxW: "7.75rem",
+    w: "7.75rem",
+    h: "7.55rem",
+    right: "1.63rem",
+    top: "1.75rem",
+    rotate: "0deg",
+    fit: "cover",
+    position: "50% 50%",
     shadowW: "7rem",
     shadowH: "1.49rem",
     shadowBottom: "1.1rem",
@@ -289,7 +302,14 @@ function ServiceCard({
             src={service.icon_image_url}
             alt=""
             loading="lazy"
-            className="relative z-10 h-38 w-28 object-contain lg:mt-(--illo-top) lg:h-(--illo-h) lg:w-(--illo-w) lg:rotate-(--illo-rotate)"
+            style={
+              layout.fit === "cover"
+                ? { objectPosition: layout.position }
+                : undefined
+            }
+            className={`relative z-10 h-38 w-28 lg:mt-(--illo-top) lg:h-(--illo-h) lg:w-(--illo-w) lg:rotate-(--illo-rotate) ${
+              layout.fit === "cover" ? "object-cover" : "object-contain"
+            }`}
           />
           <img
             src={ICON_SHADOW_SRC}
