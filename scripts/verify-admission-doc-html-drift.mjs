@@ -63,8 +63,9 @@ const MAX_DIFF_SAMPLES = 30;
  * university_name만 선언하고, 카테고리별 html/json 컬럼은 전부 동적 키
  * (row[key])로만 접근하므로(noImplicitAny 꺼짐) 별도 선언 없이 암시적
  * any로 통과한다.
- * @typedef {{ university_name: string }} ResourceRow
  */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/** @typedef {Pick<ResourceTableRow, "university_name">} ResourceRow */
 
 // CLI 인자는 직접 실행(isMainModule) 분기 안에서만 파싱해 함수 인자로
 // 넘긴다 — runDriftVerification은 export된 함수라 다른 스크립트가

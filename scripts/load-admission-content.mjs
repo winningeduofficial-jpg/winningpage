@@ -111,15 +111,13 @@ import { runDocEquivalenceVerification } from "./verify-admission-doc-equivalenc
  * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만 선언하고,
  * 카테고리별 raw/html/json 컬럼은 전부 동적 키(row[key])로만 접근하므로
  * (noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다.
- * @typedef {{
- *   id: string,
- *   university_name: string,
- *   university_key: string,
- *   admission_year: number,
- *   region: string | null,
- *   is_active: boolean,
- *   detail_status: string | null,
- * }} ResourceRow
+ * region은 생성 타입에서 non-null(string)이라 기존 로컬 typedef(string | null)를
+ * 정본에 맞춰 좁혔다 — 이 파일에서는 dbRow.region을 그대로 읽어 옮길 뿐이라
+ * 문제 없다.
+ */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/**
+ * @typedef {Pick<ResourceTableRow, "id" | "university_name" | "university_key" | "admission_year" | "region" | "is_active" | "detail_status">} ResourceRow
  */
 
 /**

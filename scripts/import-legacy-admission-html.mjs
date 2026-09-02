@@ -67,13 +67,9 @@ import { HWP_SECTION_HTML_KEYS } from "../src/lib/admissionParsing.js";
  * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만
  * 선언하고, 카테고리별 html/json 컬럼은 전부 동적 키(row[key])로만
  * 접근하므로(noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다.
- * @typedef {{
- *   id: string,
- *   university_name: string,
- *   detail_status: string | null,
- *   updated_at: string,
- * }} ResourceRow
  */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/** @typedef {Pick<ResourceTableRow, "id" | "university_name" | "detail_status" | "updated_at">} ResourceRow */
 
 /**
  * importCell(admissionHtmlImport.ts)의 반환 판별합집합을 로컬로 재선언한다.

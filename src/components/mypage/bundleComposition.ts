@@ -72,7 +72,7 @@ export function useBundleCompositionMap(
           "product_id, program_key, duration_months, session_quota, list_price",
         )
         .in("product_id", key.split(","))
-        .returns<BundleItemRow[]>();
+        .overrideTypes<BundleItemRow[], { merge: false }>();
 
       if (!alive) return;
 

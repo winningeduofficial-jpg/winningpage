@@ -59,13 +59,9 @@ import {
  * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만 선언하고,
  * 카테고리별 raw/html 컬럼은 전부 동적 키(row[key])로만 접근하므로
  * (noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다.
- * @typedef {{
- *   id: string,
- *   university_name: string,
- *   university_key: string,
- *   detail_status: string | null,
- * }} ResourceRow
  */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/** @typedef {Pick<ResourceTableRow, "id" | "university_name" | "university_key" | "detail_status">} ResourceRow */
 
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const TABLE = "admission_university_resources";

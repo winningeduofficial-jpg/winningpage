@@ -72,8 +72,10 @@ const LOCAL_PREFIX = "/images/landing/";
  * DB_TARGETS 5개 테이블의 조회 행. 동적 select(`id, ${column}`)라
  * supabase-js가 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는
  * id만 선언하고, 대상 URL 컬럼은 동적 키(row[column])로만 접근하므로
- * (noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다.
- * @typedef {{ id: string }} UrlColumnRow
+ * (noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다. 5개 테이블 중
+ * banners.id만 생성 타입에서 number이고 나머지 4개는 string이라 union으로 둔다
+ * (실제 사용처는 템플릿 리터럴과 .eq() 인자뿐이라 어느 쪽이든 문제 없다).
+ * @typedef {{ id: import("../src/types/database.types.ts").Tables<"banners">["id"] | import("../src/types/database.types.ts").Tables<"home_side_banners">["id"] }} UrlColumnRow
  */
 
 const rootDir = path.resolve(

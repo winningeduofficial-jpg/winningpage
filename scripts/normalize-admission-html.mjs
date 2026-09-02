@@ -64,13 +64,11 @@ const TABLE = "admission_university_resources";
  * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만 선언하고,
  * html 컬럼들은 전부 동적 키(row[col])로만 접근하므로(noImplicitAny 꺼짐)
  * 별도 선언 없이 암시적 any로 통과한다.
- * @typedef {{
- *   id: string,
- *   university_name: string,
- *   campus: string | null,
- *   region: string | null,
- * }} ResourceRow
+ * region은 생성 타입에서 non-null(string)이라 기존 로컬 typedef(string | null)를
+ * 정본에 맞춰 좁혔다 — 이 파일은 row.region을 dot 접근하지 않는다.
  */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/** @typedef {Pick<ResourceTableRow, "id" | "university_name" | "campus" | "region">} ResourceRow */
 
 // 카테고리 key -> DB html 컬럼 매핑. load-admission-content.mjs와 동일.
 const CATEGORY_HTML_KEY = {

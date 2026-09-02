@@ -56,16 +56,15 @@ const CATEGORY_RAW_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
  * 전역에서 dot 접근하는 컬럼을 명시하고, exportAdmissionRowsToXlsx /
  * buildExistingRowsMap이 요구하는 Record<string, unknown>도 인덱스
  * 시그니처로 그대로 만족시킨다(나머지 컬럼은 기존처럼 동적 키로 접근).
- * @typedef {{
- *   id: string,
- *   admission_year: number,
- *   university_name: string,
- *   university_key: string,
- *   region: string,
- *   recruitment_quota: string | null,
+ * recruitment_quota_json은 생성 타입에서 Json | null이지만, 이 파일은
+ * blocks 구조를 다루는 도메인 타입(AdmissionDoc)으로 다뤄야 해서 Pick 대신
+ * 명시 override로 유지한다.
+ */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/**
+ * @typedef {Pick<ResourceTableRow, "id" | "admission_year" | "university_name" | "university_key" | "region" | "recruitment_quota"> & {
  *   recruitment_quota_json: import("../src/lib/admissionDoc.ts").AdmissionDoc | null,
- *   [key: string]: unknown,
- * }} ResourceRow
+ * } & Record<string, unknown>} ResourceRow
  */
 
 let failCount = 0;

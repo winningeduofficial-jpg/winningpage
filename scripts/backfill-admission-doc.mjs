@@ -142,14 +142,10 @@ async function assertBackupFileDoesNotExist(path) {
  * GenericStringError로 떨어진다. 실제로 dot 접근하는 컬럼만 명시하고, 카테고리별
  * raw/html/json 컬럼은 전부 동적 키(row[key] 형태)로만 접근하므로 별도 선언 없이도
  * (인덱스 시그니처가 없는 한) 암시적 any로 통과한다 — noImplicitAny가 꺼져 있다.
- * @typedef {{
- *   id: string,
- *   university_name: string,
- *   university_key: string,
- *   campus: string | null,
- *   detail_status: string | null,
- *   updated_at: string,
- * }} ResourceRow
+ */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/**
+ * @typedef {Pick<ResourceTableRow, "id" | "university_name" | "university_key" | "campus" | "detail_status" | "updated_at">} ResourceRow
  */
 
 // legacy-html 분류 시 만드는 doc — RawHtmlBlock으로 저장 html을 무손실 보존한다.
