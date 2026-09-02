@@ -11,6 +11,22 @@ import {
 // "현재 학년 고정 4회차"에서 고1~고3 전 시퀀스로 확장한 뒤의 검증・파생 로직 회귀 테스트.
 // intake.studyHours.test.ts와 같은 규약(핸들러 I/O는 로컬 스택 QA로, 순수 함수만 여기서).
 
+// QA 행293(schedule 병렬 유닛)이 단일 세트 4필드(dailySchedule)를 요일별
+// {wake, sleep, hasSchool, schoolStart, schoolEnd, academies[]}(weekSchedule)로
+// 바꿨다 — intake.weekSchedule.test.ts VALID_DAY와 같은 모양.
+const VALID_WEEKDAY = {
+  wake: 6,
+  sleep: 24,
+  hasSchool: true,
+  schoolStart: 8.5,
+  schoolEnd: 16.5,
+  academies: [],
+};
+const VALID_WEEKEND = {
+  ...VALID_WEEKDAY,
+  hasSchool: false,
+};
+
 function baseBody(overrides: Record<string, unknown> = {}) {
   return {
     schoolType: "general",
@@ -28,11 +44,14 @@ function baseBody(overrides: Record<string, unknown> = {}) {
       sat: 4,
       sun: 4,
     },
-    dailySchedule: {
-      wakeUpHour: 7,
-      sleepHour: 24,
-      schoolStayHours: 8,
-      academyHours: 2,
+    weekSchedule: {
+      mon: VALID_WEEKDAY,
+      tue: VALID_WEEKDAY,
+      wed: VALID_WEEKDAY,
+      thu: VALID_WEEKDAY,
+      fri: VALID_WEEKDAY,
+      sat: VALID_WEEKEND,
+      sun: VALID_WEEKEND,
     },
     ...overrides,
   };

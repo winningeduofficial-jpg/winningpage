@@ -19,7 +19,8 @@
 // 규약).
 //
 // 사용법:
-//   node scripts/run-goal-cuts-backfill.mjs
+//   node scripts/run-goal-cuts-backfill.mjs                  (normal/special, 기존 동작)
+//   node scripts/run-goal-cuts-backfill.mjs --cut-type jungsi (정시, QA3 §9-5 결정3)
 //
 // 환경변수(.env.local 에서 로드):
 //   SUPABASE_URL
@@ -34,7 +35,9 @@ import { createClient } from "@supabase/supabase-js";
 
 import {
   computeGoalCutBackfill,
+  computeGoalJungsiCutBackfill,
   fetchBackfillSourceRows,
+  fetchJungsiBackfillSourceRows,
 } from "../src/lib/goal/goalCutBackfill.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,26 +81,19 @@ function chunk(arr, size) {
   return out;
 }
 
-async function main() {
-  const env = await loadEnvLocal();
-  const supabaseUrl = process.env.SUPABASE_URL || env.SUPABASE_URL;
-  const serviceRoleKey =
-    process.env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error(
-      ".env.local 에서 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 를 찾을 수 없습니다.",
-    );
+// --cut-type jungsi | --cut-type=jungsi 를 읽는다. 지정하지 않으면 기존
+// 동작(normal/special 동시 백필) 그대로다 — 기본값을 바꾸면 이 스크립트를
+// 손 안 대고 재실행해 온 팀장 습관이 조용히 다른 결과를 낸다.
+function parseCutTypeArg(argv) {
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--cut-type") return argv[i + 1] ?? null;
+    if (arg.startsWith("--cut-type=")) return arg.slice("--cut-type=".length);
   }
-  // 🔴 운영 오조작 방지 가드. dev ref 가 아니면 무조건 중단한다.
-  if (!supabaseUrl.includes(DEV_PROJECT_REF)) {
-    throw new Error(
-      `SUPABASE_URL 이 dev 프로젝트(${DEV_PROJECT_REF})가 아닙니다: ${supabaseUrl} — 중단합니다.`,
-    );
-  }
+  return null;
+}
 
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
-
+async function runNormalSpecialBackfill(supabase) {
   console.log(
     `[1/4] admission_results 소스 행 읽는 중(yearMode=${YEAR_MODE})...`,
   );
@@ -118,6 +114,62 @@ async function main() {
       `제외: star ${stats.excludedStarPairs} / empty ${stats.excludedEmptyPairs} / noTrack ${stats.excludedNoTrackPairs}, ` +
       `dedupe 병합 ${stats.mergedCount}건`,
   );
+  return payloads;
+}
+
+// jungsi(정시) 백필 — QA3 §9-5 결정3. percentile 기준, yearMode 없음(최신
+// result_year 우선을 함수 안에서 자동 판정한다).
+async function runJungsiBackfill(supabase) {
+  console.log("[1/4] admission_results 소스 행 읽는 중(percentile 기준)...");
+  const sourceRows = await fetchJungsiBackfillSourceRows(supabase, (p) => {
+    process.stdout.write(`\r  ${p.done}/${p.total}`);
+  });
+  process.stdout.write("\n");
+  console.log(`  소스 행수: ${sourceRows.length}`);
+
+  console.log("[2/4] payload 산출 중...");
+  const { payloads, stats } = computeGoalJungsiCutBackfill(sourceRows);
+  console.log(
+    `  산출 payload: ${payloads.length}행 (대학 ${stats.universityCount}개, 쌍 ${stats.pairCount}개)`,
+  );
+  console.log(
+    `  제외: star ${stats.excludedStarPairs} / empty ${stats.excludedEmptyPairs}, ` +
+      `dedupe 병합 ${stats.mergedCount}건`,
+  );
+  return payloads;
+}
+
+async function main() {
+  const cutType = parseCutTypeArg(process.argv.slice(2));
+  if (cutType && cutType !== "jungsi") {
+    throw new Error(
+      `--cut-type 값이 잘못됐습니다: '${cutType}' (지원값: 'jungsi', 또는 생략하면 normal/special).`,
+    );
+  }
+
+  const env = await loadEnvLocal();
+  const supabaseUrl = process.env.SUPABASE_URL || env.SUPABASE_URL;
+  const serviceRoleKey =
+    process.env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error(
+      ".env.local 에서 SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY 를 찾을 수 없습니다.",
+    );
+  }
+  // 🔴 운영 오조작 방지 가드. dev ref 가 아니면 무조건 중단한다.
+  if (!supabaseUrl.includes(DEV_PROJECT_REF)) {
+    throw new Error(
+      `SUPABASE_URL 이 dev 프로젝트(${DEV_PROJECT_REF})가 아닙니다: ${supabaseUrl} — 중단합니다.`,
+    );
+  }
+
+  const supabase = createClient(supabaseUrl, serviceRoleKey);
+
+  const payloads =
+    cutType === "jungsi"
+      ? await runJungsiBackfill(supabase)
+      : await runNormalSpecialBackfill(supabase);
 
   if (payloads.length === 0) {
     console.log("산출 payload 가 0행입니다 — upsert 를 건너뜁니다.");
@@ -145,7 +197,7 @@ async function main() {
 
   console.log("[4/4] 완료");
   console.log(
-    `요약 — 소스 ${sourceRows.length}행, payload ${payloads.length}행, ` +
+    `요약 — payload ${payloads.length}행, ` +
       `청크 ${chunks.length}개 중 성공 ${okChunks}개 / 실패 ${errorCount}개`,
   );
   if (errorCount > 0) {

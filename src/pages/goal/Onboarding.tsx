@@ -13,7 +13,7 @@ import {
   GoalOnboardingProvider,
   useGoalOnboarding,
 } from "@/context/GoalOnboardingContext";
-import { submitGoalIntake } from "@/lib/goalApi";
+import { generateGoalAdvice, submitGoalIntake } from "@/lib/goalApi";
 import { queryClient } from "@/lib/queryClient";
 
 // 목표관리 온보딩 7단계 위저드 — docs/figma-goal/00-INDEX.md §3 G1 / §4-1.
@@ -64,7 +64,7 @@ function OnboardingWizard() {
     naesin,
     mockExam,
     studyHours,
-    dailySchedule,
+    weekSchedule,
     resetOnboardingFlow,
   } = useGoalOnboarding();
 
@@ -128,7 +128,7 @@ function OnboardingWizard() {
       naesin,
       mockExam,
       studyHours,
-      dailySchedule,
+      weekSchedule,
     });
 
     if (result.kind === "success" || result.kind === "already-onboarded") {
@@ -140,6 +140,12 @@ function OnboardingWizard() {
       // revalidate로 통과시키므로, 방금 저장된 "온보딩 완료"를 캐시가 모르는 채
       // 대시보드로 가면 step-1로 되돌아온다. 이동 전에 명시 무효화한다.
       await queryClient.invalidateQueries({ queryKey: ["goal", "student"] });
+      // QA 행295 — 온보딩 완료 직후 AI 입시조언을 1회 생성해 둔다(fire-and-forget,
+      // 화면 이동을 막지 않는다). 실패해도 대시보드는 GET /api/goal/advice로 다시
+      // 조회하거나 규칙 기반 폴백을 그대로 쓴다 — 여기서 에러를 표면화하지 않는다.
+      generateGoalAdvice("intake").catch((error) => {
+        console.error("[Onboarding] AI 입시조언 생성 요청 실패:", error);
+      });
       window.setTimeout(() => {
         resetOnboardingFlow();
         navigate("/app/goal");

@@ -13,6 +13,7 @@ import { expect, test } from "vitest";
 
 import type { AcademySlot, DayPattern } from "./schedule.ts";
 import {
+  ACADEMY_COMMUTE_HOURS,
   calcAvailableHours,
   calcAvailableHoursApprox,
   calculateWeekSchedule,
@@ -511,6 +512,115 @@ test("calcAvailableHours — [parity] day 또는 academies 누락이면 TypeErro
       false,
     ),
   ).toThrow(TypeError);
+});
+
+// ---------------------------------------------------------------------------
+// calcAvailableHours — commuteHours 파라미터 (신설, 원본에 없음, QA 행293)
+//
+// 원본은 학원 1건당 이동시간을 1h 고정으로 뺀다(target/components/IntakeForm.tsx:997).
+// 우리 앱은 사용자 결정(2026-09-02)으로 0.5h 를 쓴다 — DIVERGENCE.md §1 #5 참고.
+// commuteHours 를 생략하면 기존 골든 픽스처(AVAIL_CASES, 1h 전제)와 동일하게 동작해야
+// 하므로 기본값(1)이 바뀌지 않았는지도 같이 고정한다.
+// ---------------------------------------------------------------------------
+
+test("calcAvailableHours — commuteHours 생략 시 기본값 1h(기존 골든 픽스처와 동일)", () => {
+  // AVAIL_CASES 첫 케이스와 동일 입력 — 파라미터 추가가 기본 동작을 바꾸지 않는지 확인.
+  near(
+    calcAvailableHours(
+      day("7", "24", "8", "16", [{ start: "17", end: "19" }]),
+      true,
+    ),
+    5.5,
+    "available",
+  );
+});
+
+test("calcAvailableHours — QA 행293 검산 예시 (commuteHours=0.5)", () => {
+  // 기상 6, 등교 8.5 하교 16.5, 학원1 17.5~19, 학원2 20~22, 취침 24
+  // (24−6) −1.5 −8 +2.5 −(1.5+0.5) −(2+0.5) = 6.5h
+  const d = day("6", "24", "8.5", "16.5", [
+    { start: "17.5", end: "19" },
+    { start: "20", end: "22" },
+  ]);
+  near(
+    calcAvailableHours(d, true, ACADEMY_COMMUTE_HOURS),
+    6.5,
+    "available(commute=0.5)",
+  );
+  // 같은 입력에 원본 이동시간(1h)을 쓰면 결과가 달라야 한다 — 상수가 실제로 계산에
+  // 반영되는지 확인(단순히 무시되고 있지 않은지).
+  near(calcAvailableHours(d, true, 1), 5.5, "available(commute=1, 원본)");
+});
+
+test("calcAvailableHours — 학원 0건이면 commuteHours 값과 무관하다", () => {
+  const d = day("7", "24", "", "", []);
+  near(calcAvailableHours(d, false, 0.5), 15.5, "available");
+  near(calcAvailableHours(d, false, 1), 15.5, "available");
+});
+
+// ---------------------------------------------------------------------------
+// calculateWeekSchedule — commuteHours + 요일별 hasSchool 오버라이드 (신설)
+// ---------------------------------------------------------------------------
+
+test("calculateWeekSchedule — commuteHours 를 넘기면 calcAvailableHours 에 그대로 전달된다", () => {
+  const monday = day("6", "24", "8.5", "16.5", [
+    { start: "17.5", end: "19" },
+    { start: "20", end: "22" },
+  ]);
+  const weekSchedule = weekOf(monday, day("7", "24", "", "", []));
+
+  const withDefault = calculateWeekSchedule({
+    idealUniv: "서울대학교",
+    idealDept: "경영학과",
+    minUniv: "부산대학교",
+    minDept: "경영학과",
+    weekSchedule,
+    selfStudyHours: selfStudyAll("0"),
+  });
+  const withQaCommute = calculateWeekSchedule({
+    idealUniv: "서울대학교",
+    idealDept: "경영학과",
+    minUniv: "부산대학교",
+    minDept: "경영학과",
+    weekSchedule,
+    selfStudyHours: selfStudyAll("0"),
+    commuteHours: ACADEMY_COMMUTE_HOURS,
+  });
+
+  // 가용시간이 늘어나므로(6.5h > 5.5h) ideal/min 도 커져야 한다(같은 배율 적용).
+  expect(withQaCommute.monday!.ideal).toBeGreaterThan(
+    withDefault.monday!.ideal,
+  );
+});
+
+test("calculateWeekSchedule — 요일별 hasSchool 이 명시되면 고정 DAYS_CONFIG 대신 그 값을 쓴다", () => {
+  // 원본 DAYS_CONFIG 는 토요일을 등교일 아님(false)으로 고정한다. 여기서는 토요일에
+  // hasSchool:true 를 명시해 등교 학교로 취급되는지 확인한다(QA 행293 "학교 가는 날" 토글).
+  const saturdaySchoolDay: DayPattern = {
+    wake: "7",
+    sleep: "24",
+    hasSchool: true,
+    schoolStart: "8",
+    schoolEnd: "16",
+    academies: [],
+  };
+  const weekSchedule = {
+    ...weekOf(day("7", "24", "", "", []), day("7", "24", "", "", [])),
+    saturday: saturdaySchoolDay,
+  };
+
+  const got = calculateWeekSchedule({
+    idealUniv: "서울대학교",
+    idealDept: "경영학과",
+    minUniv: "부산대학교",
+    minDept: "경영학과",
+    weekSchedule,
+    selfStudyHours: selfStudyAll("0"),
+  });
+
+  // 학교 항이 반영돼 일요일(가용 15.5h 그대로)보다 토요일 가용시간이 작아야 한다
+  // → 같은 배율이 곱해지는 ideal 목표도 작아야 한다.
+  expect(got.saturday!.ideal).toBeLessThan(got.sunday!.ideal);
 });
 
 // ---------------------------------------------------------------------------

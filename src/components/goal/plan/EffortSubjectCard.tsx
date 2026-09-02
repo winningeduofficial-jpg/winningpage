@@ -46,6 +46,17 @@ type EffortSubjectCardProps = {
   // 그대로 한 단계 전달만 하고 읽지 않는다 — prop drilling이지만 딱 한 단계뿐이라
   // Context 도입은 과함(팀장 지시, 하지 않는다).
   droppingBookId?: string | number | null;
+  // 오늘 이 문제집에 연결된 계획 과제(QA 행286-B) — workbook_id → 과제 목록.
+  // 연결이 없는 책은 이 맵에 키 자체가 없다(EffortWorkbookRow가 그 경우 소형
+  // 목록을 아예 렌더하지 않는다).
+  connectedTasksByWorkbookId?: Map<
+    number,
+    {
+      id: string | number;
+      title: string;
+      status: "pending" | "done" | "fail";
+    }[]
+  >;
   onAddBook?: () => void;
   onUpdateBook?: (
     id: string | number,
@@ -61,6 +72,7 @@ export default function EffortSubjectCard({
   books,
   completedBooks,
   droppingBookId,
+  connectedTasksByWorkbookId,
   onAddBook,
   onUpdateBook,
   onDeleteBook,
@@ -98,16 +110,22 @@ export default function EffortSubjectCard({
 
         {hasBooks && (
           <div className="flex flex-col gap-3">
-            {books.map((book) => (
-              <EffortWorkbookRow
-                key={book.id}
-                book={book}
-                subject={subjectId}
-                onUpdate={onUpdateBook ?? (async () => false)}
-                onDelete={onDeleteBook ?? (async () => false)}
-                onShelve={onShelveBook ?? (async () => false)}
-              />
-            ))}
+            {books.map((book) => {
+              const connectedTasks = connectedTasksByWorkbookId?.get(
+                Number(book.id),
+              );
+              return (
+                <EffortWorkbookRow
+                  key={book.id}
+                  book={book}
+                  subject={subjectId}
+                  {...(connectedTasks ? { connectedTasks } : {})}
+                  onUpdate={onUpdateBook ?? (async () => false)}
+                  onDelete={onDeleteBook ?? (async () => false)}
+                  onShelve={onShelveBook ?? (async () => false)}
+                />
+              );
+            })}
           </div>
         )}
 

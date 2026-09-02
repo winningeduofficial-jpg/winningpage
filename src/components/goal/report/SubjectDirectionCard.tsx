@@ -1,21 +1,28 @@
 import GoalCard from "@/components/goal/GoalCard";
+import GoalGradePyramid from "./GoalGradePyramid";
 
 // #37 내신(과목군) / #38 정시(과목) 공용 카드(660×311) — part-13 구현 노트 "카드 4개는 과목군
 // 단위 반복 컴포넌트 1개로 처리". name/badge 포맷만 데이터로 갈리고(국어군 vs 국어, `2.00 등급`
-// vs `3등급 (백분위 81)`) 구조는 동일.
+// vs `백분위 81 · 3등급`) 구조는 동일.
 //
 // 본문 폭 603px 고정 + 카드 높이 311px 고정이면 3줄 이상일 때 넘친다(part-13 §159) — 카드 높이를
 // 고정하지 않고 min-height + 콘텐츠에 따라 자라도록 구현한다(고정 h 금지).
 //
-// materials(추천 교재/자료)는 선택 prop이다 — 실배선(api/goal/report.js)은 콘텐츠 추천 엔진이
-// 없어 이 필드를 채우지 않는다(D13, 팀장 확정 "추천 교재 블록 렌더 생략"). materials가
-// 비어 있으면 그 섹션 자체를 렌더하지 않는다(빈 타이틀+빈 wrap 잔여물 방지).
+// 등급 피라미드(QA 행301) — grade/scaleMax가 둘 다 있을 때만 렌더한다(피라미드는 등급 기반이라
+// 정시 백분위만 있고 등급 환산이 안 되는 입력은 없다 — api/_lib/goalDirectionReport.ts가 항상
+// 등급도 함께 채운다).
+//
+// materials(추천 교재/자료) — D13 보류가 QA 행301에서 해제됐다(api/_lib/goalDirectionReport.ts
+// getBooks가 채운다). 여전히 선택 prop으로 남겨 빈 배열이면 그 섹션 자체를 렌더하지 않는다
+// (빈 타이틀+빈 wrap 잔여물 방지 — 원본 규칙 유지).
 type SubjectDirectionCardProps = {
   name: string;
   zoneLabel?: string;
   badge?: string;
   body?: string;
   materials?: string[];
+  grade?: number | null;
+  scaleMax?: 5 | 9 | undefined;
 };
 
 export default function SubjectDirectionCard({
@@ -24,6 +31,8 @@ export default function SubjectDirectionCard({
   badge,
   body,
   materials,
+  grade,
+  scaleMax,
 }: SubjectDirectionCardProps) {
   return (
     <GoalCard
@@ -43,6 +52,14 @@ export default function SubjectDirectionCard({
           {badge}
         </span>
       </div>
+
+      {scaleMax != null && (
+        <GoalGradePyramid
+          subjectLabel={name}
+          grade={grade}
+          scaleMax={scaleMax}
+        />
+      )}
 
       <div className="flex flex-col gap-2">
         <p className="text-[0.75rem] font-semibold leading-[1.4] text-ink-sub">

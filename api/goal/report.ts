@@ -1,4 +1,6 @@
-// GET /api/goal/report?type=weekly|monthly|direction&period=...&track=naesin|jeongsi
+// GET /api/goal/report?type=weekly|monthly|direction&period=...&track=naesin|jeongsi&reportId=...
+// (reportId는 type=direction 전용 — 저장된 goal_direction_reports 행의 id. period는
+// weekly/monthly 전용으로 남는다.)
 // Authorization: Bearer <access_token>
 //
 // 성장 리포트(#33 주간 / #34 월간) + 학습방향 리포트(#37 내신 / #38 정시) 단일 조회
@@ -20,9 +22,7 @@ import { GRADE_PERCENTILE } from "../../src/lib/goal/calc/jeongsi.js";
 import { kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
 import {
   bucketTimeSlots,
-  buildJeongsiSubjectMetrics,
   buildMonthlyWeeks,
-  buildNaesinSubjectMetrics,
   buildWeeklyStudyTimeBars,
   computeAchievementRate,
   computeAdmissionDelta,
@@ -32,12 +32,9 @@ import {
   computeCoreItems,
   computeDistraction,
   computeEffectiveWindow,
-  computeJeongsiComposite,
   computeStudyHours,
   computeSubjectShare,
-  deriveGradeSystem,
   type MonthlyWeekBar,
-  percentileToGrade,
   resolveMonthlyPeriod,
   resolveWeeklyPeriod,
   round1,
@@ -48,16 +45,15 @@ import {
 import {
   buildConditionTip,
   buildCoreItemsTip,
-  buildDirectionSummary,
   buildDistractionTip,
   buildHeroNarrative,
   buildMonthlyExpectedEffect,
   buildMonthlyLearningType,
   buildMonthlyStrategy,
-  buildSubjectDirectionBody,
   buildSubjectShareTip,
   buildTimeSlotTip,
 } from "../../src/lib/goal/report/insights.js";
+import { buildGoalDirectionReport } from "../_lib/goalDirectionReport.js";
 import {
   fetchActiveCohortProfileIds,
   fetchDailyRecordsForProfilesInRange,
@@ -68,28 +64,16 @@ import {
   fetchRecordsInRange,
   fetchStudentRow,
   fetchTimerSessionsInRange,
+  listGoalDirectionReports,
   narrowGoalSession,
   openGoalSession,
+  saveGoalDirectionReport,
 } from "../_lib/goalRepo.js";
 import { sendError } from "../_lib/httpResponse.js";
 
 export const config = { runtime: "nodejs" };
 
 const VALID_TYPES = ["weekly", "monthly", "direction"];
-
-// 온보딩 고정 회차(api/goal/intake.js NAESIN_ROUNDS/MOCK_ROUNDS와 글자 단위로 같은 라벨).
-const NAESIN_ROUNDS = [
-  { key: "s1mid", label: "1학기 중간" },
-  { key: "s1final", label: "1학기 기말" },
-  { key: "s2mid", label: "2학기 중간" },
-  { key: "s2final", label: "2학기 기말" },
-];
-const MOCK_ROUNDS = [
-  { key: "mar", label: "3모" },
-  { key: "jun", label: "6모" },
-  { key: "sep", label: "9모" },
-  { key: "oct", label: "10모" },
-];
 
 function formatHoursMinutesLabel(hoursFloat) {
   const totalMinutes = Math.round(hoursFloat * 60);
@@ -413,162 +397,118 @@ async function buildGrowthReport({
 }
 
 // ---------------------------------------------------------------------------
-// 학습방향 리포트(내신/정시)
+// 학습방향 리포트(내신/정시) — QA 행301. 저장·이력 기반(api/_lib/goalDirectionReport.ts
+// 빌더 + goal_direction_reports 테이블). 조회 때마다 즉석 계산만 하던 이전 구현을
+// 대체한다 — periodChips는 이제 회차 옵션이 아니라 저장된 리포트 목록(최신순),
+// activePeriod/조회 파라미터는 그 리포트의 id(reportId)다.
 // ---------------------------------------------------------------------------
 
-/** 1~9등급 → GRADE_PERCENTILE 밴드 중앙값(백분위 근사). 정시 스케일 변환 전용, 등급 산출엔 쓰지 않는다. */
-function gradeToPercentileMidpoint(grade) {
-  const band = GRADE_PERCENTILE[Math.min(9, Math.max(1, Math.round(grade)))];
-  if (!band) return 50;
-  return round1((band.min + band.max) / 2);
+/** track('naesin'|'jeongsi') → 빌더 kind('naesin'|'jungsi'). 철자가 다른 두 어휘를 여기서만 잇는다. */
+function trackToKind(track) {
+  return track === "jeongsi" ? "jungsi" : "naesin";
 }
 
-/** naesin_scores → 학습방향 리포트 기간 옵션. records(자유 입력 회차)를 최신순으로, 온보딩 고정 회차를 그 뒤에 붙인다. */
-function buildNaesinPeriodOptions(naesinScores) {
-  const records = Array.isArray(naesinScores?.records)
-    ? naesinScores.records
-    : [];
-  const sortedRecords = [...records].sort((a, b) =>
-    String(b.enteredAt || "").localeCompare(String(a.enteredAt || "")),
-  );
-
-  const options = sortedRecords.map((r) => ({
-    value: `record:${r.term}`,
-    label: r.term,
-    entry: r,
-  }));
-
-  for (const { key, label } of NAESIN_ROUNDS) {
-    const entry = naesinScores?.[key];
-    if (
-      entry &&
-      entry.none !== true &&
-      entry.value !== undefined &&
-      entry.value !== ""
-    ) {
-      options.push({ value: `onboarding:${key}`, label, entry });
-    }
-  }
-
-  return options;
+/** 저장된 리포트 payload → 과목 카드 배지 문자열. 내신은 등급만, 정시는 "백분위 N · M등급"(§설계 5). */
+function formatSubjectBadge(kind, grade, percentile) {
+  if (grade == null) return "미입력";
+  if (kind === "naesin") return `${grade.toFixed(2)} 등급`;
+  return percentile != null
+    ? `백분위 ${percentile} · ${grade}등급`
+    : `${grade}등급`;
 }
 
 /**
- * mock_exam_scores → 학습방향 리포트 기간 옵션. records(grades.js, 4과목·백분위 스케일)를
- * 최신순으로 우선하고, 온보딩 고정 회차(5과목·등급 스케일 — Step5MockExam)는
- * gradeToPercentileMidpoint로 근사 변환해 붙인다(판단 지점 — §"실측 구조" 스케일 차이,
- * 참조: api/goal/grades.js 헤더 주석 "온보딩과 완전히 다른 스케일이다").
+ * 저장 리포트가 하나도 없는 학생(기존 학생, 마이그레이션 이전 온보딩) 대비 —
+ * GET 조회 시 온보딩 원본값으로 1건을 즉석 생성해 저장한다(source_type='intake',
+ * source_label='내 현재 위치'). 이후 조회부터는 이 저장된 행이 목록에 잡힌다.
  */
-function buildJeongsiPeriodOptions(mockScores) {
-  const records = Array.isArray(mockScores?.records) ? mockScores.records : [];
-  const sortedRecords = [...records].sort((a, b) =>
-    String(b.examDate || "").localeCompare(String(a.examDate || "")),
+async function ensureDirectionReports(supabaseAdmin, profileId, student, kind) {
+  const existing = await listGoalDirectionReports(
+    supabaseAdmin,
+    profileId,
+    kind,
   );
+  if (existing.length > 0) return existing;
 
-  const options = sortedRecords.map((r) => ({
-    value: `record:${r.term}`,
-    label: r.term,
-    entry: r,
-  }));
+  const legacyEntry =
+    kind === "naesin"
+      ? { value: toNum(student.converted_grade) }
+      : { value: toNum(student.current_mogo) };
 
-  for (const { key, label } of MOCK_ROUNDS) {
-    const entry = mockScores?.[key];
-    if (entry && entry.none !== true) {
-      // toNum이 null을 줄 수 있다 — JS는 null을 0으로 강제 변환해 더하므로 ?? 0은
-      // 동작을 바꾸지 않고 타입만 좁힌다.
-      const tamAvg = ((toNum(entry.tam1) ?? 0) + (toNum(entry.tam2) ?? 0)) / 2;
-      const converted = {
-        subjects: {
-          korean: gradeToPercentileMidpoint(toNum(entry.kor)),
-          math: gradeToPercentileMidpoint(toNum(entry.math)),
-          english: gradeToPercentileMidpoint(toNum(entry.eng)),
-          science: gradeToPercentileMidpoint(tamAvg),
-        },
-      };
-      options.push({ value: `onboarding:${key}`, label, entry: converted });
-    }
-  }
-
-  return options;
-}
-
-async function buildDirectionReport({ student, track, periodParam }) {
-  const isNaesin = track === "naesin";
-  const options = isNaesin
-    ? buildNaesinPeriodOptions(student.naesin_scores)
-    : buildJeongsiPeriodOptions(student.mock_exam_scores);
-
-  // 데이터가 하나도 없으면(회차 기록도, 온보딩 값도 없음) 온보딩 최초 산출값으로 대체한다
-  // (student.js buildStudentPayload의 scores 블록과 동일 소스 — 이 값은 status='active'
-  // 진입 조건상 항상 존재한다).
-  const fallbackEntry = isNaesin
-    ? { value: student.converted_grade }
-    : { value: student.current_mogo };
-  const chosenOption = options.find((o) => o.value === periodParam) ||
-    options[0] || {
-      value: "current",
-      label: "최근 성적",
-      entry: fallbackEntry,
-    };
-
-  const nowYmd = kstYMD(new Date());
-  const gradeSystem = deriveGradeSystem(student.grade, nowYmd);
-
-  // src/lib/goal/report/aggregate.js(다른 배치 소유, 이 작업 범위 밖)의
-  // buildNaesinSubjectMetrics/buildJeongsiSubjectMetrics는 반환 타입이 없어
-  // 이 삼항이 두 shape(내신 grade 필드 vs 정시 percentile 필드)의 유니온으로
-  // 추론된다 — isNaesin 분기로 실제로는 이미 배타적이므로 이 지점만 any로 받는다.
-  // biome-ignore lint/suspicious/noExplicitAny: 위 사유 — aggregate.js 반환 타입 미정(범위 밖).
-  const subjectsRaw: any[] = isNaesin
-    ? buildNaesinSubjectMetrics(student, chosenOption.entry)
-    : buildJeongsiSubjectMetrics(student, chosenOption.entry);
-
-  const subjects = subjectsRaw.map((s) => ({
-    name: s.name,
-    zoneLabel: s.zoneLabel,
-    badge: s.badge,
-    body: buildSubjectDirectionBody(s),
-    // materials(추천 교재)는 렌더 생략(D13, 팀장 확정) — 필드 자체를 비워 SubjectDirectionCard가
-    // 그 블록을 스킵하도록 한다(컴포넌트 쪽 조건부 렌더는 별도 수정).
-  }));
-
-  const avgValue = isNaesin
-    ? round1(subjectsRaw.reduce((s, x) => s + x.grade, 0) / subjectsRaw.length)
-    : computeJeongsiComposite(chosenOption.entry);
-
-  const summary = buildDirectionSummary({
-    track,
-    subjects: subjectsRaw,
-    avgValue,
-    idealCut: isNaesin
-      ? toNum(student.ideal_naesin_cut, null)
-      : toNum(student.ideal_jungsi_cut, null),
-    minCut: isNaesin
-      ? toNum(student.min_naesin_cut, null)
-      : toNum(student.min_jungsi_cut, null),
+  const { payload, snapshot } = buildGoalDirectionReport({
+    kind,
+    sourceType: "intake",
+    sourceLabel: "내 현재 위치",
+    grade: student.grade,
+    naesinScores: student.naesin_scores,
+    mockExamScores: student.mock_exam_scores,
+    legacyEntry,
+    gradePercentile: GRADE_PERCENTILE,
   });
 
-  const meta = isNaesin
-    ? `${chosenOption.label} ・평균 ${avgValue.toFixed(2)} 등급・${gradeSystem}`
-    : `${chosenOption.label} 기준 · 종합 백분위 ${avgValue} · 평균 ${percentileGradeAverage(subjectsRaw)}등급 · ${gradeSystem}`;
+  const saved = await saveGoalDirectionReport(supabaseAdmin, profileId, {
+    kind,
+    sourceType: "intake",
+    sourceLabel: "내 현재 위치",
+    payload,
+    snapshot,
+  });
+
+  return [saved];
+}
+
+async function buildDirectionReport({
+  supabaseAdmin,
+  profileId,
+  student,
+  track,
+  reportIdParam,
+}) {
+  const kind = trackToKind(track);
+  const reports = await ensureDirectionReports(
+    supabaseAdmin,
+    profileId,
+    student,
+    kind,
+  );
+
+  const chosen =
+    reports.find((r) => String(r.id) === String(reportIdParam)) || reports[0];
+  const payload = chosen.payload;
+  const nowYmd = kstYMD(new Date());
+
+  const subjects = payload.subjectReports.map((s) => ({
+    key: s.key,
+    name: s.label,
+    grade: s.grade,
+    percentile: s.percentile,
+    pyramidLevel: s.pyramidLevel,
+    zoneLabel: s.status,
+    badge: formatSubjectBadge(kind, s.grade, s.percentile),
+    body: s.direction,
+    materials: s.books,
+  }));
+
+  const meta = `${payload.scaleMax}등급제 · ${nowYmd.replace(/-/g, ".")}`;
 
   return {
     tab: track,
-    heading: "내 학습 방향 리포트",
-    meta: `${nowYmd.replace(/-/g, ".")} · 리포트`,
-    periodChips: options.map((o) => ({ value: o.value, label: o.label })),
-    activePeriod: chosenOption.value,
-    summary: { meta, typeLabel: summary.typeLabel, body: summary.body },
+    heading: chosen.source_label,
+    meta,
+    periodChips: reports.map((r) => ({
+      value: String(r.id),
+      label: r.source_label,
+    })),
+    activePeriod: String(chosen.id),
+    scaleMax: payload.scaleMax,
+    overallAverage: payload.overallAverage,
+    summary: {
+      meta,
+      typeLabel: payload.studentType.title,
+      body: payload.studentType.summary,
+    },
     subjects,
   };
-}
-
-/** 정시 subjects[].percentile을 등급으로 환산한 평균(요약 배너 "평균 X등급" 표기용). */
-function percentileGradeAverage(subjectsRaw) {
-  const grades = subjectsRaw.map((s) => percentileToGrade(s.percentile));
-  return round1(grades.reduce((sum, g) => sum + g, 0) / grades.length).toFixed(
-    2,
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -622,9 +562,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (type === "direction") {
       const track = req.query?.track === "jeongsi" ? "jeongsi" : "naesin";
       const report = await buildDirectionReport({
+        supabaseAdmin,
+        profileId,
         student,
         track,
-        periodParam: req.query?.period,
+        reportIdParam: req.query?.reportId,
       });
       return res.status(200).json({ ok: true, report });
     }

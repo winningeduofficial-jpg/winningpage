@@ -37,8 +37,8 @@ import {
   middleAvgToNine,
 } from "../../src/data/diagnosisGradeScale.js";
 import {
+  ACADEMY_COMMUTE_HOURS,
   buildInitialStudentState,
-  calcAvailableHoursApprox,
   calcJeongsiCompositeFE,
   calculateWeekSchedule,
   GRADE_PERCENTILE,
@@ -48,6 +48,8 @@ import {
   kstYMD,
 } from "../../src/lib/goal/calc/index.js";
 import type { CutsInput } from "../../src/lib/goal/calc/pipeline.js";
+import type { DayPattern } from "../../src/lib/goal/calc/schedule.js";
+import { buildGoalDirectionReport } from "../_lib/goalDirectionReport.js";
 
 import {
   appendProbabilityLog,
@@ -59,6 +61,7 @@ import {
   narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
+  saveGoalDirectionReport,
   upsertStudentRow,
 } from "../_lib/goalRepo.js";
 import { sendError } from "../_lib/httpResponse.js";
@@ -176,24 +179,26 @@ const NAESIN_NONE_REMAINING = { 고1: 10, 고2: 6, 고3: 2 };
 const MOGO_NONE_REMAINING = { 고1: 14, 고2: 10, 고3: 6 };
 
 // onboardingOptions.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
-// 원본 DAYS_CONFIG 와 동일하게 월~금만 등교일이다.
+// hasSchool 은 더 이상 여기서 고정하지 않는다(QA 행293) — 요일별 "학교 가는 날" 토글이
+// 사용자 입력이라 body.weekSchedule[short].hasSchool 이 정본이다. short/long 매핑 용도로만
+// 남긴다.
 const WEEKDAYS = [
-  { short: "mon", long: "monday", hasSchool: true },
-  { short: "tue", long: "tuesday", hasSchool: true },
-  { short: "wed", long: "wednesday", hasSchool: true },
-  { short: "thu", long: "thursday", hasSchool: true },
-  { short: "fri", long: "friday", hasSchool: true },
-  { short: "sat", long: "saturday", hasSchool: false },
-  { short: "sun", long: "sunday", hasSchool: false },
+  { short: "mon", long: "monday", label: "월요일" },
+  { short: "tue", long: "tuesday", label: "화요일" },
+  { short: "wed", long: "wednesday", label: "수요일" },
+  { short: "thu", long: "thursday", label: "목요일" },
+  { short: "fri", long: "friday", label: "금요일" },
+  { short: "sat", long: "saturday", label: "토요일" },
+  { short: "sun", long: "sunday", label: "일요일" },
 ];
 
-// onboardingOptions.js:76-81 DAILY_SCHEDULE_FIELDS 의 min/max 와 글자 단위로 같다.
-const DAILY_SCHEDULE_LIMITS = {
-  wakeUpHour: { min: 0, max: 23 },
-  sleepHour: { min: 0, max: 24 },
-  schoolStayHours: { min: 0, max: 24 },
-  academyHours: { min: 0, max: 24 },
-};
+// onboardingOptions.js WEEK_SCHEDULE_* 상수와 글자 단위로 같다(QA 행293, 원본 계약
+// target/components/IntakeForm.tsx:1814-1920 "0~30, 자정 넘김은 24 가산").
+const WEEK_SCHEDULE_WAKE_MAX = 24;
+const WEEK_SCHEDULE_SLEEP_MAX = 30;
+const WEEK_SCHEDULE_SCHOOL_TIME_MAX = 30;
+const WEEK_SCHEDULE_ACADEMY_TIME_MAX = 30;
+const WEEK_SCHEDULE_MAX_ACADEMIES = 5;
 
 const NAME_MAX_LENGTH = 100;
 // QA 행290 — 0.1시간 단위 직접 입력(SliderRow.tsx round2) 회귀 테스트가 참조하도록 export.
@@ -296,6 +301,108 @@ function validateTarget(value: unknown, label: string) {
   }
 
   return { value: { university, department } };
+}
+
+/**
+ * 시각(time-of-day) 값 검증 — isValidHours 와 달리 원본 계약대로 0~30 범위(자정 넘김은
+ * 24 초과로 표현)까지 허용한다. isNumericInput 가드 사유는 isValidGrade 와 같다.
+ */
+function isValidTimeOfDay(raw: unknown, max: number) {
+  if (!isNumericInput(raw)) return false;
+  const num = Number(raw);
+  return Number.isFinite(num) && num >= 0 && num <= max;
+}
+
+/**
+ * 요일 1행(하루 일정) 검증 — QA 행293. schedule.ts DayPattern 계약과 같은 모양으로
+ * 정규화해 돌려준다(buildWeeklySchedule 이 그대로 calculateWeekSchedule 에 투입한다).
+ */
+// QA 행293 — intake.weekSchedule.test.ts 회귀 테스트가 참조하도록 export.
+export function validateWeekScheduleDay(raw: unknown, dayLabel: string) {
+  if (!isPlainObject(raw))
+    return { error: fail(`${dayLabel} 일정이 올바르지 않습니다.`) };
+
+  if (!isValidTimeOfDay(raw.wake, WEEK_SCHEDULE_WAKE_MAX)) {
+    return {
+      error: fail(
+        `${dayLabel} 기상 시각은 0~${WEEK_SCHEDULE_WAKE_MAX} 사이여야 합니다.`,
+      ),
+    };
+  }
+  if (!isValidTimeOfDay(raw.sleep, WEEK_SCHEDULE_SLEEP_MAX)) {
+    return {
+      error: fail(
+        `${dayLabel} 취침 시각은 0~${WEEK_SCHEDULE_SLEEP_MAX} 사이여야 합니다.`,
+      ),
+    };
+  }
+  const wake = Number(raw.wake);
+  const sleep = Number(raw.sleep);
+  if (sleep <= wake) {
+    return {
+      error: fail(`${dayLabel} 취침 시각은 기상 시각보다 늦어야 합니다.`),
+    };
+  }
+
+  if (raw.hasSchool !== true && raw.hasSchool !== false) {
+    return {
+      error: fail(`${dayLabel} 등교 여부가 올바르지 않습니다.`),
+    };
+  }
+  const hasSchool = raw.hasSchool;
+
+  // schoolStart/schoolEnd 는 hasSchool 이 false 여도 값 자체는 그대로 저장한다
+  // (Step7 토글을 다시 켰을 때 이전 입력을 잃지 않기 위해, GoalOnboardingContext.tsx
+  // DayScheduleInput 주석 참고) — 검증도 hasSchool 과 무관하게 항상 한다.
+  if (
+    !isValidTimeOfDay(raw.schoolStart, WEEK_SCHEDULE_SCHOOL_TIME_MAX) ||
+    !isValidTimeOfDay(raw.schoolEnd, WEEK_SCHEDULE_SCHOOL_TIME_MAX)
+  ) {
+    return { error: fail(`${dayLabel} 등·하교 시각이 올바르지 않습니다.`) };
+  }
+  const schoolStart = Number(raw.schoolStart);
+  const schoolEnd = Number(raw.schoolEnd);
+  if (hasSchool && schoolEnd <= schoolStart) {
+    return {
+      error: fail(`${dayLabel} 하교 시각은 등교 시각보다 늦어야 합니다.`),
+    };
+  }
+
+  if (
+    !Array.isArray(raw.academies) ||
+    raw.academies.length > WEEK_SCHEDULE_MAX_ACADEMIES
+  ) {
+    return {
+      error: fail(
+        `${dayLabel} 학원 일정은 최대 ${WEEK_SCHEDULE_MAX_ACADEMIES}개까지 입력할 수 있습니다.`,
+      ),
+    };
+  }
+
+  const academies: { start: number; end: number }[] = [];
+  for (const slot of raw.academies) {
+    if (
+      !isPlainObject(slot) ||
+      !isValidTimeOfDay(slot.start, WEEK_SCHEDULE_ACADEMY_TIME_MAX) ||
+      !isValidTimeOfDay(slot.end, WEEK_SCHEDULE_ACADEMY_TIME_MAX)
+    ) {
+      return { error: fail(`${dayLabel} 학원 시각이 올바르지 않습니다.`) };
+    }
+    const start = Number(slot.start);
+    const end = Number(slot.end);
+    if (end <= start) {
+      return {
+        error: fail(
+          `${dayLabel} 학원 하원 시각은 등원 시각보다 늦어야 합니다.`,
+        ),
+      };
+    }
+    academies.push({ start, end });
+  }
+
+  return {
+    value: { wake, sleep, hasSchool, schoolStart, schoolEnd, academies },
+  };
 }
 
 /** 요청 바디 전체를 화이트리스트로 검증하고 정규화한다. */
@@ -559,28 +666,17 @@ export function validateIntakeBody(body: unknown) {
     studyHours[short] = Number(body.studyHours[short]);
   }
 
-  if (!isPlainObject(body.dailySchedule))
-    return { error: fail("하루 일과가 올바르지 않습니다.") };
+  // QA 행293 — 이전 버전의 단일 세트 4필드(dailySchedule)는 더 이상 받지 않는다.
+  // weekSchedule 이 없는 요청(구버전 클라이언트가 여전히 dailySchedule 을 보내는 경우
+  // 포함)은 이 isPlainObject 체크에서 그대로 400 으로 떨어진다.
+  if (!isPlainObject(body.weekSchedule))
+    return { error: fail("하루 일정이 올바르지 않습니다.") };
 
-  const dailySchedule: Record<string, number> = {};
-  for (const [field, limit] of Object.entries(DAILY_SCHEDULE_LIMITS)) {
-    const raw = body.dailySchedule[field];
-    const value = Number(raw);
-    // isNumericInput 가드 사유는 isValidGrade 와 같다 — boolean·객체가 Number 로
-    // 조용히 0/1 이 되는 경로를 열어 두지 않는다.
-    if (
-      !isNumericInput(raw) ||
-      !Number.isFinite(value) ||
-      value < limit.min ||
-      value > limit.max
-    ) {
-      return {
-        error: fail(
-          `하루 일과 값이 허용 범위(${limit.min}~${limit.max})를 벗어났습니다.`,
-        ),
-      };
-    }
-    dailySchedule[field] = value;
+  const weekSchedule: Record<string, DayPattern> = {};
+  for (const { short, long, label } of WEEKDAYS) {
+    const validated = validateWeekScheduleDay(body.weekSchedule[short], label);
+    if (validated.error) return { error: validated.error };
+    weekSchedule[long] = validated.value;
   }
 
   return {
@@ -603,7 +699,7 @@ export function validateIntakeBody(body: unknown) {
       mockTrack,
       mockRounds,
       studyHours,
-      dailySchedule,
+      weekSchedule,
     },
   };
 }
@@ -810,33 +906,36 @@ export function deriveMogo(input) {
 /**
  * 요일별 목표 학습시간(study_schedule).
  *
- * 우리 온보딩은 공통 스테퍼 4개(기상/취침/학교체류/학원)만 받으므로 원본
- * calcAvailableHours 의 요일별 계약(요일 7개 × 시각·학원 N쌍)을 채울 수 없다.
- * 그래서 가용시간은 우리 앱 전용 근사 어댑터 calcAvailableHoursApprox
- * (schedule.js:409-425)로 구한다.
+ * QA 행293 이후 온보딩이 원본 calcAvailableHours 의 요일별 계약(요일 7개 × 기상・취침
+ * 시각・등하교 시각・학원 N쌍)을 그대로 받는다(validateWeekScheduleDay 가 검증한
+ * input.weekSchedule 이 이미 DayPattern 모양이다) — 예전처럼 근사 어댑터
+ * (calcAvailableHoursApprox)로 합성 입력을 지어낼 필요가 없어졌다.
  *
- * 그 다음 단계(대학 배율 곱 + 학생 자습시간 오버라이드)는 **calculateWeekSchedule
- * 을 그대로 호출해서** 처리한다. 오버라이드 규칙(schedule.js:349-367)을 이 파일에
- * 베껴 쓰면 동결된 계산 모듈과 두 벌이 되어 언젠가 갈린다.
- *
- * 그래서 weekSchedule 에는 "calcAvailableHours 를 통과하면 근사값이 그대로 나오는"
- * 합성 입력을 넣는다:
- *   wake = 0, sleep = 근사값 + 1.5, 등하교 시각 없음, 학원 0건
- *   → calcAvailableHours = (sleep - wake) - 1.5 = 근사값  (schedule.js:282)
- *   (등하교 시각이 없으면 parseFloat(undefined) = NaN 이라 학교 항이 통째로
- *    건너뛰어지고, academies 가 빈 배열이라 학원 항도 없다.)
- *
- * 근사 오차 = 1.5 + (학원 건수 × 1) − 등교전자습시간 (schedule.js:394-398 실측).
- * 이는 이미 계산 모듈에 문서화된 확정 사항이다.
+ * 가용시간 산출 + 대학 배율 곱 + 학생 자습시간 오버라이드는 여전히
+ * **calculateWeekSchedule 을 그대로 호출해서** 처리한다(오버라이드 규칙,
+ * schedule.js:349-367 을 이 파일에 베껴 쓰면 동결된 계산 모듈과 두 벌이 되어
+ * 언젠가 갈린다). 요일별 등교 여부는 이제 DAYS_CONFIG 고정값이 아니라 사용자가
+ * 입력한 hasSchool 을 그대로 쓴다(calculateWeekSchedule 이 day.hasSchool 을
+ * 우선한다, schedule.js 참고). 학원 이동시간 공제는 ACADEMY_COMMUTE_HOURS(0.5h,
+ * DIVERGENCE.md §1 #5)를 명시로 넘긴다 — 원본은 1h 고정이었다.
  */
-function buildWeeklySchedule({ ideal, min, studyHours, dailySchedule }) {
-  const weekSchedule = {};
-  const selfStudyHours = {};
-
-  for (const { short, long, hasSchool } of WEEKDAYS) {
-    const available = calcAvailableHoursApprox(dailySchedule, hasSchool);
-    weekSchedule[long] = { wake: 0, sleep: available + 1.5, academies: [] };
-    selfStudyHours[long] = studyHours[short];
+// QA 행293 — intake.weekSchedule.test.ts 가 파생값(week_ideal/min 산출 경로)을
+// 검증하도록 export. calculateWeekSchedule 자체의 골든 픽스처는 schedule.test.ts
+// 소관이라 여기서는 "요청 바디 → weekSchedule 파생"이라는 이 파일 고유의 배선만 본다.
+export function buildWeeklySchedule({
+  ideal,
+  min,
+  studyHours,
+  weekSchedule,
+}: {
+  ideal: { university: string; department: string };
+  min: { university: string; department: string };
+  studyHours: Record<string, number>;
+  weekSchedule: Record<string, DayPattern>;
+}) {
+  const selfStudyHours: Record<string, number> = {};
+  for (const { short, long } of WEEKDAYS) {
+    selfStudyHours[long] = studyHours[short]!;
   }
 
   return calculateWeekSchedule({
@@ -846,6 +945,7 @@ function buildWeeklySchedule({ ideal, min, studyHours, dailySchedule }) {
     minDept: min.department,
     weekSchedule,
     selfStudyHours,
+    commuteHours: ACADEMY_COMMUTE_HOURS,
   });
 }
 
@@ -1092,6 +1192,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       study_schedule: state.weeklySchedule,
       week_ideal: state.weekIdeal,
       week_min: state.weekMin,
+      // 원본 입력 보존(QA 행293) — study_schedule은 이로부터 산출된 파생값이다.
+      // 재편집·표시용 원본은 이 컬럼이 유일한 소스다(naesin_scores/mock_exam_scores와
+      // 같은 free-form jsonb 성격, 마이그레이션 20260902080252 참고).
+      week_schedule_input: input.weekSchedule,
 
       // 가상 날짜의 원점은 rate 와 같은 시점이어야 한다(§8 #14). 온보딩 자체가
       // 성립하는 기준은 수시 컷이다 — 정시 컷 누락은 더 이상 온보딩을 막지
@@ -1128,6 +1232,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       baseProbsForStorage,
       "intake",
     );
+
+    // 11-b) QA 행301(a) — 온보딩 최초 학습방향 리포트(내신·정시 각 1건, source_type=
+    //       'intake', source_label='내 현재 위치')를 생성해 저장한다. naesin_scores/
+    //       mock_exam_scores는 savedRow 그대로 넘겨 새 shape(groupAverages/rounds,
+    //       병렬 유닛 소유)이 이미 반영돼 있으면 우선 쓰고, 아니면 이 지점에서
+    //       파이프라인이 막 계산한 대표값(converted_grade/current_mogo)으로
+    //       폴백한다(report.ts ensureDirectionReports의 fallback과 동일 값 소스).
+    for (const kind of ["naesin", "jungsi"] as const) {
+      const legacyEntry =
+        kind === "naesin"
+          ? { value: savedRow.converted_grade }
+          : { value: savedRow.current_mogo };
+      const { payload, snapshot } = buildGoalDirectionReport({
+        kind,
+        sourceType: "intake",
+        sourceLabel: "내 현재 위치",
+        grade: savedRow.grade,
+        naesinScores: savedRow.naesin_scores,
+        mockExamScores: savedRow.mock_exam_scores,
+        legacyEntry,
+        gradePercentile: GRADE_PERCENTILE,
+      });
+      await saveGoalDirectionReport(supabaseAdmin, profileId, {
+        kind,
+        sourceType: "intake",
+        sourceLabel: "내 현재 위치",
+        payload,
+        snapshot,
+      });
+    }
 
     // 12) 응답 — GET /api/goal/student 와 완전히 같은 본문을 담는다.
     //     뷰를 다시 읽는 이유는 두 엔드포인트가 같은 조립 경로를 타게 하기 위해서다

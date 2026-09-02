@@ -22,11 +22,17 @@
 // clamp(0, 100, base + Σdelta) 로 다시 더한다(§4). 이 파일은 그 값을 읽어
 // 카멜 케이스로 옮기기만 한다.
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getSchoolCutType } from "../../src/lib/goal/calc/index.js";
 import { addDaysYMD, kstYMD } from "../../src/lib/goal/calc/virtualDate.js";
 import { computeAvgStudyHours } from "../../src/lib/goal/report/aggregate.js";
 
+import {
+  computeJungsiRecalc,
+  needsJungsiRecalcAttempt,
+  resolveJungsiEffectiveGrade,
+} from "../_lib/goalJungsiProb.js";
 import {
   buildAwaitingCutsPayload,
   buildStudentPayload,
@@ -35,10 +41,67 @@ import {
   fetchRecordsInRange,
   fetchStudentRow,
   fetchStudentStateRow,
+  fetchUniversityCut,
   narrowGoalSession,
+  num,
   openGoalSession,
+  updateStudentJungsiProb,
 } from "../_lib/goalRepo.js";
 import { sendError } from "../_lib/httpResponse.js";
+
+/**
+ * 행296·332 지연 재계산(QA3 §9-5 결정3) — 온보딩 시점에 목표 대학 정시 컷이
+ * 없어 null 로 저장된 학생을, 컷이 나중에 생기면 다음 조회 때 채운다. 조건
+ * (needsJungsiRecalcAttempt)을 만족해도 정시 컷 쌍(이상·최소)이 둘 다 있어야만
+ * 실제로 갱신한다 — 한쪽만 있으면 intake.ts:670-673 의 "쌍 단위로만 유효"
+ * 규약과 어긋난다. 갱신에 성공하면 새 행을, 아니면 원래 행을 그대로 돌려준다.
+ */
+async function maybeRecalcJungsi(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  row: Record<string, unknown>,
+  now: Date,
+): Promise<Record<string, unknown>> {
+  if (!needsJungsiRecalcAttempt(row as never)) return row;
+
+  const [idealJungsiCut, minJungsiCut] = await Promise.all([
+    fetchUniversityCut(
+      supabaseAdmin,
+      "jungsi",
+      row.ideal_university as string,
+      row.ideal_department as string,
+    ),
+    fetchUniversityCut(
+      supabaseAdmin,
+      "jungsi",
+      row.min_university as string,
+      row.min_department as string,
+    ),
+  ]);
+  if (idealJungsiCut === null || minJungsiCut === null) return row;
+
+  const effectiveGrade = resolveJungsiEffectiveGrade(
+    row.grade as string,
+    row.naesin_scores,
+  );
+  const recalced = computeJungsiRecalc({
+    grade: effectiveGrade,
+    currentMogo: num(row.current_mogo) ?? 0,
+    remainMogo: num(row.remain_mogo),
+    idealJungsiCut,
+    minJungsiCut,
+    now,
+  });
+
+  return updateStudentJungsiProb(supabaseAdmin, profileId, {
+    ideal_jungsi_cut: idealJungsiCut,
+    min_jungsi_cut: minJungsiCut,
+    base_ideal_jungsi: recalced.idealJungsi,
+    base_min_jungsi: recalced.minJungsi,
+    rate_ideal_jungsi: recalced.idealJungsiBonus,
+    rate_min_jungsi: recalced.minJungsiBonus,
+  });
+}
 
 // "최근 7일" 창 — 오늘(KST) 포함 6일 전부터. gapToTarget.ts의 학습 시간 격차 전용
 // (recentAvgStudyHours). 리포트 주간 경계(월~일)와는 무관한 단순 롤링 윈도우다.
@@ -70,7 +133,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const { supabaseAdmin, profileId } = narrowGoalSession(session);
-    const row = await fetchStudentRow(supabaseAdmin, profileId);
+    let row = await fetchStudentRow(supabaseAdmin, profileId);
 
     // 아직 온보딩을 시작하지 않았다.
     if (!row) {
@@ -86,6 +149,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const now = new Date();
+
+    // 행296·332 지연 재계산(§9-5 결정3) — 온보딩 뒤에 정시 컷이 새로 생긴
+    // 학생을 이 조회에서 채운다. stateRow(뷰) 를 읽기 전에 먼저 끝내야
+    // 뷰가 갱신된 base_ideal_jungsi/rate_ideal_jungsi 를 곧바로 반영한다.
+    row = await maybeRecalcJungsi(supabaseAdmin, profileId, row, now);
+
     const todayYmd = kstYMD(now);
     const recentFromYmd = addDaysYMD(
       todayYmd,
