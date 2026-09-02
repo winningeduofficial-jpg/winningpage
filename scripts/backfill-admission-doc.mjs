@@ -222,6 +222,25 @@ function assertGenerationIdempotent(rawText, sectionKey, row, universityName) {
 // -----------------------------------------------------------------------
 // 메인
 // -----------------------------------------------------------------------
+/**
+ * stats/samples(Object.fromEntries로 CATEGORY_KEYS의 키 전부를 채워 만든
+ * Record)처럼 "키 집합을 스스로 만들어놓고 그 키로만 접근"하는 객체에
+ * 대한 도달 불가 가드. noUncheckedIndexedAccess 하에서 인덱스 시그니처
+ * 접근은 항상 `T | undefined`가 되므로, 실제로는 항상 존재함을 보장하는
+ * 지점에서만 쓴다.
+ * @template T
+ * @param {Record<string, T>} record
+ * @param {string} key
+ * @returns {T}
+ */
+function req(record, key) {
+  const value = record[key];
+  if (value === undefined) {
+    throw new Error(`"${key}" 키가 없습니다(예상치 못한 상태)`);
+  }
+  return value;
+}
+
 async function main() {
   args = parseArgs({
     options: {
@@ -310,6 +329,10 @@ async function main() {
     ({ data: allRows, error: fetchError } = await retryQuery);
   }
   if (fetchError) throw new Error(`행 조회 실패: ${fetchError.message}`);
+  // supabase-js 계약상 error가 없으면 data는 null이 아니다.
+  if (allRows === null) {
+    throw new Error("행 조회 결과가 없습니다(data가 null) — 예상치 못한 상태");
+  }
   if (args.apply && !jsonColumnsExist) {
     throw new Error(
       "*_json 컬럼이 없어 --apply를 실행할 수 없습니다. sql/47_admission_section_json.sql을 " +
@@ -354,12 +377,12 @@ async function main() {
         row.university_name,
       );
       if (!result) {
-        stats[key].skip += 1;
+        req(stats, key).skip += 1;
         return;
       }
-      stats[key][result.classification] += 1;
-      if (samples[key][result.classification].length < 3) {
-        samples[key][result.classification].push(row.university_name);
+      req(stats, key)[result.classification] += 1;
+      if (req(samples, key)[result.classification].length < 3) {
+        req(samples, key)[result.classification].push(row.university_name);
       }
 
       const validation = validateAdmissionDoc(result.doc);
@@ -389,7 +412,7 @@ async function main() {
   console.log("\n=== 4) 집계 ===");
   console.log("카테고리별 분류(parser / legacy-html / 컬럼 미기록):");
   targetCategories.forEach((key) => {
-    const s = stats[key];
+    const s = req(stats, key);
     console.log(
       `  - ${key}: parser ${s.parser} / legacy-html ${s["legacy-html"]} / skip ${s.skip}`,
     );
@@ -408,7 +431,7 @@ async function main() {
 
   console.log("\n=== 5) 샘플 ===");
   targetCategories.forEach((key) => {
-    const s = samples[key];
+    const s = req(samples, key);
     if (s.parser.length)
       console.log(`  - ${key} parser 샘플: ${s.parser.join(", ")}`);
     if (s["legacy-html"].length)

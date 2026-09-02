@@ -276,7 +276,6 @@ export async function runGateA2Verification({ verbose = true } = {}) {
         } catch (err) {
           error = err;
         }
-
         if (error) {
           mismatches.push({
             key: cellKey,
@@ -285,6 +284,14 @@ export async function runGateA2Verification({ verbose = true } = {}) {
             actualBytes: null,
           });
           return;
+        }
+        // renderDocToHtml은 항상 string을 반환한다(admissionParsing.js
+        // JSDoc) — null로 남는 유일한 경로는 catch뿐이고 위에서 이미
+        // 리턴했으므로 여기 도달했다면 rendered는 항상 string이다.
+        if (rendered === null) {
+          throw new Error(
+            `renderDocToHtml이 값을 반환하지 않음(${cellKey}) — 예상치 못한 상태`,
+          );
         }
 
         const actualHash = hashString(rendered);
@@ -399,25 +406,43 @@ function parseAttributeString(attrString) {
   return attrs;
 }
 
+/**
+ * 최소 목(mock) DOM 노드 타입. MiniDOMParser가 esbuild SSR 번들 렌더 결과
+ * 비교용으로만 쓰는 진짜 Document가 아닌 최소 트리다(위 MiniDOMParser
+ * 주석 참고). textContent는 makeElementNode에서 getter로 나중에 붙지만,
+ * 실제로 항상 존재하므로(defineProperty) 타입에도 그대로 반영한다.
+ * @typedef {{ nodeType: number, textContent: string }} MiniLeafNode
+ * @typedef {{
+ *   nodeType: number,
+ *   tagName: string,
+ *   attributes: Array<{ name: string, value: string }>,
+ *   childNodes: MiniAnyNode[],
+ *   textContent: string,
+ * }} MiniElementNode
+ * @typedef {MiniLeafNode | MiniElementNode} MiniAnyNode
+ */
+
 function makeElementNode(tagName, attrs) {
   const node = {
     nodeType: 1,
     tagName: tagName.toUpperCase(),
     attributes: attrs,
-    childNodes: [],
+    childNodes: /** @type {MiniAnyNode[]} */ ([]),
   };
   Object.defineProperty(node, "textContent", {
     get() {
       return node.childNodes.map((c) => c.textContent || "").join("");
     },
   });
-  return node;
+  return /** @type {MiniElementNode} */ (node);
 }
 
+/** @returns {MiniLeafNode} */
 function makeTextNode(text) {
   return { nodeType: 3, textContent: decodeEntities(text) };
 }
 
+/** @returns {MiniLeafNode} */
 function makeCommentNode() {
   return { nodeType: 8, textContent: "" };
 }
@@ -427,7 +452,13 @@ function parseMiniHtml(html) {
   const stack = [root];
   let i = 0;
   const n = html.length;
-  const top = () => stack[stack.length - 1];
+  const top = () => {
+    const node = stack[stack.length - 1];
+    if (node === undefined) {
+      throw new Error("스택이 비어있습니다(root가 pop됨) — 예상치 못한 상태");
+    }
+    return node;
+  };
 
   while (i < n) {
     if (html[i] === "<") {
@@ -444,9 +475,18 @@ function parseMiniHtml(html) {
       }
       const closeMatch = /^<\/([a-zA-Z][a-zA-Z0-9-]*)\s*>/.exec(html.slice(i));
       if (closeMatch) {
-        const tagName = closeMatch[1].toLowerCase();
+        // 캡처 그룹 ([a-zA-Z][a-zA-Z0-9-]*)이 필수(옵셔널 아님)라
+        // closeMatch가 존재하면 closeMatch[1]도 항상 존재한다.
+        const rawTagName = closeMatch[1];
+        if (rawTagName === undefined) {
+          throw new Error(
+            "정규식 캡처 그룹이 비어있음(closeMatch[1]) — 예상치 못한 상태",
+          );
+        }
+        const tagName = rawTagName.toLowerCase();
         for (let s = stack.length - 1; s > 0; s -= 1) {
-          if (stack[s].tagName.toLowerCase() === tagName) {
+          const frame = stack[s];
+          if (frame !== undefined && frame.tagName.toLowerCase() === tagName) {
             stack.length = s;
             break;
           }
@@ -459,7 +499,14 @@ function parseMiniHtml(html) {
           html.slice(i),
         );
       if (openMatch) {
+        // 캡처 그룹 ([a-zA-Z][a-zA-Z0-9-]*)이 필수(옵셔널 아님)라
+        // openMatch가 존재하면 openMatch[1]도 항상 존재한다.
         const tagName = openMatch[1];
+        if (tagName === undefined) {
+          throw new Error(
+            "정규식 캡처 그룹이 비어있음(openMatch[1]) — 예상치 못한 상태",
+          );
+        }
         const attrs = parseAttributeString(openMatch[2]);
         const selfClose = Boolean(openMatch[3]);
         const el = makeElementNode(tagName, attrs);
@@ -506,7 +553,11 @@ async function loadAdmissionSectionView() {
     external: ["react", "react-dom", "react/jsx-runtime", "react-dom/server"],
     write: false,
   });
-  const code = result.outputFiles[0].text;
+  const outputFile = result.outputFiles[0];
+  if (outputFile === undefined) {
+    throw new Error("esbuild 빌드 결과에 outputFiles가 없습니다");
+  }
+  const code = outputFile.text;
   const tmpFile = path.join(
     REPO_ROOT,
     `.tmp-gate-b-verify-${Date.now()}-${Math.random().toString(36).slice(2)}.mjs`,

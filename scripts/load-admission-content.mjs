@@ -321,7 +321,34 @@ function buildCategoryContent(
     }
   }
 
+  // 도달 불가 가드: 위 if(existingHtml)/else if(rawText)/else 세 갈래가
+  // 전부 jsonSource를 대입하므로 이 시점엔 항상 값이 있다 — try/catch가
+  // 섞인 중첩 분기라 TS가 그 exhaustiveness를 정적으로 못 따라간다.
+  if (jsonSource === undefined) {
+    throw new Error(
+      `jsonSource가 설정되지 않음(${sectionKey} / ${universityName}) — 로직 결함(예상치 못한 상태)`,
+    );
+  }
   return { html, htmlSource, doc, jsonSource, jsonDetail };
+}
+
+/**
+ * categoryStats/jsonStats(Object.fromEntries로 CATEGORY_KEYS의 키 전부를
+ * 채워 만든 Record)처럼 "키 집합을 스스로 만들어놓고 그 키로만 접근"하는
+ * 객체에 대한 도달 불가 가드. noUncheckedIndexedAccess 하에서 인덱스
+ * 시그니처 접근은 항상 `T | undefined`가 되므로, 실제로는 항상 존재함을
+ * 보장하는 지점에서만 쓴다.
+ * @template T
+ * @param {Record<string, T>} record
+ * @param {string} key
+ * @returns {T}
+ */
+function req(record, key) {
+  const value = record[key];
+  if (value === undefined) {
+    throw new Error(`"${key}" 키가 없습니다(예상치 못한 상태)`);
+  }
+  return value;
 }
 
 async function main() {
@@ -479,10 +506,10 @@ async function main() {
 
       payload[key] = clean(hwpRow[key]) || clean(dbRow[key]);
       payload[CATEGORY_HTML_KEY[key]] = html;
-      categoryStats[key][htmlSource] += 1;
+      req(categoryStats, key)[htmlSource] += 1;
 
       const jsonKey = CATEGORY_JSON_KEY[key];
-      jsonStats[key][jsonSource] += 1;
+      req(jsonStats, key)[jsonSource] += 1;
       if (
         jsonSource === "needsReview" ||
         jsonSource === "invalid" ||
@@ -516,7 +543,7 @@ async function main() {
 
   console.log("\n카테고리별 HTML 소스(보존/생성/원자료없음):");
   CATEGORY_KEYS.forEach((key) => {
-    const s = categoryStats[key];
+    const s = req(categoryStats, key);
     console.log(
       `  - ${key} (${CATEGORY_HTML_KEY[key]}): 보존 ${s.preserved} / 생성 ${s.generated} / 원자료없음 ${s.empty}`,
     );
@@ -526,7 +553,7 @@ async function main() {
     "\n카테고리별 JSON 생성 결과(기존보존/html임포트/raw생성/원자료없음/실패류-기존보존):",
   );
   CATEGORY_KEYS.forEach((key) => {
-    const s = jsonStats[key];
+    const s = req(jsonStats, key);
     console.log(
       `  - ${key} (${CATEGORY_JSON_KEY[key]}): 기존보존(1단) ${s.preserved} / html임포트(2단) ${s["imported-from-html"]} / ` +
         `raw생성(3단) ${s["generated-from-raw"]} / 원자료없음 ${s.empty} / skip ${s.skip} / ` +

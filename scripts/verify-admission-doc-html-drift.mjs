@@ -90,7 +90,7 @@ async function resolveCredentials(keysFileOverride) {
 }
 
 /**
- * @param {{ verbose?: boolean, admissionYear?: number, keysFile?: string }} [options]
+ * @param {{ verbose?: boolean, admissionYear?: number, keysFile?: string | undefined }} [options]
  */
 export async function runDriftVerification({
   verbose = true,

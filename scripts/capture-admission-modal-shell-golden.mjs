@@ -233,7 +233,11 @@ async function buildHarnessBundle(harnessSource) {
       },
       write: false,
     });
-    fs.writeFileSync(bundlePath, result.outputFiles[0].text);
+    const outputFile = result.outputFiles[0];
+    if (outputFile === undefined) {
+      throw new Error("esbuild 빌드 결과에 outputFiles가 없습니다");
+    }
+    fs.writeFileSync(bundlePath, outputFile.text);
     return bundlePath;
   } finally {
     fs.rmSync(harnessPath, { force: true });
@@ -298,6 +302,31 @@ const BASE = {
   row: { id: "fixture" },
 };
 
+/**
+ * CASES 각 케이스의 selectedInfo.doc이 null(loading/error/html/text/empty)과
+ * SAMPLE_DOC(doc/docWithProxyBar) 사이를 오간다 — 명시적 타입 없이 두면
+ * React.createElement(Harness, props)의 제네릭 추론이 첫 케이스의 doc:null
+ * 리터럴 타입으로 고정돼 뒤의 SAMPLE_DOC 케이스와 충돌한다. doc은 이
+ * 스크립트에선 구조를 따지지 않고 그대로 넘기기만 하므로 unknown으로
+ * 통일해 값 자체는 그대로 두고 타입만 맞춘다.
+ * @typedef {{
+ *   selectedInfo: {
+ *     universityName: string,
+ *     title: string,
+ *     cacheKey: string,
+ *     section: unknown,
+ *     row: unknown,
+ *     status: string,
+ *     mode: string,
+ *     doc: unknown,
+ *     html: string,
+ *     text: string,
+ *     isHtml: boolean,
+ *   },
+ *   modalXScroll: { visible: boolean, width: number },
+ * }} GoldenCase
+ */
+/** @type {Record<string, GoldenCase>} */
 const CASES = {
   loading: {
     selectedInfo: {
