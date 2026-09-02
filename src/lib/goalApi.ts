@@ -114,6 +114,38 @@ interface GoalDailyRecord {
   memo: string;
 }
 
+/**
+ * QA3 행305 — api/goal/daily-record.ts computeCooldownState(). 한 번도 제출한
+ * 적 없는 학생은 null(잠금 개념 자체가 없다).
+ */
+export interface GoalRecordCooldown {
+  active: boolean;
+  submittedAt: string | null;
+  unlocksAt: string | null;
+}
+
+/**
+ * QA3 행305 — api/goal/daily-record.ts buildSummaryPayload(). 잠금 중 요약
+ * 패널 전용, 오늘/가장 최근 제출 행이 하나도 없으면 null.
+ */
+export interface GoalRecordSummary {
+  studyHours: number;
+  targetIdealHours: number;
+  targetMinHours: number;
+  idealRate: number;
+  minRate: number;
+  deltaIdealSusi: number | null;
+  deltaMinSusi: number | null;
+  deltaIdealJungsi: number | null;
+  deltaMinJungsi: number | null;
+}
+
+/** QA3 행305 — api/goal/daily-record.ts buildTomorrowTargets(). */
+export interface GoalTomorrowTargets {
+  idealHours: number;
+  minHours: number;
+}
+
 /** api/_lib/goalRepo.js buildSchedulePayload(). */
 interface GoalSchedule {
   id: number;
@@ -377,15 +409,26 @@ export async function submitGoalIntake(
 //                                          정상 경로에선 RequireGoalAccess가 이미
 //                                          걸러 도달하지 않는 방어적 분기(intake.js와
 //                                          동일 사유).
-//   { kind: 'success', record, probs }  — 200 {ok:true, record, probs}. record는
-//                                          오늘 기록이 없으면 null(api/goal/daily-record.js
-//                                          buildRecordPayload 계약).
+//   { kind: 'success', record, probs, cooldown, summary, tomorrowTargets }
+//                                        — 200 {ok:true, ...}. record는 오늘 기록이
+//                                          없으면 null(api/goal/daily-record.js
+//                                          buildRecordPayload 계약). cooldown/
+//                                          summary/tomorrowTargets는 QA3 행305
+//                                          쿨다운·잠금 패널 전용(둘 다 한 번도
+//                                          제출한 적 없으면 cooldown/summary는 null).
 //   { kind: 'error' }                   — 네트워크 오류·JSON 파싱 실패·5xx·예상 밖 상태코드.
 export type FetchTodayGoalRecordResult =
   | { kind: "no-session" }
   | { kind: "not-allowed" }
   | { kind: "not-active" }
-  | { kind: "success"; record: GoalDailyRecord | null; probs: GoalProbsBlock }
+  | {
+      kind: "success";
+      record: GoalDailyRecord | null;
+      probs: GoalProbsBlock;
+      cooldown: GoalRecordCooldown | null;
+      summary: GoalRecordSummary | null;
+      tomorrowTargets: GoalTomorrowTargets;
+    }
   | { kind: "error" };
 
 export async function fetchTodayGoalRecord(): Promise<FetchTodayGoalRecordResult> {
@@ -419,7 +462,14 @@ export async function fetchTodayGoalRecord(): Promise<FetchTodayGoalRecordResult
   if (body?.allowed === false) return { kind: "not-allowed" };
 
   if (body?.ok === true) {
-    return { kind: "success", record: body.record ?? null, probs: body.probs };
+    return {
+      kind: "success",
+      record: body.record ?? null,
+      probs: body.probs,
+      cooldown: body.cooldown ?? null,
+      summary: body.summary ?? null,
+      tomorrowTargets: body.tomorrowTargets ?? { idealHours: 0, minHours: 0 },
+    };
   }
 
   console.error(
@@ -465,6 +515,8 @@ export type SubmitDailyRecordResult =
   | { kind: "not-active" }
   | { kind: "no-study-time" }
   | { kind: "before-start-date" }
+  // QA3 행305 — 12시간 쿨다운 중 재제출. api/goal/daily-record.ts 409 {reason:'cooldown'}.
+  | { kind: "cooldown"; submittedAt: string | null; unlocksAt: string | null }
   | { kind: "validation-error"; detail: string }
   | {
       kind: "success";
@@ -510,7 +562,18 @@ export async function submitDailyRecord(
 
   if (response.status === 401) return { kind: "no-session" };
   if (response.status === 403) return { kind: "not-allowed" };
-  if (response.status === 409) return { kind: "not-active" };
+  if (response.status === 409) {
+    // QA3 행305 — 409는 requireActiveStudent(not_onboarded/awaiting_cuts)와
+    // 쿨다운 게이트가 공유한다. reason으로만 구분한다.
+    if (result?.reason === "cooldown") {
+      return {
+        kind: "cooldown",
+        submittedAt: result?.submittedAt ?? null,
+        unlocksAt: result?.unlocksAt ?? null,
+      };
+    }
+    return { kind: "not-active" };
+  }
 
   if (response.status === 400) {
     if (result?.reason === "no_study_time") return { kind: "no-study-time" };
