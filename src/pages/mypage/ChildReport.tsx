@@ -12,7 +12,10 @@ import { supabase } from "@/lib/supabase";
 // 또는 목표관리 주간/월간 알림톡 링크(src/routes/alimtalkLinkRoutes.tsx).
 //
 // ── 권한 판정 ─────────────────────────────────────────────────────────
-// fn_parent_children(sql/73)이 UI 게이트다 — 반환 목록에 이 studentId가 approved로
+// 비로그인은 이 컴포넌트가 아니라 라우트 가드가 먼저 막는다(mypageRoutes.ts의
+// requireAuthMiddleware가 /login?redirect=원래경로로 보낸다). 여기서는 로그인은
+// 됐지만 이 자녀와 연결되지 않은 경우만 다룬다 — fn_parent_children(sql/73)이 UI
+// 게이트다 — 반환 목록에 이 studentId가 approved로
 // 없으면 화면 진입 자체를 막는다(아래 child===null). 진짜 방어선은 api/goal/report.ts가
 // studentId 쿼리를 받을 때 서버에서 fn_is_linked_pair로 다시 확인하는 쪽이다(403
 // NOT_LINKED) — 판정 축을 둘로 늘리지 않기 위해 여기서 fn_is_linked_pair를 따로
