@@ -45,6 +45,10 @@ const ALLOWED_PURPOSES = [
   // 이 purpose로 인증된 요청만 받는다. 계정이 '있어야' 정상 시나리오라
   // SIGNUP_PURPOSES에는 넣지 않는다(중복 번호 차단 대상 아님).
   "find_account",
+  // 비밀번호 찾기의 휴대폰 인증 경로(QA 시트 147·209행, 2026-09-02) —
+  // /api/reset-password-by-phone이 이 purpose로 인증된 요청만 받는다.
+  // find_account와 같은 이유로 SIGNUP_PURPOSES에 넣지 않는다.
+  "reset_password",
 ];
 
 // 가입 목적의 발송만 중복 번호를 막는다. 'phone_change'는 로그인한 본인의 번호가
