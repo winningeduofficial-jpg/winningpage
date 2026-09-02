@@ -78,10 +78,9 @@ describe("ServiceCard", () => {
     expect(container.querySelectorAll(".text-ink-natural")).toHaveLength(0);
   });
 
-  // 시안 확정 — 제목·설명 모두 자동 줄바꿈 없음(폭이 좁아지면 일러스트 뒤 여백
-  // 스페이서가 대신 줄어든다 — 아래 별도 테스트). 설명은 whitespace-pre라 DB \n만
-  // 줄바꿈 지점이고 그 외 자동 줄바꿈은 없다.
-  test("제목은 whitespace-nowrap, 설명은 whitespace-pre로 자동 줄바꿈되지 않는다", () => {
+  // 사용자 확정 최종 사이징 규칙 — 카드 루트가 컨테이너 쿼리 기준점(@container)이고,
+  // 텍스트는 카드 폭 ≥21rem일 때만 nowrap/pre(자동 줄바꿈 없음)로 전환된다.
+  test("카드 루트는 @container이고 텍스트에 @[21rem]: 줄바꿈 억제 클래스가 붙는다", () => {
     renderCard({
       id: "svc-10",
       name: "국제·해외 프리미엄",
@@ -89,17 +88,24 @@ describe("ServiceCard", () => {
       link: "/page/premium/global-university",
     });
 
+    const card = screen.getByRole("link", {
+      name: "국제·해외 프리미엄 바로가기",
+    });
+    expect(card).toHaveClass("@container");
+
     expect(screen.getByText("국제·해외 프리미엄")).toHaveClass(
-      "whitespace-nowrap",
+      "break-keep",
+      "@[21rem]:whitespace-nowrap",
     );
     expect(screen.getByText("국제고 해외고 국내대입 컨설팅")).toHaveClass(
-      "whitespace-pre",
+      "whitespace-pre-line",
+      "@[21rem]:whitespace-pre",
     );
   });
 
-  // 시안 확정(리드 재실측) — 일러스트 프레임은 135×178 고정(shrink-0), 텍스트가
-  // 길어질 때 대신 줄어드는 건 프레임 뒤 여백 스페이서(21px→0)다.
-  test("일러스트 프레임은 shrink-0로 고정되고 뒤에 여백 스페이서가 있다", () => {
+  // 사용자 확정 최종 사이징 규칙 — 일러스트 프레임은 뷰포트 breakpoint가 아니라 카드
+  // 폭(cqw)에 비례해 줄어들고(min(8.4375rem,38cqw)), 비율은 3:4로 고정된다.
+  test("일러스트 프레임은 카드 폭 비례 컨테이너 쿼리 크기(min(8.4375rem,38cqw))를 쓴다", () => {
     const { container } = renderCard({
       id: "svc-11",
       name: "학습진단",
@@ -110,10 +116,10 @@ describe("ServiceCard", () => {
     // alt=""(장식용 이미지)라 접근성 트리에서 role="img"로 노출되지 않는다 — querySelector로 조회.
     const img = container.querySelector("img");
     const frame = img?.parentElement;
-    expect(frame).toHaveClass("shrink-0");
-
-    const spacer = container.querySelector('span[aria-hidden="true"].shrink');
-    expect(spacer).toBeInTheDocument();
-    expect(spacer).toHaveClass("w-[1.3125rem]", "min-w-0");
+    expect(frame).toHaveClass(
+      "aspect-3/4",
+      "w-[min(8.4375rem,38cqw)]",
+      "shrink-0",
+    );
   });
 });

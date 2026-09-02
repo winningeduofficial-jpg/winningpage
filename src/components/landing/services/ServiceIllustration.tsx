@@ -1,9 +1,12 @@
-// 핵심 서비스 카드 우측 일러스트 프레임 — Figma 1920 실측(px÷16=rem) 재확인 반영.
-// lg 135×178px(8.4375rem×11.125rem) 고정(shrink-0) — 이미지 크기는 절대 줄어들지 않는다.
-// 텍스트가 길어져 공간이 부족해지면 이 프레임이 아니라 프레임 뒤 여백 스페이서
-// (ServiceCard.tsx, 21px→0)가 대신 줄어든다. lg 미만 6rem×8rem도 동일하게 고정.
+// 핵심 서비스 카드 우측 일러스트 프레임 — 사용자 확정 최종 사이징 규칙: 카드 폭
+// 기준 컨테이너 쿼리(ServiceCard의 @container)로만 크기가 정해진다. 뷰포트
+// breakpoint·카드별 예외 분기는 없다(2단계 lg/모바일 분기 폐기). 비율 3:4
+// 고정(aspect-3/4), 폭은 min(8.4375rem, 38cqw) — 카드가 넓으면 원래 크기(135px)
+// 그대로, 좁아지면 카드 폭의 38%로 비례 축소(353px 카드→≈134px, 306px→≈116px).
+// shrink-0라 텍스트 그룹(ServiceCardText)이 자기 폭을 요구해도 이 프레임이 flex
+// gap 계산에서 밀려나지 않는다 — 대신 카드 자체가 좁아지면 cqw가 함께 줄어 반응한다.
 // 그림자·PREMIUM 배지는 에셋 PNG에 이미 합성돼 있으므로 이미지 1장을 프레임 안에
-// object-contain으로 중앙 배치하기만 한다.
+// object-contain으로 채우기만 한다.
 export default function ServiceIllustration({
   src,
 }: {
@@ -12,14 +15,14 @@ export default function ServiceIllustration({
   return (
     <span
       aria-hidden="true"
-      className="flex h-32 w-24 shrink-0 items-center justify-center lg:h-44.5 lg:w-33.75"
+      className="flex aspect-3/4 w-[min(8.4375rem,38cqw)] shrink-0 items-center justify-center"
     >
       {src && (
         <img
           src={src}
           alt=""
           loading="lazy"
-          className="max-h-full max-w-full object-contain"
+          className="h-full w-full object-contain"
         />
       )}
     </span>
