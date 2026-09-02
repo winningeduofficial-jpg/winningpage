@@ -43,6 +43,9 @@ const MIN_REPEAT_COUNT = 3; // 최소 반복 카피 수 (기존 Home.jsx 3배 �
  * @param {object} opts
  * @param {number} [opts.itemCount=0] 원본 아이템 개수 (2개 이상일 때만 자동 롤링)
  * @param {number} [opts.speed=0.035] px per ms (기본 ≈ 35px/s)
+ * @param {'left'|'right'} [opts.direction='left'] 자동 스크롤 진행 방향(시각 기준).
+ *   'left'(기본, 기존 동작) = 콘텐츠가 좌측으로 흐름(scrollLeft 증가).
+ *   'right' = 콘텐츠가 우측으로 흐름(scrollLeft 감소, 0 근접 시 사이클 폭만큼 점프해 루프 유지).
  * @returns {{
  *   scrollRef: import('react').MutableRefObject<HTMLElement|null>,
  *   repeatIndices: number[],
@@ -57,9 +60,11 @@ const MIN_REPEAT_COUNT = 3; // 최소 반복 카피 수 (기존 Home.jsx 3배 �
 export function useInfiniteMarquee({
   itemCount = 0,
   speed = DEFAULT_SPEED,
+  direction = "left",
 }: {
   itemCount?: number;
   speed?: number;
+  direction?: "left" | "right";
 } = {}) {
   const scrollRef = useRef<HTMLElement | null>(null);
   const animationFrameRef = useRef<number>(0);
@@ -75,6 +80,8 @@ export function useInfiniteMarquee({
   const carryRef = useRef(0);
   const speedRef = useRef(speed);
   speedRef.current = speed;
+  const directionRef = useRef(direction);
+  directionRef.current = direction;
 
   const [repeatCount, setRepeatCount] = useState(MIN_REPEAT_COUNT);
   const repeatCountRef = useRef(repeatCount);
@@ -181,7 +188,8 @@ export function useInfiniteMarquee({
           const step = Math.trunc(carryRef.current);
           if (step !== 0) {
             carryRef.current -= step;
-            container.scrollLeft += step;
+            container.scrollLeft +=
+              directionRef.current === "right" ? -step : step;
           }
         } else {
           carryRef.current = 0;

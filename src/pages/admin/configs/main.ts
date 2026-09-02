@@ -116,7 +116,7 @@ export const mainConfigs: Record<string, MainConfig> = {
     searchPlaceholder: "팝업 제목을 검색하세요",
     order: "sort_order",
     homepage: true,
-    guideText: `PC 팝업 이미지: 900px × 1200px/ 비율: 3:4/ 형식: JPG 또는 PNG/ 권장 용량: 1~2MB 이하`,
+    guideText: `PC 팝업 이미지: 900px × 1200px/ 비율: 3:4/ 형식: JPG 또는 PNG/ 권장 용량: 1~2MB 이하/ 모바일 팝업 이미지(선택): 실제 표시 폭 320px, 비율 3:4 기준 640px × 853px 권장(고밀도 화면 대응)/ 비워두면 PC 이미지가 그대로 축소 표시됨/ 동시 노출: 최대 3개(순서 오름차순 상위 3개만 노출)`,
     columns: [
       { key: "title", label: "제목" },
       { key: "image_url", label: "PC 이미지", type: "image" },
