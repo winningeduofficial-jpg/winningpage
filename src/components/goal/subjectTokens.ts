@@ -69,12 +69,41 @@ export const WORKBOOK_SUBJECT_IDS = [
   "etc",
 ];
 
-// 배경(칩) 전용 파스텔 톤 클래스 — tailwind.config.js `goal.subject.*`.
+// 배경(칩) 전용 파스텔 톤 클래스 — src/index.css `--color-goal-subject-*`.
+//
+// Tailwind v4는 소스에 문자 그대로 적힌 클래스만 생성한다 — 템플릿 문자열
+// (`bg-goal-subject-${id}`)로 조립하면 CSS가 아예 만들어지지 않아 배경이 투명이 된다
+// (2026-09-02 나의 노력 책장 E2E에서 책등이 안 보이던 원인). 그래서 과목별 리터럴
+// 맵으로 고정하고, 함수는 그 맵을 조회만 한다.
+const SUBJECT_BG_CLASSES: Record<string, string> = {
+  korean: "bg-goal-subject-korean",
+  math: "bg-goal-subject-math",
+  english: "bg-goal-subject-english",
+  science: "bg-goal-subject-science",
+  social: "bg-goal-subject-social",
+  history: "bg-goal-subject-history",
+  second_lang: "bg-goal-subject-second_lang",
+  etc: "bg-goal-subject-etc",
+};
+
+const SUBJECT_STRONG_CLASSES: Record<string, string> = {
+  korean: "bg-goal-subjectStrong-korean",
+  math: "bg-goal-subjectStrong-math",
+  english: "bg-goal-subjectStrong-english",
+  science: "bg-goal-subjectStrong-science",
+  social: "bg-goal-subjectStrong-social",
+  history: "bg-goal-subjectStrong-history",
+  second_lang: "bg-goal-subjectStrong-second_lang",
+  etc: "bg-goal-subjectStrong-etc",
+};
+
 export function getSubjectBgClass(key?: string | null) {
-  return `bg-goal-subject-${resolveSubjectId(key)}`;
+  return SUBJECT_BG_CLASSES[resolveSubjectId(key)] ?? "bg-goal-subject-etc";
 }
 
-// 도트·진행바 채움 전용 진한 톤 클래스 — tailwind.config.js `goal.subjectStrong.*`.
+// 도트·진행바 채움 전용 진한 톤 클래스 — src/index.css `--color-goal-subjectStrong-*`.
 export function getSubjectStrongClass(key?: string | null) {
-  return `bg-goal-subjectStrong-${resolveSubjectId(key)}`;
+  return (
+    SUBJECT_STRONG_CLASSES[resolveSubjectId(key)] ?? "bg-goal-subjectStrong-etc"
+  );
 }

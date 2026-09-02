@@ -1,10 +1,23 @@
 import { describe, expect, test } from "vitest";
 import { SUBJECT_IDS } from "../../../api/goal/workbooks";
 import {
+  getSubjectBgClass,
   getSubjectLabel,
+  getSubjectStrongClass,
   resolveSubjectId,
   WORKBOOK_SUBJECT_IDS,
 } from "./subjectTokens";
+
+const KNOWN_IDS = [
+  "korean",
+  "math",
+  "english",
+  "science",
+  "social",
+  "history",
+  "second_lang",
+  "etc",
+];
 
 // api/goal/workbooks.ts의 서버 화이트리스트(goal_workbooks_subject_check 5종)와
 // 클라이언트 WORKBOOK_SUBJECT_IDS가 어긋나면, "나의 노력" 카드가 서버가 거부하는
@@ -25,4 +38,12 @@ describe("WORKBOOK_SUBJECT_IDS ↔ api/goal/workbooks.ts SUBJECT_IDS parity", ()
       expect(resolveSubjectId(getSubjectLabel(id))).toBe(id);
     }
   });
+});
+
+test("과목 색 클래스는 Tailwind가 스캔할 수 있는 리터럴이라 8종 전부 실제 클래스명을 돌려준다", () => {
+  for (const id of KNOWN_IDS) {
+    expect(getSubjectBgClass(id)).toBe(`bg-goal-subject-${id}`);
+    expect(getSubjectStrongClass(id)).toBe(`bg-goal-subjectStrong-${id}`);
+  }
+  expect(getSubjectStrongClass("없는과목")).toBe("bg-goal-subjectStrong-etc");
 });

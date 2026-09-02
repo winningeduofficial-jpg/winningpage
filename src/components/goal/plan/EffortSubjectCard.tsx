@@ -64,7 +64,7 @@ export default function EffortSubjectCard({
     Array.isArray(completedBooks) && completedBooks.length > 0;
 
   return (
-    <div className="flex h-112.75 w-78 shrink-0 flex-col rounded-xl border border-line/60 bg-white px-4.75 py-5">
+    <div className="flex h-112.75 w-full min-w-0 flex-col rounded-xl border border-line/60 bg-white px-4.75 py-5">
       <div className="flex items-baseline gap-2">
         <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
           {subject}

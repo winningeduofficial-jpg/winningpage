@@ -227,7 +227,7 @@ export default function Efforts() {
           </p>
         )}
 
-        <div className="grid grid-cols-4 gap-10">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] gap-6">
           {cardSubjects.map((id) => {
             const label = getSubjectLabel(id);
             const subjectBooks = workbooks.filter(
