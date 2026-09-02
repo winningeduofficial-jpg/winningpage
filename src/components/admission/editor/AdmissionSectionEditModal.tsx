@@ -9,6 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import AdmissionEditorSurface from "./AdmissionEditorSurface";
 
 // 어드민 대학모집요강 "카테고리 편집" 다이얼로그.
@@ -109,12 +110,13 @@ export default function AdmissionSectionEditModal({
             </p>
             <DialogTitle className="text-xl">{sectionLabel}</DialogTitle>
           </DialogHeader>
-          <div
+          <ScrollArea
+            axis="both"
             data-section={sectionKey}
-            className="admission-editor-modal-body admission-surface flex-1 overflow-auto bg-white px-6 py-4 md:px-12"
+            className="admission-editor-modal-body admission-surface flex-1 bg-white px-6 py-4 md:px-12"
           >
             {children}
-          </div>
+          </ScrollArea>
           {/* shadcn 기본 -mx-4 -mb-4 는 DialogContent p-4 상쇄용 — 여기는 p-0
               이므로 0 으로 되돌리고 좌우 패딩을 본문과 맞춘다. */}
           <DialogFooter className="mx-0 mb-0 flex-row items-center justify-between gap-3 px-6 py-4 sm:justify-between md:px-12">
