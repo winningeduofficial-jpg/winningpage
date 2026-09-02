@@ -7,10 +7,14 @@ import {
   DEFAULT_TIMER_SUBJECTS,
   TIMER_SUBJECT_CATALOG,
 } from "@/components/goal/studyRecordOptions";
-import { getSubjectLabel } from "@/components/goal/subjectTokens";
+import {
+  getSubjectLabel,
+  WORKBOOK_SUBJECT_IDS,
+} from "@/components/goal/subjectTokens";
 import {
   addGoalTimerSubject,
   createGoalWorkbook,
+  deleteGoalWorkbook,
   fetchGoalTimer,
   fetchGoalWorkbooks,
   updateGoalWorkbook,
@@ -45,7 +49,9 @@ type Workbook = {
   // 필터링(subject/status)에만 쓰여 null이어도 안전하다.
   totalPages: number | null;
   currentPage: number | null;
-  status: "in_progress" | "done" | string;
+  // api/_lib/goalRepo.js computeWorkbookStatus() 반환값 그대로("in_progress"가 아니라
+  // "reading" — 이전 주석이 실제 서버 값과 어긋나 있었다).
+  status: "reading" | "done" | string;
 };
 
 export default function Efforts() {
@@ -93,6 +99,17 @@ export default function Efforts() {
 
   const canAddMoreSubjects =
     visibleSubjects.length < TIMER_SUBJECT_CATALOG.length;
+
+  // "나의 노력" 카드는 열공 타이머의 8종 노출 목록이 아니라 goal_workbooks가 실제로
+  // 지원하는 5종(WORKBOOK_SUBJECT_IDS)만 그린다 — goal_plan_tasks/goal_subject_targets/
+  // goal_timer_sessions 세 테이블만 8종으로 넓어졌고(QA B9) goal_workbooks_subject_check는
+  // 그대로 5종이라, 8종 그리드를 그대로 쓰면 6~8번째 카드에서 "+ 문제집 추가" 시 서버가
+  // 400을 돌려주는 잠재 결함이 있었다(QA 행298 비고). "+ 과목 추가하기" 버튼(canAddMoreSubjects
+  // 등)은 여전히 타이머 8종 카탈로그를 그대로 따른다 — 타이머 노출 여부와 별개로 워크북 카드는
+  // 이 5종을 넘지 않는다.
+  const cardSubjects = visibleSubjects.filter((id) =>
+    WORKBOOK_SUBJECT_IDS.includes(id),
+  );
 
   // AddSubjectModal의 onAdd 계약(Timer.tsx와 동일) — 성공하면 노출 목록을 다시
   // 불러와 카드 그리드를 즉시 갱신한다.
@@ -162,6 +179,20 @@ export default function Efforts() {
     return true;
   }
 
+  // AddWorkbookModal의 onDelete 계약 — deleteGoalWorkbook과 동일하게 실패 시 false를
+  // 돌려줘 모달이 닫히지 않게 한다(handleModalSubmit과 동일 규약, QA 행321).
+  async function handleDeleteWorkbook(id: string | number) {
+    // GoalWorkbook.id는 항상 DB 숫자 PK다(handleModalSubmit의 동일 주석 참고).
+    const outcome = await deleteGoalWorkbook(id as number);
+    if (outcome.kind !== "success") {
+      console.error("[Efforts] 문제집 삭제 실패:", outcome);
+      return false;
+    }
+
+    await loadWorkbooks();
+    return true;
+  }
+
   const totalCompleted = workbooks.filter(
     (book) => book.status === "done",
   ).length;
@@ -197,17 +228,19 @@ export default function Efforts() {
         )}
 
         <div className="grid grid-cols-4 gap-10">
-          {visibleSubjects.map((id) => {
+          {cardSubjects.map((id) => {
             const label = getSubjectLabel(id);
             const subjectBooks = workbooks.filter(
               (book) => book.subject === id,
             );
-            const completed = subjectBooks.filter(
+            // 완독 책은 completed 카운터 + BookStack 시각화(completedBooks) 두 군데서
+            // 쓴다(QA 행282).
+            const completedBooks = subjectBooks.filter(
               (book) => book.status === "done",
-            ).length;
-            // 칩 리스트는 "등록(공부 중인 책)"만 담는다 — 완독한 책은 completed 카운터로만
-            // 세고 칩 목록에서는 빠진다(goalPlanMock.js 옛 목업 주석의 등록/완독 분리 규약을
-            // 그대로 실데이터에 적용, part-11 §183).
+            );
+            // 목록은 "등록(공부 중인 책)"만 담는다 — 완독한 책은 completed 카운터/
+            // completedBooks로만 세고 진행 중 목록에서는 빠진다(goalPlanMock.js 옛 목업
+            // 주석의 등록/완독 분리 규약을 그대로 실데이터에 적용, part-11 §183).
             const registeredBooks = subjectBooks.filter(
               (book) => book.status !== "done",
             );
@@ -216,8 +249,9 @@ export default function Efforts() {
               <EffortSubjectCard
                 key={id}
                 subject={label}
-                completed={completed}
+                completed={completedBooks.length}
                 books={registeredBooks}
+                completedBooks={completedBooks}
                 onAddBook={() => openModal(label)}
                 onEditBook={openEditModal}
               />
@@ -239,6 +273,7 @@ export default function Efforts() {
         initialSubject={presetSubject}
         editingWorkbook={editingWorkbook}
         onSubmit={handleModalSubmit}
+        onDelete={handleDeleteWorkbook}
       />
     </>
   );

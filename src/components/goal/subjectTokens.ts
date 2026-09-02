@@ -53,6 +53,22 @@ export function getSubjectLabel(key?: string | null) {
   return SUBJECT_LABELS[resolveSubjectId(key)] ?? SUBJECT_LABELS.etc;
 }
 
+// goal_workbooks(문제집)만 쓰는 5종 — goal_plan_tasks/goal_subject_targets/
+// goal_timer_sessions 세 테이블은 QA B9(2026-08-31, supabase/migrations/
+// 20260831020405_goal_timer_subjects.sql)로 8종까지 넓어졌지만 goal_workbooks의
+// CHECK 제약(supabase/migrations/20260821000000_baseline.sql
+// goal_workbooks_subject_check)은 그때 같이 넓히지 않아 여전히 5종이다(마이그레이션
+// 주석이 "세 테이블"만 명시). api/goal/workbooks.ts SUBJECT_IDS와 parity 테스트로
+// 묶여 있다 — "나의 노력" 화면(과목 카드 목록, 문제집 등록/수정 모달)은 8종 카탈로그가
+// 아니라 반드시 이 배열만 써야 한다(그 외 과목으로 등록 시도 시 서버 400).
+export const WORKBOOK_SUBJECT_IDS = [
+  "korean",
+  "math",
+  "english",
+  "science",
+  "etc",
+];
+
 // 배경(칩) 전용 파스텔 톤 클래스 — tailwind.config.js `goal.subject.*`.
 export function getSubjectBgClass(key?: string | null) {
   return `bg-goal-subject-${resolveSubjectId(key)}`;

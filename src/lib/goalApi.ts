@@ -635,6 +635,17 @@ export async function updateGoalWorkbook(
   return { kind: "success", workbook: outcome.result?.workbook };
 }
 
+/** DELETE — 문제집 1건 삭제. deleteGoalPlanTask와 동일 규약(성공 시 kind만 반환). */
+export async function deleteGoalWorkbook(
+  id: number,
+): Promise<
+  Exclude<GoalWorkbooksRequestResult, { kind: "success" }> | { kind: "success" }
+> {
+  const outcome = await goalWorkbooksRequest("DELETE", { id });
+  if (outcome.kind !== "success") return outcome;
+  return { kind: "success" };
+}
+
 // GET /api/goal/student · POST /api/goal/intake · GET/POST/PUT/DELETE /api/goal/schedules
 // 공용 클라이언트.
 // ---------------------------------------------------------------------------
