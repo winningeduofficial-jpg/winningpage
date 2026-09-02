@@ -1,0 +1,16 @@
+{
+  // scripts/ 전용 타입체크 설정. 기본 tsconfig.json은 scripts를 exclude해
+  // .mjs 스크립트가 타입체크 사각지대였고, 그 결과 src/lib 리팩토링(export 제거,
+  // sql/ 폐기)을 따라가지 못한 채 죽은 스크립트가 2026-09-01 첫 야간 DB 감사에서야
+  // 드러났다. 이 파일로 CI(type-check.yml)에서 scripts/도 tsc --noEmit 대상에 넣는다.
+  //
+  // 1차 편입 시점에는 strictNullChecks 계열 4개를 껐다(전체 238건 중 162건이 이
+  // 계열이라 우선 나머지 실제 타입 오류만 고쳐 들여왔다). 2차(이 커밋)에서
+  // 계열을 켜 기본 tsconfig와 동일한 엄격도로 맞췄다(156건 정리).
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["scripts/**/*.mjs", "scripts/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

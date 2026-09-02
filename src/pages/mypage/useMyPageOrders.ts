@@ -54,12 +54,13 @@ export type Order = {
 };
 
 export type Refund = {
-  id: string;
+  // refund_requests.id는 bigint PK다(orders.id와 달리 uuid가 아니다).
+  id: number;
   order_id?: string;
-  order_name?: string;
+  order_name?: string | null;
   amount: number;
   gross_amount?: number | null;
-  reason?: string;
+  reason?: string | null;
   status?: string;
   approval_status?: string;
   student_profile_id?: string;
@@ -132,7 +133,7 @@ export function useMyPageOrders(user: SessionUser | null) {
         // 객체) 경로는 Json 타입으로 추론되어 위 Order.card(CardInfo | null)와
         // 맞지 않는다. .returns()로 이 쿼리 결과 타입만 우리 Order 타입으로
         // 못박는다(쿼리 자체의 컬럼명 오타 검증은 그대로 유지된다).
-        .returns<Order[]>(),
+        .overrideTypes<Order[], { merge: false }>(),
       supabase
         .from("refund_requests")
         .select(

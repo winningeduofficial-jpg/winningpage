@@ -87,7 +87,8 @@ interface GoalListRow extends GoalStateRow {
 }
 
 interface GoalProbabilityLogRow {
-  id: string;
+  // goal_probability_logs.id는 identity 정수 PK다(생성 타입 대조 결과).
+  id: number;
   created_at?: string | null;
   reason?: string | null;
   ideal_susi?: number | null;
@@ -99,7 +100,8 @@ interface GoalProbabilityLogRow {
 }
 
 interface GoalDailyRecordRow {
-  id: string;
+  // goal_daily_records.id도 identity 정수 PK다(생성 타입 대조 결과).
+  id: number;
   record_index?: number | null;
   record_date?: string | null;
   submitted_on?: string | null;
@@ -609,7 +611,7 @@ export default function GoalStudentsAdmin({
         .order("profile_id", { ascending: true })
         .range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
-      const { data: stateRows, error: stateError, count } = await query;
+      const { data: rawStateRows, error: stateError, count } = await query;
 
       if (cancelled) return;
 
@@ -622,7 +624,15 @@ export default function GoalStudentsAdmin({
         return;
       }
 
-      const ids = (stateRows || []).map((row) => row.profile_id);
+      // goal_student_state는 뷰라 생성 타입이 모든 컬럼을 nullable로 내보내지만
+      // profile_id는 goal_students PK를 그대로 노출하는 값이라 실제 행에서는
+      // null일 수 없다 — 방어적으로 걸러 이후 로직의 타입을 string으로 좁힌다.
+      const stateRows = (rawStateRows || []).filter(
+        (row): row is typeof row & { profile_id: string } =>
+          row.profile_id !== null,
+      );
+
+      const ids = stateRows.map((row) => row.profile_id);
 
       if (ids.length === 0) {
         setRows([]);
@@ -661,7 +671,7 @@ export default function GoalStudentsAdmin({
       setProfileGap(Boolean(profileRes.error) || profileMap.size === 0);
 
       setRows(
-        (stateRows || []).map((row) => ({
+        stateRows.map((row) => ({
           ...row,
           student: studentMap.get(row.profile_id) || null,
           profile: profileMap.get(row.profile_id) || null,
@@ -1196,10 +1206,23 @@ function GoalStudentDetail({
         return;
       }
 
-      const studentRow = studentRes.data || null;
+      // goal_students Row의 naesin_scores/mock_exam_scores/study_schedule 3개
+      // jsonb 컬럼은 생성 타입상 Json이지만 이 화면이 실제로 읽는 값은 고정
+      // 도메인 셰이프(GoalStudentRow)다 — 읽기 지점에서 한 번만 좁힌다.
+      const studentRow = (studentRes.data as unknown as GoalStudentRow) || null;
 
       setStudent(studentRow);
-      setState(stateRes.data || null);
+      // goal_student_state는 뷰라 profile_id가 생성 타입상 nullable이지만
+      // 이 쿼리는 eq('profile_id', profileId)로 조회했으므로 행이 있다면
+      // profile_id는 반드시 profileId와 같다 — ??로 방어적으로 좁힌다.
+      setState(
+        stateRes.data
+          ? {
+              ...stateRes.data,
+              profile_id: stateRes.data.profile_id ?? profileId,
+            }
+          : null,
+      );
       setProfile(profileRes.data || null);
       setLogs(logRes.data || []);
 

@@ -29,6 +29,7 @@ import {
 } from "@/components/auth";
 import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
+import type { SignupProfileRpcResult } from "@/lib/parentLink";
 import { formatPhoneInput, normalizePhone } from "@/lib/phoneVerification";
 import {
   applySignupPassword,
@@ -517,7 +518,12 @@ export default function Under14Form() {
           p_identity_request_id: verification.pass.requestId ?? "",
           // T8(QA 2026-08-22): p_birth_date/p_gender는 보내지 않는다 — RPC가
           // identity_verifications에서 PASS 값을 직접 읽어 정본으로 쓴다.
-          p_org_code: formData.orgCode.trim() || null,
+          // p_org_code는 DEFAULT NULL이 있는 optional 인자다. exactOptionalPropertyTypes
+          // 하에서는 undefined 값을 명시적으로 넣는 것도 금지라 키 자체를 조건부로 스프레드한다
+          // (인자 생략이 명시적 null과 런타임에서 동일하다).
+          ...(formData.orgCode.trim() && {
+            p_org_code: formData.orgCode.trim(),
+          }),
         },
       );
 
@@ -526,7 +532,11 @@ export default function Under14Form() {
         return;
       }
 
-      if (!profileResult?.ok) {
+      // 생성 타입은 RPC 반환을 Json으로만 표현한다 — 실제 payload 모양은
+      // SignupProfileRpcResult(src/lib/parentLink.ts) 참고.
+      const signupResult = profileResult as unknown as SignupProfileRpcResult;
+
+      if (!signupResult?.ok) {
         setFormError(
           "회원 정보 저장 결과를 확인할 수 없습니다. 다시 시도해 주세요.",
         );
@@ -535,8 +545,8 @@ export default function Under14Form() {
 
       // 연결코드는 RPC가 발급해 응답에 담아준다. 여기서 넘기지 않으면 C-2가
       // DB에 없는 코드를 만들어 보여준다(StudentForm과 동일한 함정).
-      if (profileResult.link_code) {
-        setLinkCode(profileResult.link_code);
+      if (signupResult.link_code) {
+        setLinkCode(signupResult.link_code);
       }
 
       setSignupCompleted(true);

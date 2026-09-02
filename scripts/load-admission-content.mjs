@@ -104,6 +104,34 @@ import {
 } from "../src/lib/admissionParsing.js";
 import { runDocEquivalenceVerification } from "./verify-admission-doc-equivalence.mjs";
 
+/** @typedef {import("../src/lib/admissionDoc.ts").AdmissionDoc} AdmissionDoc */
+
+/**
+ * admission_university_resources 조회 행. 동적 select라 supabase-js가
+ * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만 선언하고,
+ * 카테고리별 raw/html/json 컬럼은 전부 동적 키(row[key])로만 접근하므로
+ * (noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다.
+ * region은 생성 타입에서 non-null(string)이라 기존 로컬 typedef(string | null)를
+ * 정본에 맞춰 좁혔다 — 이 파일에서는 dbRow.region을 그대로 읽어 옮길 뿐이라
+ * 문제 없다.
+ */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/**
+ * @typedef {Pick<ResourceTableRow, "id" | "university_name" | "university_key" | "admission_year" | "region" | "is_active" | "detail_status">} ResourceRow
+ */
+
+/**
+ * importCell(admissionHtmlImport.ts)의 반환 판별합집합을 로컬로 재선언한다.
+ * 원본 함수에 반환 타입 주석이 없어 skip/needsReview 분기의 classification이
+ * string으로 widen되며 판별 유니온이 깨진다(src/ 수정 금지 제약이라 원본은
+ * 못 고친다) — 호출부에서 캐스트로 원래 의도한 판별 유니온을 복원한다.
+ * @typedef {
+ *   | { classification: "skip" }
+ *   | { classification: "imported", doc: AdmissionDoc, candidateName: string }
+ *   | { classification: "needsReview", reason: string, kind: string, doc?: AdmissionDoc }
+ * } ImportCellResult
+ */
+
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const DEFAULT_KEYS_FILE =
   "/private/tmp/claude-501/-Users-hyunsoo-uwellnow-winningpage/7d913b11-451e-4002-a293-f999f0a2dad9/scratchpad/dev-keys.json";
@@ -229,9 +257,12 @@ function buildCategoryContent(
   if (existingHtml) {
     // 2단: importCell은 row.university_name/row.detail_status를 참조한다
     // (특수대학 판정). dbRow가 매칭된 행 전체라 그대로 넘긴다.
+    /** @type {ImportCellResult | null} */
     let result;
     try {
-      result = importCell(sectionKey, existingHtml, dbRow);
+      result = /** @type {ImportCellResult} */ (
+        importCell(sectionKey, existingHtml, dbRow)
+      );
     } catch (err) {
       jsonSource = "exception";
       jsonDetail = err.message;
@@ -288,7 +319,34 @@ function buildCategoryContent(
     }
   }
 
+  // 도달 불가 가드: 위 if(existingHtml)/else if(rawText)/else 세 갈래가
+  // 전부 jsonSource를 대입하므로 이 시점엔 항상 값이 있다 — try/catch가
+  // 섞인 중첩 분기라 TS가 그 exhaustiveness를 정적으로 못 따라간다.
+  if (jsonSource === undefined) {
+    throw new Error(
+      `jsonSource가 설정되지 않음(${sectionKey} / ${universityName}) — 로직 결함(예상치 못한 상태)`,
+    );
+  }
   return { html, htmlSource, doc, jsonSource, jsonDetail };
+}
+
+/**
+ * categoryStats/jsonStats(Object.fromEntries로 CATEGORY_KEYS의 키 전부를
+ * 채워 만든 Record)처럼 "키 집합을 스스로 만들어놓고 그 키로만 접근"하는
+ * 객체에 대한 도달 불가 가드. noUncheckedIndexedAccess 하에서 인덱스
+ * 시그니처 접근은 항상 `T | undefined`가 되므로, 실제로는 항상 존재함을
+ * 보장하는 지점에서만 쓴다.
+ * @template T
+ * @param {Record<string, T>} record
+ * @param {string} key
+ * @returns {T}
+ */
+function req(record, key) {
+  const value = record[key];
+  if (value === undefined) {
+    throw new Error(`"${key}" 키가 없습니다(예상치 못한 상태)`);
+  }
+  return value;
 }
 
 async function main() {
@@ -375,10 +433,13 @@ async function main() {
     .select(existingColumns)
     .eq("admission_year", admissionYear);
   if (fetchError) throw new Error(`기존 행 조회 실패: ${fetchError.message}`);
+  const typedExistingRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (existingRows)
+  );
 
   const exactMap = new Map();
   const normalizedMap = new Map();
-  (existingRows || []).forEach((row) => {
+  (typedExistingRows || []).forEach((row) => {
     exactMap.set(row.university_name, row);
     const key = normalizeName(row.university_name);
     if (!normalizedMap.has(key)) normalizedMap.set(key, row);
@@ -443,10 +504,10 @@ async function main() {
 
       payload[key] = clean(hwpRow[key]) || clean(dbRow[key]);
       payload[CATEGORY_HTML_KEY[key]] = html;
-      categoryStats[key][htmlSource] += 1;
+      req(categoryStats, key)[htmlSource] += 1;
 
       const jsonKey = CATEGORY_JSON_KEY[key];
-      jsonStats[key][jsonSource] += 1;
+      req(jsonStats, key)[jsonSource] += 1;
       if (
         jsonSource === "needsReview" ||
         jsonSource === "invalid" ||
@@ -480,7 +541,7 @@ async function main() {
 
   console.log("\n카테고리별 HTML 소스(보존/생성/원자료없음):");
   CATEGORY_KEYS.forEach((key) => {
-    const s = categoryStats[key];
+    const s = req(categoryStats, key);
     console.log(
       `  - ${key} (${CATEGORY_HTML_KEY[key]}): 보존 ${s.preserved} / 생성 ${s.generated} / 원자료없음 ${s.empty}`,
     );
@@ -490,7 +551,7 @@ async function main() {
     "\n카테고리별 JSON 생성 결과(기존보존/html임포트/raw생성/원자료없음/실패류-기존보존):",
   );
   CATEGORY_KEYS.forEach((key) => {
-    const s = jsonStats[key];
+    const s = req(jsonStats, key);
     console.log(
       `  - ${key} (${CATEGORY_JSON_KEY[key]}): 기존보존(1단) ${s.preserved} / html임포트(2단) ${s["imported-from-html"]} / ` +
         `raw생성(3단) ${s["generated-from-raw"]} / 원자료없음 ${s.empty} / skip ${s.skip} / ` +

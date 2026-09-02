@@ -17,15 +17,19 @@ const LANDING_PREVIEW = false;
 const NEWS_SECTION_PREVIEW_COUNT = 5;
 
 type Banner = {
+  // banners.id는 실제로 bigint PK지만(uuid가 아니다) HeroSection.MainBanner의
+  // React key 계약에 맞춰 fetchBanners()가 문자열로 변환해 담는다.
   id?: string;
   title?: string;
   highlight?: string | null;
+  // 조회 직후 아래 fetchBanners()가 image_url이 있는 행만 남기므로 렌더
+  // 시점엔 항상 값이 있다(HeroSection.MainBanner도 같은 계약).
   image_url: string;
   button_text?: string | null;
-  button_link?: string;
+  button_link?: string | null;
   link_url?: string;
-  sort_order?: number;
-  is_active?: boolean;
+  sort_order?: number | null;
+  is_active?: boolean | null;
   display_seconds?: number | null;
 };
 
@@ -266,9 +270,17 @@ export default function Home() {
         return;
       }
 
-      const normalized = ((data || []) as Banner[]).filter(
-        (item) => item.image_url,
-      );
+      // image_url이 없는 행은 배너로 렌더할 수 없어 걸러낸다 — 타입 서술어로
+      // 걸러야 남은 Banner[]가 image_url: string(non-null) 계약을 지킨다
+      // (그냥 as Banner[] 캐스트는 실제 image_url: string | null과 겹치지
+      // 않아 TS2352로 거부된다).
+      const normalized = (data || [])
+        .filter((item): item is typeof item & { image_url: string } =>
+          Boolean(item.image_url),
+        )
+        // HeroSection.MainBanner.id는 string 계약이라(React key 용) bigint PK를
+        // 문자열로 맞춘다.
+        .map((item) => ({ ...item, id: String(item.id) }));
       setBanners(normalized);
     }
 
@@ -494,7 +506,17 @@ export default function Home() {
         }`}
       >
         {(banners.length > 0 || sideBanners.length > 0) && (
-          <HeroSection banners={banners} sideBanners={sideBanners} />
+          <HeroSection
+            // HeroSection.MainBanner.button_link/sort_order는 exactOptionalPropertyTypes
+            // 하에서 null도, 명시적 undefined 값도 못 받는 optional 필드(생략만 허용)라
+            // 값이 있을 때만 키를 스프레드한다(state 자체는 DB 값 그대로 유지). sort_order는
+            // HeroSection이 실제로 읽지 않는 필드라(정렬은 조회 쿼리가 이미 끝냄) 아예 뺀다.
+            banners={banners.map(({ button_link, sort_order: _s, ...b }) => ({
+              ...b,
+              ...(button_link ? { button_link } : {}),
+            }))}
+            sideBanners={sideBanners}
+          />
         )}
 
         {universities.length > 0 && (

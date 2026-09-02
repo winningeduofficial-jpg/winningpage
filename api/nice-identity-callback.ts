@@ -180,6 +180,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 이미 처리된 요청을 다시 열지 않는다(콜백 재생 방지).
     if (row.status !== "pending") return fail("already_processed");
 
+    // transaction_id는 DB 스키마상 nullable이지만, 이 저장소의 유일한 삽입
+    // 경로(nice-identity-start.ts)는 issueAuthUrl() 응답에서 얻은 값을 항상
+    // 채운다. 그럼에도 null인 행을 만나면(수동 조작·경로 밖 삽입) 결과 조회에
+    // 필수인 키가 없는 것이므로 방어적으로 막는다.
+    if (!row.transaction_id) {
+      console.error(
+        "[nice-identity-callback] identity_verifications.transaction_id 없음:",
+        row.id,
+      );
+      return fail("server_error");
+    }
+
     if (new Date(row.expires_at).getTime() < Date.now()) {
       await supabase
         .from("identity_verifications")

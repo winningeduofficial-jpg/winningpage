@@ -59,7 +59,7 @@ const TABLE_HEADERS = {
 
 type Order = {
   id: string;
-  order_name?: string;
+  order_name?: string | null;
   amount: number;
   status?: string;
   approval_status?: string;
@@ -95,12 +95,13 @@ type Order = {
 };
 
 type Refund = {
-  id: string;
+  // refund_requests.id는 bigint PK다(orders.id와 달리 uuid가 아니다).
+  id: number;
   order_id?: string;
-  order_name?: string;
+  order_name?: string | null;
   amount: number;
   gross_amount?: number | null;
-  reason?: string;
+  reason?: string | null;
   status?: string;
   approval_status?: string;
   student_profile_id?: string;

@@ -4,11 +4,12 @@ export type CaseCategory = "susi" | "jungsi";
 
 // admission_posts 테이블 행. select('*') 고정이라 스키마 확장(content_json 등)에도
 // 조회 자체는 깨지지 않으므로, 화면이 실제로 읽는 필드만 좁혀서 적는다.
+// id는 bigint PK다(uuid가 아니다) — database.types.ts admission_posts.Row 참고.
 export interface AdmissionPostRow {
-  id: string;
+  id: number;
   category: CaseCategory | string;
   image_urls?: unknown;
-  image_url?: string;
+  image_url?: string | null;
   [key: string]: unknown;
 }
 
@@ -146,7 +147,8 @@ export async function fetchAdmissionCaseById(
   const { data, error } = await supabase
     .from("admission_posts")
     .select("*")
-    .eq("id", id)
+    // id는 bigint PK라 라우트 파라미터(string)를 숫자로 변환해 비교한다.
+    .eq("id", Number(id))
     .eq("is_active", true)
     .maybeSingle();
 
@@ -171,8 +173,17 @@ export async function fetchAcceptanceRates(
   scope: string = DEFAULT_HERO_SCOPE,
 ): Promise<{ year: number; rate: number }[]> {
   const scopeConfig = HERO_SCOPES[scope] || DEFAULT_HERO_SCOPE_CONFIG;
+  // ratesTable은 HERO_SCOPES에 등록된 두 테이블(admission_acceptance_rates /
+  // special_highschool_acceptance_rates, 컬럼 구성이 동일하다) 중 하나로만
+  // 채워진다. 생성 타입 관점에서는 임의 문자열이라 .from()에 그대로 넘기면
+  // 전체 테이블의 합집합으로 추론되어 타입 계산이 무한히 깊어진다(TS2589) —
+  // 실제 후보 두 테이블로 좁혀 넘긴다.
   const { data, error } = await supabase
-    .from(scopeConfig.ratesTable)
+    .from(
+      scopeConfig.ratesTable as
+        | "admission_acceptance_rates"
+        | "special_highschool_acceptance_rates",
+    )
     .select("*")
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
@@ -200,9 +211,9 @@ export interface AdmissionCaseLogoRow {
   id: string;
   name: string;
   logo_url: string;
-  display_height_rem: number;
-  opacity: number;
-  sort_order: number;
+  display_height_rem: number | null;
+  opacity: number | null;
+  sort_order: number | null;
   row_no?: number;
 }
 

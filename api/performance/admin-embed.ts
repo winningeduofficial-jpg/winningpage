@@ -217,7 +217,9 @@ async function embedOne(
       .from(KNOWLEDGE_TABLE)
       .update({
         search_text: searchText,
-        embedding,
+        // pgvector 컬럼: 생성 타입이 확장 타입을 몰라 string으로 나오지만
+        // supabase-js는 number[]를 그대로 직렬화해 정상 저장한다.
+        embedding: embedding as unknown as string,
         embedding_model: model,
         embedding_status: "done",
         embedding_error: null,

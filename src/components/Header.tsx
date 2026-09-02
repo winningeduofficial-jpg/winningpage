@@ -8,6 +8,7 @@ import { MEGA_COL_GAP, MEGA_COL_W, MEGA_GUARD } from "@/data/navigation";
 import { cleanText, isSameObject, useNavGroups } from "@/hooks/useNavGroups";
 import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
+import type { Tables } from "@/types/database.types";
 import MobileNavDrawer from "./MobileNavDrawer";
 
 const CSAT_DATE = "2026-11-19";
@@ -85,14 +86,12 @@ function getCsatDay() {
 }
 
 // profiles 테이블 행 — 헤더가 실제로 읽는 컬럼만 좁혀서 둔다.
-type Profile = {
-  id?: string;
-  name?: string;
-  email?: string;
-  username?: string;
-  member_type?: string;
-  role?: string;
-};
+// 생성 타입(Tables<"profiles">)에서 파생시켜 null 가능 여부가 실제 스키마와 어긋나지
+// 않게 한다(role만 NOT NULL이라 string, 나머지는 string | null).
+type Profile = Pick<
+  Tables<"profiles">,
+  "id" | "name" | "email" | "username" | "member_type" | "role"
+>;
 
 function getMemberLabel(profile: Profile | null) {
   const raw = cleanText(profile?.member_type).toLowerCase();

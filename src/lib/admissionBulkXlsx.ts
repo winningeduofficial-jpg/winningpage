@@ -129,7 +129,7 @@ import {
   renderDocToHtml,
 } from "./admissionParsing.js";
 
-const ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS = [
+export const ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS = [
   "id",
   "admission_year",
   "source_name",

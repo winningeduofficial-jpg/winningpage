@@ -62,7 +62,7 @@ function formatApprovedAtDetail(
 type PaymentOrder = {
   id: string;
   method?: string;
-  order_name?: string;
+  order_name?: string | null;
   created_at?: string;
   paid_at?: string;
   vat?: number | string | null;
@@ -301,7 +301,7 @@ export default function PaymentDetailModal({
               <OrderAmountBreakdown
                 order={order}
                 amount={order.amount}
-                fallbackName={order.order_name}
+                fallbackName={order.order_name ?? undefined}
               />
             </div>
           )}

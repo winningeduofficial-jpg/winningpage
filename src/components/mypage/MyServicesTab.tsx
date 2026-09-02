@@ -669,12 +669,12 @@ export default function MyServicesTab() {
           )
           .eq("profile_id", userId)
           .is("revoked_at", null)
-          .returns<Grant[]>(),
+          .overrideTypes<Grant[], { merge: false }>(),
         supabase
           .from("performance_credit_ledger")
           .select("grant_id, delta")
           .eq("profile_id", userId)
-          .returns<LedgerRow[]>(),
+          .overrideTypes<LedgerRow[], { merge: false }>(),
       ]);
 
       if (!alive) return;

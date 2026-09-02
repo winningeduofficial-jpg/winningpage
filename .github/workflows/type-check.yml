@@ -10,9 +10,9 @@ jobs:
   typecheck:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
           cache: npm
@@ -27,6 +27,12 @@ jobs:
       # 강제 — 2026-08-14 production 크래시(TS import 확장자 사고) 재발 방지 게이트.
       - name: tsc --noEmit (api, NodeNext)
         run: npm run typecheck:api
+
+      # scripts/ 는 기본 tsconfig에서 exclude돼 있어 src/lib 리팩토링을 따라가지
+      # 못한 죽은 스크립트가 2026-09-01 야간 DB 감사에서야 드러났다. 별도 tsconfig로
+      # .mjs 스크립트도 타입체크 대상에 넣는다(1차: strictNullChecks 계열 off).
+      - name: tsc --noEmit (scripts)
+        run: npm run typecheck:scripts
 
       # any 비율 후퇴 방지 게이트. 임계값은 package.json의 type-coverage
       # 스크립트(--at-least)에 고정돼 있다 — 개선되면 npx type-coverage --update로

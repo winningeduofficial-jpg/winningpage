@@ -580,7 +580,12 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
       // 넘기지 않으면 이 축이 평가되지 않는다 — 반드시 넘겨야 배선된다).
       const { data, error } = await supabase.rpc("fn_usable_coupons", {
         p_subtotal: order.amount,
-        p_student_profile_id: order.student_profile_id,
+        // p_student_profile_id는 optional 인자다. exactOptionalPropertyTypes
+        // 하에서는 명시적 null도 금지라 값이 있을 때만 키를 스프레드한다
+        // (order.student_profile_id가 null이면 생략 — 인자 미전달과 동일).
+        ...(order.student_profile_id
+          ? { p_student_profile_id: order.student_profile_id }
+          : {}),
         p_order_id: order.id,
       });
       if (signalAlive && !signalAlive()) return;
@@ -685,10 +690,14 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
     if (!code) return;
 
     // p_order_id — fetchCoupons 와 동일 배선(위 주석 참고).
+    // p_student_profile_id는 optional 인자라 값이 있을 때만 스프레드한다
+    // (fetchCoupons와 동일 이유 — exactOptionalPropertyTypes).
     const { data, error } = await supabase.rpc("fn_coupon_by_code", {
       p_code: code,
       p_subtotal: order.amount,
-      p_student_profile_id: order.student_profile_id,
+      ...(order.student_profile_id
+        ? { p_student_profile_id: order.student_profile_id }
+        : {}),
       p_order_id: order.id,
     });
     if (error) {
@@ -789,20 +798,26 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
             return;
           }
 
-          result = Array.isArray(data) ? data[0] : data;
-          if (!result?.amount) {
+          // let으로 재대입되는 result는(위 771행) 넓은 선언 타입(ApprovedOrder | null)에
+          // 묶여 있어, data[0](noUncheckedIndexedAccess로 T | undefined)을 대입해도
+          // 그 undefined 가능성이 이후 result 참조에서 좁혀지지 않는다 — const로
+          // 먼저 좁히고 나서 result에 대입한다.
+          const created = Array.isArray(data) ? data[0] : data;
+          if (!created || !created.amount) {
             setPayError(GENERIC_FAIL_TEXT);
             setLoading(false);
             return;
           }
-          setApprovedOrder(result);
+          result = created;
+          setApprovedOrder(created);
         } else {
           // 클라이언트 rpc(학부모 JWT) — service_role 경유 금지(Baseline fn_respond_enrollment
           // 는 auth.uid() = parent_profile_id 를 직접 검사한다).
           const { data, error } = await supabase.rpc("fn_respond_enrollment", {
             p_order_id: orderId,
             p_approve: true,
-            p_reject_reason: null,
+            // p_reject_reason은 DEFAULT NULL이 있는 optional 인자 — 승인 흐름에서는
+            // 의미가 없어 인자 자체를 생략한다(과거 명시적 null 전달과 런타임 동일).
             p_coupon_ids: Array.from(selectedCouponIds),
           });
           if (error) {
@@ -812,15 +827,17 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
             return;
           }
 
-          result = Array.isArray(data) ? data[0] : data;
-          if (!result?.amount) {
+          // 위 fn_parent_create_enrollment 분기와 동일한 이유로 const로 먼저 좁힌다.
+          const responded = Array.isArray(data) ? data[0] : data;
+          if (!responded || !responded.amount) {
             setPayError(GENERIC_FAIL_TEXT);
             setLoading(false);
             return;
           }
-          setApprovedOrder(result);
+          result = responded;
+          setApprovedOrder(responded);
 
-          if ((result.skipped_coupon_ids || []).length > 0) {
+          if ((responded.skipped_coupon_ids || []).length > 0) {
             setAmountMismatch(true);
           }
         }

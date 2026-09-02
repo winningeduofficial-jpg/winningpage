@@ -51,10 +51,21 @@ async function parseUniversitySource() {
   if (!directoryMatch) {
     throw new Error("UNIVERSITY_DIRECTORY 블록을 찾을 수 없습니다.");
   }
+  // 캡처 그룹 ([\s\S]*?)이 필수(옵셔널 아님)라 directoryMatch가 존재하면
+  // directoryMatch[1]도 항상 존재한다.
+  const directoryBlock = directoryMatch[1];
+  if (directoryBlock === undefined) {
+    throw new Error("UNIVERSITY_DIRECTORY 블록 캡처 실패(예상치 못한 상태)");
+  }
   const entryRe = /\{\s*region:\s*'([^']+)',\s*name:\s*'([^']+)'\s*\}/g;
   const generalRows = [];
-  for (const m of directoryMatch[1].matchAll(entryRe)) {
-    generalRows.push({ region: m[1], name: m[2], special_group: null });
+  for (const m of directoryBlock.matchAll(entryRe)) {
+    const region = m[1];
+    const name = m[2];
+    if (region === undefined || name === undefined) {
+      throw new Error("UNIVERSITY_DIRECTORY 항목 파싱 실패(region/name 누락)");
+    }
+    generalRows.push({ region, name, special_group: null });
   }
 
   const groupsMatch = text.match(
@@ -63,15 +74,34 @@ async function parseUniversitySource() {
   if (!groupsMatch) {
     throw new Error("SPECIAL_UNIVERSITY_GROUPS 블록을 찾을 수 없습니다.");
   }
+  // 위와 동일한 이유로 groupsMatch[1]도 항상 존재한다.
+  const groupsBlock = groupsMatch[1];
+  if (groupsBlock === undefined) {
+    throw new Error(
+      "SPECIAL_UNIVERSITY_GROUPS 블록 캡처 실패(예상치 못한 상태)",
+    );
+  }
   const groupBlockRe =
     /\{\s*key:\s*'([^']+)'[\s\S]*?items:\s*\[([\s\S]*?)\]\s*\}/g;
   const specialRows = [];
-  for (const g of groupsMatch[1].matchAll(groupBlockRe)) {
+  for (const g of groupsBlock.matchAll(groupBlockRe)) {
     const groupKey = g[1];
     const itemsBlock = g[2];
+    if (groupKey === undefined || itemsBlock === undefined) {
+      throw new Error(
+        "SPECIAL_UNIVERSITY_GROUPS 항목 파싱 실패(key/items 누락)",
+      );
+    }
     const itemRe = /\{\s*region:\s*'([^']+)',\s*name:\s*'([^']+)'\s*\}/g;
     for (const im of itemsBlock.matchAll(itemRe)) {
-      specialRows.push({ region: im[1], name: im[2], special_group: groupKey });
+      const region = im[1];
+      const name = im[2];
+      if (region === undefined || name === undefined) {
+        throw new Error(
+          `SPECIAL_UNIVERSITY_GROUPS(${groupKey}) 항목 파싱 실패(region/name 누락)`,
+        );
+      }
+      specialRows.push({ region, name, special_group: groupKey });
     }
   }
 

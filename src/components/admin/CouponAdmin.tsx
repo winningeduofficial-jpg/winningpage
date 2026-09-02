@@ -13,6 +13,12 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
+import type { TablesInsert, TablesUpdate } from "@/types/database.types";
+
+// coupons insert/update는 formToPayload가 NULLABLE_KEYS를 동적 키로 조립해서
+// 만든다 — 최종 형태만 생성 타입과 대조한다(아래 formToPayload 참고).
+type CouponInsert = TablesInsert<"coupons">;
+type CouponUpdate = TablesUpdate<"coupons">;
 
 // =====================================================================
 // 어드민 "쿠폰관리" — 목록 / 생성·수정 / 사용이력 / void / 발급 관리
@@ -107,7 +113,8 @@ interface CouponRow {
 }
 
 interface RedemptionRow {
-  id: string;
+  // coupon_redemptions.id는 identity 정수 PK다(생성 타입 대조 결과) — string이 아니다.
+  id: number;
   coupon_id: string;
   order_id?: string;
   user_id: string | null;
@@ -119,7 +126,8 @@ interface RedemptionRow {
 }
 
 interface GrantRow {
-  id: string;
+  // coupon_grants.id도 identity 정수 PK다(생성 타입 대조 결과).
+  id: number;
   coupon_id: string;
   user_id: string;
   granted_at: string;
@@ -512,7 +520,11 @@ function rowToForm(row: CouponRow): CouponForm {
   return form;
 }
 
-function formToPayload(form: CouponForm) {
+function formToPayload(form: CouponForm): CouponInsert & CouponUpdate {
+  // NULLABLE_KEYS(3개)를 동적 키로 채우기 전까지는 내부적으로 Record로
+  // 조립한다 — 루프가 끝나면 slug/title/discount_amount 등 필수 필드까지
+  // 전부 채워진 CouponInsert(=CouponUpdate와 키가 같다) 형태가 되므로 반환
+  // 직전에 한 번만 좁힌다(동적 키 조립이라 정적으로 좁힐 수 없다).
   const payload: Record<string, unknown> = {
     slug: String(form.slug ?? "").trim(),
     // code 는 UNIQUE 인데 NULL 은 다중 허용이다 — 빈 문자열로 저장하면 두 번째
@@ -547,7 +559,7 @@ function formToPayload(form: CouponForm) {
       key === "valid_until" ? dynamicForm[key] : Number(dynamicForm[key]);
   }
 
-  return payload;
+  return payload as CouponInsert & CouponUpdate;
 }
 
 // 검증 실패한 첫 키를 반환(없으면 null). 문구는 AdminForm 의 기존 템플릿에
@@ -726,7 +738,7 @@ export default function CouponAdmin() {
     Record<string, ProfileRow>
   >({});
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [voidingId, setVoidingId] = useState<string | null>(null);
+  const [voidingId, setVoidingId] = useState<number | null>(null);
   const [voidReason, setVoidReason] = useState("");
   // 진행 중 표시. 아이콘 버튼은 더블클릭이 쉬워서(피드백이 alert 뿐이다) 두 번째
   // 호출이 WC002/WC003 알럿을 띄운다 — 요청 중에는 액션을 잠근다.
@@ -739,7 +751,7 @@ export default function CouponAdmin() {
     Record<string, ProfileRow>
   >({});
   const [grantLoading, setGrantLoading] = useState(false);
-  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<number | null>(null);
   const [revokeReason, setRevokeReason] = useState("");
   const [userQuery, setUserQuery] = useState("");
   const [userResults, setUserResults] = useState<ProfileRow[] | null>(null); // null = 아직 검색 안 함
@@ -905,10 +917,16 @@ export default function CouponAdmin() {
     const payload = formToPayload(form);
     setSaving(true);
 
+    // view==='edit'는 항상 openEdit()이 먼저 editingId를 채우고서만 진입한다 —
+    // 타입상으로는 string|null이라 eq() 앞에서 방어적으로 ??로 좁힌다(빈 문자열이면
+    // 어떤 행도 매치되지 않아 안전하게 no-op된다).
     const { error } =
       view === "create"
         ? await supabase.from("coupons").insert(payload)
-        : await supabase.from("coupons").update(payload).eq("id", editingId);
+        : await supabase
+            .from("coupons")
+            .update(payload)
+            .eq("id", editingId ?? "");
 
     setSaving(false);
 
@@ -976,7 +994,11 @@ export default function CouponAdmin() {
     // profiles 를 끌어올 수 없다(profiles 로 가는 FK 가 없다) — 별도 조회한다.
     // 게스트 결제는 user_id 가 NULL 이라 빠진다.
     const userIds = [
-      ...new Set(rows.map((row) => row.user_id).filter(Boolean)),
+      ...new Set(
+        rows
+          .map((row) => row.user_id)
+          .filter((id): id is string => id !== null),
+      ),
     ];
 
     if (userIds.length > 0) {
@@ -1002,9 +1024,11 @@ export default function CouponAdmin() {
     if (actionBusy) return;
     setActionBusy(true);
 
+    // p_reason은 optional(string) 인자라 exactOptionalPropertyTypes 아래서
+    // undefined를 명시적으로 넣을 수 없다 — 값이 없으면 키 자체를 뺀다.
     const { error } = await supabase.rpc("fn_void_coupon_redemption", {
       p_redemption_id: row.id,
-      p_reason: voidReason.trim() || null,
+      ...(voidReason.trim() ? { p_reason: voidReason.trim() } : {}),
     });
 
     if (error) {
@@ -1156,9 +1180,11 @@ export default function CouponAdmin() {
     if (actionBusy) return;
     setActionBusy(true);
 
+    // submitVoid와 같은 이유 — exactOptionalPropertyTypes 아래서 optional
+    // 인자에 undefined를 명시할 수 없어 값이 없으면 키를 뺀다.
     const { error } = await supabase.rpc("fn_revoke_coupon_grant", {
       p_grant_id: row.id,
-      p_reason: revokeReason.trim() || null,
+      ...(revokeReason.trim() ? { p_reason: revokeReason.trim() } : {}),
     });
 
     if (error) {

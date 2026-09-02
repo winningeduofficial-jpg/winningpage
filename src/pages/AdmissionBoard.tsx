@@ -13,14 +13,15 @@ interface CategoryMeta {
 type AttachmentFile = string | { name?: string; url: string };
 
 // admission_posts 테이블 행. select('*') — 이 화면이 실제로 읽는 필드만 좁혀서 적는다.
+// id는 bigint PK다(uuid가 아니다) — database.types.ts admission_posts.Row 참고.
 interface AdmissionBoardRow {
-  id: string;
+  id: number;
   category: string;
   title?: string;
-  content?: string;
-  file_name?: string;
-  file_url?: string;
-  image_url?: string;
+  content?: string | null;
+  file_name?: string | null;
+  file_url?: string | null;
+  image_url?: string | null;
   image_urls?: unknown;
   attachments?: unknown;
   is_pinned?: boolean;
@@ -130,7 +131,10 @@ export default function AdmissionBoard() {
         .select("*")
         .eq("is_active", true);
 
-      query = query.eq("category", category);
+      // category는 라우트가 항상 :category 세그먼트로 채운다(라인 99의
+      // routeMeta 조회도 동일하게 `as string`으로 가정) — 값이 없는 경로는
+      // 실질적으로 없다.
+      query = query.eq("category", category as string);
 
       const { data, error } = await query
         .order("is_pinned", { ascending: false })
@@ -155,7 +159,8 @@ export default function AdmissionBoard() {
       const { data, error } = await supabase
         .from("admission_posts")
         .select("*")
-        .eq("id", id)
+        // id는 bigint PK라 URL 파라미터(string)를 숫자로 변환해 비교한다.
+        .eq("id", Number(id))
         .eq("is_active", true)
         .maybeSingle();
 

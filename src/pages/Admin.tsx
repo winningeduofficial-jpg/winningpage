@@ -55,6 +55,7 @@ import {
 } from "@/lib/goal/goalCutBackfill";
 import { withDedupedKeys } from "@/lib/reactKeys";
 import { supabase } from "@/lib/supabase";
+import type { TablesInsert } from "@/types/database.types";
 import {
   ADMIN_DEFAULT_SECTION_KEY,
   ADMIN_SECTION_KEYS,
@@ -810,11 +811,17 @@ function AdmissionBulkXlsxPanel({ rows, onReload }) {
   async function handleApply() {
     if (!parseResult || !confirmChecked || applying) return;
     setApplying(true);
+    // parseAdmissionRowsFromXlsx(src/lib/admissionBulkXlsx.js, .js라 반환 타입이
+    // Record<string, unknown>[]로 느슨하다)의 결과를 이 upsert 직전에서만
+    // 생성 Insert 형태로 좁힌다 — 파서 자체는 이 작업 범위 밖이다.
     const { error } = await supabase
       .from("admission_university_resources")
-      .upsert(parseResult.rows, {
-        onConflict: "admission_year,university_key",
-      });
+      .upsert(
+        parseResult.rows as TablesInsert<"admission_university_resources">[],
+        {
+          onConflict: "admission_year,university_key",
+        },
+      );
     if (error) {
       setApplying(false);
       alert(`엑셀 적용 실패: ${error.message}`);

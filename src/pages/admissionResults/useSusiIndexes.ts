@@ -8,15 +8,18 @@ import {
 // admissionResultsQueries.js(수정 범위 밖의 JSDoc 없는 .js)가 돌려주는 행 모양을
 // 이 셸이 실제로 읽는 필드만 좁혀서 적는다.
 export interface UniversityIndexRow {
-  university_key: string;
-  university_name?: string;
-  dept_count?: number;
+  // admissionResultsQueries.ts의 UniversityIndexRow가 집계 뷰 컬럼이라
+  // university_key/university_name/dept_count 전부 string | null이다(그쪽
+  // 주석 참고) — 그 셰이프를 그대로 좁혀 받는다.
+  university_key: string | null;
+  university_name?: string | null;
+  dept_count?: number | null;
   [key: string]: unknown;
 }
 
 export interface DepartmentIndexRow {
-  department_key: string;
-  department_name?: string;
+  department_key: string | null;
+  department_name?: string | null;
   // admissionResultsQueries.ts의 DepartmentIndexRow.tracks가 string[] | null이라
   // (undefined가 아니라 null) 그 셰이프를 그대로 좁혀 받는다.
   tracks?: string[] | null;
@@ -24,8 +27,10 @@ export interface DepartmentIndexRow {
 }
 
 export interface TrendingDepartmentRow {
-  university_key?: string;
-  department_key?: string;
+  // admissionResultsQueries.ts의 TrendingDepartmentRow.university_key/department_key가
+  // string | null이다(그쪽 주석 참고).
+  university_key?: string | null;
+  department_key?: string | null;
   university_name?: string;
   department_name?: string;
   // admissionResultsQueries.ts의 TrendingDepartmentRow.logo_url이 string | null이다.
