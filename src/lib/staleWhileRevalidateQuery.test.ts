@@ -69,11 +69,11 @@ test("캐시 있음 — 백그라운드 재검증이 실패해도 호출부로 �
   ).resolves.toEqual({ allowed: true });
 });
 
-test("캐시 있음 + 무효화됨(invalidateQueries 직후) — stale 값으로 통과시키지 않고 ensureQueryData로 블로킹 조회한다", async () => {
+test("캐시 있음 + 무효화됨(invalidateQueries 직후) — stale 값으로 통과시키지 않고 fetchQuery로 블로킹 재조회한다", async () => {
   const client = fakeClient({
     getQueryData: vi.fn().mockReturnValue({ kind: "not-onboarded" }),
     getQueryState: vi.fn().mockReturnValue({ isInvalidated: true }),
-    ensureQueryData: vi.fn().mockResolvedValue({ kind: "onboarded" }),
+    fetchQuery: vi.fn().mockResolvedValue({ kind: "onboarded" }),
   });
 
   const result = await resolveStaleWhileRevalidate(client, {
@@ -81,6 +81,6 @@ test("캐시 있음 + 무효화됨(invalidateQueries 직후) — stale 값으로
   });
 
   expect(result).toEqual({ kind: "onboarded" });
-  expect(client.ensureQueryData).toHaveBeenCalledWith({ queryKey: QUERY_KEY });
-  expect(client.fetchQuery).not.toHaveBeenCalled();
+  expect(client.fetchQuery).toHaveBeenCalledWith({ queryKey: QUERY_KEY });
+  expect(client.ensureQueryData).not.toHaveBeenCalled();
 });

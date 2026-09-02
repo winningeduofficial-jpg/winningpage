@@ -60,7 +60,13 @@ export async function resolveStaleWhileRevalidate<T>(
   // 캐시는 첫 조회와 똑같이 블로킹 조회로 최신 값을 받는다.
   const invalidated = client.getQueryState?.(options.queryKey)?.isInvalidated;
 
-  if (cached !== undefined && !invalidated) {
+  if (cached !== undefined && invalidated) {
+    // ensureQueryData는 무효화된 캐시도 그대로 돌려주므로(재조회는 revalidateIfStale
+    // 옵션으로도 백그라운드뿐) 여기서는 fetchQuery로 최신 값을 기다린다.
+    return client.fetchQuery<T>(options);
+  }
+
+  if (cached !== undefined) {
     // 백그라운드 재검증 — 결과를 기다리지 않고, 실패해도 호출부에 전파하지
     // 않는다(위 헤더 주석). unhandled rejection 방지를 위해 반드시 catch한다.
     void client.fetchQuery<T>(options).catch(() => {});
