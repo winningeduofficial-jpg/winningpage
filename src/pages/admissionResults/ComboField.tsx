@@ -474,12 +474,16 @@ export default function ComboField({
                       // 옵션을 누를 때 입력에서 포커스가 빠지지 않게 기본 동작을 막는다.
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={() => choose(index)}
-                      className={`flex h-14.5 cursor-pointer items-center justify-between gap-4 border-b border-line px-6 last:border-b-0 ${
+                      // 좌우 패딩은 위 입력 필드(px-5 / wide:px-8)와 같은 값 — 목록 글자의 왼쪽
+                      // 끝이 입력 글자와 한 줄에 서야 한다(QA 시트 행 238, 2026-09-02).
+                      className={`flex h-14.5 cursor-pointer items-center justify-between gap-4 border-b border-line px-5 last:border-b-0 wide:px-8 ${
                         isActive ? "bg-surface-footer" : "bg-white"
                       }`}
                     >
                       <span
-                        className={`min-w-0 truncate text-base leading-[1.3] tracking-[-0.02em] wide:text-xl ${
+                        // 대학·모집단위 이름은 입력 글자(1.125rem/wide 1.5rem)보다 한 단계 작게 —
+                        // wide에서 1.25rem이던 것을 1rem으로 줄였다(QA 시트 행 237, 2026-09-02).
+                        className={`min-w-0 truncate text-[0.9375rem] leading-[1.3] tracking-[-0.02em] wide:text-base ${
                           isSelected
                             ? "font-semibold text-primary"
                             : "font-medium text-ink"
