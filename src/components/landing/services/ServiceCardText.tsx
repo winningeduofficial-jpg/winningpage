@@ -9,6 +9,9 @@
 // whitespace-pre-line(공백·\n 모두 줄바꿈)으로 넘치지 않게 완화한다. min-w-0 —
 // 플렉스 아이템 기본 min-width:auto를 풀어야 좁은 컨테이너 쿼리 구간에서 실제로
 // 줄바꿈이 걸린다(shrink-0는 쓰지 않는다 — 대신 옆 ServiceIllustration이 shrink-0).
+// py-6 — 카드(ServiceCard) 자체는 상하 패딩이 없다(시안: 일러스트가 카드 전체 높이를
+// 거의 다 씀). 텍스트가 2줄로 꺾여 카드가 min-h를 넘어 늘어나는 좁은 카드에서 텍스트
+// 상하 여유는 카드가 아니라 이 텍스트 묶음이 직접 갖는다(2026-09-03 사용자 확정).
 export default function ServiceCardText({
   name,
   description,
@@ -17,7 +20,7 @@ export default function ServiceCardText({
   description?: string | undefined;
 }) {
   return (
-    <span className="flex min-w-0 flex-col gap-4">
+    <span className="flex min-w-0 flex-col gap-4 py-6">
       <span className="block break-keep text-[1.2375rem] font-semibold leading-[1.4] tracking-[-0.025rem] text-ink @[21rem]:whitespace-nowrap">
         {name}
       </span>

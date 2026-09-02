@@ -95,6 +95,9 @@ describe("ServiceCard", () => {
     });
     expect(card).toHaveClass("justify-between");
     expect(card.className).not.toMatch(/(?:^|\s)gap-4(?:\s|$)/);
+    // 카드 자체는 상하 패딩이 없다(시안: 일러스트가 카드 전체 높이를 거의 다 씀) —
+    // 필요한 상하 여유는 카드가 아니라 텍스트 묶음(ServiceCardText)이 직접 갖는다.
+    expect(card.className).not.toMatch(/(?:^|\s)py-6(?:\s|$)/);
 
     expect(screen.getByText("국제·해외 프리미엄")).toHaveClass(
       "break-keep",
@@ -104,6 +107,9 @@ describe("ServiceCard", () => {
       "whitespace-pre-line",
       "@[21rem]:whitespace-pre",
     );
+
+    const textGroup = screen.getByText("국제·해외 프리미엄").parentElement;
+    expect(textGroup).toHaveClass("py-6");
   });
 
   // 사용자 확정 최종 사이징 규칙 — 일러스트 프레임은 뷰포트 breakpoint가 아니라 카드

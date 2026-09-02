@@ -54,13 +54,16 @@ function resolveServiceLink(service: Service): string | null {
 // (0.2063rem/0.2063rem). lg 기본 352×180(그리드 3열이 열 폭을 결정하므로 폭은
 // w-full), 높이는 h(고정)가 아니라 min-h-45 — 좁은 카드(예: 1024 뷰포트 307px)에서
 // 제목이 2줄로 꺾이면 설명까지 밀려 고정 높이를 넘쳐 잘렸다(2026-09-03 실측). 같은
-// 그리드 행의 다른 카드는 CSS grid 기본 stretch로 높이가 맞춰진다. 컨테이너 쿼리
-// 기준점(@container)은 이 카드가 아니라 패딩 없는 그리드 li(ServicesSection.tsx)
-// — 카드 자체에 패딩이 있으면 cqw가 콘텐츠 박스 기준으로 잡혀 일러스트가 의도보다
-// 작아진다(2026-09-03 실측). hover/focus는 시안에 없는 구현측 인터랙션 — 동작은 유지.
+// 그리드 행의 다른 카드는 CSS grid 기본 stretch로 높이가 맞춰진다. 상하 패딩(py) 없음
+// — 시안은 일러스트 프레임이 카드 전체 높이(180 중 178)를 거의 다 쓴다(사용자 확정
+// 2026-09-03). 텍스트가 상하로 남는 여유가 필요하면 카드가 아니라 텍스트 묶음
+// (ServiceCardText)에만 py를 둔다. 컨테이너 쿼리 기준점(@container)은 이 카드가
+// 아니라 패딩 없는 그리드 li(ServicesSection.tsx) — 카드 자체에 패딩이 있으면 cqw가
+// 콘텐츠 박스 기준으로 잡혀 일러스트가 의도보다 작아진다(2026-09-03 실측). hover/focus는
+// 시안에 없는 구현측 인터랙션 — 동작은 유지.
 const CARD_CLASS =
   "group flex w-full flex-row items-center justify-between " +
-  "rounded-[1.55rem] border border-[#d7d7d7] bg-white py-6 pl-8 pr-[1.625rem] " +
+  "rounded-[1.55rem] border border-[#d7d7d7] bg-white pl-8 pr-[1.625rem] " +
   "shadow-[0_0.2063rem_0.2063rem_rgba(128,128,128,0.3)] transition-[background-color,box-shadow] duration-200 " +
   "[@media(hover:hover)]:hover:bg-[#f6fbff] [@media(hover:hover)]:hover:shadow-[0_0.375rem_1rem_0.25rem_rgba(128,128,128,0.4)] " +
   "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 " +
