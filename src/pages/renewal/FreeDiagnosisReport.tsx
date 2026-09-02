@@ -7,8 +7,8 @@ import { useAuth } from "@/context/AuthProvider";
 // 저장 키·스키마 검증은 storage 모듈이 소유한다 — 저장 주체(설문 CTA)와 읽기 주체(이 페이지)가
 // 다른 파일이라 리터럴을 양쪽에 두면 조용히 갈라진다.
 import { loadDiagnosisInput } from "@/lib/diagnosisInputStorage";
-import { buildReport } from "@/lib/diagnosisReport";
 import { ensureDiagnosisReportSaved } from "@/lib/diagnosisReportApi";
+import { buildReportFromInput } from "@/lib/diagnosisReportBuild";
 import { fetchDiagnosisReport } from "@/lib/diagnosisReportQueries";
 import { supabase } from "@/lib/supabase";
 import type { Json } from "@/types/database.types";
@@ -26,12 +26,11 @@ type DiagnosisInput = {
   } | null;
   admissionCutsError?: boolean;
   admissionMeta?: { year: string | number | null };
-  // diagnosis-persist 유닛이 meta.attemptId 를 추가한다(계약, diagnosisScoring.ts 미수정 범위).
-  // 저장이 안 됐거나(네트워크 실패) 아직 구현 전(스텁)이면 undefined/null — 그 경우 재시도
-  // 자체를 하지 않는다.
+  // meta.attemptId 는 제출 시 normalizeAnswers 가 채운다(diagnosisScoring.ts). 구 페이로드라
+  // 없으면 재시도 자체를 하지 않는다.
   meta?: {
     attemptId?: string | null;
-    schemaVersion?: number;
+    schemaVersion?: string;
     diagnosedAt?: string | null;
   };
 };
@@ -121,28 +120,11 @@ export default function FreeDiagnosisReport() {
     const input = loadDiagnosisInput(location.state);
     if (!input) return null; // 무입력 → 가드(아래에서 리다이렉트)
     try {
-      // B-1(2026-08-11 확정) — 입결 컷은 스텝5 캐스케이드가 선택 시점에 이미 조회해 페이로드에
-      // 실어 뒀다(diagnosisInputStorage.submitDiagnosisAnswers). 이 페이지는 다시 조회하지 않는다
-      // — 그대로면 buildReport 는 여전히 동기다. 미연결(admissionCuts 없음)이면 ctx.cuts 가
-      // undefined 로 떨어져 §4.6 그대로 BAND_NODATA 로 조립된다.
-      // F-22 — cutsError 는 '지금 못 불러왔다'(일시 오류)를 '이 조합은 원래 자료가 없다'
-      // (영구 부재)와 가르는 유일한 신호다. 이걸 빼면 조회 실패 학생에게 BAND_NODATA
-      // ('…자료가 없어 산출하지 않았습니다')가 나가는데, 그 문장은 영구 부재를 단정하므로
-      // 거짓말이 된다. 훅이 참조 비교로 판정해 불리언으로 저장해 둔 값을 그대로 넘긴다.
+      // 조립 규칙(입결 컷·cutsError·admissionMeta → BuildReportCtx)은 제출 시 저장 경로
+      // (SurveyStepShell)와 반드시 같아야 한다 — 저장된 payload 와 화면이 어긋나면 안 되므로
+      // 한 헬퍼(diagnosisReportBuild.buildReportFromInput)로 모았다. 배경 주석은 그 파일 참고.
       const typedInput = input as DiagnosisInput;
-      // exactOptionalPropertyTypes 대응 — buildReport(범위 밖 파일)의 BuildReportCtx는 각 필드에
-      // undefined를 명시적으로 허용하지 않아, undefined면 키 자체를 생략한다(동작 동일).
-      const report = buildReport(input, {
-        ...(typedInput.admissionCuts !== undefined
-          ? { cuts: typedInput.admissionCuts }
-          : {}),
-        ...(typedInput.admissionCutsError !== undefined
-          ? { cutsError: typedInput.admissionCutsError }
-          : {}),
-        ...(typedInput.admissionMeta !== undefined
-          ? { admissionMeta: typedInput.admissionMeta }
-          : {}),
-      }) as DiagnosisReportData;
+      const report = buildReportFromInput(input) as DiagnosisReportData;
       return { input: typedInput, report };
     } catch (error) {
       // 스키마 버전은 맞지만 내부가 손상된 페이로드(수기 편집·부분 저장). 흰 화면이나 가짜
@@ -157,9 +139,8 @@ export default function FreeDiagnosisReport() {
   }, [location.state, attemptId]);
 
   // 저장 재시도(fire-and-forget, 1회) — 세션 경로 전용. DB 경로는 이미 저장된 문서를
-  // 그대로 보는 것이라 재저장할 이유가 없다. ensureDiagnosisReportSaved는 스텁이 던지므로
-  // (diagnosis-persist 유닛 구현 전) 실패는 조용히 무시한다 — 저장 재시도는 부가 기능이고,
-  // 실패해도 리포트 열람 자체(이미 sessionStorage에서 조립한 화면)는 막지 않는다.
+  // 그대로 보는 것이라 재저장할 이유가 없다. 저장 재시도는 부가 기능이라 실패해도 리포트
+  // 열람 자체(이미 sessionStorage에서 조립한 화면)는 막지 않는다.
   useEffect(() => {
     if (attemptId) return undefined;
     if (!sessionResult) return undefined;
