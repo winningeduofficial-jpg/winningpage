@@ -72,6 +72,20 @@ function check(name, cond, detail = "") {
 // ---------------------------------------------------------------------------
 // 정리 대상 레지스트리
 // ---------------------------------------------------------------------------
+/**
+ * @typedef {{
+ *   userIds: string[],
+ *   orderIds: string[],
+ *   couponIds: string[],
+ *   linkIds: string[],
+ *   productPatches: Array<{
+ *     table: string,
+ *     match: Record<string, unknown>,
+ *     restore: Record<string, unknown>,
+ *   }>,
+ * }} CleanupRegistry
+ */
+/** @type {CleanupRegistry} */
 const cleanup = {
   userIds: [],
   orderIds: [],

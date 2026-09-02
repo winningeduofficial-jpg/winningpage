@@ -54,6 +54,15 @@ import {
   looksLikeHtml,
 } from "../src/lib/admissionParsing.js";
 
+/**
+ * admission_university_resources 조회 행. 동적 select라 supabase-js가
+ * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만 선언하고,
+ * 카테고리별 raw/html 컬럼은 전부 동적 키(row[key])로만 접근하므로
+ * (noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다.
+ */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/** @typedef {Pick<ResourceTableRow, "id" | "university_name" | "university_key" | "detail_status">} ResourceRow */
+
 const DEV_PROJECT_REF = "gjowqdiopinhixfivnkx";
 const TABLE = "admission_university_resources";
 const CATEGORY_KEYS = Object.keys(HWP_SECTION_HTML_KEYS);
@@ -112,7 +121,7 @@ function collectClassesInDoc(html) {
   const classes = new Set();
   const text = String(html || "");
   for (const m of text.matchAll(CLASS_ATTR_RE)) {
-    m[1]
+    (m[1] ?? "")
       .split(/\s+/)
       .map((c) => c.trim())
       .filter(Boolean)
@@ -270,8 +279,32 @@ function measureCategory(key, docs) {
 // -----------------------------------------------------------------------
 // 코퍼스 빌드 — 번들(src/data/admissionHwpSections.json)
 // -----------------------------------------------------------------------
+/**
+ * corpusByCategory(Object.fromEntries로 CATEGORY_KEYS의 키 전부를 채워
+ * 만든 Record)처럼 "키 집합을 스스로 만들어놓고 그 키로만 접근"하는
+ * 객체에 대한 도달 불가 가드. noUncheckedIndexedAccess 하에서 인덱스
+ * 시그니처 접근은 항상 `T | undefined`가 되므로, 실제로는 항상 존재함을
+ * 보장하는 지점에서만 쓴다.
+ * @template T
+ * @param {Record<string, T>} record
+ * @param {string} key
+ * @returns {T}
+ */
+function req(record, key) {
+  const value = record[key];
+  if (value === undefined) {
+    throw new Error(`"${key}" 키가 없습니다(예상치 못한 상태)`);
+  }
+  return value;
+}
+
+/**
+ * @typedef {{ raw: unknown, html: unknown, row: unknown, universityName: string }} CorpusEntry
+ */
+
 function buildBundleCorpus() {
   const universityNames = Object.keys(admissionHwpSections);
+  /** @type {Record<string, CorpusEntry[]>} */
   const corpusByCategory = Object.fromEntries(
     CATEGORY_KEYS.map((key) => [key, []]),
   );
@@ -280,7 +313,7 @@ function buildBundleCorpus() {
     const row = admissionHwpSections[universityName];
     CATEGORY_KEYS.forEach((key) => {
       const htmlKey = HWP_SECTION_HTML_KEYS[key];
-      corpusByCategory[key].push({
+      req(corpusByCategory, key).push({
         raw: row[key],
         html: row[htmlKey],
         row,
@@ -319,14 +352,18 @@ async function buildDbCorpus(admissionYear) {
     .eq("admission_year", admissionYear)
     .order("id");
   if (error) throw new Error(`행 조회 실패: ${error.message}`);
+  const typedRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (rows)
+  );
 
+  /** @type {Record<string, CorpusEntry[]>} */
   const corpusByCategory = Object.fromEntries(
     CATEGORY_KEYS.map((key) => [key, []]),
   );
-  (rows || []).forEach((row) => {
+  (typedRows || []).forEach((row) => {
     CATEGORY_KEYS.forEach((key) => {
       const htmlKey = HWP_SECTION_HTML_KEYS[key];
-      corpusByCategory[key].push({
+      req(corpusByCategory, key).push({
         raw: row[key],
         html: row[htmlKey],
         row,

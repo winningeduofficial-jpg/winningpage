@@ -68,6 +68,16 @@ const MAX_LONG_EDGE = 1600; // px — 초과 시 비율 유지 리사이즈
 const MAX_BYTES = 500 * 1024; // 500KB 초과 시 재인코딩 시도
 const LOCAL_PREFIX = "/images/landing/";
 
+/**
+ * DB_TARGETS 5개 테이블의 조회 행. 동적 select(`id, ${column}`)라
+ * supabase-js가 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는
+ * id만 선언하고, 대상 URL 컬럼은 동적 키(row[column])로만 접근하므로
+ * (noImplicitAny 꺼짐) 별도 선언 없이 암시적 any로 통과한다. 5개 테이블 중
+ * banners.id만 생성 타입에서 number이고 나머지 4개는 string이라 union으로 둔다
+ * (실제 사용처는 템플릿 리터럴과 .eq() 인자뿐이라 어느 쪽이든 문제 없다).
+ * @typedef {{ id: import("../src/types/database.types.ts").Tables<"banners">["id"] | import("../src/types/database.types.ts").Tables<"home_side_banners">["id"] }} UrlColumnRow
+ */
+
 const rootDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -271,14 +281,19 @@ async function updateDb(supabase, urlMap, applyDb) {
       if (error) {
         throw new Error(`${table}.${column} 조회 실패: ${error.message}`);
       }
+      const typedRows = /** @type {UrlColumnRow[]} */ (
+        /** @type {unknown} */ (rows)
+      );
 
       if (!applyDb) {
-        console.log(`[dry-run] ${table}.${column}: 교체 대상 ${rows.length}건`);
+        console.log(
+          `[dry-run] ${table}.${column}: 교체 대상 ${typedRows.length}건`,
+        );
         continue;
       }
 
       let updated = 0;
-      for (const row of rows) {
+      for (const row of typedRows) {
         const publicUrl = urlMap[row[column]];
         if (!publicUrl) {
           console.warn(

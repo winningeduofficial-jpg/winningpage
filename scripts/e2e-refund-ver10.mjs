@@ -87,6 +87,7 @@ function check(name, cond, detail = "") {
 // 1) QA 데이터 셋업 — 학부모·학생 쌍 + 2항목(goal-12m, suhaeng-2) paid 주문.
 //    부여는 운영과 같은 경로(fn_grant_program_access_for_order)로 만든다.
 // ---------------------------------------------------------------------------
+/** @type {{ userIds: string[], orderIds: string[] }} */
 const cleanup = { userIds: [], orderIds: [] };
 
 async function mkUser(label, memberType) {
@@ -124,11 +125,18 @@ async function mkPaidOrder(orderId, parent, student, slugs) {
   const amount = products.reduce((s, p) => s + p.price, 0);
   const now = new Date().toISOString();
 
+  // 위 prodErr||length 체크를 통과했고 slugs는 항상 비어있지 않은
+  // 배열로 호출되므로 products[0]은 항상 존재한다.
+  const firstProduct = products[0];
+  if (firstProduct === undefined) {
+    throw new Error(`상품 조회 결과가 비어있음(${slugs.join(",")})`);
+  }
+
   const { error: oErr } = await admin.from("orders").insert({
     id: orderId,
     user_id: parent.id,
     status: "paid",
-    order_name: `${products[0].name}${products.length > 1 ? ` 외 ${products.length - 1}건` : ""}`,
+    order_name: `${firstProduct.name}${products.length > 1 ? ` 외 ${products.length - 1}건` : ""}`,
     list_amount: listAmount,
     discount_amount: listAmount - amount,
     amount,
@@ -285,7 +293,13 @@ try {
       .from("order_items")
       .select("id, product_slug")
       .eq("order_id", orderId);
+    if (itemRows === null) {
+      throw new Error(`order_items 조회 결과가 없음(${orderId})`);
+    }
     const suhaengItem = itemRows.find((r) => r.product_slug === "suhaeng-2");
+    if (suhaengItem === undefined) {
+      throw new Error(`suhaeng-2 항목을 못 찾음(${orderId})`);
+    }
     const { data: quoteRows, error: qErr } = await rpcAsUser(
       parent.email,
       "fn_refund_quote",

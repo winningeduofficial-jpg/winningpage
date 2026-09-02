@@ -50,6 +50,23 @@ const JSON_COLUMNS = Object.values(HWP_SECTION_JSON_KEYS);
 // (admissionDoc.js 참고).
 const CATEGORY_RAW_KEYS = Object.keys(HWP_SECTION_JSON_KEYS);
 
+/**
+ * admission_university_resources 조회 행. 동적 select(selectColumns)라
+ * supabase-js가 이 쿼리 결과를 GenericStringError로 추론한다. 이 스크립트
+ * 전역에서 dot 접근하는 컬럼을 명시하고, exportAdmissionRowsToXlsx /
+ * buildExistingRowsMap이 요구하는 Record<string, unknown>도 인덱스
+ * 시그니처로 그대로 만족시킨다(나머지 컬럼은 기존처럼 동적 키로 접근).
+ * recruitment_quota_json은 생성 타입에서 Json | null이지만, 이 파일은
+ * blocks 구조를 다루는 도메인 타입(AdmissionDoc)으로 다뤄야 해서 Pick 대신
+ * 명시 override로 유지한다.
+ */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/**
+ * @typedef {Pick<ResourceTableRow, "id" | "admission_year" | "university_name" | "university_key" | "region" | "recruitment_quota"> & {
+ *   recruitment_quota_json: import("../src/lib/admissionDoc.ts").AdmissionDoc | null,
+ * } & Record<string, unknown>} ResourceRow
+ */
+
 let failCount = 0;
 let passCount = 0;
 
@@ -66,6 +83,25 @@ function check(name, fn) {
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+/**
+ * noUncheckedIndexedAccess 하에서 `arr[i]`가 `T | undefined`가 되는 지점 중,
+ * 직전 length 검사(예: `assert(rows.length === 1, ...)`)로 실존이 보장되는
+ * 곳에서만 쓰는 도달 불가 가드. 실제로 undefined면 그 자체가 이 스크립트의
+ * 전제가 깨진 것이므로 즉시 에러로 드러낸다(원래 로직은 절대 안 탄다).
+ * @template T
+ * @param {readonly T[]} arr
+ * @param {number} index
+ * @param {string} label
+ * @returns {T}
+ */
+function at(arr, index, label) {
+  const value = arr[index];
+  if (value === undefined) {
+    throw new Error(`${label}[${index}]이 undefined입니다(예상치 못한 상태)`);
+  }
+  return value;
 }
 
 function docHasBlocks(doc) {
@@ -199,7 +235,13 @@ async function getNotNullColumnsFromSchema() {
     if (!trimmed || trimmed.toLowerCase().startsWith("constraint")) return;
     if (/\bNOT NULL\b/i.test(trimmed)) {
       // pg_dump 형식: `"column_name" "type" ... NOT NULL,` — 따옴표를 벗긴다.
-      notNullColumns.push(trimmed.split(/\s+/)[0].replace(/^"|"$/g, ""));
+      // trimmed는 위에서 비어있지 않음을 확인했으므로 split(/\s+/)[0]은
+      // 항상 존재한다(도달 불가 가드).
+      const firstToken = trimmed.split(/\s+/)[0];
+      if (firstToken === undefined) {
+        throw new Error(`NOT NULL 컬럼 줄 파싱 실패(빈 토큰): "${trimmed}"`);
+      }
+      notNullColumns.push(firstToken.replace(/^"|"$/g, ""));
     }
   });
   return notNullColumns;
@@ -246,11 +288,14 @@ async function main() {
     ...ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS,
     ...JSON_COLUMNS,
   ].join(", ");
-  const { data: dbRows, error } = await supabase
+  const { data: rawDbRows, error } = await supabase
     .from(TABLE)
     .select(selectColumns)
     .order("id");
   if (error) throw new Error(`DB 조회 실패: ${error.message}`);
+  const dbRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (rawDbRows)
+  );
   console.log(`대상: ${dbRows.length}행`);
 
   const existingRows = buildExistingRowsMap(dbRows);
@@ -482,7 +527,7 @@ async function main() {
         `truncatedCellSkipCount가 1이어야 함(실제 ${s.truncatedCellSkipCount})`,
       );
 
-      const payload = rows[0];
+      const payload = at(rows, 0, "rows");
       assert(
         payload.university_name === "합성테스트대학교",
         "university_name(메타데이터)이 정상 반영 안 됨",
@@ -509,7 +554,7 @@ async function main() {
       const truncationWarning = warnings.find(
         (w) =>
           w.column === "selection_method" &&
-          w.reason.includes("잘림 마커가 있어 기존 값 보존"),
+          w.reason?.includes("잘림 마커가 있어 기존 값 보존"),
       );
       assert(
         Boolean(truncationWarning),
@@ -549,7 +594,7 @@ async function main() {
       `완전히 새 연도인데 newUniversityCount가 0이 아님(실제 ${s.newUniversityCount})`,
     );
     const newUniWarnings = warnings.filter((w) =>
-      w.reason.includes("신규 대학 추가"),
+      w.reason?.includes("신규 대학 추가"),
     );
     assert(
       newUniWarnings.length === 0,
@@ -559,10 +604,9 @@ async function main() {
 
   check("이미 아는 연도 + 새 university_key → insert + 경고(오타 방어)", () => {
     const knownYear = dbRows[0]?.admission_year;
-    assert(
-      Boolean(knownYear),
-      "DB에서 admission_year 샘플을 못 찾음(선행 조건 실패)",
-    );
+    if (knownYear === undefined) {
+      throw new Error("DB에서 admission_year 샘플을 못 찾음(선행 조건 실패)");
+    }
     const header = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS;
     const row = header.map((col) => {
       if (col === "admission_year") return knownYear;
@@ -589,7 +633,7 @@ async function main() {
       `summary.newUniversityCount가 1이어야 함(실제 ${s.newUniversityCount})`,
     );
     const newUniWarnings = warnings.filter((w) =>
-      w.reason.includes("신규 대학 추가"),
+      w.reason?.includes("신규 대학 추가"),
     );
     assert(
       newUniWarnings.length === 1,
@@ -620,9 +664,10 @@ async function main() {
         `payload가 비어 있어야 함(실제 ${rows.length}건)`,
       );
       assert(errors.length === 1, `에러가 1건이어야 함(실제 ${errors.length})`);
+      const error0 = at(errors, 0, "errors");
       assert(
-        errors[0].type === "missingRequiredFields",
-        `에러 type이 missingRequiredFields여야 함(실제 ${errors[0].type})`,
+        error0.type === "missingRequiredFields",
+        `에러 type이 missingRequiredFields여야 함(실제 ${error0.type})`,
       );
       assert(s.willSkip === 1, `willSkip=1이어야 함(실제 ${s.willSkip})`);
       assert(
@@ -680,11 +725,11 @@ async function main() {
       "행 자체는 생성돼야 함(다른 카테고리는 영향 없음)",
     );
     assert(
-      rows[0].previous_year_changes_json === undefined,
+      at(rows, 0, "rows").previous_year_changes_json === undefined,
       "previous_year_changes_json이 payload에 없어야 함(회귀 가드가 막아야 함)",
     );
     const regressionWarnings = warnings.filter((w) =>
-      w.reason.includes("정보량 감소"),
+      w.reason?.includes("정보량 감소"),
     );
     assert(regressionWarnings.length >= 1, "정보량 감소 경고가 있어야 함");
   });
@@ -732,8 +777,8 @@ async function main() {
       const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
       assert(rows.length === 1, "행 자체는 생성돼야 함");
       assert(
-        rows[0].minimum_requirements_json === undefined &&
-          rows[0].minimum_requirements_html === undefined,
+        at(rows, 0, "rows").minimum_requirements_json === undefined &&
+          at(rows, 0, "rows").minimum_requirements_html === undefined,
         "raw가 안 바뀌었는데 재생성돼 payload에 들어감(기존 값 보존이 안 됨)",
       );
       const relatedWarnings = warnings.filter(
@@ -786,7 +831,7 @@ async function main() {
       const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
       assert(rows.length === 1, "행 자체는 생성돼야 함");
       assert(
-        rows[0].minimum_requirements_json !== undefined,
+        at(rows, 0, "rows").minimum_requirements_json !== undefined,
         "raw를 의도적으로 고쳤는데(정보량도 늘었는데) 재생성이 안 됨",
       );
       const regenWarning = warnings.find(
@@ -849,7 +894,7 @@ async function main() {
       const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
       assert(rows.length === 1, "행 자체는 생성돼야 함");
       assert(
-        rows[0].minimum_requirements_json === undefined,
+        at(rows, 0, "rows").minimum_requirements_json === undefined,
         "정보량이 줄었는데 회귀 가드가 안 막음",
       );
       const regressionWarning = warnings.find(
@@ -888,7 +933,7 @@ async function main() {
       const { rows, warnings } = parseAdmissionRowsFromXlsx(wb, existing);
       assert(rows.length === 1, "행 자체는 생성돼야 함");
       assert(
-        rows[0].minimum_requirements_json !== undefined,
+        at(rows, 0, "rows").minimum_requirements_json !== undefined,
         "기존 doc이 없고 raw가 있으면 생성돼야 함",
       );
       const relatedWarnings = warnings.filter(
@@ -928,8 +973,11 @@ async function main() {
         selection_method: value,
       }));
       const { workbook } = exportAdmissionRowsToXlsx(syntheticRows);
-      const sheetName = workbook.SheetNames[0];
+      const sheetName = at(workbook.SheetNames, 0, "workbook.SheetNames");
       const ws = workbook.Sheets[sheetName];
+      if (ws === undefined) {
+        throw new Error(`workbook.Sheets["${sheetName}"]이 undefined입니다`);
+      }
 
       let formulaCellCount = 0;
       let nonStringTypedCount = 0;
@@ -1043,7 +1091,9 @@ async function main() {
       const sample =
         chipsRows.find((r) => r.university_key === "서경대학교") ||
         chipsRows[0];
-      assert(sample, "chips 표본을 못 찾음");
+      if (sample === undefined) {
+        throw new Error("chips 표본을 못 찾음");
+      }
       const editedRawText = `${sample.recruitment_quota}\n(관리자가 오타를 고침)`;
       const existing = new Map([
         [
@@ -1075,10 +1125,13 @@ async function main() {
         `  표본: [${sample.university_name}] 기존 chips ${beforeChips.length}개 → raw 살짝 수정 후 재생성 시도`,
       );
 
-      if (rows[0].recruitment_quota_json !== undefined) {
+      const rowsAfterEdit0 = at(rows, 0, "rows");
+      if (rowsAfterEdit0.recruitment_quota_json !== undefined) {
         // 회귀 가드를 통과했다면(예상 밖 경로) 최소한 chips는 보존돼야
         // 하고, 반드시 경고가 남아야 한다(조용한 교체는 절대 안 됨).
-        const afterChips = extractChipsSequence(rows[0].recruitment_quota_json);
+        const afterChips = extractChipsSequence(
+          rowsAfterEdit0.recruitment_quota_json,
+        );
         const regenWarning = warnings.find(
           (w) => w.type === "rawChangedRegenerated",
         );
@@ -1167,12 +1220,12 @@ async function main() {
         `NOT NULL 컬럼 위반: ${violations.join(", ")} — 이게 team-lead가 실측한 결함이다(안 고친 행을 그대로 재업로드해도 upsert가 실패)`,
       );
       assert(
-        rows[0].source_name === "",
-        `source_name이 ''로 보존돼야 함(실제 ${JSON.stringify(rows[0].source_name)})`,
+        at(rows, 0, "rows").source_name === "",
+        `source_name이 ''로 보존돼야 함(실제 ${JSON.stringify(at(rows, 0, "rows").source_name)})`,
       );
       assert(
-        rows[0].source_version === "",
-        `source_version이 ''로 보존돼야 함(실제 ${JSON.stringify(rows[0].source_version)})`,
+        at(rows, 0, "rows").source_version === "",
+        `source_version이 ''로 보존돼야 함(실제 ${JSON.stringify(at(rows, 0, "rows").source_version)})`,
       );
     },
   );
@@ -1197,12 +1250,13 @@ async function main() {
         `region이 비었는데 payload가 생성됨(실제 ${rows.length}건) — NOT NULL 위반 위험`,
       );
       assert(
-        errors.length === 1 && errors[0].type === "missingRequiredFields",
+        errors.length === 1 &&
+          at(errors, 0, "errors").type === "missingRequiredFields",
         `region 누락이 missingRequiredFields로 거부돼야 함(실제 ${JSON.stringify(errors[0])})`,
       );
       assert(
-        errors[0].reason.includes("region"),
-        `에러 이유에 region이 명시돼야 함(실제 "${errors[0].reason}")`,
+        at(errors, 0, "errors").reason.includes("region"),
+        `에러 이유에 region이 명시돼야 함(실제 "${at(errors, 0, "errors").reason}")`,
       );
     },
   );
@@ -1242,8 +1296,8 @@ async function main() {
       assert(errors.length === 0, `합성 행이 거부됨(에러 ${errors.length}건)`);
       assert(rows.length === 1, `행이 1개 생성돼야 함(실제 ${rows.length})`);
       assert(
-        rows[0].minimum_requirements === "",
-        `minimum_requirements가 ''로 보존돼야 함(실제 ${JSON.stringify(rows[0].minimum_requirements)}) — null로 바뀌면 "안 고친 행은 안 바뀐다" 불변식 위반`,
+        at(rows, 0, "rows").minimum_requirements === "",
+        `minimum_requirements가 ''로 보존돼야 함(실제 ${JSON.stringify(at(rows, 0, "rows").minimum_requirements)}) — null로 바뀌면 "안 고친 행은 안 바뀐다" 불변식 위반`,
       );
     },
   );
@@ -1310,7 +1364,11 @@ async function main() {
         ]);
         const buf = XLSX.write(singleWb, { bookType: "xlsx", type: "buffer" });
         const reread = XLSX.read(buf, { type: "buffer" });
-        const ws2 = reread.Sheets[reread.SheetNames[0]];
+        const ws2Name = at(reread.SheetNames, 0, "reread.SheetNames");
+        const ws2 = reread.Sheets[ws2Name];
+        if (ws2 === undefined) {
+          throw new Error(`reread.Sheets["${ws2Name}"]이 undefined입니다`);
+        }
         const grid2 = XLSX.utils.sheet_to_json(ws2, { header: 1 });
         const colIdx = ADMISSION_GUIDELINE_BULK_XLSX_COLUMNS.indexOf(
           sample.column,
@@ -1344,7 +1402,17 @@ async function main() {
     }
 
     const realWorkbook = XLSX.read(buffer, { type: "buffer" });
-    const realSheet = realWorkbook.Sheets[realWorkbook.SheetNames[0]];
+    const realSheetName = at(
+      realWorkbook.SheetNames,
+      0,
+      "realWorkbook.SheetNames",
+    );
+    const realSheet = realWorkbook.Sheets[realSheetName];
+    if (realSheet === undefined) {
+      throw new Error(
+        `realWorkbook.Sheets["${realSheetName}"]이 undefined입니다`,
+      );
+    }
     const realGrid = XLSX.utils.sheet_to_json(realSheet, { header: 1 });
     const realHeaderCols = Array.isArray(realGrid[0]) ? realGrid[0] : [];
     console.log(
