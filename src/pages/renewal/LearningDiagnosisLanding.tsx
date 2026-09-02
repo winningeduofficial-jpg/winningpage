@@ -1,15 +1,15 @@
 import type { CSSProperties, MutableRefObject } from "react";
 import { Link } from "react-router";
-import heroBrowserV2 from "@/assets/renewal/landing/hero-browser-v2.png";
 import heroGlow from "@/assets/renewal/landing/hero-glow.svg";
 import heroGrain from "@/assets/renewal/landing/hero-grain.png";
-import iconFolder from "@/assets/renewal/landing/icon-folder-v2.png";
-import iconLock from "@/assets/renewal/landing/icon-lock-v2.png";
-import iconShield from "@/assets/renewal/landing/icon-shield-v2.png";
+import heroReportPages from "@/assets/renewal/landing/hero-report-pages.png";
 import illustrationStrength from "@/assets/renewal/landing/illustration-strength.png";
 import illustrationTrial from "@/assets/renewal/landing/illustration-trial.png";
 import illustrationWeakness from "@/assets/renewal/landing/illustration-weakness.png";
 import macbookFull from "@/assets/renewal/landing/macbook-full.png";
+import reportPage1 from "@/assets/renewal/landing/report-page-1.png";
+import reportPage2 from "@/assets/renewal/landing/report-page-2.png";
+import reportPage3 from "@/assets/renewal/landing/report-page-3.png";
 import ServiceProcessCards from "@/components/services/ServiceProcessCards";
 import { useInView } from "@/hooks/useInView";
 
@@ -56,9 +56,21 @@ const AUDIENCE = [
 ];
 
 const BENEFITS = [
-  { icon: iconLock, label: "상세 진단 요약 카드" },
-  { icon: iconFolder, label: "나의 강점 정리본" },
-  { icon: iconShield, label: "보완 안내" },
+  {
+    image: reportPage1,
+    label: "상세 진단 요약 카드",
+    alt: "학습진단 리포트 1페이지 — 진단 요약",
+  },
+  {
+    image: reportPage2,
+    label: "나의 강점 정리본",
+    alt: "학습진단 리포트 2페이지 — 강점 정리",
+  },
+  {
+    image: reportPage3,
+    label: "보완 안내",
+    alt: "학습진단 리포트 3페이지 — 보완 안내",
+  },
 ];
 
 // 플로팅 칩 — 시안 절대좌표(x290~1605, 스팬 1315)가 max-w-content(1164) 밖이라 그대로 쓸 수 없다.
@@ -255,16 +267,22 @@ function HeroSection() {
           지금 시작하기
         </Link>
 
+        {/* 2026-09-02 QA 시트 행 357: 브라우저 목업(heroBrowserV2)을 파일27 리포트 합성
+            이미지로 교체. 옛 이미지는 브라우저 크롬(주소창)까지 PNG 안에 그려 넣은
+            사각 스크린샷이라 바깥 div가 rounded+box-shadow로 사각 프레임을 잡아줬다.
+            새 이미지는 리포트 카드 3장을 사각 캔버스 밖 여백을 완전 투명(RGBA 코너
+            alpha 0)으로 비운 채 흩뿌려 배치했고 카드마다 자체 그림자를 이미 구웠다.
+            그대로 rounded+overflow-hidden+box-shadow를 씌우면 투명 여백 경계에서
+            보이지도 않는 사각형 그림자가 떠 어색해, 프레임/셰도우 wrapper를 걷어내고
+            섹션 배경(bg-white)에 카드들이 직접 놓이도록 둔다. */}
         <div className="relative z-10 mx-auto mt-8 w-full max-w-267 sm:mt-10 md:mt-12.25 lg:mb-[-7.89375rem]">
-          <div className="overflow-hidden rounded-[0.3125rem] shadow-[0_0_0.0625rem_rgba(0,0,0,0.7),0_1.25rem_1.875rem_rgba(0,0,0,0.3),0_0.625rem_3.125rem_rgba(0,0,0,0.2)]">
-            <img
-              src={heroBrowserV2}
-              alt="위닝에듀 학습진단 문항 화면이 담긴 브라우저 목업"
-              width={1280}
-              height={553}
-              className="w-full"
-            />
-          </div>
+          <img
+            src={heroReportPages}
+            alt="학습진단 리포트 3장 미리보기"
+            width={1678}
+            height={838}
+            className="w-full"
+          />
         </div>
       </div>
     </section>
@@ -356,6 +374,11 @@ function BenefitsSection() {
           학습진단으로 얻을 수 있는 것
         </h2>
 
+        {/* 2026-09-02 QA 시트 행 67: 아이콘(iconLock/iconFolder/iconShield 100×100) →
+            실제 리포트 캡처 3장(report-page-1~3, 원본 1120폭 캡처를 640폭으로 축소해 저장)으로
+            교체. A4 캡처 3장의 세로 길이가 제각각(961/906/906px)이라 aspect-[70/99](= 원본
+            1120:1584 축약)로 박스를 고정하고 object-cover object-top으로 각 페이지 상단
+            (제목·핵심 지표가 몰린 영역)을 채워 3박스 높이를 맞춘다. */}
         <div className="w-full max-w-242.5 rounded-xl border border-line bg-[#FBFAFA] px-6 py-10 sm:px-10 md:py-12">
           <div className="grid grid-cols-1 divide-y divide-[#E2E2E2] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             {BENEFITS.map((item) => (
@@ -363,16 +386,11 @@ function BenefitsSection() {
                 key={item.label}
                 className="flex flex-col items-center gap-4 py-6 first:pt-0 last:pb-0 sm:px-6 sm:py-0"
               >
-                {/* @3x(300×300) 원본을 시안 표시 크기 100×100(6.25rem)으로 고정. 컨테이너가 크기를 소유하고 img는 100%로 채운다. */}
-                <div className="h-20 w-20 shrink-0 sm:h-25 sm:w-25">
-                  <img
-                    src={item.icon}
-                    alt=""
-                    width={300}
-                    height={300}
-                    className="block h-full w-full"
-                  />
-                </div>
+                <img
+                  src={item.image}
+                  alt={item.alt}
+                  className="aspect-70/99 w-full max-w-60 rounded-md border border-line bg-white object-cover object-top shadow-sm"
+                />
                 <p className="text-lg font-semibold tracking-[-0.02em] text-ink sm:text-xl md:text-[1.5rem]">
                   {item.label}
                 </p>
