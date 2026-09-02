@@ -376,3 +376,238 @@ export function computeGoalCutBackfill(
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// jungsi(정시) 백필 — 행296·332(QA3 §9-5 결정3). normal/special과 소스 필터·
+// 집계축이 다르므로 별도 함수로 둔다(억지로 한 함수에 합치면 두 축의 조건이
+// 서로 새는 위험이 더 크다).
+//
+//   - grade_70(내신 등급) 대신 percentile(모의고사 백분위)을 쓴다. 2026-09-02
+//     dev 실측으로는 0행이지만(향후 xlsx 업로드로 채워질 컬럼,
+//     admissionResultsBulkXlsx.ts가 이미 수용한다), 데이터가 들어오는 즉시
+//     동작하도록 지금 이 경로를 열어 둔다 — 폴백 상수로 메우지 않는다.
+//   - screening_category 필터가 없다. 일반/추천형만 남기는 위 필터는 "지원
+//     자격 제한 전형이 수시 컷을 완화시키는" 문제였고(§3-D3), 정시는 수능
+//     성적만으로 지원하는 전형이라 같은 왜곡 축이 없다.
+//   - main_track(교과/종합) 구분이 없다 — jungsi 컷은 (대학, 학과)당 1개다.
+//   - 연도 폴백은 yearMode 파라미터가 아니라 "그 쌍에서 percentile이 있는
+//     가장 최근 result_year"를 그때그때 고른다(팀장 지시).
+//   - 같은 (쌍, 연도)에 행이 여럿이면 평균(소수 2자리, goalCutAverage 재사용).
+// ---------------------------------------------------------------------------
+
+const GOAL_JUNGSI_BACKFILL_SOURCE_TABLE = "admission_results";
+
+// admission_results 소스 행 — buildJungsiBackfillSourceQuery 의 select 절
+// "university_name, department_name, percentile, result_year" 그대로.
+export interface GoalJungsiBackfillSourceRow {
+  university_name: string | null;
+  department_name: string | null;
+  percentile: number | string | null;
+  result_year: number | string | null;
+}
+
+function buildJungsiBackfillSourceQuery(
+  client: SupabaseClient,
+  options: { head?: boolean } = {},
+) {
+  const query = options.head
+    ? client
+        .from(GOAL_JUNGSI_BACKFILL_SOURCE_TABLE)
+        .select("university_name", { count: "exact", head: true })
+    : client
+        .from(GOAL_JUNGSI_BACKFILL_SOURCE_TABLE)
+        .select("university_name, department_name, percentile, result_year");
+  return (
+    query
+      .eq("is_active", true)
+      // goal_university_cuts_avg_cut_check(jungsi ⇒ avg_cut 0..100)와 같은 범위로
+      // 방어한다. gte/lte 비교는 NULL을 자동으로 걸러낸다(percentile is null 행 제외).
+      .gte("percentile", 0)
+      .lte("percentile", 100)
+  );
+}
+
+export async function fetchJungsiBackfillSourceRows(
+  client: SupabaseClient,
+  onProgress?: (progress: { done: number; total: number }) => void,
+): Promise<GoalJungsiBackfillSourceRow[]> {
+  const { count, error: countError } = await buildJungsiBackfillSourceQuery(
+    client,
+    { head: true },
+  );
+  if (countError) throw new Error(countError.message);
+  const total = count ?? 0;
+  const all: GoalJungsiBackfillSourceRow[] = [];
+  for (let from = 0; from < total; from += BACKFILL_READ_CHUNK) {
+    const { data, error } = await buildJungsiBackfillSourceQuery(client)
+      .order("id", { ascending: true })
+      .range(from, from + BACKFILL_READ_CHUNK - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...(data as GoalJungsiBackfillSourceRow[]));
+    onProgress?.({ done: all.length, total });
+  }
+  return all;
+}
+
+// goal_university_cuts upsert payload — cut_type이 항상 'jungsi'인 것만 다르고
+// 나머지 7개 키는 GoalCutBackfillPayload와 동일한 규약(§ computeGoalCutBackfill
+// 머리말 "정확히 8개 키" 주석과 동일한 이유).
+export interface GoalJungsiCutBackfillPayload {
+  cut_type: "jungsi";
+  university_key: string;
+  university_name: string;
+  department_key: string;
+  department_name: string;
+  avg_cut: number;
+  source: "admission_results";
+  source_year: number;
+}
+
+export interface GoalJungsiCutBackfillStats {
+  universityCount: number;
+  pairCount: number;
+  totalRows: number;
+  excludedStarPairs: number;
+  excludedEmptyPairs: number;
+  mergedCount: number;
+  distribution: {
+    min: number | null;
+    p25: number | null;
+    median: number | null;
+    p75: number | null;
+    max: number | null;
+  };
+  samples: GoalJungsiCutBackfillPayload[];
+}
+
+export interface GoalJungsiCutBackfillResult {
+  payloads: GoalJungsiCutBackfillPayload[];
+  stats: GoalJungsiCutBackfillStats;
+}
+
+interface GoalJungsiBackfillPairEntry {
+  uni: string;
+  dept: string;
+  years: Map<number, number[]>;
+}
+
+// jungsi 입결 소스 행 → 백필 payload + 미리보기 통계. 순수 함수다(DB 접근 없음).
+export function computeGoalJungsiCutBackfill(
+  sourceRows: GoalJungsiBackfillSourceRow[] | null | undefined,
+): GoalJungsiCutBackfillResult {
+  const byPair = new Map<string, GoalJungsiBackfillPairEntry>();
+  (sourceRows || []).forEach((r) => {
+    const uni = normalizeUniversityName(String(r.university_name ?? "").trim());
+    const dept = String(r.department_name ?? "").trim();
+    if (!uni) return;
+    // NOTE: Number(null) === 0 이라 곧장 Number() 변환하면 "값 없음"이 "백분위
+    // 0"(합법 값, admin/configs/goal.ts:227 주석과 같은 함정)으로 둔갑한다.
+    // null/undefined/빈 문자열을 먼저 걸러 그 오염을 막는다.
+    if (
+      r.percentile === null ||
+      r.percentile === undefined ||
+      r.percentile === ""
+    )
+      return;
+    const percentile = Number(r.percentile);
+    if (!Number.isFinite(percentile)) return;
+    const year = Number(r.result_year);
+    if (!Number.isFinite(year)) return;
+    const pairKey = `${uni}\u0000${dept}`;
+    let entry = byPair.get(pairKey);
+    if (!entry) {
+      entry = { uni, dept, years: new Map() };
+      byPair.set(pairKey, entry);
+    }
+    let bucket = entry.years.get(year);
+    if (!bucket) {
+      bucket = [];
+      entry.years.set(year, bucket);
+    }
+    bucket.push(percentile);
+  });
+
+  let excludedStarPairs = 0;
+  let excludedEmptyPairs = 0;
+  const rawPayloads: GoalJungsiCutBackfillPayload[] = [];
+
+  byPair.forEach((entry) => {
+    // normal/special 경로와 같은 학과명 방어(위 computeGoalCutBackfill 3단계 주석).
+    if (entry.dept.includes("(*)")) {
+      excludedStarPairs += 1;
+      return;
+    }
+    if (!entry.dept) {
+      excludedEmptyPairs += 1;
+      return;
+    }
+
+    // 최신 result_year 우선(팀장 지시) — 그 쌍에서 percentile이 존재하는 연도 중 최댓값.
+    const latestYear = Math.max(...entry.years.keys());
+    const values = entry.years.get(latestYear)!;
+    const avgCut = goalCutAverage(values);
+    if (avgCut === null) return;
+
+    rawPayloads.push({
+      cut_type: "jungsi",
+      university_key: entry.uni,
+      university_name: entry.uni,
+      department_key: entry.dept,
+      department_name: entry.dept,
+      avg_cut: avgCut,
+      source: "admission_results",
+      source_year: latestYear,
+    });
+  });
+
+  // 같은 dedupe 규약(위 computeGoalCutBackfill 머리말 참고) — 한 청크 안 중복
+  // (cut_type, university_key, department_key)는 PostgREST 21000으로 청크
+  // 전체를 실패시키므로 여기서 미리 병합한다. 나중 항목이 앞 항목을 덮는다.
+  const merged = new Map<string, GoalJungsiCutBackfillPayload>();
+  let mergedCount = 0;
+  rawPayloads.forEach((p) => {
+    const key = goalCutConflictKey(
+      p.cut_type,
+      p.university_key,
+      p.department_key,
+    );
+    if (merged.has(key)) mergedCount += 1;
+    merged.set(key, p);
+  });
+  const payloads = Array.from(merged.values());
+
+  const cutValues = payloads.map((p) => p.avg_cut).sort((a, b) => a - b);
+  const universities = new Set(payloads.map((p) => p.university_key));
+  const pairs = new Set(
+    payloads.map((p) => `${p.university_key}\u0000${p.department_key}`),
+  );
+  const samples = payloads
+    .slice()
+    .sort(
+      (a, b) =>
+        a.university_name.localeCompare(b.university_name) ||
+        a.department_name.localeCompare(b.department_name),
+    )
+    .slice(0, 20);
+
+  return {
+    payloads,
+    stats: {
+      universityCount: universities.size,
+      pairCount: pairs.size,
+      totalRows: payloads.length,
+      excludedStarPairs,
+      excludedEmptyPairs,
+      mergedCount,
+      distribution: {
+        min: cutValues[0] ?? null,
+        p25: goalCutQuantile(cutValues, 0.25),
+        median: goalCutQuantile(cutValues, 0.5),
+        p75: goalCutQuantile(cutValues, 0.75),
+        max: cutValues[cutValues.length - 1] ?? null,
+      },
+      samples,
+    },
+  };
+}
