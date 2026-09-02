@@ -13,39 +13,37 @@
 // 기준에서는 시작점이 같으므로 그 오프셋이 불필요 — MEGA_GUARD를 폐기하고 NAV_GUARD를
 // 그대로 재사용한다).
 //
-// NAV_CELL_W / NAV_CELL_GAP (0729 시안 실측 — nav 5항목):
-//   각 항목 100px(6.25rem) 셀, 셀 내부는 좌측 정렬(justify-start), 셀 간 gap 48px(3rem)
-//   고정(피치 148px). 과거 유동 clamp(gap)는 폐기 — 시안이 고정값이라 뷰포트별 보간이
-//   불필요해졌다.
-// MEGA_COL_W / MEGA_COL_GAP:
-//   컬럼 폭은 기존 8.75rem(140px) 유지(변경 시 "국제・해외고 국내대 입학컨설팅" 등 긴
-//   서브아이템 라벨이 줄바꿈된다). gap은 140+8=148px로 nav 피치와 일치시키기 위한 8px(0.5rem)
-//   고정값 — nav와 임의로 다른 값을 쓰면 컬럼-셀 좌측선 정렬이 뷰포트에 따라 어긋난다.
-//
-// NAV_GUARD (좁은 데스크톱 충돌 가드, 로고용):
-//   marginLeft: max(0px, calc(19.375rem − (100vw − 72.75rem) / 2))
-//   19.375rem = 2xl 밴드 패딩(px-30=7.5rem) + LOGO_W(11.875rem, 브랜드 리뉴얼 가로형 로고
-//   h-6=24px) = 2xl 기준 로고 우측 끝까지의 안전영역. 72.75rem은 max-w-content 토큰.
-//   가로형 로고는 세로형(4.04rem)보다 훨씬 넓어 가드가 90rem~111.5rem(1784px) 구간에서
-//   실제로 활성화된다. 패딩이 2rem(<2xl)/7.5rem(2xl+)로 갈리지만 인라인 calc에는 미디어쿼리를
-//   넣을 수 없어 더 넓은 2xl 패딩 기준(19.375rem)으로 통일했다 — <2xl 구간에서는 로고와 nav
-//   사이에 5.5rem 여백이 추가로 생기는 보수적 동작이고, 어느 구간에서도 겹치지 않는다.
-//   (nav 총폭 43.25rem + 가드 최대 16.2rem = 59.45rem < 72.75rem이라 우측 침범도 없다.)
-// MEGA_GUARD: 좌측선 정렬 기준에서는 컬럼 0의 시작이 nav 셀 0의 시작과 같아야 하므로
-//   NAV_GUARD와 완전히 동일한 값을 그대로 재사용한다(별도 오프셋 보정 없음 — 위 피치
-//   설명 참고). 두 이름으로 나눠 export하는 이유는 순수 값이 같더라도 nav/메가 각각의
-//   의미를 코드에서 명확히 구분하기 위함이다.
+// NAV_CELL_W / NAV_CELL_GAP (2026-09-03 신규 시안 header-footer-figma-2026-09.md §1·§2 실측):
+//   nav 항목·메가 컬럼이 이번 시안부터 완전히 같은 값(w 160px/10rem, gap 48px/3rem, 피치
+//   208px/13rem)을 쓴다 — 예전(100px/140px 불일치)과 달리 두 상수를 더는 분리할 이유가
+//   없어 MEGA_COL_W/MEGA_COL_GAP이 NAV_CELL_W/NAV_CELL_GAP을 그대로 재사용한다.
+//   1920(120rem)에서 시안 실값과 일치하고, desktop 브레이크포인트 하한(90rem=1440px)까지
+//   clamp(vw)로 비례 축소한다(§7 가정) — 8.3333vw = 160/1920*100, 2.5vw = 48/1920*100이라
+//   1920에서 각각 10rem/3rem에 도달하고 그 이상은 clamp 상한(10rem/3rem)에 고정, 1440에서는
+//   각각 120px(7.5rem)/36px(2.25rem)로 줄어든다(클램프 하한).
+// NAV_GUARD / MEGA_GUARD (좁은 데스크톱 충돌 가드, 메가 컬럼용):
+//   marginLeft: max(0px, calc(18.385rem − (100vw − 72.75rem) / 2))
+//   18.385rem = 2xl 밴드 패딩(px-30=7.5rem) + LOGO_W(10.885rem, 신규 가로형 로고
+//   174.161×22 실측, h-[1.375rem] 기준 렌더 폭) = 2xl 기준 로고 우측 끝까지의 안전영역.
+//   72.75rem은 max-w-content 토큰(메가 컬럼이 속한 좌표계 2의 폭, 이번 변경 대상 아님).
+//   nav는 이제 3존 flex(로고 shrink-0/nav flex-1/계정 shrink-0, QA 행327 결정)로 렌더되어
+//   이 상수를 직접 소비하지 않는다 — 계정 그룹 실폭에 따라 nav 시작 x가 유동적이라
+//   NAV_GUARD 같은 뷰포트 전용 계산과 원천적으로 안 맞기 때문이다(Header.tsx return 블록
+//   헤더 주석 참고). 메가 컬럼은 여전히 좌표계 2(mx-auto max-w-content)를 쓰므로 이 값을
+//   그대로 유지하되, 두 좌표계가 서로 다른 축이라 완벽한 좌측선 정렬은 보장되지 않는다 —
+//   폭·gap 수치를 nav와 동일하게 맞추는 선에서 시각적 정합성만 확보한다(러프 구현 허용
+//   범위, "코드가 정본" 원칙과 별개로 픽셀 정합은 QA 대상 아님).
 import {
   PREMIUM_ADMISSION_A_PATH,
   PREMIUM_PROGRAM_PATH_PREFIX,
 } from "@/components/premium/premiumRoutesPaths";
 
-export const NAV_GUARD = "max(0px, calc(19.375rem - (100vw - 72.75rem) / 2))";
+export const NAV_GUARD = "max(0px, calc(18.385rem - (100vw - 72.75rem) / 2))";
 export const MEGA_GUARD = NAV_GUARD;
-export const NAV_CELL_W = "6.25rem";
-export const NAV_CELL_GAP = "3rem";
-export const MEGA_COL_W = "8.75rem";
-export const MEGA_COL_GAP = "0.5rem";
+export const NAV_CELL_W = "clamp(7.5rem, 8.3333vw, 10rem)";
+export const NAV_CELL_GAP = "clamp(2.25rem, 2.5vw, 3rem)";
+export const MEGA_COL_W = NAV_CELL_W;
+export const MEGA_COL_GAP = NAV_CELL_GAP;
 
 // 프리미엄 메뉴 그룹 — DB(page_contents) 소유가 아니라 이 상수가 정본이다(premium-db-decouple:
 // 프리미엄 프로그램 페이지 전체가 DB 조회 0건으로 전환되며 메뉴도 함께 코드 소유로 옮겼다).
