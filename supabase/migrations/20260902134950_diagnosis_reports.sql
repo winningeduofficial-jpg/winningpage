@@ -10,7 +10,8 @@
 --   payload  = 그 입력으로 조립한 리포트 본문(buildReport 출력). 열람은 payload 로
 --              그대로 렌더한다 — 리포트는 '진단 완료일'의 문서라 이후 엔진·문구 변경에
 --              따라 바뀌면 안 된다(reportFileName.ts 의 파일명 원칙과 같은 판단).
---   schema_version = snapshot 이 따르는 diagnosisInputStorage SCHEMA_VERSION. 재채점이
+--   schema_version = snapshot 이 따르는 SCHEMA_VERSION(src/data/renewalSurveyQuestions.ts
+--              SURVEY_SCHEMA_VERSION, "2026-08-fd2" 같은 문자열 라벨이라 text). 재채점이
 --              필요해질 때 어떤 행을 다시 조립할 수 있는지 가르는 기준.
 -- attempt_id 가 PK 이자 diagnosis_attempts FK 다 — 시도 1건당 리포트 1건, 저장은
 -- upsert 로 멱등(제출 직후 저장 실패 시 리포트 페이지가 재시도한다).
@@ -23,7 +24,7 @@ create table public.diagnosis_reports (
     references public.diagnosis_attempts(id) on delete cascade,
   profile_id uuid not null
     references public.profiles(id) on delete cascade,
-  schema_version integer not null,
+  schema_version text not null,
   diagnosed_at timestamptz not null,
   snapshot jsonb not null,
   payload jsonb not null,

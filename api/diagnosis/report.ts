@@ -35,6 +35,8 @@ const UUID_RE =
 // 넉넉한 상한이고, jsonb 컬럼 자체에는 별도 제약이 없어 여기서 막지 않으면 DB까지
 // 그대로 흘러간다.
 const MAX_PAYLOAD_BYTES = 512 * 1024;
+// schemaVersion 은 "2026-08-fd2" 형태의 짧은 라벨이다 — 실수로 payload 통째를 넣는 오용만 막는다.
+const SCHEMA_VERSION_MAX_LENGTH = 64;
 
 function fail(
   res: VercelResponse,
@@ -50,7 +52,7 @@ export type DiagnosisReportBody = {
   attemptId: string;
   snapshot: Record<string, unknown>;
   payload: Record<string, unknown>;
-  schemaVersion: number;
+  schemaVersion: string;
   diagnosedAt: string;
 };
 
@@ -82,8 +84,11 @@ export function validateReportBody(
     return { ok: false, reason: "payload가 올바르지 않습니다." };
   }
 
-  const schemaVersion = b.schemaVersion;
-  if (!Number.isInteger(schemaVersion) || (schemaVersion as number) <= 0) {
+  // SCHEMA_VERSION(src/data/renewalSurveyQuestions.ts)은 "2026-08-fd2" 같은 문자열 라벨이다 —
+  // 컬럼도 text. 빈 문자열·비문자열·과도한 길이만 거른다.
+  const schemaVersion =
+    typeof b.schemaVersion === "string" ? b.schemaVersion.trim() : "";
+  if (!schemaVersion || schemaVersion.length > SCHEMA_VERSION_MAX_LENGTH) {
     return { ok: false, reason: "schemaVersion이 올바르지 않습니다." };
   }
 
@@ -98,7 +103,7 @@ export function validateReportBody(
       attemptId,
       snapshot: snapshot as Record<string, unknown>,
       payload: payload as Record<string, unknown>,
-      schemaVersion: schemaVersion as number,
+      schemaVersion,
       diagnosedAt,
     },
   };

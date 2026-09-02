@@ -15,8 +15,8 @@ export type DiagnosisReportSaveInput = {
   snapshot: Json;
   /** buildReport 출력 — 열람은 이 값으로 그대로 렌더한다 */
   payload: Json;
-  /** snapshot.meta.schemaVersion 과 동일 */
-  schemaVersion: number;
+  /** snapshot.meta.schemaVersion 과 동일(SURVEY_SCHEMA_VERSION 문자열 라벨) */
+  schemaVersion: string;
   /** snapshot.meta.diagnosedAt(ISO) */
   diagnosedAt: string;
 };

@@ -180,27 +180,13 @@ export default function SurveyStepShell() {
     // Date().toISOString() 으로 채웠으므로 실제로는 항상 존재한다(엔진 자체는 시계를 읽지
     // 않아 타입은 string|null 로 넓게 잡혀 있다). null 이면(있을 수 없는 손상 상태) 저장을
     // 건너뛴다 — 저장 실패와 동일하게 열람 경로는 막지 않는다.
-    //
-    // ⚠️ diagnosis_reports.schema_version 은 integer 컬럼(마이그레이션 20260902134950,
-    // src/types/database.types.ts 생성 타입)인데, 이 payload의 meta.schemaVersion은
-    // diagnosisInputStorage가 물려주는 SCHEMA_VERSION(src/data/renewalSurveyQuestions.ts
-    // SURVEY_SCHEMA_VERSION = "2026-08-fd2")이라 문자열이다. 정수로 변환되지 않으면
-    // 컬럼 타입과 맞지 않아 DB insert가 그대로 실패하므로, 그 경우 저장을 보류하고
-    // 경고만 남긴다(마이그레이션 컬럼 타입은 이 배치 범위 밖 — DB 변경은 CI 마이그레이션
-    // 경로로만 하고, 실행자가 임의로 고치지 않는다는 저장소 정책 때문에 여기서 고치지
-    // 않는다. 팀 리드 보고 필요).
-    const schemaVersionNumber = Number(payload.meta.schemaVersion);
-    if (
-      attemptId &&
-      payload.meta.diagnosedAt &&
-      Number.isInteger(schemaVersionNumber)
-    ) {
+    if (attemptId && payload.meta.diagnosedAt) {
       const report = buildReportFromInput(payload);
       const saveResult = await saveDiagnosisReport({
         attemptId,
         snapshot: payload as unknown as Json,
         payload: report as unknown as Json,
-        schemaVersion: schemaVersionNumber,
+        schemaVersion: payload.meta.schemaVersion,
         diagnosedAt: payload.meta.diagnosedAt,
       });
       if (!saveResult.ok) {
@@ -209,11 +195,6 @@ export default function SurveyStepShell() {
           saveResult.reason,
         );
       }
-    } else if (attemptId && payload.meta.diagnosedAt) {
-      console.warn(
-        "[SurveyStepShell] 학습진단 리포트 저장 보류 — schemaVersion이 정수가 아닙니다(diagnosis_reports.schema_version 은 integer):",
-        payload.meta.schemaVersion,
-      );
     }
 
     return payload;

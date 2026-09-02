@@ -9,9 +9,9 @@ const VALID_ATTEMPT_ID = "98af95da-47bf-4cee-8a2e-7d70d07fb1c9";
 function validRaw(overrides: Record<string, unknown> = {}) {
   return {
     attemptId: VALID_ATTEMPT_ID,
-    snapshot: { meta: { schemaVersion: 1 } },
+    snapshot: { meta: { schemaVersion: "2026-08-fd2" } },
     payload: { student: { name: "홍길동" } },
-    schemaVersion: 1,
+    schemaVersion: "2026-08-fd2",
     diagnosedAt: "2026-09-02T00:00:00.000Z",
     ...overrides,
   };
@@ -23,7 +23,7 @@ describe("validateReportBody", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.body.attemptId).toBe(VALID_ATTEMPT_ID);
-      expect(result.body.schemaVersion).toBe(1);
+      expect(result.body.schemaVersion).toBe("2026-08-fd2");
     }
   });
 
@@ -42,10 +42,15 @@ describe("validateReportBody", () => {
     expect(validateReportBody(validRaw({ payload: null })).ok).toBe(false);
   });
 
-  test("schemaVersion이 양의 정수가 아니면 실패한다", () => {
-    expect(validateReportBody(validRaw({ schemaVersion: 0 })).ok).toBe(false);
-    expect(validateReportBody(validRaw({ schemaVersion: 1.5 })).ok).toBe(false);
-    expect(validateReportBody(validRaw({ schemaVersion: "1" })).ok).toBe(false);
+  test("schemaVersion이 비어 있거나 문자열이 아니면 실패한다", () => {
+    expect(validateReportBody(validRaw({ schemaVersion: "" })).ok).toBe(false);
+    expect(validateReportBody(validRaw({ schemaVersion: "   " })).ok).toBe(
+      false,
+    );
+    expect(validateReportBody(validRaw({ schemaVersion: 1 })).ok).toBe(false);
+    expect(
+      validateReportBody(validRaw({ schemaVersion: "x".repeat(65) })).ok,
+    ).toBe(false);
   });
 
   test("diagnosedAt이 파싱 불가능한 문자열이면 실패한다", () => {

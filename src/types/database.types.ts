@@ -1323,7 +1323,7 @@ export type Database = {
           diagnosed_at: string;
           payload: Json;
           profile_id: string;
-          schema_version: number;
+          schema_version: string;
           snapshot: Json;
         };
         Insert: {
@@ -1332,7 +1332,7 @@ export type Database = {
           diagnosed_at: string;
           payload: Json;
           profile_id: string;
-          schema_version: number;
+          schema_version: string;
           snapshot: Json;
         };
         Update: {
@@ -1341,7 +1341,7 @@ export type Database = {
           diagnosed_at?: string;
           payload?: Json;
           profile_id?: string;
-          schema_version?: number;
+          schema_version?: string;
           snapshot?: Json;
         };
         Relationships: [

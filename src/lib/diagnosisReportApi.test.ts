@@ -16,9 +16,9 @@ import {
 
 const INPUT = {
   attemptId: "98af95da-47bf-4cee-8a2e-7d70d07fb1c9",
-  snapshot: { meta: { schemaVersion: 1 } },
+  snapshot: { meta: { schemaVersion: "2026-08-fd2" } },
   payload: { student: { name: "홍길동" } },
-  schemaVersion: 1,
+  schemaVersion: "2026-08-fd2",
   diagnosedAt: "2026-09-02T00:00:00.000Z",
 };
 
