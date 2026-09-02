@@ -60,6 +60,7 @@ type Service = {
   icon?: string;
   icon_image_url?: string;
   sort_order?: number;
+  is_premium?: boolean;
 };
 
 type Popup = {
