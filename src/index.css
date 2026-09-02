@@ -590,7 +590,56 @@ body {
   }
 }
 
+/* 나의 노력 — "완독! 책장에 꽂기": 진행 중 행은 아래로 가라앉으며 사라지고(bookRowOut),
+   새로 꽂힌 책은 위에서 떨어져 선반에 살짝 튕기며 안착한다(bookDrop). */
+@keyframes bookRowOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+}
+
+@keyframes bookDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-3.5rem) scale(0.96);
+  }
+
+  55% {
+    opacity: 1;
+    transform: translateY(0.3rem) scale(1.01);
+  }
+
+  75% {
+    transform: translateY(-0.15rem) scale(1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.book-row-out {
+  animation: bookRowOut 0.35s ease-in forwards;
+  pointer-events: none;
+}
+
+.book-drop {
+  animation: bookDrop 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .book-row-out,
+  .book-drop {
+    animation: none;
+  }
+
   .page-reveal,
   .reveal-1,
   .reveal-2,

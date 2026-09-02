@@ -32,6 +32,8 @@ type EffortSubjectCardProps = {
   completed?: number;
   books?: EffortBook[];
   completedBooks?: CompletedBook[];
+  /** 방금 꽂힌 책 id — BookStack 드롭 애니메이션용. */
+  droppingBookId?: string | number | null;
   onAddBook?: () => void;
   onUpdateBook?: (
     id: string | number,
@@ -46,6 +48,7 @@ export default function EffortSubjectCard({
   completed,
   books,
   completedBooks,
+  droppingBookId,
   onAddBook,
   onUpdateBook,
   onDeleteBook,
@@ -104,7 +107,11 @@ export default function EffortSubjectCard({
             하단·좌우 여백을 둔다 — 여백 없이는 맨 아래 책의 그림자가 통째로 사라진다. */}
         <div className="flex min-h-0 flex-1 flex-col justify-end overflow-y-auto px-1 pb-2.5">
           {hasCompletedBooks && (
-            <BookStack books={completedBooks} subject={subjectId} />
+            <BookStack
+              books={completedBooks}
+              subject={subjectId}
+              droppingId={droppingBookId ?? null}
+            />
           )}
         </div>
         <div className="mt-2 flex shrink-0 flex-col items-center gap-2">
