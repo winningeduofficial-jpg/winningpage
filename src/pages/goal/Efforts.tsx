@@ -280,7 +280,7 @@ export default function Efforts() {
         {/* items-stretch(그리드 기본값)로 같은 행 카드끼리 높이를 맞춘다 — 카드 자체는
             더 이상 고정 높이가 아니라(EffortSubjectCard 주석 참고) 내용이 많은 카드가
             그 행의 다른 카드도 함께 늘린다. */}
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] items-stretch gap-6">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(14.5rem,1fr))] items-stretch gap-6">
           {cardSubjects.map((id) => {
             const label = getSubjectLabel(id);
             const subjectBooks = workbooks.filter(
