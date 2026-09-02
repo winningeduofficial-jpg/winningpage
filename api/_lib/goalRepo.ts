@@ -402,6 +402,28 @@ export async function fetchTodayRecord(
   return data || null;
 }
 
+/**
+ * QA3 행305 — 12시간 쿨다운 판정용 "가장 최근 제출" 1건. record_date(오늘)로
+ * 필터하지 않는다 — 자정을 넘겨도 쿨다운이 이어져야 하기 때문이다(22시 제출 →
+ * 익일 10시까지 잠금, 설계 문서 §5(c) B안). submitted_at 이 없는 행은 없다
+ * (마이그레이션이 NOT NULL + 백필 보장).
+ */
+export async function fetchLatestDailyRecord(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+): Promise<Row | null> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DAILY_RECORDS)
+    .select("*")
+    .eq("profile_id", profileId)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
 // ---------------------------------------------------------------------------
 // 성장/학습방향 리포트(#33/#34/#37/#38) 조회 — api/goal/report.js 전용.
 //

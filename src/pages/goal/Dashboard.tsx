@@ -29,6 +29,11 @@ import {
   formatScheduleMeta,
 } from "@/lib/goal/scheduleDday";
 import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
+import type {
+  GoalRecordCooldown,
+  GoalRecordSummary,
+  GoalTomorrowTargets,
+} from "@/lib/goalApi";
 import {
   fetchGoalRanking,
   fetchGoalSchedules,
@@ -158,8 +163,17 @@ type GoalStudent = {
   }>;
 };
 
+// QA3 행305 — cooldown/summary/tomorrowTargets는 GET /api/goal/daily-record가
+// 함께 내려주는 12시간 쿨다운 배선. TodayGoalCard도 이 페이지가 넘겨주는
+// mapTodayGoal() 결과로만 잠금 상태를 안다(자체 재조회 없음).
 type DailyRecordResult =
-  | { kind: "success"; record: { studyHours?: number } | null }
+  | {
+      kind: "success";
+      record: { studyHours?: number } | null;
+      cooldown: GoalRecordCooldown | null;
+      summary: GoalRecordSummary | null;
+      tomorrowTargets: GoalTomorrowTargets;
+    }
   | { kind: "no-session" | "not-allowed" | "not-active" | "error" };
 
 type RankingResult =
@@ -218,9 +232,9 @@ function mapTodayGoal(
   daySchedule: { ideal: number; min: number },
   dailyRecordResult: DailyRecordResult | null,
 ) {
-  const record =
-    dailyRecordResult?.kind === "success" ? dailyRecordResult.record : null;
-  const studyHours = record?.studyHours || 0;
+  const success =
+    dailyRecordResult?.kind === "success" ? dailyRecordResult : null;
+  const studyHours = success?.record?.studyHours || 0;
 
   const rateOf = (targetHours: number) =>
     targetHours > 0
@@ -240,6 +254,11 @@ function mapTodayGoal(
     // buildStudentPayload가 weeklySchedule로 내려준다) 그대로 넘긴다 — 새로 계산하지 않는다.
     upperTargetHours: daySchedule.ideal,
     lowerTargetHours: daySchedule.min,
+    // QA3 행305 — 12시간 쿨다운 배선. success가 아니면(로딩 중·에러) 잠금 없는
+    // 것으로 취급한다 — 이 상태에서 카드는 어차피 studyHours=0 빈 상태다.
+    cooldown: success?.cooldown ?? null,
+    summary: success?.summary ?? null,
+    tomorrowTargets: success?.tomorrowTargets ?? { idealHours: 0, minHours: 0 },
   };
 }
 
