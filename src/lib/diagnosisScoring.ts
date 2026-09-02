@@ -63,8 +63,6 @@ import {
   SERVICE_H3_LATE_TIMEZONE,
   SERVICE_LABEL,
   SERVICE_PART_CAPS,
-  SERVICE_RANK2_MAX_DIFF,
-  SERVICE_RANK2_MIN_FIT,
   SERVICE_RULES,
   SINCERITY_MAX_OFFMODE,
   SINCERITY_MIN_ANSWERED,
@@ -704,15 +702,13 @@ export function rankServices(input, areaScores) {
         SERVICE_CODES.indexOf(a.code) - SERVICE_CODES.indexOf(b.code),
     );
 
+  // QA 시트 행 343(2026-09-02 확정) — 종전엔 second.fit >= SERVICE_RANK2_MIN_FIT(65) &&
+  // rank1.fit - second.fit <= SERVICE_RANK2_MAX_DIFF(20) 게이트를 통과해야만 2순위가 채워져,
+  // 후보가 둘 이상이어도 대부분 카드가 1장만 나왔다. QA 요청대로 게이트를 폐기하고 tier 필터를
+  // 통과한 후보가 2개 이상이면 항상 2순위를 채운다(1개뿐이면 기존과 동일하게 1개, 0개면 SVC_NONE
+  // 폴백 그대로).
   const rank1 = all[0] ?? null;
-  const second = all[1] ?? null;
-  const rank2 =
-    rank1 &&
-    second &&
-    second.fit >= SERVICE_RANK2_MIN_FIT &&
-    rank1.fit - second.fit <= SERVICE_RANK2_MAX_DIFF
-      ? second
-      : null;
+  const rank2 = all[1] ?? null;
 
   // filterReason 은 화면 분기용이 아니라 사후 재판정용이다(Q-13 가드레일) — 2종으로 줄어든 뒤
   // tier 필터까지 걸려 all 이 0건이 되면 기존 SVC_NONE 폴백이 그대로 동작하고, 그때도 '왜 2종
