@@ -228,7 +228,7 @@ export default function Grades() {
           title="성적 관리"
           subcopy="내신과 모의고사를 회차별로 기록하면 목표와의 격차가 자동 계산됩니다."
         />
-        <div className="max-w-goal-content px-12 pb-24">
+        <div className="max-w-goal-content px-4 pb-24 md:px-12">
           <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
             {state.status === "loading"
               ? "불러오는 중입니다…"
@@ -278,7 +278,7 @@ export default function Grades() {
         title="성적 관리"
         subcopy="내신과 모의고사를 회차별로 기록하면 목표와의 격차가 자동 계산됩니다."
       />
-      <div className="max-w-goal-content flex flex-col gap-8 px-12 pb-24">
+      <div className="max-w-goal-content flex flex-col gap-8 px-4 pb-24 md:px-12">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <GoalGaugeCard
             label="내신"

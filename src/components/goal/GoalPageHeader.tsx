@@ -24,7 +24,7 @@ export default function GoalPageHeader({
   maxWidthClassName = "max-w-goal-content",
 }: GoalPageHeaderProps) {
   return (
-    <header className={`w-full px-12 pb-10 pt-25 ${maxWidthClassName}`}>
+    <header className={`w-full px-4 pb-10 pt-25 md:px-12 ${maxWidthClassName}`}>
       <div className="flex items-start justify-between gap-6">
         <div className="flex flex-wrap items-baseline gap-3">
           <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">

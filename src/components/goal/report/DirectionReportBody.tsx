@@ -53,7 +53,7 @@ export default function DirectionReportBody({
   return (
     <>
       <GoalPageHeader title={report.heading} meta={report.meta} />
-      <div className="max-w-goal-content flex flex-col gap-7 px-12 pb-24">
+      <div className="max-w-goal-content flex flex-col gap-7 px-4 pb-24 md:px-12">
         <GoalTabs
           tabs={TAB_OPTIONS}
           value={tab}

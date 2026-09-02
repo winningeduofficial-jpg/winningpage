@@ -329,7 +329,10 @@ export default function EffortWorkbookRow({
               {saveLabel}
             </span>
           )}
-          <span className="text-ink-natural">{rate}%</span>
+          {/* 대비 보강(WCAG AA, 2026-09-02) — 부모 span이 text-[0.75rem](12px)라
+              ink-natural(#808080, 3.8:1)은 0.875rem 이하 텍스트 기준 미달이다.
+              ink-sub(#6b6b6b, 5.7:1)로 교체(값 자체가 아니라 이 화면의 쓰임만 바꾼다). */}
+          <span className="text-ink-sub">{rate}%</span>
         </span>
       </div>
 
