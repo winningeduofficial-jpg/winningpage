@@ -127,7 +127,7 @@ interface GoalSchedule {
  * api/_lib/goalRepo.js buildPlanTaskPayload(). status가 단일 원본(QA 행305,
  * pending/done/fail) — done은 status에서 파생한 하위 호환 값이다.
  */
-interface GoalPlanTask {
+export interface GoalPlanTask {
   id: number;
   planDate: string;
   title: string;
@@ -136,6 +136,11 @@ interface GoalPlanTask {
   status: "pending" | "done" | "fail";
   done: boolean;
   sortOrder: number;
+  // 문제집 연결(QA 행286-B), 셋 다 선택 — 연결이 없으면 전부 null.
+  workbookId: number | null;
+  pageFrom: number | null;
+  pageTo: number | null;
+  workbookTitle: string | null;
 }
 
 /** api/_lib/goalRepo.js buildWorkbookPayload(). */
@@ -896,6 +901,12 @@ interface GoalPlanTaskInput {
   title: string;
   subject: string;
   durationMinutes: number;
+  // 문제집 연결(QA 행286-B) — 셋 다 선택. workbookId만 보내면 페이지 없이 연결,
+  // 셋 다 보내면 페이지 범위까지 연결(api/goal/plan-tasks.ts validateWorkbookLinkFields
+  // 검증 규약과 동일). null은 연결 해제(updateGoalPlanTask 전용, 생성 시엔 안 씀).
+  workbookId?: number | null;
+  pageFrom?: number | null;
+  pageTo?: number | null;
 }
 
 /** 과제 1건 생성. 성공 시 { kind:'success', task }. */
@@ -904,9 +915,20 @@ export async function createGoalPlanTask({
   title,
   subject,
   durationMinutes,
+  workbookId,
+  pageFrom,
+  pageTo,
 }: GoalPlanTaskInput) {
   const result = await requestPlanTasks("POST", {
-    body: { planDate, title, subject, durationMinutes },
+    body: {
+      planDate,
+      title,
+      subject,
+      durationMinutes,
+      ...(workbookId !== undefined ? { workbookId } : {}),
+      ...(pageFrom !== undefined ? { pageFrom } : {}),
+      ...(pageTo !== undefined ? { pageTo } : {}),
+    },
   });
   if (result.kind !== "success") return result;
   return {
