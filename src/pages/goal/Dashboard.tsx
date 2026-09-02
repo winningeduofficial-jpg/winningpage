@@ -14,6 +14,7 @@ import TodayGoalCard from "@/components/goal/dashboard/TodayGoalCard";
 import TomorrowPlanCard from "@/components/goal/dashboard/TomorrowPlanCard";
 import GoalCard from "@/components/goal/GoalCard";
 import { QUICK_ADD_HOURS } from "@/components/goal/goalFormOptions";
+import GapToTargetCard from "@/components/goal/study/GapToTargetCard";
 import { DEFAULT_TIMER_SUBJECTS } from "@/components/goal/studyRecordOptions";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
 import { useAuth } from "@/context/AuthProvider";
@@ -22,6 +23,7 @@ import {
   kstYMD,
   VIRTUAL_DAY_NAMES,
 } from "@/lib/goal/calc/index.js";
+import { buildZoneGapRows } from "@/lib/goal/gapToTarget";
 import {
   formatScheduleDday,
   formatScheduleMeta,
@@ -121,8 +123,18 @@ function buildProbabilitySummary(
 type GoalStudent = {
   jungsiAvailable: boolean;
   targets: {
-    ideal: { university: string; department: string };
-    min: { university: string; department: string };
+    ideal: {
+      university: string;
+      department: string;
+      naesinCut: number | null;
+      jungsiCut: number | null;
+    };
+    min: {
+      university: string;
+      department: string;
+      naesinCut: number | null;
+      jungsiCut: number | null;
+    };
   };
   probs: {
     idealSusi?: number | null;
@@ -542,6 +554,20 @@ export default function Dashboard() {
 
   const { student } = result;
   const targetUniversities = mapTargetUniversities(student);
+  // QA 행295 — 대시보드에 목표대학 격차(내신/백분위)를 3구간으로 보여준다. 컷이
+  // 있는 대학만 행이 만들어진다(buildZoneGapRows가 null 축을 스스로 걸러낸다).
+  const gapRows = buildZoneGapRows({
+    naesin: {
+      current: student.scores.convertedGrade ?? null,
+      min: student.targets.min.naesinCut,
+      ideal: student.targets.ideal.naesinCut,
+    },
+    mogo: {
+      current: student.scores.currentMogo ?? null,
+      min: student.targets.min.jungsiCut,
+      ideal: student.targets.ideal.jungsiCut,
+    },
+  });
   const todayDaySchedule = resolveDaySchedule(student.weeklySchedule);
   const todayGoalData = mapTodayGoal(todayDaySchedule, dailyRecordResult);
   const mockExamData = mapMockExam(student);
@@ -624,6 +650,14 @@ export default function Dashboard() {
               {/* AchievementChart: goal_probability_logs 실이력(probabilityHistory, §goalRepo.js
                 buildStudentPayload) — 4계열(이상/최소 × 수시/정시) 라인 차트. */}
               <AchievementChart data={student.probabilityHistory} />
+
+              {/* QA 행295 — 목표까지 남은 격차(내신/모의고사)를 대시보드에도 노출한다.
+                  레일(23.25rem)은 label+description+remaining+advice 4줄 행을 담기엔
+                  좁아 본문 하단에 배치했다(자의적 판단) — "내 목표 대학"
+                  서브페이지와 같은 buildZoneGapRows/GapToTargetCard를 그대로 재사용해
+                  두 화면의 문구·구간 판정이 갈리지 않는다. 컷이 전혀 없으면(온보딩
+                  직후 등) gapRows가 빈 배열이라 카드를 렌더하지 않는다. */}
+              {gapRows.length > 0 && <GapToTargetCard rows={gapRows} />}
             </div>
 
             <div className="flex min-w-0 flex-col gap-5 xl:col-start-2 xl:row-start-2">
