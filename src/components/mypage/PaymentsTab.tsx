@@ -59,9 +59,10 @@ type Order = {
 };
 
 type Refund = {
-  id: string;
+  // refund_requests.id는 bigint PK다(orders.id와 달리 uuid가 아니다).
+  id: number;
   order_id?: string;
-  order_name?: string;
+  order_name?: string | null;
   amount?: number;
   gross_amount?: number | null;
   status?: string;

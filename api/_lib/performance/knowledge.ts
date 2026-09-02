@@ -778,7 +778,10 @@ export async function loadRelevantStudentSessions({
     const queryEmbedding = await embedText(queryText);
 
     const { data, error } = await db.rpc("match_student_performance_sessions", {
-      query_embedding: queryEmbedding,
+      // pgvector 인자: 생성 타입이 확장 타입을 몰라 string으로 나오지만
+      // supabase-js는 number[]를 그대로 직렬화해 정상 전달한다
+      // (api/performance/admin-embed.ts:220-221과 동일 패턴).
+      query_embedding: queryEmbedding as unknown as string,
       filter_profile_id: profileId,
       match_count: matchCount,
       match_threshold: matchThreshold,

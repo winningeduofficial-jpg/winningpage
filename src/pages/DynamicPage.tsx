@@ -26,13 +26,13 @@ function cleanText(value: unknown) {
 }
 
 type PageContent = {
-  menu_group?: string;
-  title?: string;
-  subtitle?: string;
-  body?: string;
+  menu_group?: string | null;
+  title?: string | null;
+  subtitle?: string | null;
+  body?: string | null;
   image_urls?: unknown;
-  button_text?: string;
-  button_link?: string;
+  button_text?: string | null;
+  button_link?: string | null;
 };
 
 type DynamicPageProps = {
@@ -53,6 +53,12 @@ export default function DynamicPage({ slug: slugProp }: DynamicPageProps) {
 
     async function loadPage() {
       setLoading(true);
+
+      if (!slug) {
+        setPage(null);
+        setLoading(false);
+        return;
+      }
 
       const { data, error } = await supabase
         .from("page_contents")

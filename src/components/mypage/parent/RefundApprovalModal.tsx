@@ -41,12 +41,14 @@ const RESPOND_UNKNOWN_ERROR_TEXT =
   "처리에 실패했습니다. 잠시 후 다시 시도해 주세요.";
 
 type RefundRequestRow = {
-  id: string;
+  // refund_requests.id는 bigint PK다(orders.id와 달리 uuid가 아니다) —
+  // fn_respond_refund(p_refund_request_id: number)도 이 값을 그대로 받는다.
+  id: number;
   order_id?: string;
-  order_name?: string;
+  order_name?: string | null;
   amount: number;
   gross_amount?: number | null;
-  reason?: string;
+  reason?: string | null;
   student_profile_id?: string;
   // v10 구성서비스 단위 부분해지 — 산정 라인 배열(jsonb). 레거시 v9 행은 키
   // 구성이 달라(order_item_id 없음) 소비 측에서 방어적으로 파싱한다.
@@ -164,7 +166,10 @@ export default function RefundApprovalModal({
       const { error } = await supabase.rpc("fn_respond_refund", {
         p_refund_request_id: request.id,
         p_approve: approve,
-        p_reject_reason: reason,
+        // p_reject_reason은 DEFAULT NULL이 있는 optional 인자다. exactOptionalPropertyTypes
+        // 하에서는 명시적 null도 금지라 키 자체를 조건부로 스프레드한다(reason은
+        // approve=true일 때 항상 null이라 이 경우 인자를 생략해도 동일하다).
+        ...(reason ? { p_reject_reason: reason } : {}),
         // 가상계좌 결제 건만 실어 보낸다(RefundRequestModal과 같은 이유).
         ...(approve && isVirtualAccountOrder
           ? {
@@ -294,7 +299,7 @@ export default function RefundApprovalModal({
         <div className="mt-6">
           <p
             className="truncate text-[0.9375rem] font-semibold text-ink"
-            title={request.order_name}
+            title={request.order_name ?? undefined}
           >
             {request.order_name}
           </p>

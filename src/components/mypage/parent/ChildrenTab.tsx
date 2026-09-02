@@ -50,7 +50,11 @@ export default function ChildrenTab() {
       return;
     }
     setLoadError("");
-    setChildren(data || []);
+    // fn_parent_children의 생성 반환 타입은 services를 Json(jsonb 컬럼)으로,
+    // link_status를 string으로만 표현한다 — 실제 payload 모양(ChildCard.tsx의
+    // Child/ChildService)으로 캐스트한다. link_status는 ChildCard의
+    // STATUS_BADGE[...] || STATUS_BADGE.pending! 폴백이 예상 밖 값도 안전하게 받는다.
+    setChildren((data || []) as unknown as Child[]);
   }, []);
 
   useEffect(() => {

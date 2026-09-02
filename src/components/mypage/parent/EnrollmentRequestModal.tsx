@@ -32,7 +32,7 @@ const RESPOND_UNKNOWN_ERROR_TEXT =
 
 type EnrollmentOrder = {
   id: string;
-  order_name?: string;
+  order_name?: string | null;
   amount: number;
   approval_status?: string;
   student_profile_id?: string;
@@ -92,7 +92,8 @@ export default function EnrollmentRequestModal({
       p_order_id: order.id,
       p_approve: false,
       p_reject_reason: trimmed,
-      p_coupon_ids: null,
+      // p_coupon_ids는 DEFAULT NULL이 있는 optional 인자 — 거절 흐름에서는
+      // 의미가 없어 인자 자체를 생략한다(과거 명시적 null 전달과 런타임 동일).
     });
 
     setSaving(false);
@@ -176,7 +177,7 @@ export default function EnrollmentRequestModal({
           <OrderAmountBreakdown
             order={order}
             amount={order.amount}
-            fallbackName={order.order_name}
+            fallbackName={order.order_name ?? undefined}
           />
         </div>
 

@@ -45,6 +45,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { Json } from "../src/types/database.types.js";
 import { getBearerToken, resolveAdmin } from "./_lib/adminAuth.js";
 import { createSupabaseAdmin, getEnv } from "./_lib/supabaseAdmin.js";
 
@@ -362,7 +363,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // 여기 도달하기 전에 끊겼을 수 있다).
   const { error: cancelSaveError } = await supabaseAdmin
     .from("refund_requests")
-    .update({ toss_cancel: cancelResult })
+    // cancelResult는 토스 취소 응답(TossCancelEntry, [key: string]: unknown)
+    // 또는 그 파생 Record다 — 벤더 JSON 원본이라 실제 값은 항상 JSON-safe지만
+    // 로컬 타입의 인덱스 시그니처가 unknown이라 Json과 구조적으로 안 맞는다.
+    .update({ toss_cancel: cancelResult as Json })
     .eq("id", refundRequestId);
   if (cancelSaveError) {
     // 저장 실패는 완료 처리를 막지 않는다 — 증빙은 부가 정보이고, 정본은

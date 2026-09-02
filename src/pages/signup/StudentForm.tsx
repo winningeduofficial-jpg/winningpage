@@ -39,6 +39,7 @@ import {
 } from "@/components/auth";
 import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
+import type { SignupProfileRpcResult } from "@/lib/parentLink";
 import {
   DUPLICATE_PHONE_MESSAGE,
   formatPhoneInput,
@@ -663,7 +664,12 @@ export default function StudentForm() {
           // 저장한 'YYYYMMDD' 8자리)라 formData가 아니라 여기서 하이픈만 끼워 넣는다.
           p_birth_date: `${birthDate.slice(0, 4)}-${birthDate.slice(4, 6)}-${birthDate.slice(6, 8)}`,
           p_gender: formData.gender,
-          p_org_code: formData.orgCode.trim() || null,
+          // p_org_code는 DEFAULT NULL이 있는 optional 인자다. exactOptionalPropertyTypes
+          // 하에서는 undefined 값을 명시적으로 넣는 것도 금지라 키 자체를 조건부로 스프레드한다
+          // (인자 생략이 명시적 null과 런타임에서 동일하다).
+          ...(formData.orgCode.trim() && {
+            p_org_code: formData.orgCode.trim(),
+          }),
         },
       );
 
@@ -755,7 +761,11 @@ export default function StudentForm() {
         return;
       }
 
-      if (!profileResult?.ok) {
+      // 생성 타입은 RPC 반환을 Json으로만 표현한다 — 실제 payload 모양은
+      // SignupProfileRpcResult(src/lib/parentLink.ts) 참고.
+      const signupResult = profileResult as unknown as SignupProfileRpcResult;
+
+      if (!signupResult?.ok) {
         setFormError(
           "회원 정보 저장 결과를 확인할 수 없습니다. 다시 시도해 주세요.",
         );
@@ -765,8 +775,8 @@ export default function StudentForm() {
       // 연결코드는 RPC가 발급해 응답에 담아준다(sql/40_auth_signup.sql [7] link_code).
       // 이걸 넘기지 않으면 C-2가 화면용 코드를 따로 만들어 보여주게 되는데, 그 코드는
       // DB에 없어서 학부모가 입력해도 link_code_not_found가 난다.
-      if (profileResult.link_code) {
-        setLinkCode(profileResult.link_code);
+      if (signupResult.link_code) {
+        setLinkCode(signupResult.link_code);
       }
 
       // C-2(StudentComplete) 진입 가드용 완료 플래그 — RPC 성공 직후에만 true로 설정한다.

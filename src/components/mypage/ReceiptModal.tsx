@@ -32,7 +32,7 @@ import { formatProductNames } from "./paymentRows";
 // 않는다), 그 외 행은 값이 없으면 "정보 없음"으로 채우지 않고 행 자체를 생략한다 —
 // 실제로 없는 데이터를 있는 것처럼 보이면 안 된다(팀 리드 지침).
 type ReceiptOrder = {
-  order_name?: string;
+  order_name?: string | null;
   order_items?: { name: string; product_id?: string | null }[] | null;
   method?: string | null;
   amount: number;

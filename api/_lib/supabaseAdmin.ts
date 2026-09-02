@@ -8,6 +8,7 @@
 // 무엇을 할 수 있는지"를 스스로 검사해야 한다.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "../../src/types/database.types.js";
 
 // createSupabaseAdmin이 env 미설정 시 던지는 메시지. defineHandler(_lib/handler.ts)의
 // 최상위 catch가 이 메시지로 "설정 오류"를 식별해 라우트별 unhandledMessage 대신
@@ -30,7 +31,7 @@ export function getEnv(...keys: string[]) {
   return "";
 }
 
-let cached: SupabaseClient | null = null;
+let cached: SupabaseClient<Database> | null = null;
 
 export function createSupabaseAdmin() {
   if (cached) return cached;
@@ -51,7 +52,7 @@ export function createSupabaseAdmin() {
     throw new Error(SUPABASE_CONFIG_ERROR_MESSAGE);
   }
 
-  cached = createClient(url, key, {
+  cached = createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
