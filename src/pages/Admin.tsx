@@ -25,6 +25,7 @@ import PremiumBookAdmin from "@/components/admin/PremiumBookAdmin";
 import RevenueAdmin from "@/components/admin/RevenueAdmin";
 import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
 import AdmissionMetaEditModal from "@/components/admission/editor/AdmissionMetaEditModal";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   canAccessSection,
   fetchAdminPermissions,
@@ -446,63 +447,65 @@ function AdminSidebar({ activeKey, setActiveKey }) {
   }
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-[224px] overflow-y-auto bg-[#101214] text-white">
-      <div className="border-b border-white/10 px-5 py-5 text-2xl font-black">
-        관리자
-      </div>
+    <aside className="fixed left-0 top-0 z-40 h-screen w-[224px] bg-[#101214] text-white">
+      <ScrollArea className="h-full">
+        <div className="border-b border-white/10 px-5 py-5 text-2xl font-black">
+          관리자
+        </div>
 
-      <nav className="px-4 py-5">
-        {menuGroups.map((group) => {
-          const isOpen = open.has(group.title);
+        <nav className="px-4 py-5">
+          {menuGroups.map((group) => {
+            const isOpen = open.has(group.title);
 
-          return (
-            <div key={group.title} className="mb-4">
-              <button
-                type="button"
-                onClick={() => toggle(group.title)}
-                className="flex w-full items-center justify-between py-2 text-left text-[15px] font-black"
-              >
-                {group.title}
-                <ChevronDown
-                  size={16}
-                  className={`transition ${isOpen ? "rotate-0" : "-rotate-90"}`}
-                />
-              </button>
+            return (
+              <div key={group.title} className="mb-4">
+                <button
+                  type="button"
+                  onClick={() => toggle(group.title)}
+                  className="flex w-full items-center justify-between py-2 text-left text-[15px] font-black"
+                >
+                  {group.title}
+                  <ChevronDown
+                    size={16}
+                    className={`transition ${isOpen ? "rotate-0" : "-rotate-90"}`}
+                  />
+                </button>
 
-              {isOpen && (
-                <div className="mt-1 space-y-1">
-                  {group.items.map((item, index) => (
-                    <Fragment key={item.key}>
-                      {/* 소분류 캡션 — 기획표의 3단(대분류 > 소분류 > 세부메뉴)을
+                {isOpen && (
+                  <div className="mt-1 space-y-1">
+                    {group.items.map((item, index) => (
+                      <Fragment key={item.key}>
+                        {/* 소분류 캡션 — 기획표의 3단(대분류 > 소분류 > 세부메뉴)을
                           접었다 펴는 단계를 하나 더 두지 않고 캡션으로 표현한다.
                           「서비스 관리」가 16개로 가장 크고, 그 안에서 서비스·
                           프리미엄·멘토·위닝 DB가 섞이면 훑기 어렵다.
                           섹션이 바뀌는 첫 항목에서만 그린다. */}
-                      {item.section &&
-                        item.section !== group.items[index - 1]?.section && (
-                          <div className="px-4 pb-1 pt-3 text-[11px] font-black tracking-wide text-white/35">
-                            {item.section}
-                          </div>
-                        )}
-                      <button
-                        type="button"
-                        onClick={() => setActiveKey(item.key)}
-                        className={`block w-full rounded px-4 py-2 text-left text-[13px] font-bold ${
-                          sidebarActiveKey === item.key
-                            ? 'bg-white/10 text-white before:mr-2 before:text-red-500 before:content-["•"]'
-                            : 'text-white/55 before:mr-2 before:text-white/35 before:content-["•"] hover:bg-white/5 hover:text-white'
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    </Fragment>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </nav>
+                        {item.section &&
+                          item.section !== group.items[index - 1]?.section && (
+                            <div className="px-4 pb-1 pt-3 text-[11px] font-black tracking-wide text-white/35">
+                              {item.section}
+                            </div>
+                          )}
+                        <button
+                          type="button"
+                          onClick={() => setActiveKey(item.key)}
+                          className={`block w-full rounded px-4 py-2 text-left text-[13px] font-bold ${
+                            sidebarActiveKey === item.key
+                              ? 'bg-white/10 text-white before:mr-2 before:text-red-500 before:content-["•"]'
+                              : 'text-white/55 before:mr-2 before:text-white/35 before:content-["•"] hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      </Fragment>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </nav>
+      </ScrollArea>
     </aside>
   );
 }
@@ -2211,7 +2214,7 @@ function GoalCutsBackfillPanel({ onReload }) {
               )}
 
               {stats.samples.length > 0 && (
-                <div className="mt-3 overflow-x-auto">
+                <ScrollArea axis="x" className="mt-3">
                   <p className="font-black">
                     상위 {stats.samples.length}행 샘플
                   </p>
@@ -2244,7 +2247,7 @@ function GoalCutsBackfillPanel({ onReload }) {
                       ))}
                     </tbody>
                   </table>
-                </div>
+                </ScrollArea>
               )}
 
               <p className="mt-3 rounded-sm border border-red-300 bg-red-50 px-2 py-1.5 font-bold text-red-600">

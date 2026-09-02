@@ -1,4 +1,5 @@
 import MentorCard from "@/components/landing/MentorCard";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // ── 멘토 성공전략 카드: photo_layout jsonb ↔ 평탄화 폼 필드 변환 + 라이브 프리뷰 ──
 
@@ -258,7 +259,7 @@ export function MentorCardFormPreview({
         </p>
       )}
 
-      <div className="mt-3 overflow-x-auto rounded-sm bg-[#0D1B2A] p-5">
+      <ScrollArea axis="x" className="mt-3 rounded-sm bg-[#0D1B2A] p-5">
         {isMissingRequiredFields ? (
           <p className="p-5 text-center text-xs font-bold leading-5 text-white/60">
             필수 항목을 모두 입력하면 카드 미리보기가 표시됩니다.
@@ -268,7 +269,7 @@ export function MentorCardFormPreview({
             <MentorCard mentor={previewMentor} />
           </ul>
         )}
-      </div>
+      </ScrollArea>
     </section>
   );
 }
