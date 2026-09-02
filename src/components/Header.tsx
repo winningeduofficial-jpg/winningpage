@@ -4,13 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import chevronIcon from "@/assets/header/chevron.svg";
 import { useAuth } from "@/context/AuthProvider";
-import {
-  MEGA_COL_GAP,
-  MEGA_COL_W,
-  MEGA_GUARD,
-  NAV_CELL_GAP,
-  NAV_CELL_W,
-} from "@/data/navigation";
+import { MEGA_COL_GAP, MEGA_COL_W, MEGA_GUARD } from "@/data/navigation";
 import { cleanText, isSameObject, useNavGroups } from "@/hooks/useNavGroups";
 import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
@@ -705,27 +699,35 @@ export default function Header() {
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white">
-      {/* (QA 행327 재작업, 2026-09-03 신규 시안 유지) 로고·nav·계정 그룹을 max-w-[120rem]
-          밴드 하나를 공유하는 3존 flex 행(로고 shrink-0 / nav flex-1 / 계정 그룹 shrink-0)에
-          배치한다. 옛 구조는 로고+계정 그룹(max-w-[120rem] 밴드)과 nav(max-w-content 72.75rem
-          컨텐츠 영역)가 서로 다른 축으로 독립 중앙정렬됐고, nav 시작 위치는 뷰포트 폭만 보는
-          clamp() 가드 수식(NAV_GUARD)으로 보정했다. 그런데 계정 그룹 실폭은 로그인
-          상태·이름 길이에 따라 달라지는데 NAV_GUARD는 그 실폭을 전혀 모르는 수식이라, 좁은
-          데스크톱 구간(1440~1600px대)에서 nav 마지막 항목과 계정 그룹이 실제로 겹쳤다
-          (Playwright로 재현: 1440px 폭 기준 nav 우측 끝이 계정 그룹 좌측 안으로 파고듦).
+      {/* (QA 행327 재작업) 로고·nav·계정 그룹을 max-w-[120rem] 밴드 하나를 공유하는 3존 flex
+          행(로고 shrink-0 / nav flex-1 / 계정 그룹 shrink-0)에 배치한다.
+          옛 구조는 로고+계정 그룹(max-w-[120rem] 밴드)과 nav(max-w-content 72.75rem 컨텐츠
+          영역, header를 containing block 삼아 absolute로 위에 겹쳐 그림)가 서로 다른 축으로
+          독립 중앙정렬됐고, nav 시작 위치는 뷰포트 폭만 보는 clamp() 가드 수식(NAV_GUARD)으로
+          보정했다. 그런데 계정 그룹 실폭은 로그인 상태·이름 길이에 따라 달라지는데
+          NAV_GUARD는 그 실폭을 전혀 모르는 수식이라, 좁은 데스크톱 구간(1440~1600px대,
+          관리자처럼 계정 그룹이 넓은 상태)에서 nav 마지막 항목과 계정 그룹이 실제로 겹쳤다
+          (Playwright로 재현: 1440px 폭·관리자 계정 그룹 기준 nav 우측 끝이 계정 그룹 좌측
+          안으로 약 84px 파고듦).
           3존 flex는 계정 그룹이 실제로 차지한 폭만큼 브라우저가 자동으로 nav 존(flex-1) 폭을
           줄여주므로 상태·이름 길이와 무관하게 항상 "남는 공간만" nav가 차지해 구조적으로
-          겹침이 불가능하다 — 이번 시안(header-footer-figma-2026-09.md §1)이 nav 항목을 다시
-          고정폭(160px/10rem)으로 되돌렸지만, 셀 자체가 flex-1 존 안에서 justify-center로
-          중앙 정렬되므로(아래) 겹침 방지 구조는 그대로 유지된다. 고정폭·gap은 1920(120rem)
-          이상에서 시안 실값(10rem/3rem)에 도달하고 desktop 하한(90rem)까지 clamp(vw)로
-          비례 축소한다(§7 가정, NAV_CELL_W/NAV_CELL_GAP 정의는 navigation.ts 참고). nav에
-          min-w-0 + overflow-hidden도 유지해, 있을 수 없는 극단값에서도 겹침 대신 nav
-          끝쪽이 잘리는 쪽으로만 실패하게 안전장치를 뒀다.
-          메가 패널 컬럼(MEGA_GUARD/MEGA_COL_W 기반, 아래)은 nav와 같은 폭·gap 상수를
-          공유하지만 서로 다른 좌표계(nav=max-w-[120rem] 밴드, 메가 컬럼=mx-auto
-          max-w-content)라 완벽한 좌측선 정렬은 보장되지 않는다 — "러프 디자인 구현"
-          범위에서 허용된 편차다(navigation.ts 상단 주석 참고). */}
+          겹침이 불가능하다. nav 항목도 고정폭 셀(옛 NAV_CELL_W) 대신 텍스트 자연폭을 쓴다 —
+          고정 100px 셀은 실제 텍스트("서비스" 등)보다 넓어 불필요하게 공간을 더 요구했었다.
+          항목 사이 gap은 nav 존을 @container로 감싸 존 폭이 좁아지면 단계적으로 줄어들게
+          했다(gap은 flexbox가 자동으로 줄여주지 않는 유일한 값이라 컨테이너 쿼리로 직접
+          반응시켰다) — 0729 시안 gap 48px(3rem, gap-12)은 존이 넉넉한 구간(@[48rem]=768px
+          이상)에서만 적용되고, 더 좁으면 24px(gap-6)로 축소된다. nav에 min-w-0 +
+          overflow-hidden도 추가해, 있을 수 없는 극단값(예: 매우 긴 이름)에서도 겹침 대신
+          nav 끝쪽이 잘리는 쪽으로만 실패하게 안전장치를 뒀다.
+          메가 패널 컬럼(MEGA_GUARD/MEGA_COL_W 기반, 아래)은 이번 변경 대상이 아니다 — nav
+          항목이 고정폭에서 자연폭으로 바뀌어 메가 컬럼과의 좌측선 공유가 더 이상 항상
+          보장되진 않지만, 메가 패널은 호버로 뜨는 별도 레이어라 계정 그룹과 공간을 다투지
+          않아 QA 대상 겹침과는 무관하고 "러프 디자인 구현" 범위에서 허용했다.
+          (2026-09-03 사용자 결정 B안: nav·메가 컬럼 얼라인을 위 dev 정본 방식(텍스트 자연폭
+          + NAV_GUARD/MEGA_GUARD 좌측선 공유)으로 되돌렸다 — 신규 헤더 시안의 160px/10rem
+          고정폭+clamp 시도는 폐기, navigation.ts 상단 주석 참고. nav 타이포(16px, 열림
+          SemiBold #013262, 패널 열림 중 비활성 항목 Medium #525252)와 chevron·오픈
+          트리거·MY 컬럼 등 다른 신규 작업은 이 되돌리기와 무관하게 유지한다.) */}
       <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between gap-6 px-8 2xl:px-30">
         <Link
           to="/"
@@ -746,14 +748,11 @@ export default function Header() {
         </Link>
 
         <nav
-          className="hidden min-w-0 flex-1 overflow-hidden desktop:block"
+          className="hidden min-w-0 flex-1 overflow-hidden @container desktop:block"
           onMouseEnter={clearMegaCloseTimer}
           onMouseLeave={scheduleMegaClose}
         >
-          <div
-            className="flex items-center justify-center"
-            style={{ gap: NAV_CELL_GAP }}
-          >
+          <div className="flex items-center justify-center gap-6 @[48rem]:gap-12">
             {navGroups.map((group) => {
               const hasDropdown =
                 Array.isArray(group.items) && group.items.length > 0;
@@ -767,7 +766,6 @@ export default function Header() {
                   aria-haspopup="true"
                   aria-expanded={activeMega === group.title}
                   aria-current={isPathActive ? "page" : undefined}
-                  style={{ width: NAV_CELL_W }}
                   onFocus={() => {
                     clearMegaCloseTimer();
                     hasDropdown && setActiveMega(group.title);
@@ -780,7 +778,7 @@ export default function Header() {
                         prev === group.title ? null : group.title,
                       );
                   }}
-                  className={`shrink-0 cursor-default whitespace-nowrap py-4 text-left text-base leading-[1.4] tracking-[-0.02em] transition ${
+                  className={`shrink-0 cursor-default whitespace-nowrap py-4 text-base leading-[1.4] tracking-[-0.02em] transition ${
                     isPathActive || isOpenHighlight
                       ? "font-semibold text-primary"
                       : isMegaPanelOpen
@@ -864,16 +862,17 @@ export default function Header() {
                 패널의 자연 높이(hug)를 그대로 결정하게 하기 위함(absolute는 문서 흐름에서 빠져
                 높이에 기여하지 못한다). */}
         <div className="grid">
-          {/* (QA 행327 재작업 이후, 2026-09-03 신규 시안 §2 반영) 메가 컬럼은 여전히 옛
-                  좌표계 2(72.75rem 컨텐츠 영역, mx-auto max-w-content px-8 + MEGA_GUARD
-                  marginLeft)를 그대로 쓴다. nav가 고정폭 셀로 복귀하며 폭·gap 상수는 nav와
-                  다시 통일했지만(MEGA_COL_W=NAV_CELL_W, navigation.ts 참고), 좌표계 자체는
-                  여전히 다른 축이라(nav=max-w-[120rem] 밴드, 컬럼=mx-auto max-w-content)
-                  완벽한 좌측선 정렬은 보장되지 않는다 — "러프 디자인 구현" 범위에서 의도적으로
-                  허용했다.
-                  컬럼 제목을 재도입했다(시안 §2 — 이전엔 nav 아이템과 중복돼 제거했었으나
-                  이번 시안은 제목을 명시적으로 요구한다): 14px SemiBold #808080(text-ink-natural)
-                  tracking -0.02em leading-5, 제목-아이템 gap 20px(mt-5). 아이템은 14px
+          {/* (QA 행327 재작업 이후) 메가 컬럼은 여전히 옛 좌표계 2(72.75rem 컨텐츠 영역,
+                  mx-auto max-w-content px-8 + MEGA_GUARD marginLeft)를 그대로 쓴다 — 위 nav
+                  행은 고정폭 셀에서 텍스트 자연폭 + 반응형 gap으로 바뀌었지만(return 블록 헤더
+                  주석 참고), 2026-09-03 사용자 결정(B안)으로 nav·메가 컬럼 얼라인을 dev 정본
+                  방식(NAV_GUARD/MEGA_GUARD 좌측선 공유, navigation.ts 상단 주석)으로 되돌려
+                  "컬럼 0의 시작 x = nav 셀 0의 텍스트 시작 x"가 다시 보장된다(피치 148px 공유,
+                  6.25rem+3rem=8.75rem+0.5rem).
+                  컬럼 제목은 신규 시안(header-footer-figma-2026-09.md §2)대로 유지한다 —
+                  이전엔 nav 아이템과 중복돼 제거했었으나 이번 시안은 제목을 명시적으로
+                  요구한다: 14px SemiBold #808080(text-ink-natural) tracking -0.02em
+                  leading-5, 제목-아이템 gap 20px(mt-5). 아이템은 14px
                   Medium #525252(text-ink), 아이템 간 gap 16px(gap-4). */}
           <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
             <div
