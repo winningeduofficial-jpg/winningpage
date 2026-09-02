@@ -66,7 +66,16 @@ export default function AddWorkbookModal({
     setTotalPage(DEFAULT_TOTAL_PAGE);
   }, [open, initialSubject]);
 
-  const canSubmit = Boolean(subject) && title.trim().length > 0 && !submitting;
+  // 현재 페이지가 전체 페이지를 넘으면 등록 불가(사용자 확정 2026-09-02).
+  const totalPageValue = Number(totalPage) || 0;
+  const currentPageValue = Number(currentPage) || 0;
+  const pageRangeInvalid =
+    totalPageValue <= 0 || currentPageValue > totalPageValue;
+  const canSubmit =
+    Boolean(subject) &&
+    title.trim().length > 0 &&
+    !pageRangeInvalid &&
+    !submitting;
 
   function resetForm() {
     setSubject(initialSubject);
@@ -147,6 +156,14 @@ export default function AddWorkbookModal({
           onChange={(event) => setTotalPage(event.target.value)}
         />
       </div>
+      <p className="text-[0.75rem] leading-[1.4] text-ink-sub">
+        전체 페이지는 등록 후 수정할 수 없어요.
+      </p>
+      {pageRangeInvalid && (
+        <p className="text-[0.75rem] leading-[1.4] text-error">
+          현재 페이지는 전체 페이지(1 이상)를 넘을 수 없어요.
+        </p>
+      )}
     </AppModal>
   );
 }

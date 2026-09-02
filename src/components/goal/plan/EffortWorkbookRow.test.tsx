@@ -46,7 +46,7 @@ describe("EffortWorkbookRow", () => {
     expect(onUpdate).not.toHaveBeenCalled();
   });
 
-  test("현재/전체 페이지를 바꾸고 blur하면 onUpdate가 숫자로 호출된다", () => {
+  test("현재 페이지를 바꾸고 blur하면 onUpdate가 currentPage만 담아 호출된다", () => {
     const onUpdate = vi.fn().mockResolvedValue(true);
     render(
       <EffortWorkbookRow
@@ -63,13 +63,10 @@ describe("EffortWorkbookRow", () => {
     });
     fireEvent.blur(screen.getByLabelText("현재 페이지"));
 
-    expect(onUpdate).toHaveBeenCalledWith(1, {
-      currentPage: 120,
-      totalPages: 240,
-    });
+    expect(onUpdate).toHaveBeenCalledWith(1, { currentPage: 120 });
   });
 
-  test("전체 페이지를 0으로 바꾸면 요청 없이 원래 값으로 되돌아간다", () => {
+  test("현재 페이지에 전체 페이지를 넘는 값을 넣으면 전체 페이지로 잘린다", () => {
     const onUpdate = vi.fn().mockResolvedValue(true);
     render(
       <EffortWorkbookRow
@@ -81,12 +78,28 @@ describe("EffortWorkbookRow", () => {
       />,
     );
 
-    const totalInput = screen.getByLabelText<HTMLInputElement>("전체 페이지");
-    fireEvent.change(totalInput, { target: { value: "0" } });
-    fireEvent.blur(totalInput);
+    const currentInput = screen.getByLabelText<HTMLInputElement>("현재 페이지");
+    fireEvent.change(currentInput, { target: { value: "999" } });
+    expect(currentInput.value).toBe("240");
+    fireEvent.blur(currentInput);
 
-    expect(onUpdate).not.toHaveBeenCalled();
-    expect(totalInput.value).toBe("240");
+    expect(onUpdate).toHaveBeenCalledWith(1, { currentPage: 240 });
+  });
+
+  test("전체 페이지는 입력이 아니라 읽기 전용 표시다", () => {
+    render(
+      <EffortWorkbookRow
+        book={BOOK}
+        subject="korean"
+        onUpdate={vi.fn()}
+        onDelete={vi.fn()}
+        onShelve={vi.fn()}
+      />,
+    );
+
+    const total = screen.getByLabelText("전체 페이지");
+    expect(total.tagName).not.toBe("INPUT");
+    expect(total.textContent).toBe("240");
   });
 
   test("달성률이 100% 미만이면 완독 버튼이 없다", () => {
