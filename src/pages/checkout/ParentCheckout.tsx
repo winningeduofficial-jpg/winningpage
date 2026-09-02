@@ -12,6 +12,7 @@ import checkboxUnselected from "@/assets/checkout/checkbox-24.svg";
 import checkboxSelected from "@/assets/checkout/checkbox-24-selected.svg";
 import sectionArrow from "@/assets/checkout/section-arrow-38.svg";
 import ConfirmModal from "@/components/checkout/ConfirmModal";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatKRW } from "@/data/pricingCatalog";
 import { useTermsDocs } from "@/hooks/useTermsDocs";
 import {
@@ -284,9 +285,9 @@ function AgreementCheckRow({
         </button>
       </div>
       {expanded && (
-        <div className="max-h-60 overflow-y-auto whitespace-pre-line break-keep border-t border-line px-4 py-3 text-[0.75rem] leading-relaxed text-ink-sub">
+        <ScrollArea className="max-h-60 whitespace-pre-line break-keep border-t border-line px-4 py-3 text-[0.75rem] leading-relaxed text-ink-sub">
           {body}
-        </div>
+        </ScrollArea>
       )}
     </div>
   );

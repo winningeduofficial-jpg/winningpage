@@ -15,6 +15,7 @@ import AdmissionModalShell from "@/components/admission/modal/AdmissionModalShel
 import AdmissionModalStyles from "@/components/admission/modal/AdmissionModalStyles";
 import useModalProxyXScroll from "@/components/admission/modal/modalProxyXScroll";
 import SafeHtml from "@/components/admission/SafeHtml";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   HWP_SECTION_JSON_KEYS,
   isEmptyDoc,
@@ -1060,7 +1061,10 @@ function AdmissionQaPanel({ rows }) {
         </div>
       </div>
 
-      <div className="mt-4 max-h-[360px] overflow-auto rounded-2xl border border-[#E1E6EE]">
+      <ScrollArea
+        axis="both"
+        className="mt-4 max-h-[360px] rounded-2xl border border-[#E1E6EE]"
+      >
         <table className="w-full min-w-[920px] border-collapse text-sm">
           <thead className="sticky top-0 bg-[#EEF2F7] text-[#0D1B2A]">
             <tr>
@@ -1106,7 +1110,7 @@ function AdmissionQaPanel({ rows }) {
             )}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
     </section>
   );
 }

@@ -4,6 +4,7 @@ import HeroSection from "@/components/landing/HeroSection";
 import MentorSection from "@/components/landing/MentorSection";
 import NewsSection from "@/components/landing/NewsSection";
 import ServicesSection from "@/components/landing/ServicesSection";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import * as landingPreview from "@/data/landingPreview";
 import type { NormalizedMentor } from "@/hooks/useHomeMentors";
 import { useHomeMentors } from "@/hooks/useHomeMentors";
@@ -138,7 +139,7 @@ function HomePopupLayer({
   if (!popups.length) return null;
 
   return (
-    <div className="fixed inset-0 z-9999 overflow-y-auto bg-black/50 px-4 py-6">
+    <ScrollArea className="fixed inset-0 z-9999 bg-black/50 px-4 py-6">
       <div className="mx-auto flex min-h-full w-full max-w-[1480px] items-center justify-center gap-5">
         <div className="flex w-full flex-wrap items-center justify-center gap-5">
           {popups.slice(0, 3).map((popup) => {
@@ -212,7 +213,7 @@ function HomePopupLayer({
           })}
         </div>
       </div>
-    </div>
+    </ScrollArea>
   );
 }
 
