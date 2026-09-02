@@ -28,7 +28,7 @@ type EffortWorkbookRowProps = {
   subject: string;
   onUpdate: (
     id: string | number,
-    patch: { title?: string; currentPage?: number; totalPages?: number },
+    patch: { title?: string; currentPage?: number },
   ) => Promise<boolean>;
   onDelete: (id: string | number) => Promise<boolean>;
   onShelve: (id: string | number) => Promise<boolean>;
@@ -43,7 +43,9 @@ export default function EffortWorkbookRow({
 }: EffortWorkbookRowProps) {
   const [title, setTitle] = useState(book.title);
   const [currentPage, setCurrentPage] = useState(String(book.currentPage ?? 0));
-  const [totalPage, setTotalPage] = useState(String(book.totalPages ?? 0));
+  // 전체 페이지는 등록 시 확정되고 이후 수정 불가(사용자 확정 2026-09-02) —
+  // 입력이 아니라 표시만 한다. 현재 페이지는 0~전체 범위로 잠근다.
+  const totalPages = book.totalPages ?? 0;
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [shelving, setShelving] = useState(false);
@@ -56,14 +58,17 @@ export default function EffortWorkbookRow({
   useEffect(() => {
     setTitle(book.title);
     setCurrentPage(String(book.currentPage ?? 0));
-    setTotalPage(String(book.totalPages ?? 0));
     setConfirmingDelete(false);
-  }, [book.title, book.currentPage, book.totalPages]);
+  }, [book.title, book.currentPage]);
 
-  const rate = computeAchievementRate(
-    Number(currentPage) || 0,
-    Number(totalPage) || 0,
-  );
+  const rate = computeAchievementRate(Number(currentPage) || 0, totalPages);
+
+  function clampCurrentPage(raw: string) {
+    if (raw === "") return "";
+    const value = Math.floor(Number(raw));
+    if (!Number.isFinite(value)) return "";
+    return String(Math.min(Math.max(value, 0), totalPages));
+  }
   const lightBg = getBookLightBgClass(subject);
   const darkText = getBookDarkTextClass(subject);
 
@@ -78,30 +83,17 @@ export default function EffortWorkbookRow({
   }
 
   async function commitPages() {
-    const nextCurrent = Number(currentPage) || 0;
-    const nextTotal = Number(totalPage) || 0;
+    const nextCurrent = Math.min(
+      Math.max(Number(currentPage) || 0, 0),
+      totalPages,
+    );
     const prevCurrent = book.currentPage ?? 0;
-    const prevTotal = book.totalPages ?? 0;
-
-    // 전체 페이지 0 이하는 서버가 거부한다(goal_workbooks_total_pages_check) — 굳이
-    // 요청을 보내지 않고 바로 원복한다.
-    if (
-      nextTotal <= 0 ||
-      (nextCurrent === prevCurrent && nextTotal === prevTotal)
-    ) {
+    if (nextCurrent === prevCurrent) {
       setCurrentPage(String(prevCurrent));
-      setTotalPage(String(prevTotal));
       return;
     }
-
-    const ok = await onUpdate(book.id, {
-      currentPage: nextCurrent,
-      totalPages: nextTotal,
-    });
-    if (!ok) {
-      setCurrentPage(String(prevCurrent));
-      setTotalPage(String(prevTotal));
-    }
+    const ok = await onUpdate(book.id, { currentPage: nextCurrent });
+    if (!ok) setCurrentPage(String(prevCurrent));
   }
 
   function blurOnEnter(event: KeyboardEvent<HTMLInputElement>) {
@@ -178,22 +170,23 @@ export default function EffortWorkbookRow({
         <input
           type="number"
           aria-label="현재 페이지"
+          min={0}
+          max={totalPages}
           value={currentPage}
-          onChange={(event) => setCurrentPage(event.target.value)}
+          onChange={(event) =>
+            setCurrentPage(clampCurrentPage(event.target.value))
+          }
           onBlur={commitPages}
           onKeyDown={blurOnEnter}
           className="h-7 w-15 rounded-md border border-dashed border-surface-01 bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus:outline-hidden"
         />
         <span className="text-[1rem] font-medium text-ink-natural">/</span>
-        <input
-          type="number"
+        <span
           aria-label="전체 페이지"
-          value={totalPage}
-          onChange={(event) => setTotalPage(event.target.value)}
-          onBlur={commitPages}
-          onKeyDown={blurOnEnter}
-          className="h-7 w-15 rounded-md border border-dashed border-surface-01 bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus:outline-hidden"
-        />
+          className="flex h-7 w-15 items-center rounded-md border border-surface-01 bg-goal-activePill px-2 text-[1rem] text-ink-sub"
+        >
+          {totalPages}
+        </span>
         <span className="ml-auto text-[0.75rem] text-ink-natural">{rate}%</span>
       </div>
 
