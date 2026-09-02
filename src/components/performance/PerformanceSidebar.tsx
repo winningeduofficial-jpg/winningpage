@@ -141,6 +141,19 @@ export default function PerformanceSidebar({
       aria-label="수행평가 사이드바"
       className="flex min-h-screen w-perf-sidebar shrink-0 flex-col bg-performance-sidebar"
     >
+      {/* QA 행318 — 상단 "메인으로" 링크. 하단 "메인으로 나가기"(handleLeaveToMain)의
+          이탈 확인 다이얼로그 로직을 그대로 재사용한다(중복 구현 금지) — 채팅이 끊길 수
+          있는 것은 하단과 동일한 상황이라 여기도 확인창을 거친다. */}
+      <div className="px-perf-inset pt-6">
+        <button
+          type="button"
+          onClick={handleLeaveToMain}
+          className="text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
+        >
+          메인으로
+        </button>
+      </div>
+
       {/* 프로필 — 이름 @60,100 (1.25rem/1.625rem w600 #808080), 부제 @60,130 (1rem/1.3125rem
           w400 #808080). 시안이 이름 줄까지 보조색(#808080)을 쓴다 — ink-strong이 아니다.
           min-h는 이름·부제가 비어도 아래 메뉴 y좌표가 흔들리지 않게 자리를 잡아 둔 것이다.
@@ -148,7 +161,7 @@ export default function PerformanceSidebar({
           포함한 총높이**여야 한다. 100(pt) + 26(이름) + 4(gap) + 21(부제) = 151px = 9.4375rem.
           텍스트 높이 51px만 넣으면 padding 100px에 잠겨 무효가 되고, 프로필 값이 비는
           현재 배선(P5 이전)에서 아래 블록 전체가 51px 위로 밀린다. */}
-      <div className="min-h-37.75 px-perf-inset pt-25">
+      <div className="min-h-37.75 px-perf-inset pt-6">
         {/* §11 Q79 확정: 이 화면은 수행평가 앱(/app/performance)이고 목표관리는 별개
             제품이다. 시안 원문 `목표관리`는 목표관리 시안에서 셸을 가져온 흔적으로 보이며,
             사용자가 지금 어느 제품에 있는지 오인하게 만드는 문구는 시안 충실도보다

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import AchievementChart from "@/components/goal/dashboard/AchievementChart";
 import AdviceCard from "@/components/goal/dashboard/AdviceCard";
 import DashboardPageHeader from "@/components/goal/dashboard/DashboardPageHeader";
@@ -36,6 +37,9 @@ import { formatTodayDateLabel } from "@/lib/goalPlanUtils";
 import { goalStudentQueryOptions } from "@/lib/queryClient";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+// QA 행303-1 — 저장 완료 배너 자동 소멸 시간. DailyRecord.tsx의
+// HIGHLIGHT_AUTO_DISMISS_MS(2초)보다 길게 둔다 — 이동 직후 읽을 시간이 필요하다.
+const SAVED_RECORD_BANNER_MS = 4000;
 
 // AI 조언 생성 로직은 이식 대상이 아니다(docs/figma-goal/calc-port-status.md §9.2) —
 // 대신 서비스기획서 §3.16 규칙 기반 3요소를 조립한다: ① 확률 요약(웰컴 카드 body) ②
@@ -61,18 +65,29 @@ function formatHoursLabel(hours: number): string {
  * 웰컴 카드 headline — "오늘의 조언". 오늘 기록(studyHours)과 오늘 이상 목표 시간만
  * 비교하는 규칙 기반 문구다(AI 생성 아님). idealHours<=0은 스케줄 미설정(온보딩
  * 직후 등)이라 시간 언급 없이 시작을 권한다.
+ *
+ * QA 행304 — 오늘의 조언에 "오늘 달성률 N% (목표 대비)"가 없었다. 기록이 있고 이상
+ * 목표 시간이 설정된 경우에만 붙인다(TodayGoalCard의 upperGoalRate와 같은 계산식,
+ * 규칙 기반 — LLM 도입 없음).
  */
-function buildTodayHeadline(idealHours: number, studyHours: number): string {
+export function buildTodayHeadline(
+  idealHours: number,
+  studyHours: number,
+): string {
   if (studyHours <= 0) {
     return idealHours > 0
       ? `아직 오늘의 학습 기록이 없어요. 오늘 목표는 ${formatHoursLabel(idealHours)}이에요.`
       : "아직 오늘의 학습 기록이 없어요. 오늘부터 시작해볼까요?";
   }
-  const remaining = idealHours - studyHours;
-  if (idealHours <= 0 || remaining <= 0) {
+  if (idealHours <= 0) {
     return "오늘 목표를 지켰어요! 이 페이스를 이어가 봐요.";
   }
-  return `오늘 목표까지 ${formatHoursLabel(remaining)} 남았어요.`;
+  const rate = Math.min(100, Math.round((studyHours / idealHours) * 100));
+  const remaining = idealHours - studyHours;
+  if (remaining <= 0) {
+    return `오늘 달성률 ${rate}% (목표 대비) · 오늘 목표를 지켰어요! 이 페이스를 이어가 봐요.`;
+  }
+  return `오늘 달성률 ${rate}% (목표 대비) · 오늘 목표까지 ${formatHoursLabel(remaining)} 남았어요.`;
 }
 
 /**
@@ -373,6 +388,36 @@ export default function Dashboard() {
   const { userId } = useAuth();
   const { data: goalStudentData } = useQuery(goalStudentQueryOptions(userId));
   const result = (goalStudentData ?? null) as GoalStudentResult | null;
+
+  // QA 행303-1 — "오늘의 공부 기록" 저장 성공 시 DailyRecord.tsx가 navigate state로
+  // 델타(dailyRecordSaved)를 넘긴다. 최초 마운트에서 한 번만 꺼내 배너로 보여주고,
+  // history state는 즉시 지운다 — 지우지 않으면 새로고침·뒤로가기로 이 페이지에
+  // 재진입할 때마다 같은 배너가 되살아난다.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [savedRecordBanner, setSavedRecordBanner] = useState<{
+    idealSusi: number;
+    minSusi: number;
+  } | null>(null);
+
+  // location/navigate를 의존성에 넣으면 아래 navigate(..., {state:null}) 호출로 location이
+  // 바뀔 때마다 이 effect가 다시 돌아 방금 지운 state를 스스로 다시 읽는 무한 루프가 된다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: 최초 마운트 시 진입 시점의 location.state를 1회만 확인하는 의도적 설계다.
+  useEffect(() => {
+    const state = location.state as {
+      dailyRecordSaved?: { idealSusi: number; minSusi: number };
+    } | null;
+    if (!state?.dailyRecordSaved) return;
+
+    setSavedRecordBanner(state.dailyRecordSaved);
+    navigate(location.pathname, { replace: true, state: null });
+
+    const timer = setTimeout(
+      () => setSavedRecordBanner(null),
+      SAVED_RECORD_BANNER_MS,
+    );
+    return () => clearTimeout(timer);
+  }, []);
   // null = 로딩 중. kind가 'ok'가 아닌 나머지(no-session/not-allowed/error)는
   // mapRankingRows가 빈 배열로 접어 RankingRail의 빈 상태 문구로 흡수한다 —
   // 이 카드 하나 때문에 대시보드 전체를 에러 화면으로 떨어뜨리지 않는다.
@@ -522,64 +567,77 @@ export default function Dashboard() {
   };
 
   return (
-    <div className={outerClassName}>
-      <div className="max-w-goal-dashboard">
-        <div className="grid grid-cols-1 gap-x-10 gap-y-19.5 xl:grid-cols-[minmax(0,1fr)_23.25rem]">
-          <DashboardPageHeader
-            adviceType="ai"
-            dateLabel={formatTodayDateLabel()}
-            headline={advice.headline}
-            className="xl:col-start-1 xl:row-start-1"
-          />
+    <>
+      {/* QA 행303-1 — 기록 저장 직후 대시보드로 이동했을 때만 1회 뜨는 배너.
+          DailyRecord.tsx의 fixed bottom 배너 톤(success)을 그대로 준용한다. */}
+      {savedRecordBanner && (
+        <div
+          role="status"
+          className="fixed inset-x-0 bottom-8 z-55 mx-auto w-[calc(100%-2.5rem)] max-w-md rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-center text-[0.875rem] font-semibold text-green-700 shadow-[0_18px_45px_rgba(13,27,42,0.15)]"
+        >
+          {`기록을 저장했어요. 이상 목표 +${savedRecordBanner.idealSusi.toFixed(2)}%p · 최소 목표 +${savedRecordBanner.minSusi.toFixed(2)}%p`}
+        </div>
+      )}
 
-          <div className="flex min-w-0 flex-col gap-5 xl:col-start-1 xl:row-start-2">
-            {/* 오늘의 목표: GET /api/goal/daily-record(studyHours) + student.weeklySchedule(오늘
+      <div className={outerClassName}>
+        <div className="max-w-goal-dashboard">
+          <div className="grid grid-cols-1 gap-x-10 gap-y-19.5 xl:grid-cols-[minmax(0,1fr)_23.25rem]">
+            <DashboardPageHeader
+              adviceType="ai"
+              dateLabel={formatTodayDateLabel()}
+              headline={advice.headline}
+              className="xl:col-start-1 xl:row-start-1"
+            />
+
+            <div className="flex min-w-0 flex-col gap-5 xl:col-start-1 xl:row-start-2">
+              {/* 오늘의 목표: GET /api/goal/daily-record(studyHours) + student.weeklySchedule(오늘
                 목표 시간)을 합쳐 mapTodayGoal()이 만든 실데이터. 저장 성공 시
                 reloadDailyRecord로 이 카드와 게이지를 함께 최신화한다. */}
-            <TodayGoalCard data={todayGoalData} onSaved={reloadDailyRecord} />
+              <TodayGoalCard data={todayGoalData} onSaved={reloadDailyRecord} />
 
-            {/* QA 행292/328 — 원래 각 카드가 w-132.5(33.125rem) 고정이라 좌측 컬럼이 그리드
+              {/* QA 행292/328 — 원래 각 카드가 w-132.5(33.125rem) 고정이라 좌측 컬럼이 그리드
                 트랙 폭과 무관하게 항상 67.25rem을 요구했다. flex-1 min-w-0으로 바꿔 좌측
                 컬럼(위 xl:col-start-1)이 유동 폭을 받아도 두 카드가 함께 줄어들게 한다. */}
-            <div className="flex gap-4">
-              <div className="min-w-0 flex-1">
-                {/* AdviceCard: buildProbabilitySummary()의 확률 요약(§3.16 ①) — AI 생성이
+              <div className="flex gap-4">
+                <div className="min-w-0 flex-1">
+                  {/* AdviceCard: buildProbabilitySummary()의 확률 요약(§3.16 ①) — AI 생성이
                     아니라 규칙 기반 조립이다. */}
-                <AdviceCard data={advice} />
-              </div>
-              <div className="min-w-0 flex-1">
-                {/* TomorrowPlanCard: buildTomorrowPlan()의 과목별 시간 배분(§3.16 ③). 내일
+                  <AdviceCard data={advice} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  {/* TomorrowPlanCard: buildTomorrowPlan()의 과목별 시간 배분(§3.16 ③). 내일
                     목표 시간이 0/미설정이면 빈 배열이라 위젯이 스스로 "준비 중" 빈 상태를
                     그린다. */}
-                <TomorrowPlanCard plan={tomorrowPlan} />
+                  <TomorrowPlanCard plan={tomorrowPlan} />
+                </div>
               </div>
-            </div>
 
-            <div className="flex gap-4">
-              <div className="min-w-0 flex-1">
-                <MockExamCard data={mockExamData} />
+              <div className="flex gap-4">
+                <div className="min-w-0 flex-1">
+                  <MockExamCard data={mockExamData} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <NaesinCard data={naesinData} />
+                </div>
               </div>
-              <div className="min-w-0 flex-1">
-                <NaesinCard data={naesinData} />
-              </div>
-            </div>
 
-            {/* AchievementChart: goal_probability_logs 실이력(probabilityHistory, §goalRepo.js
+              {/* AchievementChart: goal_probability_logs 실이력(probabilityHistory, §goalRepo.js
                 buildStudentPayload) — 4계열(이상/최소 × 수시/정시) 라인 차트. */}
-            <AchievementChart data={student.probabilityHistory} />
-          </div>
+              <AchievementChart data={student.probabilityHistory} />
+            </div>
 
-          <div className="flex min-w-0 flex-col gap-5 xl:col-start-2 xl:row-start-2">
-            <TargetUniversityRail data={targetUniversities} />
-            {/* StudyPlanRail: 오늘 과제 조회(GET /api/goal/plan-tasks)를 위젯이 직접 한다
+            <div className="flex min-w-0 flex-col gap-5 xl:col-start-2 xl:row-start-2">
+              <TargetUniversityRail data={targetUniversities} />
+              {/* StudyPlanRail: 오늘 과제 조회(GET /api/goal/plan-tasks)를 위젯이 직접 한다
                 (StudyPlanRail.jsx 참고). Dashboard는 tasks를 내려주지 않는다. */}
-            <StudyPlanRail />
-            {/* ScheduleRail: GET /api/goal/schedules 실데이터, 가까운 순 3건(mapNearestSchedules). */}
-            <ScheduleRail schedules={mapNearestSchedules(schedules)} />
-            <RankingRail ranking={mapRankingRows(rankingResult)} />
+              <StudyPlanRail />
+              {/* ScheduleRail: GET /api/goal/schedules 실데이터, 가까운 순 3건(mapNearestSchedules). */}
+              <ScheduleRail schedules={mapNearestSchedules(schedules)} />
+              <RankingRail ranking={mapRankingRows(rankingResult)} />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

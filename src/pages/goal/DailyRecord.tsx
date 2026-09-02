@@ -1,4 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router";
 import GoalPageHeader from "@/components/goal/GoalPageHeader";
 import ChipSelectSection from "@/components/goal/study/ChipSelectSection";
 import ConditionSection from "@/components/goal/study/ConditionSection";
@@ -38,6 +40,8 @@ type DailyRecordBanner = {
 const HIGHLIGHT_AUTO_DISMISS_MS = 2000;
 
 export default function DailyRecord() {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [condition, setCondition] = useState<string | null>(null);
   const [disturbances, setDisturbances] = useState<string[]>([]);
   const [studyItems, setStudyItems] = useState<string[]>([]);
@@ -187,19 +191,30 @@ export default function DailyRecord() {
 
     switch (result.kind) {
       case "success": {
-        setHasExistingRecord(true);
-        if (result.record) setStudyHours(result.record.studyHours || 0);
+        // QA 행303-1 — 저장 성공 시 배너만 띄우고 멈추던 것을 대시보드로 자동 이동시킨다.
+        // 배너 전용 흐름은 여기서 제거하고, 저장 결과(델타)는 대시보드가 1회 배너로
+        // 보여주도록 navigate state로 넘긴다(Dashboard.tsx savedRecordBanner).
+        //
         // delta는 이상/최소 수시만 대표로 보여준다(간단 요약) — 정시는 컷 미확보 학생이면
         // 항상 0으로 나와 "정시 확률이 0만큼 늘었다"는 오해를 줄 수 있다(jungsiAvailable
         // 플래그가 이 응답엔 없다 — buildStudentPayload 전용, 이 라우트 범위 밖).
         const delta = result.delta || { idealSusi: 0, minSusi: 0 };
         // GoalProbsBlock.idealSusi/minSusi는 number|null이라 서버가 null을 주면 기존에도
         // toFixed가 그대로 터졌다(고쳐 넣지 않고 타입만 통과, 보고 대상).
-        setBanner({
-          tone: "success",
-          message: `기록을 저장했어요. 이상 목표 +${delta.idealSusi!.toFixed(2)}%p · 최소 목표 +${delta.minSusi!.toFixed(2)}%p`,
+        //
+        // ['goal','student'] 캐시(대시보드·사이드바가 공유)를 무효화해 확률·오늘의 조언이
+        // 이번 기록 반영 최신 값으로 다시 조회되게 한다 — 안 하면 stale 캐시가 15초간
+        // (staleTime, queryClient.ts) 이전 확률을 계속 보여준다.
+        queryClient.invalidateQueries({ queryKey: ["goal", "student"] });
+        navigate("/app/goal", {
+          state: {
+            dailyRecordSaved: {
+              idealSusi: delta.idealSusi ?? 0,
+              minSusi: delta.minSusi ?? 0,
+            },
+          },
         });
-        break;
+        return;
       }
       case "no-study-time":
         setBanner({

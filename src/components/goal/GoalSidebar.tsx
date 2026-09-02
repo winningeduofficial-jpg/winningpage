@@ -9,7 +9,11 @@ import {
   heartbeatGoalTimer,
 } from "@/lib/goalApi";
 import { goalStudentQueryOptions } from "@/lib/queryClient";
-import { GOAL_NAV_FOOTER, GOAL_NAV_GROUPS } from "./goalNavItems";
+import {
+  GOAL_NAV_FOOTER,
+  GOAL_NAV_GROUPS,
+  GOAL_NAV_HEADER,
+} from "./goalNavItems";
 
 // "진행중" 뱃지 폴링 간격 — Timer.jsx 본문 폴링(20초)보다 느슨하게 둔다. 사이드바는
 // GoalAppLayout에 상주해 어느 목표관리 화면에 있어도 계속 폴링되므로 과한 빈도는 낭비다.
@@ -104,11 +108,23 @@ export default function GoalSidebar() {
 
   return (
     <aside className="flex min-h-screen w-perf-sidebar shrink-0 flex-col bg-goal-sidebar">
+      {/* QA 행318 — 상단 "메인으로" 링크. 사이드바 최상단에 두어 목표관리 앱 어느
+          화면에서도 사이트 메인으로 바로 나갈 수 있게 한다(하단 "내 정보 수정"과
+          같은 순수 이동, 이탈 확인 없음). */}
+      <div className="px-perf-inset pt-6">
+        <NavLink
+          to={GOAL_NAV_HEADER.to}
+          className="text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
+        >
+          {GOAL_NAV_HEADER.label}
+        </NavLink>
+      </div>
+
       {/* 사용자 블록 — x=60(3.75rem) / y=100(6.25rem) 이름, y=130 학년·학교유형.
           로딩 중·이름 없음은 "나의 목표관리"로 폴백한다. 학년·학교유형 줄은 값이
           있을 때만 채우고, 로딩 중엔 레이아웃이 흔들리지 않도록 p 태그는 유지한 채
           내용만 비운다. */}
-      <div className="px-perf-inset pt-25">
+      <div className="px-perf-inset pt-6">
         <p className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
           {profile?.name ? `${profile.name}의 목표관리` : "나의 목표관리"}
         </p>
