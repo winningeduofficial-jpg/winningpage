@@ -114,6 +114,15 @@ const MISSING_ORDER_ITEM_TEXT =
   "신청 상품이 변경되어 결제를 진행할 수 없어요. 자녀에게 다시 신청을 요청해 주세요.";
 const ALREADY_PROCESSED_TEXT = "이미 처리된 결제 요청입니다.";
 const NOT_PARENT_TEXT = "학부모 본인만 진행할 수 있는 결제 요청이에요.";
+// ⚠ 신규 카피 — 승인 필요(QA 시트 338행, 2026-09-02). 상품을 바꾼 경로
+// (hasChanged)는 새 주문이 쿠폰을 받지 않는다(fn_parent_create_enrollment
+// 주석 — "coupon_id NULL, 범위 밖"). 지금까지는 이 경로에서 쿠폰 섹션이
+// 아무 설명 없이 통째로 사라져(org 한정 상품 배너·isResume 배너 조건 모두
+// hasChanged=false 를 요구) 학부모가 "쿠폰 적용이 안 된다"는 버그로
+// 오인했다(QA 재현: 학부모가 학생이 신청한 것과 다른 상품을 골라도
+// 재현됨). org 한정 상품 배너와 같은 자리·같은 스타일로 사유를 설명한다.
+const PRODUCT_CHANGED_NO_COUPON_TEXT =
+  "신청한 상품을 변경하면 쿠폰을 적용할 수 없어요. 쿠폰을 사용하려면 처음 신청한 상품 그대로 결제해 주세요.";
 // 고정 계약 상수 목록의 승인된 재사용 문구 — 신규 아님.
 const GENERIC_FAIL_TEXT = "결제요청에 실패했습니다.";
 
@@ -1158,10 +1167,21 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
               </p>
             )}
 
+            {/* 상품을 바꾼 경로(hasChanged) — 쿠폰 섹션을 감추는 대신 이유를
+                안내한다(QA 시트 338행 — 설명 없이 사라지면 "쿠폰이 안 된다"는
+                버그 리포트로 이어진다, PRODUCT_CHANGED_NO_COUPON_TEXT 주석
+                참고). org 배너와 상호 배타적이라 자리를 대신 차지해도 된다. */}
+            {!isResume && hasChanged && (
+              <p className="rounded-xl bg-surface-04 px-4 py-3 text-[0.875rem] leading-relaxed text-ink-sub">
+                {PRODUCT_CHANGED_NO_COUPON_TEXT}
+              </p>
+            )}
+
             {/* 쿠폰 선택 — 재개 모드에서는 감춘다(위 isResume 주석). 상품을 바꾼
                 경로(hasChanged)는 새 주문이 쿠폰을 쓰지 않으므로(handlePay
-                fn_parent_create_enrollment 분기) 섹션 자체를 감춘다. org 한정
-                상품 포함 주문(hasOrgProductInOrder)도 위 안내문으로 대체한다. */}
+                fn_parent_create_enrollment 분기) 섹션 자체를 감추고 위
+                안내문으로 대체한다. org 한정 상품 포함 주문
+                (hasOrgProductInOrder)도 마찬가지로 안내문으로 대체한다. */}
             {!isResume && !hasChanged && !hasOrgProductInOrder && (
               <div>
                 <h3 className={`mb-4 ${SECTION_HEADING}`}>쿠폰 선택</h3>
