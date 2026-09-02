@@ -36,6 +36,11 @@ type PlanTask = {
   durationMinutes?: number;
   done?: boolean;
   sortOrder?: number;
+  // 문제집 연결(QA 행286-B, 선택) — 연결이 없으면 workbookTitle이 null.
+  workbookId?: number | null;
+  pageFrom?: number | null;
+  pageTo?: number | null;
+  workbookTitle?: string | null;
 };
 
 type PlanTasksResult =
@@ -88,16 +93,26 @@ export default function WeeklyPlan() {
     taskText,
     duration,
     schedule,
+    workbookId,
+    pageFrom,
+    pageTo,
   }: {
     subject: string;
     taskText: string;
     duration: string;
     schedule: string;
+    workbookId?: number;
+    pageFrom?: number;
+    pageTo?: number;
   }) {
     // handleAddTask가 모달을 열기 전에 selectedDate를 항상 먼저 채운다("오늘만" 제출은
     // 이 흐름을 통해서만 도달한다).
     const targetDates = schedule === "오늘만" ? [selectedDate!] : weekDates;
     const durationMinutes = durationLabelToMinutes(duration);
+    // 문제집 연결 과제는 여러 날짜로 못 펼치게 AddTaskModal이 이미 막지만(문제집
+    // 연결 시 일정 select 자체를 비활성), API에도 같은 신호를 실어 보내 서버가
+    // 한 번 더 확인하게 한다(임무 지시 정정, 2026-09-02 — "이번 주만" 복제도 포함).
+    const repeatSchedule = schedule !== "오늘만";
 
     const results = await Promise.all(
       targetDates.map((planDate) =>
@@ -106,6 +121,10 @@ export default function WeeklyPlan() {
           title: taskText,
           subject,
           durationMinutes,
+          ...(workbookId !== undefined ? { workbookId } : {}),
+          ...(pageFrom !== undefined ? { pageFrom } : {}),
+          ...(pageTo !== undefined ? { pageTo } : {}),
+          ...(repeatSchedule ? { repeatSchedule } : {}),
         }),
       ),
     );
@@ -152,6 +171,9 @@ export default function WeeklyPlan() {
         id: task.id,
         subject: task.subject,
         title: task.title,
+        workbookTitle: task.workbookTitle ?? null,
+        pageFrom: task.pageFrom ?? null,
+        pageTo: task.pageTo ?? null,
       })),
     }));
   }

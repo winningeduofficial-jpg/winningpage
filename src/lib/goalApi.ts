@@ -159,7 +159,7 @@ interface GoalSchedule {
  * api/_lib/goalRepo.js buildPlanTaskPayload(). status가 단일 원본(QA 행305,
  * pending/done/fail) — done은 status에서 파생한 하위 호환 값이다.
  */
-interface GoalPlanTask {
+export interface GoalPlanTask {
   id: number;
   planDate: string;
   title: string;
@@ -168,6 +168,11 @@ interface GoalPlanTask {
   status: "pending" | "done" | "fail";
   done: boolean;
   sortOrder: number;
+  // 문제집 연결(QA 행286-B), 셋 다 선택 — 연결이 없으면 전부 null.
+  workbookId: number | null;
+  pageFrom: number | null;
+  pageTo: number | null;
+  workbookTitle: string | null;
 }
 
 /** api/_lib/goalRepo.js buildWorkbookPayload(). */
@@ -959,6 +964,18 @@ interface GoalPlanTaskInput {
   title: string;
   subject: string;
   durationMinutes: number;
+  // 문제집 연결(QA 행286-B) — 셋 다 선택. workbookId만 보내면 페이지 없이 연결,
+  // 셋 다 보내면 페이지 범위까지 연결(api/goal/plan-tasks.ts validateWorkbookLinkFields
+  // 검증 규약과 동일). null은 연결 해제(updateGoalPlanTask 전용, 생성 시엔 안 씀).
+  workbookId?: number | null;
+  pageFrom?: number | null;
+  pageTo?: number | null;
+  // 여러 plan_date로 펼쳐지는 호출(schedule !== "오늘만")임을 서버에 알린다
+  // (QA 행286-B 정정, 2026-09-02) — 문제집이 연결된 과제는 완전히 단일 날짜
+  // 1건만 허용한다("이번 주만"의 7일 복제도 포함해서 막는다). 모달이 이미 이
+  // 조합을 못 고르게(일정 select 자체를 비활성) 막지만, 서버도 같은 규칙을 한
+  // 번 더 확인한다. true일 때만 보낸다 — 그 외 호출부는 이 필드를 몰라도 된다.
+  repeatSchedule?: boolean;
 }
 
 /** 과제 1건 생성. 성공 시 { kind:'success', task }. */
@@ -967,9 +984,22 @@ export async function createGoalPlanTask({
   title,
   subject,
   durationMinutes,
+  workbookId,
+  pageFrom,
+  pageTo,
+  repeatSchedule,
 }: GoalPlanTaskInput) {
   const result = await requestPlanTasks("POST", {
-    body: { planDate, title, subject, durationMinutes },
+    body: {
+      planDate,
+      title,
+      subject,
+      durationMinutes,
+      ...(workbookId !== undefined ? { workbookId } : {}),
+      ...(pageFrom !== undefined ? { pageFrom } : {}),
+      ...(pageTo !== undefined ? { pageTo } : {}),
+      ...(repeatSchedule ? { repeatSchedule } : {}),
+    },
   });
   if (result.kind !== "success") return result;
   return {

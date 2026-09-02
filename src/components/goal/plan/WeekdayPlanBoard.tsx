@@ -8,6 +8,10 @@ type PlanTask = {
   id: string | number;
   subject: string;
   title: string;
+  // 문제집 연결(QA 행286-B, 선택) — 연결이 없으면 workbookTitle이 null/undefined.
+  workbookTitle?: string | null;
+  pageFrom?: number | null;
+  pageTo?: number | null;
 };
 
 type PlanDay = {
@@ -119,13 +123,23 @@ export default function WeekdayPlanBoard({
             <div key={day.day} className="flex flex-col gap-3">
               {day.tasks.map((task) => {
                 const isConfirming = confirmingTaskId === task.id;
+                // 문제집 연결 캡션(QA 행286-B) — 연결이 있으면 3번째 줄이 필요해
+                // 카드 높이가 고정 75px(h-18.75)로는 잘린다. 연결 없는 카드는 시안
+                // 실측 그대로 고정 높이를 유지하고, 연결된 카드만 min-h로 늘어난다.
+                const caption = task.workbookTitle
+                  ? `${task.workbookTitle}${
+                      task.pageFrom != null && task.pageTo != null
+                        ? ` p.${task.pageFrom}–${task.pageTo}`
+                        : ""
+                    }`
+                  : null;
                 return (
                   // 좌측 4px 보더는 임의 장식이 아니라 시안 실측 그대로다(part-10.md §128 "좌측 4px
                   // 컬러 액센트 바 + 본문 면 구조", §181 "border-left: 4px solid로 구현하면 안쪽 그룹
                   // 146px가 자연스럽게 맞는다"). #29 카드 18개 전부 이 구조라 여기서 제거하지 않는다.
                   <div
                     key={task.id}
-                    className={`relative h-18.75 rounded-lg border-l-4 px-3 py-3 ${WEEKDAY_BG_CLASS[key]}`}
+                    className={`relative rounded-lg border-l-4 px-3 py-3 ${caption ? "min-h-18.75" : "h-18.75"} ${WEEKDAY_BG_CLASS[key]}`}
                     style={{ borderLeftColor: WEEKDAY_ACCENT[key] }}
                   >
                     {isConfirming ? (
@@ -171,6 +185,11 @@ export default function WeekdayPlanBoard({
                         <p className="mt-1 truncate pr-4 text-[0.8125rem] leading-[1.4] text-ink-sub">
                           {task.title}
                         </p>
+                        {caption && (
+                          <p className="mt-1 truncate pr-4 text-[0.6875rem] leading-[1.4] text-ink-sub/80">
+                            {caption}
+                          </p>
+                        )}
                       </>
                     )}
                   </div>

@@ -15,11 +15,13 @@ import {
   addGoalTimerSubject,
   createGoalWorkbook,
   deleteGoalWorkbook,
+  fetchGoalPlanTasks,
   fetchGoalTimer,
   fetchGoalWorkbooks,
   shelveGoalWorkbook,
   updateGoalWorkbook,
 } from "@/lib/goalApi";
+import { kstYMD } from "@/lib/goalPlanUtils";
 
 // 나의 노력 — Figma 4026:6046(디자이너 시안 재구현).
 // 실데이터 배선(mockEfforts 제거) — src/data/goalPlanMock.js의 mockEfforts/mockEffortsEmpty는
@@ -70,6 +72,14 @@ type Workbook = {
   shelvedAt: string | null;
 };
 
+// 오늘 이 문제집에 연결된 계획 과제(QA 행286-B) — EffortWorkbookRow가 제목+상태만
+// 보여주는 소형 목록에 쓴다.
+type ConnectedTask = {
+  id: string | number;
+  title: string;
+  status: "pending" | "done" | "fail";
+};
+
 export default function Efforts() {
   const [modalOpen, setModalOpen] = useState(false);
   const [presetSubject, setPresetSubject] = useState<string | null>(null);
@@ -83,6 +93,11 @@ export default function Efforts() {
   const [visibleSubjects, setVisibleSubjects] = useState<string[]>(
     DEFAULT_TIMER_SUBJECTS,
   );
+  // 오늘 날짜 기준 workbook_id → 연결된 과제 목록. 연결이 없는 문제집은 이 맵에
+  // 아예 키가 없다(EffortWorkbookRow가 조회 실패해도 폴백 문구 없이 그냥 안 보임).
+  const [connectedTasksByWorkbookId, setConnectedTasksByWorkbookId] = useState<
+    Map<number, ConnectedTask[]>
+  >(new Map());
 
   async function loadWorkbooks() {
     const outcome = await fetchGoalWorkbooks();
@@ -105,9 +120,29 @@ export default function Efforts() {
     }
   }
 
+  // 오늘 하루치 계획 과제 중 workbook_id가 걸린 것만 문제집별로 묶는다(QA 행286-B).
+  // 실패해도 조용히 넘어간다 — 이 목록은 보조 정보라 loadError처럼 화면을 막지 않는다.
+  async function loadConnectedTasks() {
+    const today = kstYMD();
+    const result = await fetchGoalPlanTasks({ from: today, to: today });
+    if (result.kind !== "success") {
+      console.error("[Efforts] 오늘 연결된 계획 과제 조회 실패:", result);
+      return;
+    }
+    const grouped = new Map<number, ConnectedTask[]>();
+    for (const task of result.tasks) {
+      if (task.workbookId == null) continue;
+      const list = grouped.get(task.workbookId) ?? [];
+      list.push({ id: task.id, title: task.title, status: task.status });
+      grouped.set(task.workbookId, list);
+    }
+    setConnectedTasksByWorkbookId(grouped);
+  }
+
   const onMountLoadWorkbooks = useEffectEvent(() => {
     loadWorkbooks();
     loadVisibleSubjects();
+    loadConnectedTasks();
   });
 
   useEffect(() => {
@@ -303,6 +338,7 @@ export default function Efforts() {
                 books={registeredBooks}
                 completedBooks={shelvedBooks}
                 droppingBookId={droppingBookId}
+                connectedTasksByWorkbookId={connectedTasksByWorkbookId}
                 onAddBook={() => openModal(label)}
                 onUpdateBook={handleUpdateWorkbook}
                 onDeleteBook={handleDeleteWorkbook}
