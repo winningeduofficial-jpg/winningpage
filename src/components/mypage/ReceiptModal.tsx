@@ -2,6 +2,7 @@ import { COMPANY } from "@/data/company";
 import { formatKRW } from "@/data/pricingCatalog";
 import type {
   CardInfo,
+  CashReceiptInfo,
   EasyPayInfo,
   VirtualAccountInfo,
 } from "@/hooks/usePaymentConfirmation";
@@ -15,7 +16,7 @@ import {
 import { useBundleCompositionMap } from "./bundleComposition";
 import MyPageModalShell from "./MyPageModalShell";
 import ModalFooter from "./modal/ModalFooter";
-import { formatProductNames } from "./paymentRows";
+import { formatProductNames, getCashReceipt } from "./paymentRows";
 
 // 결제 영수증 모달 (Figma 3762:19227).
 //
@@ -42,6 +43,9 @@ type ReceiptOrder = {
   card?: CardInfo | null;
   virtual_account?: VirtualAccountInfo | null;
   easy_pay?: EasyPayInfo | null;
+  // 현금영수증 링크(QA 시트 행310) — getCashReceipt(paymentRows.ts)가 이 값에서
+  // receiptUrl 유무를 판정한다.
+  cash_receipt?: CashReceiptInfo | null;
 };
 
 type ReceiptModalProps = {
@@ -50,7 +54,9 @@ type ReceiptModalProps = {
   order: ReceiptOrder | null;
 };
 
-type ReceiptRow = { label: string; value: string };
+// href 는 현금영수증 링크(아래 buildPaymentRows) 전용 — 있으면 값을 새 탭
+// 링크로 그린다(ReceiptSection).
+type ReceiptRow = { label: string; value: string; href?: string };
 
 function pushRow(
   rows: ReceiptRow[],
@@ -101,6 +107,17 @@ function buildPaymentRows(order: ReceiptOrder): ReceiptRow[] {
     // 현금성 결제(가상계좌/계좌이체)는 승인번호 대신 입금 계좌 정보를 보여준다.
     pushRow(rows, "입금 계좌", accountLabel(virtualAccount));
     pushRow(rows, "입금자명", virtualAccount.customerName);
+
+    // 현금영수증(QA 시트 행310) — 입금 확인 후 토스가 자동 발급한 건에만
+    // 링크를 보여준다(receiptUrl 없으면 발급 전/미요청이라 행 자체를 생략).
+    const cashReceipt = getCashReceipt(order);
+    if (cashReceipt) {
+      rows.push({
+        label: "현금영수증",
+        value: "현금영수증 보기",
+        href: cashReceipt.receiptUrl,
+      });
+    }
   }
 
   pushRow(rows, "승인일시", formatDateTime(order.approved_at || order.paid_at));
@@ -146,7 +163,18 @@ function ReceiptSection({
               {row.label}
             </dt>
             <dd className="truncate text-right text-[0.875rem] text-ink-strong">
-              {row.value}
+              {row.href ? (
+                <a
+                  href={row.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-primary underline"
+                >
+                  {row.value}
+                </a>
+              ) : (
+                row.value
+              )}
             </dd>
           </div>
           {note && note.length > 0 && (
