@@ -3,6 +3,7 @@
 // 두 화면이 각자 구현하면 같은 주문이 서로 다른 배지·다른 주문번호로 보인다.
 
 import { formatKRW } from "@/data/pricingCatalog";
+import type { CashReceiptInfo } from "@/hooks/usePaymentConfirmation";
 
 type OrderStatusInput = {
   id?: string;
@@ -51,6 +52,24 @@ export function formatProductNames(order: {
     return order.order_items.map((item) => item.name).join(", ");
   }
   return order.order_name || "";
+}
+
+// 현금영수증 링크(QA 시트 행310) — orders.raw.cashReceipt(useMyPageOrders.ts가
+// raw->cashReceipt 로 얕게 뽑아 cash_receipt 필드에 싣는다)에서 화면이 실제로
+// 쓰는 값만 골라낸다. receiptUrl 이 없으면(가상계좌 발급 전·현금영수증 미요청
+// 주문) null — 폴백 없이 버튼 자체를 렌더하지 않게 하는 신호로 쓴다.
+export function getCashReceipt(order: {
+  cash_receipt?: CashReceiptInfo | null;
+}): { receiptUrl: string; type?: string; issueNumber?: string } | null {
+  const receiptUrl = order.cash_receipt?.receiptUrl?.trim();
+  if (!receiptUrl) return null;
+  return {
+    receiptUrl,
+    ...(order.cash_receipt?.type && { type: order.cash_receipt.type }),
+    ...(order.cash_receipt?.issueNumber && {
+      issueNumber: order.cash_receipt.issueNumber,
+    }),
+  };
 }
 
 // order + 매칭되는 refund_requests 최신 행으로 상태 배지 키를 계산한다.

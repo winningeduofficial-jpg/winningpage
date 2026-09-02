@@ -33,6 +33,17 @@ export interface EasyPayInfo {
   provider?: string;
 }
 
+// 현금영수증 — 가상계좌 결제 요청 시 cashReceipt:{type:"소득공제"}를 넘기면
+// (src/pages/checkout/ParentCheckout.tsx) 토스가 입금 확인 시 자동 발급하고,
+// 그 결과가 결제 조회 응답의 cashReceipt 서브 객체로 실린다. 문서상 필드 중
+// 이 저장소가 실제로 읽는 것만 담는다(발급 여부 판정은 receiptUrl 유무로 한다
+// — MyPage 영수증 화면은 발급 전 주문에 빈 링크를 보여주면 안 된다).
+export interface CashReceiptInfo {
+  type?: string;
+  issueNumber?: string;
+  receiptUrl?: string;
+}
+
 interface AccessResult {
   ok?: boolean;
   granted?: string[];
@@ -45,6 +56,7 @@ export interface PaymentInfo {
   card?: CardInfo;
   virtualAccount?: VirtualAccountInfo;
   easyPay?: EasyPayInfo;
+  cashReceipt?: CashReceiptInfo;
   method?: string;
   approvedAt?: string;
   requestedAt?: string;

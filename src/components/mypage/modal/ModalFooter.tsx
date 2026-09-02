@@ -31,11 +31,15 @@ const VARIANT_CLASS: Record<ModalFooterButtonVariant, string> = {
 };
 
 // Tailwind JIT는 리터럴 클래스 문자열만 스캔한다 — `grid-cols-${n}` 같은 동적
-// 조합은 클래스가 생성되지 않는다. 버튼 1~3개만 지원하므로 표로 고정한다.
+// 조합은 클래스가 생성되지 않는다. 버튼 1~4개까지 표로 고정한다.
+// 4개(PaymentDetailModal — 닫기/환불 신청/영수증 보기/현금영수증 보기가 모두
+// 뜨는 조합, QA 시트 행310)는 2x2로 접는다 — 나머지와 같은 grid-cols-N 한 줄
+// 규칙을 유지하면 버튼이 지나치게 좁아진다.
 const COLS_CLASS: Record<number, string> = {
   1: "grid-cols-1",
   2: "grid-cols-2",
   3: "grid-cols-3",
+  4: "grid-cols-2",
 };
 
 export default function ModalFooter({ buttons }: ModalFooterProps) {
