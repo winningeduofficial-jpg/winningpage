@@ -1,60 +1,55 @@
-import { getSubjectStrongClass } from "@/components/goal/subjectTokens";
+import {
+  getBookDarkBgClass,
+  getBookDarkTextClass,
+  getBookLightBgClass,
+} from "@/components/goal/subjectTokens";
+import { sortShelvedBooksNewestFirst } from "@/lib/goal/workbookProgress";
 
-// 완독 문제집 책장 시각화 — EffortSubjectCard 하단 선반 위에서 쓴다(QA 행282/298).
-// 이미지 에셋은 없다 — 책등을 가로 막대(누운 책)로 그리고, 오래 완독한 책일수록
-// 선반(아래)에 가깝고 최근 완독한 책이 위로 쌓이도록 flex-col-reverse로 뒤집는다
-// (fetchWorkbooks가 등록 순=오래된 순으로 돌려주므로, books 배열은 그대로 오래된
-// 순이다 — api/_lib/goalRepo.ts fetchWorkbooks 주석 참고).
+// 완독 문제집 책장 시각화 — Figma 4026:6046. EffortSubjectCard 하단 선반 위에서 쓴다.
 //
-// 막대 하나가 책 한 권: 너비는 제목 길이 기반(길수록 넓게, 카드 폭 안에서 클램프),
-// 높이는 0.75~1rem(h-3~h-4) 사이를 인덱스로 순환시켜 실제 책장처럼 두께가 들쭉날쭉해
-// 보이게 한다. 색은 과목 진한 톤(getSubjectStrongClass)을 그대로 쓴다.
+// 책 1권 = 274×32 바(w-full h-8, 카드 인셋 박스와 같은 폭), radius 6, bg 과목 라이트,
+// 좌측 8px 책등(과목 다크, 좌측만 radius). 제목은 책등 다음 14px(pl-3.5)부터, 과목
+// 다크 톤 16px Medium. 세로 pitch 40px(32 바 + 8 gap) — gap-2.
+//
+// 정렬: 최신 완독이 위(sortShelvedBooksNewestFirst, src/lib/goal/workbookProgress.ts).
+// 컨테이너는 flex-col 그대로 두고 정렬된 배열의 첫 항목(최신)을 맨 위에 그린다 —
+// 그 아래로 갈수록 오래된 책이고, 이 컨테이너 바로 아래에 선반(EffortSubjectCard)이
+// 있으므로 배열 마지막(가장 오래된 책)이 선반과 가장 가깝다.
 
-type StackBook = { id: string | number; title: string };
+type StackBook = {
+  id: string | number;
+  title: string;
+  shelvedAt: string | null;
+};
 
 type BookStackProps = {
   books: StackBook[];
   subject: string;
 };
 
-// 카드 높이가 고정(451px)이라 무한정 쌓을 수 없다 — 이 이상은 "+n권" 뱃지로 접는다.
-const MAX_VISIBLE_BOOKS = 6;
-
-// 0.75rem(h-3) → 0.875rem(h-3.5) → 1rem(h-4) 순환.
-const HEIGHT_CLASSES = ["h-3", "h-3.5", "h-4"];
-
-// 제목 글자 수를 인셋 박스 폭(약 17rem) 안에 들어오는 너비 비율(%)로 대략 환산한다.
-// 정확한 텍스트 측정이 아니라 "길수록 넓어 보이는" 시각적 근사치다.
-function widthPercentFor(title: string) {
-  const length = title.trim().length || 1;
-  return Math.min(100, Math.max(42, 40 + length * 4));
-}
-
 export default function BookStack({ books, subject }: BookStackProps) {
   if (books.length === 0) return null;
 
-  const visible = books.slice(-MAX_VISIBLE_BOOKS);
-  const hiddenCount = books.length - visible.length;
-  const strongClass = getSubjectStrongClass(subject);
+  const sorted = sortShelvedBooksNewestFirst(books);
+  const lightBg = getBookLightBgClass(subject);
+  const darkBg = getBookDarkBgClass(subject);
+  const darkText = getBookDarkTextClass(subject);
 
   return (
-    <div className="flex w-full flex-col-reverse items-center gap-1">
-      {visible.map((book, index) => (
+    <div className="flex w-full flex-col gap-2">
+      {sorted.map((book) => (
         <div
           key={book.id}
-          style={{ width: `${widthPercentFor(book.title)}%` }}
-          className={`flex shrink-0 items-center justify-center rounded-sm px-2 shadow-[0_1px_1px_rgba(0,0,0,0.12)] ${HEIGHT_CLASSES[index % HEIGHT_CLASSES.length]} ${strongClass}`}
+          className={`flex h-8 w-full shrink-0 items-center overflow-hidden rounded-md shadow-[0_4px_4px_rgba(0,0,0,0.25)] ${lightBg}`}
         >
-          <span className="truncate text-[0.5625rem] font-medium leading-none text-white">
+          <div className={`h-full w-2 shrink-0 rounded-l-md ${darkBg}`} />
+          <span
+            className={`truncate pr-3 pl-3.5 text-[1rem] font-medium leading-none ${darkText}`}
+          >
             {book.title}
           </span>
         </div>
       ))}
-      {hiddenCount > 0 && (
-        <span className="text-[0.6875rem] font-semibold leading-[1.4] text-ink-sub">
-          +{hiddenCount}권
-        </span>
-      )}
     </div>
   );
 }
