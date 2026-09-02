@@ -71,7 +71,7 @@ describe("ServicesSection", () => {
     expect(names).toHaveLength(4);
   });
 
-  test("설명의 줄바꿈이 whitespace-pre-line 텍스트 노드로 그대로 렌더된다", () => {
+  test("설명의 줄바꿈이 whitespace-pre 텍스트 노드로 그대로 렌더된다(자동 줄바꿈 없음)", () => {
     renderSection();
 
     const description = screen.getByText(
@@ -79,7 +79,7 @@ describe("ServicesSection", () => {
         el?.textContent ===
         "대입 컨설팅 프로그램\n특목고 입학 프로그램\n대학원 입학 프로그램",
     );
-    expect(description).toHaveClass("whitespace-pre-line");
+    expect(description).toHaveClass("whitespace-pre");
   });
 
   test("일러스트 이미지는 icon_image_url 을 그대로 src 로 사용한다(배지·그림자는 이미지에 합성됨)", () => {

@@ -44,14 +44,16 @@ function resolveServiceLink(service: Service): string | null {
   return promoted;
 }
 
-// 카드 셸 — Figma 4885:18474 실측(px÷16=rem). px 32px(2rem), flex row, items-center,
+// 카드 셸 — Figma 1920 실측(px÷16=rem) 재확인 반영. 좌 32px(2rem)/우 26px(1.625rem,
+// 카드별 우측 여백 편차를 무시하고 9장 통일 — 텍스트가 nowrap/pre로 절대 안 줄어드는
+// 대신 일러스트 프레임이 줄어들 여유를 우측에 더 확보), flex row, items-center,
 // justify-between, radius 24.8px(1.55rem), border 1px #d7d7d7, shadow
 // 0 3.3px 3.3px rgba(128,128,128,.3)(0.2063rem/0.2063rem). lg 고정 352×180(그리드 3열이
 // 열 폭을 결정하므로 폭은 w-full, 높이만 h-45 고정). hover/focus는 시안에 없는 구현측
 // 인터랙션 — 동작은 유지.
 const CARD_CLASS =
   "group flex w-full flex-row items-center justify-between gap-4 rounded-[1.55rem] " +
-  "border border-[#d7d7d7] bg-white px-8 py-6 shadow-[0_0.2063rem_0.2063rem_rgba(128,128,128,0.3)] " +
+  "border border-[#d7d7d7] bg-white py-6 pl-8 pr-[1.625rem] shadow-[0_0.2063rem_0.2063rem_rgba(128,128,128,0.3)] " +
   "transition-[background-color,box-shadow] duration-200 " +
   "[@media(hover:hover)]:hover:bg-[#f6fbff] [@media(hover:hover)]:hover:shadow-[0_0.375rem_1rem_0.25rem_rgba(128,128,128,0.4)] " +
   "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 " +

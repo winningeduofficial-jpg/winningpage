@@ -75,4 +75,22 @@ describe("ServiceCard", () => {
 
     expect(container.querySelectorAll(".text-ink-natural")).toHaveLength(0);
   });
+
+  // 시안 확정 — 제목·설명 모두 자동 줄바꿈 없음(폭이 좁아지면 옆 일러스트가 대신 줄어든다).
+  // 설명은 whitespace-pre라 DB \n만 줄바꿈 지점이고 그 외 자동 줄바꿈은 없다.
+  test("제목은 whitespace-nowrap, 설명은 whitespace-pre로 자동 줄바꿈되지 않는다", () => {
+    renderCard({
+      id: "svc-10",
+      name: "국제·해외 프리미엄",
+      description: "국제고 해외고 국내대입 컨설팅",
+      link: "/page/premium/global-university",
+    });
+
+    expect(screen.getByText("국제·해외 프리미엄")).toHaveClass(
+      "whitespace-nowrap",
+    );
+    expect(screen.getByText("국제고 해외고 국내대입 컨설팅")).toHaveClass(
+      "whitespace-pre",
+    );
+  });
 });
