@@ -22,11 +22,7 @@ vi.mock("@/lib/supabase", () => ({
 
 function renderModal() {
   return render(
-    <ChangePhoneModal
-      open
-      currentPhone="01012345678"
-      onClose={() => {}}
-    />,
+    <ChangePhoneModal open currentPhone="01012345678" onClose={() => {}} />,
   );
 }
 
@@ -52,13 +48,18 @@ describe("ChangePhoneModal — 본인 확인 게이트(QA 행240)", () => {
     });
     renderModal();
 
-    fireEvent.change(screen.getByPlaceholderText("본인 확인을 위해 비밀번호를 입력해주세요"), {
-      target: { value: "wrong-password" },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText("본인 확인을 위해 비밀번호를 입력해주세요"),
+      {
+        target: { value: "wrong-password" },
+      },
+    );
     fireEvent.click(screen.getByRole("button", { name: "확인" }));
 
     await waitFor(() =>
-      expect(screen.getByText("비밀번호가 일치하지 않아요.")).toBeInTheDocument(),
+      expect(
+        screen.getByText("비밀번호가 일치하지 않아요."),
+      ).toBeInTheDocument(),
     );
     expect(screen.getByText("본인 확인이 필요해요")).toBeInTheDocument();
   });
@@ -67,9 +68,12 @@ describe("ChangePhoneModal — 본인 확인 게이트(QA 행240)", () => {
     mockSignInWithPassword.mockResolvedValue({ error: null });
     renderModal();
 
-    fireEvent.change(screen.getByPlaceholderText("본인 확인을 위해 비밀번호를 입력해주세요"), {
-      target: { value: "correct-password" },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText("본인 확인을 위해 비밀번호를 입력해주세요"),
+      {
+        target: { value: "correct-password" },
+      },
+    );
     fireEvent.click(screen.getByRole("button", { name: "확인" }));
 
     await waitFor(() =>

@@ -22,15 +22,11 @@ describe("getCashReceipt", () => {
   });
 
   it("receiptUrl이 없으면(발급 전) null이다", () => {
-    expect(
-      getCashReceipt({ cash_receipt: { type: "소득공제" } }),
-    ).toBeNull();
+    expect(getCashReceipt({ cash_receipt: { type: "소득공제" } })).toBeNull();
   });
 
   it("receiptUrl이 빈 문자열이면 null이다", () => {
-    expect(
-      getCashReceipt({ cash_receipt: { receiptUrl: "   " } }),
-    ).toBeNull();
+    expect(getCashReceipt({ cash_receipt: { receiptUrl: "   " } })).toBeNull();
   });
 
   it("cash_receipt가 null이면 null이다(카드 결제 등)", () => {

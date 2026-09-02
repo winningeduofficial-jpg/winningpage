@@ -20,8 +20,9 @@
 //   목록을 보여주고 고르게 하는 흐름은 이 화면(임시비밀번호 1회 노출)에는
 //   과하다고 판단해, 그 번호로 가장 먼저 가입한(= created_at 오름차순 1위)
 //   계정 하나만 재설정한다. 어느 계정인지는 응답의 masked_email로 알려준다.
-import type { SupabaseClient } from "@supabase/supabase-js";
+
 import crypto from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { defineHandler } from "./_lib/handler.js";
 import { isValidMobile, normalizePhone } from "./_lib/phoneCode.js";
 
@@ -107,8 +108,9 @@ export function generateTempPassword(): string {
     pickChar(SPECIAL),
   ];
 
-  const rest = Array.from({ length: TEMP_PASSWORD_LENGTH - required.length }, () =>
-    pickChar(ALL_CHARS),
+  const rest = Array.from(
+    { length: TEMP_PASSWORD_LENGTH - required.length },
+    () => pickChar(ALL_CHARS),
   );
 
   return secureShuffle([...required, ...rest]).join("");

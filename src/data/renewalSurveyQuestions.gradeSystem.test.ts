@@ -13,27 +13,19 @@ test("중학생 → 중학생 평균", () => {
   expect(getGradeSystemLabelForGradeLevel("중학생")).toEqual("중학생 평균");
 });
 test("고등학교 1학년 → 5등급제", () => {
-  expect(getGradeSystemLabelForGradeLevel("고등학교 1학년")).toEqual(
-    "5등급제",
-  );
+  expect(getGradeSystemLabelForGradeLevel("고등학교 1학년")).toEqual("5등급제");
 });
 test("고등학교 2학년 → 5등급제", () => {
-  expect(getGradeSystemLabelForGradeLevel("고등학교 2학년")).toEqual(
-    "5등급제",
-  );
+  expect(getGradeSystemLabelForGradeLevel("고등학교 2학년")).toEqual("5등급제");
 });
 test("고등학교 3학년 → 9등급제", () => {
-  expect(getGradeSystemLabelForGradeLevel("고등학교 3학년")).toEqual(
-    "9등급제",
-  );
+  expect(getGradeSystemLabelForGradeLevel("고등학교 3학년")).toEqual("9등급제");
 });
 test("N수생 → 9등급제", () => {
   expect(getGradeSystemLabelForGradeLevel("N수생")).toEqual("9등급제");
 });
 test("미지 라벨(또는 미응답)은 null — 호출부가 answers.q4 를 건드리지 않는다", () => {
-  expect(getGradeSystemLabelForGradeLevel("존재하지 않는 학년")).toEqual(
-    null,
-  );
+  expect(getGradeSystemLabelForGradeLevel("존재하지 않는 학년")).toEqual(null);
 });
 
 // 반환 라벨이 q4.options 에 실제로 존재하는지 왕복 검증 — getOptionCode("q4", ...) 로 되돌려도
