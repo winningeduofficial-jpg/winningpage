@@ -29,19 +29,18 @@ import {
   formatScheduleMeta,
 } from "@/lib/goal/scheduleDday";
 import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
-import type {
-  GoalRecordCooldown,
-  GoalRecordSummary,
-  GoalTomorrowTargets,
-} from "@/lib/goalApi";
+import type { FetchTodayGoalRecordResult } from "@/lib/goalApi";
 import {
   fetchGoalRanking,
   fetchGoalSchedules,
   fetchGoalTimer,
-  fetchTodayGoalRecord,
 } from "@/lib/goalApi";
 import { formatTodayDateLabel } from "@/lib/goalPlanUtils";
-import { goalStudentQueryOptions } from "@/lib/queryClient";
+import {
+  goalDailyRecordQueryOptions,
+  goalStudentQueryOptions,
+  queryClient,
+} from "@/lib/queryClient";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 // QA 행303-1 — 저장 완료 배너 자동 소멸 시간. DailyRecord.tsx의
@@ -165,16 +164,11 @@ type GoalStudent = {
 
 // QA3 행305 — cooldown/summary/tomorrowTargets는 GET /api/goal/daily-record가
 // 함께 내려주는 12시간 쿨다운 배선. TodayGoalCard도 이 페이지가 넘겨주는
-// mapTodayGoal() 결과로만 잠금 상태를 안다(자체 재조회 없음).
-type DailyRecordResult =
-  | {
-      kind: "success";
-      record: { studyHours?: number } | null;
-      cooldown: GoalRecordCooldown | null;
-      summary: GoalRecordSummary | null;
-      tomorrowTargets: GoalTomorrowTargets;
-    }
-  | { kind: "no-session" | "not-allowed" | "not-active" | "error" };
+// mapTodayGoal() 결과로만 잠금 상태를 안다(자체 재조회 없음). 후속(사이드바 뱃지
+// 실배선) — goalApi.ts의 FetchTodayGoalRecordResult를 그대로 쓴다(로컬 사본을
+// 따로 두지 않는다 — GoalSidebar.tsx도 같은 타입을 공유하는 goalDailyRecordQueryOptions
+// 캐시를 구독하므로 shape이 어긋나면 즉시 타입 에러로 드러난다).
+type DailyRecordResult = FetchTodayGoalRecordResult;
 
 type RankingResult =
   | {
@@ -230,7 +224,7 @@ function resolveDaySchedule(
  */
 function mapTodayGoal(
   daySchedule: { ideal: number; min: number },
-  dailyRecordResult: DailyRecordResult | null,
+  dailyRecordResult: DailyRecordResult | null | undefined,
 ) {
   const success =
     dailyRecordResult?.kind === "success" ? dailyRecordResult : null;
@@ -461,11 +455,14 @@ export default function Dashboard() {
   // 필수 데이터가 아니라 조회 실패를 mock으로 되돌리지 않고 그냥 빈 상태로 보여준다.
   const [schedules, setSchedules] = useState<ScheduleItem[] | null>(null);
 
-  // GET /api/goal/daily-record — "오늘의 목표" 카드 전용(studyHours). null = 로딩 중.
-  // fetchGoalStudent()와 별도 상태로 둔다 — 하나가 실패해도 다른 하나는 정상 렌더돼야
-  // 한다(예: daily-record 네트워크 오류가 나도 목표대학·모의고사 카드는 그대로 보여야 함).
-  const [dailyRecordResult, setDailyRecordResult] =
-    useState<DailyRecordResult | null>(null);
+  // GET /api/goal/daily-record — "오늘의 목표" 카드 전용(studyHours) + 사이드바
+  // "미기록" 뱃지(GoalSidebar.tsx)가 공유하는 캐시(goalDailyRecordQueryOptions,
+  // 후속 실배선). data===undefined = 로딩 중. fetchGoalStudent()와 별도 캐시 키를
+  // 쓴다 — 하나가 실패해도 다른 하나는 정상 렌더돼야 한다(예: daily-record 네트워크
+  // 오류가 나도 목표대학·모의고사 카드는 그대로 보여야 함).
+  const { data: dailyRecordResult } = useQuery(
+    goalDailyRecordQueryOptions(userId),
+  );
 
   // 내일 계획 제시(TomorrowPlanCard) 과목 배분 비율 전용 — GET /api/goal/timer의
   // targets(goal_subject_targets). null = 로딩 중/미설정 둘 다(buildSubjectRatios가
@@ -474,20 +471,14 @@ export default function Dashboard() {
     { subject: string; targetHours: number }[] | null
   >(null);
 
+  // 저장 성공 시 카드·게이지·사이드바 뱃지를 함께 최신화한다 — 캐시를 하나로
+  // 공유하는 이유가 이 한 번의 invalidate로 셋 다 갱신되게 하기 위함이다
+  // (goalDailyRecordQueryOptions 주석 참고).
   const reloadDailyRecord = () => {
-    fetchTodayGoalRecord().then((r) =>
-      setDailyRecordResult(r as DailyRecordResult),
-    );
-  };
-  useEffect(() => {
-    let alive = true;
-    fetchTodayGoalRecord().then((r) => {
-      if (alive) setDailyRecordResult(r as DailyRecordResult);
+    queryClient.invalidateQueries({
+      queryKey: ["goal", "daily-record", userId],
     });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  };
 
   useEffect(() => {
     let alive = true;
