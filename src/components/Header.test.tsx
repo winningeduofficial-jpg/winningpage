@@ -69,8 +69,8 @@ function renderHeader() {
   );
 }
 
-describe("Header — 햄버거 표시 조건(QA 행242)", () => {
-  it("데스크톱 브레이크포인트 이상에서는 숨겨지는 클래스(desktop:hidden)를 갖는다", () => {
+describe("Header — 햄버거 표시 조건(2026-09-03, QA 행242 폐기)", () => {
+  it("모든 화면 크기에서 보이도록 desktop:hidden 클래스를 갖지 않는다", () => {
     mockUseAuth.mockReturnValue({
       session: null,
       user: null,
@@ -79,7 +79,7 @@ describe("Header — 햄버거 표시 조건(QA 행242)", () => {
     renderHeader();
 
     const hamburger = screen.getByRole("button", { name: "전체 메뉴 열기" });
-    expect(hamburger.className).toContain("desktop:hidden");
+    expect(hamburger.className).not.toContain("desktop:hidden");
   });
 });
 
@@ -346,7 +346,7 @@ describe("Header — 로그인 회색존 상단 정렬(2026-09-03, 빈 제목 �
   });
 });
 
-describe("Header — 햄버거 위치(§6-7)", () => {
+describe("Header — 햄버거 위치(§6-7, 2026-09-03 계정 그룹 마지막으로 이동)", () => {
   it("햄버거는 로고와 함께 좌표계 1 밴드(justify-between)의 마지막 자식에 위치한다", () => {
     // nav는 0d3f8487 이전 구조로 되돌아가 좌표계 2(absolute overlay)에 별도로 뜬다 —
     // 더는 이 밴드의 형제가 아니라서 nav 대비 DOM 순서로는 검증할 수 없다. 대신 "로고
@@ -361,5 +361,48 @@ describe("Header — 햄버거 위치(§6-7)", () => {
     expect(band?.className).toContain("justify-between");
     expect(band?.children).toHaveLength(2);
     expect(band?.lastElementChild?.contains(hamburger)).toBe(true);
+  });
+
+  it("게스트 상태에서 햄버거는 계정 그룹(로그인·회원가입) 다음의 마지막 자식이다", () => {
+    mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
+    renderHeader();
+
+    const hamburger = screen.getByRole("button", { name: "전체 메뉴 열기" });
+    const signup = screen.getByRole("link", { name: "회원가입" });
+    const wrapper = hamburger.parentElement;
+
+    expect(wrapper?.lastElementChild).toBe(hamburger);
+    expect(
+      signup.compareDocumentPosition(hamburger) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("로그인 상태에서 햄버거는 로그아웃 버튼 다음의 마지막 자식이다", async () => {
+    mockProfileRow = {
+      id: "u1",
+      email: "student@test.com",
+      name: "홍길동",
+      member_type: "student",
+      role: "student",
+    };
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: "u1", email: "student@test.com" } },
+      user: { id: "u1", email: "student@test.com" },
+      isReady: true,
+    });
+
+    renderHeader();
+    await screen.findByRole("link", { name: "마이페이지" });
+
+    const hamburger = screen.getByRole("button", { name: "전체 메뉴 열기" });
+    const logout = screen.getByRole("button", { name: "로그아웃" });
+    const wrapper = hamburger.parentElement;
+
+    expect(wrapper?.lastElementChild).toBe(hamburger);
+    expect(
+      logout.compareDocumentPosition(hamburger) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

@@ -814,7 +814,18 @@ export default function Header() {
           />
         </Link>
 
+        {/* 2026-09-03 사용자 결정 — 햄버거를 모든 화면 크기에서 표시하고 계정 그룹 다음
+            (게스트: 로그인·회원가입 다음 / 로그인: 로그아웃 다음)에 둔다. 계정 그룹
+            래퍼(모바일 hidden)와 햄버거(항상 표시)의 순서를 바꿔 gap-3 flex 안에서
+            자연스럽게 "계정 그룹 마지막"으로 자리잡게 한다 — 데스크톱에서는 두 요소 모두
+            보여 햄버거가 계정 그룹 우측에 서고, 모바일에서는 계정 그룹 래퍼만 숨어(hidden
+            desktop:flex) 기존과 동일하게 햄버거 단독으로 보인다. QA 행242가 데스크톱
+            (90rem 이상)에서 햄버거를 숨겼던 것(desktop:hidden)을 폐기한다. */}
         <div className="flex shrink-0 items-center gap-3">
+          <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
+            {accountGroupNode}
+          </div>
+
           <button
             ref={mobileNavTriggerRef}
             type="button"
@@ -822,14 +833,10 @@ export default function Header() {
             aria-expanded={mobileNavOpen}
             aria-controls="mobile-nav-drawer"
             aria-label="전체 메뉴 열기"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-04 text-primary transition hover:bg-[#ebebef] desktop:hidden"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-04 text-primary transition hover:bg-[#ebebef]"
           >
             <Menu size={18} />
           </button>
-
-          <div className="hidden shrink-0 flex-nowrap items-center justify-end gap-3 whitespace-nowrap desktop:flex">
-            {accountGroupNode}
-          </div>
         </div>
       </div>
 
