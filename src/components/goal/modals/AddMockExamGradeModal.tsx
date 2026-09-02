@@ -13,11 +13,15 @@ const ROUND_OPTIONS = MOCK_EXAM_ROUNDS.map((label) => ({
 
 // part-08 §177: 시안의 백분위 입력값(82/74/88/76)은 연회색으로 렌더돼 실제 입력값이 아니라
 // placeholder로 판단된다(추정). 그대로 placeholder 예시값으로만 재사용하고 실제 상태는 빈 값으로 시작.
+//
+// QA 행291 재설계(팀장 지시 항목10) — 탐구 단일에서 탐구1・탐구2로 나눈다(온보딩
+// MOCK_SUBJECTS와 같은 분리, api/goal/grades.ts MOCK_SUBJECT_KEYS와 키가 같아야 한다).
 const SUBJECTS = [
   { key: "korean", label: "국어", placeholder: "82" },
   { key: "math", label: "수학", placeholder: "74" },
   { key: "english", label: "영어", placeholder: "88" },
-  { key: "science", label: "탐구", placeholder: "76" },
+  { key: "tam1", label: "탐구1", placeholder: "76" },
+  { key: "tam2", label: "탐구2", placeholder: "76" },
 ];
 
 // 과목별 백분위 행 — ModalField(라벨 위/컨트롤 아래)와 달리 시안(#22)은 "국어 82 백분위"처럼
@@ -106,14 +110,15 @@ export default function AddMockExamGradeModal({
     ];
   }, [initialEntry]);
 
-  // ROUND_OPTIONS는 MOCK_EXAM_ROUNDS 고정 목록(4건)에서 파생되어 항상 비지 않는다.
+  // ROUND_OPTIONS는 MOCK_EXAM_ROUNDS 고정 목록(14건)에서 파생되어 항상 비지 않는다.
   const [round, setRound] = useState(ROUND_OPTIONS[0]!.value);
   const [examDate, setExamDate] = useState("");
   const [scores, setScores] = useState<Record<string, string>>({
     korean: "",
     math: "",
     english: "",
-    science: "",
+    tam1: "",
+    tam2: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -126,12 +131,13 @@ export default function AddMockExamGradeModal({
         korean: String(initialEntry.subjects.korean ?? ""),
         math: String(initialEntry.subjects.math ?? ""),
         english: String(initialEntry.subjects.english ?? ""),
-        science: String(initialEntry.subjects.science ?? ""),
+        tam1: String(initialEntry.subjects.tam1 ?? ""),
+        tam2: String(initialEntry.subjects.tam2 ?? ""),
       });
     } else {
       setRound(ROUND_OPTIONS[0]!.value);
       setExamDate("");
-      setScores({ korean: "", math: "", english: "", science: "" });
+      setScores({ korean: "", math: "", english: "", tam1: "", tam2: "" });
     }
     setError("");
   }

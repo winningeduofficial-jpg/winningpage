@@ -48,11 +48,14 @@
 // 405 → 401 → (조회 200 {allowed:false} / 쓰기 403 PAID_MESSAGE) → 검증 → 처리 → 500.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { GRADE_PERCENTILE } from "../../src/lib/goal/calc/jeongsi.js";
+import { buildGoalDirectionReport } from "../_lib/goalDirectionReport.js";
 import {
   fetchStudentRow,
   narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
+  saveGoalDirectionReport,
   updateStudentGrades,
 } from "../_lib/goalRepo.js";
 import { sendError } from "../_lib/httpResponse.js";
@@ -64,7 +67,21 @@ export const config = { runtime: "nodejs" };
 // 추론해 재사용한다(중복 선언 없이 goalRepo.js JSDoc이 바뀌면 여기도 함께 따라간다).
 type GoalSession = Awaited<ReturnType<typeof openGoalSession>>;
 
-const SUBJECT_KEYS = ["korean", "math", "english", "science"];
+// QA 행290・291 재설계로 온보딩 입력 구조가 바뀐 것에 맞춰 성적관리 모달의 과목 구성도
+// 확장한다(팀장 지시 항목10) — 내신은 4과목 flat에서 6과목군(NAESIN_SUBJECT_GROUPS,
+// onboardingOptions.ts와 같은 키)으로, 모의고사는 탐구 단일에서 탐구1・탐구2로 나눈다.
+// 도메인은 그대로다(내신 1~9 등급, 모의고사 0~100 백분위 — 시안 실측대로 "백분위 저장
+// 유지", 팀장 지시). 기존에 저장된 4과목 레코드(레거시)는 GET이 원본 그대로 돌려주고
+// 화면이 있는 값만 표시하므로 이 파일은 읽기 경로를 따로 손대지 않는다(하위 호환).
+const NAESIN_SUBJECT_KEYS = [
+  "korean",
+  "math",
+  "english",
+  "social_history",
+  "science",
+  "second_language",
+];
+const MOCK_SUBJECT_KEYS = ["korean", "math", "english", "tam1", "tam2"];
 
 const GRADE_DOMAIN = { min: 1, max: 9 };
 const PERCENTILE_DOMAIN = { min: 0, max: 100 };
@@ -114,7 +131,7 @@ function fail(status: number, detail: string) {
 }
 
 /**
- * 공통 바디 검증 — term(회차 라벨) · 날짜 · 과목 4종(국/수/영/탐구).
+ * 공통 바디 검증 — term(회차 라벨) · 날짜 · 과목(내신 6과목군 / 모의고사 5과목).
  * naesin 은 1~9 등급, mock 은 0~100 백분위 도메인만 다르다(시안 실측, 위 헤더 주석 참고).
  */
 export function validateEntry(entry: unknown, type: "naesin" | "mock") {
@@ -140,9 +157,11 @@ export function validateEntry(entry: unknown, type: "naesin" | "mock") {
 
   const domain = type === "naesin" ? GRADE_DOMAIN : PERCENTILE_DOMAIN;
   const domainLabel = type === "naesin" ? "1~9 등급" : "0~100 백분위";
+  const subjectKeys =
+    type === "naesin" ? NAESIN_SUBJECT_KEYS : MOCK_SUBJECT_KEYS;
 
   const subjects: Record<string, number> = {};
-  for (const key of SUBJECT_KEYS) {
+  for (const key of subjectKeys) {
     const raw = entry.subjects[key];
     if (!isInDomain(raw, domain)) {
       return {
@@ -153,12 +172,12 @@ export function validateEntry(entry: unknown, type: "naesin" | "mock") {
   }
 
   const value = round1(
-    SUBJECT_KEYS.reduce(
+    subjectKeys.reduce(
       (sum, key) =>
-        // biome-ignore lint/style/noNonNullAssertion: subjects는 바로 위 루프에서 SUBJECT_KEYS 전체를 채웠으므로 항상 존재한다.
+        // biome-ignore lint/style/noNonNullAssertion: subjects는 바로 위 루프에서 subjectKeys 전체를 채웠으므로 항상 존재한다.
         sum + subjects[key]!,
       0,
-    ) / SUBJECT_KEYS.length,
+    ) / subjectKeys.length,
   );
 
   return {
@@ -358,6 +377,28 @@ async function handlePost(
   }
 
   await updateStudentGrades(supabaseAdmin, profileId, patch);
+
+  // QA 행301(b) — 이 회차를 학습방향 리포트 이력에 1건 남긴다. naesinScores/
+  // mockExamScores를 넘기지 않아 buildGoalDirectionReport가 레거시(4과목 flat)
+  // 분기로만 해석하도록 강제한다 — 이 지점의 목적은 "방금 입력한 이 회차"의
+  // 스냅샷이지, 학생의 현재 과목군 평균 집계(naesin_scores.groupAverages, 병렬
+  // 유닛 소유)가 아니기 때문이다(판단 지점, api/_lib/goalDirectionReport.ts
+  // resolveNaesinSubjectAverage/resolveJungsiSubjectAverage 헤더 주석 참고).
+  const { payload, snapshot } = buildGoalDirectionReport({
+    kind: type === "naesin" ? "naesin" : "jungsi",
+    sourceType: type === "naesin" ? "naesin" : "mogo",
+    sourceLabel: record.term,
+    grade: row.grade,
+    legacyEntry: record,
+    gradePercentile: GRADE_PERCENTILE,
+  });
+  await saveGoalDirectionReport(supabaseAdmin, profileId, {
+    kind: type === "naesin" ? "naesin" : "jungsi",
+    sourceType: type === "naesin" ? "naesin" : "mogo",
+    sourceLabel: record.term,
+    payload,
+    snapshot,
+  });
 
   return res.status(200).json({ ok: true, record, records });
 }

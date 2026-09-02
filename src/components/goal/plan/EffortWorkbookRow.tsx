@@ -28,10 +28,25 @@ export type EffortBook = {
   totalPages: number | null;
 };
 
+export type ConnectedPlanTask = {
+  id: string | number;
+  title: string;
+  status: "pending" | "done" | "fail";
+};
+
+const CONNECTED_TASK_GLYPH: Record<ConnectedPlanTask["status"], string> = {
+  done: "✓",
+  fail: "✕",
+  pending: "대기",
+};
+
 type EffortWorkbookRowProps = {
   book: EffortBook;
   // 과목 id(korean/math/english/science/etc) — 진행바 채움/완독 버튼 색 계산용.
   subject: string;
+  // 오늘 이 책에 연결된 계획 과제(QA 행286-B) — 없거나 undefined면 목록을 아예
+  // 렌더하지 않는다(폴백 문구 없음, [[no-fallback-constants]]).
+  connectedTasks?: ConnectedPlanTask[];
   onUpdate: (
     id: string | number,
     patch: { title?: string; currentPage?: number },
@@ -58,6 +73,7 @@ type Patch = { title?: string; currentPage?: number };
 export default function EffortWorkbookRow({
   book,
   subject,
+  connectedTasks,
   onUpdate,
   onDelete,
   onShelve,
@@ -349,6 +365,33 @@ export default function EffortWorkbookRow({
           style={{ width: `${rate}%` }}
         />
       </div>
+
+      {/* 오늘 연결된 계획 과제 소형 목록(QA 행286-B) — 없으면 아무것도 렌더하지
+          않는다("준비 중" 등 폴백 문구 없음). */}
+      {connectedTasks && connectedTasks.length > 0 && (
+        <ul className="flex flex-col gap-0.5">
+          {connectedTasks.map((task) => (
+            <li
+              key={task.id}
+              className="flex items-center gap-1.5 text-[0.6875rem] leading-[1.4] text-ink-sub"
+            >
+              <span
+                aria-hidden="true"
+                className={
+                  task.status === "done"
+                    ? "text-[#4CAF6D]"
+                    : task.status === "fail"
+                      ? "text-error"
+                      : "text-ink-sub"
+                }
+              >
+                {CONNECTED_TASK_GLYPH[task.status]}
+              </span>
+              <span className="truncate">{task.title}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {isComplete && (
         <button

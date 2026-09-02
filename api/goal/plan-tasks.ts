@@ -24,14 +24,19 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   buildPlanTaskPayload,
+  computeWorkbookStatus,
   deletePlanTask,
   fetchPlanTasks,
+  fetchWorkbookOwned,
   insertPlanTask,
   narrowGoalSession,
+  nextWorkbookPageAfterTaskDone,
+  num,
   openGoalSession,
   PAID_MESSAGE,
   SUBJECT_LABEL_TO_CODE,
   updatePlanTask,
+  updateWorkbookOwned,
 } from "../_lib/goalRepo.js";
 import { sendError } from "../_lib/httpResponse.js";
 
@@ -133,6 +138,124 @@ function validateId(raw: unknown) {
   return { value: id };
 }
 
+function validateWorkbookId(raw: unknown) {
+  const id = Number(raw);
+  if (!Number.isInteger(id) || id <= 0)
+    return { error: fail(400, "문제집 id가 올바르지 않습니다.") };
+  return { value: id };
+}
+
+function validatePageNumber(raw: unknown, label: string) {
+  if (typeof raw !== "number" || !Number.isInteger(raw) || raw < 1) {
+    return { error: fail(400, `${label}은 1 이상의 정수여야 합니다.`) };
+  }
+  return { value: raw };
+}
+
+export type WorkbookLinkPatch = {
+  workbook_id: number | null;
+  page_from: number | null;
+  page_to: number | null;
+};
+
+/**
+ * body의 workbookId/pageFrom/pageTo(QA 행286-B, 계획↔문제집 연결) 셋을 형태만
+ * 검증한다 — 소유자·total_pages 확인은 DB 조회가 필요해 handler가 별도로 한다.
+ *
+ * 세 필드가 전부 없으면 { value: undefined }(이번 요청에서 손대지 않음). workbookId:
+ * null이면 연결 해제(페이지도 함께 비운다) — pageFrom/pageTo가 같이 오면 모순이라
+ * 거부한다. workbookId가 있으면 pageFrom·pageTo는 "둘 다 없음"(페이지 없이 연결만)
+ * 또는 "둘 다 있고 pageFrom<=pageTo"만 허용한다("셋 다 함께 오거나 workbookId만
+ * 허용", 임무 지시 §2).
+ */
+export function validateWorkbookLinkFields(body: Record<string, unknown>): {
+  error?: ReturnType<typeof fail>;
+  value?: WorkbookLinkPatch;
+} {
+  const hasWorkbookId = body.workbookId !== undefined;
+  const hasPageFrom = body.pageFrom !== undefined;
+  const hasPageTo = body.pageTo !== undefined;
+
+  if (!hasWorkbookId && !hasPageFrom && !hasPageTo) {
+    return {};
+  }
+
+  if (hasWorkbookId && body.workbookId === null) {
+    if (hasPageFrom || hasPageTo) {
+      return {
+        error: fail(
+          400,
+          "문제집 연결을 해제할 때는 페이지 범위를 함께 보낼 수 없습니다.",
+        ),
+      };
+    }
+    return { value: { workbook_id: null, page_from: null, page_to: null } };
+  }
+
+  if (!hasWorkbookId) {
+    return {
+      error: fail(400, "페이지 범위는 문제집을 선택해야 입력할 수 있습니다."),
+    };
+  }
+
+  const workbookId = validateWorkbookId(body.workbookId);
+  if (workbookId.error) return workbookId;
+
+  if (!hasPageFrom && !hasPageTo) {
+    return {
+      value: { workbook_id: workbookId.value, page_from: null, page_to: null },
+    };
+  }
+  if (!hasPageFrom || !hasPageTo) {
+    return {
+      error: fail(400, "페이지 범위는 시작과 끝을 함께 입력해야 합니다."),
+    };
+  }
+
+  const pageFrom = validatePageNumber(body.pageFrom, "시작 페이지");
+  if (pageFrom.error) return pageFrom;
+  const pageTo = validatePageNumber(body.pageTo, "끝 페이지");
+  if (pageTo.error) return pageTo;
+  if (pageFrom.value > pageTo.value) {
+    return { error: fail(400, "시작 페이지는 끝 페이지보다 클 수 없습니다.") };
+  }
+
+  return {
+    value: {
+      workbook_id: workbookId.value,
+      page_from: pageFrom.value,
+      page_to: pageTo.value,
+    },
+  };
+}
+
+/**
+ * 문제집 연결 과제는 완전히 단일 날짜(선택한 그 날) 1건만 만들 수 있다(임무 지시
+ * 정정, 2026-09-02) — "이번 주만"의 7일 복제도 포함해서 막는다. 페이지 범위는
+ * 그 문제집의 그 구간을 가리키는데, 같은 구간을 여러 날짜에 복제하면 "완료" 체크가
+ * 여러 번 눌려도 진도는 max()로 한 번만 반영돼(nextWorkbookPageAfterTaskDone) 나머지
+ * 요일 체크가 눈속임이 된다 — 그래서 애초에 문제집 연결 과제는 1일 1행으로만
+ * 허용한다.
+ *
+ * repeatSchedule는 클라이언트가 "이번 주만"/"매주 반복"처럼 여러 plan_date로
+ * 펼쳐 POST할 때만 실어 보내는 자기신고 신호다(단건 POST 자체엔 반복 개념이
+ * 없다, 파일 헤더 §"일정" 주석) — AddTaskModal이 문제집 연결 시 일정 select
+ * 자체를 비활성해 이미 이 조합을 못 고르게 막지만, API를 직접 두드리는 우회를
+ * 막는 방어선을 한 겹 더 둔다.
+ */
+export function validateRepeatScheduleWithWorkbook(
+  body: Record<string, unknown>,
+  link: WorkbookLinkPatch | undefined,
+): ReturnType<typeof fail> | null {
+  if (body.repeatSchedule === true && link?.workbook_id != null) {
+    return fail(
+      400,
+      "문제집 연결 과제는 선택한 날짜 하루에만 추가할 수 있습니다.",
+    );
+  }
+  return null;
+}
+
 const PLAN_TASK_STATUSES = new Set(["pending", "done", "fail"]);
 
 /** @returns {{error?:object, value?:"pending"|"done"|"fail"}} */
@@ -143,6 +266,38 @@ function validateStatus(raw: unknown) {
     };
   }
   return { value: raw as "pending" | "done" | "fail" };
+}
+
+/**
+ * validateWorkbookLinkFields가 돌려준 형태 검증 통과 값을 실제로 DB에 대고
+ * 확인한다: workbook_id가 있으면 같은 profile 소유인지(fetchWorkbookOwned가
+ * 소유자 스코프까지 겸함), page_to가 있으면 그 문제집의 total_pages를 넘지
+ * 않는지. workbook_id가 null(연결 해제)이거나 undefined(손대지 않음)면 그냥
+ * 통과시킨다 — DB에 물어볼 게 없다.
+ */
+async function verifyWorkbookLink(
+  supabaseAdmin: ReturnType<typeof narrowGoalSession>["supabaseAdmin"],
+  profileId: string,
+  link: WorkbookLinkPatch | undefined,
+) {
+  if (!link || link.workbook_id == null) return null;
+
+  const workbook = await fetchWorkbookOwned(
+    supabaseAdmin,
+    link.workbook_id,
+    profileId,
+  );
+  if (!workbook) return fail(400, "문제집을 찾을 수 없습니다.");
+
+  const totalPages = num(workbook.total_pages) ?? 0;
+  if (link.page_to != null && link.page_to > totalPages) {
+    return fail(
+      400,
+      `끝 페이지는 전체 페이지(${totalPages})를 넘을 수 없습니다.`,
+    );
+  }
+
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -216,12 +371,38 @@ async function handlePost(
   if (duration.error)
     return res.status(duration.error.status).json(duration.error.body);
 
+  const link = validateWorkbookLinkFields(body);
+  if (link.error) return res.status(link.error.status).json(link.error.body);
+
+  const repeatScheduleError = validateRepeatScheduleWithWorkbook(
+    body,
+    link.value,
+  );
+  if (repeatScheduleError)
+    return res
+      .status(repeatScheduleError.status)
+      .json(repeatScheduleError.body);
+
+  const linkError = await verifyWorkbookLink(
+    supabaseAdmin,
+    profileId,
+    link.value,
+  );
+  if (linkError) return res.status(linkError.status).json(linkError.body);
+
   const row = await insertPlanTask(supabaseAdmin, {
     profile_id: profileId,
     plan_date: planDate.value,
     title: title.value,
     subject: subject.value,
     duration_minutes: duration.value,
+    ...(link.value
+      ? {
+          workbook_id: link.value.workbook_id,
+          page_from: link.value.page_from,
+          page_to: link.value.page_to,
+        }
+      : {}),
   });
 
   return res.status(200).json({ ok: true, task: buildPlanTaskPayload(row) });
@@ -252,6 +433,9 @@ async function handlePut(
     plan_date?: string;
     status?: "pending" | "done" | "fail";
     done?: boolean;
+    workbook_id?: number | null;
+    page_from?: number | null;
+    page_to?: number | null;
   } = {};
 
   if (body.title !== undefined) {
@@ -294,12 +478,61 @@ async function handlePut(
     patch.done = status.value === "done";
   }
 
+  const link = validateWorkbookLinkFields(body);
+  if (link.error) return res.status(link.error.status).json(link.error.body);
+
+  const linkError = await verifyWorkbookLink(
+    supabaseAdmin,
+    profileId,
+    link.value,
+  );
+  if (linkError) return res.status(linkError.status).json(linkError.body);
+
+  if (link.value) {
+    patch.workbook_id = link.value.workbook_id;
+    patch.page_from = link.value.page_from;
+    patch.page_to = link.value.page_to;
+  }
+
   if (Object.keys(patch).length === 0) {
     return res.status(400).json({ detail: "수정할 필드가 없습니다." });
   }
 
   const row = await updatePlanTask(supabaseAdmin, profileId, id.value, patch);
   if (!row) return res.status(404).json({ detail: "과제를 찾을 수 없습니다." });
+
+  // 문제집 진도 전진(QA 행286-B) — 이번 PUT이 status를 done으로 "전환"했고(과거
+  // 상태와 무관하게 이번 요청이 done을 보냈을 때만), 갱신된 행에 workbook_id·page_to가
+  // 함께 있으면 그 문제집의 current_page를 max(기존, page_to)로 전진시킨다(상한
+  // total_pages). done→pending으로 되돌릴 때는 이 분기를 타지 않는다 — 진도를
+  // 자동으로 되감지 않는다(다른 과제가 이미 더 앞선 진도를 만들어 놨을 수 있어서,
+  // 임무 지시 §2 "롤백 없음").
+  if (
+    patch.status === "done" &&
+    row.workbook_id != null &&
+    row.page_to != null
+  ) {
+    const workbook = await fetchWorkbookOwned(
+      supabaseAdmin,
+      row.workbook_id,
+      profileId,
+    );
+    if (workbook) {
+      const totalPages = num(workbook.total_pages) ?? 0;
+      const currentPage = num(workbook.current_page) ?? 0;
+      const nextCurrentPage = nextWorkbookPageAfterTaskDone(
+        currentPage,
+        num(row.page_to) ?? 0,
+        totalPages,
+      );
+      if (nextCurrentPage !== currentPage) {
+        await updateWorkbookOwned(supabaseAdmin, row.workbook_id, profileId, {
+          current_page: nextCurrentPage,
+          status: computeWorkbookStatus(nextCurrentPage, totalPages),
+        });
+      }
+    }
+  }
 
   return res.status(200).json({ ok: true, task: buildPlanTaskPayload(row) });
 }

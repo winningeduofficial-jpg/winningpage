@@ -9,7 +9,7 @@
 import { QueryClient, queryOptions } from "@tanstack/react-query";
 import { apiFetch, getAuthHeader } from "./apiFetch";
 import { fetchEntitlement } from "./entitlement";
-import { fetchGoalStudent } from "./goalApi";
+import { fetchGoalStudent, fetchTodayGoalRecord } from "./goalApi";
 import { supabase } from "./supabase";
 
 export const queryClient = new QueryClient({
@@ -120,6 +120,26 @@ export function goalStudentQueryOptions(userId: string | null) {
     staleTime: GOAL_STUDENT_STALE_MS,
     enabled: !!userId,
     retry: 0,
+  });
+}
+
+// GET /api/goal/daily-record — QA3 후속(사이드바 "오늘의 공부 기록" 미기록
+// 뱃지 실배선). Dashboard.tsx("오늘의 목표" 카드)·DailyRecord.tsx(#26 페이지
+// 프리필)·GoalSidebar.tsx(뱃지)가 같은 응답을 공유한다 — goalStudentQueryOptions와
+// 동일한 이유로 캐시 하나를 셋이 나눠 쓴다(각자 별도 조회로 요청 3배가 되던 것을
+// 막는다). fetchTodayGoalRecord는 실패도 discriminated union(kind)으로 돌려주는
+// 관례를 따르므로(goalApi.ts 헤더 주석) goalStudentQueryOptions처럼 예외로
+// 승격하지 않는다 — kind:'error'도 그대로 성공 데이터로 캐싱해 각 소비처가 자기
+// 화면 안에서 기존 kind 분기를 그대로 쓴다(이 함수 도입 전 각자의 로컬
+// useState+useEffect가 하던 분기와 동일).
+const GOAL_DAILY_RECORD_STALE_MS = 15_000;
+
+export function goalDailyRecordQueryOptions(userId: string | null) {
+  return queryOptions({
+    queryKey: ["goal", "daily-record", userId] as const,
+    queryFn: () => fetchTodayGoalRecord(),
+    staleTime: GOAL_DAILY_RECORD_STALE_MS,
+    enabled: !!userId,
   });
 }
 

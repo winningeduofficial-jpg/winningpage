@@ -94,6 +94,20 @@ export function formatTodayDateMeta(now = new Date()) {
 }
 
 /**
+ * QA3 행305 — 12시간 쿨다운 해제 시각 라벨("HH:mm", KST). unlocksAt이 오늘을
+ * 넘어가도(예: 22시 제출 → 익일 10시 해제) 날짜는 표시하지 않는다 — "다시 기록
+ * 가능: HH:mm" 문구가 시각만 요구한다(설계 문서 §5(c) B안).
+ */
+export function formatCooldownUnlockLabel(unlocksAt: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul",
+  }).format(new Date(unlocksAt));
+}
+
+/**
  * AddTaskModal "예상 소요 시간" 셀렉트 라벨(TASK_DURATIONS,
  * src/components/goal/goalFormOptions.ts — "30분"·"1시간"·"1시간 30분" 등) → 분.
  * "N시간"·"M분" 부분 문자열을 각각 찾아 더하는 방식이라 6개 옵션 전부와

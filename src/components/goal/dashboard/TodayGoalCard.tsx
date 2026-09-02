@@ -1,16 +1,24 @@
 import type { ChangeEvent } from "react";
 import { useEffect, useState } from "react";
+import RecordCooldownSummary from "@/components/goal/dashboard/RecordCooldownSummary";
 import GoalCard from "@/components/goal/GoalCard";
 import GoalProgressBar from "@/components/goal/GoalProgressBar";
-import { submitDailyRecord } from "@/lib/goalApi";
+import {
+  type GoalRecordCooldown,
+  type GoalRecordSummary,
+  type GoalTomorrowTargets,
+  submitDailyRecord,
+} from "@/lib/goalApi";
+import { formatCooldownUnlockLabel } from "@/lib/goalPlanUtils";
 
 // 대시보드 "오늘의 목표" 카드 — part-07 #20(카드 배경 정본, 1076×409 = 67.25rem×25.5625rem).
 // #21의 "카드 배경 1076×12 축소"는 시안 편집 사고로 판단해 채택하지 않는다(작업 지시 §확정사항 6).
 //
-// hasRecord는 studyHours로 파생한다: 0이면 #12(미기록, 버튼 "기록 저장"), 그 외면 #20(기록됨,
-// 버튼 "기록 수정"). 게이지 채움 폭은 GoalProgressBar가 value/max로 계산한다(px 하드코딩 금지).
-// hasRecord는 서버가 확인해 준 data.studyHours(부모 Dashboard가 GET /api/goal/daily-record로
-// 채운 값) 기준이다 — 아직 저장하지 않은 입력창 값(pendingHours)으로 미리 전환하지 않는다.
+// 게이지 채움 폭은 GoalProgressBar가 value/max로 계산한다(px 하드코딩 금지).
+//
+// QA3 행305 — 버튼 문구 "기록 수정"은 제거했다(12시간 쿨다운 도입으로 "수정" 개념
+// 자체가 없다 — 잠금이 아니면 항상 "기록 저장", 잠금 중이면 폼 자체가 사라지고
+// 이 카드도 RecordCooldownSummary 요약 패널로 바뀐다).
 type GoalRateRowProps = {
   label: string;
   value: number;
@@ -79,6 +87,11 @@ type TodayGoalData = {
   lowerGoalRate: number;
   upperTargetHours: number;
   lowerTargetHours: number;
+  // QA3 행305 — 12시간 쿨다운 배선. cooldown이 null이면 잠금 없음(한 번도
+  // 제출한 적 없는 학생 포함).
+  cooldown: GoalRecordCooldown | null;
+  summary: GoalRecordSummary | null;
+  tomorrowTargets: GoalTomorrowTargets;
 };
 
 type TodayGoalCardProps = {
@@ -90,8 +103,6 @@ type TodayGoalCardProps = {
 };
 
 export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
-  const hasRecord = data.studyHours > 0;
-
   // 아직 저장하지 않은 입력값. 서버 확정값(data.studyHours)이 바뀌면(최초 로드·저장 성공 후
   // 리로드) 그 값으로 다시 맞춘다 — 사용자가 입력 중인데 리로드가 덮어쓰는 경우는 저장 자체가
   // 그 값으로 완료된 직후뿐이라 충돌하지 않는다.
@@ -132,7 +143,20 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
       return;
     }
 
-    const messages = {
+    // QA3 행305 — 경쟁 상태 방어(다른 탭·페이지에서 먼저 제출해 쿨다운이
+    // 걸린 경우). onSaved()로 부모(Dashboard)를 재조회시켜 data.cooldown이
+    // 최신화되면 이 카드는 자연히 요약 패널로 전환된다.
+    if (result.kind === "cooldown") {
+      onSaved?.();
+      setError(
+        result.unlocksAt
+          ? `이미 오늘 기록을 제출했어요. 다시 기록 가능: ${formatCooldownUnlockLabel(result.unlocksAt)}`
+          : "이미 오늘 기록을 제출했어요.",
+      );
+      return;
+    }
+
+    const messages: Record<string, string> = {
       "no-study-time": "순공 시간은 0보다 커야 해요.",
       "no-session": "로그인이 필요합니다.",
       "not-allowed": "이용권이 필요한 서비스입니다.",
@@ -157,71 +181,85 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
         </p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 rounded-xl bg-surface-04 px-7.5 py-6">
-        <span className="shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
-          오늘 순공 시간
-        </span>
-        <div className="flex h-12.5 w-48 shrink-0 items-center justify-end gap-1 rounded-lg border border-line bg-white px-4">
-          <input
-            type="number"
-            inputMode="decimal"
-            step="0.1"
-            min="0"
-            max="24"
-            value={pendingHours}
-            onChange={handleHoursChange}
-            aria-label="오늘 순공 시간(시간)"
-            className="w-16 border-none bg-transparent text-right text-[1.25rem] font-bold leading-[1.2] text-ink-strong focus:outline-hidden"
-          />
-          <span className="text-[0.875rem] leading-[1.4] text-ink-sub">
-            시간
+      {data.cooldown?.active ? (
+        // QA3 행305 — 12시간 쿨다운 중에는 입력 UI 대신 요약 패널만 보여준다
+        // (DailyRecord.tsx와 같은 컴포넌트·같은 규칙 공유).
+        <RecordCooldownSummary
+          cooldown={data.cooldown}
+          summary={data.summary}
+          tomorrowTargets={data.tomorrowTargets}
+        />
+      ) : (
+        <div className="flex flex-wrap items-center gap-4 rounded-xl bg-surface-04 px-7.5 py-6">
+          <span className="shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+            오늘 순공 시간
           </span>
+          <div className="flex h-12.5 w-48 shrink-0 items-center justify-end gap-1 rounded-lg border border-line bg-white px-4">
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              min="0"
+              max="24"
+              value={pendingHours}
+              onChange={handleHoursChange}
+              aria-label="오늘 순공 시간(시간)"
+              className="w-16 border-none bg-transparent text-right text-[1.25rem] font-bold leading-[1.2] text-ink-strong focus:outline-hidden"
+            />
+            <span className="text-[0.875rem] leading-[1.4] text-ink-sub">
+              시간
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {data.quickAddOptions.map((hours) => (
+              <button
+                key={hours}
+                type="button"
+                onClick={() => handleQuickAdd(hours)}
+                className="h-8 shrink-0 rounded-full border border-line px-3 text-[0.8125rem] leading-[1.2] text-ink transition-colors hover:border-ink-strong"
+              >
+                {quickAddLabel(hours)}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            disabled={submitting || pendingHours <= 0}
+            onClick={handleSubmit}
+            className="ml-auto h-12.5 shrink-0 rounded-lg bg-primary px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? "저장 중…" : "기록 저장"}
+          </button>
+          {error && (
+            <p className="w-full text-[0.8125rem] leading-[1.4] text-red-600">
+              {error}
+            </p>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {data.quickAddOptions.map((hours) => (
-            <button
-              key={hours}
-              type="button"
-              onClick={() => handleQuickAdd(hours)}
-              className="h-8 shrink-0 rounded-full border border-line px-3 text-[0.8125rem] leading-[1.2] text-ink transition-colors hover:border-ink-strong"
-            >
-              {quickAddLabel(hours)}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          disabled={submitting || pendingHours <= 0}
-          onClick={handleSubmit}
-          className="ml-auto h-12.5 shrink-0 rounded-lg bg-primary px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {submitting ? "저장 중…" : hasRecord ? "기록 수정" : "기록 저장"}
-        </button>
-        {error && (
-          <p className="w-full text-[0.8125rem] leading-[1.4] text-red-600">
-            {error}
-          </p>
-        )}
-      </div>
+      )}
 
-      <div className="flex flex-col gap-4">
-        <GoalRateRow
-          label="이상 목표 학습 시간"
-          value={data.upperGoalRate}
-          dotClassName="bg-[#5AA6F0]"
-          fillClassName="bg-[#CCE4F7]"
-          achievedHours={data.studyHours}
-          targetHours={data.upperTargetHours}
-        />
-        <GoalRateRow
-          label="최소 목표 학습 시간"
-          value={data.lowerGoalRate}
-          dotClassName="bg-[#6FC98A]"
-          fillClassName="bg-[#ABDFBA]"
-          achievedHours={data.studyHours}
-          targetHours={data.lowerTargetHours}
-        />
-      </div>
+      {/* QA3 행305 — 잠금 중에는 RecordCooldownSummary가 이미 이상/최소 달성률을
+          보여주므로 아래 행을 중복 렌더하지 않는다. */}
+      {!data.cooldown?.active && (
+        <div className="flex flex-col gap-4">
+          <GoalRateRow
+            label="이상 목표 학습 시간"
+            value={data.upperGoalRate}
+            dotClassName="bg-[#5AA6F0]"
+            fillClassName="bg-[#CCE4F7]"
+            achievedHours={data.studyHours}
+            targetHours={data.upperTargetHours}
+          />
+          <GoalRateRow
+            label="최소 목표 학습 시간"
+            value={data.lowerGoalRate}
+            dotClassName="bg-[#6FC98A]"
+            fillClassName="bg-[#ABDFBA]"
+            achievedHours={data.studyHours}
+            targetHours={data.lowerTargetHours}
+          />
+        </div>
+      )}
     </GoalCard>
   );
 }

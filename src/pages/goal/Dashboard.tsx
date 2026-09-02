@@ -29,29 +29,36 @@ import {
   formatScheduleMeta,
 } from "@/lib/goal/scheduleDday";
 import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
+import type { FetchTodayGoalRecordResult } from "@/lib/goalApi";
 import {
+  fetchGoalAdvice,
   fetchGoalRanking,
   fetchGoalSchedules,
   fetchGoalTimer,
-  fetchTodayGoalRecord,
 } from "@/lib/goalApi";
 import { formatTodayDateLabel } from "@/lib/goalPlanUtils";
-import { goalStudentQueryOptions } from "@/lib/queryClient";
+import {
+  goalDailyRecordQueryOptions,
+  goalStudentQueryOptions,
+  queryClient,
+} from "@/lib/queryClient";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 // QA 행303-1 — 저장 완료 배너 자동 소멸 시간. DailyRecord.tsx의
 // HIGHLIGHT_AUTO_DISMISS_MS(2초)보다 길게 둔다 — 이동 직후 읽을 시간이 필요하다.
 const SAVED_RECORD_BANNER_MS = 4000;
 
-// AI 조언 생성 로직은 이식 대상이 아니다(docs/figma-goal/calc-port-status.md §9.2) —
-// 대신 서비스기획서 §3.16 규칙 기반 3요소를 조립한다: ① 확률 요약(웰컴 카드 body) ②
-// 오늘의 조언(웰컴 카드 headline, buildTodayHeadline) ③ 내일 계획(TomorrowPlanCard,
-// buildTomorrowPlan). "AI 입시 분석 조언" 뱃지 문구는 UI 명칭으로 유지하되 실제로는
-// AI 생성이 아니다 — 학생명은 넣지 않는다(사이드바가 이미 표기).
-//
-// 컴플라이언스(고객사 확정): "반드시/100%/보장" 같은 확정 단정, "늦었다/돌이킬 수
-// 없다" 같은 공포 소구, "의지가 약하다" 같은 낙인 문구를 절대 쓰지 않는다 — 아래
-// 문구들은 전부 중립·격려 톤으로만 작성한다.
+// QA 행295·306 — AI 조언(GET /api/goal/advice, api/_lib/goalAdvice.ts)이 실제로 배선됐다
+// (이전 주석 "이식 대상이 아니다"는 규칙 기반 3요소로 대체하기로 한 결정이었으나
+// 2026-09-02 팀장 지시로 번복됐다 — qa3-held-high-design.md §6 결정⑥). 웰컴 카드
+// headline은 여전히 규칙 기반(buildTodayHeadline)이 기본값이고, intake 조언이 있을 때만
+// 그 probabilitySummary로 교체한다(아래 advice 조립부 참고). AdviceCard/TomorrowPlanCard
+// 본문은 advice.sections/majorTips를 그대로 그린다 — "AI 입시 분석 조언" 뱃지는
+// DashboardPageHeader의 adviceType prop으로 origin==='ai'일 때만 뜬다(원본 실제 AI 생성
+// 여부와 UI 뱃지가 이제 일치한다). 컴플라이언스 필터(반드시/100%/보장/낙인 문구 금지)는
+// 서버(api/_lib/goalAdvice.ts postprocessAdviceText)가 적용한다 — 이 파일은 규칙 기반
+// 폴백(buildTodayHeadline/buildTomorrowPlan)에서 학생명만 넣지 않으면 된다(사이드바가
+// 이미 표기).
 
 /** 소수 시간을 "N시간 M분"/"N시간"/"M분"으로. 0 이하는 호출부가 걸러야 한다. */
 function formatHoursLabel(hours: number): string {
@@ -90,22 +97,6 @@ export function buildTodayHeadline(
     return `오늘 달성률 ${rate}% (목표 대비) · 오늘 목표를 지켰어요! 이 페이스를 이어가 봐요.`;
   }
   return `오늘 달성률 ${rate}% (목표 대비) · 오늘 목표까지 ${formatHoursLabel(remaining)} 남았어요.`;
-}
-
-/**
- * 웰컴 카드 body — 확률 요약(§3.16 ①). 정시 컷 미확보(jungsiAvailable=false)면
- * 대시보드 레일과 같은 규약으로 "미산출"을 쓴다.
- */
-function buildProbabilitySummary(
-  targetUniversities: ReturnType<typeof mapTargetUniversities>,
-): string {
-  const { upper, lower } = targetUniversities;
-  const jeongsiLabel = (block: typeof upper) =>
-    block.jungsiAvailable ? `${block.jeongsiRate}%` : "미산출";
-  return (
-    `이상 ${upper.university} 수시 ${upper.susiRate}%·정시 ${jeongsiLabel(upper)}` +
-    ` / 최소 ${lower.university} 수시 ${lower.susiRate}%·정시 ${jeongsiLabel(lower)}`
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -158,9 +149,13 @@ type GoalStudent = {
   }>;
 };
 
-type DailyRecordResult =
-  | { kind: "success"; record: { studyHours?: number } | null }
-  | { kind: "no-session" | "not-allowed" | "not-active" | "error" };
+// QA3 행305 — cooldown/summary/tomorrowTargets는 GET /api/goal/daily-record가
+// 함께 내려주는 12시간 쿨다운 배선. TodayGoalCard도 이 페이지가 넘겨주는
+// mapTodayGoal() 결과로만 잠금 상태를 안다(자체 재조회 없음). 후속(사이드바 뱃지
+// 실배선) — goalApi.ts의 FetchTodayGoalRecordResult를 그대로 쓴다(로컬 사본을
+// 따로 두지 않는다 — GoalSidebar.tsx도 같은 타입을 공유하는 goalDailyRecordQueryOptions
+// 캐시를 구독하므로 shape이 어긋나면 즉시 타입 에러로 드러난다).
+type DailyRecordResult = FetchTodayGoalRecordResult;
 
 type RankingResult =
   | {
@@ -216,11 +211,11 @@ function resolveDaySchedule(
  */
 function mapTodayGoal(
   daySchedule: { ideal: number; min: number },
-  dailyRecordResult: DailyRecordResult | null,
+  dailyRecordResult: DailyRecordResult | null | undefined,
 ) {
-  const record =
-    dailyRecordResult?.kind === "success" ? dailyRecordResult.record : null;
-  const studyHours = record?.studyHours || 0;
+  const success =
+    dailyRecordResult?.kind === "success" ? dailyRecordResult : null;
+  const studyHours = success?.record?.studyHours || 0;
 
   const rateOf = (targetHours: number) =>
     targetHours > 0
@@ -240,6 +235,11 @@ function mapTodayGoal(
     // buildStudentPayload가 weeklySchedule로 내려준다) 그대로 넘긴다 — 새로 계산하지 않는다.
     upperTargetHours: daySchedule.ideal,
     lowerTargetHours: daySchedule.min,
+    // QA3 행305 — 12시간 쿨다운 배선. success가 아니면(로딩 중·에러) 잠금 없는
+    // 것으로 취급한다 — 이 상태에서 카드는 어차피 studyHours=0 빈 상태다.
+    cooldown: success?.cooldown ?? null,
+    summary: success?.summary ?? null,
+    tomorrowTargets: success?.tomorrowTargets ?? { idealHours: 0, minHours: 0 },
   };
 }
 
@@ -306,9 +306,10 @@ function mapMockExam(student: GoalStudent) {
     // 키 자체를 생략한다(동작은 이전과 동일).
     metricLabel: "현재 종합 백분위",
     metricValue: currentMogo != null ? currentMogo : "기록 없음",
-    // AI 조언 생성 로직은 이식 대상이 아니다(docs/figma-goal/calc-port-status.md §9.2,
-    // AdviceCard와 동일 사유) — 실데이터인 척 숫자를 만들어 넣지 않고 준비 중 문구로 둔다.
-    advice: "학습 조언은 준비 중입니다.",
+    // QA 행295·306 — 과목별(모의고사 전용) 조언 데이터 소스가 없다(GET /api/goal/advice는
+    // 오늘의 조언/내일 계획/학과 팁만 만든다, AdviceCard 소유). 실데이터인 척 만들지 않고
+    // advice 키 자체를 생략한다 — MockExamCard가 이 필드가 없으면 "학습 조언" 블록을
+    // 렌더하지 않는다(no-fallback-constants, dday 키 생략과 동일 패턴).
   };
 }
 
@@ -362,7 +363,7 @@ function mapNaesin(student: GoalStudent) {
       convertedGrade != null
         ? `${convertedGrade.toFixed(2)} 등급 (9등급 환산)`
         : "기록 없음",
-    advice: "학습 조언은 준비 중입니다.",
+    // mapMockExam과 동일 사유 — 과목별 조언 데이터 소스가 없어 키를 생략한다.
   };
 }
 
@@ -400,6 +401,20 @@ export default function Dashboard() {
   const { userId } = useAuth();
   const { data: goalStudentData } = useQuery(goalStudentQueryOptions(userId));
   const result = (goalStudentData ?? null) as GoalStudentResult | null;
+
+  // QA 행295·306 — GET /api/goal/advice(오늘자 캐시, 두 소스). 생성(POST)은
+  // Onboarding.tsx/DailyRecord.tsx가 각자 성공 직후 fire-and-forget으로 호출한다 —
+  // 이 쿼리는 그 결과를 읽기만 한다. queryKey는 DailyRecord.tsx의
+  // invalidateQueries({queryKey:['goal','advice']})와 접두어가 일치해야 한다.
+  const { data: goalAdviceData } = useQuery({
+    queryKey: ["goal", "advice", userId] as const,
+    queryFn: async () => {
+      const r = await fetchGoalAdvice();
+      return r.kind === "success" ? r : null;
+    },
+    enabled: !!userId,
+    retry: 0,
+  });
 
   // QA 행303-1 — "오늘의 공부 기록" 저장 성공 시 DailyRecord.tsx가 navigate state로
   // 델타(dailyRecordSaved)를 넘긴다. 최초 마운트에서 한 번만 꺼내 배너로 보여주고,
@@ -442,11 +457,14 @@ export default function Dashboard() {
   // 필수 데이터가 아니라 조회 실패를 mock으로 되돌리지 않고 그냥 빈 상태로 보여준다.
   const [schedules, setSchedules] = useState<ScheduleItem[] | null>(null);
 
-  // GET /api/goal/daily-record — "오늘의 목표" 카드 전용(studyHours). null = 로딩 중.
-  // fetchGoalStudent()와 별도 상태로 둔다 — 하나가 실패해도 다른 하나는 정상 렌더돼야
-  // 한다(예: daily-record 네트워크 오류가 나도 목표대학·모의고사 카드는 그대로 보여야 함).
-  const [dailyRecordResult, setDailyRecordResult] =
-    useState<DailyRecordResult | null>(null);
+  // GET /api/goal/daily-record — "오늘의 목표" 카드 전용(studyHours) + 사이드바
+  // "미기록" 뱃지(GoalSidebar.tsx)가 공유하는 캐시(goalDailyRecordQueryOptions,
+  // 후속 실배선). data===undefined = 로딩 중. fetchGoalStudent()와 별도 캐시 키를
+  // 쓴다 — 하나가 실패해도 다른 하나는 정상 렌더돼야 한다(예: daily-record 네트워크
+  // 오류가 나도 목표대학·모의고사 카드는 그대로 보여야 함).
+  const { data: dailyRecordResult } = useQuery(
+    goalDailyRecordQueryOptions(userId),
+  );
 
   // 내일 계획 제시(TomorrowPlanCard) 과목 배분 비율 전용 — GET /api/goal/timer의
   // targets(goal_subject_targets). null = 로딩 중/미설정 둘 다(buildSubjectRatios가
@@ -455,20 +473,14 @@ export default function Dashboard() {
     { subject: string; targetHours: number }[] | null
   >(null);
 
+  // 저장 성공 시 카드·게이지·사이드바 뱃지를 함께 최신화한다 — 캐시를 하나로
+  // 공유하는 이유가 이 한 번의 invalidate로 셋 다 갱신되게 하기 위함이다
+  // (goalDailyRecordQueryOptions 주석 참고).
   const reloadDailyRecord = () => {
-    fetchTodayGoalRecord().then((r) =>
-      setDailyRecordResult(r as DailyRecordResult),
-    );
-  };
-  useEffect(() => {
-    let alive = true;
-    fetchTodayGoalRecord().then((r) => {
-      if (alive) setDailyRecordResult(r as DailyRecordResult);
+    queryClient.invalidateQueries({
+      queryKey: ["goal", "daily-record", userId],
     });
-    return () => {
-      alive = false;
-    };
-  }, []);
+  };
 
   useEffect(() => {
     let alive = true;
@@ -582,14 +594,25 @@ export default function Dashboard() {
     timerTargets,
   );
 
-  // 웰컴 카드(§3.16) — headline은 오늘의 조언(②), body는 확률 요약(①). badge는
-  // DashboardPageHeader가 adviceType prop으로 자체 렌더하므로 여기서는 만들지 않는다.
+  // QA 행295·306 — GET /api/goal/advice 결과(오늘자 캐시). daily가 있으면 daily를,
+  // 없으면 intake를 우선한다(그날 아직 기록을 저장하지 않았으면 온보딩 직후 조언이
+  // 가장 최신이다). 둘 다 없으면(로딩 중/아직 미생성) null — 카드가 스스로 빈 상태로
+  // 그린다.
+  const displayedAdvice =
+    goalAdviceData?.daily ?? goalAdviceData?.intake ?? null;
+
+  // 웰컴 카드 — headline은 기본 규칙 기반(buildTodayHeadline)이고, intake 조언이 오늘
+  // 이미 생성돼 있으면 그 probabilitySummary로 교체한다(팀장 지시, AI가 실제로 만든
+  // "최초 진단" 맥락 문장을 우선한다). badge는 DashboardPageHeader가 adviceType prop으로
+  // 자체 렌더한다 — origin이 'ai'일 때만 "AI 입시 분석 조언", 그 외(rule/로딩 중)는
+  // 기존 "일일 분석 조언" 변형을 그대로 쓴다(뱃지 문구 자체는 UI가 이미 갖고 있던 것).
   const advice = {
-    headline: buildTodayHeadline(
-      todayDaySchedule.ideal,
-      todayGoalData.studyHours,
-    ),
-    body: buildProbabilitySummary(targetUniversities),
+    headline:
+      goalAdviceData?.intake?.probabilitySummary ??
+      buildTodayHeadline(todayDaySchedule.ideal, todayGoalData.studyHours),
+    adviceType: (displayedAdvice?.origin === "ai" ? "ai" : "daily") as
+      | "ai"
+      | "daily",
   };
 
   return (
@@ -609,7 +632,7 @@ export default function Dashboard() {
         <div className="max-w-goal-dashboard">
           <div className="grid grid-cols-1 gap-x-10 gap-y-19.5 xl:grid-cols-[minmax(0,1fr)_23.25rem]">
             <DashboardPageHeader
-              adviceType="ai"
+              adviceType={advice.adviceType}
               dateLabel={formatTodayDateLabel()}
               headline={advice.headline}
               className="xl:col-start-1 xl:row-start-1"
@@ -638,15 +661,32 @@ export default function Dashboard() {
                 컬럼(위 xl:col-start-1)이 유동 폭을 받아도 두 카드가 함께 줄어들게 한다. */}
               <div className="flex gap-4">
                 <div className="min-w-0 flex-1">
-                  {/* AdviceCard: buildProbabilitySummary()의 확률 요약(§3.16 ①) — AI 생성이
-                    아니라 규칙 기반 조립이다. */}
-                  <AdviceCard data={advice} />
+                  {/* AdviceCard: GET /api/goal/advice의 오늘 섹션(sections[0])+majorTips만
+                    그린다(§QA 행295·306). "내일 계획 제시" 섹션은 TomorrowPlanCard 소유라
+                    여기서는 참조하지 않는다(2026-09-02 후속 지시 — 두 카드 텍스트 중복 제거).
+                    displayedAdvice가 null이거나 오늘 섹션이 아직 없으면(로딩 중/미생성)
+                    제목만 그린다. */}
+                  <AdviceCard
+                    data={
+                      displayedAdvice?.sections?.[0]
+                        ? {
+                            section: displayedAdvice.sections[0],
+                            majorTips: displayedAdvice.majorTips,
+                          }
+                        : null
+                    }
+                  />
                 </div>
                 <div className="min-w-0 flex-1">
-                  {/* TomorrowPlanCard: buildTomorrowPlan()의 과목별 시간 배분(§3.16 ③). 내일
-                    목표 시간이 0/미설정이면 빈 배열이라 위젯이 스스로 "준비 중" 빈 상태를
-                    그린다. */}
-                  <TomorrowPlanCard plan={tomorrowPlan} />
+                  {/* TomorrowPlanCard: buildTomorrowPlan()의 과목별 시간 배분(규칙 기반, §3.16
+                    ③, 그대로 유지) 위에 displayedAdvice의 "내일 계획 제시"/"다음 계획 제시"
+                    본문(sections[1])만 문장으로 덧붙인다(AdviceCard는 더 이상 이 섹션을
+                    그리지 않는다). 내일 목표 시간이 0/미설정이면 빈 배열이라 위젯이 스스로
+                    "준비 중" 빈 상태를 그린다. */}
+                  <TomorrowPlanCard
+                    plan={tomorrowPlan}
+                    narrative={displayedAdvice?.sections?.[1]?.body ?? null}
+                  />
                 </div>
               </div>
 
