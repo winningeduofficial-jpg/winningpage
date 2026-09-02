@@ -1,4 +1,4 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import RecordCooldownSummary from "@/components/goal/dashboard/RecordCooldownSummary";
@@ -14,6 +14,7 @@ import {
   STUDY_ITEM_OPTIONS,
 } from "@/components/goal/studyRecordOptions";
 import { getSubjectLabel } from "@/components/goal/subjectTokens";
+import { useAuth } from "@/context/AuthProvider";
 import type {
   GoalRecordCooldown,
   GoalRecordSummary,
@@ -29,6 +30,7 @@ import {
   formatCooldownUnlockLabel,
   formatTodayDateMeta,
 } from "@/lib/goalPlanUtils";
+import { goalDailyRecordQueryOptions } from "@/lib/queryClient";
 
 // 코드값 → 라벨(studyRecordOptions.js 옵션 그대로) / 라벨 → 코드값(GET 응답 프리필용, 서버는
 // api/goal/daily-record.js 가 한글 라벨로 저장하므로 역매핑이 필요하다).
@@ -52,6 +54,7 @@ const HIGHLIGHT_AUTO_DISMISS_MS = 2000;
 export default function DailyRecord() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { userId } = useAuth();
   const [condition, setCondition] = useState<string | null>(null);
   const [disturbances, setDisturbances] = useState<string[]>([]);
   const [studyItems, setStudyItems] = useState<string[]>([]);
@@ -107,45 +110,54 @@ export default function DailyRecord() {
     minHours: 0,
   });
 
+  // 후속(사이드바 "미기록" 뱃지 실배선) — Dashboard.tsx·GoalSidebar.tsx와 같은
+  // 캐시(goalDailyRecordQueryOptions)를 구독한다. 이 페이지에 진입하기 전 다른
+  // goal 화면에서 이미 조회됐다면(staleTime 15초 이내) 재요청 없이 캐시를 그대로
+  // 쓴다 — 예전엔 이 페이지가 항상 독립적으로 재요청했다.
+  const { data: dailyRecordResult } = useQuery(
+    goalDailyRecordQueryOptions(userId),
+  );
+
+  // 폼 프리필은 데이터가 "처음 도착했을 때" 딱 한 번만 적용한다(기존 마운트 1회
+  // 동작과 동일) — 그대로 data를 effect 의존성에 넣으면 저장 후 invalidate로
+  // 캐시가 갱신될 때마다(staleTime 만료·포커스 재조회 포함) 사용자가 편집 중인
+  // 입력값을 서버값으로 되돌려 버린다. appliedRef가 최초 1회만 통과시킨다.
+  const prefillAppliedRef = useRef(false);
   useEffect(() => {
-    let alive = true;
-    fetchTodayGoalRecord().then((result) => {
-      if (!alive) return;
+    if (!dailyRecordResult || prefillAppliedRef.current) return;
+    prefillAppliedRef.current = true;
 
-      if (result.kind !== "success") {
-        // 방어적 분기 — RequireGoalAccess가 이미 온보딩·이용권을 걸러 정상 경로에선
-        // 여기 도달하지 않는다(Dashboard.jsx의 동일 패턴 참고). 페이지는 빈 상태로 둔다.
-        if (result.kind !== "no-session") {
-          console.error("[DailyRecord] 오늘 기록 조회 실패:", result.kind);
-        }
-        return;
+    const result = dailyRecordResult;
+    if (result.kind !== "success") {
+      // 방어적 분기 — RequireGoalAccess가 이미 온보딩·이용권을 걸러 정상 경로에선
+      // 여기 도달하지 않는다(Dashboard.jsx의 동일 패턴 참고). 페이지는 빈 상태로 둔다.
+      if (result.kind !== "no-session") {
+        console.error("[DailyRecord] 오늘 기록 조회 실패:", result.kind);
       }
+      return;
+    }
 
-      setCooldown(result.cooldown);
-      setSummary(result.summary);
-      setTomorrowTargets(result.tomorrowTargets);
+    setCooldown(result.cooldown);
+    setSummary(result.summary);
+    setTomorrowTargets(result.tomorrowTargets);
 
-      const { record } = result;
-      if (!record) return;
+    const { record } = result;
+    if (!record) return;
 
-      setStudyHours(record.studyHours || 0);
-      setCondition(record.bodyCondition || null);
-      setStudyItems(
-        (record.tasks || [])
-          .map((label: string) => TASK_CODE_BY_LABEL[label])
-          .filter((code): code is string => Boolean(code)),
-      );
-      setDisturbances(
-        (record.reasons || [])
-          .map((label: string) => REASON_CODE_BY_LABEL[label])
-          .filter((code): code is string => Boolean(code)),
-      );
-      setRetrospect(record.memo || "");
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
+    setStudyHours(record.studyHours || 0);
+    setCondition(record.bodyCondition || null);
+    setStudyItems(
+      (record.tasks || [])
+        .map((label: string) => TASK_CODE_BY_LABEL[label])
+        .filter((code): code is string => Boolean(code)),
+    );
+    setDisturbances(
+      (record.reasons || [])
+        .map((label: string) => REASON_CODE_BY_LABEL[label])
+        .filter((code): code is string => Boolean(code)),
+    );
+    setRetrospect(record.memo || "");
+  }, [dailyRecordResult]);
 
   // `없었음`은 다른 방해 요인과 상호배타 처리(part-09 §247 "추정").
   const toggleDisturbance = (value: string) => {
@@ -235,6 +247,12 @@ export default function DailyRecord() {
           .finally(() => {
             queryClient.invalidateQueries({ queryKey: ["goal", "advice"] });
           });
+        // 후속(사이드바 "미기록" 뱃지 실배선) — ['goal','daily-record'] 캐시도 함께
+        // 무효화한다. 이 페이지는 곧 언마운트되지만(아래 navigate), 목적지 대시보드가
+        // 이동 즉시 같은 캐시를 구독해 방금 저장한 기록을 stale 없이 바로 받는다.
+        queryClient.invalidateQueries({
+          queryKey: ["goal", "daily-record", userId],
+        });
         navigate("/app/goal", {
           state: {
             dailyRecordSaved: {

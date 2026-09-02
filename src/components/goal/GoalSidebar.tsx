@@ -11,12 +11,16 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthProvider";
 import { kstYMD } from "@/lib/goal/calc/index.js";
+import type { FetchTodayGoalRecordResult } from "@/lib/goalApi";
 import {
   fetchGoalSchedules,
   fetchGoalTimer,
   heartbeatGoalTimer,
 } from "@/lib/goalApi";
-import { goalStudentQueryOptions } from "@/lib/queryClient";
+import {
+  goalDailyRecordQueryOptions,
+  goalStudentQueryOptions,
+} from "@/lib/queryClient";
 import GoalSidebarContent from "./GoalSidebarContent";
 import { GOAL_NAV_GROUPS, GOAL_NAV_HEADER } from "./goalNavItems";
 
@@ -27,10 +31,27 @@ const TIMER_BADGE_POLL_MS = 45 * 1000;
 // 하트비트 간격 — 예전 Timer.jsx 로컬 상수와 같은 값(60초)을 그대로 옮겼다.
 const HEARTBEAT_INTERVAL_MS = 60 * 1000;
 
+/**
+ * QA3 행305 후속 — "오늘의 공부 기록" 미기록 뱃지 판정. 순수 함수로 분리해
+ * 단독 테스트한다(Dashboard.tsx buildTodayHeadline과 동일 관례). record.recordIndex가
+ * null이 아니면(실제 daily_records 행 존재 — 타이머 시간만으로 합성된 프리필은
+ * recordIndex:null이라 여기 해당 없다, api/goal/daily-record.ts mergeTimerIntoRecord
+ * 계약) 오늘 이미 기록을 남긴 것이다. cooldown.active도 같은 결론(제출하지 않으면
+ * 잠금 자체가 없다) — 자정을 갓 넘겨 오늘 행은 아직 없지만 어제 밤 제출로 잠금만
+ * 남아 있는 경우까지 "기록함"으로 잡는다.
+ */
+export function deriveDailyRecordDone(
+  result: FetchTodayGoalRecordResult | undefined,
+): boolean {
+  if (!result || result.kind !== "success") return false;
+  return Boolean(result.record?.recordIndex != null || result.cooldown?.active);
+}
+
 // 사이드바 뱃지 소스 — 중요일정 카운트(GET /api/goal/schedules, due_date 오늘 이후 행 수)와
-// 타이머 진행 여부(GET /api/goal/timer 45초 폴링)를 실데이터로 쓴다. dailyRecordDone은
-// 별도 UoW 소관이라 목업 고정값 유지. GoalAppLayout이 props 없이 셸로 마운트하므로
-// 이 컴포넌트가 직접 조회한다(StudyPlanRail 자체 조회 선례, 전역 상태 도입 없음).
+// 타이머 진행 여부(GET /api/goal/timer 45초 폴링), 오늘의 공부 기록 제출 여부
+// (dailyRecordDone, QA3 행305 후속 — goalDailyRecordQueryOptions 공유 캐시)를
+// 실데이터로 쓴다. GoalAppLayout이 props 없이 셸로 마운트하므로 이 컴포넌트가
+// 직접 조회한다(StudyPlanRail 자체 조회 선례, 전역 상태 도입 없음).
 export default function GoalSidebar() {
   const [timerRunning, setTimerRunning] = useState(false);
   // 하트비트 effect가 setInterval 콜백 안에서 읽을 최신값 — effect 자체는 마운트 시
@@ -49,6 +70,12 @@ export default function GoalSidebar() {
     goalStudentResult?.kind === "onboarded"
       ? goalStudentResult.student.profile
       : null;
+
+  // QA3 행305 후속 — "오늘의 공부 기록" 미기록 뱃지(판정 로직은 deriveDailyRecordDone).
+  const { data: dailyRecordResult } = useQuery(
+    goalDailyRecordQueryOptions(userId),
+  );
+  const dailyRecordDone = deriveDailyRecordDone(dailyRecordResult);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,7 +136,7 @@ export default function GoalSidebar() {
     };
   }, []);
 
-  const navBadgeData = { scheduleCount, dailyRecordDone: false, timerRunning };
+  const navBadgeData = { scheduleCount, dailyRecordDone, timerRunning };
 
   // 모바일(< md) 앱바 타이틀 — 현재 경로가 속한 내비 항목 라벨, 없으면 "목표관리" 폴백.
   // GOAL_NAV_HEADER("메인으로", to="/")는 모든 goal 경로의 접두어라 매칭 대상에서 뺀다.
