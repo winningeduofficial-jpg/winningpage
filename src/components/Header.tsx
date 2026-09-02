@@ -4,7 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router";
 import chevronIcon from "@/assets/header/chevron.svg";
 import { useAuth } from "@/context/AuthProvider";
-import { MEGA_COL_GAP, MEGA_COL_W, MEGA_GUARD } from "@/data/navigation";
+import {
+  MEGA_COL_GAP,
+  MEGA_COL_W,
+  MEGA_GUARD,
+  NAV_CELL_GAP,
+  NAV_CELL_W,
+  NAV_GUARD,
+} from "@/data/navigation";
 import { cleanText, isSameObject, useNavGroups } from "@/hooks/useNavGroups";
 import { queryClient } from "@/lib/queryClient";
 import { supabase } from "@/lib/supabase";
@@ -699,36 +706,23 @@ export default function Header() {
 
   return (
     <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white">
-      {/* (QA 행327 재작업) 로고·nav·계정 그룹을 max-w-[120rem] 밴드 하나를 공유하는 3존 flex
-          행(로고 shrink-0 / nav flex-1 / 계정 그룹 shrink-0)에 배치한다.
-          옛 구조는 로고+계정 그룹(max-w-[120rem] 밴드)과 nav(max-w-content 72.75rem 컨텐츠
-          영역, header를 containing block 삼아 absolute로 위에 겹쳐 그림)가 서로 다른 축으로
-          독립 중앙정렬됐고, nav 시작 위치는 뷰포트 폭만 보는 clamp() 가드 수식(NAV_GUARD)으로
-          보정했다. 그런데 계정 그룹 실폭은 로그인 상태·이름 길이에 따라 달라지는데
-          NAV_GUARD는 그 실폭을 전혀 모르는 수식이라, 좁은 데스크톱 구간(1440~1600px대,
-          관리자처럼 계정 그룹이 넓은 상태)에서 nav 마지막 항목과 계정 그룹이 실제로 겹쳤다
-          (Playwright로 재현: 1440px 폭·관리자 계정 그룹 기준 nav 우측 끝이 계정 그룹 좌측
-          안으로 약 84px 파고듦).
-          3존 flex는 계정 그룹이 실제로 차지한 폭만큼 브라우저가 자동으로 nav 존(flex-1) 폭을
-          줄여주므로 상태·이름 길이와 무관하게 항상 "남는 공간만" nav가 차지해 구조적으로
-          겹침이 불가능하다. nav 항목도 고정폭 셀(옛 NAV_CELL_W) 대신 텍스트 자연폭을 쓴다 —
-          고정 100px 셀은 실제 텍스트("서비스" 등)보다 넓어 불필요하게 공간을 더 요구했었다.
-          항목 사이 gap은 nav 존을 @container로 감싸 존 폭이 좁아지면 단계적으로 줄어들게
-          했다(gap은 flexbox가 자동으로 줄여주지 않는 유일한 값이라 컨테이너 쿼리로 직접
-          반응시켰다) — 0729 시안 gap 48px(3rem, gap-12)은 존이 넉넉한 구간(@[48rem]=768px
-          이상)에서만 적용되고, 더 좁으면 24px(gap-6)로 축소된다. nav에 min-w-0 +
-          overflow-hidden도 추가해, 있을 수 없는 극단값(예: 매우 긴 이름)에서도 겹침 대신
-          nav 끝쪽이 잘리는 쪽으로만 실패하게 안전장치를 뒀다.
-          메가 패널 컬럼(MEGA_GUARD/MEGA_COL_W 기반, 아래)은 이번 변경 대상이 아니다 — nav
-          항목이 고정폭에서 자연폭으로 바뀌어 메가 컬럼과의 좌측선 공유가 더 이상 항상
-          보장되진 않지만, 메가 패널은 호버로 뜨는 별도 레이어라 계정 그룹과 공간을 다투지
-          않아 QA 대상 겹침과는 무관하고 "러프 디자인 구현" 범위에서 허용했다.
-          (2026-09-03 사용자 결정 B안: nav·메가 컬럼 얼라인을 위 dev 정본 방식(텍스트 자연폭
-          + NAV_GUARD/MEGA_GUARD 좌측선 공유)으로 되돌렸다 — 신규 헤더 시안의 160px/10rem
-          고정폭+clamp 시도는 폐기, navigation.ts 상단 주석 참고. nav 타이포(16px, 열림
-          SemiBold #013262, 패널 열림 중 비활성 항목 Medium #525252)와 chevron·오픈
-          트리거·MY 컬럼 등 다른 신규 작업은 이 되돌리기와 무관하게 유지한다.) */}
-      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between gap-6 px-8 2xl:px-30">
+      {/* 좌표계 1(1920 밴드): 로고(좌측 끝) + 계정 그룹(우측 끝). 랜딩 마퀴 밴드(max-w-[120rem])와
+          동일 기준의 px-8 패딩으로 로고/계정 그룹을 뷰포트 1920 캡 좌우 끝에 고정한다.
+          nav는 이 flex 라인에 속하지 않는다(좌표계 2, 아래 별도 overlay).
+          (2026-09-03 사용자 결정 — QA 행327 커밋 0d3f8487이 이 좌표계 1(로고/계정 그룹)과
+          좌표계 2(nav, absolute overlay)를 하나의 3존 flex로 합쳤던 것을 되돌린다. 3존
+          flex는 nav를 "로고~계정 그룹 사이"에 중앙 정렬해 nav가 페이지(컨텐츠 영역) 중앙이
+          아니라 계정 그룹 상태에 따라 매번 다른 위치에 떠 보이는 문제가 있었다(1920 실측
+          nav 시작 x가 계정 그룹 상태에 따라 흔들리고 메가 컬럼 좌측선과도 어긋남) — 사용자가
+          "헤더 위치 자체가 이상하다"고 판단해 0d3f8487 이전 구조(로고/계정 그룹은 이 좌표계 1,
+          nav는 좌표계 2 absolute overlay, 각각 독립적으로 컨텐츠 중앙/NAV_GUARD 기준 정렬)로
+          복귀했다. 이 되돌리기로 nav-계정 그룹 겹침(QA 행327 원인)이 좁은 데스크톱 구간에서
+          다시 나타날 수 있다는 트레이드오프가 있다 — 계정 그룹이 가장 넓은 상태에서의 여유는
+          아래 nav 오버레이 주석에 계산값을 남긴다. chevron·오픈 트리거(MEGA_GENERIC_TRIGGER)·
+          MY 컬럼·회색존 28rem·프로모 카드 0.8 스케일·계정 버튼 스타일·햄버거 우측 배치·메가
+          컬럼 제목 행·nav 타이포(hover SemiBold #013262/패널 열림 중 비활성 Medium #525252)는
+          이 되돌리기와 무관하게 그대로 유지한다. */}
+      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between px-8 2xl:px-30">
         <Link
           to="/"
           className="flex shrink-0 items-center"
@@ -746,52 +740,6 @@ export default function Header() {
             className="h-11 w-auto object-contain"
           />
         </Link>
-
-        <nav
-          className="hidden min-w-0 flex-1 overflow-hidden @container desktop:block"
-          onMouseEnter={clearMegaCloseTimer}
-          onMouseLeave={scheduleMegaClose}
-        >
-          <div className="flex items-center justify-center gap-6 @[48rem]:gap-12">
-            {navGroups.map((group) => {
-              const hasDropdown =
-                Array.isArray(group.items) && group.items.length > 0;
-              const isPathActive = activePathTitle === group.title;
-              const isOpenHighlight = activeMega === group.title;
-
-              return (
-                <button
-                  key={group.title}
-                  type="button"
-                  aria-haspopup="true"
-                  aria-expanded={activeMega === group.title}
-                  aria-current={isPathActive ? "page" : undefined}
-                  onFocus={() => {
-                    clearMegaCloseTimer();
-                    hasDropdown && setActiveMega(group.title);
-                  }}
-                  onMouseEnter={() => hasDropdown && setActiveMega(group.title)}
-                  onClick={() => {
-                    clearMegaCloseTimer();
-                    hasDropdown &&
-                      setActiveMega((prev) =>
-                        prev === group.title ? null : group.title,
-                      );
-                  }}
-                  className={`shrink-0 cursor-default whitespace-nowrap py-4 text-base leading-[1.4] tracking-[-0.02em] transition ${
-                    isPathActive || isOpenHighlight
-                      ? "font-semibold text-primary"
-                      : isMegaPanelOpen
-                        ? "font-medium text-ink"
-                        : "font-medium text-ink-header"
-                  }`}
-                >
-                  {group.title}
-                </button>
-              );
-            })}
-          </div>
-        </nav>
 
         <div className="flex shrink-0 items-center gap-3">
           <button
@@ -811,6 +759,94 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {/* 좌표계 2(72.75rem 컨텐츠 영역): nav 5개. header가 position:fixed라 이 nav의 containing
+          block이 되므로 별도 wrapper 없이 absolute로 좌표계 1(로고/계정 그룹) 위에 겹쳐 그린다.
+          바깥 두 겹(overlay, mx-auto 컨테이너)은 pointer-events-none이라 로고/계정 그룹 클릭을
+          가리지 않고, 실제 nav 아이템을 감싸는 안쪽 div만 pointer-events-auto로 되살린다.
+          상태 불변 nav 그리드: nav 아이템은 로그인/비로그인 상태와 무관하게 항상
+          NAV_CELL_W(고정폭) + NAV_CELL_GAP(고정 간격)만 사용한다(과거 게스트 gap-5/로그인 gap-0
+          토글로 인해 상태별 x 좌표가 달라지던 문제 제거) — 좌표계가 계정 그룹과 완전히
+          분리돼 있어 이제는 이 원칙이 자연히 충족된다.
+          0729 시안: 셀 100px 내부 좌측 정렬(justify-start) — 메가 컬럼과 좌측선을 공유한다
+          (컬럼 정렬은 아래 메가 패널 컬럼 grid의 MEGA_GUARD/MEGA_COL_W 참고).
+          데스크톱 인라인 nav 전환 시점(desktop: 브레이크포인트)은 90rem(nav 5칸 692px 고정 폭 +
+          로고/계정 그룹 폭 기준 재산정, tailwind.config.js 주석 참고 — max-w-content와 더 이상
+          동일 값이 아니다).
+          겹침 재발 위험(2026-09-03, 계정 그룹 최대 폭 가정 — 학부모 로그인, 이름 5자 truncate
+          상한+"…"+"님"+" 학부모회원"(§6-6) + D-day 배지 + chevron + 로그아웃 버튼, CSS
+          박스모델 계산값 — 계정 그룹은 우측 정렬 shrink-0이라 nav 좌측 시작(NAV_GUARD)과는
+          무관하고, nav 우측 끝(NAV_GUARD marginLeft + 5칸 고정폭 43.25rem)이 계정 그룹 좌측
+          끝을 침범하는지만 본다. 텍스트 폭은 실측 폰트 렌더링이 아니라 CJK≈1em/글자 가정
+          추정치라 오차가 있다 — 정확한 값은 커밋 보고에 산출 스크립트와 함께 남긴다):
+            1440px: nav 우측 끝 x≈1034px, 계정 그룹 좌측 끝 추정 x≈1025px → 여유 ≈-10px
+              (추정상 근소하게 겹칠 수 있음 — 오차범위 내라 확정은 아니나 QA327이 고치려던
+              바로 그 좁은 구간이라 재발 가능성이 가장 높은 지점)
+            1512px: nav 우측 끝 x≈1034px, 계정 그룹 좌측 끝 추정 x≈1093px → 여유 ≈+59px
+            1920px: nav 우측 끝 x≈1102px, 계정 그룹 좌측 끝 추정 x≈1394px → 여유 ≈+292px
+          (1440px 구간은 겹침 위험이 남아 있다 — 완화 방안은 코드로 임의 적용하지 않고
+          커밋 보고에서 제안만 한다, 사용자 결정 대기.) */}
+      <nav className="pointer-events-none absolute inset-x-0 top-0 hidden h-16 desktop:block">
+        <div className="pointer-events-none mx-auto flex h-full w-full max-w-content items-center px-8">
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 메가메뉴 닫힘 타이머를 관리하는 데스크톱 편의 동작 — 실제 nav 링크는 클릭·키보드 모두로 접근 가능하다. */}
+          <div
+            className="pointer-events-auto flex items-center"
+            style={{ gap: NAV_CELL_GAP, marginLeft: NAV_GUARD }}
+            onMouseEnter={clearMegaCloseTimer}
+            onMouseLeave={scheduleMegaClose}
+          >
+            {navGroups.map((group) => {
+              const hasDropdown =
+                Array.isArray(group.items) && group.items.length > 0;
+              const isPathActive = activePathTitle === group.title;
+              const isOpenHighlight = activeMega === group.title;
+
+              return (
+                // biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 메가메뉴를 여는 데스크톱 편의 동작 — 실제 nav 링크는 클릭·키보드 모두로 접근 가능하다.
+                <div
+                  key={group.title}
+                  className="pointer-events-none relative flex shrink-0 items-center justify-start"
+                  style={{ width: NAV_CELL_W }}
+                  onMouseEnter={() => hasDropdown && setActiveMega(group.title)}
+                >
+                  {/* nav 아이템은 페이지 이동 없이 메가 패널 트리거 전용(사용자 확정) —
+                      Link 제거, hover(부모 onMouseEnter)·keyboard focus·클릭 토글로만 패널을 연다.
+                      hit 영역은 셀(NAV_CELL_W) 전폭이 아니라 버튼 콘텐츠 폭만(부모 justify-start로
+                      셀 좌측에 고정, 메가 컬럼과 동일 좌측선 공유) — 셀의 나머지 빈 공간(이 div)은
+                      pointer-events-none으로 통과시켜, 셀이 우측 계정 그룹(배지 등)과 겹치는
+                      뷰포트 구간에서도 nav가 그 영역의 hover/클릭을 가로채지 않게 한다. */}
+                  <button
+                    type="button"
+                    aria-haspopup="true"
+                    aria-expanded={activeMega === group.title}
+                    aria-current={isPathActive ? "page" : undefined}
+                    onFocus={() => {
+                      clearMegaCloseTimer();
+                      hasDropdown && setActiveMega(group.title);
+                    }}
+                    onClick={() => {
+                      clearMegaCloseTimer();
+                      hasDropdown &&
+                        setActiveMega((prev) =>
+                          prev === group.title ? null : group.title,
+                        );
+                    }}
+                    className={`pointer-events-auto cursor-default whitespace-nowrap py-4 text-base leading-[1.4] tracking-[-0.02em] transition ${
+                      isPathActive || isOpenHighlight
+                        ? "font-semibold text-primary"
+                        : isMegaPanelOpen
+                          ? "font-medium text-ink"
+                          : "font-medium text-ink-header"
+                    }`}
+                  >
+                    {group.title}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
 
       {/* 메가 딤+패널은 activeMega 조건부 마운트 대신 상시 마운트(always-mounted) 후 상태
           클래스로 open/closing/closed 3-phase를 토글한다(megaPanelPhase, 위 effect 참고).

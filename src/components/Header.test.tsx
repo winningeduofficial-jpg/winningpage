@@ -288,19 +288,19 @@ describe("Header — MY 컬럼 역할별 항목(§6-3, buildMyMenu 단일 소스
 });
 
 describe("Header — 햄버거 위치(§6-7)", () => {
-  it("햄버거는 nav 항목들보다 뒤(문서 순서상 계정 그룹과 함께 가장 마지막)에 온다", () => {
+  it("햄버거는 로고와 함께 좌표계 1 밴드(justify-between)의 마지막 자식에 위치한다", () => {
+    // nav는 0d3f8487 이전 구조로 되돌아가 좌표계 2(absolute overlay)에 별도로 뜬다 —
+    // 더는 이 밴드의 형제가 아니라서 nav 대비 DOM 순서로는 검증할 수 없다. 대신 "로고
+    // 옆에 붙는" 버그(§6-7)의 실제 원인이었던 구조 — 좌표계 1 밴드가 정확히 [로고,
+    // 햄버거+계정 그룹] 2개 자식만 갖고 justify-between으로 배치되는지를 검증한다.
     mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
     renderHeader();
 
     const hamburger = screen.getByRole("button", { name: "전체 메뉴 열기" });
-    const navButtons = screen.getAllByRole("button", {
-      name: /서비스|프리미엄|입시정보|이용신청|고객안내/,
-    });
-    const lastNavButton = navButtons[navButtons.length - 1];
+    const band = hamburger.closest("header")?.firstElementChild;
 
-    expect(lastNavButton).toBeDefined();
-    // biome-ignore lint/style/noNonNullAssertion: 위에서 undefined면 이미 실패한다
-    const position = lastNavButton!.compareDocumentPosition(hamburger);
-    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(band?.className).toContain("justify-between");
+    expect(band?.children).toHaveLength(2);
+    expect(band?.lastElementChild?.contains(hamburger)).toBe(true);
   });
 });
