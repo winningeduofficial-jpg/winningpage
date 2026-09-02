@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import "@testing-library/jest-dom/vitest";
+import { render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { parseReportId } from "./alimtalkLinkRoutes";
 
 // reportId 변수값 파서 회귀 테스트(QA 시트 행210) — 구 형식(기간키만)과 신 형식
@@ -76,5 +78,72 @@ describe("parseReportId", () => {
       at: "a",
       studentProfileId: "b.c",
     });
+  });
+});
+
+// 자녀 2명 이상일 때 뜨는 선택 화면 렌더 테스트(QA 시트 행210). useMemberType과
+// fn_parent_children RPC를 모두 스텁해 실제 세션/네트워크 없이 그린다
+// (Header.test.tsx의 관례를 따른다).
+vi.mock("@/hooks/useMemberType", () => ({
+  useMemberType: () => ({
+    loading: false,
+    userId: "parent-1",
+    memberType: "parent",
+    error: null,
+    refetch: () => {},
+  }),
+}));
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: {
+    rpc: async (fn: string) => {
+      if (fn === "fn_parent_children") {
+        return {
+          data: [
+            {
+              student_profile_id: "child-a",
+              student_name: "김민준",
+              link_status: "approved",
+            },
+            {
+              student_profile_id: "child-b",
+              student_name: "김서연",
+              link_status: "approved",
+            },
+          ],
+          error: null,
+        };
+      }
+      return { data: null, error: null };
+    },
+  },
+}));
+
+describe("GoalReportRedirect 자녀 선택 화면", () => {
+  it("자녀가 2명이면 이름 링크 2개를 그리고 period·at을 쿼리로 유지한다", async () => {
+    const { default: alimtalkLinkRoutes } = await import(
+      "./alimtalkLinkRoutes"
+    );
+    const { createMemoryRouter, RouterProvider } = await import("react-router");
+
+    const router = createMemoryRouter(alimtalkLinkRoutes, {
+      initialEntries: ["/services/goal/reports/weekly/2026-08-17"],
+    });
+
+    render(<RouterProvider router={router} />);
+
+    // 링크 접근성 이름은 자녀 이름 + "리포트 보기 →" 전체다(두 span이 한
+    // <a> 안에 있어서다) — 자녀 이름을 포함하는지로 느슨하게 매칭한다.
+    const linkA = await screen.findByRole("link", { name: /김민준/ });
+    const linkB = await screen.findByRole("link", { name: /김서연/ });
+
+    expect(linkA).toHaveAttribute(
+      "href",
+      "/mypage/children/child-a/report?period=weekly&at=2026-08-17",
+    );
+    expect(linkB).toHaveAttribute(
+      "href",
+      "/mypage/children/child-b/report?period=weekly&at=2026-08-17",
+    );
   });
 });

@@ -11,7 +11,9 @@ import { supabase } from "@/lib/supabase";
 // 진입: 마이페이지 > 자녀 등록 및 수정 > 자녀 카드 > "학습진단 리포트 보기"(다른 유닛이 건다).
 //
 // ── 권한 판정 ─────────────────────────────────────────────────────────
-// ChildReport.tsx(성장 리포트 학부모 뷰어)와 셸·권한 게이트를 그대로 맞춘다 —
+// 비로그인은 라우트 가드가 먼저 막는다(mypageRoutes.ts의 requireAuthMiddleware가
+// /login?redirect=원래경로로 보낸다). ChildReport.tsx(성장 리포트 학부모 뷰어)와
+// 셸·권한 게이트를 그대로 맞춘다 —
 // fn_parent_children(sql/73)이 UI 게이트고, 반환 목록에 이 studentId가 approved로
 // 없으면 화면 진입 자체를 막는다(아래 child===null). ChildReport와 달리 여기는 서버
 // 재확인용 API를 따로 두지 않는다 — diagnosis_reports RLS(본인·승인된 연결의 학부모·

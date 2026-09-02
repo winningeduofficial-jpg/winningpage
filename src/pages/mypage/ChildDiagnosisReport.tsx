@@ -10,7 +10,9 @@ import { supabase } from "@/lib/supabase";
 // "리포트 보기" 링크.
 //
 // ── 권한 판정 ─────────────────────────────────────────────────────────
-// ChildDiagnosisReports.tsx와 동일 — fn_parent_children UI 게이트 + diagnosis_reports
+// 비로그인은 라우트 가드가 먼저 막는다(mypageRoutes.ts의 requireAuthMiddleware가
+// /login?redirect=원래경로로 보낸다). ChildDiagnosisReports.tsx와 동일 —
+// fn_parent_children UI 게이트 + diagnosis_reports
 // RLS 재확인. 추가로 URL의 studentId와 조회된 리포트의 profile_id가 실제로 같은지도
 // 확인한다(아래 profile_id 비교) — 어드민처럼 RLS는 통과하지만 이 화면 문맥(특정 자녀)과
 // 안 맞는 attemptId를 URL에 직접 넣었을 때 엉뚱한 학생 리포트가 그 자녀 화면에 뜨는 것을
