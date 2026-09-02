@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, useNavigate } from "react-router";
+// QA 행348(2026-09-02) — q1(학년) 응답으로 q4(등급 체계)를 자동 결정한다(카드 자체는 화면에서 제거).
+import { getGradeSystemLabelForGradeLevel } from "@/data/renewalSurveyQuestions";
 // B-1(2026-08-11 확정) — q15 캐스케이드 fetch 상태(옵션 5벌 + loading + error)를 이 셸이 소유한다.
 import {
   type CascadeValue,
@@ -77,8 +79,21 @@ export default function SurveyStepShell() {
     };
   }, [navigate]);
 
+  // QA 행348(2026-09-02) — q4(등급 체계) 카드를 없애고 q1(학년) 응답으로 자동 결정한다.
+  // q4 는 여전히 answers 맵에 라벨 문자열로 저장된다 — q6 입력 규격(GRADE_SYSTEM_INPUT_RULES)과
+  // 채점(diagnosisScoring.normalizeAnswers)이 그 계약을 그대로 기대하기 때문이다(양쪽 다 무수정).
   const setAnswer = useCallback((questionId: string, nextValue: unknown) => {
-    setAnswers((prev) => ({ ...prev, [questionId]: nextValue }));
+    setAnswers((prev) => {
+      if (questionId !== "q1") return { ...prev, [questionId]: nextValue };
+      const gradeSystemLabel = getGradeSystemLabelForGradeLevel(
+        nextValue as string,
+      );
+      return {
+        ...prev,
+        [questionId]: nextValue,
+        ...(gradeSystemLabel ? { q4: gradeSystemLabel } : {}),
+      };
+    });
   }, []);
 
   // B-1 — q15(목표 대학 입결 조회) 캐스케이드 옵션·컷 fetch 상태. answers.q15 가 바뀔 때마다

@@ -329,8 +329,9 @@ export const OPTION_CODES = {
     "INQUIRY_OK",
     "AVERAGE",
     "UNKNOWN",
-    // "잘 모르겠어요" 신설(QA 행348) — 기존 UNKNOWN 재사용(renewalSurveyQuestions.ts q17 주석 참고).
-    "UNKNOWN",
+    // "잘 모르겠어요" 신설(QA 행348). 처음엔 UNKNOWN 을 재사용했으나 코드 중복이 라벨 중복·
+    // React key 충돌을 일으켜 2026-09-02 UNSURE 로 분리(JONGHAP_DELTA.UNSURE 동일 -5).
+    "UNSURE",
   ],
   Q18: [
     "CONFIDENT",
@@ -574,9 +575,11 @@ export const TARGET_SCORE = 75;
 /** 서비스 추천 구간(§4.5). LOW 미만이면 리포트에서 제외한다. */
 export const SERVICE_BANDS = { HIGH: 80, MID: 65, LOW: 50 };
 
-/** 2순위 노출 조건 — "65점 이상이고 1순위와 20점 이내면 함께 노출"(배점표 03). */
-export const SERVICE_RANK2_MIN_FIT = 65;
-export const SERVICE_RANK2_MAX_DIFF = 20;
+// 2026-09-02 QA 시트 행 343으로 게이트 폐기 — 종전엔 SERVICE_RANK2_MIN_FIT(65)·
+// SERVICE_RANK2_MAX_DIFF(20) 두 상수로 "65점 이상이고 1순위와 20점 이내면 함께 노출"(배점표 03)
+// 을 강제했으나, tier 필터 통과 후보가 둘 이상인데도 대부분 카드가 1장만 나오는 문제가 있어
+// rankServices() 가 후보 2개 이상이면 항상 2순위를 채우도록 바뀌었다. 다른 참조가 없어 상수째
+// 삭제한다.
 
 /** 긴급도 구간(§4.4 E). 0~19 낮음 / 20~34 보통 / 35~49 높음 / 50 이상 매우 높음. */
 export const URGENCY_BANDS = { L4: 50, L3: 35, L2: 20 };
@@ -665,6 +668,8 @@ export const JONGHAP_DELTA = {
   INQUIRY_OK: 0,
   AVERAGE: 0,
   UNKNOWN: -5,
+  // q17 "잘 모르겠어요"(2026-09-02 코드 분리) — UNKNOWN 과 같은 감점.
+  UNSURE: -5,
 };
 export const INTERVIEW_DELTA = {
   CONFIDENT: 5,

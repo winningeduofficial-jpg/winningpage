@@ -8,11 +8,6 @@ export type Json =
   | Json[];
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5";
-  };
   public: {
     Tables: {
       admin_access_logs: {
@@ -1492,6 +1487,51 @@ export type Database = {
         };
         Relationships: [];
       };
+      goal_advice_cache: {
+        Row: {
+          created_at: string;
+          generated_for: string;
+          id: number;
+          origin: string;
+          payload: Json;
+          profile_id: string;
+          source: string;
+        };
+        Insert: {
+          created_at?: string;
+          generated_for: string;
+          id?: never;
+          origin: string;
+          payload: Json;
+          profile_id: string;
+          source: string;
+        };
+        Update: {
+          created_at?: string;
+          generated_for?: string;
+          id?: never;
+          origin?: string;
+          payload?: Json;
+          profile_id?: string;
+          source?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goal_advice_cache_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "goal_student_state";
+            referencedColumns: ["profile_id"];
+          },
+          {
+            foreignKeyName: "goal_advice_cache_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "goal_students";
+            referencedColumns: ["profile_id"];
+          },
+        ];
+      };
       goal_daily_records: {
         Row: {
           achievement: string;
@@ -1509,6 +1549,7 @@ export type Database = {
           record_date: string;
           record_index: number;
           study_hours: number;
+          submitted_at: string;
           submitted_on: string;
           target_ideal_hours: number;
           target_min_hours: number;
@@ -1532,6 +1573,7 @@ export type Database = {
           record_date: string;
           record_index: number;
           study_hours?: number;
+          submitted_at?: string;
           submitted_on: string;
           target_ideal_hours?: number;
           target_min_hours?: number;
@@ -1555,6 +1597,7 @@ export type Database = {
           record_date?: string;
           record_index?: number;
           study_hours?: number;
+          submitted_at?: string;
           submitted_on?: string;
           target_ideal_hours?: number;
           target_min_hours?: number;
@@ -1572,6 +1615,54 @@ export type Database = {
           },
           {
             foreignKeyName: "goal_daily_records_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "goal_students";
+            referencedColumns: ["profile_id"];
+          },
+        ];
+      };
+      goal_direction_reports: {
+        Row: {
+          created_at: string;
+          id: number;
+          kind: string;
+          payload: Json;
+          profile_id: string;
+          snapshot: Json;
+          source_label: string;
+          source_type: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: number;
+          kind: string;
+          payload: Json;
+          profile_id: string;
+          snapshot: Json;
+          source_label: string;
+          source_type: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: number;
+          kind?: string;
+          payload?: Json;
+          profile_id?: string;
+          snapshot?: Json;
+          source_label?: string;
+          source_type?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goal_direction_reports_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "goal_student_state";
+            referencedColumns: ["profile_id"];
+          },
+          {
+            foreignKeyName: "goal_direction_reports_profile_id_fkey";
             columns: ["profile_id"];
             isOneToOne: false;
             referencedRelation: "goal_students";
@@ -1633,36 +1724,48 @@ export type Database = {
           done: boolean;
           duration_minutes: number;
           id: number;
+          page_from: number | null;
+          page_to: number | null;
           plan_date: string;
           profile_id: string;
           sort_order: number;
+          status: string;
           subject: string;
           title: string;
           updated_at: string;
+          workbook_id: number | null;
         };
         Insert: {
           created_at?: string;
           done?: boolean;
           duration_minutes?: number;
           id?: number;
+          page_from?: number | null;
+          page_to?: number | null;
           plan_date: string;
           profile_id: string;
           sort_order?: number;
+          status?: string;
           subject: string;
           title: string;
           updated_at?: string;
+          workbook_id?: number | null;
         };
         Update: {
           created_at?: string;
           done?: boolean;
           duration_minutes?: number;
           id?: number;
+          page_from?: number | null;
+          page_to?: number | null;
           plan_date?: string;
           profile_id?: string;
           sort_order?: number;
+          status?: string;
           subject?: string;
           title?: string;
           updated_at?: string;
+          workbook_id?: number | null;
         };
         Relationships: [
           {
@@ -1678,6 +1781,13 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "goal_students";
             referencedColumns: ["profile_id"];
+          },
+          {
+            foreignKeyName: "goal_plan_tasks_workbook_id_fkey";
+            columns: ["workbook_id"];
+            isOneToOne: false;
+            referencedRelation: "goal_workbooks";
+            referencedColumns: ["id"];
           },
         ];
       };
@@ -1825,6 +1935,7 @@ export type Database = {
           updated_at: string;
           week_ideal: number;
           week_min: number;
+          week_schedule_input: Json | null;
         };
         Insert: {
           actual_start_date?: string | null;
@@ -1863,6 +1974,7 @@ export type Database = {
           updated_at?: string;
           week_ideal?: number;
           week_min?: number;
+          week_schedule_input?: Json | null;
         };
         Update: {
           actual_start_date?: string | null;
@@ -1901,6 +2013,7 @@ export type Database = {
           updated_at?: string;
           week_ideal?: number;
           week_min?: number;
+          week_schedule_input?: Json | null;
         };
         Relationships: [];
       };
@@ -2090,6 +2203,7 @@ export type Database = {
           current_page: number;
           id: number;
           profile_id: string;
+          shelved_at: string | null;
           status: string;
           subject: string;
           title: string;
@@ -2101,6 +2215,7 @@ export type Database = {
           current_page?: number;
           id?: never;
           profile_id: string;
+          shelved_at?: string | null;
           status?: string;
           subject: string;
           title: string;
@@ -2112,6 +2227,7 @@ export type Database = {
           current_page?: number;
           id?: never;
           profile_id?: string;
+          shelved_at?: string | null;
           status?: string;
           subject?: string;
           title?: string;
@@ -4236,6 +4352,7 @@ export type Database = {
           icon_image_url: string | null;
           id: string;
           is_active: boolean | null;
+          is_premium: boolean;
           link: string | null;
           name: string;
           sort_order: number | null;
@@ -4248,6 +4365,7 @@ export type Database = {
           icon_image_url?: string | null;
           id?: string;
           is_active?: boolean | null;
+          is_premium?: boolean;
           link?: string | null;
           name?: string;
           sort_order?: number | null;
@@ -4260,6 +4378,7 @@ export type Database = {
           icon_image_url?: string | null;
           id?: string;
           is_active?: boolean | null;
+          is_premium?: boolean;
           link?: string | null;
           name?: string;
           sort_order?: number | null;

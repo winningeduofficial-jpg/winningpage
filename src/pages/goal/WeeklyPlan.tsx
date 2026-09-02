@@ -4,7 +4,11 @@ import GoalCard from "@/components/goal/GoalCard";
 import GoalPageHeader from "@/components/goal/GoalPageHeader";
 import AddTaskModal from "@/components/goal/modals/AddTaskModal";
 import WeekdayPlanBoard from "@/components/goal/plan/WeekdayPlanBoard";
-import { createGoalPlanTask, fetchGoalPlanTasks } from "@/lib/goalApi";
+import {
+  createGoalPlanTask,
+  deleteGoalPlanTask,
+  fetchGoalPlanTasks,
+} from "@/lib/goalApi";
 import {
   durationLabelToMinutes,
   formatWeekRangeLabel,
@@ -32,6 +36,11 @@ type PlanTask = {
   durationMinutes?: number;
   done?: boolean;
   sortOrder?: number;
+  // 문제집 연결(QA 행286-B, 선택) — 연결이 없으면 workbookTitle이 null.
+  workbookId?: number | null;
+  pageFrom?: number | null;
+  pageTo?: number | null;
+  workbookTitle?: string | null;
 };
 
 type PlanTasksResult =
@@ -84,16 +93,26 @@ export default function WeeklyPlan() {
     taskText,
     duration,
     schedule,
+    workbookId,
+    pageFrom,
+    pageTo,
   }: {
     subject: string;
     taskText: string;
     duration: string;
     schedule: string;
+    workbookId?: number;
+    pageFrom?: number;
+    pageTo?: number;
   }) {
     // handleAddTask가 모달을 열기 전에 selectedDate를 항상 먼저 채운다("오늘만" 제출은
     // 이 흐름을 통해서만 도달한다).
     const targetDates = schedule === "오늘만" ? [selectedDate!] : weekDates;
     const durationMinutes = durationLabelToMinutes(duration);
+    // 문제집 연결 과제는 여러 날짜로 못 펼치게 AddTaskModal이 이미 막지만(문제집
+    // 연결 시 일정 select 자체를 비활성), API에도 같은 신호를 실어 보내 서버가
+    // 한 번 더 확인하게 한다(임무 지시 정정, 2026-09-02 — "이번 주만" 복제도 포함).
+    const repeatSchedule = schedule !== "오늘만";
 
     const results = await Promise.all(
       targetDates.map((planDate) =>
@@ -102,6 +121,10 @@ export default function WeeklyPlan() {
           title: taskText,
           subject,
           durationMinutes,
+          ...(workbookId !== undefined ? { workbookId } : {}),
+          ...(pageFrom !== undefined ? { pageFrom } : {}),
+          ...(pageTo !== undefined ? { pageTo } : {}),
+          ...(repeatSchedule ? { repeatSchedule } : {}),
         }),
       ),
     );
@@ -118,6 +141,16 @@ export default function WeeklyPlan() {
       // (AddTaskModal.handleSubmit이 이 예외를 잡아 폼을 유지한다).
       throw new Error("과제 생성에 실패했습니다.");
     }
+  }
+
+  // 행280/321(계획) — 주간학습계획표 카드의 × → 인라인 확인까지 마친 뒤에만
+  // 여기 도달한다(WeekdayPlanBoard.tsx). 대시보드 레일에는 삭제가 없다(행305).
+  async function handleDeleteTask(task: { id: string | number }) {
+    const deleted = await deleteGoalPlanTask(task.id as number);
+    if (deleted.kind !== "success") {
+      console.error("[WeeklyPlan] 과제 삭제 실패:", deleted);
+    }
+    loadTasks();
   }
 
   // weekDates(YYYY-MM-DD) → WeekdayPlanBoard가 기대하는 {day, date, dateYmd, tasks} 7개.
@@ -138,6 +171,9 @@ export default function WeeklyPlan() {
         id: task.id,
         subject: task.subject,
         title: task.title,
+        workbookTitle: task.workbookTitle ?? null,
+        pageFrom: task.pageFrom ?? null,
+        pageTo: task.pageTo ?? null,
       })),
     }));
   }
@@ -171,7 +207,7 @@ export default function WeeklyPlan() {
         actions={headerActions}
         subcopy="저장한 계획은 대시보드의 요일 학습 계획에 자동 반영됩니다."
       />
-      <div className="max-w-goal-content px-12 pb-24">
+      <div className="max-w-goal-content px-4 pb-24 md:px-12">
         {result === null && (
           <GoalCard tone="neutral" className="px-8 py-7">
             <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
@@ -195,6 +231,7 @@ export default function WeeklyPlan() {
           <WeekdayPlanBoard
             days={buildBoardDays(result.tasks)}
             onAddTask={handleAddTask}
+            onDeleteTask={handleDeleteTask}
             todayKey={todayKey}
           />
         )}

@@ -38,6 +38,38 @@ interface PremiumBookPageFormValues {
 
 type ListMode = "list" | "create" | "edit";
 
+// Storage 업로드 실패를 원인별 한국어 문구로 구체화한다(QA 223).
+//
+// 배경: [적용]의 원본 PDF 업로드가 "mime type application/pdf is not supported"
+// (StorageApiError statusCode "415")로 실패하는 사고가 있었다 — banners 버킷이
+// 원래 이미지 배너 전용으로 만들어져 있었고, 이 리포의 어떤 마이그레이션도
+// allowed_mime_types 컬럼을 건드린 적이 없어(20260821000001_storage.sql은
+// id/name/public 3컬럼만 upsert) 그 제한이 그대로 남아 있었다(수정:
+// supabase/migrations/20260902103514_premium_book_banners_pdf_mime.sql).
+// 기존 코드는 pdfError.message를 그대로 노출해 "적용 중단" 안내만 있을 뿐
+// 원인(형식/용량/권한/로그인 만료)을 구분하지 못했다 — 이 함수가 그 구분을 맡는다.
+// @supabase/storage-js의 StorageError는 message/status(number)/statusCode(string)
+// 만 보장한다(lib/common/errors.ts) — statusCode 문자열로 분기한다.
+export function describeStorageUploadError(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return String(error ?? "알 수 없는 오류");
+  }
+  const { statusCode, message } = error as {
+    statusCode?: unknown;
+    message?: unknown;
+  };
+  const code = String(statusCode ?? "");
+  const msg = String(message ?? "") || "알 수 없는 오류";
+
+  if (code === "413") return `파일 용량이 허용 한도를 초과했습니다(${msg})`;
+  if (code === "415") return `허용되지 않는 파일 형식입니다(${msg})`;
+  if (code === "403")
+    return `업로드 권한이 없습니다 — 관리자 계정으로 다시 로그인 후 시도하세요(${msg})`;
+  if (code === "401")
+    return `로그인이 만료됐습니다 — 다시 로그인 후 시도하세요(${msg})`;
+  return msg;
+}
+
 // 프리미엄 이용(BOOK) 책자 — bespoke 패널(PDF 업로드→변환→미리보기→적용) + 개별 페이지 제네릭 CRUD를
 // 한 컴포넌트 안에 함께 렌더한다. config.custom이 all-or-nothing이라(Admin() 최상단 렌더 분기) 이
 // 섹션이 선택되면 Admin()의 제네릭 list/create/edit 경로 자체가 통째로 스킵되기 때문이다 — 그래서
@@ -354,7 +386,7 @@ export default function PremiumBookAdmin({
 
       if (pdfError) {
         throw new Error(
-          `원본 PDF 업로드 실패 — 적용 중단: ${pdfError.message}`,
+          `원본 PDF 업로드 실패 — 적용 중단: ${describeStorageUploadError(pdfError)}`,
         );
       }
 
@@ -373,7 +405,7 @@ export default function PremiumBookAdmin({
 
         if (uploadError) {
           throw new Error(
-            `${i + 1}번째 페이지 이미지 업로드 실패 — 적용 중단(DB는 변경되지 않았습니다): ${uploadError.message}`,
+            `${i + 1}번째 페이지 이미지 업로드 실패 — 적용 중단(DB는 변경되지 않았습니다): ${describeStorageUploadError(uploadError)}`,
           );
         }
 

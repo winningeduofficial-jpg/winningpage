@@ -1,3 +1,4 @@
+import { useState } from "react";
 import DeltaBadge from "@/components/goal/DeltaBadge";
 import GoalCardHeader from "@/components/goal/GoalCardHeader";
 import GoalEmptyState from "@/components/goal/GoalEmptyState";
@@ -23,7 +24,13 @@ const COLUMNS = [
 // 아래 `title` 문자열 추론은 prop 누락 시를 대비한 방어용 폴백일 뿐이다(카피가 바뀌면 조용히
 // 깨질 수 있어 신뢰하지 말 것).
 //
-// 행 수정/삭제 UI는 시안에 없다(part-12 §235) — 이번 범위에서 의도적으로 미구현(주석으로 남김).
+// 행 수정/삭제 UI는 시안에 없었다(part-12 §235). 성적관리 행322(팀장 지시)로 이번에 추가한다 —
+// 시안 근거가 없어 배치·문구는 house 톤(다른 카드의 텍스트 버튼)에 맞춰 최소한으로 근사한다.
+// onEditRow/onDeleteRow 둘 다 없으면(prop 자체를 생략) 액션 열이 렌더되지 않아 기존
+// 행 수정/삭제 없음 화면과 100% 동일하다 — 이 표를 재사용하는 다른 호출부에 영향 없음.
+// 삭제는 되돌릴 수 없어 인라인 2단계 확인(먼저 "삭제" → "정말 삭제?" 클릭까지 2번 눌러야
+// 실제 삭제)으로 오클릭을 막는다. 클릭 한 번짜리 브라우저 confirm()도 대안이지만, 이 표
+// 자체가 house 스타일 텍스트 버튼 패턴을 이미 쓰고 있어 같은 패턴을 유지한다(판단 지점).
 // 0회차 빈 상태 시안도 없어(part-12 §245) `GoalEmptyState`로 근사한다(추정).
 function inferLowerIsBetter(title?: string) {
   return typeof title === "string" && title.includes("내신");
@@ -44,6 +51,10 @@ type GoalTableProps = {
   rows: GoalTableRow[];
   onAddRound?: () => void;
   lowerIsBetter?: boolean;
+  onEditRow?: (term: string) => void;
+  // 삭제 자체는 부모(react-query invalidate 소유)가 실행한다 — 이 컴포넌트는 2단계
+  // 확인 UI만 소유하고, 확정 클릭에서 곧장 onDeleteRow를 호출한다.
+  onDeleteRow?: (term: string) => void;
 };
 
 export default function GoalTable({
@@ -51,8 +62,15 @@ export default function GoalTable({
   rows,
   onAddRound,
   lowerIsBetter,
+  onEditRow,
+  onDeleteRow,
 }: GoalTableProps) {
   const isLowerBetter = lowerIsBetter ?? inferLowerIsBetter(title);
+  const hasActions = Boolean(onEditRow || onDeleteRow);
+  // 삭제 2단계 확인 중인 행의 term. 한 번에 한 행만 확인 상태를 갖는다(다른 행 클릭·행
+  // 추가 등 다른 조작이 끼어들면 자동으로 풀리는 게 안전하다 — 별도 blur 핸들링 없이
+  // rows가 갱신되면(성공적으로 삭제되면) 이 term도 배열에서 사라져 자연히 무의미해진다).
+  const [confirmingTerm, setConfirmingTerm] = useState<string | null>(null);
 
   return (
     <div className="w-full max-w-254.5 rounded-2xl bg-goal-cardTone-neutral px-6 py-6">
@@ -87,6 +105,11 @@ export default function GoalTable({
                     {column.label}
                   </th>
                 ))}
+                {hasActions && (
+                  <th className="py-3 pl-3 font-medium">
+                    <span className="sr-only">작업</span>
+                  </th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -133,6 +156,52 @@ export default function GoalTable({
                         {row.average}
                       </span>
                     </td>
+                    {hasActions && (
+                      <td className="py-3 pl-3">
+                        {confirmingTerm === row.term ? (
+                          <span className="flex items-center gap-2 whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmingTerm(null);
+                                onDeleteRow?.(row.term);
+                              }}
+                              className="text-[0.8125rem] font-semibold text-error hover:underline"
+                            >
+                              정말 삭제
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmingTerm(null)}
+                              className="text-[0.8125rem] text-ink-sub hover:underline"
+                            >
+                              취소
+                            </button>
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-3 whitespace-nowrap">
+                            {onEditRow && (
+                              <button
+                                type="button"
+                                onClick={() => onEditRow(row.term)}
+                                className="text-[0.8125rem] text-ink-sub hover:text-ink-strong hover:underline"
+                              >
+                                수정
+                              </button>
+                            )}
+                            {onDeleteRow && (
+                              <button
+                                type="button"
+                                onClick={() => setConfirmingTerm(row.term)}
+                                className="text-[0.8125rem] text-ink-sub hover:text-error hover:underline"
+                              >
+                                삭제
+                              </button>
+                            )}
+                          </span>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}

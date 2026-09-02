@@ -472,6 +472,8 @@ function toViewModel(
 }
 
 // 빈 상태(3762:20041) — 결제한 서비스가 없을 때. 문구·버튼 라벨은 시안 스크린샷 실측.
+// 버튼 색 — 2026-09-02 QA(시트 행 261 "컬러 변경 필요"): 구매 동선 CTA는 결제 버튼
+// (PricingSelling "결제하기")·서비스 랜딩 "이용권 구매하기"(행 264)와 같은 accent 채움으로 통일.
 function EmptyState() {
   return (
     <div className="flex min-h-80 flex-col items-center justify-center gap-6 rounded-perf-modal bg-surface-04 px-8 py-16 text-center">
@@ -480,7 +482,7 @@ function EmptyState() {
       </p>
       <Link
         to="/pricing"
-        className="inline-flex h-12 items-center justify-center rounded-xl bg-primary px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-primary/90"
+        className="inline-flex h-12 items-center justify-center rounded-xl bg-accent px-8 text-[0.9375rem] font-semibold text-white transition hover:brightness-95"
       >
         서비스 이용하러 가기
       </Link>

@@ -48,11 +48,14 @@
 // 405 → 401 → (조회 200 {allowed:false} / 쓰기 403 PAID_MESSAGE) → 검증 → 처리 → 500.
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { GRADE_PERCENTILE } from "../../src/lib/goal/calc/jeongsi.js";
+import { buildGoalDirectionReport } from "../_lib/goalDirectionReport.js";
 import {
   fetchStudentRow,
   narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
+  saveGoalDirectionReport,
   updateStudentGrades,
 } from "../_lib/goalRepo.js";
 import { sendError } from "../_lib/httpResponse.js";
@@ -64,7 +67,21 @@ export const config = { runtime: "nodejs" };
 // 추론해 재사용한다(중복 선언 없이 goalRepo.js JSDoc이 바뀌면 여기도 함께 따라간다).
 type GoalSession = Awaited<ReturnType<typeof openGoalSession>>;
 
-const SUBJECT_KEYS = ["korean", "math", "english", "science"];
+// QA 행290・291 재설계로 온보딩 입력 구조가 바뀐 것에 맞춰 성적관리 모달의 과목 구성도
+// 확장한다(팀장 지시 항목10) — 내신은 4과목 flat에서 6과목군(NAESIN_SUBJECT_GROUPS,
+// onboardingOptions.ts와 같은 키)으로, 모의고사는 탐구 단일에서 탐구1・탐구2로 나눈다.
+// 도메인은 그대로다(내신 1~9 등급, 모의고사 0~100 백분위 — 시안 실측대로 "백분위 저장
+// 유지", 팀장 지시). 기존에 저장된 4과목 레코드(레거시)는 GET이 원본 그대로 돌려주고
+// 화면이 있는 값만 표시하므로 이 파일은 읽기 경로를 따로 손대지 않는다(하위 호환).
+const NAESIN_SUBJECT_KEYS = [
+  "korean",
+  "math",
+  "english",
+  "social_history",
+  "science",
+  "second_language",
+];
+const MOCK_SUBJECT_KEYS = ["korean", "math", "english", "tam1", "tam2"];
 
 const GRADE_DOMAIN = { min: 1, max: 9 };
 const PERCENTILE_DOMAIN = { min: 0, max: 100 };
@@ -114,10 +131,10 @@ function fail(status: number, detail: string) {
 }
 
 /**
- * 공통 바디 검증 — term(회차 라벨) · 날짜 · 과목 4종(국/수/영/탐구).
+ * 공통 바디 검증 — term(회차 라벨) · 날짜 · 과목(내신 6과목군 / 모의고사 5과목).
  * naesin 은 1~9 등급, mock 은 0~100 백분위 도메인만 다르다(시안 실측, 위 헤더 주석 참고).
  */
-function validateEntry(entry: unknown, type: "naesin" | "mock") {
+export function validateEntry(entry: unknown, type: "naesin" | "mock") {
   if (!isPlainObject(entry))
     return { error: fail(400, "성적 입력이 올바르지 않습니다.") };
 
@@ -140,9 +157,11 @@ function validateEntry(entry: unknown, type: "naesin" | "mock") {
 
   const domain = type === "naesin" ? GRADE_DOMAIN : PERCENTILE_DOMAIN;
   const domainLabel = type === "naesin" ? "1~9 등급" : "0~100 백분위";
+  const subjectKeys =
+    type === "naesin" ? NAESIN_SUBJECT_KEYS : MOCK_SUBJECT_KEYS;
 
   const subjects: Record<string, number> = {};
-  for (const key of SUBJECT_KEYS) {
+  for (const key of subjectKeys) {
     const raw = entry.subjects[key];
     if (!isInDomain(raw, domain)) {
       return {
@@ -153,12 +172,12 @@ function validateEntry(entry: unknown, type: "naesin" | "mock") {
   }
 
   const value = round1(
-    SUBJECT_KEYS.reduce(
+    subjectKeys.reduce(
       (sum, key) =>
-        // biome-ignore lint/style/noNonNullAssertion: subjects는 바로 위 루프에서 SUBJECT_KEYS 전체를 채웠으므로 항상 존재한다.
+        // biome-ignore lint/style/noNonNullAssertion: subjects는 바로 위 루프에서 subjectKeys 전체를 채웠으므로 항상 존재한다.
         sum + subjects[key]!,
       0,
-    ) / SUBJECT_KEYS.length,
+    ) / subjectKeys.length,
   );
 
   return {
@@ -191,7 +210,7 @@ function examOrderKey(record: {
  * "배열 마지막 = 최신"으로 가정하기 때문에(읽기 시에도 다시 정렬하지만, 저장 시점부터
  * 정렬해 두면 새 데이터는 애초에 어긋나지 않는다).
  */
-function upsertRecord(
+export function upsertRecord(
   records: unknown,
   record: {
     term: string;
@@ -201,15 +220,67 @@ function upsertRecord(
   },
 ) {
   const list = Array.isArray(records) ? records : [];
-  const index = list.findIndex(
-    (item) => item && typeof item === "object" && item.term === record.term,
-  );
+  const index = findRecordIndex(list, record.term);
   const next =
     index === -1
       ? [...list, record]
       : list.map((item, i) => (i === index ? record : item));
 
   return next.sort((a, b) => examOrderKey(a).localeCompare(examOrderKey(b)));
+}
+
+// records 배열에서 term 이 일치하는 회차의 인덱스 — PUT/DELETE 는 별도 id 컬럼이 없는
+// 이 free-form jsonb 구조에서 POST(upsertRecord)와 같은 식별자(term)를 그대로 쓴다
+// (판단 지점 — api/goal/report.ts buildNaesinPeriodOptions/buildJeongsiPeriodOptions도
+// `record:${term}` 을 식별자로 쓰고 있어 term-as-id 는 이미 이 저장소 전역의 관례다).
+export function findRecordIndex(records: unknown, term: string) {
+  const list = Array.isArray(records) ? records : [];
+  return list.findIndex(
+    (item) => item && typeof item === "object" && item.term === term,
+  );
+}
+
+/**
+ * originalTerm 이 가리키는 회차를 새 record 로 교체한다. 반환값 3갈래:
+ *   - null        : originalTerm 을 가진 회차가 없음(호출부 404)
+ *   - "collision" : record.term 이 originalTerm 에서 바뀌었는데, 그 새 이름이 배열의
+ *                   *다른* 회차와 겹침(호출부 400) — upsertRecord 의 "같은 term=교체"
+ *                   관례를 깨지 않기 위한 방어.
+ *   - 배열         : 교체 + 재정렬된 새 records(POST와 동일하게 저장 시점부터 정렬해 둔다).
+ */
+export function replaceRecord(
+  records: unknown,
+  originalTerm: string,
+  record: {
+    term: string;
+    examDate?: string;
+    enteredAt?: string;
+    recordedAt?: string;
+  },
+) {
+  const list = Array.isArray(records) ? records : [];
+  const index = findRecordIndex(list, originalTerm);
+  if (index === -1) return null;
+
+  const collisionIndex = list.findIndex(
+    (item, i) =>
+      i !== index &&
+      item &&
+      typeof item === "object" &&
+      item.term === record.term,
+  );
+  if (collisionIndex !== -1) return "collision" as const;
+
+  const next = list.map((item, i) => (i === index ? record : item));
+  return next.sort((a, b) => examOrderKey(a).localeCompare(examOrderKey(b)));
+}
+
+/** term 이 가리키는 회차를 제거한다. 없으면 null(호출부 404), 있으면 제거된 새 records. */
+export function removeRecord(records: unknown, term: string) {
+  const list = Array.isArray(records) ? records : [];
+  const index = findRecordIndex(list, term);
+  if (index === -1) return null;
+  return list.filter((_, i) => i !== index);
 }
 
 function readBody(req: VercelRequest) {
@@ -307,11 +378,175 @@ async function handlePost(
 
   await updateStudentGrades(supabaseAdmin, profileId, patch);
 
+  // QA 행301(b) — 이 회차를 학습방향 리포트 이력에 1건 남긴다. naesinScores/
+  // mockExamScores를 넘기지 않아 buildGoalDirectionReport가 레거시(4과목 flat)
+  // 분기로만 해석하도록 강제한다 — 이 지점의 목적은 "방금 입력한 이 회차"의
+  // 스냅샷이지, 학생의 현재 과목군 평균 집계(naesin_scores.groupAverages, 병렬
+  // 유닛 소유)가 아니기 때문이다(판단 지점, api/_lib/goalDirectionReport.ts
+  // resolveNaesinSubjectAverage/resolveJungsiSubjectAverage 헤더 주석 참고).
+  const { payload, snapshot } = buildGoalDirectionReport({
+    kind: type === "naesin" ? "naesin" : "jungsi",
+    sourceType: type === "naesin" ? "naesin" : "mogo",
+    sourceLabel: record.term,
+    grade: row.grade,
+    legacyEntry: record,
+    gradePercentile: GRADE_PERCENTILE,
+  });
+  await saveGoalDirectionReport(supabaseAdmin, profileId, {
+    kind: type === "naesin" ? "naesin" : "jungsi",
+    sourceType: type === "naesin" ? "naesin" : "mogo",
+    sourceLabel: record.term,
+    payload,
+    snapshot,
+  });
+
   return res.status(200).json({ ok: true, record, records });
 }
 
+/**
+ * PUT — 회차 id(term) 기준 전체 갱신. 소유권은 별도 검증 로직이 없다 — 항상
+ * narrowGoalSession(session).profileId(서버가 검증한 JWT에서 나온 값)로만
+ * fetchStudentRow 를 조회하므로 다른 사용자의 행을 절대 볼 수 없다(GET/POST와 동일한
+ * 경계, RLS 는 service role 로 우회하지만 이 profileId 스코프가 대신한다).
+ */
+async function handlePut(
+  req: VercelRequest,
+  res: VercelResponse,
+  session: GoalSession,
+) {
+  const { allowed } = session;
+
+  if (!allowed) {
+    return res.status(403).json({ detail: PAID_MESSAGE });
+  }
+
+  const body = readBody(req);
+  if (!isPlainObject(body))
+    return res.status(400).json({ detail: "요청 본문이 올바르지 않습니다." });
+
+  const type = body.type;
+  if (type !== "naesin" && type !== "mock") {
+    return res.status(400).json({ detail: "성적 유형이 올바르지 않습니다." });
+  }
+
+  const originalTerm = String(body.term ?? "").trim();
+  if (!originalTerm) {
+    return res.status(400).json({ detail: "수정할 회차를 지정해 주세요." });
+  }
+
+  const validated = validateEntry(body.entry, type);
+  if (validated.error) {
+    return res.status(validated.error.status).json(validated.error.body);
+  }
+
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
+  const row = await fetchStudentRow(supabaseAdmin, profileId);
+  if (!row) {
+    return res.status(404).json({
+      detail: "온보딩을 먼저 완료해 주세요.",
+      reason: "not_onboarded",
+    });
+  }
+
+  const record = validated.record;
+  const scores =
+    type === "naesin" ? row.naesin_scores || {} : row.mock_exam_scores || {};
+  const result = replaceRecord(scores.records, originalTerm, record);
+
+  if (result === null) {
+    return res.status(404).json({
+      detail: "성적 기록을 찾을 수 없습니다.",
+      reason: "record_not_found",
+    });
+  }
+  if (result === "collision") {
+    return res.status(400).json({ detail: "이미 사용 중인 회차 이름입니다." });
+  }
+
+  // updateStudentGrades(goalRepo.ts) 구조분해 파라미터 관례 — handlePost 참고.
+  const patch: { naesin_scores: unknown; mock_exam_scores: unknown } = {
+    naesin_scores: undefined,
+    mock_exam_scores: undefined,
+  };
+  if (type === "naesin") {
+    patch.naesin_scores = { ...scores, records: result };
+  } else {
+    patch.mock_exam_scores = { ...scores, records: result };
+  }
+
+  await updateStudentGrades(supabaseAdmin, profileId, patch);
+
+  return res.status(200).json({ ok: true, record, records: result });
+}
+
+/** DELETE — 회차 id(term) 기준 삭제. 소유권 경계는 handlePut 과 동일. */
+async function handleDelete(
+  req: VercelRequest,
+  res: VercelResponse,
+  session: GoalSession,
+) {
+  const { allowed } = session;
+
+  if (!allowed) {
+    return res.status(403).json({ detail: PAID_MESSAGE });
+  }
+
+  const body = readBody(req);
+  if (!isPlainObject(body))
+    return res.status(400).json({ detail: "요청 본문이 올바르지 않습니다." });
+
+  const type = body.type;
+  if (type !== "naesin" && type !== "mock") {
+    return res.status(400).json({ detail: "성적 유형이 올바르지 않습니다." });
+  }
+
+  const term = String(body.term ?? "").trim();
+  if (!term) {
+    return res.status(400).json({ detail: "삭제할 회차를 지정해 주세요." });
+  }
+
+  const { supabaseAdmin, profileId } = narrowGoalSession(session);
+  const row = await fetchStudentRow(supabaseAdmin, profileId);
+  if (!row) {
+    return res.status(404).json({
+      detail: "온보딩을 먼저 완료해 주세요.",
+      reason: "not_onboarded",
+    });
+  }
+
+  const scores =
+    type === "naesin" ? row.naesin_scores || {} : row.mock_exam_scores || {};
+  const records = removeRecord(scores.records, term);
+
+  if (records === null) {
+    return res.status(404).json({
+      detail: "성적 기록을 찾을 수 없습니다.",
+      reason: "record_not_found",
+    });
+  }
+
+  const patch: { naesin_scores: unknown; mock_exam_scores: unknown } = {
+    naesin_scores: undefined,
+    mock_exam_scores: undefined,
+  };
+  if (type === "naesin") {
+    patch.naesin_scores = { ...scores, records };
+  } else {
+    patch.mock_exam_scores = { ...scores, records };
+  }
+
+  await updateStudentGrades(supabaseAdmin, profileId, patch);
+
+  return res.status(200).json({ ok: true, records });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET" && req.method !== "POST") {
+  if (
+    req.method !== "GET" &&
+    req.method !== "POST" &&
+    req.method !== "PUT" &&
+    req.method !== "DELETE"
+  ) {
     return sendError(res, "detail", 405, "Method not allowed");
   }
 
@@ -327,7 +562,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === "GET") return await handleGet(req, res, session);
-    return await handlePost(req, res, session);
+    if (req.method === "POST") return await handlePost(req, res, session);
+    if (req.method === "PUT") return await handlePut(req, res, session);
+    return await handleDelete(req, res, session);
   } catch (error) {
     console.error("goal/grades error:", error);
     return sendError(res, "detail", 500, "처리 중 오류가 발생했습니다.");

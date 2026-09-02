@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { buildGapRows, mogoGap, naesinGap, studyGap } from "./gapToTarget.ts";
+import {
+  buildGapRows,
+  buildZoneGapRows,
+  mogoGap,
+  naesinGap,
+  studyGap,
+} from "./gapToTarget.ts";
 
 describe("naesinGap", () => {
   it("현재 등급이 목표보다 나쁘면(수치가 크면) 양수(부족)를 반환한다", () => {
@@ -127,6 +133,128 @@ describe("buildGapRows", () => {
       naesin: { current: null, target: null },
       mogo: { current: null, target: null },
       study: { current: null, target: null },
+    });
+    expect(rows).toEqual([]);
+  });
+});
+
+describe("buildZoneGapRows", () => {
+  it("최소 컷보다 나쁘면 below-min 구간과 '최소 목표까지 N 부족' 문구를 만든다", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: 5.0, min: 4.0, ideal: 2.5 },
+      mogo: { current: null, min: null, ideal: null },
+    });
+    expect(rows).toEqual([
+      {
+        label: "내신 등급",
+        description: "현재 5.00등급 → 최소 4.00등급 / 이상 2.50등급",
+        remaining: "최소 목표까지 1등급 부족",
+        zone: "below-min",
+        advice: "기초 실력을 다지며 최소 목표 달성부터 노려보세요.",
+      },
+    ]);
+  });
+
+  it("최소는 넘었지만 이상엔 못 미치면 min-to-ideal 구간과 '이상 목표까지 N 부족' 문구를 만든다", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: 3.5, min: 4.0, ideal: 2.5 },
+      mogo: { current: null, min: null, ideal: null },
+    });
+    expect(rows).toEqual([
+      {
+        label: "내신 등급",
+        description: "현재 3.50등급 → 최소 4.00등급 / 이상 2.50등급",
+        remaining: "이상 목표까지 1등급 부족",
+        zone: "min-to-ideal",
+        advice: "최소 목표는 달성했어요. 이상 목표에 도전해 보세요.",
+      },
+    ]);
+  });
+
+  it("이상 컷보다 좋으면 above-ideal 구간과 '이상 목표보다 N 여유' 문구를 만든다", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: 2.0, min: 4.0, ideal: 2.5 },
+      mogo: { current: null, min: null, ideal: null },
+    });
+    expect(rows).toEqual([
+      {
+        label: "내신 등급",
+        description: "현재 2.00등급 → 최소 4.00등급 / 이상 2.50등급",
+        remaining: "이상 목표보다 0.5등급 여유",
+        zone: "above-ideal",
+        advice:
+          "이상 목표를 넘어섰어요. 지금 페이스를 유지하거나 목표 상향을 검토해 보세요.",
+      },
+    ]);
+  });
+
+  it("정확히 이상 컷과 같으면 '이상 목표 도달' 문구를 쓴다", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: 2.5, min: 4.0, ideal: 2.5 },
+      mogo: { current: null, min: null, ideal: null },
+    });
+    expect(rows[0]?.remaining).toBe("이상 목표 도달");
+    expect(rows[0]?.zone).toBe("above-ideal");
+  });
+
+  it("모의고사(백분위)도 같은 3구간을 만든다 — below-min", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: null, min: null, ideal: null },
+      mogo: { current: 60, min: 70, ideal: 85 },
+    });
+    expect(rows).toEqual([
+      {
+        label: "모의고사",
+        description: "현재 60.0 백분위 → 최소 70.0 / 이상 85.0 백분위",
+        remaining: "최소 목표까지 10 부족",
+        zone: "below-min",
+        advice: "기초 실력을 다지며 최소 목표 달성부터 노려보세요.",
+      },
+    ]);
+  });
+
+  it("모의고사 — min-to-ideal", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: null, min: null, ideal: null },
+      mogo: { current: 75, min: 70, ideal: 85 },
+    });
+    expect(rows[0]).toMatchObject({
+      remaining: "이상 목표까지 10 부족",
+      zone: "min-to-ideal",
+    });
+  });
+
+  it("모의고사 — above-ideal", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: null, min: null, ideal: null },
+      mogo: { current: 90, min: 70, ideal: 85 },
+    });
+    expect(rows[0]).toMatchObject({
+      remaining: "이상 목표보다 5 여유",
+      zone: "above-ideal",
+    });
+  });
+
+  it("두 축 모두 값이 있으면 내신·모의고사 순서로 만든다", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: 3.5, min: 4.0, ideal: 2.5 },
+      mogo: { current: 75, min: 70, ideal: 85 },
+    });
+    expect(rows.map((r) => r.label)).toEqual(["내신 등급", "모의고사"]);
+  });
+
+  it("최소·이상 컷 중 하나라도 없으면 그 축 행을 제외한다(억지 산출 금지)", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: 3.5, min: 4.0, ideal: null }, // 이상 목표 대학에 내신 컷 없음
+      mogo: { current: 75, min: null, ideal: 85 }, // 최소 목표 대학에 jungsi 컷 없음
+    });
+    expect(rows).toEqual([]);
+  });
+
+  it("두 축 모두 컷이 전혀 없으면 빈 배열을 반환한다(카드 자체 숨김)", () => {
+    const rows = buildZoneGapRows({
+      naesin: { current: null, min: null, ideal: null },
+      mogo: { current: null, min: null, ideal: null },
     });
     expect(rows).toEqual([]);
   });

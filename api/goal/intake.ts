@@ -33,17 +33,23 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
+  fiveScaleToNine,
+  middleAvgToNine,
+} from "../../src/data/diagnosisGradeScale.js";
+import {
+  ACADEMY_COMMUTE_HOURS,
   buildInitialStudentState,
-  calcAvailableHoursApprox,
   calcJeongsiCompositeFE,
   calculateWeekSchedule,
   GRADE_PERCENTILE,
   getRemainingMogo,
+  getRemainingNaesin,
   getSchoolCutType,
   kstYMD,
-  round1,
 } from "../../src/lib/goal/calc/index.js";
 import type { CutsInput } from "../../src/lib/goal/calc/pipeline.js";
+import type { DayPattern } from "../../src/lib/goal/calc/schedule.js";
+import { buildGoalDirectionReport } from "../_lib/goalDirectionReport.js";
 
 import {
   appendProbabilityLog,
@@ -55,6 +61,7 @@ import {
   narrowGoalSession,
   openGoalSession,
   PAID_MESSAGE,
+  saveGoalDirectionReport,
   upsertStudentRow,
 } from "../_lib/goalRepo.js";
 import { sendError } from "../_lib/httpResponse.js";
@@ -84,25 +91,70 @@ const GRADE_MAP = {
   g3: "고3",
 };
 
-// 라벨이 getRemainingNaesin 표의 키(primitives.js:59-72)와 글자 단위로 일치해야 한다.
-const NAESIN_ROUNDS = [
-  { key: "s1mid", label: "1학기 중간" },
-  { key: "s1final", label: "1학기 기말" },
-  { key: "s2mid", label: "2학기 중간" },
-  { key: "s2final", label: "2학기 기말" },
+// NAESIN_FLOW/MOCK_FLOW 항목의 gradeLabel과 학생의 실제 학년(gradeLabel)을 비교해
+// "아직 보지 않은 미래 시험"을 걸러내는 순위표.
+const GRADE_RANK: Record<string, number> = { 고1: 0, 고2: 1, 고3: 2 };
+
+// QA 행290・291 재설계(qa3-held-high-design.md §2・§3) — "현재 학년 4회차 고정"에서 고1~고3
+// 전 시퀀스로 확장했다. key/gradeLabel/examLabel은 src/components/goal/onboarding/
+// onboardingOptions.ts NAESIN_EXAM_FLOW/MOCK_FLOW와 값이 정확히 같아야 한다(서버가 UI가
+// 보낸 키를 화이트리스트로 검증하므로 어긋나면 정상 입력도 거절된다) — 다만 이 파일은
+// api/ 계층이 src/components/(React) 를 import하지 않는 관례를 유지하기 위해 사본을 둔다.
+// gradeLabel+examLabel 조합은 getRemainingNaesin/getRemainingMogo 순번 표(primitives.js)의
+// 키와 글자 단위로 일치해야 한다 — 그 표를 재구현하지 않고 그대로 재사용한다.
+export const NAESIN_FLOW = [
+  { key: "g1_s1mid", gradeLabel: "고1", examLabel: "1학기 중간" },
+  { key: "g1_s1final", gradeLabel: "고1", examLabel: "1학기 기말" },
+  { key: "g1_s2mid", gradeLabel: "고1", examLabel: "2학기 중간" },
+  { key: "g1_s2final", gradeLabel: "고1", examLabel: "2학기 기말" },
+  { key: "g2_s1mid", gradeLabel: "고2", examLabel: "1학기 중간" },
+  { key: "g2_s1final", gradeLabel: "고2", examLabel: "1학기 기말" },
+  { key: "g2_s2mid", gradeLabel: "고2", examLabel: "2학기 중간" },
+  { key: "g2_s2final", gradeLabel: "고2", examLabel: "2학기 기말" },
+  { key: "g3_s1mid", gradeLabel: "고3", examLabel: "1학기 중간" },
+  { key: "g3_s1final", gradeLabel: "고3", examLabel: "1학기 기말" },
+  { key: "g3_s2mid", gradeLabel: "고3", examLabel: "2학기 중간" },
+  { key: "g3_s2final", gradeLabel: "고3", examLabel: "2학기 기말" },
 ];
 
-// 라벨이 getRemainingMogo 표의 키(primitives.js:88-103)와 일치해야 한다.
-// ⚠️ 고3 전용 '5모'·'7모' 는 우리 온보딩에 없어 고3 remain_mogo 가 실제보다
-// 최대 2 크게 나온다(미결 Q9 — 계산 모듈 동결 + 시안에 없어 그대로 둔다).
-const MOCK_ROUNDS = [
-  { key: "mar", label: "3모" },
-  { key: "jun", label: "6모" },
-  { key: "sep", label: "9모" },
-  { key: "oct", label: "10모" },
+const NAESIN_FLOW_BY_KEY = Object.fromEntries(
+  NAESIN_FLOW.map((exam) => [exam.key, exam]),
+);
+
+// 내신 과목군 6종 — target-app-analysis.md §4.1 NAESIN_SUBJECT_GROUPS와 같은 키.
+const NAESIN_GROUP_KEYS = [
+  "korean",
+  "math",
+  "english",
+  "social_history",
+  "science",
+  "second_language",
 ];
 
-const MOCK_SUBJECTS = ["kor", "math", "eng", "tam1", "tam2"];
+// 고3 5・7모가 포함된 학년별 전체 시퀀스(14회). MOCK_ROUNDS(4회 고정)를 대체한다 — Q9(고3
+// remain_mogo 과대 산출)가 이번 재설계로 해소된다.
+export const MOCK_FLOW = [
+  { key: "g1_mar", gradeLabel: "고1", examLabel: "3모" },
+  { key: "g1_jun", gradeLabel: "고1", examLabel: "6모" },
+  { key: "g1_sep", gradeLabel: "고1", examLabel: "9모" },
+  { key: "g1_oct", gradeLabel: "고1", examLabel: "10모" },
+  { key: "g2_mar", gradeLabel: "고2", examLabel: "3모" },
+  { key: "g2_jun", gradeLabel: "고2", examLabel: "6모" },
+  { key: "g2_sep", gradeLabel: "고2", examLabel: "9모" },
+  { key: "g2_oct", gradeLabel: "고2", examLabel: "10모" },
+  { key: "g3_mar", gradeLabel: "고3", examLabel: "3모" },
+  { key: "g3_may", gradeLabel: "고3", examLabel: "5모" },
+  { key: "g3_jun", gradeLabel: "고3", examLabel: "6모" },
+  { key: "g3_jul", gradeLabel: "고3", examLabel: "7모" },
+  { key: "g3_sep", gradeLabel: "고3", examLabel: "9모" },
+  { key: "g3_oct", gradeLabel: "고3", examLabel: "10모" },
+];
+
+const MOCK_FLOW_BY_KEY = Object.fromEntries(
+  MOCK_FLOW.map((round) => [round.key, round]),
+);
+
+const MOCK_SUBJECTS = ["kor", "math", "tam1", "tam2"];
 
 // ---------------------------------------------------------------------------
 // "성적 없음" 특례의 잔여 회차 오버라이드 표
@@ -127,27 +179,30 @@ const NAESIN_NONE_REMAINING = { 고1: 10, 고2: 6, 고3: 2 };
 const MOGO_NONE_REMAINING = { 고1: 14, 고2: 10, 고3: 6 };
 
 // onboardingOptions.js:64-72 WEEKDAY_OPTIONS ↔ VIRTUAL_DAY_NAMES(schedule.js:18-26).
-// 원본 DAYS_CONFIG 와 동일하게 월~금만 등교일이다.
+// hasSchool 은 더 이상 여기서 고정하지 않는다(QA 행293) — 요일별 "학교 가는 날" 토글이
+// 사용자 입력이라 body.weekSchedule[short].hasSchool 이 정본이다. short/long 매핑 용도로만
+// 남긴다.
 const WEEKDAYS = [
-  { short: "mon", long: "monday", hasSchool: true },
-  { short: "tue", long: "tuesday", hasSchool: true },
-  { short: "wed", long: "wednesday", hasSchool: true },
-  { short: "thu", long: "thursday", hasSchool: true },
-  { short: "fri", long: "friday", hasSchool: true },
-  { short: "sat", long: "saturday", hasSchool: false },
-  { short: "sun", long: "sunday", hasSchool: false },
+  { short: "mon", long: "monday", label: "월요일" },
+  { short: "tue", long: "tuesday", label: "화요일" },
+  { short: "wed", long: "wednesday", label: "수요일" },
+  { short: "thu", long: "thursday", label: "목요일" },
+  { short: "fri", long: "friday", label: "금요일" },
+  { short: "sat", long: "saturday", label: "토요일" },
+  { short: "sun", long: "sunday", label: "일요일" },
 ];
 
-// onboardingOptions.js:76-81 DAILY_SCHEDULE_FIELDS 의 min/max 와 글자 단위로 같다.
-const DAILY_SCHEDULE_LIMITS = {
-  wakeUpHour: { min: 0, max: 23 },
-  sleepHour: { min: 0, max: 24 },
-  schoolStayHours: { min: 0, max: 24 },
-  academyHours: { min: 0, max: 24 },
-};
+// onboardingOptions.js WEEK_SCHEDULE_* 상수와 글자 단위로 같다(QA 행293, 원본 계약
+// target/components/IntakeForm.tsx:1814-1920 "0~30, 자정 넘김은 24 가산").
+const WEEK_SCHEDULE_WAKE_MAX = 24;
+const WEEK_SCHEDULE_SLEEP_MAX = 30;
+const WEEK_SCHEDULE_SCHOOL_TIME_MAX = 30;
+const WEEK_SCHEDULE_ACADEMY_TIME_MAX = 30;
+const WEEK_SCHEDULE_MAX_ACADEMIES = 5;
 
 const NAME_MAX_LENGTH = 100;
-const STUDY_HOURS_MAX = 24;
+// QA 행290 — 0.1시간 단위 직접 입력(SliderRow.tsx round2) 회귀 테스트가 참조하도록 export.
+export const STUDY_HOURS_MAX = 24;
 
 // ---------------------------------------------------------------------------
 // 입력 검증 — 클라이언트 값을 하나도 믿지 않는다
@@ -199,10 +254,35 @@ function normalizeGrade(raw: unknown) {
   return String(Number(raw));
 }
 
-function isValidHours(raw: unknown, max: number) {
+// QA 행290 — 정수만 받는지 확인 요청이 있었으나, 이미 Number.isInteger 제약이 없어
+// 0.1시간 단위(round2) 입력을 그대로 통과시킨다. export는 그 사실을 회귀 테스트로
+// 고정하기 위함(intake.studyHours.test.ts).
+export function isValidHours(raw: unknown, max: number) {
   if (!isNumericInput(raw)) return false;
   const num = Number(raw);
   return Number.isFinite(num) && num >= 0 && num <= max;
+}
+
+// QA 행290・291 재설계 — priorNaesinGrade(0~100 또는 1~9)・naesin.overall(1~naesinScale)・
+// mock 백분위(0~100) 세 군데가 각자 다른 정의역의 숫자 하나만 검증하면 되는 공통 패턴이라
+// isValidHours(하한 0 고정)를 일반화한다.
+//
+// ⚠ 로컬 E2E 버그 — isNumericInput만으로는 부족하다. Number('') === 0 이라 하한이 0인
+// 도메인(모의고사 백분위 0~100, 고1 priorNaesinGrade 0~100)에서는 "미입력"(빈 문자열,
+// 백분위 칩을 안 고른 기본값)이 조용히 유효한 0으로 통과했다. 그 결과 deriveMogo가
+// gradeToPercentile 밴드 중앙값 대체 경로를 아예 타지 않고 pct=0을 그대로 써서
+// currentMogo가 크게 낮게 나왔다(재현: 국어만 칩 선택, 나머지 3과목 pct 미선택 →
+// 종합 백분위 29.67, 기대값 86.5). clean()으로 "실제 값이 있는지"까지 확인한다.
+function isInRange(raw: unknown, min: number, max: number) {
+  if (!isNumericInput(raw)) return false;
+  if (clean(raw) === "") return false;
+  const num = Number(raw);
+  return Number.isFinite(num) && num >= min && num <= max;
+}
+
+// "고2 2학기 기말" / "고3 3모" 형태 — 에러 메시지·라벨 매칭에 쓴다.
+function flowLabel(entry: { gradeLabel: string; examLabel: string }) {
+  return `${entry.gradeLabel} ${entry.examLabel}`;
 }
 
 // unwrapped {status, body}를 돌려준다 — 호출부가 항상 `return { error: fail(...) }`
@@ -231,8 +311,110 @@ function validateTarget(value: unknown, label: string) {
   return { value: { university, department } };
 }
 
+/**
+ * 시각(time-of-day) 값 검증 — isValidHours 와 달리 원본 계약대로 0~30 범위(자정 넘김은
+ * 24 초과로 표현)까지 허용한다. isNumericInput 가드 사유는 isValidGrade 와 같다.
+ */
+function isValidTimeOfDay(raw: unknown, max: number) {
+  if (!isNumericInput(raw)) return false;
+  const num = Number(raw);
+  return Number.isFinite(num) && num >= 0 && num <= max;
+}
+
+/**
+ * 요일 1행(하루 일정) 검증 — QA 행293. schedule.ts DayPattern 계약과 같은 모양으로
+ * 정규화해 돌려준다(buildWeeklySchedule 이 그대로 calculateWeekSchedule 에 투입한다).
+ */
+// QA 행293 — intake.weekSchedule.test.ts 회귀 테스트가 참조하도록 export.
+export function validateWeekScheduleDay(raw: unknown, dayLabel: string) {
+  if (!isPlainObject(raw))
+    return { error: fail(`${dayLabel} 일정이 올바르지 않습니다.`) };
+
+  if (!isValidTimeOfDay(raw.wake, WEEK_SCHEDULE_WAKE_MAX)) {
+    return {
+      error: fail(
+        `${dayLabel} 기상 시각은 0~${WEEK_SCHEDULE_WAKE_MAX} 사이여야 합니다.`,
+      ),
+    };
+  }
+  if (!isValidTimeOfDay(raw.sleep, WEEK_SCHEDULE_SLEEP_MAX)) {
+    return {
+      error: fail(
+        `${dayLabel} 취침 시각은 0~${WEEK_SCHEDULE_SLEEP_MAX} 사이여야 합니다.`,
+      ),
+    };
+  }
+  const wake = Number(raw.wake);
+  const sleep = Number(raw.sleep);
+  if (sleep <= wake) {
+    return {
+      error: fail(`${dayLabel} 취침 시각은 기상 시각보다 늦어야 합니다.`),
+    };
+  }
+
+  if (raw.hasSchool !== true && raw.hasSchool !== false) {
+    return {
+      error: fail(`${dayLabel} 등교 여부가 올바르지 않습니다.`),
+    };
+  }
+  const hasSchool = raw.hasSchool;
+
+  // schoolStart/schoolEnd 는 hasSchool 이 false 여도 값 자체는 그대로 저장한다
+  // (Step7 토글을 다시 켰을 때 이전 입력을 잃지 않기 위해, GoalOnboardingContext.tsx
+  // DayScheduleInput 주석 참고) — 검증도 hasSchool 과 무관하게 항상 한다.
+  if (
+    !isValidTimeOfDay(raw.schoolStart, WEEK_SCHEDULE_SCHOOL_TIME_MAX) ||
+    !isValidTimeOfDay(raw.schoolEnd, WEEK_SCHEDULE_SCHOOL_TIME_MAX)
+  ) {
+    return { error: fail(`${dayLabel} 등·하교 시각이 올바르지 않습니다.`) };
+  }
+  const schoolStart = Number(raw.schoolStart);
+  const schoolEnd = Number(raw.schoolEnd);
+  if (hasSchool && schoolEnd <= schoolStart) {
+    return {
+      error: fail(`${dayLabel} 하교 시각은 등교 시각보다 늦어야 합니다.`),
+    };
+  }
+
+  if (
+    !Array.isArray(raw.academies) ||
+    raw.academies.length > WEEK_SCHEDULE_MAX_ACADEMIES
+  ) {
+    return {
+      error: fail(
+        `${dayLabel} 학원 일정은 최대 ${WEEK_SCHEDULE_MAX_ACADEMIES}개까지 입력할 수 있습니다.`,
+      ),
+    };
+  }
+
+  const academies: { start: number; end: number }[] = [];
+  for (const slot of raw.academies) {
+    if (
+      !isPlainObject(slot) ||
+      !isValidTimeOfDay(slot.start, WEEK_SCHEDULE_ACADEMY_TIME_MAX) ||
+      !isValidTimeOfDay(slot.end, WEEK_SCHEDULE_ACADEMY_TIME_MAX)
+    ) {
+      return { error: fail(`${dayLabel} 학원 시각이 올바르지 않습니다.`) };
+    }
+    const start = Number(slot.start);
+    const end = Number(slot.end);
+    if (end <= start) {
+      return {
+        error: fail(
+          `${dayLabel} 학원 하원 시각은 등원 시각보다 늦어야 합니다.`,
+        ),
+      };
+    }
+    academies.push({ start, end });
+  }
+
+  return {
+    value: { wake, sleep, hasSchool, schoolStart, schoolEnd, academies },
+  };
+}
+
 /** 요청 바디 전체를 화이트리스트로 검증하고 정규화한다. */
-function validateIntakeBody(body: unknown) {
+export function validateIntakeBody(body: unknown) {
   if (!isPlainObject(body))
     return { error: fail("요청 본문이 올바르지 않습니다.") };
 
@@ -265,102 +447,263 @@ function validateIntakeBody(body: unknown) {
   if (minTarget.error) return { error: minTarget.error };
 
   // ── 내신 ─────────────────────────────────────────────────────────────
+  // QA 행290 재설계(qa3-held-high-design.md §2) — 고정 4회차 체크박스에서 "마지막 시험 1개
+  // 선택 + 그 시험까지의 전체 평균 + 최근 시험별 과목군 평균"으로 바뀌었다. 스케일은
+  // 사용자가 고르지 않는다 — 학년으로만 정해진다(고1・고2 5등급제, 고3 9등급제 — 2025학년도
+  // 고1부터 실제 제도가 5등급제, 설계안 §9 결정②). "없음"은 새 전역 플래그가 아니라
+  // lastExam === "" 로 파생한다(구판과 같은 이유 — 모순 상태를 원천 차단).
   if (!isPlainObject(body.naesin))
     return { error: fail("내신 성적이 올바르지 않습니다.") };
 
-  const naesin: Record<string, { value: string; none: boolean }> = {};
-  for (const { key, label } of NAESIN_ROUNDS) {
-    const entry = body.naesin[key];
-    if (!isPlainObject(entry))
-      return { error: fail(`내신 ${label} 입력이 누락되었습니다.`) };
+  const gradeLabel = GRADE_MAP[grade]; // 위에서 이미 GRADE_MAP[grade] 존재를 검증했다.
+  const naesinScale = gradeLabel === "고3" ? 9 : 5;
 
-    if (entry.none === true) {
-      naesin[key] = { value: "", none: true };
-      continue;
-    }
+  const naesinLastExamKey = clean(body.naesin.lastExam);
+  const naesinAllNone = naesinLastExamKey === "";
+  const selectedNaesinExam = naesinAllNone
+    ? null
+    : NAESIN_FLOW_BY_KEY[naesinLastExamKey];
 
-    if (!isValidGrade(entry.value)) {
-      return { error: fail(`내신 ${label} 등급은 1~9 사이여야 합니다.`) };
+  if (!naesinAllNone) {
+    if (!selectedNaesinExam) {
+      return {
+        error: fail("마지막으로 본 내신 시험을 올바르게 선택해 주세요."),
+      };
     }
-    naesin[key] = { value: normalizeGrade(entry.value), none: false };
+    if (
+      (GRADE_RANK[selectedNaesinExam.gradeLabel] ?? 0) >
+      (GRADE_RANK[gradeLabel] ?? 0)
+    ) {
+      return { error: fail("선택한 시험이 현재 학년보다 앞섭니다.") };
+    }
   }
 
-  // ── 내신 "전 회차 없음" 특례 ─────────────────────────────────────────
-  //
-  // 전 회차가 '없음'이면 평균을 낼 회차가 없어 currentScore 가 0 이 되는데,
-  // applyPreHighGradePenalty 가 이를 [1, 9] 로 클램프해(primitives.js:169)
-  // **1등급(최상위)** 으로 접어버린다 — 성적 미입력이 조용히 최고 확률로 둔갑한다.
-  // 예전에는 이 구멍을 막으려고 여기서 400 으로 거절했고, 그 결과 내신이 아직
-  // 하나도 없는 고1 3월 학생은 온보딩 자체를 진행할 수 없었다.
-  //
-  // 이제는 원본과 같이 "이전 단계까지의 내신 평균 등급"을 받아 그 자리를 메운다
-  // (원본 effectiveCurrentScore, IntakeForm.tsx:1176-1179). 값이 있으니 0 클램프
-  // 경로는 애초에 성립하지 않는다.
-  //
-  // ⚠ 원본과 의도적으로 다른 점: 원본은 0~100 **원점수**(midScoreForNaesin,
-  //   IntakeForm.tsx:1425-1436)를 받아 서버가 grade_conversions('middleschool')
-  //   표로 등급 환산한다(student.mjs:646-677). 우리 dev DB 에는 그 표가 없고,
-  //   우리 온보딩은 전 구간이 1~9 등급 단일 스케일이다(sql/55 current_score
-  //   컬럼 코멘트가 이 원칙을 명문화한다). 0~100 을 그대로 넘기면 위의 clamp(1,9)가
-  //   87.5 점을 9등급(최하위)으로 접는다. 그래서 여기서는 **1~9 등급**으로 받고,
-  //   기존 isValidGrade / normalizeGrade 를 그대로 재사용한다
-  //   (boolean·객체 차단 사유는 isNumericInput 주석 참고).
-  //
-  // 섹션 단위 "없음"을 새 전역 플래그로 받지 않고 4회차 상태에서 파생하는 이유:
-  // 전역 플래그를 두면 "플래그 OFF인데 4회차 전부 none" 같은 모순 상태가 생기고
-  // 검증기가 그 모순까지 판정해야 한다. 파생이면 판정이 단 하나다.
-  // biome-ignore lint/style/noNonNullAssertion: naesin은 바로 위 루프에서 NAESIN_ROUNDS 전체 키를 채웠으므로 항상 존재한다.
-  const naesinAllNone = NAESIN_ROUNDS.every(({ key }) => naesin[key]!.none);
+  // "전 시험 없음" 특례 — 평균을 낼 시험이 없어 currentScore 가 0 이 되는 것을 막는다
+  // (0 이면 applyPreHighGradePenalty clamp(1,9)가 1등급(최상위)으로 접어버린다, 구판과
+  // 동일한 이유). 원본과 같이 고1은 중학교 평균 **원점수**(0~100, middleAvgToNine으로
+  // 9등급 환산), 고2・고3은 이전 학년까지의 평균 **등급**(1~9, 9등급제 그대로 — 기존
+  // priorNaesinGrade 흐름 유지)을 받는다.
   let priorNaesinGrade = "";
+  let naesinOverall = "";
 
   if (naesinAllNone) {
-    if (!isValidGrade(body.priorNaesinGrade)) {
+    const isScoreInput = gradeLabel === "고1";
+    if (
+      !isInRange(
+        body.naesin.priorNaesinGrade,
+        isScoreInput ? 0 : 1,
+        isScoreInput ? 100 : 9,
+      )
+    ) {
       return {
         error: fail(
-          "내신 성적이 없다면 이전까지의 내신 평균 등급을 1~9 사이로 입력해 주세요.",
+          isScoreInput
+            ? "중학교 내신 평균 점수를 0~100 사이로 입력해 주세요."
+            : "내신 성적이 없다면 이전까지의 내신 평균 등급을 1~9 사이로 입력해 주세요.",
         ),
       };
     }
-    priorNaesinGrade = normalizeGrade(body.priorNaesinGrade);
+    priorNaesinGrade = normalizeGrade(body.naesin.priorNaesinGrade);
+  } else {
+    if (!isInRange(body.naesin.overall, 1, naesinScale)) {
+      return {
+        error: fail(`내신 평균 등급은 1~${naesinScale} 사이여야 합니다.`),
+      };
+    }
+    naesinOverall = normalizeGrade(body.naesin.overall);
   }
-  // 4회차 전부 none 이 아니면 body.priorNaesinGrade 는 통째로 무시한다(저장도 안 한다) —
-  // 화면에 보이지 않는 값이 조용히 계산이나 저장에 섞이지 않게 한다.
+
+  // 최근 시험별 과목군 평균 — 선택 사항(리포트 유닛 입력용, 온보딩 진행을 막지 않는다).
+  // 표시 창(선택 시험 포함 역순 최대 3개, Step4Naesin.tsx recentExams와 동일 규칙) 밖의
+  // 시험은 무시한다 — mockRounds와 같은 이유(GoalOnboardingContext가 NAESIN_EXAM_FLOW
+  // 12개 키를 전부 빈 객체로 들고 있고, lastExam을 바꿔도 이전에 입력해 둔 다른 시험의
+  // 데이터를 지우지 않는다 — buildInitialNaesinExams 주석 참고). FLOW 밖 키・과목군 밖
+  // 키도 조용히 무시하고(화이트리스트 밖 데이터를 저장하지 않는다), 군 평균이 없는 군도
+  // 조용히 건너뛴다("빈 군은 저장 제외" 규칙).
+  const naesinWindowKeys = new Set<string>();
+  if (!naesinAllNone) {
+    const lastIndex = NAESIN_FLOW.findIndex((e) => e.key === naesinLastExamKey);
+    if (lastIndex !== -1) {
+      for (const entry of NAESIN_FLOW.slice(
+        Math.max(0, lastIndex - 2),
+        lastIndex + 1,
+      )) {
+        naesinWindowKeys.add(entry.key);
+      }
+    }
+  }
+
+  const naesinExams: {
+    key: string;
+    groups: Record<
+      string,
+      { avg: number; subjects: { name: string; grade: number }[] }
+    >;
+  }[] = [];
+  const rawNaesinExams = isPlainObject(body.naesin.exams)
+    ? body.naesin.exams
+    : {};
+  for (const [examKey, examValue] of Object.entries(rawNaesinExams)) {
+    if (!naesinWindowKeys.has(examKey)) continue; // 창 밖은 무조건 무시(FLOW 밖 키도 자동 제외).
+    if (!isPlainObject(examValue) || !isPlainObject(examValue.groups)) continue;
+
+    const groups: Record<
+      string,
+      { avg: number; subjects: { name: string; grade: number }[] }
+    > = {};
+    for (const groupKey of NAESIN_GROUP_KEYS) {
+      const groupValue = examValue.groups[groupKey];
+      if (!isPlainObject(groupValue) || !isValidGrade(groupValue.avg)) continue;
+
+      const subjects: { name: string; grade: number }[] = [];
+      if (Array.isArray(groupValue.subjects)) {
+        for (const subject of groupValue.subjects) {
+          if (!isPlainObject(subject)) continue;
+          const name = clean(subject.name);
+          if (!name || name.length > NAME_MAX_LENGTH) continue;
+          if (!isValidGrade(subject.grade)) continue;
+          subjects.push({ name, grade: Number(normalizeGrade(subject.grade)) });
+        }
+      }
+      groups[groupKey] = {
+        avg: Number(normalizeGrade(groupValue.avg)),
+        subjects,
+      };
+    }
+    if (Object.keys(groups).length > 0)
+      naesinExams.push({ key: examKey, groups });
+  }
 
   // ── 모의고사 ─────────────────────────────────────────────────────────
+  // QA 행291 재설계(qa3-held-high-design.md §3) — 고정 4회차(3/6/9/10월, 학년 무구분)에서
+  // 학년별 전체 시퀀스(MOCK_FLOW, 고3 5・7모 포함)로 바뀌었다. 등급 입력에 더해 백분위
+  // (원본 GRADE_PERCENTILE 밴드에서 사용자가 고른 칩 값)를 함께 받는다 — 안 보내면(칩을
+  // 안 골랐으면) gradeToPercentile 의 밴드 중앙값으로 대체한다(구판 추정과 동일한 폴백).
   if (!isPlainObject(body.mockExam))
     return { error: fail("모의고사 성적이 올바르지 않습니다.") };
 
-  const mockExam: Record<string, Record<string, unknown>> = {};
-  for (const { key, label } of MOCK_ROUNDS) {
-    const entry = body.mockExam[key];
-    if (!isPlainObject(entry))
-      return { error: fail(`모의고사 ${label} 입력이 누락되었습니다.`) };
+  const mockLastRoundKey = clean(body.mockExam.lastRound);
+  const mockAllNone = mockLastRoundKey === "";
+  const selectedMockRound = mockAllNone
+    ? null
+    : MOCK_FLOW_BY_KEY[mockLastRoundKey];
 
-    if (entry.none === true) {
-      mockExam[key] = { none: true };
-      continue;
+  if (!mockAllNone) {
+    if (!selectedMockRound) {
+      return {
+        error: fail("마지막으로 본 모의고사를 올바르게 선택해 주세요."),
+      };
     }
+    if (
+      (GRADE_RANK[selectedMockRound.gradeLabel] ?? 0) >
+      (GRADE_RANK[gradeLabel] ?? 0)
+    ) {
+      return { error: fail("선택한 모의고사가 현재 학년보다 앞섭니다.") };
+    }
+  }
 
-    // Step5MockExam.jsx:21-24 와 동일하게 5과목 전부를 요구한다.
-    const round: Record<string, unknown> = { none: false };
-    for (const subject of MOCK_SUBJECTS) {
-      if (!isValidGrade(entry[subject])) {
+  const mockTrack =
+    body.mockExam.track === "과탐" || body.mockExam.track === "사탐"
+      ? body.mockExam.track
+      : "";
+  if (!mockAllNone && !mockTrack) {
+    return { error: fail("탐구 선택 과목(과탐/사탐)을 골라 주세요.") };
+  }
+
+  // 로컬 E2E 버그 — "표시 창"(선택 회차 포함 역순 최대 3개, Step5MockExam.tsx
+  // recentRounds와 동일 규칙) 밖의 회차는 클라이언트가 무엇을 보내든(빈 값이든, 이전에
+  // 다른 lastRound를 고르며 남은 스테일 데이터든) 무시한다 — 학생이 "고3 10모"를 고르고
+  // 입력했다가 마음을 바꿔 "고2 6모"로 다시 고르면, GoalOnboardingContext는 고3 회차
+  // 데이터를 지우지 않고 그대로 들고 있는다(다른 회차를 다시 고를 때 입력이 사라지지
+  // 않게 하려는 설계, buildInitialMockRounds 주석 참고) — 그 남은 데이터가 조용히
+  // 저장되는 걸 여기서 막는다.
+  const mockWindowKeys = new Set<string>();
+  if (!mockAllNone) {
+    const lastIndex = MOCK_FLOW.findIndex((r) => r.key === mockLastRoundKey);
+    if (lastIndex !== -1) {
+      for (const entry of MOCK_FLOW.slice(
+        Math.max(0, lastIndex - 2),
+        lastIndex + 1,
+      )) {
+        mockWindowKeys.add(entry.key);
+      }
+    }
+  }
+
+  // 값이 하나라도 있는 회차는 국/수/영/탐구1/탐구2 전부 채워야 한다(부분 회차는 종합
+  // 백분위 계산을 왜곡한다 — buildMogoScores 주석 참고).
+  const mockRounds: Record<
+    string,
+    {
+      kor: { grade: string; pct: number | null };
+      math: { grade: string; pct: number | null };
+      eng: { grade: string };
+      tam1: { grade: string; pct: number | null };
+      tam2: { grade: string; pct: number | null };
+    }
+  > = {};
+  // MOCK_FLOW(학년 순) 순서로 순회한다 — Object.entries(body 원본)는 클라이언트가 보낸
+  // JSON 키 순서를 그대로 따르는데, calcJeongsiCompositeFE(jeongsi.js:195-212)의 영어
+  // 점수는 "마지막으로 값이 있는 회차가 덮어쓴다"는 규칙이 Object.values() 순회 순서에
+  // 의존한다 — 삽입 순서가 시간순이 아니면 오래된 회차의 영어 등급이 더 최근 회차를
+  // 덮어쓸 수 있다.
+  const rawMockRounds = isPlainObject(body.mockExam.rounds)
+    ? body.mockExam.rounds
+    : {};
+  for (const flowEntry of MOCK_FLOW) {
+    const roundKey = flowEntry.key;
+    if (!mockWindowKeys.has(roundKey)) continue; // 창 밖은 무조건 무시(FLOW 밖 키도 자동 제외).
+    const roundValue = rawMockRounds[roundKey];
+    if (!isPlainObject(roundValue)) continue;
+
+    // "값이 있다"의 정의 — isNumericInput만으로는 grade:""(미입력 기본값)도 "문자열이니
+    // 숫자로 해석해도 되는 값"으로 통과시켜, 완전히 빈 회차까지 "값이 있다"고 오판했다
+    // (로컬 E2E에서 재현된 400의 원인 — GoalOnboardingContext가 MOCK_FLOW 14개 키를
+    // 전부 빈 객체로 채워 두므로, 이 가드 없이는 창 안의 빈 회차조차 5과목 필수 검증에
+    // 걸린다). clean()으로 실제 비어있지 않은지까지 확인한다.
+    const hasAnyInput =
+      MOCK_SUBJECTS.some((subject) => {
+        const entry = roundValue[subject];
+        return isPlainObject(entry) && clean(entry.grade) !== "";
+      }) ||
+      (isPlainObject(roundValue.eng) && clean(roundValue.eng.grade) !== "");
+    if (!hasAnyInput) continue; // 완전히 빈 회차는 저장하지 않는다(선택 회차 포함).
+
+    const label = flowLabel(flowEntry);
+    const round: Record<string, unknown> = {};
+    for (const subjectKey of MOCK_SUBJECTS) {
+      const entry = roundValue[subjectKey];
+      if (!isPlainObject(entry) || !isValidGrade(entry.grade)) {
         return {
           error: fail(
             `모의고사 ${label} 등급은 5과목 모두 1~9 사이여야 합니다.`,
           ),
         };
       }
-      round[subject] = normalizeGrade(entry[subject]);
+      const pct = isInRange(entry.pct, 0, 100)
+        ? Math.round(Number(entry.pct))
+        : null;
+      round[subjectKey] = { grade: normalizeGrade(entry.grade), pct };
     }
-    mockExam[key] = round;
+    if (!isPlainObject(roundValue.eng) || !isValidGrade(roundValue.eng.grade)) {
+      return {
+        error: fail(`모의고사 ${label} 등급은 5과목 모두 1~9 사이여야 합니다.`),
+      };
+    }
+    round.eng = { grade: normalizeGrade(roundValue.eng.grade) };
+
+    mockRounds[roundKey] = round as (typeof mockRounds)[string];
   }
 
-  // 모의고사 전 회차 '없음'. 내신과 달리 추가 입력을 받지 않는다 — 이미 정상 경로다
-  // (currentMogo = 0 → 정시 확률 2종 0, buildMogoScores 주석 참고).
-  // 잔여 회차 오버라이드에만 쓴다(아래 §remaining 오버라이드).
-  // biome-ignore lint/style/noNonNullAssertion: mockExam은 바로 위 루프에서 MOCK_ROUNDS 전체 키를 채웠으므로 항상 존재한다.
-  const mockAllNone = MOCK_ROUNDS.every(({ key }) => mockExam[key]!.none);
+  // 마지막 회차는 currentMogo/remain_mogo 가 실제로 쓰는 값이다(리포트・확률 기준) — 없음이
+  // 아니면 반드시 채워져 있어야 한다. 참고용으로만 보여준 이전 회차 2개는 선택 입력이다.
+  if (!mockAllNone && !mockRounds[mockLastRoundKey]) {
+    return {
+      error: fail(
+        "마지막으로 선택한 모의고사의 5개 과목 등급을 모두 입력해 주세요.",
+      ),
+    };
+  }
 
   // ── 자습 시간 · 하루 일과 ────────────────────────────────────────────
   if (!isPlainObject(body.studyHours))
@@ -374,43 +717,40 @@ function validateIntakeBody(body: unknown) {
     studyHours[short] = Number(body.studyHours[short]);
   }
 
-  if (!isPlainObject(body.dailySchedule))
-    return { error: fail("하루 일과가 올바르지 않습니다.") };
+  // QA 행293 — 이전 버전의 단일 세트 4필드(dailySchedule)는 더 이상 받지 않는다.
+  // weekSchedule 이 없는 요청(구버전 클라이언트가 여전히 dailySchedule 을 보내는 경우
+  // 포함)은 이 isPlainObject 체크에서 그대로 400 으로 떨어진다.
+  if (!isPlainObject(body.weekSchedule))
+    return { error: fail("하루 일정이 올바르지 않습니다.") };
 
-  const dailySchedule: Record<string, number> = {};
-  for (const [field, limit] of Object.entries(DAILY_SCHEDULE_LIMITS)) {
-    const raw = body.dailySchedule[field];
-    const value = Number(raw);
-    // isNumericInput 가드 사유는 isValidGrade 와 같다 — boolean·객체가 Number 로
-    // 조용히 0/1 이 되는 경로를 열어 두지 않는다.
-    if (
-      !isNumericInput(raw) ||
-      !Number.isFinite(value) ||
-      value < limit.min ||
-      value > limit.max
-    ) {
-      return {
-        error: fail(
-          `하루 일과 값이 허용 범위(${limit.min}~${limit.max})를 벗어났습니다.`,
-        ),
-      };
-    }
-    dailySchedule[field] = value;
+  const weekSchedule: Record<string, DayPattern> = {};
+  for (const { short, long, label } of WEEKDAYS) {
+    const validated = validateWeekScheduleDay(body.weekSchedule[short], label);
+    if (validated.error) return { error: validated.error };
+    weekSchedule[long] = validated.value;
   }
 
   return {
     input: {
       schoolType,
       grade,
+      gradeLabel,
       ideal: idealTarget.value,
       min: minTarget.value,
-      naesin,
+      naesinScale,
+      naesinLastExamKey,
       naesinAllNone,
+      selectedNaesinExam,
       priorNaesinGrade,
-      mockExam,
+      naesinOverall,
+      naesinExams,
+      mockLastRoundKey,
       mockAllNone,
+      selectedMockRound,
+      mockTrack,
+      mockRounds,
       studyHours,
-      dailySchedule,
+      weekSchedule,
     },
   };
 }
@@ -420,37 +760,83 @@ function validateIntakeBody(body: unknown) {
 // ---------------------------------------------------------------------------
 
 /**
- * 내신: none 이 아닌 회차의 등급 평균과 마지막 회차 라벨.
+ * 내신 현재 점수(9등급 스케일로 환산된 값) + 표시용 마지막 시험 라벨 + 남은 회차.
  *
- * 전 회차 none 이면 taken 이 빈 배열이라 아래 본문이
- * taken[taken.length - 1].label 에서 TypeError 를 던지고(최상위 catch → 500)
- * 평균도 0/0 = NaN 이 된다. 그래서 그 경우를 **먼저** 갈라낸다:
- * priorNaesinGrade(이전 단계까지의 평균 등급)로 점수를 대체하고 라벨은 '' 로 둔다.
+ * QA 행290 재설계(qa3-held-high-design.md §2) — 스케일 환산과 remain_naesin을 이 함수가
+ * 직접 끝낸다(구판은 currentScore만 만들고 remain은 핸들러가 별도 표로 오버라이드했다).
+ * 이유:
+ *  - 스케일: 고1・고2는 5등급제로 입력받으므로 fiveScaleToNine으로 9등급 환산해야
+ *    calcNaesinProb이 goal_university_cuts.normal(9등급 기준)과 같은 자로 잴 수 있다.
+ *    고3은 이미 9등급제라 그대로 쓴다(§9 결정②).
+ *  - remain_naesin: lastExam이 학생의 현재 학년보다 이전 학년 시험일 수 있다(예: 고3인데
+ *    마지막이 "고2 2학기 기말") — getRemainingNaesin(grade, examLabel) 표를 그 시험이
+ *    "속한 학년"으로 조회해야 정확하다. 파이프라인 내부의 `${student.grade}_${lastNaesin}`
+ *    조합에 맡기면(remainingNaesin 오버라이드가 없을 때만 동작) 학생의 현재 학년과 시험이
+ *    속한 학년이 어긋나는 순간 완전히 틀린 순번을 조회한다. 그래서 이 함수가 항상
+ *    명시적으로 계산해 돌려주고, 핸들러는 그 값을 remainingNaesin 오버라이드로 그대로
+ *    buildInitialStudentState에 넘긴다(표를 재구현하지 않고 getRemainingNaesin을 그대로
+ *    호출한다 — 계산 모듈은 동결 대상).
  *
- * 라벨을 '' 로 두면 getRemainingNaesin 표가 미매칭이라 남은 회차가 0 이 되는데
- * (primitives.js:76), 그 자리는 호출부가 remainingNaesin 오버라이드로 메운다.
- * 가짜 라벨('2학기 기말' 등)을 지어내지 않는 이유는 그 값이 last_naesin_exam 으로
- * 그대로 저장돼 "보지도 않은 시험을 본 것"으로 기록되기 때문이다.
+ * "아직 없음"이면 priorNaesinGrade로 currentScore를 대체하고(0 이면 최고 등급으로
+ * 오클램프되는 구멍을 막는다, 구판과 동일한 이유) 라벨은 '' 로 둔다. 고1은 중학교
+ * 평균 **원점수**(0~100)를 middleAvgToNine으로, 고2・고3은 이전 학년까지의 평균
+ * **등급**(1~9, 9등급제)을 그대로 쓴다(기존 priorNaesinGrade 흐름 유지).
  */
-function deriveNaesin(naesin, { naesinAllNone, priorNaesinGrade }) {
+export function deriveNaesin(input) {
+  const {
+    naesinAllNone,
+    priorNaesinGrade,
+    gradeLabel,
+    naesinScale,
+    naesinOverall,
+    selectedNaesinExam,
+  } = input;
+
   if (naesinAllNone) {
+    const nineScale =
+      gradeLabel === "고1"
+        ? middleAvgToNine(Number(priorNaesinGrade))
+        : Number(priorNaesinGrade);
+
     return {
-      currentScore: round1(Number(priorNaesinGrade)),
+      currentScore: nineScale ?? 0,
       lastNaesinExam: "",
+      remainNaesin: NAESIN_NONE_REMAINING[gradeLabel] ?? null,
     };
   }
 
-  const taken = NAESIN_ROUNDS.filter(({ key }) => !naesin[key].none);
-  const sum = taken.reduce(
-    (acc, { key }) => acc + Number(naesin[key].value),
-    0,
-  );
+  const nineScale =
+    naesinScale === 9
+      ? Number(naesinOverall)
+      : fiveScaleToNine(Number(naesinOverall));
 
   return {
-    currentScore: round1(sum / taken.length),
-    // biome-ignore lint/style/noNonNullAssertion: naesinAllNone이 false인 이 분기에서는 taken에 최소 1개 회차가 있다.
-    lastNaesinExam: taken[taken.length - 1]!.label,
+    currentScore: nineScale ?? 0,
+    lastNaesinExam: flowLabel(selectedNaesinExam),
+    remainNaesin: getRemainingNaesin(
+      selectedNaesinExam.gradeLabel,
+      selectedNaesinExam.examLabel,
+    ),
   };
+}
+
+/**
+ * naesin_scores.groupAverages — 리포트(행301)가 "현재 위치" 스냅샷으로 바로 소비할 수
+ * 있게 마지막으로 본 시험의 과목군 평균만 평평하게 뽑아낸다(원본 naesinExams는 시험별로
+ * 중첩돼 있어 소비 지점마다 최신 시험을 다시 찾아야 하는 번거로움이 있다). 마지막 시험에
+ * 과목군 입력이 하나도 없으면(전체 평균만 입력) 빈 객체 — 리포트 쪽이 4과목 flat 모드로
+ * 폴백한다(qa3-held-high-design.md §7 입력 규칙).
+ */
+function deriveNaesinGroupAverages(naesinExams, selectedNaesinExam) {
+  if (!selectedNaesinExam) return {};
+  const match = naesinExams.find((exam) => exam.key === selectedNaesinExam.key);
+  if (!match) return {};
+  return Object.fromEntries(
+    Object.entries(match.groups).map(([groupKey, group]) => [
+      groupKey,
+      (group as { avg: number }).avg,
+    ]),
+  );
 }
 
 /**
@@ -478,78 +864,178 @@ function gradeToPercentile(rawGrade) {
   return Math.round((band.min + band.max) / 2);
 }
 
+type RawMockRounds = Record<
+  string,
+  {
+    kor: { grade: string; pct: number | null };
+    math: { grade: string; pct: number | null };
+    eng: { grade: string };
+    tam1: { grade: string; pct: number | null };
+    tam2: { grade: string; pct: number | null };
+  }
+>;
+
+type ResolvedMockRounds = Record<
+  string,
+  {
+    kor: { grade: string; pct: number };
+    math: { grade: string; pct: number };
+    eng: { grade: string };
+    tam1: { grade: string; pct: number };
+    tam2: { grade: string; pct: number };
+  }
+>;
+
 /**
- * calcJeongsiCompositeFE(jeongsi.js:195-212)가 요구하는 회차별 객체를 만든다.
+ * 회차별 pct(사용자가 고른 백분위 칩)를 확정한다 — pct가 있으면 그대로, 없으면(칩을 안
+ * 골랐으면) gradeToPercentile 밴드 중앙값으로 대체한다.
  *
- * 주의점 세 가지(전부 원본 동작이며 파리티를 유지해야 한다):
+ * ⚠ 로컬 E2E 버그 — 이 대체 로직 자체는 원래도 있었지만(구 buildMogoScores), 앞단
+ * isInRange('', 0, 100)이 Number('')===0 을 유효 범위로 오판해 "칩 미선택"을 pct=0으로
+ * 확정해 버려서(isInRange 주석 참고) 이 함수가 그 오판된 0을 "값이 있다"고 여기고 대체를
+ * 건너뛰었다. isInRange를 고친 지금은 미선택이 정확히 null로 넘어오므로 이 함수가 항상
+ * 올바르게 동작한다.
+ *
+ * currentMogo 계산(buildMogoScores)과 저장(mock_exam_scores.rounds) 양쪽이 반드시 같은
+ * 확정값을 봐야 한다 — "계산엔 86.5를 쓰고 저장엔 null을 남긴다"처럼 두 표가 다른
+ * 이야기를 하면 안 된다(§9 baseProbsForStorage와 동일한 원칙).
+ */
+function resolveMockRoundPercentiles(
+  mockRounds: RawMockRounds,
+): ResolvedMockRounds {
+  const resolved: ResolvedMockRounds = {};
+  for (const [key, round] of Object.entries(mockRounds)) {
+    resolved[key] = {
+      kor: {
+        grade: round.kor.grade,
+        pct: round.kor.pct ?? gradeToPercentile(round.kor.grade),
+      },
+      math: {
+        grade: round.math.grade,
+        pct: round.math.pct ?? gradeToPercentile(round.math.grade),
+      },
+      eng: { grade: round.eng.grade },
+      tam1: {
+        grade: round.tam1.grade,
+        pct: round.tam1.pct ?? gradeToPercentile(round.tam1.grade),
+      },
+      tam2: {
+        grade: round.tam2.grade,
+        pct: round.tam2.pct ?? gradeToPercentile(round.tam2.grade),
+      },
+    };
+  }
+  return resolved;
+}
+
+/**
+ * calcJeongsiCompositeFE(jeongsi.js:195-212)가 요구하는 회차별 객체를 만든다. 입력은
+ * 이미 resolveMockRoundPercentiles를 거쳐 pct가 전부 확정된 회차만 받는다.
+ *
+ * 주의점(전부 원본 동작이며 파리티를 유지해야 한다):
  *  - eng 는 백분위가 아니라 **등급 문자열** 그대로다(getEnglishPenaltyFE 가
  *    소수 등급을 선형보간하므로 반올림하지 않고 원문을 넘긴다).
  *  - 영어는 평균이 아니라 "마지막으로 값이 있는 회차"가 덮어쓴다. 그래서 회차
- *    삽입 순서(mar → jun → sep → oct)가 결과를 바꾼다.
- *  - none 회차는 객체에서 아예 제외한다. 포함하면 미입력 과목 평균 0 이
- *    3분할에 들어가 종합 백분위가 크게 낮아진다(jeongsi.js:207-209).
- *    전 회차가 none 이면 빈 객체 → currentMogo 0 → 정시 확률 2종이 0 이 되는데,
- *    이는 정상 경로다(pipeline.js:227-228).
+ *    삽입 순서가 결과를 바꾼다 — mockRounds는 validateIntakeBody가 이미 MOCK_FLOW
+ *    (학년 순) 순서로 채워 넣었다(위 검증부 주석 참고).
+ *  - 값이 없는 회차는 mockRounds에 아예 없다(검증부가 완전히 빈 회차를 저장하지 않는다).
+ *    전 회차가 없으면(mockAllNone) 이 함수 자체를 호출하지 않는다(deriveMogo 참고).
  */
-function buildMogoScores(mockExam) {
-  const scores = {};
+function buildMogoScores(resolvedMockRounds: ResolvedMockRounds) {
+  const scores: Record<
+    string,
+    {
+      kor: { percentile: number };
+      math: { percentile: number };
+      eng: string;
+      exp1: { percentile: number };
+      exp2: { percentile: number };
+    }
+  > = {};
 
-  for (const { key } of MOCK_ROUNDS) {
-    const round = mockExam[key];
-    if (round.none) continue;
-
+  for (const [key, round] of Object.entries(resolvedMockRounds)) {
     scores[key] = {
-      kor: { percentile: gradeToPercentile(round.kor) },
-      math: { percentile: gradeToPercentile(round.math) },
-      eng: round.eng,
-      exp1: { percentile: gradeToPercentile(round.tam1) },
-      exp2: { percentile: gradeToPercentile(round.tam2) },
+      kor: { percentile: round.kor.pct },
+      math: { percentile: round.math.pct },
+      eng: round.eng.grade,
+      exp1: { percentile: round.tam1.pct },
+      exp2: { percentile: round.tam2.pct },
     };
   }
 
   return scores;
 }
 
-function deriveMogo(mockExam) {
-  const taken = MOCK_ROUNDS.filter(({ key }) => !mockExam[key].none);
+/**
+ * 정시 종합 백분위(currentMogo) + 표시용 마지막 회차 라벨 + 남은 회차 + 확정된 회차
+ * (resolvedRounds, pct가 전부 채워짐 — mock_exam_scores.rounds 저장에 그대로 쓴다).
+ *
+ * remain_mogo도 deriveNaesin과 같은 이유로 이 함수가 직접 계산한다 — lastRound가 학생의
+ * 현재 학년보다 이전 학년 회차일 수 있어(예: 고3인데 마지막이 "고2 10모")
+ * getRemainingMogo(grade, examLabel)를 그 회차가 "속한 학년"으로 조회해야 한다. 구판의
+ * isMiddleSubstituted 전용 분기(중3 치환 학년으로는 표 조회가 안 돼 학생의 실제 학년을
+ * 따로 넘기던 우회)는 이제 불필요하다 — remainMogo가 항상 명시적으로 계산되므로
+ * buildInitialStudentState 내부의 `${state.grade}_${lastMogo}` 조합(치환된 '중3' 포함)에
+ * 의존할 일이 아예 없다.
+ */
+export function deriveMogo(input) {
+  const { mockAllNone, mockRounds, selectedMockRound, gradeLabel } = input;
+
+  if (mockAllNone) {
+    return {
+      currentMogo: 0,
+      lastMogoExam: "",
+      remainMogo: MOGO_NONE_REMAINING[gradeLabel] ?? null,
+      resolvedRounds: {} as ResolvedMockRounds,
+    };
+  }
+
+  const resolvedRounds = resolveMockRoundPercentiles(mockRounds);
 
   return {
-    currentMogo: calcJeongsiCompositeFE(buildMogoScores(mockExam)),
-    // biome-ignore lint/style/noNonNullAssertion: 직전 삼항의 length 체크로 존재 보장
-    lastMogoExam: taken.length ? taken[taken.length - 1]!.label : "",
+    currentMogo: calcJeongsiCompositeFE(buildMogoScores(resolvedRounds)),
+    lastMogoExam: flowLabel(selectedMockRound),
+    remainMogo: getRemainingMogo(
+      selectedMockRound.gradeLabel,
+      selectedMockRound.examLabel,
+    ),
+    resolvedRounds,
   };
 }
 
 /**
  * 요일별 목표 학습시간(study_schedule).
  *
- * 우리 온보딩은 공통 스테퍼 4개(기상/취침/학교체류/학원)만 받으므로 원본
- * calcAvailableHours 의 요일별 계약(요일 7개 × 시각·학원 N쌍)을 채울 수 없다.
- * 그래서 가용시간은 우리 앱 전용 근사 어댑터 calcAvailableHoursApprox
- * (schedule.js:409-425)로 구한다.
+ * QA 행293 이후 온보딩이 원본 calcAvailableHours 의 요일별 계약(요일 7개 × 기상・취침
+ * 시각・등하교 시각・학원 N쌍)을 그대로 받는다(validateWeekScheduleDay 가 검증한
+ * input.weekSchedule 이 이미 DayPattern 모양이다) — 예전처럼 근사 어댑터
+ * (calcAvailableHoursApprox)로 합성 입력을 지어낼 필요가 없어졌다.
  *
- * 그 다음 단계(대학 배율 곱 + 학생 자습시간 오버라이드)는 **calculateWeekSchedule
- * 을 그대로 호출해서** 처리한다. 오버라이드 규칙(schedule.js:349-367)을 이 파일에
- * 베껴 쓰면 동결된 계산 모듈과 두 벌이 되어 언젠가 갈린다.
- *
- * 그래서 weekSchedule 에는 "calcAvailableHours 를 통과하면 근사값이 그대로 나오는"
- * 합성 입력을 넣는다:
- *   wake = 0, sleep = 근사값 + 1.5, 등하교 시각 없음, 학원 0건
- *   → calcAvailableHours = (sleep - wake) - 1.5 = 근사값  (schedule.js:282)
- *   (등하교 시각이 없으면 parseFloat(undefined) = NaN 이라 학교 항이 통째로
- *    건너뛰어지고, academies 가 빈 배열이라 학원 항도 없다.)
- *
- * 근사 오차 = 1.5 + (학원 건수 × 1) − 등교전자습시간 (schedule.js:394-398 실측).
- * 이는 이미 계산 모듈에 문서화된 확정 사항이다.
+ * 가용시간 산출 + 대학 배율 곱 + 학생 자습시간 오버라이드는 여전히
+ * **calculateWeekSchedule 을 그대로 호출해서** 처리한다(오버라이드 규칙,
+ * schedule.js:349-367 을 이 파일에 베껴 쓰면 동결된 계산 모듈과 두 벌이 되어
+ * 언젠가 갈린다). 요일별 등교 여부는 이제 DAYS_CONFIG 고정값이 아니라 사용자가
+ * 입력한 hasSchool 을 그대로 쓴다(calculateWeekSchedule 이 day.hasSchool 을
+ * 우선한다, schedule.js 참고). 학원 이동시간 공제는 ACADEMY_COMMUTE_HOURS(0.5h,
+ * DIVERGENCE.md §1 #5)를 명시로 넘긴다 — 원본은 1h 고정이었다.
  */
-function buildWeeklySchedule({ ideal, min, studyHours, dailySchedule }) {
-  const weekSchedule = {};
-  const selfStudyHours = {};
-
-  for (const { short, long, hasSchool } of WEEKDAYS) {
-    const available = calcAvailableHoursApprox(dailySchedule, hasSchool);
-    weekSchedule[long] = { wake: 0, sleep: available + 1.5, academies: [] };
-    selfStudyHours[long] = studyHours[short];
+// QA 행293 — intake.weekSchedule.test.ts 가 파생값(week_ideal/min 산출 경로)을
+// 검증하도록 export. calculateWeekSchedule 자체의 골든 픽스처는 schedule.test.ts
+// 소관이라 여기서는 "요청 바디 → weekSchedule 파생"이라는 이 파일 고유의 배선만 본다.
+export function buildWeeklySchedule({
+  ideal,
+  min,
+  studyHours,
+  weekSchedule,
+}: {
+  ideal: { university: string; department: string };
+  min: { university: string; department: string };
+  studyHours: Record<string, number>;
+  weekSchedule: Record<string, DayPattern>;
+}) {
+  const selfStudyHours: Record<string, number> = {};
+  for (const { short, long } of WEEKDAYS) {
+    selfStudyHours[long] = studyHours[short]!;
   }
 
   return calculateWeekSchedule({
@@ -559,6 +1045,7 @@ function buildWeeklySchedule({ ideal, min, studyHours, dailySchedule }) {
     minDept: min.department,
     weekSchedule,
     selfStudyHours,
+    commuteHours: ACADEMY_COMMUTE_HOURS,
   });
 }
 
@@ -644,9 +1131,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const schoolCutType = getSchoolCutType(schoolType);
 
-    // 5) 성적 파생
-    const { currentScore, lastNaesinExam } = deriveNaesin(input.naesin, input);
-    const { currentMogo, lastMogoExam } = deriveMogo(input.mockExam);
+    // 5) 성적 파생 — remain_naesin/remain_mogo도 이 두 함수가 직접 계산해 돌려준다
+    //    (deriveNaesin/deriveMogo 주석 참고, QA 행290・291 재설계로 아래 옛 remainingNaesin/
+    //    remainingMogo 오버라이드 표 계산은 필요 없어졌다).
+    const { currentScore, lastNaesinExam, remainNaesin } = deriveNaesin(input);
+    const {
+      currentMogo,
+      lastMogoExam,
+      remainMogo,
+      resolvedRounds: resolvedMockRounds,
+    } = deriveMogo(input);
 
     // 6) 목표 대학 컷 4회 조회
     //    파이프라인은 컷 누락을 에러로 알려주지 않는다 — calcNaesinProb 이 이를
@@ -676,43 +1170,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     //    converted_grade / remain_* / week_* 가 정확히 같은 코드 경로에서
     //    나오게 하기 위해서다(재구현 금지). 컷이 없을 때 나오는 확률 0 과
     //    rate 는 아래에서 통째로 버리고 null 을 저장한다.
-    // 남은 시험 회차 오버라이드.
-    // 엔진은 `${grade}_${lastExam}` 키로 표를 조회하는데(primitives.js:58-103)
-    // '없음' 경로는 라벨이 '' 이라 항상 미매칭 → 0 이 된다. 그 자리를 여기서 메운다.
     //
-    //  - 내신: 전 회차 없음이면 고1=10 / 고2=6 / 고3=2(원본 getNaesinNoneRemaining 의
-    //    산술 등가물 — 고1 은 "작년 마지막 고교 시험"이 아예 없으므로 총량 10 그대로,
-    //    고2·고3 은 직전 학년 마지막 시험 순번을 총량에서 뺀 값). 원본은 고1 에서 이
-    //    오버라이드가 조건 분기(isPreHighStudent)에 막혀 무의미했다 — remainNaesin 이
-    //    무조건 0 으로 덮였다(고2·고3 만 살아있었다, IntakeForm.tsx:1268-1269 grade!=='고1'
-    //    가드). pipeline.js:219-222 에서 그 가드를 "오버라이드가 없을 때만" 으로 좁혀
-    //    세 학년 모두 오버라이드가 실제로 적용되게 했다(사용자 승인, calc/DIVERGENCE.md #1).
-    //    isMiddleSubstituted 여부와 무관하게 넘긴다 — grade 가 '중3' 으로 치환됐어도
-    //    엔진은 이제 remainingNaesin != null 이면 그 값을 그대로 쓴다.
-    //  - 모의: 전 회차 없음이면 고1=14 / 고2=10 / 고3=6(원본 getMogoNoneRemaining 과 같은
-    //    산술 — 고1 은 총량 14 그대로, calc/DIVERGENCE.md #2). currentMogo 가 0 이면
-    //    정시 확률은 게이트에서 0 으로 걸리므로(pipeline.js:227-228) 확률에는 영향이
-    //    없고, remain_mogo 저장값을 진실되게 만들기 위한 것이다.
-    //    (원본은 여기서 가상 3회차를 입력받아 currentMogo > 0 이라 같은 오버라이드가 정시
-    //     확률에도 실제로 영향을 준다. 그 UI 를 포팅하지 않은 것이 헤더 4-(b) 의 divergence 다.)
-    //  - 모의(치환 경로, 아래 두 분기는 배타적) — mockAllNone 이 먼저 걸린다. 모의를
-    //    실제로 본 경우(mockAllNone=false)에만 isMiddleSubstituted 분기로 넘어간다.
-    //    고1 + 내신없음 + 모의는 있음이면 grade 만 '중3' 이 되고 lastMogo 는 실제
-    //    라벨('10모' 등)이 남는다. 그러면 키가 '중3_10모' 라 표에 없어 remainMogo 가
-    //    0 으로 떨어진다 — 모의를 10회나 남긴 학생의 남은 회차가 0 이 된다.
-    //    원본에도 있는 결함이고(오버라이드마저 grade !== '고1' 가드에 막혀 안 나간다),
-    //    이 경로는 지금까지 400 으로 막혀 있다가 이번에 처음 열리는 문이다.
-    //    새로 여는 문 뒤에 알려진 오작동을 두지 않는다 — 치환 **전** 학년으로
-    //    같은 엔진 함수를 호출해 값을 만든다(표를 베껴 쓰지 않는다, calc/DIVERGENCE.md #3).
-    const remainingNaesin = input.naesinAllNone
-      ? (NAESIN_NONE_REMAINING[inputGrade] ?? null)
-      : null;
-
-    const remainingMogo = input.mockAllNone
-      ? (MOGO_NONE_REMAINING[inputGrade] ?? null)
-      : isMiddleSubstituted
-        ? getRemainingMogo(inputGrade, lastMogoExam)
-        : null;
+    // 남은 시험 회차 오버라이드 — QA 행290・291 재설계로 remainNaesin/remainMogo는 이제
+    // deriveNaesin/deriveMogo가 항상 명시적으로 계산해 돌려준다(옛 NAESIN_NONE_REMAINING/
+    // MOGO_NONE_REMAINING 표 직접 조회 + isMiddleSubstituted 전용 분기는 그 두 함수
+    // 안으로 흡수됐다 — deriveNaesin/deriveMogo 주석 참고). 여기서는 그 값을 그대로
+    // buildInitialStudentState의 remainingNaesin/remainingMogo 오버라이드로 넘기기만
+    // 한다. isMiddleSubstituted 여부와 무관하게(grade가 '중3'으로 치환됐어도) 항상
+    // non-null 값을 넘기므로 pipeline.js:219-222 "오버라이드가 없을 때만 0" 가드가
+    // 실제로 적용될 일이 없다 — 세 학년 모두 오버라이드가 항상 우선한다(원본 이탈,
+    // calc/DIVERGENCE.md #1과 동일한 취지의 승인 사항).
 
     const now = new Date();
     // calc/pipeline.ts(다른 배치 소유, 이 작업 범위 밖) buildInitialStudentState의
@@ -728,15 +1195,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       currentMogo,
       lastNaesin: lastNaesinExam,
       lastMogo: lastMogoExam,
-      remainingNaesin,
-      remainingMogo,
+      remainingNaesin: remainNaesin,
+      remainingMogo: remainMogo,
       // TargetCuts(goalRepo.ts)는 컷 누락을 null로 표현하는데 pipeline.ts CutsInput은
       // number만 받는다 — 파이프라인이 누락을 내부에서 0으로 접어 처리한다는 사실은
       // 위 §9-Q1(b)/baseProbsForStorage 주석에 이미 문서화돼 있다. pipeline.ts는
       // 범위 밖이라 타입을 못 바꾸므로 여기서만 캐스팅한다(런타임 동작 변경 없음).
       cuts: cuts as CutsInput,
-      // §7-5: 우리 온보딩은 1~9 등급만 받으므로 변환 대상 원점수가 애초에 없다.
-      // 고1·고2 는 conversionType 이 '5grade' 라 주입이 없으면 throw 한다.
+      // §7-5(갱신, QA 행290) — 고1・고2는 5등급제 원점수를 받지만 deriveNaesin이 이미
+      // fiveScaleToNine으로 9등급 환산까지 끝낸 값을 currentScore에 담아 돌려준다.
+      // 그래서 이 override는 여전히 항등(currentScore 그대로) — grade_conversions DB
+      // 조회 없이 conversionType='5grade'(고1·고2) 주입 요구를 만족시킨다.
       convertedGrade: currentScore,
       weeklySchedule,
       now,
@@ -786,15 +1255,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       last_naesin_exam: lastNaesinExam,
       last_mogo_exam: lastMogoExam,
 
-      // 전 회차 '없음' 특례일 때만 입력 원본을 한 칸 덧붙인다 — current_score 만
-      // 봐서는 그 3.0 이 고교 내신이었는지 이전 단계 평균이었는지 구분할 수 없다.
-      // 컬럼 코멘트가 "회차·과목 구성이 흔들려 정규화하지 않는다"고 못 박은 free-form
-      // jsonb 라 키 추가에 마이그레이션이 필요 없다. 정상 경로의 저장 shape 은
-      // 바이트 단위로 그대로다(회귀 없음).
-      naesin_scores: input.naesinAllNone
-        ? { ...input.naesin, priorNaesinGrade: input.priorNaesinGrade }
-        : input.naesin,
-      mock_exam_scores: input.mockExam,
+      // QA 행290・291 재설계(qa3-held-high-design.md §2・§3) — jsonb 컬럼 코멘트가
+      // "회차·과목 구성이 흔들려 정규화하지 않는다"고 못 박은 free-form이라 shape을
+      // 바꾸는 데 마이그레이션이 필요 없다. 리포트(행301)가 바로 소비할 수 있는 형태로
+      // 저장한다: lastExam/scale/overall + exams(시험별 과목군) + groupAverages(마지막
+      // 시험의 과목군 평균만 평평하게, 없으면 리포트가 4과목 flat 모드로 폴백).
+      naesin_scores: {
+        lastExam: input.naesinLastExamKey,
+        scale: input.naesinScale,
+        overall: input.naesinAllNone ? null : Number(input.naesinOverall),
+        exams: input.naesinExams,
+        groupAverages: deriveNaesinGroupAverages(
+          input.naesinExams,
+          input.selectedNaesinExam,
+        ),
+        // 전 시험 '없음' 특례일 때만 입력 원본을 한 칸 덧붙인다 — current_score 만
+        // 봐서는 그 값이 고교 내신인지 이전 단계 평균인지 구분할 수 없다.
+        ...(input.naesinAllNone
+          ? { priorNaesinGrade: Number(input.priorNaesinGrade) }
+          : {}),
+      },
+      // rounds는 deriveMogo가 확정한 resolvedMockRounds를 쓴다 — pct가 전부 채워져
+      // 있어(로컬 E2E 버그 수정) 저장값과 currentMogo 계산이 같은 백분위를 본다.
+      mock_exam_scores: {
+        lastRound: input.mockLastRoundKey,
+        track: input.mockTrack,
+        rounds: resolvedMockRounds,
+      },
 
       // 컷이 없으면 확률을 null 로 둔다 — "0%"와 "미산출"은 다른 상태다(§5 말미).
       // 수시/정시는 서로 독립으로 판정한다(§7-1-A) — 정시 컷만 없어도 수시
@@ -812,6 +1299,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       study_schedule: state.weeklySchedule,
       week_ideal: state.weekIdeal,
       week_min: state.weekMin,
+      // 원본 입력 보존(QA 행293) — study_schedule은 이로부터 산출된 파생값이다.
+      // 재편집·표시용 원본은 이 컬럼이 유일한 소스다(naesin_scores/mock_exam_scores와
+      // 같은 free-form jsonb 성격, 마이그레이션 20260902080252 참고).
+      week_schedule_input: input.weekSchedule,
 
       // 가상 날짜의 원점은 rate 와 같은 시점이어야 한다(§8 #14). 온보딩 자체가
       // 성립하는 기준은 수시 컷이다 — 정시 컷 누락은 더 이상 온보딩을 막지
@@ -848,6 +1339,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       baseProbsForStorage,
       "intake",
     );
+
+    // 11-b) QA 행301(a) — 온보딩 최초 학습방향 리포트(내신·정시 각 1건, source_type=
+    //       'intake', source_label='내 현재 위치')를 생성해 저장한다. naesin_scores/
+    //       mock_exam_scores는 savedRow 그대로 넘겨 새 shape(groupAverages/rounds,
+    //       병렬 유닛 소유)이 이미 반영돼 있으면 우선 쓰고, 아니면 이 지점에서
+    //       파이프라인이 막 계산한 대표값(converted_grade/current_mogo)으로
+    //       폴백한다(report.ts ensureDirectionReports의 fallback과 동일 값 소스).
+    for (const kind of ["naesin", "jungsi"] as const) {
+      const legacyEntry =
+        kind === "naesin"
+          ? { value: savedRow.converted_grade }
+          : { value: savedRow.current_mogo };
+      const { payload, snapshot } = buildGoalDirectionReport({
+        kind,
+        sourceType: "intake",
+        sourceLabel: "내 현재 위치",
+        grade: savedRow.grade,
+        naesinScores: savedRow.naesin_scores,
+        mockExamScores: savedRow.mock_exam_scores,
+        legacyEntry,
+        gradePercentile: GRADE_PERCENTILE,
+      });
+      await saveGoalDirectionReport(supabaseAdmin, profileId, {
+        kind,
+        sourceType: "intake",
+        sourceLabel: "내 현재 위치",
+        payload,
+        snapshot,
+      });
+    }
 
     // 12) 응답 — GET /api/goal/student 와 완전히 같은 본문을 담는다.
     //     뷰를 다시 읽는 이유는 두 엔드포인트가 같은 조립 경로를 타게 하기 위해서다

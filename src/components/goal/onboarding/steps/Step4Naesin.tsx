@@ -1,127 +1,270 @@
+import { useMemo, useState } from "react";
 import GradeNumberField from "@/components/goal/onboarding/GradeNumberField";
-import NoneCheckbox from "@/components/goal/onboarding/NoneCheckbox";
-import { NAESIN_EXAMS } from "@/components/goal/onboarding/onboardingOptions";
+import {
+  type FlowEntry,
+  flowLabel,
+  NAESIN_EXAM_FLOW,
+  NAESIN_SUBJECT_GROUPS,
+} from "@/components/goal/onboarding/onboardingOptions";
 import QuestionCard from "@/components/goal/onboarding/QuestionCard";
 import WizardActions from "@/components/goal/onboarding/WizardActions";
-import { useGoalOnboarding } from "@/context/GoalOnboardingContext";
+import {
+  type NaesinGroupState,
+  useGoalOnboarding,
+} from "@/context/GoalOnboardingContext";
 
-function isValidGrade(raw: string) {
+// QA 행290 재설계 — qa3-held-high-design.md §2 / 팀장 지시. 원본(target 앱 IntakeForm.tsx)
+// 은 "마지막으로 본 시험 1개 선택 + 그 시험까지의 전체 평균 등급 + 최근 3시험 × 6과목군
+// 편집기"였다. 우리 구 4단계(고정 4회차 × 단일 등급 체크박스)를 그 구조로 교체한다.
+//
+// 스케일: 고1・고2는 5등급제, 고3은 9등급제(2025학년도 고1부터 실제 제도가 5등급제 —
+// 설계안 §9 결정②, 원본대로 번복). 서버가 fiveScaleToNine으로 9등급 환산해 저장한다.
+
+const RANK: Record<"g1" | "g2" | "g3", number> = { g1: 0, g2: 1, g3: 2 };
+
+function isValidGrade(raw: string, max: number) {
   const num = Number(raw);
-  return raw !== "" && Number.isFinite(num) && num >= 1 && num <= 9;
+  return raw !== "" && Number.isFinite(num) && num >= 1 && num <= max;
 }
 
-// 내신 4회차를 "전부 없음"으로 체크했을 때만 노출하는 학년별 문구. 별도 스텝을 만들지 않고
-// 이 스텝 안에서 조건부 블록으로 붙이므로(Step1School의 1-2 카드와 같은 관례) 로컬 상수로 둔다.
-// 입력값은 원점수(0~100)가 아니라 우리 온보딩 전 구간과 같은 1~9 등급 단일 스케일이다.
-const PRIOR_NAESIN_COPY = {
+function isValidScore100(raw: string) {
+  const num = Number(raw);
+  return raw !== "" && Number.isFinite(num) && num >= 0 && num <= 100;
+}
+
+// 내신 "아직 없음" 특례 문구·도메인 — 고1은 중학교 평균 원점수(0~100), 고2・고3은 이전
+// 학년까지의 내신 평균 등급(1~9, 9등급제 — 기존 흐름 유지, 설계안 §2 결정④번 항목).
+const PRIOR_NAESIN_COPY: Record<
+  "g1" | "g2" | "g3",
+  {
+    label: string;
+    suffix: string;
+    bannerTitle: string;
+    bannerBody: string;
+    isScore: boolean;
+  }
+> = {
   g1: {
-    label: "중학교 내신 평균 등급",
+    label: "중학교 내신 평균 점수",
+    suffix: "점",
     bannerTitle: "아직 고등학교 내신 성적이 없어요",
-    bannerBody:
-      "중학교 때 주요과목 평균 등급을 기준으로 합격 확률을 계산합니다.",
+    bannerBody: "중학교 때 평균 점수를 기준으로 합격 확률을 계산합니다.",
+    isScore: true,
   },
   g2: {
     label: "고1까지 내신 평균 등급",
+    suffix: "등급",
     bannerTitle: "올해 내신 성적이 아직 없어요",
     bannerBody:
       "고1까지의 누적 평균 등급과 남은 내신 횟수를 기준으로 합격 확률을 계산합니다.",
+    isScore: false,
   },
   g3: {
     label: "고2까지 내신 평균 등급",
+    suffix: "등급",
     bannerTitle: "올해 내신 성적이 아직 없어요",
     bannerBody:
       "고2까지의 누적 평균 등급과 남은 내신 횟수를 기준으로 합격 확률을 계산합니다.",
+    isScore: false,
   },
 };
 
-// 4단계 — docs/figma-goal/part-02.md #6. 내신 4개 시험(1/2학기 중간・기말) 평균 등급.
-// "다음" 활성 조건은 시안에 명시가 없어(part-02 #6 상태/인터랙션 "추정") 4개 시험 모두
-// 값이 채워졌거나 "없음"으로 확정된 경우로 구현한다.
-//
-// 시안은 좌측 정렬 단일 컬럼(303px)이라 카드 우측이 크게 비지만, 구현 재량으로 2열 그리드
-// 배치한다(part-02 #6 구현 노트: "2열 배치 등 재량 조정 가능").
-//
-// 4회차를 전부 "없음"으로 두면(= 아직 내신 시험을 한 번도 안 본 고1 3월 학생 등) 예전에는
-// 서버가 400으로 거절했다. 이제는 "이전 학년까지의 내신 평균 등급" 한 칸을 추가로 받아
-// 통과시킨다 — 섹션 전체 '없음'을 나타내는 별도 플래그를 두지 않고 "4회차 전부 none"에서
-// 파생하므로("전역 OFF인데 전부 none" 같은 모순 상태가 생기지 않는다) 서버의 기존 거절
-// 조건식이 그대로 특례 발동 조건이 된다.
+function isValidPrior(raw: string, grade: "g1" | "g2" | "g3") {
+  const copy = PRIOR_NAESIN_COPY[grade];
+  return copy.isScore ? isValidScore100(raw) : isValidGrade(raw, 9);
+}
+
+type NaesinGroupEditorProps = {
+  label: string;
+  group: NaesinGroupState;
+  onAvgChange: (avg: string) => void;
+  onSubjectsChange: (subjects: { name: string; grade: string }[]) => void;
+};
+
+// 과목군 1행 — 군 평균 직접 입력 또는 "세부 과목 펼치기"로 {과목명, 등급} N행을 추가하면
+// 군 평균이 단순 평균(round2)으로 자동 갱신된다(원본 NaesinSubjectEditor 규칙 그대로,
+// 자동 계산은 GoalOnboardingContext.setNaesinGroupSubjects가 맡는다). 세부 과목이 하나라도
+// 있으면 평균 입력은 자동 산출값 표시 전용으로 잠근다 — 직접입력과 자동산출이 동시에 다른
+// 값을 주장하는 모순 상태를 막기 위해서다.
+function NaesinGroupEditor({
+  label,
+  group,
+  onAvgChange,
+  onSubjectsChange,
+}: NaesinGroupEditorProps) {
+  const [expanded, setExpanded] = useState(group.subjects.length > 0);
+  const hasSubjects = group.subjects.length > 0;
+
+  return (
+    <div className="rounded-xl border border-line p-4">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[0.875rem] font-semibold text-ink-strong">
+          {label}
+        </span>
+        <div className="flex items-center gap-3">
+          <GradeNumberField
+            value={group.avg}
+            disabled={hasSubjects}
+            suffix="등급"
+            width="8rem"
+            placeholder="미입력"
+            onChange={(event) => onAvgChange(event.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => setExpanded((prev) => !prev)}
+            className="whitespace-nowrap text-[0.8125rem] font-semibold text-accent"
+          >
+            세부 과목 {expanded ? "접기" : "펼치기"}
+          </button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="mt-3 flex flex-col gap-2">
+          {group.subjects.map((subject, index) => (
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: 과목 행은 자유 추가・삭제되는 순서 리스트라 안정적인 id가 없다.
+              key={index}
+              className="flex items-center gap-2"
+            >
+              <input
+                type="text"
+                value={subject.name}
+                placeholder="과목명"
+                onChange={(event) => {
+                  const next = group.subjects.map((row, i) =>
+                    i === index ? { ...row, name: event.target.value } : row,
+                  );
+                  onSubjectsChange(next);
+                }}
+                className="h-11 flex-1 rounded-lg border border-line px-3 text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden"
+              />
+              <GradeNumberField
+                value={subject.grade}
+                width="6.25rem"
+                suffix="등급"
+                onChange={(event) => {
+                  const next = group.subjects.map((row, i) =>
+                    i === index ? { ...row, grade: event.target.value } : row,
+                  );
+                  onSubjectsChange(next);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  onSubjectsChange(group.subjects.filter((_, i) => i !== index))
+                }
+                className="shrink-0 text-[0.8125rem] text-ink-sub"
+              >
+                삭제
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={() =>
+              onSubjectsChange([...group.subjects, { name: "", grade: "" }])
+            }
+            className="self-start text-[0.8125rem] font-semibold text-accent"
+          >
+            + 과목 추가
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Step4NaesinProps = {
   goPrev: () => void;
   goNext: () => void;
 };
 
 export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
-  const { naesin, updateNaesin, grade, priorNaesinGrade, setPriorNaesinGrade } =
-    useGoalOnboarding();
+  const {
+    naesin,
+    grade,
+    setNaesinLastExam,
+    setNaesinOverall,
+    setPriorNaesinGrade,
+    setNaesinGroupAvg,
+    setNaesinGroupSubjects,
+  } = useGoalOnboarding();
 
-  // naesin은 NAESIN_EXAMS로부터 빌드되어 모든 key가 항상 존재한다.
-  const allNone = NAESIN_EXAMS.every(({ key }) => naesin[key]!.none);
   // 4단계는 1단계에서 학년을 고른 뒤에만 진입하므로 grade가 비는 경로는 없으나, 직접 URL
-  // 진입 등으로 비었을 때를 대비해 고1 문구를 기본값으로 둔다(방어).
-  // 소유 키만 본다 — grade 는 sessionStorage 복구값이 그대로 들어올 수 있어서(buildInitialState의
-  // `{...defaults, ...stored}`는 값을 검증하지 않는다) 'constructor' 같은 Object.prototype 키면
-  // 대괄호 조회가 truthy한 비-문구 객체를 잡아 `||` 폴백이 발동하지 않고 배너·라벨이 전부
-  // 빈칸으로 렌더된다(같은 함정을 calc/bonus.js:107-109가 이미 if-else 사슬로 회피한다).
-  const priorCopy =
-    grade && Object.hasOwn(PRIOR_NAESIN_COPY, grade)
-      ? PRIOR_NAESIN_COPY[grade]
-      : PRIOR_NAESIN_COPY.g1;
+  // 진입 등으로 비었을 때를 대비해 고1을 기본값으로 둔다(방어, Step4Naesin 구판과 동일 관례).
+  const safeGrade: "g1" | "g2" | "g3" =
+    grade === "g1" || grade === "g2" || grade === "g3" ? grade : "g1";
+
+  // 스케일: 고1・고2 5등급제, 고3 9등급제(설계안 §2 결정②).
+  const scaleMax = safeGrade === "g3" ? 9 : 5;
+
+  // 학년까지 절단된 시험 목록 — 고1이면 고1 4개, 고3이면 12개 전부.
+  const visibleExams = useMemo(
+    () =>
+      NAESIN_EXAM_FLOW.filter((exam) => RANK[exam.grade] <= RANK[safeGrade]),
+    [safeGrade],
+  );
+
+  const allNone = naesin.lastExam === "";
+  const selectedIndex = NAESIN_EXAM_FLOW.findIndex(
+    (exam) => exam.key === naesin.lastExam,
+  );
+  // 선택 시험 포함 역순(최신순) 최대 3개.
+  const recentExams: FlowEntry[] =
+    selectedIndex === -1
+      ? []
+      : NAESIN_EXAM_FLOW.slice(
+          Math.max(0, selectedIndex - 2),
+          selectedIndex + 1,
+        ).reverse();
+
+  const priorCopy = PRIOR_NAESIN_COPY[safeGrade];
 
   const canProceed = allNone
-    ? isValidGrade(priorNaesinGrade)
-    : NAESIN_EXAMS.every(({ key }) => {
-        // naesin은 NAESIN_EXAMS로부터 빌드되어 모든 key가 항상 존재한다.
-        const exam = naesin[key]!;
-        return exam.none || isValidGrade(exam.value);
-      });
+    ? isValidPrior(naesin.priorNaesinGrade, safeGrade)
+    : isValidGrade(naesin.overall, scaleMax);
 
   return (
     <>
       <QuestionCard
         step="4"
         label="성적 입력"
-        title="마지막으로 본 내신 평균 등급을 입력해 주세요."
-        description={
-          '목표 대학과의 격차를 계산하는 기준 데이터입니다. 아직 보지 않은 시험은 "없음"을 선택하세요. 4개 모두 없으면 이전 학년 성적으로 계산합니다.'
-        }
+        title="마지막으로 본 내신 시험을 선택해 주세요."
+        description="목표 대학과의 격차를 계산하는 기준 데이터입니다. 아직 내신 시험을 한 번도 보지 않았다면 '아직 없음'을 선택하세요."
       >
-        <div className="grid grid-cols-2 gap-x-10 gap-y-10">
-          {NAESIN_EXAMS.map(({ key, label }) => {
-            // naesin은 NAESIN_EXAMS로부터 빌드되어 모든 key가 항상 존재한다.
-            const exam = naesin[key]!;
-            return (
-              <div key={key}>
-                <GradeNumberField
-                  label={label}
-                  value={exam.value}
-                  disabled={exam.none}
-                  suffix="등급"
-                  width="16rem"
-                  onChange={(event) =>
-                    updateNaesin(key, { value: event.target.value })
-                  }
-                />
-                <NoneCheckbox
-                  checked={exam.none}
-                  onChange={(event) => {
-                    updateNaesin(key, {
-                      none: event.target.checked,
-                      value: event.target.checked ? "" : exam.value,
-                    });
-                    // "없음"을 해제하면 더 이상 전 회차 없음이 아니므로 특례 입력을 비운다 —
-                    // 남겨두면 다시 전부 체크했을 때 예전 값이 되살아나 사용자가 의식하지 못한
-                    // 채 제출된다.
-                    if (!event.target.checked) setPriorNaesinGrade("");
-                  }}
-                />
-              </div>
-            );
-          })}
+        <div className="flex flex-wrap gap-2">
+          {visibleExams.map((exam) => (
+            <button
+              key={exam.key}
+              type="button"
+              onClick={() => setNaesinLastExam(exam.key)}
+              className={`rounded-xl border-2 px-4 py-2.5 text-[0.8125rem] font-bold transition-colors ${
+                naesin.lastExam === exam.key
+                  ? "border-accent bg-accent text-white"
+                  : "border-line text-ink-sub hover:border-accent"
+              }`}
+            >
+              {flowLabel(exam)}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setNaesinLastExam("")}
+            className={`rounded-xl border-2 px-4 py-2.5 text-[0.8125rem] font-bold transition-colors ${
+              allNone
+                ? "border-accent bg-accent text-white"
+                : "border-line text-ink-sub hover:border-accent"
+            }`}
+          >
+            아직 없음
+          </button>
         </div>
 
-        {allNone && (
-          <div className="mt-10">
+        {allNone ? (
+          <div className="mt-8">
             <div className="rounded-xl bg-surface-03 px-5 py-4">
               <p className="text-[0.875rem] font-semibold text-accent">
                 {priorCopy.bannerTitle}
@@ -133,13 +276,64 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
             <div className="mt-6">
               <GradeNumberField
                 label={priorCopy.label}
-                value={priorNaesinGrade}
-                suffix="등급"
+                value={naesin.priorNaesinGrade}
+                suffix={priorCopy.suffix}
                 width="16rem"
                 onChange={(event) => setPriorNaesinGrade(event.target.value)}
               />
             </div>
           </div>
+        ) : (
+          <>
+            <div className="mt-8">
+              <GradeNumberField
+                label={`그 시험까지의 전체 내신 평균 등급 (${scaleMax === 5 ? "5등급제" : "9등급제"})`}
+                value={naesin.overall}
+                suffix="등급"
+                width="16rem"
+                placeholder={scaleMax === 5 ? "예: 1.25" : "예: 2.50"}
+                onChange={(event) => setNaesinOverall(event.target.value)}
+              />
+            </div>
+
+            {recentExams.length > 0 && (
+              <div className="mt-10 flex flex-col gap-8">
+                <p className="text-[0.9375rem] font-semibold text-ink-strong">
+                  최근 시험별 과목군 평균 (선택 사항)
+                </p>
+                {recentExams.map((exam) => {
+                  const examState = naesin.exams[exam.key];
+                  if (!examState) return null;
+                  return (
+                    <div key={exam.key}>
+                      <p className="mb-3 inline-block rounded-lg bg-surface-03 px-2.5 py-1 text-[0.8125rem] font-black text-accent">
+                        {flowLabel(exam)}
+                      </p>
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        {NAESIN_SUBJECT_GROUPS.map((group) => (
+                          <NaesinGroupEditor
+                            key={group.key}
+                            label={group.label}
+                            group={examState.groups[group.key]!}
+                            onAvgChange={(avg) =>
+                              setNaesinGroupAvg(exam.key, group.key, avg)
+                            }
+                            onSubjectsChange={(subjects) =>
+                              setNaesinGroupSubjects(
+                                exam.key,
+                                group.key,
+                                subjects,
+                              )
+                            }
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
         )}
       </QuestionCard>
 

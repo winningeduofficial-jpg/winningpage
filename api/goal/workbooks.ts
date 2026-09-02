@@ -14,6 +14,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
   buildWorkbookPayload,
+  canShelveWorkbook,
   computeWorkbookStatus,
   deleteWorkbookOwned,
   fetchWorkbookOwned,
@@ -29,7 +30,9 @@ import { sendError } from "../_lib/httpResponse.js";
 export const config = { runtime: "nodejs" };
 
 // sql/76_goal_workbooks.sql goal_workbooks_subject_check와 정확히 같은 5종.
-const SUBJECT_IDS = ["korean", "math", "english", "science", "etc"];
+// export: src/components/goal/subjectTokens.ts WORKBOOK_SUBJECT_IDS와의 parity
+// 테스트(subjectTokens.test.ts)가 이 배열을 그대로 가져다 비교한다.
+export const SUBJECT_IDS = ["korean", "math", "english", "science", "etc"];
 
 const TITLE_MAX_LENGTH = 100;
 // 페이지 수 상한 — 실제 문제집 규모를 훨씬 웃도는 값으로 여유를 두되, 오입력(자릿수
@@ -78,7 +81,7 @@ function validateId(rawId: unknown) {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
-function validateCreateBody(body: unknown) {
+export function validateCreateBody(body: unknown) {
   if (!isPlainObject(body))
     return { error: fail("요청 본문이 올바르지 않습니다.") };
 
@@ -109,9 +112,12 @@ function validateCreateBody(body: unknown) {
     }
     currentPage = Number(body.currentPage);
   }
-  // 전체 페이지를 넘는 현재 페이지는 완독으로 클램프한다 — total을 넘는 진도는
-  // 의미가 없고, 아래 status 계산(current >= total)이 그대로 성립해야 한다.
-  currentPage = Math.min(currentPage, totalPages);
+  // 전체 페이지를 넘는 현재 페이지는 거부한다(사용자 확정 2026-09-02) — 예전엔
+  // 완독으로 클램프했지만, 클라이언트가 초과 입력을 그대로 받게 되는 구멍이라
+  // 서버도 400으로 막아 두 겹으로 지킨다.
+  if (currentPage > totalPages) {
+    return { error: fail("현재 페이지는 전체 페이지를 넘을 수 없습니다.") };
+  }
 
   return { value: { subject, title, totalPages, currentPage } };
 }
@@ -121,15 +127,14 @@ function validateCreateBody(body: unknown) {
  * EffortSubjectCard 카드 간 이동이 되는데, 그 동선이 시안에 없다(추정 회피).
  * 과목을 바꾸려면 삭제 후 재등록해야 한다.
  */
-function validateUpdateBody(body: unknown) {
+export function validateUpdateBody(body: unknown) {
   if (!isPlainObject(body))
     return { error: fail("요청 본문이 올바르지 않습니다.") };
 
   const id = validateId(body.id);
   if (!id) return { error: fail("문제집을 찾을 수 없습니다.") };
 
-  const patch: { title?: string; totalPages?: number; currentPage?: number } =
-    {};
+  const patch: { title?: string; currentPage?: number } = {};
 
   if (body.title !== undefined) {
     const title = clean(body.title);
@@ -139,13 +144,10 @@ function validateUpdateBody(body: unknown) {
     patch.title = title;
   }
 
+  // 전체 페이지는 등록 시 한 번만 정한다(사용자 확정 2026-09-02) — 이후 수정을
+  // 허용하면 진도율·완독 판정의 기준이 사후에 흔들린다. 보내오면 명시적으로 거부.
   if (body.totalPages !== undefined) {
-    if (!isValidPageCount(body.totalPages, { min: 1, max: MAX_PAGES })) {
-      return {
-        error: fail(`전체 페이지는 1~${MAX_PAGES} 사이의 숫자여야 합니다.`),
-      };
-    }
-    patch.totalPages = Number(body.totalPages);
+    return { error: fail("전체 페이지는 등록 후 수정할 수 없습니다.") };
   }
 
   if (body.currentPage !== undefined) {
@@ -160,6 +162,21 @@ function validateUpdateBody(body: unknown) {
   }
 
   return { value: { id, patch } };
+}
+
+/**
+ * "완독! 책장에 꽂기" 전용 PUT 바디({id, shelve:true})를 검증한다. title/totalPages/
+ * currentPage와는 다른 액션이라 별도 검증 함수로 둔다 — 섞여 들어오면 shelve를
+ * 우선시하고 나머지 필드는 무시한다(핸들러 분기 참고).
+ */
+function validateShelveBody(body: unknown) {
+  if (!isPlainObject(body))
+    return { error: fail("요청 본문이 올바르지 않습니다.") };
+
+  const id = validateId(body.id);
+  if (!id) return { error: fail("문제집을 찾을 수 없습니다.") };
+
+  return { value: { id } };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -218,6 +235,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === "PUT") {
+      // "완독! 책장에 꽂기" — status='done'으로 자동 계산된 문제집을 학생이 직접
+      // BookStack으로 옮기는 별도 액션이다(Figma 4026:6046). 시안/원본은 100% 달성 즉시
+      // 자동으로 책장에 꽂지 않고 이 버튼을 눌러야 넘어간다 — title/totalPages/currentPage
+      // 수정 PUT과는 다른 요청이라 body.shelve로 먼저 분기한다.
+      if (isPlainObject(body) && body.shelve === true) {
+        const validated = validateShelveBody(body);
+        if (validated.error)
+          return res.status(validated.error.status).json(validated.error.body);
+
+        const { id } = validated.value;
+        const existing = await fetchWorkbookOwned(supabaseAdmin, id, profileId);
+        if (!existing)
+          return res.status(404).json({ detail: "문제집을 찾을 수 없습니다." });
+
+        if (!canShelveWorkbook(existing.status)) {
+          return res.status(400).json({
+            detail: "아직 완독하지 않은 문제집은 책장에 꽂을 수 없습니다.",
+          });
+        }
+
+        // 이미 꽂혀 있으면 그대로 되돌린다(중복 클릭 방어 — shelved_at을 불필요하게
+        // 다시 밀지 않는다, 최신 완독이 위로 오는 BookStack 정렬이 흔들리지 않게).
+        if (existing.shelved_at) {
+          return res
+            .status(200)
+            .json({ ok: true, workbook: buildWorkbookPayload(existing) });
+        }
+
+        const updated = await updateWorkbookOwned(
+          supabaseAdmin,
+          id,
+          profileId,
+          {
+            shelved_at: new Date().toISOString(),
+          },
+        );
+        if (!updated)
+          return res.status(404).json({ detail: "문제집을 찾을 수 없습니다." });
+        return res
+          .status(200)
+          .json({ ok: true, workbook: buildWorkbookPayload(updated) });
+      }
+
       const validated = validateUpdateBody(body);
       if (validated.error)
         return res.status(validated.error.status).json(validated.error.body);
@@ -230,11 +290,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 바뀌지 않은 필드는 기존 값을 그대로 되먹여 항상 완전한 행을 쓴다 —
       // 부분 patch 조립보다 단순하고, current_page/total_pages 조합이 바뀔 때마다
       // status를 놓치지 않는다(sql/76 status 컬럼 코멘트와 동일 규약).
-      const nextTotalPages = patch.totalPages ?? existing.total_pages;
-      const nextCurrentPage = Math.min(
-        patch.currentPage ?? existing.current_page,
-        nextTotalPages,
-      );
+      const nextTotalPages = existing.total_pages;
+      const nextCurrentPage = patch.currentPage ?? existing.current_page;
+      if (nextCurrentPage > nextTotalPages) {
+        return res
+          .status(400)
+          .json({ detail: "현재 페이지는 전체 페이지를 넘을 수 없습니다." });
+      }
 
       const updated = await updateWorkbookOwned(supabaseAdmin, id, profileId, {
         title: patch.title ?? existing.title,

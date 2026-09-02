@@ -187,6 +187,47 @@ export function narrowGoalSession(session: GoalSessionResult): {
   };
 }
 
+/**
+ * 두 프로필이 현재 approved 상태로 연결된 학부모-학생 쌍인지 SECURITY DEFINER RPC로
+ * 확인한다(fn_is_linked_pair, supabase/migrations/20260821000000_baseline.sql). 학부모가
+ * 자녀 목표관리 리포트를 열람하는 경로(api/goal/report.ts studentId 쿼리) 전용 — 순서는
+ * 무관하다. 조회 실패는 fail-closed로 접는다(checkProgramAccessTable과 동일 판단,
+ * api/_lib/serviceAccess.ts — 판정 불가를 "연결됨"으로 오인해 남의 리포트를 열어주지 않는다).
+ */
+export async function checkLinkedPair(
+  supabaseAdmin: SupabaseClient,
+  profileA: string,
+  profileB: string,
+): Promise<boolean> {
+  const { data, error } = await supabaseAdmin.rpc("fn_is_linked_pair", {
+    p_a: profileA,
+    p_b: profileB,
+  });
+  if (error) {
+    console.error("fn_is_linked_pair 호출 실패:", profileA, profileB, error);
+    return false;
+  }
+  return data === true;
+}
+
+/**
+ * 임의 프로필의 목표관리 이용권 판정. openGoalSession의 allowed는 항상 요청자 본인
+ * 기준으로만 계산되므로(위 JSDoc 규약 1), 학부모가 자녀(studentId) 리포트를 열람할 때처럼
+ * 요청자와 다른 프로필의 이용권을 다시 판정해야 하는 예외 경로 전용이다.
+ */
+export async function hasGoalAccessFor(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+): Promise<boolean> {
+  const { allowed } = await hasPaidServiceAccess(
+    supabaseAdmin,
+    profileId,
+    // biome-ignore lint/style/noNonNullAssertion: goal 키는 SERVICE_CONFIGS에 정적으로 정의돼 있음
+    SERVICE_CONFIGS.goal!,
+  );
+  return allowed;
+}
+
 // ---------------------------------------------------------------------------
 // 조회
 // ---------------------------------------------------------------------------
@@ -402,6 +443,28 @@ export async function fetchTodayRecord(
   return data || null;
 }
 
+/**
+ * QA3 행305 — 12시간 쿨다운 판정용 "가장 최근 제출" 1건. record_date(오늘)로
+ * 필터하지 않는다 — 자정을 넘겨도 쿨다운이 이어져야 하기 때문이다(22시 제출 →
+ * 익일 10시까지 잠금, 설계 문서 §5(c) B안). submitted_at 이 없는 행은 없다
+ * (마이그레이션이 NOT NULL + 백필 보장).
+ */
+export async function fetchLatestDailyRecord(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+): Promise<Row | null> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DAILY_RECORDS)
+    .select("*")
+    .eq("profile_id", profileId)
+    .order("submitted_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
 // ---------------------------------------------------------------------------
 // 성장/학습방향 리포트(#33/#34/#37/#38) 조회 — api/goal/report.js 전용.
 //
@@ -462,7 +525,11 @@ export async function fetchTimerSessionsInRange(
   return (data as Row[]) || [];
 }
 
-/** goal_plan_tasks — profile_id 1건, plan_date 구간 전량(D3 완성도 계획 축). */
+/**
+ * goal_plan_tasks — profile_id 1건, plan_date 구간 전량(D3 완성도 계획 축 +
+ * 행305 달성/미달성/미기록 집계). 단일 원본은 status — done은 하위 호환
+ * 파생값이라 함께 선택은 하되 집계는 항상 status 기준으로 한다.
+ */
 export async function fetchPlanTasksInRange(
   supabaseAdmin: SupabaseClient,
   profileId: string,
@@ -471,7 +538,7 @@ export async function fetchPlanTasksInRange(
 ): Promise<Row[]> {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
-    .select("done")
+    .select("status, done")
     .eq("profile_id", profileId)
     .gte("plan_date", fromYmd)
     .lte("plan_date", toYmd);
@@ -699,7 +766,12 @@ export async function appendProbabilityLog(
 // 주석) 이 스코프가 유일한 방어선이다.
 // ---------------------------------------------------------------------------
 
-/** 기간(from~to, 양끝 포함) 과제 목록. plan_date → sort_order → id 순. */
+/**
+ * 기간(from~to, 양끝 포함) 과제 목록. plan_date → sort_order → id 순.
+ * workbook_id가 걸린 행은 연결된 문제집 제목도 함께 끌어온다(FK
+ * goal_plan_tasks_workbook_id_fkey를 PostgREST가 인식해 임베드 조인) —
+ * buildPlanTaskPayload가 workbookTitle을 채우는 데 쓴다.
+ */
 export async function fetchPlanTasks(
   supabaseAdmin: SupabaseClient,
   profileId: string,
@@ -708,7 +780,7 @@ export async function fetchPlanTasks(
 ): Promise<Row[]> {
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
-    .select("*")
+    .select("*, workbook:goal_workbooks(title)")
     .eq("profile_id", profileId)
     .gte("plan_date", fromDate)
     .lte("plan_date", toDate)
@@ -720,7 +792,11 @@ export async function fetchPlanTasks(
   return (data as Row[]) || [];
 }
 
-/** 과제 1건 생성. */
+/**
+ * 과제 1건 생성. select에 workbook 임베드 조인을 함께 걸어 반환 즉시
+ * buildPlanTaskPayload가 workbookTitle까지 채울 수 있게 한다(fetchPlanTasks와
+ * 동일 조인 — GET을 다시 안 불러도 방금 만든 과제 캡션이 보인다).
+ */
 export async function insertPlanTask(
   supabaseAdmin: SupabaseClient,
   row: Row,
@@ -728,7 +804,7 @@ export async function insertPlanTask(
   const { data, error } = await supabaseAdmin
     .from(TABLE_PLAN_TASKS)
     .insert(row)
-    .select("*")
+    .select("*, workbook:goal_workbooks(title)")
     .single();
 
   if (error) throw error;
@@ -752,7 +828,7 @@ export async function updatePlanTask(
     .update(patch)
     .eq("id", id)
     .eq("profile_id", profileId)
-    .select("*")
+    .select("*, workbook:goal_workbooks(title)")
     .maybeSingle();
 
   if (error) throw error;
@@ -777,18 +853,38 @@ export async function deletePlanTask(
   return Boolean(data);
 }
 
+export type PlanTaskStatus = "pending" | "done" | "fail";
+
+/** status 컬럼 값을 3종으로 좁힌다 — 알 수 없는/누락 값은 pending으로 방어한다. */
+export function normalizePlanTaskStatus(value: unknown): PlanTaskStatus {
+  return value === "done" || value === "fail" ? value : "pending";
+}
+
 export type PlanTaskPayload = {
   id: unknown;
   planDate: string | null;
   title: unknown;
   subject: string;
   durationMinutes: number;
+  status: PlanTaskStatus;
   done: boolean;
   sortOrder: number;
+  // 문제집 연결(QA 행286-B), 셋 다 선택 — 연결이 없으면 workbookId는 null,
+  // pageFrom/pageTo도 null, workbookTitle도 null.
+  workbookId: unknown;
+  pageFrom: number | null;
+  pageTo: number | null;
+  // fetchPlanTasks의 임베드 조인(workbook:goal_workbooks(title))에서만 채워진다 —
+  // insertPlanTask/updatePlanTask 직후의 단건 반환 행에는 없을 수 있어 그때는 null.
+  workbookTitle: string | null;
 };
 
-/** goal_plan_tasks 행 → API 카멜 케이스. subject 는 한글 라벨로 되돌린다. */
+/**
+ * goal_plan_tasks 행 → API 카멜 케이스. subject 는 한글 라벨로 되돌린다.
+ * status가 단일 원본, done은 status에서 파생한 하위 호환 값(QA 행305).
+ */
 export function buildPlanTaskPayload(row: Row): PlanTaskPayload {
+  const status = normalizePlanTaskStatus(row.status);
   return {
     id: row.id,
     planDate: ymd(row.plan_date),
@@ -796,9 +892,30 @@ export function buildPlanTaskPayload(row: Row): PlanTaskPayload {
     subject:
       SUBJECT_CODE_TO_LABEL[row.subject as string] || (row.subject as string),
     durationMinutes: num(row.duration_minutes) ?? 0,
-    done: Boolean(row.done),
+    status,
+    done: status === "done",
     sortOrder: num(row.sort_order) ?? 0,
+    workbookId: row.workbook_id ?? null,
+    pageFrom: num(row.page_from),
+    pageTo: num(row.page_to),
+    workbookTitle: row.workbook?.title ?? null,
   };
+}
+
+/**
+ * status가 done으로 바뀌고 workbook_id·pageTo가 함께 있을 때 goal_workbooks.
+ * current_page를 얼마나 전진시킬지 계산하는 순수 함수(QA 행286-B) —
+ * max(기존 진도, 이번 과제 pageTo), 상한은 total_pages. done→pending으로
+ * 되돌려도 이 함수는 호출되지 않는다(진도 롤백 없음, api/goal/plan-tasks.ts
+ * handlePut 참고) — 페이지를 되감으면 다른 과제가 이미 더 앞서 있던 진도까지
+ * 함께 밀릴 수 있어 명시적으로 하지 않기로 했다.
+ */
+export function nextWorkbookPageAfterTaskDone(
+  existingCurrentPage: number,
+  pageTo: number,
+  totalPages: number,
+): number {
+  return Math.min(Math.max(existingCurrentPage, pageTo), totalPages);
 }
 
 // ---------------------------------------------------------------------------
@@ -979,6 +1096,15 @@ export function computeWorkbookStatus(
   return currentPage >= totalPages ? "done" : "reading";
 }
 
+/**
+ * "완독! 책장에 꽂기"(PUT {shelve:true})는 status='done'인 행에만 허용한다 — 페이지
+ * 진도가 100%에 못 미치는데 책장에 먼저 꽂히는 상태를 막는다(supabase/migrations/
+ * 20260902043539_goal_workbooks_shelved_at.sql 컬럼 코멘트와 동일 규약).
+ */
+export function canShelveWorkbook(status: unknown): boolean {
+  return status === "done";
+}
+
 /** 본인 문제집 전체 목록. 등록 순서(오래된 순)를 그대로 보존한다. */
 export async function fetchWorkbooks(
   supabaseAdmin: SupabaseClient,
@@ -1070,6 +1196,9 @@ export type WorkbookPayload = {
   totalPages: number | null;
   currentPage: number | null;
   status: unknown;
+  // "책장에 꽂기" 수동 전이(Figma 4026:6046) — null이면 status='done'이어도 아직
+  // BookStack으로 안 옮겨진 상태(공부 중인 책 목록에 "완독! 책장에 꽂기" 버튼과 함께 남는다).
+  shelvedAt: string | null;
 };
 
 /** DB 스네이크 → API 카멜. subject는 id 그대로 실어 보낸다(한글 라벨 변환은 프론트 subjectTokens.js 담당). */
@@ -1081,6 +1210,7 @@ export function buildWorkbookPayload(row: Row): WorkbookPayload {
     totalPages: num(row.total_pages),
     currentPage: num(row.current_page),
     status: row.status,
+    shelvedAt: row.shelved_at ?? null,
   };
 }
 
@@ -1216,6 +1346,102 @@ export async function updateStudentGrades(
 
   if (error) throw error;
   return data;
+}
+
+/**
+ * 정시(jungsi) 확률·컷·rate 6개 컬럼만 부분 갱신한다(GET /api/goal/student 의
+ * 지연 재계산 전용, 행296·332 QA3 §9-5 결정3). updateStudentGrades 와 같은
+ * 이유로 upsert(전체 row) 대신 update 를 쓴다 — 이 경로는 온보딩 이후 딱
+ * 이 6개 컬럼만 알고 호출되므로, 명시하지 않은 컬럼(확률 base_susi·주간계획
+ * 등)을 건드리지 않는 update 가 안전하다.
+ */
+export async function updateStudentJungsiProb(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  patch: {
+    ideal_jungsi_cut: number;
+    min_jungsi_cut: number;
+    base_ideal_jungsi: number;
+    base_min_jungsi: number;
+    rate_ideal_jungsi: number;
+    rate_min_jungsi: number;
+  },
+): Promise<Row> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_STUDENTS)
+    .update(patch)
+    .eq("profile_id", profileId)
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+// ---------------------------------------------------------------------------
+// 학습방향 리포트(#37 내신 / #38 정시) 저장 · 이력 — QA 행301
+// ---------------------------------------------------------------------------
+
+export const TABLE_DIRECTION_REPORTS = "goal_direction_reports";
+
+/**
+ * 리포트 1건 저장 — (profile_id, kind, source_type, source_label) 동일 행이 있으면
+ * 덮어쓴다(마이그레이션 unique index goal_direction_reports_identity_key, upsert
+ * onConflict 문자열도 그 인덱스 컬럼 순서와 같아야 한다). api/_lib/goalDirectionReport.ts
+ * buildGoalDirectionReport()의 반환값(payload/snapshot)을 그대로 옮겨 담는 얇은 어댑터.
+ */
+export async function saveGoalDirectionReport(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  {
+    kind,
+    sourceType,
+    sourceLabel,
+    payload,
+    snapshot,
+  }: {
+    kind: "naesin" | "jungsi";
+    sourceType: "intake" | "naesin" | "mogo";
+    sourceLabel: string;
+    payload: unknown;
+    snapshot: unknown;
+  },
+): Promise<Row> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DIRECTION_REPORTS)
+    .upsert(
+      {
+        profile_id: profileId,
+        kind,
+        source_type: sourceType,
+        source_label: sourceLabel,
+        payload,
+        snapshot,
+      },
+      { onConflict: "profile_id,kind,source_type,source_label" },
+    )
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/** kind별 저장 리포트 목록 — 최신순(회차 칩 표시 순서). */
+export async function listGoalDirectionReports(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  kind: "naesin" | "jungsi",
+): Promise<Row[]> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DIRECTION_REPORTS)
+    .select("id, source_type, source_label, payload, snapshot, created_at")
+    .eq("profile_id", profileId)
+    .eq("kind", kind)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as Row[]) || [];
 }
 
 export const TABLE_TIMER_SESSIONS = "goal_timer_sessions";
@@ -1607,4 +1833,57 @@ export async function addTimerSubject(
   if (insertError) throw insertError;
 
   return fetchVisibleTimerSubjects(supabaseAdmin, profileId);
+}
+
+// ---------------------------------------------------------------------------
+// AI 조언 캐시(goal_advice_cache, QA 행295·306) — api/goal/advice.ts 전용.
+// ---------------------------------------------------------------------------
+
+export const TABLE_ADVICE_CACHE = "goal_advice_cache";
+
+export type AdviceCacheSource = "intake" | "daily";
+export type AdviceCacheOrigin = "ai" | "rule";
+
+/** (profile_id, source, generated_for) 1행. 없으면 null(오늘 아직 생성 안 함 = 캐시 미스). */
+export async function fetchAdviceCache(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  source: AdviceCacheSource,
+  generatedFor: string,
+): Promise<Row | null> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_ADVICE_CACHE)
+    .select("*")
+    .eq("profile_id", profileId)
+    .eq("source", source)
+    .eq("generated_for", generatedFor)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data || null;
+}
+
+/**
+ * upsert — (profile_id, source, generated_for) UNIQUE라 재시도·재제출은 같은 하루 값을
+ * 덮어쓴다(goal_daily_records upsert와 동일 정책). 레이트리밋은 이 캐시 자체다 — 호출부가
+ * fetchAdviceCache로 먼저 확인해 캐시 히트면 Gemini를 아예 부르지 않는다.
+ */
+export async function upsertAdviceCache(
+  supabaseAdmin: SupabaseClient,
+  payload: {
+    profile_id: string;
+    source: AdviceCacheSource;
+    generated_for: string;
+    origin: AdviceCacheOrigin;
+    payload: Record<string, unknown>;
+  },
+): Promise<Row> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_ADVICE_CACHE)
+    .upsert(payload, { onConflict: "profile_id,source,generated_for" })
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
 }

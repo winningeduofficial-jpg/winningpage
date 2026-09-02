@@ -25,6 +25,30 @@ const ReactQueryDevtools = lazy(() =>
   })),
 );
 
+// 배포 직후 옛 번들을 연 채로 lazy 라우트에 들어가면 이미 사라진 해시 청크를 받으려다
+// "Failed to fetch dynamically imported module …/assets/PerformanceAppLayout-xxxx.js"로
+// 화면이 죽는다(QA 시트 행 247, dev 배포 재현). Vite는 이 실패를 window에
+// `vite:preloadError`로 알리므로 한 번만 새로고침해 새 index.html·청크를 받는다.
+// 같은 URL에서 이미 한 번 새로고침했으면(진짜 네트워크 장애) 기본 동작(throw)으로 넘겨
+// 무한 새로고침을 막는다.
+const PRELOAD_RELOAD_KEY = "vite-preload-error-reloaded";
+
+window.addEventListener("vite:preloadError", (event) => {
+  let alreadyReloaded = false;
+  try {
+    alreadyReloaded =
+      sessionStorage.getItem(PRELOAD_RELOAD_KEY) === window.location.href;
+    if (!alreadyReloaded) {
+      sessionStorage.setItem(PRELOAD_RELOAD_KEY, window.location.href);
+    }
+  } catch {
+    // sessionStorage 접근 불가(프라이버시 모드 등) — 가드 없이 한 번은 새로고침한다.
+  }
+  if (alreadyReloaded) return;
+  event.preventDefault();
+  window.location.reload();
+});
+
 function removePreHeader() {
   const preHeader = document.getElementById("pre-header");
 

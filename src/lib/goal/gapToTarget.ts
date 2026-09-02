@@ -121,3 +121,112 @@ function buildStudyRow(
     remaining: formatRemaining(diff, "시간"),
   };
 }
+
+// ---------------------------------------------------------------------------
+// 3구간 확장(QA 행295) — 최소 목표 대학·이상 목표 대학이 서로 다른 컷을 갖는 축
+// (내신·모의고사)만 대상이다. 학습 시간은 대학 컷이 아니라 학생 자신의 주간 목표
+// 시간이라 최소/이상 이원 구조가 없어 대상에서 제외한다(studyGap/buildStudyRow를
+// 그대로 둔다 — 호출부가 필요하면 buildGapRows로 학습 시간 행만 따로 뽑아 합친다).
+//
+// naesinGap/mogoGap을 그대로 재사용한다 — 두 함수 모두 이미 "양수=부족, 음수/0=우위"
+// 계약으로 스케일을 정규화해 두었으므로(내신은 작을수록, 백분위는 클수록 우세), 최소
+// 컷과 이상 컷 각각에 같은 함수를 두 번 호출하는 것만으로 3구간을 가른다 — 축마다
+// 다시 부등호 방향을 판단할 필요가 없다.
+// ---------------------------------------------------------------------------
+
+export type GapZone = "below-min" | "min-to-ideal" | "above-ideal";
+
+export type ZoneGapRow = GapRow & { zone: GapZone; advice: string };
+
+/** 구간별 규칙 기반 조언 한 줄(팀장 지시 a/b/c 그대로). */
+const ZONE_ADVICE: Record<GapZone, string> = {
+  "below-min": "기초 실력을 다지며 최소 목표 달성부터 노려보세요.",
+  "min-to-ideal": "최소 목표는 달성했어요. 이상 목표에 도전해 보세요.",
+  "above-ideal":
+    "이상 목표를 넘어섰어요. 지금 페이스를 유지하거나 목표 상향을 검토해 보세요.",
+};
+
+/**
+ * gapToMin/gapToIdeal은 naesinGap/mogoGap과 같은 부호 계약(양수=부족, 0/음수=도달·우위)을
+ * 따르는 값이어야 한다. 이상 컷이 최소 컷보다 항상 더 까다롭다는 전제(호출부 데이터
+ * 정합성)를 그대로 둔다 — 이 함수는 그 전제를 검증하지 않는다.
+ */
+function resolveZone(gapToMin: number, gapToIdeal: number): GapZone {
+  if (gapToIdeal <= 0) return "above-ideal";
+  if (gapToMin <= 0) return "min-to-ideal";
+  return "below-min";
+}
+
+function zoneRemainingText(
+  zone: GapZone,
+  gapToMin: number,
+  gapToIdeal: number,
+  unit: string,
+): string {
+  if (zone === "below-min") {
+    return `최소 목표까지 ${Math.abs(gapToMin)}${unit} 부족`;
+  }
+  if (zone === "min-to-ideal") {
+    return `이상 목표까지 ${Math.abs(gapToIdeal)}${unit} 부족`;
+  }
+  // above-ideal: 0이면 정확히 이상 목표에 닿은 경우라 "0등급 여유"처럼 어색한 문구
+  // 대신 formatRemaining과 같은 원칙("정확히 도달"은 별도 문구)을 따른다.
+  return gapToIdeal === 0
+    ? "이상 목표 도달"
+    : `이상 목표보다 ${Math.abs(gapToIdeal)}${unit} 여유`;
+}
+
+export type GapZoneAxisInput = {
+  current: number | null;
+  min: number | null;
+  ideal: number | null;
+};
+
+function buildNaesinZoneRow(input: GapZoneAxisInput): ZoneGapRow | null {
+  const { current, min, ideal } = input;
+  const gapToMin = naesinGap(current, min);
+  const gapToIdeal = naesinGap(current, ideal);
+  if (gapToMin == null || gapToIdeal == null) return null;
+  // naesinGap이 null이 아니면 current/min/ideal 전부 non-null이 보장된다(naesinGap 계약).
+  const zone = resolveZone(gapToMin, gapToIdeal);
+  return {
+    label: "내신 등급",
+    description: `현재 ${(current as number).toFixed(2)}등급 → 최소 ${(min as number).toFixed(2)}등급 / 이상 ${(ideal as number).toFixed(2)}등급`,
+    remaining: zoneRemainingText(zone, gapToMin, gapToIdeal, "등급"),
+    zone,
+    advice: ZONE_ADVICE[zone],
+  };
+}
+
+function buildMogoZoneRow(input: GapZoneAxisInput): ZoneGapRow | null {
+  const { current, min, ideal } = input;
+  const gapToMin = mogoGap(current, min);
+  const gapToIdeal = mogoGap(current, ideal);
+  if (gapToMin == null || gapToIdeal == null) return null;
+  const zone = resolveZone(gapToMin, gapToIdeal);
+  return {
+    label: "모의고사",
+    description: `현재 ${(current as number).toFixed(1)} 백분위 → 최소 ${(min as number).toFixed(1)} / 이상 ${(ideal as number).toFixed(1)} 백분위`,
+    remaining: zoneRemainingText(zone, gapToMin, gapToIdeal, ""),
+    zone,
+    advice: ZONE_ADVICE[zone],
+  };
+}
+
+export type GapZoneInputs = {
+  naesin: GapZoneAxisInput;
+  mogo: GapZoneAxisInput;
+};
+
+/**
+ * 3구간 확장판 조립. 내신은 컷(normal/special)이 있는 대학만, 모의고사는 jungsi 컷이
+ * 있는 대학만 행을 만든다 — min/ideal 어느 한쪽이라도 컷이 없으면(null) 그 축 자체를
+ * 결과에서 뺀다(억지 산출 금지, buildGapRows와 같은 원칙).
+ */
+export function buildZoneGapRows(inputs: GapZoneInputs): ZoneGapRow[] {
+  const rows: (ZoneGapRow | null)[] = [
+    buildNaesinZoneRow(inputs.naesin),
+    buildMogoZoneRow(inputs.mogo),
+  ];
+  return rows.filter((row): row is ZoneGapRow => row !== null);
+}

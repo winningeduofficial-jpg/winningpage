@@ -4,17 +4,22 @@ import GoalPageHeader from "@/components/goal/GoalPageHeader";
 import GapToTargetCard from "@/components/goal/study/GapToTargetCard";
 import TargetUniversityCard from "@/components/goal/study/TargetUniversityCard";
 import { useAuth } from "@/context/AuthProvider";
-import { buildGapRows } from "@/lib/goal/gapToTarget";
+import { buildGapRows, buildZoneGapRows } from "@/lib/goal/gapToTarget";
 import { mapTargetUniversities } from "@/lib/goal/targetUniversities";
 import type { GoalStudentPayload } from "@/lib/goalApi";
 import { goalStudentQueryOptions } from "@/lib/queryClient";
 
-// 내 목표 대학(#24) — 이상/최소 목표 대학 2카드(680×348) + "목표까지 남은 격차" 3행.
+// 내 목표 대학(#24) — 이상/최소 목표 대학 2카드(680×348) + "목표까지 남은 격차" 행들.
 // 대시보드 우측 레일과 같은 mapTargetUniversities()(src/lib/goal/targetUniversities.ts)로
-// 상단 카드를, buildGapRows()(src/lib/goal/gapToTarget.ts)로 하단 격차 카드를 만든다
-// (기획서 §3.16 실산출 전환, 2026-08-20 — 이전엔 GapToTargetCard를 렌더에서 뺐다).
-// 격차의 기준 대학은 항상 이상 목표다(§3.4 "학습량 산출의 상한선") — GapToTargetCard의
-// meta 슬롯에 "이상 목표 기준"을 한 번만 얹어 모호성을 없앤다(행마다 반복하지 않는다).
+// 상단 카드를 만든다(기획서 §3.16 실산출 전환, 2026-08-20 — 이전엔 GapToTargetCard를
+// 렌더에서 뺐다).
+//
+// QA 행295(3구간 확장) 이후: 내신·모의고사는 buildZoneGapRows()로 최소/이상 두 컷을
+// 함께 보여준다 — 더 이상 "이상 목표 한 기준"이 아니라서 기존 meta="이상 목표 기준"
+// 문구는 뗀다(축마다 자기 컷을 행 설명에 직접 담는다). 학습 시간은 대학 컷이 아니라
+// 학생 자신의 주간 목표 시간이라 min/ideal 이원 구조가 없다(gapToTarget.ts 주석 참고)
+// — 기존 buildGapRows()를 그대로 재사용해 학습 시간 행만 뽑고 zone 행 뒤에 잇는다
+// (2구간 studyGap 로직을 3구간용으로 다시 만들지 않는다).
 //
 // 편집 UI 미정의: 서브카피가 "목표를 바꾸면 격차 분석과 학습 시간이 다시 계산돼요"라 편집 진입점이
 // 필요해 보이지만 시안(#24)에는 편집 버튼·모달이 전혀 없다(part-08 §331 "별도 확정 필요").
@@ -57,7 +62,7 @@ export default function TargetUniversity() {
           title="내 목표 대학"
           subcopy="이상 목표와 최소 목표를 이원으로 관리합니다. 목표를 바꾸면 격차 분석과 학습 시간이 다시 계산돼요."
         />
-        <div className="max-w-goal-content flex flex-col gap-5 px-12 pb-24">
+        <div className="max-w-goal-content flex flex-col gap-5 px-4 pb-24 md:px-12">
           <GoalCard tone="neutral" className="px-8 py-7">
             <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
               {message}
@@ -71,23 +76,31 @@ export default function TargetUniversity() {
   const { student } = result;
   const { upper, lower } = mapTargetUniversities(student);
 
-  // 기준 대학은 항상 이상 목표(targets.ideal) — buildGapRows 자체는 축 중립적이라
-  // "어느 대학 기준인지"는 여기서 인자로 고정한다.
-  const gapRows = buildGapRows({
+  // 내신·모의고사 — 최소/이상 목표 대학의 컷을 함께 넘겨 3구간으로 가른다.
+  const zoneGapRows = buildZoneGapRows({
     naesin: {
       current: student.scores.convertedGrade,
-      target: student.targets.ideal.naesinCut,
+      min: student.targets.min.naesinCut,
+      ideal: student.targets.ideal.naesinCut,
     },
     mogo: {
       current: student.scores.currentMogo,
-      target: student.targets.ideal.jungsiCut,
+      min: student.targets.min.jungsiCut,
+      ideal: student.targets.ideal.jungsiCut,
     },
+  });
+  // 학습 시간 — 대학 컷이 없는 축이라 기존 2구간 buildGapRows에서 그 행만 뽑는다
+  // (naesin/mogo는 null을 넘겨 행을 만들지 않는다).
+  const studyGapRows = buildGapRows({
+    naesin: { current: null, target: null },
+    mogo: { current: null, target: null },
     study: {
       current: student.recentAvgStudyHours,
       // weekIdeal은 주간 목표 시간(요일별 합) — 일일 목표는 7로 나눠 근사한다.
       target: student.weekIdeal > 0 ? student.weekIdeal / 7 : null,
     },
   });
+  const gapRows = [...zoneGapRows, ...studyGapRows];
 
   return (
     <>
@@ -95,7 +108,7 @@ export default function TargetUniversity() {
         title="내 목표 대학"
         subcopy="이상 목표와 최소 목표를 이원으로 관리합니다. 목표를 바꾸면 격차 분석과 학습 시간이 다시 계산돼요."
       />
-      <div className="max-w-goal-content flex flex-col gap-5 px-12 pb-24">
+      <div className="max-w-goal-content flex flex-col gap-5 px-4 pb-24 md:px-12">
         <div className="grid grid-cols-2 gap-5">
           <TargetUniversityCard
             label={upper.label}
@@ -114,11 +127,9 @@ export default function TargetUniversity() {
             jungsiAvailable={lower.jungsiAvailable}
           />
         </div>
-        {/* 3행 전부 산출 불가면(온보딩 직후 등) buildGapRows가 빈 배열을 돌려주고,
+        {/* 전 축이 산출 불가면(온보딩 직후 등) 두 빌더가 모두 빈 배열을 돌려주고,
             카드 자체를 숨긴다 — 빈 카드로 억지 렌더하지 않는다. */}
-        {gapRows.length > 0 && (
-          <GapToTargetCard rows={gapRows} meta="이상 목표 기준" />
-        )}
+        {gapRows.length > 0 && <GapToTargetCard rows={gapRows} />}
       </div>
     </>
   );

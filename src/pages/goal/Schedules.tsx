@@ -153,7 +153,7 @@ export default function Schedules() {
         }
       />
 
-      <div className="max-w-goal-content px-12 pb-24">
+      <div className="max-w-goal-content px-4 pb-24 md:px-12">
         {loadError && (
           <p className="mb-4 text-[0.8125rem] leading-[1.4] text-error">
             {loadError}

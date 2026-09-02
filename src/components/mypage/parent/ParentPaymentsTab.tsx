@@ -16,6 +16,7 @@ import { useAuth } from "@/context/AuthProvider";
 import { formatKRW } from "@/data/pricingCatalog";
 import type {
   CardInfo,
+  CashReceiptInfo,
   EasyPayInfo,
   VirtualAccountInfo,
 } from "@/hooks/usePaymentConfirmation";
@@ -72,6 +73,7 @@ type Order = {
   card?: CardInfo | null;
   virtual_account?: VirtualAccountInfo | null;
   easy_pay?: EasyPayInfo | null;
+  cash_receipt?: CashReceiptInfo | null;
   approved_at?: string | null;
   is_fake_entitlement?: boolean;
   order_items?: {
