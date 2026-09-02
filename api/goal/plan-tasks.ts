@@ -133,6 +133,18 @@ function validateId(raw: unknown) {
   return { value: id };
 }
 
+const PLAN_TASK_STATUSES = new Set(["pending", "done", "fail"]);
+
+/** @returns {{error?:object, value?:"pending"|"done"|"fail"}} */
+function validateStatus(raw: unknown) {
+  if (typeof raw !== "string" || !PLAN_TASK_STATUSES.has(raw)) {
+    return {
+      error: fail(400, "status는 pending/done/fail 중 하나여야 합니다."),
+    };
+  }
+  return { value: raw as "pending" | "done" | "fail" };
+}
+
 // ---------------------------------------------------------------------------
 // 메서드별 핸들러
 // ---------------------------------------------------------------------------
@@ -238,6 +250,7 @@ async function handlePut(
     subject?: string;
     duration_minutes?: number;
     plan_date?: string;
+    status?: "pending" | "done" | "fail";
     done?: boolean;
   } = {};
 
@@ -269,10 +282,16 @@ async function handlePut(
     patch.plan_date = planDate.value;
   }
 
-  if (body.done !== undefined) {
-    if (typeof body.done !== "boolean")
-      return res.status(400).json({ detail: "done은 boolean이어야 합니다." });
-    patch.done = body.done;
+  // status가 단일 원본(QA 행305) — done은 status에서 파생해 항상 함께 갱신한다.
+  // ✓ 버튼(체크)은 done↔pending, ✕ 버튼은 fail↔pending을 토글하는 판단은
+  // 클라이언트(StudyPlanRail.tsx nextPlanTaskStatus)가 다음 status를 계산해
+  // 그대로 실어 보낸다 — 이 라우트는 유효한 3값인지만 검증한다.
+  if (body.status !== undefined) {
+    const status = validateStatus(body.status);
+    if (status.error)
+      return res.status(status.error.status).json(status.error.body);
+    patch.status = status.value;
+    patch.done = status.value === "done";
   }
 
   if (Object.keys(patch).length === 0) {
