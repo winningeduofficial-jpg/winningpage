@@ -10,6 +10,11 @@
 // 활성 행 색은 이 카드 트리에서 기존에 이미 쓰고 있는 배지 색(SubjectDirectionCard.tsx
 // bg-[#E0DDF4]/text-[#5B4E9E])과 통일한다 — src/index.css에 그 톤의 토큰이 아직 없어
 // 새 하드코딩이 아니라 기존 하드코딩과 글자 단위로 맞춘 것이다(판단 지점).
+//
+// 비활성 행은 처음에 bg-goal-cardTone-neutral(#fbfbfa)을 썼는데, 이 카드 자체의 배경색과
+// 사실상 같아 박스가 안 보이고 라벨 텍스트만 계단식으로 떠 보였다(로컬 E2E에서 발견 —
+// 역피라미드 형태가 안 읽힘). border-border/bg-surface-muted(전역 토큰, index.css)로
+// 바꿔 카드 배경과 눈에 띄게 대비를 준다.
 
 const ROW_HEIGHT_REM = 1.5;
 const ROW_GAP_REM = 0.25;
@@ -68,7 +73,7 @@ export default function GoalGradePyramid({
             className={`flex h-6 items-center justify-center rounded-md border text-[0.6875rem] font-semibold leading-[1.4] ${
               isActive
                 ? "border-[#5B4E9E] bg-[#E0DDF4] text-[#5B4E9E] shadow-sm"
-                : "border-goal-cardTone-neutral bg-goal-cardTone-neutral text-ink-sub"
+                : "border-border bg-surface-muted text-ink-sub"
             }`}
             style={{ width: `${widthPercent}%` }}
           >

@@ -79,13 +79,20 @@ export default function DirectionReportBody({
           body={report.summary.body ?? ""}
         />
         <div className="grid grid-cols-1 gap-x-5.25 gap-y-10 xl:grid-cols-2">
-          {report.subjects.map((subject) => (
-            <SubjectDirectionCard
-              key={subject.key ?? subject.name}
-              {...subject}
-              scaleMax={report.scaleMax}
-            />
-          ))}
+          {report.subjects.map((subject) => {
+            // subject.key(과목 코드, 예: "korean")를 React key로도 쓰지만, 그 필드를
+            // 그대로 {...rest}에 넣어 JSX에 스프레드하면 "key prop이 스프레드 객체에
+            // 들어있다" 콘솔 경고가 뜬다 — React의 key는 스프레드가 아니라 항상
+            // 명시적 prop으로만 전달해야 한다. 여기서 한 번 구조분해해 분리한다.
+            const { key, ...rest } = subject;
+            return (
+              <SubjectDirectionCard
+                key={key ?? subject.name}
+                {...rest}
+                scaleMax={report.scaleMax}
+              />
+            );
+          })}
         </div>
       </div>
     </>
