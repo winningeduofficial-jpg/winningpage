@@ -54,6 +54,12 @@ const homeRoutes: RouteObject[] = [
     path: "/learning-diagnosis/report",
     Component: FreeDiagnosisReport,
   },
+  // DB 영속 경로(B4-b) — diagnosis_reports.attempt_id로 저장된 리포트를 그대로 연다. 다른
+  // 기기·다른 탭에서도 진입 가능해야 해서 세션 경로(위)와 별도 라우트를 둔다.
+  {
+    path: "/learning-diagnosis/report/:attemptId",
+    Component: FreeDiagnosisReport,
+  },
 ];
 
 export default homeRoutes;

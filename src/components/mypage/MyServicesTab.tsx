@@ -5,6 +5,7 @@ import {
   checkDiagnosisAccess,
   type DiagnosisAccessResult,
 } from "@/lib/diagnosisAccess";
+import { fetchLatestDiagnosisReport } from "@/lib/diagnosisReportQueries";
 import {
   SURVEY_FIRST_STEP_PATH,
   SURVEY_REPORT_PATH,
@@ -344,9 +345,15 @@ function aggregateByProgramKey(
 const DIAGNOSIS_RETAKE_BLOCKED_REASON =
   "1회 이용권을 모두 사용했습니다. 이용권을 구매하시면 다시 이용하실 수 있습니다.";
 
+// 영속 리포트(diagnosis_reports) 조회 전 또는 결측(과거 데이터·조회 실패)일 때의 안내 —
+// DIAGNOSIS_RETAKE_BLOCKED_REASON과 같은 톤(ServiceCard.tsx의 disabledReason 표시 자리 공유).
+const DIAGNOSIS_REPORT_UNAVAILABLE_REASON =
+  "리포트를 준비하고 있습니다. 잠시 후 다시 확인해 주세요.";
+
 function toViewModel(
   agg: AggregatedService,
   diagnosisAccess: DiagnosisAccessResult | null,
+  latestDiagnosisAttemptId: string | null,
   onOpenValidityDetail: (agg: AggregatedService) => void,
 ): ServiceCardViewModel {
   const {
@@ -421,12 +428,23 @@ function toViewModel(
     // 소진(또는 만료) — 기존 완료 카드 정책 그대로: 리포트 보기 + 재검사
     // 게이트(diagnosisAccess, fail-open).
     const retakeBlocked = diagnosisAccess !== null && !diagnosisAccess.allowed;
+    // B4-c — 리포트 보기는 이제 정적 SURVEY_REPORT_PATH(세션 경로, 다른 탭·기기에서는
+    // 설문으로 튕기는 버그가 있었다)가 아니라 diagnosis_reports 최신 attemptId로 연다.
+    // 아직 조회 전이거나 결측이면 disabled(기존 disabled 패턴, 위 재검사 게이트와 동일).
     actions = [
-      {
-        kind: "outline-solid",
-        label: "결과 리포트 보기",
-        href: SURVEY_REPORT_PATH,
-      },
+      latestDiagnosisAttemptId
+        ? {
+            kind: "outline-solid",
+            label: "결과 리포트 보기",
+            href: `/learning-diagnosis/report/${latestDiagnosisAttemptId}`,
+          }
+        : {
+            kind: "outline-solid",
+            label: "결과 리포트 보기",
+            href: SURVEY_REPORT_PATH,
+            disabled: true,
+            disabledReason: DIAGNOSIS_REPORT_UNAVAILABLE_REASON,
+          },
       retakeBlocked
         ? {
             kind: "solid",
@@ -644,6 +662,23 @@ export default function MyServicesTab() {
     };
   }, []);
 
+  // "결과 리포트 보기"가 열 대상 — 본인의 가장 최근 diagnosis_reports 행. null은 조회 전
+  // 또는 결측 둘 다를 뜻한다(위 diagnosisAccess와 동일하게 버튼은 그동안 disabled).
+  const [latestDiagnosisAttemptId, setLatestDiagnosisAttemptId] = useState<
+    string | null
+  >(null);
+
+  useEffect(() => {
+    let alive = true;
+    if (!userId) return undefined;
+    fetchLatestDiagnosisReport(userId).then((row) => {
+      if (alive) setLatestDiagnosisAttemptId(row?.attempt_id ?? null);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [userId]);
+
   const [grants, setGrants] = useState<Grant[]>([]);
   const [usedByGrant, setUsedByGrant] = useState<Record<string, number>>({});
   const [loaded, setLoaded] = useState(false);
@@ -708,7 +743,12 @@ export default function MyServicesTab() {
 
   const parsedGrants = grants.map((grant) => parseGrant(grant, usedByGrant));
   const cards = aggregateByProgramKey(parsedGrants).map((agg) =>
-    toViewModel(agg, diagnosisAccess, setDetailService),
+    toViewModel(
+      agg,
+      diagnosisAccess,
+      latestDiagnosisAttemptId,
+      setDetailService,
+    ),
   );
   const ongoing = cards.filter((card) => card.isOngoing);
   const completed = cards.filter((card) => !card.isOngoing);
