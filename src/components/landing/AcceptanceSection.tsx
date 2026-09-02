@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
+import { LANDING_MARQUEE_SPEED } from "./marqueeConfig";
 
 const TRACK_TABS = [
   { key: "general", label: "일반계열" },
@@ -63,6 +64,8 @@ export default function AcceptanceSection({
   const { scrollRef, repeatIndices, containerHandlers, recenter } =
     useInfiniteMarquee({
       itemCount: activeUniversities.length,
+      speed: LANDING_MARQUEE_SPEED,
+      direction: "right",
     });
 
   // 탭 전환 시 캐러셀 위치 리셋 (중앙 사이클로 재배치 — 훅의 동적 repeatCount 반영)
