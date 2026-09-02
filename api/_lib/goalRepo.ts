@@ -1248,6 +1248,72 @@ export async function updateStudentGrades(
   return data;
 }
 
+// ---------------------------------------------------------------------------
+// 학습방향 리포트(#37 내신 / #38 정시) 저장 · 이력 — QA 행301
+// ---------------------------------------------------------------------------
+
+export const TABLE_DIRECTION_REPORTS = "goal_direction_reports";
+
+/**
+ * 리포트 1건 저장 — (profile_id, kind, source_type, source_label) 동일 행이 있으면
+ * 덮어쓴다(마이그레이션 unique index goal_direction_reports_identity_key, upsert
+ * onConflict 문자열도 그 인덱스 컬럼 순서와 같아야 한다). api/_lib/goalDirectionReport.ts
+ * buildGoalDirectionReport()의 반환값(payload/snapshot)을 그대로 옮겨 담는 얇은 어댑터.
+ */
+export async function saveGoalDirectionReport(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  {
+    kind,
+    sourceType,
+    sourceLabel,
+    payload,
+    snapshot,
+  }: {
+    kind: "naesin" | "jungsi";
+    sourceType: "intake" | "naesin" | "mogo";
+    sourceLabel: string;
+    payload: unknown;
+    snapshot: unknown;
+  },
+): Promise<Row> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DIRECTION_REPORTS)
+    .upsert(
+      {
+        profile_id: profileId,
+        kind,
+        source_type: sourceType,
+        source_label: sourceLabel,
+        payload,
+        snapshot,
+      },
+      { onConflict: "profile_id,kind,source_type,source_label" },
+    )
+    .select("*")
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+/** kind별 저장 리포트 목록 — 최신순(회차 칩 표시 순서). */
+export async function listGoalDirectionReports(
+  supabaseAdmin: SupabaseClient,
+  profileId: string,
+  kind: "naesin" | "jungsi",
+): Promise<Row[]> {
+  const { data, error } = await supabaseAdmin
+    .from(TABLE_DIRECTION_REPORTS)
+    .select("id, source_type, source_label, payload, snapshot, created_at")
+    .eq("profile_id", profileId)
+    .eq("kind", kind)
+    .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return (data as Row[]) || [];
+}
+
 export const TABLE_TIMER_SESSIONS = "goal_timer_sessions";
 export const TABLE_SUBJECT_TARGETS = "goal_subject_targets";
 
