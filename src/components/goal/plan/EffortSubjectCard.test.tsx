@@ -32,7 +32,7 @@ describe("EffortSubjectCard", () => {
     expect(screen.getByText("완독하면 여기에 쌓여요")).toBeInTheDocument();
   });
 
-  test("완독 1권 이상이어도 캡션은 시안대로 항상 표시되고 책 스택도 함께 보인다", () => {
+  test("완독 1권 이상이면 캡션이 안내 문구 대신 N권 완독으로 바뀌고 책 스택도 함께 보인다", () => {
     render(
       <EffortSubjectCard
         subject="영어"
@@ -48,7 +48,10 @@ describe("EffortSubjectCard", () => {
       />,
     );
 
-    expect(screen.getByText("완독하면 여기에 쌓여요")).toBeInTheDocument();
+    expect(
+      screen.queryByText("완독하면 여기에 쌓여요"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("1권 완독")).toBeInTheDocument();
     expect(screen.getByText("마더텅 영어듣기")).toBeInTheDocument();
   });
 

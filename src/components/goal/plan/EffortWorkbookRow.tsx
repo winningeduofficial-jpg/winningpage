@@ -1,5 +1,11 @@
 import { X } from "lucide-react";
-import { type KeyboardEvent, useEffect, useState } from "react";
+import {
+  type KeyboardEvent,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import {
   getBookDarkTextClass,
   getBookLightBgClass,
@@ -36,6 +42,18 @@ type EffortWorkbookRowProps = {
 
 /** 키 입력이 멈춘 뒤 자동 저장까지의 지연. */
 const AUTOSAVE_DELAY_MS = 600;
+/** "저장됨" 표시가 다시 idle로 돌아가기까지 유지되는 시간. */
+const SAVED_LABEL_HOLD_MS = 1500;
+
+type SaveState = "idle" | "saving" | "saved" | "error";
+
+const SAVE_STATE_LABEL: Record<Exclude<SaveState, "idle">, string> = {
+  saving: "저장 중…",
+  saved: "저장됨",
+  error: "저장 실패 — 다시 시도",
+};
+
+type Patch = { title?: string; currentPage?: number };
 
 export default function EffortWorkbookRow({
   book,
@@ -53,6 +71,20 @@ export default function EffortWorkbookRow({
   const [deleting, setDeleting] = useState(false);
   const [shelving, setShelving] = useState(false);
 
+  // 자동저장 상태(FF HIGH 반영) — 별도 저장 버튼이 없어 "언제 저장되지?"가 없도록
+  // 달성률 옆에 상태 텍스트를 둔다.
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  // 디바운스 타이머 id — blur/Enter가 "즉시 flush"할 대상. 이 컴포넌트는 title/
+  // currentPage 두 필드를 갖지만 저장 경로는 이 타이머 하나로 통일한다(전에는
+  // 필드별 useEffect 두 개 + blur의 commitTitle/commitPages 두 함수까지 총 네
+  // 경로가 있어 같은 값을 두 번 저장하는 이중 저장 경로였다).
+  const saveTimerRef = useRef<number | null>(null);
+  const savedResetTimerRef = useRef<number | null>(null);
+  // 저장 요청이 진행 중일 때 값이 또 바뀌면 새 요청을 바로 쏘지 않고 이 플래그만
+  // 세운다 — 진행 중 요청이 끝난 뒤 최신값으로 한 번만 더 저장한다(요청 중복 방지).
+  const savingRef = useRef(false);
+  const retryPendingRef = useRef(false);
+
   // 서버 재조회로 같은 책의 제목/진도가 바뀌면(다른 탭에서 수정 등) 로컬 초안을 다시
   // 채운다. book.id는 의존성에 넣지 않는다 — 이 컴포넌트는 EffortSubjectCard에서
   // key={book.id}로 렌더되므로 다른 책으로 바뀌는 경우는 항상 재마운트고, 같은
@@ -63,6 +95,16 @@ export default function EffortWorkbookRow({
     setCurrentPage(String(book.currentPage ?? 0));
     setConfirmingDelete(false);
   }, [book.title, book.currentPage]);
+
+  // 언마운트 시 대기 중인 타이머를 정리한다.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current != null)
+        window.clearTimeout(saveTimerRef.current);
+      if (savedResetTimerRef.current != null)
+        window.clearTimeout(savedResetTimerRef.current);
+    };
+  }, []);
 
   const rate = computeAchievementRate(Number(currentPage) || 0, totalPages);
   // "완독! 책장에 꽂기"는 달성률 표시값(내림)이 아니라 실제 페이지 비교로 판정한다 —
@@ -83,51 +125,91 @@ export default function EffortWorkbookRow({
   const lightBg = getBookLightBgClass(subject);
   const darkText = getBookDarkTextClass(subject);
 
-  // 자동 저장(사용자 확정 2026-09-02): 별도 저장 버튼 없이 입력이 멈추면 저장한다.
-  // blur/Enter 저장(commitTitle/commitPages)은 그대로 두되, 키 입력 후 일정 시간
-  // 지나면 먼저 저장해 "언제 저장되지?"가 없게 한다. 저장이 끝나면 부모가 새 book을
-  // 내려보내 위 useEffect가 상태를 맞추므로 여기서 되돌릴 건 실패 시뿐이다.
-  useEffect(() => {
-    const trimmed = title.trim();
-    if (!trimmed || trimmed === book.title) return;
-    const timer = window.setTimeout(() => {
-      void onUpdate(book.id, { title: trimmed });
-    }, AUTOSAVE_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [title, book.id, book.title, onUpdate]);
-
-  useEffect(() => {
-    if (currentPage === "") return;
-    const next = Math.min(Math.max(Number(currentPage) || 0, 0), totalPages);
-    if (next === (book.currentPage ?? 0)) return;
-    const timer = window.setTimeout(() => {
-      void onUpdate(book.id, { currentPage: next });
-    }, AUTOSAVE_DELAY_MS);
-    return () => window.clearTimeout(timer);
-  }, [currentPage, totalPages, book.id, book.currentPage, onUpdate]);
-
-  async function commitTitle() {
-    const trimmed = title.trim();
-    if (!trimmed || trimmed === book.title) {
-      setTitle(book.title);
-      return;
+  // 로컬 초안(title/currentPage)을 book(마지막으로 서버에 확인된 값)과 비교해
+  // 실제로 바뀐 필드만 담는다. null이면 저장할 게 없다.
+  function buildPatch(): Patch | null {
+    const patch: Patch = {};
+    const trimmedTitle = title.trim();
+    if (trimmedTitle && trimmedTitle !== book.title) patch.title = trimmedTitle;
+    if (currentPage !== "") {
+      const next = Math.min(Math.max(Number(currentPage) || 0, 0), totalPages);
+      if (next !== (book.currentPage ?? 0)) patch.currentPage = next;
     }
-    const ok = await onUpdate(book.id, { title: trimmed });
-    if (!ok) setTitle(book.title);
+    return Object.keys(patch).length > 0 ? patch : null;
   }
 
-  async function commitPages() {
-    const nextCurrent = Math.min(
-      Math.max(Number(currentPage) || 0, 0),
-      totalPages,
-    );
-    const prevCurrent = book.currentPage ?? 0;
-    if (nextCurrent === prevCurrent) {
-      setCurrentPage(String(prevCurrent));
-      return;
+  // 실제 저장 실행 — useEffectEvent로 감싸 디바운스 타이머가 나중에(600ms 뒤) 발동할
+  // 때도, handleShelve가 즉시 호출할 때도 항상 "그 시점의 최신" title/currentPage/
+  // book을 본다(리렌더마다 새로 만들어지는 buildPatch를 그대로 참조해도 안전 —
+  // Effect Event는 호출 시점 최신 렌더의 함수 본문을 실행한다).
+  const performSave = useEffectEvent(async (): Promise<boolean> => {
+    const patch = buildPatch();
+    if (!patch) {
+      setSaveState("idle");
+      return true;
     }
-    const ok = await onUpdate(book.id, { currentPage: nextCurrent });
-    if (!ok) setCurrentPage(String(prevCurrent));
+    if (savingRef.current) {
+      retryPendingRef.current = true;
+      return true;
+    }
+    savingRef.current = true;
+    setSaveState("saving");
+    const ok = await onUpdate(book.id, patch);
+    savingRef.current = false;
+    if (!ok) {
+      setSaveState("error");
+      setTitle(book.title);
+      setCurrentPage(String(book.currentPage ?? 0));
+      retryPendingRef.current = false;
+      return false;
+    }
+    if (retryPendingRef.current) {
+      retryPendingRef.current = false;
+      return performSave();
+    }
+    setSaveState("saved");
+    if (savedResetTimerRef.current != null)
+      window.clearTimeout(savedResetTimerRef.current);
+    savedResetTimerRef.current = window.setTimeout(
+      () => setSaveState("idle"),
+      SAVED_LABEL_HOLD_MS,
+    );
+    return true;
+  });
+
+  // 디바운스 스케줄링 — title/currentPage(또는 그 비교 기준인 book.*)가 바뀔 때만
+  // 재등록한다. buildPatch를 deps에 넣지 않는다 — 매 렌더 새로 만들어지는 함수라
+  // 넣으면 저장과 무관한 리렌더(saveState 전환 등)에도 타이머가 리셋돼 디바운스가
+  // 깨진다. 그래서 실제 비교값(dirty 여부)만 이 안에서 다시 계산한다(buildPatch와
+  // 로직은 같되 위치만 인라인 — 의도적 중복).
+  useEffect(() => {
+    const trimmedTitle = title.trim();
+    const titleDirty = trimmedTitle !== "" && trimmedTitle !== book.title;
+    const pageDirty =
+      currentPage !== "" &&
+      Math.min(Math.max(Number(currentPage) || 0, 0), totalPages) !==
+        (book.currentPage ?? 0);
+    if (!titleDirty && !pageDirty) return;
+
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      void performSave();
+    }, AUTOSAVE_DELAY_MS);
+    return () => {
+      if (saveTimerRef.current != null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, [title, currentPage, book.title, book.currentPage, totalPages]);
+
+  // blur/Enter 전용 경로 — 별도 commit 함수 없이 "대기 중인 타이머가 있으면 지금
+  // 당겨서 저장"만 한다. 대기 중인 타이머가 없으면(값이 안 바뀜) 아무 것도 안 한다.
+  function flushPendingSave() {
+    if (saveTimerRef.current == null) return;
+    window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = null;
+    void performSave();
   }
 
   function blurOnEnter(event: KeyboardEvent<HTMLInputElement>) {
@@ -150,10 +232,17 @@ export default function EffortWorkbookRow({
     if (shelving) return;
     setShelving(true);
     try {
+      // 대기 중인 자동저장 타이머가 있으면 흡수한다 — 아래에서 곧바로 최신
+      // currentPage를 저장하므로 타이머가 나중에 또 쏘면 같은 값을 두 번 보내는
+      // 중복 요청이 된다(FF HIGH).
+      if (saveTimerRef.current != null) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
       // 입력만 하고 blur 전에 바로 꽂기를 누른 경우 — 서버는 저장된 current_page로
       // status를 판정하므로 미저장 페이지를 먼저 반영한 뒤 꽂는다.
       if (typedCurrent !== (book.currentPage ?? 0)) {
-        const saved = await onUpdate(book.id, { currentPage: typedCurrent });
+        const saved = await performSave();
         if (!saved) return;
       }
       await onShelve(book.id);
@@ -161,6 +250,8 @@ export default function EffortWorkbookRow({
       setShelving(false);
     }
   }
+
+  const saveLabel = saveState === "idle" ? null : SAVE_STATE_LABEL[saveState];
 
   return (
     <div
@@ -172,9 +263,9 @@ export default function EffortWorkbookRow({
           aria-label="문제집 이름"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          onBlur={commitTitle}
+          onBlur={flushPendingSave}
           onKeyDown={blurOnEnter}
-          className="h-7 w-full min-w-0 rounded-md border border-dashed border-surface-01 bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus:outline-hidden"
+          className="h-7 w-full min-w-0 rounded-md border border-dashed border-line bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus-visible:ring-2 focus-visible:ring-ink-strong/40 focus:outline-hidden"
         />
 
         {confirmingDelete ? (
@@ -201,7 +292,7 @@ export default function EffortWorkbookRow({
             type="button"
             onClick={() => setConfirmingDelete(true)}
             aria-label="문제집 삭제"
-            className="flex h-5 w-5 shrink-0 items-center justify-center text-ink-sub transition-colors hover:text-error"
+            className="flex h-6 w-6 shrink-0 items-center justify-center text-ink-sub transition-colors hover:text-error"
           >
             <X size={14} />
           </button>
@@ -218,21 +309,38 @@ export default function EffortWorkbookRow({
           onChange={(event) =>
             setCurrentPage(clampCurrentPage(event.target.value))
           }
-          onBlur={commitPages}
+          onBlur={flushPendingSave}
           onKeyDown={blurOnEnter}
-          className="h-7 w-15 rounded-md border border-dashed border-surface-01 bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus:outline-hidden"
+          className="h-7 w-[5ch] min-w-14 rounded-md border border-dashed border-line bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus-visible:ring-2 focus-visible:ring-ink-strong/40 focus:outline-hidden"
         />
         <span className="text-[1rem] font-medium text-ink-natural">/</span>
         <output
           aria-label="전체 페이지"
-          className="flex h-7 w-15 items-center rounded-md border border-surface-01 bg-goal-activePill px-2 text-[1rem] text-ink-sub"
+          className="flex h-7 w-[5ch] min-w-14 items-center rounded-md border border-surface-01 bg-goal-activePill px-2 text-[1rem] text-ink-sub"
         >
           {totalPages}
         </output>
-        <span className="ml-auto text-[0.75rem] text-ink-natural">{rate}%</span>
+        <span className="ml-auto flex items-center gap-1.5 text-[0.75rem]">
+          {saveLabel && (
+            <span
+              aria-live="polite"
+              className={saveState === "error" ? "text-error" : "text-ink-sub"}
+            >
+              {saveLabel}
+            </span>
+          )}
+          <span className="text-ink-natural">{rate}%</span>
+        </span>
       </div>
 
-      <div className="h-3 w-full overflow-hidden rounded-full bg-goal-activePill">
+      <div
+        role="progressbar"
+        aria-label="달성률"
+        aria-valuenow={rate}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        className="h-3 w-full overflow-hidden rounded-full bg-goal-activePill"
+      >
         <div
           className={`h-full rounded-full ${lightBg}`}
           style={{ width: `${rate}%` }}

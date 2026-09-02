@@ -26,10 +26,13 @@ import {
 // 더 이상 이 화면이 쓰지 않는다(디자인 참고용으로만 파일에 남겨둔다, 소비처 재확인 후 정리는
 // 이번 범위 밖).
 //
-// 콘텐츠 폭: 문서 실측(#30/#32)은 1368px(85.5rem)로 GoalPageHeader 기본값(83.75rem/1340px,
-// 리포트 화면 기준)보다 넓다(00-INDEX.md §7-2 "컨테이너 폭 불일치 주의"). 기존 primitive를
-// 수정하지 않고 maxWidthClassName prop으로 넘길 수 있는 기존 토큰 중 1368px을 여유 있게 담는
-// `goal-dashboard`(93rem/1488px)를 대신 채택했다.
+// 콘텐츠 폭(리뷰 반영, 2026-09-02): 전에는 문서 실측(1368px)이 GoalPageHeader 기본값
+// (goal-content, 83.75rem/1340px)보다 넓다는 이유로 이 화면만 `goal-dashboard`
+// (93rem/1488px)를 따로 썼다. 하지만 형제 서브페이지(Grades/WeeklyPlan/Timer 등)는
+// 전부 goal-content라 이 화면만 눈에 띄게 넓어 일관성이 깨졌다(디자인 리뷰 지적) —
+// 28px 차이는 목록형 카드 그리드에서 체감 이득이 크지 않아 형제 화면과 통일하는
+// 쪽을 택한다. 본문 좌우 패딩도 형제 화면의 px-12 고정 대신 좁은 화면 여백을 남기는
+// px-4 md:px-12로 맞춘다.
 
 // QA 행361 — "+ 과목 추가하기"는 예전엔 문제집 등록 모달(AddWorkbookModal)을 여는 스텁이었다
 // (part-10 §253에 별도 모달이 없어 임시로 재사용). 2026-08-31 머지된 열공 타이머(#25)의 과목
@@ -40,6 +43,14 @@ import {
 // (전에는 이 화면만 별도로 4과목 하드코딩이라 타이머에서 5번째 과목을 추가해도 여기 카드가
 // 안 늘어났다). 문제집 등록(카드별 "+ 문제집 추가")은 그대로 AddWorkbookModal을 쓴다 — 그
 // 동선은 이번 변경과 무관하다.
+
+// 완독 행 페이드아웃(.book-row-out, src/index.css)과 짝을 이루는 지연 — 행이
+// 사라지는 애니메이션이 보일 시간을 서버 응답과 병렬로 확보한다.
+const SHELVE_ROW_EXIT_MS = 350;
+// 책 드롭 애니메이션(.book-drop 0.6s, src/index.css)이 끝난 뒤 droppingBookId를
+// 비우기까지의 지연 — 애니메이션 지속시간(600ms)보다 여유를 두어(300ms 버퍼)
+// 느린 프레임에서도 애니메이션 도중 클래스가 빠지지 않게 한다.
+const SHELVE_DROP_RESET_MS = 900;
 
 // api/_lib/goalRepo.js buildWorkbookPayload() 반환 shape.
 type Workbook = {
@@ -201,14 +212,21 @@ export default function Efforts() {
     return true;
   }
 
+  // 행의 사라지는 애니메이션(.book-row-out, SHELVE_ROW_EXIT_MS)이 보일 최소 시간을
+  // 확보하는 헬퍼 — 데이터 요청(shelveGoalWorkbook)과는 별개 관심사라 분리한다.
+  function waitForRowExit() {
+    return new Promise((resolve) =>
+      window.setTimeout(resolve, SHELVE_ROW_EXIT_MS),
+    );
+  }
+
   // EffortWorkbookRow의 onShelve 계약 — "완독! 책장에 꽂기" 버튼(달성률 100%에서만
   // 노출)이 호출한다. 서버가 status='done'이 아니면 400(validation-error)을 준다.
   async function handleShelveWorkbook(id: string | number) {
-    // 행의 사라지는 애니메이션(.book-row-out 0.35s)이 보일 시간을 서버 응답과 병렬로
-    // 확보한다 — 응답이 빨라도 행이 툭 사라지지 않게.
+    // 응답이 빨라도 행이 툭 사라지지 않도록 애니메이션 대기와 서버 요청을 병렬로 건다.
     const [outcome] = await Promise.all([
       shelveGoalWorkbook(id as number),
-      new Promise((resolve) => window.setTimeout(resolve, 350)),
+      waitForRowExit(),
     ]);
     if (outcome.kind !== "success") {
       console.error("[Efforts] 책장에 꽂기 실패:", outcome);
@@ -219,7 +237,7 @@ export default function Efforts() {
     await loadWorkbooks();
     window.setTimeout(() => {
       setDroppingBookId((current) => (current === Number(id) ? null : current));
-    }, 900);
+    }, SHELVE_DROP_RESET_MS);
     return true;
   }
 
@@ -249,17 +267,20 @@ export default function Efforts() {
             </button>
           )
         }
-        maxWidthClassName="max-w-goal-dashboard"
+        maxWidthClassName="max-w-goal-content"
       />
 
-      <div className="max-w-goal-dashboard px-12 pb-24">
+      <div className="max-w-goal-content px-4 pb-24 md:px-12">
         {loadError && (
           <p className="mb-4 text-[0.875rem] text-ink-sub">
             문제집 목록을 불러오지 못했습니다. 새로고침해 주세요.
           </p>
         )}
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] gap-6">
+        {/* items-stretch(그리드 기본값)로 같은 행 카드끼리 높이를 맞춘다 — 카드 자체는
+            더 이상 고정 높이가 아니라(EffortSubjectCard 주석 참고) 내용이 많은 카드가
+            그 행의 다른 카드도 함께 늘린다. */}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(17rem,1fr))] items-stretch gap-6">
           {cardSubjects.map((id) => {
             const label = getSubjectLabel(id);
             const subjectBooks = workbooks.filter(
@@ -309,11 +330,13 @@ export default function Efforts() {
   );
 }
 
-// 완독 카운트 뱃지(97×32) — 인스턴스 내부 텍스트라 정확한 HEX가 없어 근사 연보라 톤(추정,
-// part-10 §219 "연보라 필 + 보라 텍스트(추정)")을 로컬 상수로 둔다.
+// 완독 카운트 뱃지 — 인스턴스 내부 텍스트라 정확한 HEX가 없어 근사 연보라 톤(추정,
+// part-10 §219 "연보라 필 + 보라 텍스트(추정)")을 쓴다. 색은 로컬 hex가 아니라
+// src/index.css `--color-goal-badge-purple-*` 토큰(리뷰 반영 — 이 화면만 로컬
+// hex로 흩어져 있던 걸 다른 goal 색 토큰들과 같은 방식으로 통일한다).
 function CountBadge({ count }: { count: number }) {
   return (
-    <span className="inline-flex h-8 items-center justify-center rounded-full bg-[#EFE9F6] px-3 text-[0.8125rem] font-semibold text-[#6B4FA0]">
+    <span className="inline-flex h-8 items-center justify-center rounded-full bg-goal-badge-purple-bg px-3 text-[0.8125rem] font-semibold text-goal-badge-purple-text">
       총 {count}권 완독
     </span>
   );

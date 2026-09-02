@@ -1,5 +1,11 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import EffortWorkbookRow from "./EffortWorkbookRow";
 
@@ -214,5 +220,133 @@ describe("EffortWorkbookRow", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  test("blur로 즉시 저장된 뒤 대기 중이던 디바운스 타이머가 나중에 또 저장하지 않는다(이중 저장 경로 제거)", async () => {
+    vi.useFakeTimers();
+    try {
+      const onUpdate = vi.fn().mockResolvedValue(true);
+      render(
+        <EffortWorkbookRow
+          book={BOOK}
+          subject="korean"
+          onUpdate={onUpdate}
+          onDelete={vi.fn()}
+          onShelve={vi.fn()}
+        />,
+      );
+
+      const currentInput = screen.getByLabelText("현재 페이지");
+      fireEvent.change(currentInput, { target: { value: "120" } });
+      fireEvent.blur(currentInput);
+
+      expect(onUpdate).toHaveBeenCalledTimes(1);
+      // blur가 대기 중이던 타이머를 flush로 흡수했어야 한다 — 원래 예정이던
+      // AUTOSAVE_DELAY_MS(600ms)를 더 흘려보내도 두 번째 호출이 없어야 한다.
+      await vi.advanceTimersByTimeAsync(700);
+      expect(onUpdate).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("저장 중 상태 텍스트가 뜨고 저장 완료 후 저장됨으로, 일정 시간 뒤 사라진다", async () => {
+    // waitFor/findBy는 실타이머 폴링에 의존해 페이크 타이머와 섞으면 걸리므로,
+    // 여기서는 act로 마이크로태스크·타이머를 직접 흘려보낸다(파일 내 기존 디바운스
+    // 테스트와 같은 페이크 타이머 패턴).
+    vi.useFakeTimers();
+    try {
+      let resolveUpdate: (ok: boolean) => void = () => {};
+      const onUpdate = vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            resolveUpdate = resolve;
+          }),
+      );
+      render(
+        <EffortWorkbookRow
+          book={BOOK}
+          subject="korean"
+          onUpdate={onUpdate}
+          onDelete={vi.fn()}
+          onShelve={vi.fn()}
+        />,
+      );
+
+      const currentInput = screen.getByLabelText("현재 페이지");
+      fireEvent.change(currentInput, { target: { value: "120" } });
+      fireEvent.blur(currentInput);
+
+      expect(screen.getByText("저장 중…")).toBeInTheDocument();
+
+      await act(async () => {
+        resolveUpdate(true);
+        await Promise.resolve();
+      });
+      expect(screen.getByText("저장됨")).toBeInTheDocument();
+
+      await act(async () => {
+        vi.advanceTimersByTime(1600);
+      });
+      expect(screen.queryByText("저장됨")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("저장이 실패하면 저장 실패 문구가 뜨고 입력값이 서버 값으로 되돌아간다", async () => {
+    const onUpdate = vi.fn().mockResolvedValue(false);
+    render(
+      <EffortWorkbookRow
+        book={BOOK}
+        subject="korean"
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+        onShelve={vi.fn()}
+      />,
+    );
+
+    const currentInput = screen.getByLabelText<HTMLInputElement>("현재 페이지");
+    fireEvent.change(currentInput, { target: { value: "120" } });
+    fireEvent.blur(currentInput);
+
+    await screen.findByText("저장 실패 — 다시 시도");
+    await waitFor(() => expect(currentInput.value).toBe("60"));
+  });
+
+  test("저장이 진행 중일 때 값이 또 바뀌어도 새 요청을 바로 쏘지 않고, 끝난 뒤 최신값으로 한 번만 더 저장한다", async () => {
+    const resolvers: Array<(ok: boolean) => void> = [];
+    const onUpdate = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    render(
+      <EffortWorkbookRow
+        book={BOOK}
+        subject="korean"
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+        onShelve={vi.fn()}
+      />,
+    );
+
+    const currentInput = screen.getByLabelText("현재 페이지");
+    fireEvent.change(currentInput, { target: { value: "100" } });
+    fireEvent.blur(currentInput);
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(1));
+
+    // 첫 요청이 아직 안 끝난 상태에서 값을 또 바꾸고 flush한다 — 중복 요청을 바로
+    // 쏘지 않아야 한다.
+    fireEvent.change(currentInput, { target: { value: "150" } });
+    fireEvent.blur(currentInput);
+    expect(onUpdate).toHaveBeenCalledTimes(1);
+
+    resolvers[0]?.(true);
+    await waitFor(() => expect(onUpdate).toHaveBeenCalledTimes(2));
+    expect(onUpdate).toHaveBeenNthCalledWith(2, 1, { currentPage: 150 });
+
+    resolvers[1]?.(true);
   });
 });
