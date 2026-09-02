@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 import Header from "./Header";
@@ -133,5 +133,174 @@ describe("Header — 비로그인 상태", () => {
       "href",
       "/signup",
     );
+  });
+
+  it("게스트 메가 패널은 프로모 카드(로그인하기 CTA)를 보여주고 MY 항목은 없다", () => {
+    mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
+    renderHeader();
+
+    // nav mock 그룹은 items: []라 hasDropdown이 false다(§8 오픈 트리거는 nav 항목
+    // 자체가 아니라 로고로도 검증 가능 — 로고는 hasDropdown과 무관하게 항상 연다).
+    const logo = screen.getByRole("link", { name: "위닝에듀" });
+    fireEvent.mouseOver(logo);
+
+    expect(screen.getByRole("link", { name: "로그인하기" })).toHaveAttribute(
+      "href",
+      "/login",
+    );
+    expect(screen.queryByText("MY페이지")).not.toBeInTheDocument();
+  });
+});
+
+describe("Header — 관리자 단독 버튼 부재(2026-09-03 시안 §6-1)", () => {
+  it("관리자 로그인 시에도 별도 '관리자' 버튼/링크가 없다", async () => {
+    mockProfileRow = {
+      id: "u3",
+      email: "admin@test.com",
+      name: "관리자짱",
+      member_type: "admin",
+      role: "admin",
+    };
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: "u3", email: "admin@test.com" } },
+      user: { id: "u3", email: "admin@test.com" },
+      isReady: true,
+    });
+
+    renderHeader();
+
+    await screen.findByRole("link", { name: "마이페이지" });
+
+    expect(
+      screen.queryByRole("link", { name: "관리자" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "관리자" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe("Header — 메가 패널 chevron 회전(§6-2·§8)", () => {
+  it("이름 칩 hover로 패널이 열리면 chevron이 90도 회전 클래스를 갖는다", async () => {
+    mockProfileRow = {
+      id: "u1",
+      email: "student@test.com",
+      name: "홍길동",
+      member_type: "student",
+      role: "student",
+    };
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: "u1", email: "student@test.com" } },
+      user: { id: "u1", email: "student@test.com" },
+      isReady: true,
+    });
+
+    renderHeader();
+
+    const nameChip = await screen.findByRole("link", { name: "마이페이지" });
+    const chevron = screen.getByTestId("header-mega-chevron");
+
+    expect(chevron.className).not.toContain("rotate-90");
+
+    fireEvent.mouseOver(nameChip.parentElement?.parentElement as Element);
+
+    expect(chevron.className).toContain("rotate-90");
+  });
+});
+
+describe("Header — MY 컬럼 역할별 항목(§6-3, buildMyMenu 단일 소스)", () => {
+  async function openMyColumn() {
+    const nameChip = await screen.findByRole("link", { name: "마이페이지" });
+    fireEvent.mouseOver(nameChip.parentElement?.parentElement as Element);
+  }
+
+  it("학생은 MY페이지·나의 서비스·신청 내역·내 정보 수정 4개를 본다", async () => {
+    mockProfileRow = {
+      id: "u1",
+      email: "student@test.com",
+      name: "홍길동",
+      member_type: "student",
+      role: "student",
+    };
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: "u1", email: "student@test.com" } },
+      user: { id: "u1", email: "student@test.com" },
+      isReady: true,
+    });
+
+    renderHeader();
+    await openMyColumn();
+
+    expect(screen.getByText("MY페이지")).toBeInTheDocument();
+    expect(screen.getByText("나의 서비스")).toBeInTheDocument();
+    expect(screen.getByText("신청 내역")).toBeInTheDocument();
+    expect(screen.getByText("내 정보 수정")).toBeInTheDocument();
+    expect(screen.queryByText("자녀 등록 및 수정")).not.toBeInTheDocument();
+  });
+
+  it("학부모는 MY페이지·자녀 등록 및 수정·신청 내역·내 정보 수정 4개를 본다", async () => {
+    mockProfileRow = {
+      id: "u2",
+      email: "parent@test.com",
+      name: "이혜진",
+      member_type: "parent",
+      role: "parent",
+    };
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: "u2", email: "parent@test.com" } },
+      user: { id: "u2", email: "parent@test.com" },
+      isReady: true,
+    });
+
+    renderHeader();
+    await openMyColumn();
+
+    expect(screen.getByText("MY페이지")).toBeInTheDocument();
+    expect(screen.getByText("자녀 등록 및 수정")).toBeInTheDocument();
+    expect(screen.getByText("신청 내역")).toBeInTheDocument();
+    expect(screen.getByText("내 정보 수정")).toBeInTheDocument();
+    expect(screen.queryByText("나의 서비스")).not.toBeInTheDocument();
+  });
+
+  it("관리자는 MY페이지·관리자 메뉴·내 정보 수정 3개를 본다", async () => {
+    mockProfileRow = {
+      id: "u3",
+      email: "admin@test.com",
+      name: "관리자짱",
+      member_type: "admin",
+      role: "admin",
+    };
+    mockUseAuth.mockReturnValue({
+      session: { user: { id: "u3", email: "admin@test.com" } },
+      user: { id: "u3", email: "admin@test.com" },
+      isReady: true,
+    });
+
+    renderHeader();
+    await openMyColumn();
+
+    expect(screen.getByText("MY페이지")).toBeInTheDocument();
+    expect(screen.getByText("관리자 메뉴")).toBeInTheDocument();
+    expect(screen.getByText("내 정보 수정")).toBeInTheDocument();
+    expect(screen.queryByText("나의 서비스")).not.toBeInTheDocument();
+    expect(screen.queryByText("자녀 등록 및 수정")).not.toBeInTheDocument();
+  });
+});
+
+describe("Header — 햄버거 위치(§6-7)", () => {
+  it("햄버거는 nav 항목들보다 뒤(문서 순서상 계정 그룹과 함께 가장 마지막)에 온다", () => {
+    mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
+    renderHeader();
+
+    const hamburger = screen.getByRole("button", { name: "전체 메뉴 열기" });
+    const navButtons = screen.getAllByRole("button", {
+      name: /서비스|프리미엄|입시정보|이용신청|고객안내/,
+    });
+    const lastNavButton = navButtons[navButtons.length - 1];
+
+    expect(lastNavButton).toBeDefined();
+    // biome-ignore lint/style/noNonNullAssertion: 위에서 undefined면 이미 실패한다
+    const position = lastNavButton!.compareDocumentPosition(hamburger);
+    expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
