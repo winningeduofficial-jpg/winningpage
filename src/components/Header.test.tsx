@@ -411,6 +411,25 @@ describe("Header — 햄버거 위치(§6-7, 2026-09-03 계정 그룹 마지막�
     expect(nav?.className).toContain("w-full");
   });
 
+  it("메가 컬럼 wrapper는 grid item이 아니라 nav와 동일한 순수 block mx-auto다(2026-09-03 좌측선 재조정 2차)", () => {
+    // 실측 결과 컬럼 wrapper가 회색존과 같은 grid cell(col-start-1 row-start-1)을 공유할 때
+    // CSS Grid의 auto-margin 정렬이 두 형제 사이에서 다르게 계산돼(nav의 순수 block
+    // mx-auto와 달리) 8px(1440~1680)/5px(1920) 어긋났다 — 컬럼 wrapper를 grid item에서
+    // 빼고(col-start-1 제거) 회색존은 absolute로 분리해 서로 영향을 주지 않게 한다.
+    mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
+    renderHeader();
+
+    const columnTitle = screen.getByText("서비스", { selector: "p" });
+    const columnWrapper =
+      columnTitle.parentElement?.parentElement?.parentElement;
+    const outerRelative = columnWrapper?.parentElement;
+
+    expect(columnWrapper?.className).not.toMatch(/col-start-1/);
+    expect(columnWrapper?.className).toContain("mx-auto");
+    expect(columnWrapper?.className).toContain("max-w-content");
+    expect(outerRelative?.className).toContain("relative");
+  });
+
   it("게스트 상태에서 햄버거는 계정 그룹(로그인·회원가입) 다음의 마지막 자식이다", () => {
     mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
     renderHeader();

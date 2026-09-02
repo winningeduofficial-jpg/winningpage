@@ -1004,25 +1004,38 @@ export default function Header() {
         onMouseEnter={clearMegaCloseTimer}
         onMouseLeave={scheduleMegaClose}
       >
-        {/* 패널도 헤더와 동일한 2중 좌표계: 컬럼(좌표계 2, 1200 컨텐츠)과 프로모 카드(좌표계 1,
-                1920 밴드 — 헤더 계정 그룹과 같은 축)를 같은 grid cell(col-start-1 row-start-1)에
-                겹쳐 그린다. absolute 오버레이 대신 grid 겹침을 쓴 이유: 두 레이어 중 더 큰 쪽이
-                패널의 자연 높이(hug)를 그대로 결정하게 하기 위함(absolute는 문서 흐름에서 빠져
-                높이에 기여하지 못한다). */}
-        <div className="grid">
+        {/* 2026-09-03 좌측선 재조정(2차): 컬럼(좌표계 2)과 회색존(좌표계 1, 프로모 카드 또는
+                MY 컬럼)을 같은 grid cell(col-start-1 row-start-1)에 겹쳐 그리던 구조를
+                버렸다 — 실측 결과 컬럼 wrapper의 mx-auto가 nav의 mx-auto(순수 block 흐름)와
+                다르게 8px(1440~1680)/5px(1920) 비대칭으로 어긋났는데, 원인은 CSS Grid에서
+                margin:auto가 "실제 마진"이 아니라 grid 정렬(auto-margin alignment)로 처리되고,
+                같은 셀에 겹친 회색존 형제(그 자체도 grid item)가 implicit 컬럼 트랙의
+                크기/정렬 기준에 영향을 줘 두 아이템의 auto-margin 결과가 서로 달라졌기
+                때문으로 추정된다(브라우저 실측 기반). 컬럼 wrapper를 grid item에서 완전히
+                빼서 nav와 동일하게 순수 block 흐름의 mx-auto(항상 대칭 centering이 보장되는
+                유일한 CSS 메커니즘)로 되돌리고, 회색존은 absolute로 분리해 컬럼의 흐름/폭
+                계산에 전혀 관여하지 못하게 한다. "패널 자연 높이(hug)"는 이제 grid 겹침이
+                아니라 이 wrapper의 `minHeight: GREY_ZONE_H`(회색존과 동일 상수, 파일 상단
+                주석 참고)로 직접 보장한다 — 회색존 높이가 이미 로그인/게스트 공용 고정값이라
+                더 이상 "더 큰 레이어가 자연 높이를 결정"할 필요가 없다(그 필요 자체가
+                사라져 grid 겹침이라는 수단도 함께 폐기했다). */}
+        <div className="relative" style={{ minHeight: GREY_ZONE_H }}>
           {/* (QA 행327 재작업 이후) 메가 컬럼은 여전히 옛 좌표계 2(72.75rem 컨텐츠 영역,
                   mx-auto max-w-content px-8 + MEGA_GUARD marginLeft)를 그대로 쓴다 — 위 nav
                   행은 고정폭 셀에서 텍스트 자연폭 + 반응형 gap으로 바뀌었지만(return 블록 헤더
                   주석 참고), 2026-09-03 사용자 결정(B안)으로 nav·메가 컬럼 얼라인을 dev 정본
                   방식(NAV_GUARD/MEGA_GUARD 좌측선 공유, navigation.ts 상단 주석)으로 되돌려
                   "컬럼 0의 시작 x = nav 셀 0의 텍스트 시작 x"가 다시 보장된다(피치 148px 공유,
-                  6.25rem+3rem=8.75rem+0.5rem).
+                  6.25rem+3rem=8.75rem+0.5rem). 위 grid-분리 조치로 이 wrapper는 이제 nav의
+                  `mx-auto max-w-content px-8` 체인과 포지셔닝 매커니즘까지 완전히 동일하다
+                  (둘 다 순수 block 흐름 — nav는 fixed 조상 안의 block, 이쪽은 relative 조상
+                  안의 block, 어느 쪽도 grid item이 아니다).
                   컬럼 제목은 신규 시안(header-footer-figma-2026-09.md §2)대로 유지한다 —
                   이전엔 nav 아이템과 중복돼 제거했었으나 이번 시안은 제목을 명시적으로
                   요구한다: 14px SemiBold #808080(text-ink-natural) tracking -0.02em
                   leading-5, 제목-아이템 gap 20px(mt-5). 아이템은 14px
                   Medium #525252(text-ink), 아이템 간 gap 16px(gap-4). */}
-          <div className="col-start-1 row-start-1 mx-auto w-full max-w-content px-8 py-6">
+          <div className="mx-auto w-full max-w-content px-8 py-6">
             <div
               className="grid"
               style={{
@@ -1064,12 +1077,18 @@ export default function Header() {
           {/* 좌표계 1(1920 밴드): 회색 존 + (게스트) 프로모 카드 또는 (로그인) 6번째 MY 컬럼
                   (§6-4 사용자 결정 — 로그인 시 프로모 카드 대신 MY 메뉴가 회색존 안에 들어간다,
                   회색존 자체는 로그인 여부와 무관하게 항상 유지). 헤더 Band 1(로고+계정 그룹)과
-                  동일한 mx-auto max-w-[120rem] 축을 공유한다. 컬럼 레이어와 같은 grid cell에
-                  겹치므로 바깥 겹은 pointer-events-none으로 비워 컬럼 클릭을 가리지 않고, 안쪽
-                  콘텐츠만 pointer-events-auto로 되살린다(헤더 nav 오버레이와 동일한 기법). */}
+                  동일한 mx-auto max-w-[120rem] 축을 공유한다. 2026-09-03 좌측선 재조정(2차)으로
+                  더 이상 컬럼 레이어와 grid cell을 공유하지 않는다 — absolute(inset-x-0 top-0)로
+                  분리해 컬럼 wrapper의 mx-auto/폭 계산에 전혀 영향을 주지 않는다(위 grid-분리
+                  주석 참고). absolute 자체의 중앙 정렬(left:0/right:0 + max-w-[120rem] +
+                  margin:auto)은 CSS 2.1의 "over-constrained 절대배치 auto margin 균등분배"
+                  규칙으로, grid auto-margin 정렬과 달리 다른 형제와 트랙을 공유하지 않는 단독
+                  메커니즘이라 안정적이다. 바깥 겹은 pointer-events-none이라 컬럼 클릭을
+                  가리지 않고, 안쪽 콘텐츠만 pointer-events-auto로 되살린다(헤더 nav 오버레이와
+                  동일한 기법). */}
           <div
             ref={zoneBandRef}
-            className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]"
+            className="pointer-events-none absolute inset-x-0 top-0 mx-auto w-full max-w-[120rem]"
           >
             {showMegaMyColumn ? (
               // 로그인 회색존(2026-09-03 사용자 결정) — 좌측 x를 계정 그룹(D-day 배지) 좌측
