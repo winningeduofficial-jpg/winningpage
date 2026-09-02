@@ -1454,16 +1454,22 @@ export type FetchGoalReportResult =
   | { kind: "success"; report: any }
   | { kind: "error" };
 
+// 세 번째 인자 `periodOrReportId` — weekly/monthly는 기간(period=YYYY-MM-DD|YYYY-MM),
+// direction은 저장된 리포트 id(reportId, QA 행301)다. 같은 슬롯을 재사용하되 쿼리 키만
+// type으로 분기한다 — 두 값이 같은 화면에 동시에 필요한 호출부가 없어 별도 인자를
+// 추가하지 않았다(호출부 3곳: GrowthReport.tsx weekly/monthly, DirectionReport.tsx direction).
 export async function fetchGoalReport(
   type: "weekly" | "monthly" | "direction",
-  period?: string,
+  periodOrReportId?: string,
   track?: "naesin" | "jeongsi",
 ): Promise<FetchGoalReportResult> {
   const authHeader = await getAuthHeader();
   if (!authHeader) return { kind: "no-session" };
 
   const params = new URLSearchParams({ type });
-  if (period) params.set("period", period);
+  if (periodOrReportId) {
+    params.set(type === "direction" ? "reportId" : "period", periodOrReportId);
+  }
   if (type === "direction" && track) params.set("track", track);
 
   let response: Response;

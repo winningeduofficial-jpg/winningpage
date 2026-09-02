@@ -27,13 +27,16 @@ type DirectionReport = {
   meta?: string;
   periodChips: Array<{ value: string; label: string }>;
   activePeriod?: string;
+  scaleMax?: 5 | 9;
   summary: { meta?: string; typeLabel?: string; body?: string };
   subjects: Array<{
+    key?: string;
     name: string;
     zoneLabel?: string;
     badge?: string;
     body?: string;
     materials?: string[];
+    grade?: number | null;
   }>;
 };
 
@@ -77,7 +80,11 @@ export default function DirectionReportBody({
         />
         <div className="grid grid-cols-1 gap-x-5.25 gap-y-10 xl:grid-cols-2">
           {report.subjects.map((subject) => (
-            <SubjectDirectionCard key={subject.name} {...subject} />
+            <SubjectDirectionCard
+              key={subject.key ?? subject.name}
+              {...subject}
+              scaleMax={report.scaleMax}
+            />
           ))}
         </div>
       </div>
