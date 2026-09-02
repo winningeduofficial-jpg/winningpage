@@ -44,17 +44,20 @@ function resolveServiceLink(service: Service): string | null {
   return promoted;
 }
 
-// 카드 셸 — Figma 1920 실측(px÷16=rem) 재확인 반영. 좌 32px(2rem)/우 26px(1.625rem,
-// 카드별 우측 여백 편차를 무시하고 9장 통일 — 텍스트가 nowrap/pre로 절대 안 줄어드는
-// 대신 일러스트 프레임이 줄어들 여유를 우측에 더 확보), flex row, items-center,
+// 카드 셸 — Figma 1920 실측(px÷16=rem) 재확인 반영. 좌 32px(2rem) 고정 / 우측은
+// pr 11px(0.6875rem) + 일러스트 뒤 여백 스페이서(최대 21px·0.6875+1.3125=2rem)로
+// 구성 — 텍스트가 짧아 여유가 있으면 스페이서가 21px를 다 채워 우측 여백이 32px,
+// 텍스트가 길어지면 스페이서가 0까지 줄어들고(일러스트 자체 크기는 고정, 절대
+// 줄어들지 않는다) 최소 11px까지 좁아진다. overflow-hidden으로 만에 하나 넘칠 때도
+// 이미지가 카드 밖으로 삐져나가지 않게 막는다. flex row, items-center,
 // justify-between, radius 24.8px(1.55rem), border 1px #d7d7d7, shadow
 // 0 3.3px 3.3px rgba(128,128,128,.3)(0.2063rem/0.2063rem). lg 고정 352×180(그리드 3열이
 // 열 폭을 결정하므로 폭은 w-full, 높이만 h-45 고정). hover/focus는 시안에 없는 구현측
 // 인터랙션 — 동작은 유지.
 const CARD_CLASS =
-  "group flex w-full flex-row items-center justify-between gap-4 rounded-[1.55rem] " +
-  "border border-[#d7d7d7] bg-white py-6 pl-8 pr-[1.625rem] shadow-[0_0.2063rem_0.2063rem_rgba(128,128,128,0.3)] " +
-  "transition-[background-color,box-shadow] duration-200 " +
+  "group flex w-full flex-row items-center justify-between gap-4 overflow-hidden " +
+  "rounded-[1.55rem] border border-[#d7d7d7] bg-white py-6 pl-8 pr-[0.6875rem] " +
+  "shadow-[0_0.2063rem_0.2063rem_rgba(128,128,128,0.3)] transition-[background-color,box-shadow] duration-200 " +
   "[@media(hover:hover)]:hover:bg-[#f6fbff] [@media(hover:hover)]:hover:shadow-[0_0.375rem_1rem_0.25rem_rgba(128,128,128,0.4)] " +
   "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 " +
   "lg:h-45";
@@ -66,7 +69,16 @@ export default function ServiceCard({ service }: { service: Service }) {
   const content = (
     <>
       <ServiceCardText name={service.name} description={service.description} />
-      <ServiceIllustration src={service.icon_image_url} />
+      <span className="flex items-center">
+        <ServiceIllustration src={service.icon_image_url} />
+        {/* 우측 여백 스페이서 — 텍스트가 길어지면 이 21px(1.3125rem)만 0까지 줄고
+            일러스트 프레임(shrink-0)은 절대 줄어들지 않는다. pr-[0.6875rem](11px)와
+            합쳐 여유가 있을 때 우측 여백 32px(2rem)을 이룬다. */}
+        <span
+          aria-hidden="true"
+          className="block h-px w-[1.3125rem] min-w-0 shrink"
+        />
+      </span>
     </>
   );
 
