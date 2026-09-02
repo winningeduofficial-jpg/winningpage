@@ -326,7 +326,7 @@ export const services = [
     link: "/services/learning-diagnosis",
     icon: "default",
     // 이미지 파일명은 Supabase Storage 오브젝트 키·DB icon_image_url과 묶여 있어 개명 대상이 아니다
-    icon_image_url: "/images/landing/services/free-diagnosis.png",
+    icon_image_url: "/images/landing/services/learning-diagnosis.png",
     sort_order: 1,
     is_active: true,
   },
