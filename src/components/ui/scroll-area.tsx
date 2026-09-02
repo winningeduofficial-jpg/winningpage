@@ -25,16 +25,21 @@ const AXIS_OVERFLOW: Record<
  * `scrollTo`/`scrollTop` 조작)에 접근한다. */
 export type ScrollAreaHandle = OverlayScrollbarsComponentRef<"div">;
 
-/** 실제 스크롤 뷰포트 요소(내부 `.os-viewport`, 루트가 아니다)에 붙일 속성 — className으로는
- * 닿지 않는 자리다. 키보드 포커스로 화살표 스크롤이 되어야 하는 "APG Scrollable Regions"
- * 패턴처럼, tabIndex·aria-label·role이 루트가 아니라 실제 스크롤 노드에 있어야 동작하는
- * 접근성 요구를 위한 탈출구다. OverlayScrollbars 초기화가 끝난 시점(`initialized` 이벤트)에
- * 한 번 적용한다 — 뷰포트 DOM 노드는 옵션이 바뀌어도 다시 만들어지지 않으므로 재적용이
- * 필요 없다. */
+/** 실제 스크롤 뷰포트 요소(내부 `[data-overlayscrollbars-viewport]`, 루트가 아니다)에 붙일
+ * 속성 — className으로는 닿지 않는 자리다. 키보드 포커스로 화살표 스크롤이 되어야 하는
+ * "APG Scrollable Regions" 패턴처럼, tabIndex·aria-label·role이 루트가 아니라 실제 스크롤
+ * 노드에 있어야 동작하는 접근성 요구를 위한 탈출구다. `className`은 같은 이유로 뷰포트에
+ * 직접 둬야 하는 클래스(예: 스크롤과 함께 움직여야 하는 padding, `:focus-visible` 링,
+ * 그 클래스를 셀렉터로 삼는 인쇄 CSS)를 위한 것 — 루트(ScrollArea의 `className`)에 두면
+ * "스크롤이 멎어도 늘 보이는 고정 여백"이 되어 시각적으로 달라진다. OverlayScrollbars
+ * 초기화가 끝난 시점(`initialized` 이벤트)에 한 번 적용한다 — 뷰포트 DOM 노드는 옵션이
+ * 바뀌어도 다시 만들어지지 않으므로 재적용이 필요 없다(뷰포트는 초기화 시점에 클래스가
+ * 없는 빈 노드라 기존 클래스를 덮어쓸 걱정도 없다 — 실측 확인). */
 type ScrollAreaViewportProps = {
   tabIndex?: number;
   "aria-label"?: string;
   role?: string;
+  className?: string;
 };
 
 function applyViewportProps(
@@ -43,8 +48,11 @@ function applyViewportProps(
 ) {
   if (!viewportProps) return;
   const { viewport } = instance.elements();
-  const { tabIndex, ...attrs } = viewportProps;
+  const { tabIndex, className, ...attrs } = viewportProps;
   if (tabIndex !== undefined) viewport.tabIndex = tabIndex;
+  if (className !== undefined) {
+    viewport.classList.add(...className.split(/\s+/).filter(Boolean));
+  }
   for (const [name, value] of Object.entries(attrs)) {
     if (value !== undefined) viewport.setAttribute(name, value);
   }
@@ -83,9 +91,15 @@ const ScrollArea = forwardRef<ScrollAreaHandle, ScrollAreaProps>(
       className,
       children,
       axis = "y",
-      defer = true,
       osRef,
       viewportProps,
+      // viewportProps(tabIndex/aria-label/role/className)는 초기화가 끝나야 뷰포트에
+      // 붙는다 — 기본 defer(true, 유휴/다음 프레임까지 지연)를 그대로 두면 마운트 직후
+      // 한동안 그 속성이 없는 채로 렌더된다. 접근성 속성(tabIndex·aria-label·role)이라
+      // 지연을 허용할 수 없어, viewportProps를 쓰면서 defer를 명시하지 않은 호출부는
+      // 자동으로 즉시 초기화로 전환한다(ReportModalShell.tsx에서 이 레이스로 실제
+      // 테스트가 깨진 걸 실측 확인 — EvaluationReportModal.test.tsx role=region 계약).
+      defer = !viewportProps,
       ...props
     },
     ref,
