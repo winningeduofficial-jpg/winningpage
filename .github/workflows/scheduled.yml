@@ -36,6 +36,12 @@ concurrency:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    # GITHUB_TOKEN 최소 권한. 실패 알림 스텝이 Issue를 만들려면 issues: write가
+    # 필요하다 — 저장소 기본값(read-only)만으로는 "Resource not accessible by
+    # integration"으로 알림 자체가 실패한다(2026-09-01 첫 스케줄 실행에서 실제 발생).
+    permissions:
+      contents: read
+      issues: write
     env:
       SEED_SUPABASE_URL: ${{ secrets.SEED_SUPABASE_URL }}
       SEED_SERVICE_ROLE_KEY: ${{ secrets.SEED_SERVICE_ROLE_KEY }}
@@ -52,16 +58,49 @@ jobs:
       - name: npm run verify
         run: npm run verify
 
-      - name: 실패 시 GitHub Issue 생성
+      # 실패 알림. 같은 원인으로 매일 실패해도 Issue가 하루 하나씩 쌓이지 않도록
+      # 라벨 `nightly-db-audit`가 붙은 열린 Issue가 있으면 거기에 코멘트만 남기고,
+      # 없을 때만 새 Issue를 만든다.
+      - name: 실패 시 GitHub Issue 생성(열린 Issue 있으면 코멘트)
         if: failure()
         uses: actions/github-script@v7
         with:
           script: |
+            const label = "nightly-db-audit";
             const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
             const today = new Date().toISOString().slice(0, 10);
-            await github.rest.issues.create({
+            const body = [
+              `\`npm run verify\` 체인이 실패했습니다. (${today}, run #${context.runId})`,
+              "",
+              `실행 로그: ${runUrl}`,
+              "",
+              "SEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY secrets가 등록돼 있는지 먼저 확인하세요.",
+            ].join("\n");
+
+            const { data: open } = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `[Nightly DB Audit 실패] ${today} (run #${context.runId})`,
-              body: `\`npm run verify\` 체인이 실패했습니다.\n\n실행 로그: ${runUrl}\n\nSEED_SUPABASE_URL / SEED_SERVICE_ROLE_KEY secrets가 등록돼 있는지 먼저 확인하세요.`,
+              state: "open",
+              labels: label,
+              per_page: 1,
             });
+
+            if (open.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open[0].number,
+                body,
+              });
+              core.info(`기존 Issue #${open[0].number}에 코멘트를 남겼습니다.`);
+              return;
+            }
+
+            const { data: created } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Nightly DB Audit 실패] ${today}`,
+              body,
+              labels: [label],
+            });
+            core.info(`새 Issue #${created.number}를 만들었습니다.`);
