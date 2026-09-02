@@ -107,3 +107,49 @@ export function getSubjectStrongClass(key?: string | null) {
     SUBJECT_STRONG_CLASSES[resolveSubjectId(key)] ?? "bg-goal-subjectStrong-etc"
   );
 }
+
+// "나의 노력" 카드 전용(Figma 4026:6046) — 진행바 채움/완독 버튼/책 스택 책등 색.
+// WORKBOOK_SUBJECT_IDS 5종만 대상이다(social/history/second_lang은 워크북 자체가 없어
+// 토큰도 안 만든다) — 그 3종이 들어오면 etc로 접는다. 위 SUBJECT_BG_CLASSES 등과 마찬가지
+// 이유(Tailwind v4 리터럴 스캔)로 템플릿 문자열이 아니라 맵 조회로 고정한다.
+const BOOK_LIGHT_BG_CLASSES: Record<string, string> = {
+  korean: "bg-goal-book-korean-light",
+  math: "bg-goal-book-math-light",
+  english: "bg-goal-book-english-light",
+  science: "bg-goal-book-science-light",
+  etc: "bg-goal-book-etc-light",
+};
+
+const BOOK_DARK_BG_CLASSES: Record<string, string> = {
+  korean: "bg-goal-book-korean-dark",
+  math: "bg-goal-book-math-dark",
+  english: "bg-goal-book-english-dark",
+  science: "bg-goal-book-science-dark",
+  etc: "bg-goal-book-etc-dark",
+};
+
+const BOOK_DARK_TEXT_CLASSES: Record<string, string> = {
+  korean: "text-goal-book-korean-dark",
+  math: "text-goal-book-math-dark",
+  english: "text-goal-book-english-dark",
+  science: "text-goal-book-science-dark",
+  etc: "text-goal-book-etc-dark",
+};
+
+/** 진행바 트랙 채움/완독 버튼 배경 — 과목 라이트 톤. */
+export function getBookLightBgClass(key?: string | null) {
+  const id = resolveSubjectId(key);
+  return BOOK_LIGHT_BG_CLASSES[id] ?? BOOK_LIGHT_BG_CLASSES.etc;
+}
+
+/** 책 스택 책등 배경 — 과목 다크 톤. */
+export function getBookDarkBgClass(key?: string | null) {
+  const id = resolveSubjectId(key);
+  return BOOK_DARK_BG_CLASSES[id] ?? BOOK_DARK_BG_CLASSES.etc;
+}
+
+/** 완독 버튼/책 스택 제목 텍스트 — 과목 다크 톤. */
+export function getBookDarkTextClass(key?: string | null) {
+  const id = resolveSubjectId(key);
+  return BOOK_DARK_TEXT_CLASSES[id] ?? BOOK_DARK_TEXT_CLASSES.etc;
+}
