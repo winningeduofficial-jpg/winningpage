@@ -56,6 +56,9 @@ type GradeField = {
 export type GradeGroup = {
   key: string;
   label?: string;
+  // QA 행348(2026-09-02) — q4 카드가 사라진 대신 등급 체계를 그룹 라벨에 괄호로 표기한다.
+  // 체계별 항목이 없으면 label 로 폴백한다(placeholderBySystem 과 같은 계약).
+  labelBySystem?: Record<string, string>;
   hiddenWhenGradeSystem?: string[];
   fields: GradeField[];
 };
@@ -134,12 +137,14 @@ export default function GradeInputGrid({
         );
         const fillerCount = Math.max(0, ...neededByBp);
         const fillers = Array.from({ length: fillerCount }, (_, i) => i);
+        const groupLabel =
+          group.labelBySystem?.[constraint?.code ?? ""] ?? group.label;
 
         return (
           <div key={group.key} className="flex w-full flex-col gap-2">
-            {group.label && (
+            {groupLabel && (
               <p className="text-base font-medium leading-5 text-ink">
-                {group.label}
+                {groupLabel}
               </p>
             )}
 

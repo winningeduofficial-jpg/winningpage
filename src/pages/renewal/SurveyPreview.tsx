@@ -13,12 +13,13 @@ import {
 } from "@/lib/renewalSurvey";
 
 /**
- * 17문항 롱스크롤 QA 화면. /learning-diagnosis/survey/preview 로 강등 보존한다(SPEC B12).
+ * 16문항 롱스크롤 QA 화면. /learning-diagnosis/survey/preview 로 강등 보존한다(SPEC B12).
  * 셸(SurveyStepShell)의 자식 라우트이므로 <main>/타이틀 블록은 셸이 소유하고
  * 답변 상태도 스텝 페이지와 공유한다 — preview↔스텝 왕복 시 답변이 유지된다.
  *
- * 하단 CTA는 스텝 페이지와 같은 사양을 따른다(17문항 전체 기준) — 미완료는
- * "모든 항목에 응답해주세요" + 첫 미응답으로 스크롤/하이라이트, 완료는 채점 후 리포트로 이동.
+ * 하단 CTA는 스텝 페이지와 같은 사양을 따른다(16문항 전체 기준 — q4 는 QA 행348로 화면에서
+ * 빠졌지만 채점용 데이터로는 17번째 문항이 그대로 남는다) — 미완료는 "모든 항목에 응답해주세요" +
+ * 첫 미응답으로 스크롤/하이라이트, 완료는 채점 후 리포트로 이동.
  */
 type SurveyOutletContext = {
   answers: Record<string, unknown>;

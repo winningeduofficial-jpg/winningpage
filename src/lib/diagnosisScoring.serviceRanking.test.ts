@@ -278,6 +278,42 @@ test("rankServices 가 판정 사유를 함께 낸다", () => {
 });
 
 /* ================================================================== *
+ * 2순위 게이트 폐기 (QA 시트 행 343, 2026-09-02 확정)
+ * 종전엔 second.fit >= 65 && rank1.fit - second.fit <= 20 이어야만 2순위가 채워졌다. 후보(tier
+ * 필터 통과분)가 2개 이상이면 격차·최소점 무관하게 항상 2순위를 채우도록 바뀌었다.
+ * ================================================================== */
+
+// GOAL_CARE fit=100(difficulty 50 + wish 20 + area 30), SELF_REVIEW fit=50(difficulty 50 만,
+// 위시·영역 0) — 격차 50(>20 옛 상한 초과)·SELF_REVIEW 65 미만(옛 하한 미달)인데도 후보가 2개면
+// rank2 가 채워져야 한다.
+const gateRanked = rankServices(
+  makeInput({
+    obstacles: ["OBS_01", "OBS_02", "OBS_03"],
+    difficulties: ["DIF_10"],
+    wishes: ["WISH_02"],
+  }),
+  makeAreaScores(0, { RECORD: 100 }),
+);
+test("2순위 게이트 폐기 — 격차 50(옛 상한 20 초과)이어도 후보 2개면 rank2 채움", () => {
+  expect(gateRanked.rank1?.code).toEqual("GOAL_CARE");
+  expect(gateRanked.rank2?.code).toEqual("SELF_REVIEW");
+});
+test("2순위 게이트 폐기 — SELF_REVIEW fit 50(옛 하한 65 미달)이어도 rank2 로 채택", () => {
+  expect(gateRanked.rank2?.fit).toEqual(50);
+});
+
+// 후보가 1개뿐이면(다른 서비스는 tier=null) 기존과 동일하게 rank2 는 null 이다.
+const singleCandidateRanked = rankServices(
+  makeInput({ obstacles: ["OBS_01", "OBS_02", "OBS_03"] }),
+  makeAreaScores(100),
+);
+test("후보 1개뿐이면 rank2 는 여전히 null", () => {
+  expect(singleCandidateRanked.all.length).toEqual(1);
+  expect(singleCandidateRanked.rank1?.code).toEqual("GOAL_CARE");
+  expect(singleCandidateRanked.rank2).toEqual(null);
+});
+
+/* ================================================================== *
  * 고3 6월 이후 제한 · 성적 흐름 · 등급 표기
  * ================================================================== */
 
