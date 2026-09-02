@@ -49,7 +49,12 @@ export default function ServicesSection({
           {visibleServices.map((service) => (
             <li
               key={service.id}
-              className="w-full max-w-[28.0938rem] lg:max-w-none"
+              // @container — services/ServiceCard·ServiceCardText·ServiceIllustration의
+              // 카드 폭 기준 컨테이너 쿼리(@[21rem]:, cqw) 기준점. 카드 자체(패딩 있음)가
+              // 아니라 패딩 없는 이 li에 걸어야 cqw가 카드 전체 폭(패딩 포함) 기준으로
+              // 잡힌다(2026-09-03 실측 — 카드에 걸면 콘텐츠 박스만큼 좁게 잡혀 이미지가
+              // 의도보다 작아졌다).
+              className="w-full max-w-[28.0938rem] @container lg:max-w-none"
             >
               <ServiceCard service={service} />
             </li>

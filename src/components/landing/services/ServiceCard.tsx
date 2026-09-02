@@ -47,14 +47,17 @@ function resolveServiceLink(service: Service): string | null {
 // 카드 셸 — 사용자 확정 최종 사이징 규칙(카드 폭 기준 컨테이너 쿼리, 뷰포트·카드별
 // 예외·스페이서·shrink 계산 전부 없음). 패딩 좌 32px(2rem)/우 26px(1.625rem) 통일
 // 고정(9장 동일, 더 이상 줄어들지 않는다 — 대신 ServiceIllustration 프레임이 카드
-// 폭(@container)에 비례해 줄어든다). flex row, items-center, justify-between,
-// radius 24.8px(1.55rem), border 1px #d7d7d7, shadow 0 3.3px 3.3px rgba(128,128,128,.3)
+// 폭에 비례해 줄어든다). flex row, items-center, justify-between(시안엔 gap 없음 —
+// 텍스트·일러스트 사이 간격은 justify-between 결과일 뿐, 별도 gap 유틸 없음. gap이
+// 있으면 그만큼 텍스트 공간을 잠식해 긴 제목이 넘쳤다 — 2026-09-03 실측), radius
+// 24.8px(1.55rem), border 1px #d7d7d7, shadow 0 3.3px 3.3px rgba(128,128,128,.3)
 // (0.2063rem/0.2063rem). lg 고정 352×180(그리드 3열이 열 폭을 결정하므로 폭은 w-full,
-// 높이만 h-45 고정). @container — 자식(ServiceCardText·ServiceIllustration)이 이
-// 카드 폭 기준 컨테이너 쿼리(@[21rem]:, cqw)로 반응한다. hover/focus는 시안에 없는
-// 구현측 인터랙션 — 동작은 유지.
+// 높이만 h-45 고정). 컨테이너 쿼리 기준점(@container)은 이 카드가 아니라 패딩 없는
+// 그리드 li(ServicesSection.tsx) — 카드 자체에 패딩이 있으면 cqw가 콘텐츠 박스
+// 기준으로 잡혀 일러스트가 의도보다 작아진다(2026-09-03 실측). hover/focus는
+// 시안에 없는 구현측 인터랙션 — 동작은 유지.
 const CARD_CLASS =
-  "group @container flex w-full flex-row items-center justify-between gap-4 " +
+  "group flex w-full flex-row items-center justify-between " +
   "rounded-[1.55rem] border border-[#d7d7d7] bg-white py-6 pl-8 pr-[1.625rem] " +
   "shadow-[0_0.2063rem_0.2063rem_rgba(128,128,128,0.3)] transition-[background-color,box-shadow] duration-200 " +
   "[@media(hover:hover)]:hover:bg-[#f6fbff] [@media(hover:hover)]:hover:shadow-[0_0.375rem_1rem_0.25rem_rgba(128,128,128,0.4)] " +

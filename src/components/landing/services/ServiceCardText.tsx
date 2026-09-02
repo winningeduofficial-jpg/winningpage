@@ -1,5 +1,6 @@
 // 핵심 서비스 카드 좌측 텍스트 묶음 — 사용자 확정 최종 사이징 규칙: 카드 폭 기준
-// 컨테이너 쿼리(ServiceCard의 @container)로 줄바꿈 여부가 정해진다. flex-col gap
+// 컨테이너 쿼리(기준점은 ServicesSection의 그리드 li — 패딩 없는 카드 전체 폭 기준)로
+// 줄바꿈 여부가 정해진다. flex-col gap
 // 16px(1rem, 9장 통일 — 시안 국제·해외만 12px이나 사용자 확정으로 무시). 제목 SemiBold
 // 19.8px(1.2375rem) #525252(text-ink) tracking -0.4px(-0.025rem) leading 1.4, 설명 Medium
 // 13.2px(0.825rem) #808080(text-ink-natural) leading 1.4. 카드 폭 ≥21rem(336px)에서는

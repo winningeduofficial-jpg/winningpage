@@ -78,9 +78,11 @@ describe("ServiceCard", () => {
     expect(container.querySelectorAll(".text-ink-natural")).toHaveLength(0);
   });
 
-  // 사용자 확정 최종 사이징 규칙 — 카드 루트가 컨테이너 쿼리 기준점(@container)이고,
-  // 텍스트는 카드 폭 ≥21rem일 때만 nowrap/pre(자동 줄바꿈 없음)로 전환된다.
-  test("카드 루트는 @container이고 텍스트에 @[21rem]: 줄바꿈 억제 클래스가 붙는다", () => {
+  // 사용자 확정 최종 사이징 규칙 — 컨테이너 쿼리 기준점(@container)은 카드가 아니라
+  // ServicesSection의 그리드 li(별도 테스트). 카드 자체는 gap 없이 justify-between만
+  // 쓰고(gap이 텍스트 공간을 잠식해 긴 제목이 넘쳤던 실측 버그), 텍스트는 카드 폭
+  // ≥21rem일 때만 nowrap/pre(자동 줄바꿈 없음)로 전환된다.
+  test("카드는 gap 없이 justify-between만 쓰고 텍스트에 @[21rem]: 줄바꿈 억제 클래스가 붙는다", () => {
     renderCard({
       id: "svc-10",
       name: "국제·해외 프리미엄",
@@ -91,7 +93,8 @@ describe("ServiceCard", () => {
     const card = screen.getByRole("link", {
       name: "국제·해외 프리미엄 바로가기",
     });
-    expect(card).toHaveClass("@container");
+    expect(card).toHaveClass("justify-between");
+    expect(card.className).not.toMatch(/(?:^|\s)gap-4(?:\s|$)/);
 
     expect(screen.getByText("국제·해외 프리미엄")).toHaveClass(
       "break-keep",

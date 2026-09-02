@@ -106,4 +106,14 @@ describe("ServicesSection", () => {
     const { container } = renderSection([]);
     expect(container).toBeEmptyDOMElement();
   });
+
+  // 컨테이너 쿼리 기준점(@container)은 카드가 아니라 패딩 없는 그리드 li — 카드(패딩
+  // 있음)에 걸면 cqw가 콘텐츠 박스 기준으로 잡혀 일러스트가 의도보다 작아진다(실측 버그).
+  test("그리드 li가 컨테이너 쿼리 기준점(@container)이다", () => {
+    renderSection();
+
+    const card = screen.getByRole("link", { name: "학습진단 바로가기" });
+    const li = card.closest("li");
+    expect(li).toHaveClass("@container");
+  });
 });
