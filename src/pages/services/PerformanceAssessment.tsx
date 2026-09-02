@@ -21,8 +21,11 @@ import coachTablet from "@/assets/services/performance/coach-tablet.png";
 import coachTreadmill from "@/assets/services/performance/coach-treadmill.png";
 import coachWriting from "@/assets/services/performance/coach-writing.png";
 import heroAura from "@/assets/services/performance/hero-aura.svg";
-import heroReportMockup from "@/assets/services/performance/hero-report-mockup.png";
 import iconCalendar from "@/assets/services/performance/icon-calendar-v2.png";
+import processStep1 from "@/assets/services/performance/process-step-1.png";
+import processStep2 from "@/assets/services/performance/process-step-2.png";
+import processStep3 from "@/assets/services/performance/process-step-3.png";
+import processStep4 from "@/assets/services/performance/process-step-4.png";
 import ServiceAudienceCards from "@/components/services/ServiceAudienceCards";
 import ServiceFaq from "@/components/services/ServiceFaq";
 import ServiceHeroBrowserFrame from "@/components/services/ServiceHeroBrowserFrame";
@@ -113,6 +116,27 @@ const PROCESS_STEPS = [
   {
     title: "결과 점검・피드백",
     desc: ["학생이 작성한 결과물의", "점검 포인트를 확인합니다."],
+  },
+];
+
+// 히어로 브라우저 프레임 안에 채우는 실제 진행 화면 캡처 4컷 — QA 시트 행 38・81・354
+// (2026-09-02) 요청으로 빈 리포트 목업 1장 대신 진행 단계 순서(1→4)를 그대로 노출한다.
+const HERO_PROCESS_SCREENSHOTS = [
+  {
+    src: processStep1,
+    alt: "수행평가 진행 화면 1 — 기본 정보 입력・안내문 업로드",
+  },
+  {
+    src: processStep2,
+    alt: "수행평가 진행 화면 2 — 추천 주제 3개 확인",
+  },
+  {
+    src: processStep3,
+    alt: "수행평가 진행 화면 3 — 제출물 작성 폼 입력",
+  },
+  {
+    src: processStep4,
+    alt: "수행평가 진행 화면 4 — 저장된 리포트 목록 확인",
   },
 ];
 
@@ -402,15 +426,32 @@ function HeroSection() {
         {/* 브라우저 목업 — 래퍼/프레임 지오메트리(폭 1068px, radius 5px, 3중 그림자, 상단
             마진 + 하단 음수 마진으로 다음 섹션과 겹치는 처리)는 목표관리(GoalManagement.jsx)
             HeroSection 목업 구조를 그대로 이식했다(사용자 지시 — 세 히어로 공통 규격 통일).
-            본문은 오래 빈 배경이었다(시안 2393:12091의 크롬 안이 비어 있었음). 2026-08-31
-            수급된 시안 4865:17414의 본문 프레임(4080:7616, 평가 리포트 화면)만 @2x로 추출해
-            채운다 — 크롬은 이 컴포넌트가 그리므로 시안의 크롬·그림자는 버렸다. */}
+            본문은 오래 빈 배경이었다가(시안 2393:12091의 크롬 안이 비어 있었음) 2026-08-31에
+            리포트 화면 1장으로 한 번 채웠는데, QA 시트 행 38·81·354(2026-09-02)가 리포트
+            결과 1장 대신 실제 진행 단계 캡처 4컷을 순서대로 보여달라고 지적해 지금 구성으로
+            교체했다. 크롬은 이 컴포넌트가 그리므로 캡처 쪽 크롬·그림자는 버렸다.
+            래퍼는 원래 목업 이미지(2198×814, ≈2.7:1)와 동일한 종횡비를 유지해 프레임이
+            차지하던 높이를 그대로 지킨다 — md 이상에서는 프레임 자체의 aspect-1280/553이
+            높이를 고정하므로 md:aspect-auto md:flex-1로 넘겨준다. 2×2(모바일~md)에서
+            4×1(lg 이상)로 열이 바뀌어도 grid-rows로 트랙을 고정해 각 셀이 행/열 높이를
+            꽉 채우고, 그 안에서 이미지는 object-contain + object-top으로 잘리지 않게
+            축소해 상단 정렬한다(캡처 4장의 원본 비율이 제각각이라 object-cover면 내용이
+            잘린다). 좌상단 숫자 배지(1~4)는 순서를 명시해 달라는 QA 요구사항이다. */}
         <ServiceHeroBrowserFrame>
-          <img
-            src={heroReportMockup}
-            alt="수행평가 평가 리포트 화면 — 종합 평가 점수 86점과 평가 기준 충족도・주제 적합성・자료 활용 등급, 총평, 잘한 점 코멘트를 보여준다"
-            className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
-          />
+          <div className="grid aspect-2198/814 grid-cols-2 grid-rows-2 gap-px bg-[#E5E7EB] md:aspect-auto md:min-h-0 md:flex-1 lg:grid-cols-4 lg:grid-rows-1">
+            {HERO_PROCESS_SCREENSHOTS.map((screenshot, index) => (
+              <div key={screenshot.alt} className="relative bg-white p-2">
+                <span className="absolute left-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
+                  {index + 1}
+                </span>
+                <img
+                  src={screenshot.src}
+                  alt={screenshot.alt}
+                  className="h-full w-full object-contain object-top"
+                />
+              </div>
+            ))}
+          </div>
         </ServiceHeroBrowserFrame>
       </div>
     </section>
