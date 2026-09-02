@@ -97,8 +97,10 @@ export default defineHandler({
           학생명: target.studentName,
           N월: String(month),
           N주차: String(nth),
-          // 주간 키 = 그 주 월요일 YMD.
-          reportId: weekStart,
+          // reportId = <주간 키(그 주 월요일 YMD)>.<학생 profile id> — 학부모가
+          // 알림톡 링크를 눌렀을 때 어느 자녀의 리포트인지 구분하기 위해서다
+          // (src/routes/alimtalkLinkRoutes.tsx parseReportId, QA 시트 행210).
+          reportId: `${weekStart}.${target.studentProfileId}`,
         },
       });
 

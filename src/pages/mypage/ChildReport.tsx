@@ -8,7 +8,8 @@ import { fetchGoalReport } from "@/lib/goalApi";
 import { supabase } from "@/lib/supabase";
 
 // 학부모 뷰어 셸 — 자녀의 목표관리 성장 리포트(주간/월간)를 학부모가 열람한다.
-// 진입: 마이페이지 > 자녀 등록 및 수정 > 자녀 카드 > "학습 리포트 보기".
+// 진입: 마이페이지 > 자녀 등록 및 수정 > 자녀 카드 > "목표관리 리포트 →",
+// 또는 목표관리 주간/월간 알림톡 링크(src/routes/alimtalkLinkRoutes.tsx).
 //
 // ── 권한 판정 ─────────────────────────────────────────────────────────
 // fn_parent_children(sql/73)이 UI 게이트다 — 반환 목록에 이 studentId가 approved로
@@ -61,6 +62,12 @@ export default function ChildReport() {
     ? (periodParam as ReportPeriod)
     : "weekly";
 
+  // `at` — 어느 주/달의 리포트인가. 알림톡 링크가 넘겨주는 값이고
+  // (src/routes/alimtalkLinkRoutes.tsx), 형식은 학생 뷰(GrowthReport.tsx)와
+  // 동일하다: 주간은 그 주 월요일 YMD, 월간은 'YYYY-MM'. 없으면 API 가 오늘
+  // (KST) 기준 이번 주/이번 달로 잡는다.
+  const at = searchParams.get("at") || undefined;
+
   // undefined 로딩 / null 권한없음
   const [child, setChild] = useState<ParentChildRow | null | undefined>(
     undefined,
@@ -101,7 +108,7 @@ export default function ChildReport() {
 
     let alive = true;
     setResult(null);
-    fetchGoalReport(period, undefined, undefined, studentId).then((r) => {
+    fetchGoalReport(period, at, undefined, studentId).then((r) => {
       if (!alive) return;
       if (r.kind === "success") {
         setResult({ kind: "success", report: r.report });
@@ -109,6 +116,11 @@ export default function ChildReport() {
         setResult({ kind: "awaiting-cuts" });
       } else if (r.kind === "not-onboarded" || r.kind === "not-allowed") {
         setResult({ kind: "not-started" });
+      } else if (r.kind === "not-linked") {
+        // 서버가 재확인한 결과 승인된 쌍이 아니다(fn_parent_children UI 게이트를
+        // 이미 통과했더라도 서버가 최종 방어선이다) — 기존 권한없음 화면으로
+        // 떨어뜨린다(child를 null로 되돌리면 아래 렌더가 그 화면을 그대로 쓴다).
+        setChild(null);
       } else {
         setResult({ kind: "error" });
       }
@@ -117,12 +129,16 @@ export default function ChildReport() {
     return () => {
       alive = false;
     };
-  }, [child, studentId, period]);
+  }, [child, studentId, period, at]);
 
   function handlePeriodChange(nextPeriod: ReportPeriod) {
     setSearchParams((prev) => {
       const params = new URLSearchParams(prev);
       params.set("period", nextPeriod);
+      // 탭을 바꾸면 at 은 버린다 — 주간 키('2026-08-17')와 월간 키('2026-08')는
+      // 형식이 달라서 그대로 들고 넘어가면 반대편 탭에서 해석되지 않는다
+      // (GrowthReport.tsx와 동일 규칙).
+      params.delete("at");
       return params;
     });
   }
