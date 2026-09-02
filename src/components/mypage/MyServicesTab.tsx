@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/context/AuthProvider";
 import {
   checkDiagnosisAccess,
@@ -686,7 +687,7 @@ function ServiceValidityDetailModal({
         />
       }
     >
-      <div className="flex-1 overflow-y-auto px-6 py-2">
+      <ScrollArea className="flex-1 px-6 py-2">
         <div className="flex flex-col">
           {rows.map((row) => (
             <div
@@ -707,7 +708,7 @@ function ServiceValidityDetailModal({
             먼저 만료되는 회차부터 자동 사용됩니다.
           </p>
         )}
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }
