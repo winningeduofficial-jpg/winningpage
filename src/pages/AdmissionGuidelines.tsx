@@ -7,7 +7,7 @@ import {
   RotateCcw,
   Search,
 } from "lucide-react";
-import type { ComponentPropsWithoutRef, RefObject } from "react";
+import type { ComponentPropsWithoutRef } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AdmissionSectionView from "@/components/admission/AdmissionSectionView";
 import AdmissionSurface from "@/components/admission/AdmissionSurface";
@@ -15,7 +15,7 @@ import AdmissionModalShell from "@/components/admission/modal/AdmissionModalShel
 import AdmissionModalStyles from "@/components/admission/modal/AdmissionModalStyles";
 import useModalProxyXScroll from "@/components/admission/modal/modalProxyXScroll";
 import SafeHtml from "@/components/admission/SafeHtml";
-import { ScrollArea, type ScrollAreaHandle } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   HWP_SECTION_JSON_KEYS,
   isEmptyDoc,
@@ -1174,26 +1174,7 @@ export default function AdmissionGuidelines() {
   // 모달 본문/프록시 트랙 ref는 여기 남는다 — 프록시 스크롤바 계산의 입력이라
   // 껍데기(AdmissionModalShell)가 아니라 이 페이지가 소유한다. 시트/닫기 버튼
   // ref와 포커스 트랩·ESC·배경 스크롤 잠금은 껍데기로 옮겼다.
-  //
-  // 본문 오버레이 스크롤바 전환(2026-09) — modalBodyRef는 이제 실제 DOM 노드가
-  // 아니라 ScrollAreaHandle을 받는다(AdmissionModalShell#bodyOsRef). 실제로
-  // 스크롤하는 노드는 osInstance().elements().viewport다. 아래 useEffect의
-  // scrollTop 리셋과 modalBodyViewportRef(다음 줄)가 둘 다 이 간접을 거친다.
-  const modalBodyRef = useRef<ScrollAreaHandle>(null);
-  // useModalProxyXScroll(로직 변경 금지 — 파일 헤더 주석 참고)은 `bodyRef.current`가
-  // 실제 스크롤 HTMLElement이길 기대한다(native `scroll` 이벤트 리스너를 직접
-  // 붙인다). getter 기반 어댑터로 매 접근마다 최신 viewport를 되돌려준다 —
-  // ScrollArea는 defer={false}라 이 컴포넌트의 effect(부모)가 도는 시점엔 이미
-  // AdmissionModalShell(자식)의 마운트 effect가 먼저 끝나 있어(React가 자식
-  // effect를 부모보다 먼저 실행) osInstance()가 유효하다.
-  const modalBodyViewportRef: RefObject<HTMLElement | null> = useMemo(
-    () => ({
-      get current() {
-        return modalBodyRef.current?.osInstance()?.elements().viewport ?? null;
-      },
-    }),
-    [],
-  );
+  const modalBodyRef = useRef<HTMLDivElement>(null);
   const modalXScrollRef = useRef<HTMLDivElement>(null);
   // 모달을 연 트리거(목록의 "보기" 버튼). 닫힐 때 포커스를 여기로 되돌린다.
   // 껍데기가 아니라 페이지가 소유한다 — 트리거를 아는 것은 "여는 쪽"이고,
@@ -1291,10 +1272,7 @@ export default function AdmissionGuidelines() {
   useEffect(() => {
     if (!selectedInfo) return;
     window.requestAnimationFrame(() => {
-      modalBodyRef.current
-        ?.osInstance()
-        ?.elements()
-        .viewport.scrollTo({ top: 0 });
+      if (modalBodyRef.current) modalBodyRef.current.scrollTop = 0;
       if (modalXScrollRef.current) modalXScrollRef.current.scrollLeft = 0;
     });
   }, [selectedInfo?.universityName, selectedInfo?.title]);
@@ -1407,7 +1385,7 @@ export default function AdmissionGuidelines() {
   // 떨어뜨리면 마크업은 그대로인 채 스크롤 거리만 0이 되는 무증상 사망이다.
   useModalProxyXScroll({
     selectedInfo,
-    bodyRef: modalBodyViewportRef,
+    bodyRef: modalBodyRef,
     barRef: modalXScrollRef,
     visible: modalXScroll.visible,
     setModalXScroll,
@@ -2010,8 +1988,7 @@ export default function AdmissionGuidelines() {
           triggerRef={modalTriggerRef}
           eyebrow={selectedInfo.universityName}
           title={selectedInfo.title}
-          useOverlayScrollbar
-          bodyOsRef={modalBodyRef}
+          bodyRef={modalBodyRef}
           bodyProps={modalBodyDataProps}
           belowBody={
             selectedInfo.isHtml && modalXScroll.visible ? (
