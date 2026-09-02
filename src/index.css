@@ -86,15 +86,24 @@
      쓴다. 위 goal-subject(-Strong)*은 다른 화면(칩·타이머 카드)의 정본 색이라 그대로
      쓰지 않는다 — 시안 실측값이 달라 별도 토큰으로 둔다. goal_workbooks 5종만
      대상이라(WORKBOOK_SUBJECT_IDS) social/history/second_lang은 없다. etc는 시안에
-     없어 헤더 필 톤(보라 계열)을 자의적으로 골랐다(작업 보고 참고).  */
+     없어 헤더 필 톤(보라 계열)을 자의적으로 골랐다(작업 보고 참고).
+     -dark 4종은 대비 보강(WCAG AA 4.5:1, 2026-09-02) — 책 라이트 배경 위 제목
+     텍스트로 쓰이는데 원래 값이 미달이었다(같은 hue를 유지한 채 RGB를 검정 쪽으로
+     비례 축소해 어둡게만 했다, sRGB relative luminance 계산 스크립트로 검증):
+       korean  #98504d(4.45:1) -> #8f4c49(4.84:1)
+       math    #a16a42(3.58:1) -> #895936(4.70:1)
+       english #9a843f(3.07:1) -> #786631(4.71:1)
+       science #47745a(4.31:1) -> #436e55(4.69:1)
+     etc(#6f5b8f, 4.57:1)는 이미 기준을 충족해 그대로 둔다. 진행바 채움·책 배경(라이트)은
+     대상 아니라 변경하지 않는다. */
   --color-goal-book-korean-light: #f7dad8;
-  --color-goal-book-korean-dark: #98504d;
+  --color-goal-book-korean-dark: #8f4c49;
   --color-goal-book-math-light: #fbe0ce;
-  --color-goal-book-math-dark: #a16a42;
+  --color-goal-book-math-dark: #895936;
   --color-goal-book-english-light: #f5ebcb;
-  --color-goal-book-english-dark: #9a843f;
+  --color-goal-book-english-dark: #786631;
   --color-goal-book-science-light: #dceadf;
-  --color-goal-book-science-dark: #47745a;
+  --color-goal-book-science-dark: #436e55;
   --color-goal-book-etc-light: #e8dff4;
   --color-goal-book-etc-dark: #6f5b8f;
 
