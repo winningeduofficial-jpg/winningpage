@@ -79,7 +79,8 @@ const MEGA_PROMO_GUEST = {
 // 로그인(6번째 MY 컬럼) 존도 같은 높이를 써서 패널 높이가 로그인/게스트 전환에 변하지
 // 않는다(구 `shouldShowLoggedInHeader ? {minHeight:"35rem"}` 조건부 스타일은 폐기).
 // 로그인 존의 폭·좌측 위치는 2026-09-03 사용자 결정으로 GREY_ZONE_W 고정을 버리고
-// 계정 그룹(D-day 배지) 좌측 x에 유동적으로 맞춘다 — accountGroupRef/zoneBandRef +
+// 이름 칩("OO님 학생회원" 등, D-day 배지 아님 — 배지는 회색존 왼쪽 흰 영역에 걸쳐도
+// 무방하다는 사용자 확인) 좌측 x에 유동적으로 맞춘다 — accountGroupRef/zoneBandRef +
 // useLayoutEffect(아래 컴포넌트 본문)와 return 블록의 로그인 존 JSX 참고. myZoneRect
 // 측정 전(첫 페인트 찰나)에는 이 GREY_ZONE_W를 폴백값으로 재사용한다.
 const GREY_ZONE_W = "28rem";
@@ -319,10 +320,11 @@ export default function Header() {
   const navGroups = useNavGroups();
   const { pathname } = useLocation();
 
-  // 로그인 메가 패널 회색존 좌측 정렬(2026-09-03 사용자 결정) — 회색존 좌측 x를 헤더
-  // 계정 그룹(D-day 배지) 좌측 x에 유동적으로 맞춘다(고정 28rem 폭 폐기, 로그인 상태만).
-  // accountGroupRef: D-day 배지+이름 칩+chevron을 감싸는 트리거 div(shouldShowLoggedInHeader
-  // 분기에서만 렌더) — 배지가 그 안의 첫 자식이라 이 div의 좌측 x = 배지 좌측 x다.
+  // 로그인 메가 패널 회색존 좌측 정렬(2026-09-03 사용자 결정) — 회색존 좌측 x를 이름 칩
+  // ("OO님 학생회원" 등) 좌측 x에 유동적으로 맞춘다(고정 28rem 폭 폐기, 로그인 상태만).
+  // D-day 배지는 기준점이 아니다 — 회색존 왼쪽 흰 영역 위에 걸쳐도 무방하다(사용자 확인).
+  // accountGroupRef: 이름 칩(Link)+chevron만 감싸는 div(shouldShowLoggedInHeader 분기에서만
+  // 렌더) — 이름 칩이 그 안의 첫 자식이라 이 div의 좌측 x = 이름 칩 좌측 x다.
   // zoneBandRef: 회색존이 실제로 속한 "1920 밴드"(mx-auto max-w-[120rem], 아래 메가 패널
   // return 블록) — 이 밴드 기준 상대 좌표(marginLeft)로 존 위치를 잡아야 뷰포트·2xl 패딩
   // 전환에도 안전하다.
@@ -626,8 +628,8 @@ export default function Header() {
   const showMegaMyColumn = isLoggedIn;
   const megaPromo = MEGA_PROMO_GUEST;
 
-  // 회색존 좌측 x를 계정 그룹(D-day 배지) 좌측 x에 맞춘다(위 accountGroupRef/zoneBandRef
-  // 주석 참고). 우측 끝은 "현행대로"(기존 게스트 존이 translateX(0.5rem)로 밴드 우측 끝을
+  // 회색존 좌측 x를 이름 칩 좌측 x에 맞춘다(위 accountGroupRef/zoneBandRef 주석 참고).
+  // 우측 끝은 "현행대로"(기존 게스트 존이 translateX(0.5rem)로 밴드 우측 끝을
   // 8px 넘어서게 맞추던 것과 동일한 지점)를 유지한다 — zoneBandRect.right + 8을 목표
   // 우측 x로 두고, marginLeft/width를 밴드(zoneBandRef) 기준 상대값으로 환산한다.
   // ResizeObserver로 계정 그룹 자체의 폭 변화(역할·이름 길이)를, window resize로 뷰포트에
@@ -640,7 +642,7 @@ export default function Header() {
     const accountEl = accountGroupRef.current;
     const bandEl = zoneBandRef.current;
     // shouldShowLoggedInHeader를 여기서도 명시적으로 확인한다 — accountEl 자체가 그
-    // 상태일 때만 렌더되는 D-day 배지 트리거 div라 사실상 항상 함께 참이지만, 아래
+    // 상태일 때만 렌더되는 이름 칩+chevron div라 사실상 항상 함께 참이지만, 아래
     // deps 배열에 shouldShowLoggedInHeader를 넣는 근거(프로필 로딩 완료 시 재실행)를
     // biome exhaustive-deps 검사와도 일치시키기 위해 조건에 직접 포함한다.
     if (!shouldShowLoggedInHeader || !accountEl || !bandEl) return undefined;
@@ -669,7 +671,7 @@ export default function Header() {
       window.removeEventListener("resize", measure);
     };
     // shouldShowLoggedInHeader도 deps에 넣는다 — accountGroupRef는 그 조건이 true일 때만
-    // 렌더되는 D-day 배지 트리거 div에 달려 있다. showMegaMyColumn(=isLoggedIn)은 세션
+    // 렌더되는 이름 칩+chevron div에 달려 있다. showMegaMyColumn(=isLoggedIn)은 세션
     // 확정 즉시 true가 되지만 프로필(이름) 로딩은 비동기라, shouldShowLoggedInHeader가
     // 나중에 false→true로 바뀔 때(accountGroupRef.current가 그제서야 채워질 때) 이 효과가
     // 다시 실행되지 않으면 최초 measure()가 항상 "아직 ref 없음"으로 조기 반환해 실측이
@@ -699,7 +701,6 @@ export default function Header() {
               칩 자체의 onFocus 등가가 필요 없다 — 마우스 전용 패널 프리뷰라 Tab만으로도
               이름 칩까지 정상 도달한다). */}
           <div
-            ref={accountGroupRef}
             className="flex shrink-0 items-center gap-3"
             onMouseEnter={() => {
               clearMegaCloseTimer();
@@ -711,7 +712,14 @@ export default function Header() {
               {csatDDay}
             </span>
 
-            <div className="flex shrink-0 items-center gap-2">
+            {/* accountGroupRef: 회색존 정렬 기준점(2026-09-03 사용자 결정 — D-day 배지가
+                아니라 이름 칩 좌측 x). 이 div는 이름 칩(Link)+chevron만 감싸고 이름 칩이
+                첫 자식이라 좌측 x가 이름 칩 좌측 x와 정확히 같다 — D-day 배지는 이 ref
+                밖에 있어 회색존 왼쪽 흰 영역 위에 걸쳐도 무방하다(사용자 확인). */}
+            <div
+              ref={accountGroupRef}
+              className="flex shrink-0 items-center gap-2"
+            >
               <Link
                 to="/mypage"
                 aria-label="마이페이지"
@@ -1033,8 +1041,9 @@ export default function Header() {
             className="pointer-events-none col-start-1 row-start-1 mx-auto w-full max-w-[120rem]"
           >
             {showMegaMyColumn ? (
-              // 로그인 회색존(2026-09-03 사용자 결정) — 좌측 x를 계정 그룹(D-day 배지) 좌측
-              // x에 유동적으로 맞춘다(고정 28rem 폭 폐기, 위 accountGroupRef/zoneBandRef +
+              // 로그인 회색존(2026-09-03 사용자 결정) — 좌측 x를 이름 칩("OO님 학생회원"
+              // 등) 좌측 x에 유동적으로 맞춘다(D-day 배지 아님 — 배지는 회색존 왼쪽 흰
+              // 영역에 걸쳐도 무방하다. 고정 28rem 폭 폐기, 위 accountGroupRef/zoneBandRef +
               // useLayoutEffect 주석 참고). myZoneRect가 아직 측정 전(첫 페인트 찰나)이면
               // 게스트 존과 동일한 ml-auto+GREY_ZONE_W로 폴백해 레이아웃이 순간적으로
               // 무너지지 않게 한다. 높이는 GREY_ZONE_H로 게스트와 동일하게 고정해 패널
