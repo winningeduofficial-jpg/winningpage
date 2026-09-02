@@ -23,14 +23,15 @@
 //   고정값 — nav와 임의로 다른 값을 쓰면 컬럼-셀 좌측선 정렬이 뷰포트에 따라 어긋난다.
 //
 // NAV_GUARD (좁은 데스크톱 충돌 가드, 로고용):
-//   marginLeft: max(0px, calc(19.375rem − (100vw − 72.75rem) / 2))
-//   19.375rem = 2xl 밴드 패딩(px-30=7.5rem) + LOGO_W(11.875rem, 브랜드 리뉴얼 가로형 로고
-//   h-6=24px) = 2xl 기준 로고 우측 끝까지의 안전영역. 72.75rem은 max-w-content 토큰.
-//   가로형 로고는 세로형(4.04rem)보다 훨씬 넓어 가드가 90rem~111.5rem(1784px) 구간에서
-//   실제로 활성화된다. 패딩이 2rem(<2xl)/7.5rem(2xl+)로 갈리지만 인라인 calc에는 미디어쿼리를
-//   넣을 수 없어 더 넓은 2xl 패딩 기준(19.375rem)으로 통일했다 — <2xl 구간에서는 로고와 nav
-//   사이에 5.5rem 여백이 추가로 생기는 보수적 동작이고, 어느 구간에서도 겹치지 않는다.
-//   (nav 총폭 43.25rem + 가드 최대 16.2rem = 59.45rem < 72.75rem이라 우측 침범도 없다.)
+//   marginLeft: max(0px, calc(18.382rem − (100vw − 72.75rem) / 2))
+//   18.382rem = 2xl 밴드 패딩(px-30=7.5rem) + LOGO_W(10.882rem, 2026-09-03 정본 가로형
+//   로고 winning-logo-horizontal.svg, 헤더 시안 4782:3215 실값 h 22px 기준 렌더 폭
+//   174.112px, Header.tsx LOGO_W 주석 참고) = 2xl 기준 로고 우측 끝까지의 안전영역.
+//   72.75rem은 max-w-content 토큰. 패딩이 2rem(<2xl)/7.5rem(2xl+)로 갈리지만 인라인
+//   calc에는 미디어쿼리를 넣을 수 없어 더 넓은 2xl 패딩 기준(18.382rem)으로 통일했다 —
+//   <2xl 구간에서는 로고와 nav 사이에 여백이 추가로 생기는 보수적 동작이고, 어느
+//   구간에서도 겹치지 않는다(nav 총폭 43.25rem + 가드 최대값 < 72.75rem이라 우측
+//   침범도 없다).
 // MEGA_GUARD: 좌측선 정렬 기준에서는 컬럼 0의 시작이 nav 셀 0의 시작과 같아야 하므로
 //   NAV_GUARD와 완전히 동일한 값을 그대로 재사용한다(별도 오프셋 보정 없음 — 위 피치
 //   설명 참고). 두 이름으로 나눠 export하는 이유는 순수 값이 같더라도 nav/메가 각각의
@@ -42,12 +43,19 @@
 // MEGA_COL_W 8.75rem, 피치 148px 공유)으로 복원했다. chevron·오픈 트리거·MY 컬럼·회색존
 // 28rem·프로모 카드 0.8 스케일·계정 버튼·햄버거·메가 컬럼 제목 행 등 나머지 신규 작업은
 // 이 되돌리기와 무관하게 그대로 유지한다(Header.tsx 참고).
+//
+// 2026-09-03 추가 결정: 헤더 로고를 가로형 정본(winning-logo-horizontal.svg)으로 최종
+// 확정하며 LOGO_W가 6.5rem(스택형)에서 10.882rem(가로형, 174.112px)으로 바뀌어
+// NAV_GUARD 기준값도 19.375rem → 18.382rem으로 재계산했다. NAV_GUARD=MEGA_GUARD는
+// 여전히 같은 상수를 공유하므로(위 피치 설명 참고) nav·메가 컬럼은 값이 바뀌어도 항상
+// 서로 같은 marginLeft를 받아 좌측선 정렬은 이 변경으로 깨지지 않는다 — 둘 다 같은 폭만큼
+// 같이 이동한다(절대 좌표는 이전 기준값 대비 1rem(16px) 정도 왼쪽으로 이동한다).
 import {
   PREMIUM_ADMISSION_A_PATH,
   PREMIUM_PROGRAM_PATH_PREFIX,
 } from "@/components/premium/premiumRoutesPaths";
 
-export const NAV_GUARD = "max(0px, calc(19.375rem - (100vw - 72.75rem) / 2))";
+export const NAV_GUARD = "max(0px, calc(18.382rem - (100vw - 72.75rem) / 2))";
 export const MEGA_GUARD = NAV_GUARD;
 export const NAV_CELL_W = "6.25rem";
 export const NAV_CELL_GAP = "3rem";

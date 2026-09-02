@@ -38,14 +38,16 @@ const MS_PER_DAY = 86400000;
 //   clamp() 가드 수식이 원인이라 좁은 데스크톱 구간에서 nav·계정 그룹이 실제로 겹쳤다 — 상세
 //   경위는 아래 return 블록 헤더 주석 참고). MEGA_GUARD·MEGA_COL_W·MEGA_COL_GAP(메가 패널
 //   컬럼 격자)은 이번 변경 대상이 아니라 기존 방식을 그대로 유지한다.
-// LOGO_W: 2026-09-03 사용자 결정 — 로고는 dev 현행 그대로 유지한다(스택형, "W" 아래
-//   회사명, SVG viewBox 763:324, public/images/winning-logo-stacked.svg, QA 행320 근거).
-//   신규 시안(header-footer-figma-2026-09.md §1)의 가로형 로고(174×22)는 이미 정본이
-//   적용돼 있다는 사용자 판단에 따라 채택하지 않는다 — docs/figma-assets/header-logo.svg로
-//   교체했던 것을 되돌렸다. 헤더 높이(h-16=64px)에 맞춰 h-11(44px)로 렌더하고, 실렌더
-//   폭은 스택형 원본 비율(763/324)로 환산한 6.5rem(104px)이다. 로고 존 폭(NAV_GUARD 등
-//   nav 안전영역 계산)도 이 값을 그대로 쓴다(navigation.ts 참고).
-const LOGO_W = "6.5rem";
+// LOGO_W: 2026-09-03 사용자 최종 결정 — 헤더 로고는 가로형(public/images/
+//   winning-logo-horizontal.svg, Figma 4549:2682 "W"+WINNING EDU 가로 그라디언트,
+//   80ac46d7에서 들어온 정본 파일)을 쓴다. 스택형(QA 행320)은 헤더에서 폐기하고(푸터는
+//   스택형 유지, 이 파일 소관 아님) 신규 시안 svg 사본(docs/figma-assets·src/assets/header
+//   등)도 만들지 않는다 — public 정본 파일만 참조한다. 크기는 헤더 시안(4782:3215) 실값
+//   h 22px(2279c0b8 이전의 h-6=24px/190px 추정치 대신 시안 실측값 채택)로 렌더하고,
+//   실렌더 폭은 가로형 원본 비율로 환산한 10.882rem(174.112px)이다. 로고 존 폭(NAV_GUARD
+//   등 nav 안전영역 계산)도 이 값을 그대로 쓴다(navigation.ts 참고 — LOGO_W를 바꾸면
+//   NAV_GUARD/MEGA_GUARD도 함께 재계산해야 한다).
+const LOGO_W = "10.882rem";
 // 프로모 카드 폭: 2026-09-03 사용자 결정으로 풀스케일(460px)을 폐기하고 0.8 컴팩트
 // 스케일로 되돌린다 — 시안 §3 실값(460×478, p-8/gap-8/rounded-3xl/타이틀 26px Bold/
 // 서브 18px Medium/이미지 프레임 282×188/CTA px-15 py-6 rounded-2xl 20px SemiBold)에
@@ -808,9 +810,9 @@ export default function Header() {
           onMouseLeave={scheduleMegaClose}
         >
           <img
-            src="/images/winning-logo-stacked.svg"
+            src="/images/winning-logo-horizontal.svg"
             alt="위닝에듀"
-            className="h-11 w-auto object-contain"
+            className="h-5.5 w-auto object-contain"
           />
         </Link>
 

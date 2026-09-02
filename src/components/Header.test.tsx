@@ -162,6 +162,16 @@ describe("Header — 비로그인 상태", () => {
     );
     expect(screen.queryByText("MY페이지")).not.toBeInTheDocument();
   });
+
+  it("헤더 로고는 가로형 정본 svg를 쓴다(2026-09-03 — 스택형 폐기)", () => {
+    mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
+    renderHeader();
+
+    const logo = screen.getByRole("link", { name: "위닝에듀" });
+    const img = logo.querySelector("img");
+
+    expect(img).toHaveAttribute("src", "/images/winning-logo-horizontal.svg");
+  });
 });
 
 describe("Header — 관리자 단독 버튼 부재(2026-09-03 시안 §6-1)", () => {
