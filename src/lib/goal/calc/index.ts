@@ -82,7 +82,9 @@ export {
 } from "./primitives.js";
 // ── schedule ────────────────────────────────────────────────────────────
 // calcAvailableHoursApprox 만 원본에 없는 우리 앱 전용 근사 어댑터다.
+// ACADEMY_COMMUTE_HOURS 도 원본에 없는 상수다(QA 행293, DIVERGENCE.md §1 #5).
 export {
+  ACADEMY_COMMUTE_HOURS,
   calcAvailableHours,
   calcAvailableHoursApprox,
   calculateWeekSchedule,

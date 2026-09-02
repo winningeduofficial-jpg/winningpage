@@ -65,7 +65,7 @@ function OnboardingWizard() {
     priorNaesinGrade,
     mockExam,
     studyHours,
-    dailySchedule,
+    weekSchedule,
     resetOnboardingFlow,
   } = useGoalOnboarding();
 
@@ -131,7 +131,7 @@ function OnboardingWizard() {
       priorNaesinGrade,
       mockExam,
       studyHours,
-      dailySchedule,
+      weekSchedule,
     });
 
     if (result.kind === "success" || result.kind === "already-onboarded") {

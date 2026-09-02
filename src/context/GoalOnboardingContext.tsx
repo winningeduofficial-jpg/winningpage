@@ -31,11 +31,16 @@ import {
   useState,
 } from "react";
 import {
-  DAILY_SCHEDULE_FIELDS,
   MOCK_EXAM_ROUNDS,
   MOCK_EXAM_SUBJECTS,
   NAESIN_EXAMS,
+  WEEK_SCHEDULE_DEFAULT_SCHOOL_END,
+  WEEK_SCHEDULE_DEFAULT_SCHOOL_START,
+  WEEK_SCHEDULE_DEFAULT_SLEEP,
+  WEEK_SCHEDULE_DEFAULT_WAKE,
+  WEEK_SCHEDULE_MAX_ACADEMIES,
   WEEKDAY_OPTIONS,
+  WEEKEND_KEYS,
 } from "@/components/goal/onboarding/onboardingOptions";
 
 const STORAGE_KEY = "goal-onboarding-flow";
@@ -56,6 +61,25 @@ interface NaesinEntry {
 // 회차별 과목 점수(string) + 전체 "없음" 플래그(boolean)를 한 객체에 담는다.
 type MockExamRound = { none: boolean } & Record<string, string>;
 
+// 학원(또는 과외) 1건의 등원·하원 시각 — 원본 계약(target/components/IntakeForm.tsx:1814-1920)
+// 그대로 0~30 시각쌍이다(자정 넘김은 24 초과로 표현).
+export interface AcademySlotInput {
+  start: number;
+  end: number;
+}
+
+// 요일 1행의 하루 일정 — schedule.ts DayPattern 과 같은 계약이다(QA 행293).
+// schoolStart/schoolEnd는 hasSchool이 false여도 값을 유지한다 — 토글을 다시 켰을 때
+// 입력을 잃지 않기 위해서다(계산에는 hasSchool이 true일 때만 반영된다, schedule.ts 참고).
+export interface DayScheduleInput {
+  wake: number;
+  sleep: number;
+  hasSchool: boolean;
+  schoolStart: number;
+  schoolEnd: number;
+  academies: AcademySlotInput[];
+}
+
 interface GoalOnboardingState {
   schoolType: SchoolType;
   grade: Grade;
@@ -65,7 +89,7 @@ interface GoalOnboardingState {
   priorNaesinGrade: string;
   mockExam: Record<string, MockExamRound>;
   studyHours: Record<string, number>;
-  dailySchedule: Record<string, number>;
+  weekSchedule: Record<string, DayScheduleInput>;
 }
 
 function buildInitialNaesin(): Record<string, NaesinEntry> {
@@ -92,9 +116,26 @@ function buildInitialStudyHours(): Record<string, number> {
   return Object.fromEntries(WEEKDAY_OPTIONS.map((day) => [day.key, 0]));
 }
 
-function buildInitialDailySchedule(): Record<string, number> {
+// 요일 1행 기본값 — 평일은 등교, 주말은 등교 아님(원본 DAYS_CONFIG, schedule.ts와 동일 배정).
+// schoolStart/schoolEnd는 hasSchool과 무관하게 기본값을 채워 둔다(토글 On 전환 시 빈 값이
+// 아니라 바로 편집 가능한 기본 시각이 뜨도록).
+function buildDefaultDaySchedule(hasSchool: boolean): DayScheduleInput {
+  return {
+    wake: WEEK_SCHEDULE_DEFAULT_WAKE,
+    sleep: WEEK_SCHEDULE_DEFAULT_SLEEP,
+    hasSchool,
+    schoolStart: WEEK_SCHEDULE_DEFAULT_SCHOOL_START,
+    schoolEnd: WEEK_SCHEDULE_DEFAULT_SCHOOL_END,
+    academies: [],
+  };
+}
+
+function buildInitialWeekSchedule(): Record<string, DayScheduleInput> {
   return Object.fromEntries(
-    DAILY_SCHEDULE_FIELDS.map((field) => [field.key, field.defaultValue]),
+    WEEKDAY_OPTIONS.map(({ key }) => [
+      key,
+      buildDefaultDaySchedule(!WEEKEND_KEYS.includes(key)),
+    ]),
   );
 }
 
@@ -114,7 +155,7 @@ function buildDefaultState(): GoalOnboardingState {
     priorNaesinGrade: "",
     mockExam: buildInitialMockExam(),
     studyHours: buildInitialStudyHours(),
-    dailySchedule: buildInitialDailySchedule(),
+    weekSchedule: buildInitialWeekSchedule(),
   };
 }
 
@@ -188,10 +229,10 @@ function buildInitialState(
     naesin: mergeKeyedObject(defaults.naesin, stored.naesin),
     mockExam: mergeKeyedObject(defaults.mockExam, stored.mockExam),
     studyHours: { ...defaults.studyHours, ...(stored.studyHours || {}) },
-    dailySchedule: {
-      ...defaults.dailySchedule,
-      ...(stored.dailySchedule || {}),
-    },
+    // 필드명이 dailySchedule → weekSchedule로 바뀌었다(QA 행293) — 옛 세션 저장값은
+    // stored.weekSchedule이 애초에 없어 defaults로만 채워진다(버전 키 없이도 자동 이행,
+    // mergeKeyedObject가 요일별로 없는 키는 defaults를 쓴다).
+    weekSchedule: mergeKeyedObject(defaults.weekSchedule, stored.weekSchedule),
   };
 }
 
@@ -213,7 +254,18 @@ interface GoalOnboardingContextValue extends GoalOnboardingState {
   setPriorNaesinGrade: (value: string) => void;
   updateMockExam: (roundKey: string, partial: Partial<MockExamRound>) => void;
   setStudyHour: (dayKey: string, value: number) => void;
-  setDailyScheduleField: (fieldKey: string, value: number) => void;
+  setWeekScheduleDay: (
+    dayKey: string,
+    partial: Partial<Omit<DayScheduleInput, "academies">>,
+  ) => void;
+  addAcademy: (dayKey: string) => void;
+  removeAcademy: (dayKey: string, index: number) => void;
+  updateAcademy: (
+    dayKey: string,
+    index: number,
+    partial: Partial<AcademySlotInput>,
+  ) => void;
+  copyWeekScheduleDay: (fromDayKey: string, toDayKey: string) => void;
   resetOnboardingFlow: () => void;
 }
 
@@ -309,12 +361,96 @@ export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
-  const setDailyScheduleField = useCallback(
-    (fieldKey: string, value: number) => {
+  // 요일 1행의 시각·토글 필드(wake/sleep/hasSchool/schoolStart/schoolEnd) 부분 갱신.
+  // academies는 별도 함수(addAcademy/removeAcademy/updateAcademy)로 다룬다 — 배열은
+  // 부분 스프레드로 안전하게 병합되지 않기 때문.
+  const setWeekScheduleDay = useCallback(
+    (dayKey: string, partial: Partial<Omit<DayScheduleInput, "academies">>) => {
       setState((prev) => ({
         ...prev,
-        dailySchedule: { ...prev.dailySchedule, [fieldKey]: value },
+        weekSchedule: {
+          ...prev.weekSchedule,
+          // dayKey는 항상 buildInitialWeekSchedule로 채워진 기존 키다.
+          [dayKey]: { ...prev.weekSchedule[dayKey]!, ...partial },
+        },
       }));
+    },
+    [],
+  );
+
+  const addAcademy = useCallback((dayKey: string) => {
+    setState((prev) => {
+      const day = prev.weekSchedule[dayKey]!;
+      // WEEK_SCHEDULE_MAX_ACADEMIES는 Step7이 UI에서 이미 버튼을 숨겨 막는다 —
+      // 여기서도 방어해 컨텍스트 단독 호출(테스트 등)에서 상한을 넘기지 못하게 한다.
+      if (day.academies.length >= WEEK_SCHEDULE_MAX_ACADEMIES) return prev;
+      return {
+        ...prev,
+        weekSchedule: {
+          ...prev.weekSchedule,
+          [dayKey]: {
+            ...day,
+            academies: [...day.academies, { start: 17, end: 19 }],
+          },
+        },
+      };
+    });
+  }, []);
+
+  const removeAcademy = useCallback((dayKey: string, index: number) => {
+    setState((prev) => {
+      const day = prev.weekSchedule[dayKey]!;
+      return {
+        ...prev,
+        weekSchedule: {
+          ...prev.weekSchedule,
+          [dayKey]: {
+            ...day,
+            academies: day.academies.filter((_, i) => i !== index),
+          },
+        },
+      };
+    });
+  }, []);
+
+  const updateAcademy = useCallback(
+    (dayKey: string, index: number, partial: Partial<AcademySlotInput>) => {
+      setState((prev) => {
+        const day = prev.weekSchedule[dayKey]!;
+        return {
+          ...prev,
+          weekSchedule: {
+            ...prev.weekSchedule,
+            [dayKey]: {
+              ...day,
+              academies: day.academies.map((slot, i) =>
+                i === index ? { ...slot, ...partial } : slot,
+              ),
+            },
+          },
+        };
+      });
+    },
+    [],
+  );
+
+  // "○요일 일정 가져오기" — 원본(target/components/IntakeForm.tsx `copyDaySchedule`)과
+  // 동일하게 fromDayKey의 값 전체(academies 포함, 깊은 복사)를 toDayKey에 그대로 옮긴다.
+  const copyWeekScheduleDay = useCallback(
+    (fromDayKey: string, toDayKey: string) => {
+      setState((prev) => {
+        const source = prev.weekSchedule[fromDayKey]!;
+        return {
+          ...prev,
+          weekSchedule: {
+            ...prev.weekSchedule,
+            [toDayKey]: {
+              ...source,
+              academies: source.academies.map((slot) => ({ ...slot })),
+            },
+          },
+        };
+      });
     },
     [],
   );
@@ -341,7 +477,11 @@ export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
       setPriorNaesinGrade,
       updateMockExam,
       setStudyHour,
-      setDailyScheduleField,
+      setWeekScheduleDay,
+      addAcademy,
+      removeAcademy,
+      updateAcademy,
+      copyWeekScheduleDay,
       resetOnboardingFlow,
     }),
     [
@@ -354,7 +494,11 @@ export function GoalOnboardingProvider({ children }: { children: ReactNode }) {
       setPriorNaesinGrade,
       updateMockExam,
       setStudyHour,
-      setDailyScheduleField,
+      setWeekScheduleDay,
+      addAcademy,
+      removeAcademy,
+      updateAcademy,
+      copyWeekScheduleDay,
       resetOnboardingFlow,
     ],
   );

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import SliderRow from "./SliderRow";
 
 // QA 행290 — 0.1시간 단위 조정 + 숫자 직접 입력 회귀 테스트.
+// QA 행293 — round1(소수 1자리) 반올림 회귀 테스트도 이 파일에 함께 둔다.
 describe("SliderRow", () => {
   it("슬라이더 step이 기본값 0.1이다", () => {
     render(<SliderRow label="월요일" value={2} onChange={() => {}} />);
@@ -63,5 +64,18 @@ describe("SliderRow", () => {
     });
     fireEvent.change(numberInput, { target: { value: "99" } });
     expect(onChange).toHaveBeenCalledWith(12);
+  });
+
+  // QA 행293 — round2(2자리) → round1(1자리)로 반올림 규칙이 바뀌었다. 숫자 직접 입력만
+  // 2자리 이상 값이 들어올 수 있는 경로다(슬라이더/버튼은 step=0.1이라 이미 1자리로만
+  // 떨어진다).
+  it("숫자 입력에 2자리 소수를 넣으면 1자리로 반올림된다(round1)", () => {
+    const onChange = vi.fn();
+    render(<SliderRow label="일요일" value={2} onChange={onChange} />);
+    const numberInput = screen.getByRole("spinbutton", {
+      name: "일요일 자습 시간(시간 직접 입력)",
+    });
+    fireEvent.change(numberInput, { target: { value: "3.45" } });
+    expect(onChange).toHaveBeenCalledWith(3.5);
   });
 });

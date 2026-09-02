@@ -108,6 +108,34 @@ listed here should be considered bugs"*). 계산 모듈과 원본이 다르게 �
 - **상태**: **수정함** (우리 쪽 표시 버그로 분류, 원본과의 이탈이 아님)
   (`api/goal/intake.js`, 2026-08-12)
 
+### #5 학원 1건당 이동시간 공제 — 원본 1h → 우리 0.5h
+
+- **원본 위치**: `target/components/IntakeForm.tsx:997`
+  `available -= (acEnd - acStart + 1)` — 학원 1건마다 이동시간으로 1h 를 추가
+  공제한다. 상수에 설명 주석은 없다.
+- **원본 동작**: 학원 시각쌍이 유효한 모든 건에 대해 `(하원 − 등원) + 1` 을
+  가용시간에서 뺀다.
+- **우리 동작**: `calcAvailableHours(day, hasSchool, commuteHours)` 세 번째
+  인자로 파라미터화했다. 함수 기본값은 여전히 `1`(원본 파리티 — 기존 골든
+  픽스처가 이 기본값을 전제로 고정돼 있어 그대로 둔다). 실사용 호출부
+  (`api/goal/intake.js` `buildWeeklySchedule` → `calculateWeekSchedule({ …,
+  commuteHours: ACADEMY_COMMUTE_HOURS })`, `schedule.js` 신설 상수)는 `0.5`
+  를 명시로 넘긴다.
+- **이탈 이유**: **2026-09-02 사용자 결정: 학원 이동시간 0.5h(QA 행293)**.
+  `qa3-held-high-design.md` §4 결정③의 기본 권고는 원본 그대로(+1h, "닫음")였으나,
+  §9-4 "QA 최대 준수안"에서 QA 문구("학원 하나당 +0.5")를 살리는 대안으로
+  `ACADEMY_COMMUTE_HOURS` 파라미터화 + 0.5 적용을 제시했고, 사용자가 이 안을
+  최종 선택했다 — QA 문구가 원래 가리켰던 값(자습시간 오버라이드 +0.5 상수)과는
+  다른 근거지만, 결과적으로 "0.5"라는 QA 표현을 코드 동작으로 그대로 채택한
+  것이다.
+- **영향 범위**: `calcAvailableHours` 를 `commuteHours` 명시 없이 호출하는
+  기존 호출부(파이프라인 골든 테스트 등)는 영향 없음(기본값 1 유지). 온보딩
+  Step7(요일별 하루 일정) 실시간 미리보기와 서버 `buildWeeklySchedule` 산출값만
+  0.5h 기준으로 바뀐다 — 같은 입력이라도 학원이 많을수록 가용시간이 원본보다
+  `(학원 건수 × 0.5)h` 만큼 더 크게 나온다.
+- **상태**: **의도적 이탈** (`src/lib/goal/calc/schedule.ts` `ACADEMY_COMMUTE_HOURS`,
+  2026-09-02)
+
 ---
 
 ## 2. 미수정 이탈 후보 (`NOTE(target-parity)` 전수 등재, `rg` 확인 완료)
@@ -204,3 +232,4 @@ listed here should be considered bugs"*). 계산 모듈과 원본이 다르게 �
 | 2026-08-11 | #3 | `c37ac77` — 고1 내신전무+모의있음 경로 신설과 함께 수정 |
 | 2026-08-12 | #1, #2, #4 | `remainNaesin` 오버라이드 우선순위 수정(엔진 자기모순 해소) + 부수 수정 2건 |
 | 2026-08-12 | 2절 전체 | `NOTE(target-parity)` 전수 등재(`rg "NOTE\\(target-parity\\)" src/lib/goal/calc/`) |
+| 2026-09-02 | #5 | 사용자 결정: 학원 이동시간 0.5h(QA 행293) — `ACADEMY_COMMUTE_HOURS` 신설, 요일별 하루 일정(Step7) 개편과 함께 |
