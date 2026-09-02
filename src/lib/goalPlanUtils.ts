@@ -107,3 +107,20 @@ export function durationLabelToMinutes(label?: string | null) {
   const minutes = minuteMatch ? Number(minuteMatch[1]) : 0;
   return hours * 60 + minutes;
 }
+
+export type PlanTaskStatus = "pending" | "done" | "fail";
+
+/**
+ * 대시보드 "오늘의 계획" 행305 — ✓/✕ 버튼이 계산할 다음 status.
+ * ✓(action:'check')는 done↔pending 토글, ✕(action:'fail')는 fail↔pending
+ * 토글이다(임무 지시 원문). 이미 반대 상태(fail에서 체크, done에서 ✕)면
+ * 그 액션이 뜻하는 상태로 덮어쓴다 — "취소"는 오직 같은 버튼을 다시 눌렀을
+ * 때만 일어난다.
+ */
+export function nextPlanTaskStatus(
+  current: PlanTaskStatus,
+  action: "check" | "fail",
+): PlanTaskStatus {
+  if (action === "check") return current === "done" ? "pending" : "done";
+  return current === "fail" ? "pending" : "fail";
+}

@@ -28,6 +28,7 @@ import {
   resolveMonthlyPeriod,
   resolveWeeklyPeriod,
   sumHoursByProfile,
+  summarizePlanTaskCompletion,
 } from "./aggregate.ts";
 
 // ---------------------------------------------------------------------------
@@ -192,6 +193,38 @@ test("computeCompletionScore — idealRate가 100 넘어도 achievementAxis는 1
     totalTasks: 2,
   });
   expect(score).toBe(100); // 0.5*100 + 0.3*100 + 0.2*100
+});
+
+// ---------------------------------------------------------------------------
+// D3 — 계획 과제 달성/미달성/미기록 집계(행305, status 3상태)
+// ---------------------------------------------------------------------------
+
+test("summarizePlanTaskCompletion — done/fail/pending 3종을 센다", () => {
+  const summary = summarizePlanTaskCompletion([
+    { status: "done" },
+    { status: "done" },
+    { status: "fail" },
+    { status: "pending" },
+  ]);
+  expect(summary).toEqual({ done: 2, fail: 1, pending: 1, total: 4 });
+});
+
+test("summarizePlanTaskCompletion — status가 없거나 알 수 없는 값은 pending으로 방어", () => {
+  const summary = summarizePlanTaskCompletion([
+    {},
+    { status: "archived" },
+    { status: null },
+  ]);
+  expect(summary).toEqual({ done: 0, fail: 0, pending: 3, total: 3 });
+});
+
+test("summarizePlanTaskCompletion — 빈 배열은 전부 0", () => {
+  expect(summarizePlanTaskCompletion([])).toEqual({
+    done: 0,
+    fail: 0,
+    pending: 0,
+    total: 0,
+  });
 });
 
 // ---------------------------------------------------------------------------

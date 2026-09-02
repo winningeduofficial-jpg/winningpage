@@ -123,13 +123,17 @@ interface GoalSchedule {
   memo: string;
 }
 
-/** api/_lib/goalRepo.js buildPlanTaskPayload(). */
+/**
+ * api/_lib/goalRepo.js buildPlanTaskPayload(). status가 단일 원본(QA 행305,
+ * pending/done/fail) — done은 status에서 파생한 하위 호환 값이다.
+ */
 interface GoalPlanTask {
   id: number;
   planDate: string;
   title: string;
   subject: string;
   durationMinutes: number;
+  status: "pending" | "done" | "fail";
   done: boolean;
   sortOrder: number;
 }
@@ -881,10 +885,16 @@ export async function createGoalPlanTask({
   };
 }
 
-/** 과제 1건 부분 수정(완료 토글 포함). patch에 있는 필드만 반영된다. */
+/**
+ * 과제 1건 부분 수정(status 전환 포함). patch에 있는 필드만 반영된다.
+ * status는 pending/done/fail 3종(QA 행305) — 서버가 done을 함께 파생 갱신한다.
+ */
 export async function updateGoalPlanTask(
   id: number,
-  patch: Partial<GoalPlanTaskInput> & { done?: boolean; sortOrder?: number },
+  patch: Partial<GoalPlanTaskInput> & {
+    status?: "pending" | "done" | "fail";
+    sortOrder?: number;
+  },
 ) {
   const result = await requestPlanTasks("PUT", { body: { id, ...patch } });
   if (result.kind !== "success") return result;

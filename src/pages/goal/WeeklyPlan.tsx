@@ -4,7 +4,11 @@ import GoalCard from "@/components/goal/GoalCard";
 import GoalPageHeader from "@/components/goal/GoalPageHeader";
 import AddTaskModal from "@/components/goal/modals/AddTaskModal";
 import WeekdayPlanBoard from "@/components/goal/plan/WeekdayPlanBoard";
-import { createGoalPlanTask, fetchGoalPlanTasks } from "@/lib/goalApi";
+import {
+  createGoalPlanTask,
+  deleteGoalPlanTask,
+  fetchGoalPlanTasks,
+} from "@/lib/goalApi";
 import {
   durationLabelToMinutes,
   formatWeekRangeLabel,
@@ -120,6 +124,16 @@ export default function WeeklyPlan() {
     }
   }
 
+  // 행280/321(계획) — 주간학습계획표 카드의 × → 인라인 확인까지 마친 뒤에만
+  // 여기 도달한다(WeekdayPlanBoard.tsx). 대시보드 레일에는 삭제가 없다(행305).
+  async function handleDeleteTask(task: { id: string | number }) {
+    const deleted = await deleteGoalPlanTask(task.id as number);
+    if (deleted.kind !== "success") {
+      console.error("[WeeklyPlan] 과제 삭제 실패:", deleted);
+    }
+    loadTasks();
+  }
+
   // weekDates(YYYY-MM-DD) → WeekdayPlanBoard가 기대하는 {day, date, dateYmd, tasks} 7개.
   function buildBoardDays(tasks: PlanTask[]) {
     const tasksByDate = new Map<string, PlanTask[]>();
@@ -195,6 +209,7 @@ export default function WeeklyPlan() {
           <WeekdayPlanBoard
             days={buildBoardDays(result.tasks)}
             onAddTask={handleAddTask}
+            onDeleteTask={handleDeleteTask}
             todayKey={todayKey}
           />
         )}
