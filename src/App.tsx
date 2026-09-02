@@ -10,6 +10,7 @@ import {
 } from "react-router";
 import SessionKickGuard from "./components/SessionKickGuard";
 import SiteLayout from "./components/SiteLayout";
+import { scrollbarsOptions } from "./lib/scrollbarOptions";
 import adminRoutes from "./routes/adminRoutes";
 import admissionRoutes from "./routes/admissionRoutes";
 import alimtalkLinkRoutes from "./routes/alimtalkLinkRoutes";
@@ -58,13 +59,7 @@ function ScrollToTop() {
 function RootLayout() {
   const [initialize] = useOverlayScrollbars({
     defer: true,
-    options: {
-      scrollbars: {
-        autoHide: "leave",
-        autoHideDelay: 600,
-        theme: "os-theme-winning",
-      },
-    },
+    options: { scrollbars: scrollbarsOptions },
   });
 
   useEffect(() => {
