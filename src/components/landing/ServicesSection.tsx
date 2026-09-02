@@ -201,21 +201,25 @@ const ILLUSTRATION_LAYOUTS: IllustrationLayout[] = [
   // object-contain)이라 본체가 잘리지 않는다. right는 박스 자체의 카드 우변 기준 오프셋
   // (이미지가 아님), top/imgLeft는 박스 안 이미지 좌상단 오프셋, shadowLeft/Top은 박스 안
   // 그림자 좌상단, badgeLeft/Top은 박스 안 배지 좌상단.
-  // 성장설계 — 이미지 107×120 ml19 mt26, 크롭 없이 contain+object-bottom(원본 1024×374,
-  // 가로로 넓어 이전 cover 크롭 시 세로로 크게 잘려 차트 일부만 보였다). 그림자 ml24 mt136.
+  // 성장설계 — 시안 프레임 107×120은 원본(1024×374, 가로로 넓은 이미지)을 세로로 늘린
+  // 상태라 그대로 못 쓴다(contain 시 107×39px로 다른 카드 대비 1/3 크기가 됨 — 2026-09-03
+  // 팀리드 브라우저 실측). 비율 유지로 폭 8.75rem(140px)까지 키우고 높이는 원본 비율
+  // (374/1024)로 자동 계산(3.1958rem≈51px), 그림자 바로 위(shadow top 8.5rem + 0.25rem
+  // 겹침 = 이미지 하단 8.75rem)에 하단 정렬, 박스(9rem) 안 수평 중앙. 그림자 폭도 이미지에
+  // 맞춰 7.5rem, 박스 안 수평 중앙.
   {
     boxW: "9rem",
     boxH: "11.25rem",
-    w: "6.6875rem",
-    h: "7.5rem",
+    w: "8.75rem",
+    h: "3.1958rem",
     right: "1.65rem",
-    top: "1.625rem",
-    imgLeft: "1.1875rem",
+    top: "5.5542rem",
+    imgLeft: "0.125rem",
     rotate: "0deg",
-    position: "50% 100%",
-    shadowW: "6.3125rem",
+    position: "50% 50%",
+    shadowW: "7.5rem",
     shadowH: "1.375rem",
-    shadowLeft: "1.5rem",
+    shadowLeft: "0.75rem",
     shadowTop: "8.5rem",
     shadowBottom: "1.1rem",
   },
