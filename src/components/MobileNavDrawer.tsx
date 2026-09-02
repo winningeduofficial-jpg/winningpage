@@ -95,7 +95,7 @@ export default function MobileNavDrawer({
         overlayClassName="bg-black/40 duration-100"
         className="z-60 gap-0 rounded-none border-none bg-white p-0 shadow-[-18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-open:translate-x-0 data-closed:translate-x-full data-starting-style:opacity-100 data-ending-style:opacity-100 data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[85vw] data-[side=right]:max-w-88 data-[side=right]:border-l-0 data-[side=right]:data-starting-style:translate-x-full data-[side=right]:data-ending-style:translate-x-full data-[side=right]:sm:max-w-88"
       >
-        <SheetHeader className="flex-row items-center justify-between gap-0 space-y-0 border-b border-[#eeeeee] px-6 py-5">
+        <SheetHeader className="shrink-0 flex-row items-center justify-between gap-0 space-y-0 border-b border-[#eeeeee] px-6 py-5">
           <SheetTitle className="sr-only">
             {shouldShowLoggedInHeader
               ? `${displayName}님${memberLabel ? ` ${memberLabel}` : ""}`
@@ -129,7 +129,7 @@ export default function MobileNavDrawer({
           </SheetClose>
         </SheetHeader>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="min-h-0 flex-1">
           <nav className="px-2 py-2">
             <Accordion
               value={openGroup === null ? [] : [openGroup]}
@@ -216,67 +216,67 @@ export default function MobileNavDrawer({
               })}
             </Accordion>
           </nav>
+        </ScrollArea>
 
-          <div className="border-t border-[#eeeeee] px-4 py-4">
-            {shouldShowLoggedInHeader ? (
-              <>
-                {/* 역할별 단일 소스(myMenuItems.buildMyMenu) — 관리자도 별도 버튼 없이
+        <div className="shrink-0 border-t border-[#eeeeee] px-4 py-4">
+          {shouldShowLoggedInHeader ? (
+            <>
+              {/* 역할별 단일 소스(myMenuItems.buildMyMenu) — 관리자도 별도 버튼 없이
                   이 목록의 "관리자 메뉴" 항목으로 진입한다. */}
-                {buildMyMenu(myMenuRole).map((item) => (
-                  <Link
-                    key={item.label}
-                    to={item.to}
-                    onClick={onClose}
-                    className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-
-                <Button
-                  type="button"
-                  onClick={() => {
-                    onClose();
-                    onLogout();
-                  }}
-                  className="mt-2 h-auto w-full justify-center gap-2 rounded-lg border-none bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] hover:bg-[#012347]"
+              {buildMyMenu(myMenuRole).map((item) => (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  onClick={onClose}
+                  className="flex items-center gap-3 whitespace-nowrap px-4 py-3 text-base font-medium text-ink-header transition hover:text-primary"
                 >
-                  <LogOut size={16} className="size-4" />
-                  로그아웃
-                </Button>
-              </>
-            ) : isLoggedIn ? (
+                  {item.label}
+                </Link>
+              ))}
+
               <Button
                 type="button"
-                variant="outline"
                 onClick={() => {
                   onClose();
                   onLogout();
                 }}
-                className="h-auto w-full justify-center gap-2 border-line bg-transparent px-6 py-3 text-base font-medium text-[#1e293b] hover:border-primary hover:bg-transparent hover:text-primary"
+                className="mt-2 h-auto w-full justify-center gap-2 rounded-lg border-none bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] hover:bg-[#012347]"
               >
+                <LogOut size={16} className="size-4" />
                 로그아웃
               </Button>
-            ) : (
-              <div className="flex flex-col gap-3">
-                <Button
-                  variant="outline"
-                  render={<Link to="/login" onClick={onClose} />}
-                  className="h-auto w-full justify-center border-line bg-transparent px-6 py-3 text-base font-medium text-[#1e293b] hover:border-primary hover:bg-transparent hover:text-primary"
-                >
-                  로그인
-                </Button>
+            </>
+          ) : isLoggedIn ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                onClose();
+                onLogout();
+              }}
+              className="h-auto w-full justify-center gap-2 border-line bg-transparent px-6 py-3 text-base font-medium text-[#1e293b] hover:border-primary hover:bg-transparent hover:text-primary"
+            >
+              로그아웃
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <Button
+                variant="outline"
+                render={<Link to="/login" onClick={onClose} />}
+                className="h-auto w-full justify-center border-line bg-transparent px-6 py-3 text-base font-medium text-[#1e293b] hover:border-primary hover:bg-transparent hover:text-primary"
+              >
+                로그인
+              </Button>
 
-                <Button
-                  render={<Link to="/signup" onClick={onClose} />}
-                  className="h-auto w-full justify-center rounded-lg border-none bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] hover:bg-[#012347]"
-                >
-                  회원가입
-                </Button>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
+              <Button
+                render={<Link to="/signup" onClick={onClose} />}
+                className="h-auto w-full justify-center rounded-lg border-none bg-primary px-6 py-3 text-base font-medium text-[#f5f5f5] hover:bg-[#012347]"
+              >
+                회원가입
+              </Button>
+            </div>
+          )}
+        </div>
       </SheetContent>
     </Sheet>
   );

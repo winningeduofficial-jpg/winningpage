@@ -101,13 +101,29 @@ describe.each(["student", "parent", "admin"] as const)(
   },
 );
 
-describe("MobileNavDrawer — 스크롤 컨테이너", () => {
-  it("그룹 목록·MY 섹션이 ScrollArea(OverlayScrollbars) 안에 있다", () => {
+describe("MobileNavDrawer — 스크롤 컨테이너와 하단 블록 고정", () => {
+  it("그룹 아코디언은 ScrollArea(OverlayScrollbars) 안에 있다", () => {
     renderDrawer();
 
     const scrollArea = document.querySelector('[data-slot="scroll-area"]');
     expect(scrollArea).not.toBeNull();
-    expect(scrollArea?.querySelector('a[href="/mypage"]')).toBeInTheDocument();
+    expect(
+      scrollArea?.contains(screen.getByRole("button", { name: "서비스" })),
+    ).toBe(true);
+  });
+
+  it("MY 섹션은 ScrollArea 밖, 드로어 하단 고정 블록에 있다", () => {
+    renderDrawer();
+
+    const scrollArea = document.querySelector('[data-slot="scroll-area"]');
+    const myPageLink = screen.getByRole("link", { name: "MY페이지" });
+    expect(scrollArea?.contains(myPageLink)).toBe(false);
+
+    // 드로어 루트는 flex-col이고, 하단 블록(MY 섹션+로그아웃)이 ScrollArea 다음
+    // 마지막 자식이라 콘텐츠가 짧아도 바닥에 붙는다.
+    const popup = document.getElementById("mobile-nav-drawer");
+    expect(popup).toHaveClass("flex", "flex-col");
+    expect(popup?.lastElementChild?.contains(myPageLink)).toBe(true);
   });
 });
 
