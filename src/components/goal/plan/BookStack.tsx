@@ -25,9 +25,15 @@ type StackBook = {
 type BookStackProps = {
   books: StackBook[];
   subject: string;
+  /** 방금 "완독! 책장에 꽂기"로 들어온 책 id — 드롭 애니메이션(.book-drop)을 1회 건다. */
+  droppingId?: string | number | null;
 };
 
-export default function BookStack({ books, subject }: BookStackProps) {
+export default function BookStack({
+  books,
+  subject,
+  droppingId,
+}: BookStackProps) {
   if (books.length === 0) return null;
 
   const sorted = sortShelvedBooksNewestFirst(books);
@@ -40,7 +46,11 @@ export default function BookStack({ books, subject }: BookStackProps) {
       {sorted.map((book) => (
         <div
           key={book.id}
-          className={`flex h-8 w-full shrink-0 items-center overflow-hidden rounded-md shadow-[0_4px_4px_rgba(0,0,0,0.25)] ${lightBg}`}
+          className={`flex h-8 w-full shrink-0 items-center overflow-hidden rounded-md shadow-[0_4px_4px_rgba(0,0,0,0.25)] ${lightBg}${
+            droppingId != null && String(droppingId) === String(book.id)
+              ? " book-drop"
+              : ""
+          }`}
         >
           <div className={`h-full w-2 shrink-0 rounded-l-md ${darkBg}`} />
           <span

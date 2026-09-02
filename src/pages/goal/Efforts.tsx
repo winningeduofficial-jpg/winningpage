@@ -63,6 +63,8 @@ export default function Efforts() {
   const [modalOpen, setModalOpen] = useState(false);
   const [presetSubject, setPresetSubject] = useState<string | null>(null);
   const [workbooks, setWorkbooks] = useState<Workbook[]>([]);
+  // "완독! 책장에 꽂기" 직후 스택에 드롭 애니메이션을 걸 책 id. 1회성이라 잠시 뒤 비운다.
+  const [droppingBookId, setDroppingBookId] = useState<number | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [addSubjectOpen, setAddSubjectOpen] = useState(false);
   // 노출 과목 목록 — GET /api/goal/timer visibleSubjects(열공 타이머와 동일 소스, QA
@@ -202,13 +204,22 @@ export default function Efforts() {
   // EffortWorkbookRow의 onShelve 계약 — "완독! 책장에 꽂기" 버튼(달성률 100%에서만
   // 노출)이 호출한다. 서버가 status='done'이 아니면 400(validation-error)을 준다.
   async function handleShelveWorkbook(id: string | number) {
-    const outcome = await shelveGoalWorkbook(id as number);
+    // 행의 사라지는 애니메이션(.book-row-out 0.35s)이 보일 시간을 서버 응답과 병렬로
+    // 확보한다 — 응답이 빨라도 행이 툭 사라지지 않게.
+    const [outcome] = await Promise.all([
+      shelveGoalWorkbook(id as number),
+      new Promise((resolve) => window.setTimeout(resolve, 350)),
+    ]);
     if (outcome.kind !== "success") {
       console.error("[Efforts] 책장에 꽂기 실패:", outcome);
       return false;
     }
 
+    setDroppingBookId(Number(id));
     await loadWorkbooks();
+    window.setTimeout(() => {
+      setDroppingBookId((current) => (current === Number(id) ? null : current));
+    }, 900);
     return true;
   }
 
@@ -270,6 +281,7 @@ export default function Efforts() {
                 completed={shelvedBooks.length}
                 books={registeredBooks}
                 completedBooks={shelvedBooks}
+                droppingBookId={droppingBookId}
                 onAddBook={() => openModal(label)}
                 onUpdateBook={handleUpdateWorkbook}
                 onDeleteBook={handleDeleteWorkbook}

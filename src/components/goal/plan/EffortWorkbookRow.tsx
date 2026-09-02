@@ -123,7 +123,9 @@ export default function EffortWorkbookRow({
   }
 
   return (
-    <div className="flex w-full flex-col gap-1.5">
+    <div
+      className={`flex w-full flex-col gap-1.5${shelving ? " book-row-out" : ""}`}
+    >
       <div className="flex items-center gap-1.5">
         <input
           type="text"
