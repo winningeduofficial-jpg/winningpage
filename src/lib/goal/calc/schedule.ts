@@ -321,12 +321,26 @@ export interface AcademySlot {
 export interface DayPattern {
   wake: string | number;
   sleep: string | number;
+  // 원본에는 없는 필드(신설, QA 행293) — calculateWeekSchedule 이 요일별 고정
+  // DAYS_CONFIG 대신 이 값으로 등교일 여부를 결정할 수 있게 한다. 비어 있으면
+  // calculateWeekSchedule 이 원본 그대로 DAYS_CONFIG(월~금 true)로 대체한다.
+  hasSchool?: boolean;
   schoolStart?: string | number;
   schoolEnd?: string | number;
   academies: AcademySlot[];
 }
 
-export function calcAvailableHours(day: DayPattern, hasSchool: boolean) {
+// 학원 1건당 이동시간 공제(원본은 1h 고정, target/components/IntakeForm.tsx:997).
+// QA 행293 — 사용자 결정(2026-09-02)으로 우리 앱은 0.5h 를 쓴다. 원본과 다른 상수이므로
+// calcAvailableHours 세 번째 인자로만 넘긴다 — 함수 기본값(1)은 원본 파리티로 그대로
+// 남겨 골든 테스트(1h 전제)를 건드리지 않는다. 상세: DIVERGENCE.md §3, §1 #5.
+export const ACADEMY_COMMUTE_HOURS = 0.5;
+
+export function calcAvailableHours(
+  day: DayPattern,
+  hasSchool: boolean,
+  commuteHours = 1,
+) {
   // parseFloat 는 string 만 받는다 — 원본은 string|number 를 그냥 넘겼고 parseFloat 내부에서
   // ToString 변환이 일어나므로(예: parseFloat(7) === parseFloat("7")) String() 래핑은 동작을 바꾸지 않는다.
   const wake = parseFloat(String(day.wake));
@@ -348,7 +362,7 @@ export function calcAvailableHours(day: DayPattern, hasSchool: boolean) {
     const acStart = parseFloat(String(ac.start));
     const acEnd = parseFloat(String(ac.end));
     if (!Number.isNaN(acStart) && !Number.isNaN(acEnd) && acEnd > acStart)
-      available -= acEnd - acStart + 1;
+      available -= acEnd - acStart + commuteHours;
   }
 
   return Math.max(0, Math.round(available * 10) / 10);
@@ -395,16 +409,29 @@ export interface WeekScheduleForm {
   minDept: string;
   weekSchedule: Record<string, DayPattern>;
   selfStudyHours: Record<string, string | number>;
+  // 신설(원본에 없음, QA 행293) — 학원 이동시간 공제. 생략하면 calcAvailableHours 기본값(1h,
+  // 원본 파리티)을 그대로 쓴다. 기존 호출부(파이프라인 골든 테스트 등)는 이 필드를 넘기지
+  // 않으므로 동작이 바뀌지 않는다.
+  commuteHours?: number;
 }
 
 export function calculateWeekSchedule(form: WeekScheduleForm) {
   const idealMult = getStudyMultiplier(form.idealUniv, form.idealDept);
   const minMult = getStudyMultiplier(form.minUniv, form.minDept);
+  const commuteHours = form.commuteHours ?? 1;
 
   const result: Record<string, { ideal: number; min: number }> = {};
 
   DAYS_CONFIG.forEach(({ key, hasSchool }) => {
-    const avail = calcAvailableHours(form.weekSchedule[key]!, hasSchool);
+    // 신설(원본에 없음) — 입력 요일에 hasSchool 이 명시돼 있으면 고정 DAYS_CONFIG(월~금)
+    // 대신 그 값을 쓴다. QA 행293의 "학교 가는 날" 토글이 요일마다 독립이라 원본의
+    // 고정 배정과 어긋나기 때문. 없으면 원본 그대로 DAYS_CONFIG 를 쓴다(파리티 유지).
+    const dayHasSchool = form.weekSchedule[key]?.hasSchool ?? hasSchool;
+    const avail = calcAvailableHours(
+      form.weekSchedule[key]!,
+      dayHasSchool,
+      commuteHours,
+    );
     const calcIdeal = Math.round(avail * idealMult * 10) / 10;
     const calcMin = Math.round(avail * minMult * 10) / 10;
 
