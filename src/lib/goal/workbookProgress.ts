@@ -5,6 +5,10 @@
  * 달성률(%) — totalPages가 0/null/undefined면(방어적 상황, DB CHECK상 실제로는 항상
  * >0) 0으로 나누기를 피해 0%로 접는다. currentPage가 totalPages를 넘으면 100%로
  * 클램프한다(진행바가 100%를 넘어 그려지지 않게).
+ *
+ * 반올림이 아니라 **내림**이다 — 239/240(99.58%)을 반올림하면 100%가 돼 "완독!"
+ * 버튼이 한 쪽 남은 책에 뜨는 사고가 났다(2026-09-02 사용자 발견). 100%는 오직
+ * currentPage >= totalPages일 때만 나온다(서버 computeWorkbookStatus와 같은 기준).
  */
 export function computeAchievementRate(
   currentPage: number | null | undefined,
@@ -13,7 +17,7 @@ export function computeAchievementRate(
   const total = totalPages ?? 0;
   if (total <= 0) return 0;
   const current = Math.max(0, currentPage ?? 0);
-  return Math.min(100, Math.round((current / total) * 100));
+  return Math.min(100, Math.floor((current / total) * 100));
 }
 
 type ShelvedBook = { shelvedAt: string | null };

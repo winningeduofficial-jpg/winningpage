@@ -62,6 +62,10 @@ export default function EffortWorkbookRow({
   }, [book.title, book.currentPage]);
 
   const rate = computeAchievementRate(Number(currentPage) || 0, totalPages);
+  // "완독! 책장에 꽂기"는 달성률 표시값이 아니라 실제 페이지 비교로 판정한다 — 서버
+  // status(current >= total)와 같은 기준. 저장된 값(book.currentPage) 기준이라
+  // 입력 중인 미저장 숫자로는 버튼이 먼저 뜨지 않는다.
+  const isComplete = totalPages > 0 && (book.currentPage ?? 0) >= totalPages;
 
   function clampCurrentPage(raw: string) {
     if (raw === "") return "";
@@ -199,7 +203,7 @@ export default function EffortWorkbookRow({
         />
       </div>
 
-      {rate >= 100 && (
+      {isComplete && (
         <button
           type="button"
           onClick={handleShelve}

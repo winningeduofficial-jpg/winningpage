@@ -28,6 +28,12 @@ describe("computeAchievementRate", () => {
   test("현재=전체면 정확히 100%다", () => {
     expect(computeAchievementRate(240, 240)).toBe(100);
   });
+
+  test("한 쪽이라도 남으면 100%가 아니다 — 239/240은 반올림 없이 99%", () => {
+    expect(computeAchievementRate(239, 240)).toBe(99);
+    expect(computeAchievementRate(199, 200)).toBe(99);
+    expect(computeAchievementRate(1, 1000)).toBe(0);
+  });
 });
 
 describe("sortShelvedBooksNewestFirst", () => {
