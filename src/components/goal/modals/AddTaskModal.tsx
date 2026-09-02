@@ -7,6 +7,7 @@ import {
 } from "@/components/goal/goalFormOptions";
 import ModalField from "@/components/goal/ModalField";
 import SegmentedChipGroup from "@/components/goal/SegmentedChipGroup";
+import { resolveSubjectId } from "@/components/goal/subjectTokens";
 import { fetchGoalWorkbooks } from "@/lib/goalApi";
 
 // 과제 추가 모달 — docs/figma-goal/part-06.md #16 (530×468 = 33.125rem × 29.25rem, 높이는 주석용).
@@ -65,6 +66,9 @@ type WorkbookOption = {
   id: number;
   title: string;
   totalPages: number | null;
+  // 과목 id(korean/math/english/science/etc) — 선택된 과목 우선 정렬용(임무 지시
+  // 후속, 2026-09-02). 과목 필터 자체는 그대로 두고(전 과목 노출) 정렬만 우선한다.
+  subject: string;
 };
 
 type AddTaskModalProps = {
@@ -116,6 +120,7 @@ export default function AddTaskModal({
               id: book.id,
               title: book.title,
               totalPages: book.totalPages,
+              subject: book.subject,
             })),
         );
       }
@@ -137,6 +142,27 @@ export default function AddTaskModal({
     ((pageFrom === "") !== (pageTo === "") ||
       (pageFromNum != null && pageToNum != null && pageFromNum > pageToNum) ||
       (totalPages != null && pageToNum != null && pageToNum > totalPages));
+
+  // 문제집 select 정렬(임무 지시 후속, 2026-09-02) — 과목 필터는 그대로 두고(전
+  // 과목 노출) 위에서 고른 과목과 같은 문제집만 앞으로 당긴다. Array#sort는
+  // 안정 정렬(ES2019+)이라 같은 그룹 안에서는 원래 순서(등록 오래된 순)가 유지된다.
+  const selectedSubjectId = subject ? resolveSubjectId(subject) : null;
+  const sortedWorkbooks = selectedSubjectId
+    ? [...workbooks].sort((a, b) => {
+        const aMatch = a.subject === selectedSubjectId ? 0 : 1;
+        const bMatch = b.subject === selectedSubjectId ? 0 : 1;
+        return aMatch - bMatch;
+      })
+    : workbooks;
+
+  // 문제집을 연결한 과제는 "매주 반복"을 허용하지 않는다(임무 지시 후속,
+  // 2026-09-02) — 페이지 10~20을 매주 영원히 반복하는 건 의미가 없다("이번 주만"
+  // 은 이번 주 7일 각각 같은 구간을 복습하는 의도적 사용이라 그대로 둔다).
+  const scheduleOptions = SCHEDULE_OPTIONS.map((option) =>
+    selectedWorkbook && option.value === "매주 반복"
+      ? { ...option, disabled: true }
+      : option,
+  );
 
   const canSubmit =
     Boolean(subject) &&
@@ -244,25 +270,35 @@ export default function AddTaskModal({
           variant="select"
           value={schedule}
           onChange={(event) => setSchedule(event.target.value)}
-          options={SCHEDULE_OPTIONS}
+          options={scheduleOptions}
+          {...(selectedWorkbook
+            ? { hint: "문제집 연결 과제는 해당 날짜에만 추가됩니다" }
+            : {})}
         />
       </div>
 
       {/* 문제집 연결(선택, QA 행286-B) — "나의 노력"에 등록된 읽는 중인 문제집만
           고를 수 있다(완독한 책은 진도를 더 전진시킬 이유가 없어 목록에서 뺀다).
-          시안에 없는 신규 필드라 기존 select 2종과 같은 ModalField 톤으로 맞춘다. */}
+          시안에 없는 신규 필드라 기존 select 2종과 같은 ModalField 톤으로 맞춘다.
+          목록은 위에서 고른 과목이 앞으로 오게 정렬한다(sortedWorkbooks). */}
       <ModalField
         label="문제집 연결 (선택)"
         variant="select"
         value={workbookId}
         onChange={(event) => {
-          setWorkbookId(event.target.value);
+          const nextWorkbookId = event.target.value;
+          setWorkbookId(nextWorkbookId);
           setPageFrom("");
           setPageTo("");
+          // 문제집을 연결하는 순간 "매주 반복"이 선택돼 있었다면 허용되는 값으로
+          // 되돌린다(위 scheduleOptions가 그 옵션을 disabled로 막는 것과 짝).
+          if (nextWorkbookId && schedule === "매주 반복") {
+            setSchedule("이번 주만");
+          }
         }}
         options={[
           { value: "", label: "연결 안 함" },
-          ...workbooks.map((book) => ({
+          ...sortedWorkbooks.map((book) => ({
             value: String(book.id),
             label: book.title,
           })),

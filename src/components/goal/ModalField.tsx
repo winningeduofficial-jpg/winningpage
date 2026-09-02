@@ -1,7 +1,7 @@
 import type { ChangeEventHandler, ReactNode } from "react";
 import { useId } from "react";
 
-type ModalFieldOption = { value: string; label: string };
+type ModalFieldOption = { value: string; label: string; disabled?: boolean };
 
 type ModalFieldProps = {
   label: ReactNode;
@@ -13,6 +13,9 @@ type ModalFieldProps = {
   options?: ModalFieldOption[];
   required?: boolean;
   className?: string;
+  // 컨트롤 아래 보조 안내문(선택) — 문제집 연결 시 "일정" 필드 제약 안내(QA
+  // 행286-B 후속) 등, 필드별로 짧은 캡션이 필요한 호출부만 쓴다.
+  hint?: ReactNode;
   [key: string]: unknown;
 };
 
@@ -34,6 +37,7 @@ export default function ModalField({
   options,
   required = false,
   className = "",
+  hint,
   ...rest
 }: ModalFieldProps) {
   const fieldId = useId();
@@ -62,7 +66,11 @@ export default function ModalField({
           {...rest}
         >
           {options?.map((option) => (
-            <option key={option.value} value={option.value}>
+            <option
+              key={option.value}
+              value={option.value}
+              disabled={option.disabled}
+            >
               {option.label}
             </option>
           ))}
@@ -90,6 +98,12 @@ export default function ModalField({
             </span>
           )}
         </div>
+      )}
+
+      {hint && (
+        <p className="mt-1.5 text-[0.75rem] leading-[1.4] text-ink-sub">
+          {hint}
+        </p>
       )}
     </div>
   );
