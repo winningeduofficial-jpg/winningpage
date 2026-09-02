@@ -1550,11 +1550,18 @@ export type FetchGoalReportResult =
 // 세 번째 인자 `periodOrReportId` — weekly/monthly는 기간(period=YYYY-MM-DD|YYYY-MM),
 // direction은 저장된 리포트 id(reportId, QA 행301)다. 같은 슬롯을 재사용하되 쿼리 키만
 // type으로 분기한다 — 두 값이 같은 화면에 동시에 필요한 호출부가 없어 별도 인자를
-// 추가하지 않았다(호출부 3곳: GrowthReport.tsx weekly/monthly, DirectionReport.tsx direction).
+// 추가하지 않았다(호출부 4곳: GrowthReport.tsx weekly/monthly, DirectionReport.tsx direction,
+// ChildReport.tsx weekly/monthly — 마지막 인자 `studentId`만 넘긴다).
+//
+// 네 번째 인자 `studentId` — 학부모가 자녀 리포트를 열람할 때만 넘긴다(QA 시트 행210,
+// api/goal/report.ts studentId 쿼리). weekly/monthly 전용이다 — direction과 함께 보내면
+// 서버가 400을 준다(호출부에서 애초에 조합하지 않는다). 생략하면 기존 동작 그대로
+// (요청자 본인 리포트).
 export async function fetchGoalReport(
   type: "weekly" | "monthly" | "direction",
   periodOrReportId?: string,
   track?: "naesin" | "jeongsi",
+  studentId?: string,
 ): Promise<FetchGoalReportResult> {
   const authHeader = await getAuthHeader();
   if (!authHeader) return { kind: "no-session" };
@@ -1564,6 +1571,7 @@ export async function fetchGoalReport(
     params.set(type === "direction" ? "reportId" : "period", periodOrReportId);
   }
   if (type === "direction" && track) params.set("track", track);
+  if (studentId) params.set("studentId", studentId);
 
   let response: Response;
   try {
