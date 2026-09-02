@@ -41,6 +41,7 @@ import {
   resolveMonthlyPeriod,
   resolveWeeklyPeriod,
   round1,
+  summarizePlanTaskCompletion,
   sumHoursByProfile,
   toNum,
 } from "../../src/lib/goal/report/aggregate.js";
@@ -154,8 +155,12 @@ async function buildGrowthReport({
   const recordDays = records.filter(
     (r) => (toNum(r.study_hours) ?? 0) > 0,
   ).length;
-  const doneTasks = planTasks.filter((t) => t.done).length;
-  const totalTasks = planTasks.length;
+  // status가 단일 원본(QA 행305) — done 컬럼은 하위 호환 파생값이라 여기서는
+  // 읽지 않는다. summarizePlanTaskCompletion이 status 없는/알 수 없는 값을
+  // pending으로 방어한다.
+  const planTaskSummary = summarizePlanTaskCompletion(planTasks);
+  const doneTasks = planTaskSummary.done;
+  const totalTasks = planTaskSummary.total;
   const completionScore = computeCompletionScore({
     idealRate,
     recordDays,
@@ -318,6 +323,18 @@ async function buildGrowthReport({
     execution: {
       label: "실행 분석",
       subLabel: "계획을 어떻게 지켰는지",
+      // 행305 — 대시보드 오늘의 계획 ✓/✕가 이제 done/fail을 구분해 저장하므로
+      // (goal_plan_tasks.status) 주간/월간 리포트에도 달성/미달성/미기록
+      // 3종 집계를 함께 실어 보낸다.
+      planCompletion: {
+        title: type === "monthly" ? "이번 달 계획 이행" : "이번 주 계획 이행",
+        rows: [
+          { label: "달성", value: planTaskSummary.done },
+          { label: "미달성", value: planTaskSummary.fail },
+          { label: "미기록", value: planTaskSummary.pending },
+        ],
+        total: planTaskSummary.total,
+      },
       subjectShare: {
         title: "과목별 학습 비중",
         empty: subjectShare.empty,

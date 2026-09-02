@@ -319,6 +319,27 @@ export function computeCompletionScore({
   return round0(0.625 * achievementAxis + 0.375 * consistencyAxis);
 }
 
+/**
+ * 계획 과제 달성/미달성/미기록 집계(행305) — goal_plan_tasks.status 3종.
+ * computeCompletionScore의 doneTasks/totalTasks는 이 결과의 done/total과
+ * 그대로 호환된다(같은 done 판정 기준). status가 없거나(백필 전 행) 알 수
+ * 없는 값이면 pending으로 방어한다(goalRepo.js normalizePlanTaskStatus와
+ * 동일 규칙 — 이 파일은 supabase를 모르므로 값만 다시 좁혀 쓴다).
+ */
+export function summarizePlanTaskCompletion(
+  tasks: { status?: unknown }[],
+): { done: number; fail: number; pending: number; total: number } {
+  let done = 0;
+  let fail = 0;
+  let pending = 0;
+  for (const task of tasks) {
+    if (task.status === "done") done++;
+    else if (task.status === "fail") fail++;
+    else pending++;
+  }
+  return { done, fail, pending, total: tasks.length };
+}
+
 // ---------------------------------------------------------------------------
 // D4 — 목표군 내 위치(코호트 백분위)
 // ---------------------------------------------------------------------------
