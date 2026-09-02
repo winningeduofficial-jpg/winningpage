@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { createRef } from "react";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it, vi } from "vitest";
@@ -7,8 +7,18 @@ import MobileNavDrawer from "./MobileNavDrawer";
 import type { MyMenuRole } from "./myMenuItems";
 
 const navGroups = [
-  { title: "서비스", to: "/services", items: [] },
-  { title: "프리미엄", to: "/premium", items: [] },
+  {
+    title: "서비스",
+    to: "/services",
+    items: [
+      { label: "학습진단", to: "/services/learning-diagnosis", sortOrder: 1 },
+    ],
+  },
+  {
+    title: "프리미엄",
+    to: "/premium",
+    items: [{ label: "프리미엄 소개", to: "/premium/intro", sortOrder: 1 }],
+  },
 ];
 
 function renderDrawer(
@@ -90,6 +100,64 @@ describe.each(["student", "parent", "admin"] as const)(
     });
   },
 );
+
+describe("MobileNavDrawer — 그룹 헤더 아코디언(단일 열림)", () => {
+  it("그룹 헤더는 이동 링크가 아니라 토글 버튼이다", () => {
+    renderDrawer();
+
+    expect(screen.getByRole("button", { name: "서비스" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "서비스" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("헤더 클릭 시 이동하지 않고 해당 그룹만 열린다", () => {
+    renderDrawer();
+
+    const serviceHeader = screen.getByRole("button", { name: "서비스" });
+    expect(serviceHeader).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(serviceHeader);
+
+    expect(serviceHeader).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: "학습진단" })).toBeInTheDocument();
+  });
+
+  it("다른 그룹을 열면 이전에 열려 있던 그룹은 닫힌다", () => {
+    renderDrawer();
+
+    const serviceHeader = screen.getByRole("button", { name: "서비스" });
+    const premiumHeader = screen.getByRole("button", { name: "프리미엄" });
+
+    fireEvent.click(serviceHeader);
+    expect(serviceHeader).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(premiumHeader);
+    expect(premiumHeader).toHaveAttribute("aria-expanded", "true");
+    expect(serviceHeader).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("같은 그룹 헤더를 다시 클릭하면 닫힌다", () => {
+    renderDrawer();
+
+    const serviceHeader = screen.getByRole("button", { name: "서비스" });
+    fireEvent.click(serviceHeader);
+    expect(serviceHeader).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(serviceHeader);
+    expect(serviceHeader).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("하위 항목 클릭 시 onClose가 호출된다", () => {
+    const onClose = vi.fn();
+    renderDrawer({ onClose });
+
+    fireEvent.click(screen.getByRole("button", { name: "서비스" }));
+    fireEvent.click(screen.getByRole("link", { name: "학습진단" }));
+
+    expect(onClose).toHaveBeenCalled();
+  });
+});
 
 describe("MobileNavDrawer — 게스트(비로그인)", () => {
   it("로그인/회원가입 링크를 보여주고 MY 섹션은 노출하지 않는다", () => {

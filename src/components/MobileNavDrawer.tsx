@@ -117,12 +117,34 @@ export default function MobileNavDrawer({
 
               return (
                 <div key={group.title} className="border-b border-[#eeeeee]">
-                  <div className="flex items-center">
+                  {hasDropdown ? (
+                    // 그룹 헤더 = 아코디언 토글. 이동은 하위 항목 클릭에서만 일어난다
+                    // (group.to로의 헤더 자체 이동은 폐지 — 단일 열림 아코디언으로 대체).
+                    <button
+                      type="button"
+                      onClick={() => toggleGroup(group.title)}
+                      aria-expanded={isOpen}
+                      aria-controls={`mobile-nav-group-${group.title}`}
+                      className={`flex w-full items-center justify-between whitespace-nowrap px-4 py-4 text-lg ${
+                        isGroupActive
+                          ? "font-semibold text-primary"
+                          : "font-medium text-[#1e293b]"
+                      }`}
+                    >
+                      {group.title}
+                      <ChevronDown
+                        size={18}
+                        strokeWidth={2.2}
+                        className={`shrink-0 transition ${isOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+                  ) : (
+                    // 하위 항목이 없는 그룹은 토글할 아코디언이 없으니 헤더 자체가 목적지다.
                     <Link
                       to={group.to}
                       onClick={onClose}
                       aria-current={isGroupActive ? "page" : undefined}
-                      className={`flex-1 whitespace-nowrap px-4 py-4 text-lg ${
+                      className={`block whitespace-nowrap px-4 py-4 text-lg ${
                         isGroupActive
                           ? "font-semibold text-primary"
                           : "font-medium text-[#1e293b]"
@@ -130,24 +152,7 @@ export default function MobileNavDrawer({
                     >
                       {group.title}
                     </Link>
-
-                    {hasDropdown && (
-                      <button
-                        type="button"
-                        onClick={() => toggleGroup(group.title)}
-                        aria-expanded={isOpen}
-                        aria-controls={`mobile-nav-group-${group.title}`}
-                        aria-label={`${group.title} 하위 메뉴 ${isOpen ? "닫기" : "열기"}`}
-                        className="inline-flex h-11 w-11 shrink-0 items-center justify-center text-ink-header"
-                      >
-                        <ChevronDown
-                          size={18}
-                          strokeWidth={2.2}
-                          className={`transition ${isOpen ? "rotate-180" : ""}`}
-                        />
-                      </button>
-                    )}
-                  </div>
+                  )}
 
                   {hasDropdown && (
                     <div
