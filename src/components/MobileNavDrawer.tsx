@@ -91,6 +91,7 @@ export default function MobileNavDrawer({
         showCloseButton={false}
         finalFocus={triggerRef}
         aria-modal="true"
+        overlayClassName="bg-black/40 duration-100"
         className="z-60 gap-0 overflow-y-auto rounded-none border-none bg-white p-0 shadow-[-18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-open:translate-x-0 data-closed:translate-x-full data-starting-style:opacity-100 data-ending-style:opacity-100 data-[side=right]:inset-y-0 data-[side=right]:right-0 data-[side=right]:h-full data-[side=right]:w-[85vw] data-[side=right]:max-w-88 data-[side=right]:border-l-0 data-[side=right]:data-starting-style:translate-x-full data-[side=right]:data-ending-style:translate-x-full data-[side=right]:sm:max-w-88"
       >
         <SheetHeader className="flex-row items-center justify-between gap-0 space-y-0 border-b border-[#eeeeee] px-6 py-5">

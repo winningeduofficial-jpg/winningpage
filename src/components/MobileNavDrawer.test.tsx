@@ -101,6 +101,17 @@ describe.each(["student", "parent", "admin"] as const)(
   },
 );
 
+describe("MobileNavDrawer — Sheet 오버레이 농도", () => {
+  it("shadcn Sheet 기본값(bg-black/10)이 아니라 원래 농도(bg-black/40)를 쓴다", () => {
+    renderDrawer();
+
+    const overlay = document.querySelector('[data-slot="sheet-overlay"]');
+    expect(overlay).not.toBeNull();
+    expect(overlay).toHaveClass("bg-black/40");
+    expect(overlay).not.toHaveClass("bg-black/10");
+  });
+});
+
 describe("MobileNavDrawer — 그룹 헤더 아코디언(단일 열림)", () => {
   it("그룹 헤더는 이동 링크가 아니라 토글 버튼이다", () => {
     renderDrawer();
