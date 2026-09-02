@@ -1,37 +1,31 @@
 import BookStack from "@/components/goal/plan/BookStack";
+import EffortWorkbookRow, {
+  type EffortBook,
+} from "@/components/goal/plan/EffortWorkbookRow";
 import { resolveSubjectId } from "@/components/goal/subjectTokens";
 
-// 나의 노력 과목 카드 — docs/figma-goal/part-10.md #30(빈) / part-11.md #32(채움), 312×451.
+// 나의 노력 과목 카드 — Figma 4026:6046(디자이너 시안 재구현). 312×507.
 //
-// 인셋 박스 재설계(QA 행298): 시안(part-11 §207~209)은 「공부 중인 책」 인셋 박스 안에
-// "+ 문제집 추가" 버튼만 있고 등록된 책 목록은 박스 밖 별도 칩 리스트였다 — 제목만 보여
-// 진도(현재/전체 페이지·달성률)를 알 수 없었다. 이제 그 목록을 인셋 박스 **안**으로 옮기고
-// "제목 · 현재p/전체p · 달성률N%" 텍스트 행으로 바꾼다. "+ 문제집 추가" 버튼은 그대로 목록
-// 아래에 둔다. 박스 자체는 고정 높이(125px)를 버리고 내부 목록만 `max-h + overflow-y-auto`로
-// 감싸 몇 권이 쌓여도 버튼이 밀려나지 않게 한다(오버플로 재설계, 기존 §2 판단과 동일 원칙을
-// 인셋 박스 내부에 적용).
+// 이전 텍스트 목록(제목 · 진도 · 달성률 한 줄)을 시안대로 인라인 편집 UI로 바꾼다 —
+// EffortWorkbookRow가 책 1권당 제목/현재·전체 페이지/진행바/(100%면) 완독 버튼을
+// 전부 담당한다. "+ 문제집 추가"는 그대로 목록 아래에 유지한다. 인셋 박스는 고정
+// 높이를 두지 않고 내용(책 권수)에 따라 자란다 — 시안 실측도 책 1권일 때 194px,
+// 완독 버튼이 뜬 상태일 때 252px로 서로 다르다(고정값이 아니라는 근거).
 //
-// 완독 책장(QA 행282): 예전엔 선반 바 + "완독하면 여기에 쌓여요" 캡션뿐이라 완독 책이 몇 권
-// 쌓였는지 시각적으로 전혀 안 보였다. BookStack(plan/BookStack.tsx)이 실제 책이 쌓이는
-// 모양을 그린다 — 완독 0권일 때만 기존 캡션을 유지하고, 1권 이상이면 그 자리에 스택을 그린다.
-// 선반 바(h-1.75 w-36.75)는 완독 권수와 무관하게 항상 카드 최하단에 남는다(시안의 "선반"
-// 요소 유지, part-10 §210).
+// 완독 책장: BookStack이 shelved_at이 채워진(=학생이 "완독! 책장에 꽂기"를 누른)
+// 책만 그린다. status='done'이어도 아직 안 꽂았으면 공부 중인 책 목록에 완독 버튼과
+// 함께 남는다(수동 전이, EffortWorkbookRow 주석 참고). 캡션 "완독하면 여기에
+// 쌓여요"는 시안대로 책이 있어도 항상 표시한다.
 //
-// 한글 과목명 → 과목 id 매핑은 subjectTokens.js 정본 헬퍼를 쓴다(코드 검수 §1).
-//
-// books/completedBooks는 문자열 배열이 아니라 {id, title, ...} 객체 배열이다(실데이터 배선,
-// goalApi.js fetchGoalWorkbooks 응답). 진도 갱신 동선이 시안에 없어, 목록 행을 클릭하면
-// onEditBook이 호출되어 AddWorkbookModal을 수정 모드로 재사용해 연다(Efforts.jsx 판단 지점).
+// 한글 과목명 → 과목 id 매핑은 subjectTokens.ts 정본 헬퍼를 쓴다(코드 검수 §1).
+// books/completedBooks는 문자열 배열이 아니라 {id, title, ...} 객체 배열이다(실데이터
+// 배선, goalApi.ts fetchGoalWorkbooks 응답).
 
-type EffortBook = {
+type CompletedBook = {
   id: string | number;
   title: string;
-  // Efforts.tsx의 Workbook과 동일하게 null 가능(서버 실값).
-  currentPage: number | null;
-  totalPages: number | null;
+  shelvedAt: string | null;
 };
-
-type CompletedBook = { id: string | number; title: string };
 
 type EffortSubjectCardProps = {
   subject: string;
@@ -39,16 +33,13 @@ type EffortSubjectCardProps = {
   books?: EffortBook[];
   completedBooks?: CompletedBook[];
   onAddBook?: () => void;
-  onEditBook?: (book: EffortBook) => void;
+  onUpdateBook?: (
+    id: string | number,
+    patch: { title?: string; currentPage?: number; totalPages?: number },
+  ) => Promise<boolean>;
+  onDeleteBook?: (id: string | number) => Promise<boolean>;
+  onShelveBook?: (id: string | number) => Promise<boolean>;
 };
-
-// 달성률(%) — totalPages가 0/null이면(방어적 상황, DB CHECK상 실제로는 항상 >0) 0%로 접는다.
-function achievementRate(book: EffortBook) {
-  const total = book.totalPages ?? 0;
-  if (total <= 0) return 0;
-  const current = book.currentPage ?? 0;
-  return Math.min(100, Math.round((current / total) * 100));
-}
 
 export default function EffortSubjectCard({
   subject,
@@ -56,66 +47,70 @@ export default function EffortSubjectCard({
   books,
   completedBooks,
   onAddBook,
-  onEditBook,
+  onUpdateBook,
+  onDeleteBook,
+  onShelveBook,
 }: EffortSubjectCardProps) {
-  const color = resolveSubjectId(subject);
+  const subjectId = resolveSubjectId(subject);
   const hasBooks = Array.isArray(books) && books.length > 0;
   const hasCompletedBooks =
     Array.isArray(completedBooks) && completedBooks.length > 0;
 
   return (
-    <div className="flex h-112.75 w-full min-w-0 flex-col rounded-xl border border-line/60 bg-white px-4.75 py-5">
+    <div className="flex h-126.75 w-full min-w-0 flex-col rounded-xl border border-surface-01 bg-white px-4.75 py-5">
       <div className="flex items-baseline gap-2">
-        <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
+        <h3 className="text-[1.25rem] font-semibold leading-[1.4] text-ink">
           {subject}
         </h3>
-        <span className="text-[0.875rem] leading-[1.4] text-ink-sub">
+        <span className="text-[1rem] leading-[1.4] text-ink-natural">
           완독 {completed}권
         </span>
       </div>
 
       {/* 「공부 중인 책」 인셋 박스 — 목록+추가 버튼을 함께 담는다(위 주석 참고). */}
-      <div className="mt-5.5 flex w-full shrink-0 flex-col gap-2.5 rounded-lg bg-surface-04 p-5">
-        <p className="text-[0.875rem] leading-[1.4] text-ink-sub">
+      <div className="mt-5.5 flex w-full shrink-0 flex-col gap-3 rounded-xl border border-surface-01 bg-goal-card p-5">
+        <p className="text-[1rem] font-semibold leading-[1.4] text-ink-natural">
           공부 중인 책
         </p>
 
         {hasBooks && (
-          <ul className="flex max-h-20 flex-col gap-1.5 overflow-y-auto pr-0.5">
+          <div className="flex max-h-70 flex-col gap-3 overflow-y-auto pr-0.5">
             {books.map((book) => (
-              <li key={book.id}>
-                <button
-                  type="button"
-                  onClick={() => onEditBook?.(book)}
-                  className="block w-full truncate text-left text-[0.75rem] leading-[1.4] text-ink-sub transition-colors hover:text-ink-strong"
-                >
-                  {`${book.title} · ${book.currentPage ?? 0}p/${book.totalPages ?? 0}p · 달성률 ${achievementRate(book)}%`}
-                </button>
-              </li>
+              <EffortWorkbookRow
+                key={book.id}
+                book={book}
+                subject={subjectId}
+                onUpdate={onUpdateBook ?? (async () => false)}
+                onDelete={onDeleteBook ?? (async () => false)}
+                onShelve={onShelveBook ?? (async () => false)}
+              />
             ))}
-          </ul>
+          </div>
         )}
 
         <button
           type="button"
           onClick={onAddBook}
-          className="flex h-9 w-full shrink-0 items-center justify-center rounded-lg border border-dashed border-line text-[0.8125rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
+          className="flex h-9 w-full shrink-0 items-center justify-center rounded-md border border-dashed border-surface-01 text-[1rem] font-medium text-ink-natural transition-colors hover:border-ink-strong hover:text-ink-strong"
         >
           + 문제집 추가
         </button>
       </div>
 
-      {/* 완독 책장 — BookStack(1권 이상) 또는 안내 캡션(0권), 선반 바는 항상 유지. */}
-      <div className="mt-3 flex min-h-0 flex-1 flex-col items-center justify-end gap-1.5">
-        {hasCompletedBooks && (
-          <BookStack books={completedBooks} subject={color} />
-        )}
-        <div className="h-1.75 w-36.75 shrink-0 rounded-full bg-surface-01" />
-        {!hasCompletedBooks && (
-          <p className="text-[0.75rem] leading-[1.4] text-ink-sub">
+      {/* 완독 책장 — BookStack(1권 이상)은 스크롤 가능한 flex-1 영역에, 선반 바+캡션은
+          시안대로 책 유무와 무관하게 항상 표시한다. */}
+      <div className="mt-3 flex min-h-0 flex-1 flex-col">
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {hasCompletedBooks && (
+            <BookStack books={completedBooks} subject={subjectId} />
+          )}
+        </div>
+        <div className="mt-2 flex shrink-0 flex-col items-center gap-2">
+          <div className="h-1.75 w-36.75 shrink-0 rounded bg-surface-01" />
+          <p className="text-[1rem] leading-[1.4] text-ink-natural">
             완독하면 여기에 쌓여요
           </p>
-        )}
+        </div>
       </div>
     </div>
   );
