@@ -27,6 +27,14 @@ describe("GoalGradePyramid", () => {
     expect(inactiveRow.className).not.toContain("bg-[#E0DDF4]");
   });
 
+  test("비활성 행도 카드 배경과 구분되는 배경·테두리를 가진다(로컬 E2E #2 — 계단식 텍스트만 보이던 버그)", () => {
+    render(<GoalGradePyramid subjectLabel="국어군" grade={2.3} scaleMax={5} />);
+    const inactiveRow = screen.getByText("5등급");
+    expect(inactiveRow.className).toContain("bg-surface-muted");
+    expect(inactiveRow.className).toContain("border-border");
+    expect(inactiveRow.className).not.toContain("bg-goal-cardTone-neutral");
+  });
+
   test("2.5등급은 반올림 규칙(Math.round)에 따라 3등급 행을 강조한다", () => {
     render(<GoalGradePyramid subjectLabel="국어군" grade={2.5} scaleMax={5} />);
     expect(screen.getByText("3등급").className).toContain("bg-[#E0DDF4]");
