@@ -62,10 +62,14 @@ export default function EffortWorkbookRow({
   }, [book.title, book.currentPage]);
 
   const rate = computeAchievementRate(Number(currentPage) || 0, totalPages);
-  // "완독! 책장에 꽂기"는 달성률 표시값이 아니라 실제 페이지 비교로 판정한다 — 서버
-  // status(current >= total)와 같은 기준. 저장된 값(book.currentPage) 기준이라
-  // 입력 중인 미저장 숫자로는 버튼이 먼저 뜨지 않는다.
-  const isComplete = totalPages > 0 && (book.currentPage ?? 0) >= totalPages;
+  // "완독! 책장에 꽂기"는 달성률 표시값(내림)이 아니라 실제 페이지 비교로 판정한다 —
+  // 서버 status(current >= total)와 같은 기준. 입력 중인(아직 blur 안 한) 값도
+  // 포함해 마지막 쪽을 치는 순간 버튼이 뜬다; 저장은 handleShelve가 꽂기 전에 한다.
+  const typedCurrent = Math.min(
+    Math.max(Number(currentPage) || 0, 0),
+    totalPages,
+  );
+  const isComplete = totalPages > 0 && typedCurrent >= totalPages;
 
   function clampCurrentPage(raw: string) {
     if (raw === "") return "";
@@ -120,6 +124,12 @@ export default function EffortWorkbookRow({
     if (shelving) return;
     setShelving(true);
     try {
+      // 입력만 하고 blur 전에 바로 꽂기를 누른 경우 — 서버는 저장된 current_page로
+      // status를 판정하므로 미저장 페이지를 먼저 반영한 뒤 꽂는다.
+      if (typedCurrent !== (book.currentPage ?? 0)) {
+        const saved = await onUpdate(book.id, { currentPage: typedCurrent });
+        if (!saved) return;
+      }
       await onShelve(book.id);
     } finally {
       setShelving(false);

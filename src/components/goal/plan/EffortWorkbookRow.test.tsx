@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, test, vi } from "vitest";
 import EffortWorkbookRow from "./EffortWorkbookRow";
 
@@ -153,5 +153,36 @@ describe("EffortWorkbookRow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "삭제" }));
     expect(onDelete).toHaveBeenCalledWith(1);
+  });
+
+  test("blur 전이라도 입력값이 전체 페이지에 닿으면 완독 버튼이 뜨고, 꽂기 시 페이지를 먼저 저장한다", async () => {
+    const calls: string[] = [];
+    const onUpdate = vi.fn(async () => {
+      calls.push("update");
+      return true;
+    });
+    const onShelve = vi.fn(async () => {
+      calls.push("shelve");
+      return true;
+    });
+    render(
+      <EffortWorkbookRow
+        book={{ ...BOOK, currentPage: 239, totalPages: 240 }}
+        subject="korean"
+        onUpdate={onUpdate}
+        onDelete={vi.fn()}
+        onShelve={onShelve}
+      />,
+    );
+
+    expect(screen.queryByText("완독! 책장에 꽂기")).toBeNull();
+    fireEvent.change(screen.getByLabelText("현재 페이지"), {
+      target: { value: "240" },
+    });
+    fireEvent.click(screen.getByText("완독! 책장에 꽂기"));
+    await waitFor(() => expect(onShelve).toHaveBeenCalledWith(1));
+
+    expect(onUpdate).toHaveBeenCalledWith(1, { currentPage: 240 });
+    expect(calls).toEqual(["update", "shelve"]);
   });
 });
