@@ -73,8 +73,14 @@ export function isServerFailure(error: unknown): boolean {
 }
 
 type PhoneResetResult =
-  | { kind: "success"; tempPassword: string; maskedEmail: string }
+  | {
+      kind: "success";
+      tempPassword: string;
+      maskedEmail: string;
+      via: "phone" | "guardian_phone";
+    }
   | { kind: "not_found" }
+  | { kind: "multiple_accounts"; maskedEmails: string[]; message: string }
   | { kind: "error"; message: string };
 
 async function requestPhoneReset(phone: string): Promise<PhoneResetResult> {
@@ -85,6 +91,16 @@ async function requestPhoneReset(phone: string): Promise<PhoneResetResult> {
       body: JSON.stringify({ phone: normalizePhone(phone) }),
     });
     const payload = await response.json();
+
+    if (response.status === 409 && payload?.reason === "multiple_accounts") {
+      return {
+        kind: "multiple_accounts",
+        maskedEmails: Array.isArray(payload.masked_emails)
+          ? payload.masked_emails
+          : [],
+        message: payload.detail,
+      };
+    }
 
     if (!response.ok || !payload?.ok) {
       return {
@@ -101,6 +117,7 @@ async function requestPhoneReset(phone: string): Promise<PhoneResetResult> {
       kind: "success",
       tempPassword: payload.temp_password,
       maskedEmail: payload.masked_email,
+      via: payload.via === "guardian_phone" ? "guardian_phone" : "phone",
     };
   } catch {
     return {
@@ -248,7 +265,7 @@ export default function FindPassword() {
 
     lastPhoneAttempt.current = code;
 
-    verifyPhoneCode(phone, code).then((verifyResult) => {
+    verifyPhoneCode(phone, code, "reset_password").then((verifyResult) => {
       if (verifyResult.ok) {
         setPhoneVerified(true);
         setPhoneMessage({
@@ -406,6 +423,12 @@ export default function FindPassword() {
           {resetResult?.kind === "success" && (
             <div className="flex w-full flex-col gap-5">
               <InfoCard variant="card" className="text-center">
+                {resetResult.via === "guardian_phone" && (
+                  <>
+                    학부모 핸드폰으로 등록된 계정이에요.
+                    <br />
+                  </>
+                )}
                 {resetResult.maskedEmail} 계정의 임시비밀번호가 발급됐어요.
                 <br />
                 로그인 후 마이페이지 &gt; 내 정보 수정에서 비밀번호를 바꿔
@@ -443,6 +466,28 @@ export default function FindPassword() {
               <TextLinkButton as="link" to="/signup" tone="primary" size="md">
                 회원가입하러 가기
               </TextLinkButton>
+            </div>
+          )}
+
+          {resetResult?.kind === "multiple_accounts" && (
+            <div className="flex w-full flex-col gap-5">
+              <p role="alert" className="w-full text-center text-sm text-error">
+                {resetResult.message}
+              </p>
+
+              {resetResult.maskedEmails.length > 0 && (
+                <InfoCard variant="info">
+                  <ul className="flex flex-col gap-1">
+                    {resetResult.maskedEmails.map((maskedEmail) => (
+                      <li key={maskedEmail}>{maskedEmail}</li>
+                    ))}
+                  </ul>
+                </InfoCard>
+              )}
+
+              <PrimaryButton onClick={() => switchMethod("email")}>
+                이메일로 재설정하기
+              </PrimaryButton>
             </div>
           )}
 
