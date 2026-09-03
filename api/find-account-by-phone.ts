@@ -3,6 +3,16 @@
 // "아이디(이메일) 찾기" — 휴대폰 인증을 마친 사용자에게 그 번호로 가입된 계정의
 // 마스킹된 이메일을 보여준다. 원본 이메일은 응답 어디에도 담지 않는다.
 //
+// 조회 순서(2026-09-03) — 학생이 본인 명의 휴대폰이 없어 학부모 번호를
+// profiles.guardian_phone에 저장하는 경우를 지원한다. ① profiles.phone 매치를
+// 먼저 본다(기존 동작) — 있으면 그 결과만 쓴다. ② phone 매치가 하나도 없으면
+// guardian_phone 매치 전부를 본다(그 번호를 학부모 번호로 등록한 학생 계정이
+// 여러 명일 수 있다 — 형제자매). 응답의 masked_email(첫 건, 하위호환)과
+// masked_emails(전체 배열)는 항상 같은 소스(phone 우선, 없으면 guardian_phone)에서
+// 나온다 — 두 소스를 섞어 보여주면 "이 번호가 본인 번호로 가입돼 있다"는
+// 정보와 "이 번호를 학부모 번호로 등록한 계정이 있다"는 정보가 응답 하나에
+// 뒤섞여 오해를 준다.
+//
 // 인증 필수(로그인 아님, 휴대폰 인증)
 //   프론트가 /api/send-phone-code(purpose:'find_account') → /api/verify-phone-code로
 //   이 번호가 본인 것임을 이미 증명한 뒤에만 이 라우트를 호출한다. 여기서는 그 인증이
@@ -116,17 +126,38 @@ export default defineHandler({
 
       if (consumeError) throw consumeError;
 
-      const { data: profile, error: profileError } = await supabase
+      const hyphenated = toHyphenated(phone);
+
+      const { data: byPhone, error: byPhoneError } = await supabase
         .from("profiles")
         .select("email")
         .not("member_type", "is", null)
-        .or(`phone.eq.${phone},phone.eq.${toHyphenated(phone)}`)
-        .limit(1)
-        .maybeSingle();
+        .or(`phone.eq.${phone},phone.eq.${hyphenated}`);
 
-      if (profileError) throw profileError;
+      if (byPhoneError) throw byPhoneError;
 
-      if (!profile?.email) {
+      let matches = byPhone ?? [];
+      let via: "phone" | "guardian_phone" = "phone";
+
+      if (matches.length === 0) {
+        const { data: byGuardianPhone, error: byGuardianPhoneError } =
+          await supabase
+            .from("profiles")
+            .select("email")
+            .not("member_type", "is", null)
+            .or(`guardian_phone.eq.${phone},guardian_phone.eq.${hyphenated}`);
+
+        if (byGuardianPhoneError) throw byGuardianPhoneError;
+
+        matches = byGuardianPhone ?? [];
+        via = "guardian_phone";
+      }
+
+      const emails = matches
+        .map((row) => row.email)
+        .filter((email): email is string => Boolean(email));
+
+      if (emails.length === 0) {
         return void res.status(200).json({
           ok: true,
           found: false,
@@ -134,10 +165,14 @@ export default defineHandler({
         });
       }
 
+      const maskedEmails = emails.map(maskEmail);
+
       return void res.status(200).json({
         ok: true,
         found: true,
-        masked_email: maskEmail(profile.email),
+        masked_email: maskedEmails[0],
+        masked_emails: maskedEmails,
+        via,
       });
     } catch (error) {
       console.error("[find-account-by-phone] 오류:", error);
