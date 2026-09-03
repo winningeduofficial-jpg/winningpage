@@ -256,9 +256,10 @@ export default function FindAccount() {
               <p>해당 번호로 가입된 이메일이에요.</p>
             )}
             <ul className="mt-2 flex flex-col gap-1">
-              {result.maskedEmails.map((maskedEmail) => (
+              {result.maskedEmails.map((maskedEmail, index) => (
                 <li
-                  key={maskedEmail}
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 마스킹된 이메일이라 형제자매 계정끼리 동일 문자열일 수 있다 — 한 번의 조회 응답을 그대로 렌더하는 정적 목록이라 인덱스로 구분해도 안전하다.
+                  key={`${index}-${maskedEmail}`}
                   className="text-lg font-semibold text-ink-title"
                 >
                   {maskedEmail}

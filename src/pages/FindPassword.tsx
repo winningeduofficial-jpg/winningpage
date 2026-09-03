@@ -478,8 +478,9 @@ export default function FindPassword() {
               {resetResult.maskedEmails.length > 0 && (
                 <InfoCard variant="info">
                   <ul className="flex flex-col gap-1">
-                    {resetResult.maskedEmails.map((maskedEmail) => (
-                      <li key={maskedEmail}>{maskedEmail}</li>
+                    {resetResult.maskedEmails.map((maskedEmail, index) => (
+                      // biome-ignore lint/suspicious/noArrayIndexKey: 마스킹된 이메일이라 형제자매 계정끼리 동일 문자열일 수 있다 — 한 번의 조회 응답을 그대로 렌더하는 정적 목록이라 인덱스로 구분해도 안전하다.
+                      <li key={`${index}-${maskedEmail}`}>{maskedEmail}</li>
                     ))}
                   </ul>
                 </InfoCard>
