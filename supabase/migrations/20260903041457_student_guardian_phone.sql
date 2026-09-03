@@ -31,11 +31,15 @@ update public.profiles
 set phone = null
 where phone = '';
 
--- ── 2. phone_verifications.purpose에 guardian_signup 추가 ──────────
--- 14세 이상 학생이 본인 번호 없이 학부모 번호로 가입할 때, 그 번호가 실제로 인증된
--- 것인지 확인하는 목적이다. 20260822000003(find_account)·20260902121935
--- (reset_password)와 같은 이유로 CHECK 허용 목록에 추가해야 insert가 통과한다.
--- api/send-phone-code.ts의 ALLOWED_PURPOSES 등록은 별도 작업(API 레이어) 몫이다.
+-- ── 2. phone_verifications.purpose에 guardian_signup·guardian_change 추가 ──
+-- guardian_signup: 14세 이상 학생이 본인 번호 없이 학부모 번호로 가입할 때, 그
+-- 번호가 실제로 인증된 것인지 확인하는 목적이다. api/send-phone-code.ts의
+-- ALLOWED_PURPOSES 등록은 T2가 이미 완료했다(9fc55a52, 90d1e2d8).
+-- guardian_change: 마이페이지에서 학부모 핸드폰을 변경할 때 쓰는 목적이다. T2가
+-- api/change-phone.ts·send-phone-code.ts에서 이미 이 purpose로 발송·소비하고
+-- 있어 CHECK 허용 목록에 없으면 발송 insert 자체가 실패한다.
+-- 20260822000003(find_account)·20260902121935(reset_password)와 같은 이유로
+-- CHECK 허용 목록에 추가해야 insert가 통과한다.
 alter table public.phone_verifications
   drop constraint "phone_verifications_purpose_check";
 
@@ -48,7 +52,8 @@ alter table public.phone_verifications
     'mentor_apply'::"text",
     'find_account'::"text",
     'reset_password'::"text",
-    'guardian_signup'::"text"
+    'guardian_signup'::"text",
+    'guardian_change'::"text"
   ])));
 
 -- ── 3. complete_signup_profile RPC 재정의 ───────────────────────────
