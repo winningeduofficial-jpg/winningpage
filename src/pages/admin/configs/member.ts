@@ -88,6 +88,10 @@ export const memberConfigs: Record<string, MemberConfig> = {
       { key: "member_type", label: "가입 유형" },
       { key: "email", label: "이메일" },
       { key: "phone", label: "전화번호", type: "maskedPhone" },
+      // 학부모 핸드폰 — 학생 계정의 연락·복구 채널로 승격된 값(2026-09-03). 값이
+      // 없는 회원이 대부분이라 formatValue가 "-"로 채운다(전화번호 컬럼과 같은
+      // maskedPhone 마스킹 규칙을 따른다).
+      { key: "guardian_phone", label: "학부모 핸드폰", type: "maskedPhone" },
       // 회원구분 — dev 에서 QA 186 으로 추가된 관리자 전용 컬럼(20260822000011).
       // 회원은 못 보고 관리자만 본다. 값은 고정 목록이 아니라 자유 텍스트다
       // (일반회원 / OO학교 / OO기관 / OO캠퍼스 / OO기업 / 기타).
