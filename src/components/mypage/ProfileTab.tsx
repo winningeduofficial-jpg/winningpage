@@ -100,6 +100,7 @@ type Profile = Partial<
     | "name"
     | "email"
     | "phone"
+    | "guardian_phone"
     | "school_type"
     | "school_name"
     | "birth_date"
@@ -139,6 +140,7 @@ export default function ProfileTab({
     name: profile?.name || "",
     email: profile?.email || user?.email || "",
     phone: profile?.phone || "",
+    guardian_phone: profile?.guardian_phone || "",
     school_type: profile?.school_type || "",
     school_name: profile?.school_name || "",
     birth_date: profile?.birth_date || "",
@@ -154,6 +156,9 @@ export default function ProfileTab({
   const [emailOpen, setEmailOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  // 학부모 핸드폰(guardian_phone) 변경 모달 — 학생이 본인 명의 휴대폰이 없어
+  // 학부모 번호를 저장한 계정에만 노출된다(아래 렌더 조건 참고).
+  const [guardianPhoneOpen, setGuardianPhoneOpen] = useState(false);
   const [orgCodeOpen, setOrgCodeOpen] = useState(false);
 
   // 학교·학년 인라인 편집.
@@ -186,7 +191,7 @@ export default function ProfileTab({
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "name, email, phone, school_type, school_name, birth_date, gender, org_code, marketing_agreed, ads_agreed",
+          "name, email, phone, guardian_phone, school_type, school_name, birth_date, gender, org_code, marketing_agreed, ads_agreed",
         )
         .eq("id", profileId)
         .maybeSingle();
@@ -198,6 +203,7 @@ export default function ProfileTab({
         name: data.name ?? prev.name,
         email: data.email ?? prev.email,
         phone: data.phone ?? prev.phone,
+        guardian_phone: data.guardian_phone ?? prev.guardian_phone,
         school_type: data.school_type ?? prev.school_type,
         school_name: data.school_name ?? prev.school_name,
         birth_date: data.birth_date ?? prev.birth_date,
@@ -528,6 +534,22 @@ export default function ProfileTab({
         className="mb-5"
       />
 
+      {/* 학부모 핸드폰 — 학생이 본인 명의 휴대폰이 없어(14세 미만 전원 + 14세
+          이상 무폰 학생) profiles.guardian_phone에 학부모 번호가 대신 저장된
+          계정에만 노출한다. 이 번호가 아이디 찾기·비밀번호 재설정 채널이 된다.
+          값이 없으면 행 자체를 렌더하지 않는다(폴백 문구 금지). 기존 휴대폰
+          번호 행과 같은 컴포넌트·같은 스타일로, 그 바로 아래에 둔다. */}
+      {form.guardian_phone && (
+        <ProfileField
+          label="학부모 핸드폰"
+          value={form.guardian_phone || "-"}
+          readOnly
+          actionLabel="변경"
+          onAction={() => setGuardianPhoneOpen(true)}
+          className="mb-5"
+        />
+      )}
+
       {/* 이메일 — 변경 플로우(인증 메일 등) 백엔드 미구현. */}
       <ProfileField
         label="이메일"
@@ -644,6 +666,17 @@ export default function ProfileTab({
         onClose={() => setPhoneOpen(false)}
         onChanged={(phone) => {
           updateForm("phone", phone);
+          window.dispatchEvent(new Event("winning-profile-updated"));
+        }}
+      />
+
+      <ChangePhoneModal
+        open={guardianPhoneOpen}
+        target="guardian"
+        currentPhone={form.guardian_phone}
+        onClose={() => setGuardianPhoneOpen(false)}
+        onChanged={(phone) => {
+          updateForm("guardian_phone", phone);
           window.dispatchEvent(new Event("winning-profile-updated"));
         }}
       />
