@@ -29,6 +29,7 @@ const MESSAGES: Record<string, string> = {
   code_not_found: "인증번호를 먼저 요청해 주세요.",
   code_expired: "인증번호가 만료되었습니다. 다시 요청해 주세요.",
   code_mismatch: "인증번호가 일치하지 않습니다.",
+  purpose_mismatch: "인증번호를 먼저 요청해 주세요.",
   too_many_attempts: "시도 횟수를 초과했습니다. 인증번호를 다시 요청해 주세요.",
   send_failed: "인증번호 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
   network: "연결 상태를 확인한 뒤 다시 시도해 주세요.",
@@ -82,10 +83,24 @@ export type VerifyPhoneCodeResult =
   | { ok: true }
   | { ok: false; reason: string; message: string; remainingAttempts?: number };
 
-/** 인증번호를 발송한다. */
+/**
+ * 인증번호를 발송한다.
+ *
+ * guardian_signup/guardian_change(2026-09-03)는 학생이 본인 명의 휴대폰이 없어
+ * profiles.guardian_phone에 저장하는 학부모 번호 인증 경로다 — api/send-phone-code.ts
+ * ALLOWED_PURPOSES와 동일한 값이어야 한다.
+ */
 export async function sendPhoneCode(
   phone: unknown,
-  purpose = "parent_signup",
+  purpose:
+    | "signup"
+    | "parent_signup"
+    | "phone_change"
+    | "mentor_apply"
+    | "find_account"
+    | "reset_password"
+    | "guardian_signup"
+    | "guardian_change" = "parent_signup",
 ): Promise<SendPhoneCodeResult> {
   const normalized = normalizePhone(phone);
 
@@ -128,10 +143,18 @@ export async function sendPhoneCode(
   };
 }
 
-/** 인증번호를 검증한다. 판정은 서버가 한다. */
+/**
+ * 인증번호를 검증한다. 판정은 서버가 한다.
+ *
+ * purpose(선택, 2026-09-03) — 넘기면 서버가 대상 인증 행의 purpose와 일치하는지
+ * 함께 확인한다(api/verify-phone-code.ts). 같은 번호로 목적이 다른 인증이 동시에
+ * 진행 중일 때(예: 본인 번호 변경 중 학부모 번호도 바꾸는 경우) 엉뚱한 코드로
+ * 통과되는 것을 막는다. 생략하면 기존 동작 그대로다 — 기존 호출부는 고칠 필요 없다.
+ */
 export async function verifyPhoneCode(
   phone: unknown,
   code: unknown,
+  purpose?: string,
 ): Promise<VerifyPhoneCodeResult> {
   const normalized = normalizePhone(phone);
   const trimmed = String(code || "").trim();
@@ -139,6 +162,7 @@ export async function verifyPhoneCode(
   const { response, payload } = await postJson("/api/verify-phone-code", {
     phone: normalized,
     code: trimmed,
+    ...(purpose ? { purpose } : {}),
   });
 
   if (!response)
