@@ -26,6 +26,17 @@ function renderModal() {
   );
 }
 
+async function passAuthStep() {
+  fireEvent.change(
+    screen.getByPlaceholderText("본인 확인을 위해 비밀번호를 입력해주세요"),
+    { target: { value: "correct-password" } },
+  );
+  fireEvent.click(screen.getByRole("button", { name: "확인" }));
+  await waitFor(() =>
+    expect(screen.queryByText("본인 확인이 필요해요")).not.toBeInTheDocument(),
+  );
+}
+
 describe("ChangePhoneModal — 본인 확인 게이트(QA 행240)", () => {
   beforeEach(() => {
     mockGetSession.mockReset();
@@ -87,5 +98,78 @@ describe("ChangePhoneModal — 본인 확인 게이트(QA 행240)", () => {
       email: "student@example.com",
       password: "correct-password",
     });
+  });
+});
+
+// 학부모 핸드폰(target="guardian", 2026-09-03) — 자기 번호(target 기본값)와
+// 같은 4단계 흐름을 타되 문구·purpose·change-phone 요청 body가 갈린다.
+describe("ChangePhoneModal — 학부모 핸드폰 타겟(target='guardian')", () => {
+  beforeEach(() => {
+    mockGetSession.mockReset();
+    mockSignInWithPassword.mockReset();
+    mockGetSession.mockResolvedValue({
+      data: { session: { user: { email: "student@example.com" } } },
+    });
+    mockSignInWithPassword.mockResolvedValue({ error: null });
+  });
+
+  it("타이틀·라벨이 학부모 핸드폰으로 바뀐다", async () => {
+    render(
+      <ChangePhoneModal
+        open
+        target="guardian"
+        currentPhone="01099998888"
+        onClose={() => {}}
+      />,
+    );
+
+    await passAuthStep();
+
+    expect(screen.getByText("학부모 핸드폰을 변경해요")).toBeInTheDocument();
+    expect(screen.getByText("현재 학부모 핸드폰")).toBeInTheDocument();
+    expect(screen.getByText("새 학부모 핸드폰")).toBeInTheDocument();
+    expect(
+      screen.queryByText("휴대폰 번호를 변경해요"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("인증번호 발송 요청이 purpose:'guardian_change'로 전송된다", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        expiresIn: 180,
+        cooldown: 60,
+        dryRun: false,
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <ChangePhoneModal
+        open
+        target="guardian"
+        currentPhone="01099998888"
+        onClose={() => {}}
+      />,
+    );
+
+    await passAuthStep();
+
+    fireEvent.change(screen.getByPlaceholderText("010-0000-0000"), {
+      target: { value: "01055556666" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "인증번호 보내기" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    const call = fetchMock.mock.calls[0];
+    if (!call) throw new Error("fetch가 호출되지 않았어요.");
+    const [url, options] = call;
+    expect(url).toBe("/api/send-phone-code");
+    expect(JSON.parse(options.body)).toMatchObject({
+      purpose: "guardian_change",
+    });
+
+    vi.unstubAllGlobals();
   });
 });

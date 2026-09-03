@@ -44,6 +44,9 @@ type CallbackPayload = {
   is_under14?: string;
   age?: string | number | null;
   reason?: string;
+  // 법정대리인(학부모) 휴대폰 번호 프리필용 — mobile만 예외로 원문 값을 싣는다
+  // (api/nice-identity-callback.ts 참고). 없으면 빈 문자열.
+  mobile?: string;
 };
 
 /** 보조 채널에 남은 결과를 꺼내 온다. 읽는 즉시 지운다(한 번만 소비). */
@@ -103,6 +106,9 @@ export type IdentityVerificationResult =
       requestId: string;
       isUnder14: boolean | null;
       age: number | null;
+      // 콜백이 함께 실어 보낸 PASS 휴대폰 번호(숫자만). 없으면 빈 문자열 —
+      // Under14Form이 fetchIdentityMobile로 다시 조회해야 한다는 신호다.
+      mobile: string;
     }
   | IdentityFailResult;
 
@@ -177,6 +183,7 @@ function waitForResult(
           // 콜백은 문자열로 실어 보낸다("true"/"false"/""). 판정 불가는 null로 둔다.
           isUnder14: data.is_under14 === "" ? null : data.is_under14 === "true",
           age: data.age === "" || data.age == null ? null : Number(data.age),
+          mobile: data.mobile || "",
         };
       }
       return fail(data.reason || "unknown");
@@ -262,4 +269,28 @@ export async function runIdentityVerification({
   if (result.ok && !result.requestId) result.requestId = started.requestId;
 
   return result;
+}
+
+/**
+ * 콜백의 postMessage/보조 채널을 놓쳤을 때(새로고침·복귀) DB에서 PASS 휴대폰
+ * 번호를 다시 조회한다(흐름 B — api/nice-identity-result.ts). 실패하면 조용히
+ * 빈 문자열을 돌려준다 — 이 값이 없어도 사용자는 기존처럼 직접 입력할 수 있다.
+ */
+export async function fetchIdentityMobile(requestId: string): Promise<string> {
+  if (!requestId) return "";
+
+  try {
+    const response = await apiFetch("/api/nice-identity-result", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId }),
+    });
+
+    if (!response.ok) return "";
+
+    const payload = await response.json();
+    return payload?.ok ? String(payload.mobile || "") : "";
+  } catch {
+    return "";
+  }
 }

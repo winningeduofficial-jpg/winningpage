@@ -20,6 +20,16 @@
 //   목록을 보여주고 고르게 하는 흐름은 이 화면(임시비밀번호 1회 노출)에는
 //   과하다고 판단해, 그 번호로 가장 먼저 가입한(= created_at 오름차순 1위)
 //   계정 하나만 재설정한다. 어느 계정인지는 응답의 masked_email로 알려준다.
+//
+// guardian_phone 경로(2026-09-03)
+//   ① profiles.phone 매치를 먼저 본다(기존 동작) — 있으면 그 결과만 쓴다.
+//   ② phone 매치가 없으면 guardian_phone 매치를 본다(학생이 본인 명의
+//   휴대폰이 없어 학부모 번호로 가입한 경우). 이때는 "가장 오래된 것 하나"를
+//   임의로 골라 비밀번호를 바꾸지 않는다 — 형제자매가 같은 학부모 번호로
+//   가입해 있을 수 있는데, 그중 한 명이 다른 형제의 비밀번호를 자기 명의
+//   인증만으로 바꿀 수 있게 되면 계정 탈취가 된다. guardian_phone 매치가
+//   정확히 1건일 때만 진행하고, 2건 이상이면 발급 없이 409로 이메일 재설정을
+//   안내한다.
 
 import crypto from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -123,7 +133,7 @@ type MatchedAccount = { id: string; email: string };
  * find-account-by-phone.ts의 조회 조건(member_type 존재, 두 표기 대조)과
  * 동일하되, 여러 건일 때의 우선순위(created_at 오름차순)만 추가한다.
  */
-async function findOldestAccount(
+async function findOldestAccountByPhone(
   supabase: SupabaseClient,
   phone: string,
 ): Promise<MatchedAccount | null> {
@@ -139,6 +149,64 @@ async function findOldestAccount(
   if (error) throw error;
   if (!data?.email) return null;
   return { id: data.id, email: data.email };
+}
+
+/**
+ * 이 번호를 guardian_phone으로 등록한 계정을 전부 찾는다(2026-09-03).
+ * 학생이 본인 명의 휴대폰이 없어 학부모 번호로 가입한 경우를 위한 경로다.
+ * 형제자매가 같은 학부모 번호로 각자 가입해 있을 수 있어 "가장 오래된 것"을
+ * 임의로 고르지 않고 전부 반환한다 — 정확히 1건일 때만 핸들러가 진행한다.
+ */
+async function findAccountsByGuardianPhone(
+  supabase: SupabaseClient,
+  phone: string,
+): Promise<MatchedAccount[]> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, email")
+    .not("member_type", "is", null)
+    .or(`guardian_phone.eq.${phone},guardian_phone.eq.${toHyphenated(phone)}`);
+
+  if (error) throw error;
+  return (data ?? []).filter((row): row is MatchedAccount =>
+    Boolean(row.email),
+  );
+}
+
+export type ResetTarget =
+  | { kind: "none" }
+  | { kind: "multiple"; accounts: MatchedAccount[] }
+  | {
+      kind: "single";
+      account: MatchedAccount;
+      via: "phone" | "guardian_phone";
+    };
+
+/**
+ * phone/guardian_phone 두 조회 결과를 보고 이 요청을 어떻게 처리할지 정한다.
+ * I/O가 없는 순수 함수라 로컬에서 바로 검증할 수 있다(이 파일의 다른 헬퍼와
+ * 동일 방침 — 상단 주석 참고).
+ *
+ * phone 매치가 있으면 그것으로 확정한다(guardian_phone은 보지도 않는다).
+ * phone 매치가 없고 guardian_phone 매치가 2건 이상이면 "multiple" —
+ * 형제자매가 같은 학부모 번호로 가입해 있을 수 있어 임의로 하나를 고르면
+ * 계정 탈취가 된다.
+ */
+export function resolveResetTarget(
+  phoneAccount: MatchedAccount | null,
+  guardianAccounts: MatchedAccount[],
+): ResetTarget {
+  if (phoneAccount)
+    return { kind: "single", account: phoneAccount, via: "phone" };
+  if (guardianAccounts.length > 1)
+    return { kind: "multiple", accounts: guardianAccounts };
+  if (guardianAccounts.length === 1)
+    return {
+      kind: "single",
+      account: guardianAccounts[0]!,
+      via: "guardian_phone",
+    };
+  return { kind: "none" };
 }
 
 export default defineHandler({
@@ -189,25 +257,36 @@ export default defineHandler({
         });
       }
 
-      // 계정 조회·재설정 전에 바로 소비 처리한다 — 아래에서 실패하더라도
-      // 같은 인증으로 반복 시도하게 두는 것보다, 새로 인증받게 하는 쪽이
-      // 안전하다(find-account-by-phone.ts와 동일 방침).
-      const { error: consumeError } = await supabase
-        .from("phone_verifications")
-        .update({ consumed_at: new Date().toISOString() })
-        .eq("id", verification.id);
+      // 소비(consumed_at)는 실제 재설정이 성공한 뒤에만 찍는다(2026-09-03,
+      // 아래로 이동) — guardian_phone 다중 매치로 409를 돌려줄 때도 이
+      // 인증을 태워버리면 사용자가 이메일 재설정으로 안내받은 뒤에도 다시
+      // SMS 인증부터 반복해야 한다. 계정을 찾지 못했을 때(found:false)도
+      // 마찬가지로 소비하지 않는다 — 재설정이 실제로 일어나지 않았다.
+      const phoneAccount = await findOldestAccountByPhone(supabase, phone);
+      const guardianAccounts = phoneAccount
+        ? []
+        : await findAccountsByGuardianPhone(supabase, phone);
+      const target = resolveResetTarget(phoneAccount, guardianAccounts);
 
-      if (consumeError) throw consumeError;
+      if (target.kind === "multiple") {
+        return void res.status(409).json({
+          ok: false,
+          reason: "multiple_accounts",
+          masked_emails: target.accounts.map((m) => maskEmail(m.email)),
+          detail:
+            "학부모 번호로 여러 계정이 등록돼 있습니다. 이메일로 비밀번호를 재설정해 주세요.",
+        });
+      }
 
-      const account = await findOldestAccount(supabase, phone);
-
-      if (!account) {
+      if (target.kind === "none") {
         return void res.status(200).json({
           ok: true,
           found: false,
           detail: "해당 번호로 등록된 계정이 없습니다.",
         });
       }
+
+      const { account, via } = target;
 
       const tempPassword = generateTempPassword();
 
@@ -228,6 +307,21 @@ export default defineHandler({
         });
       }
 
+      // 재설정이 실제로 성공했다 — 이제 인증을 소비 처리한다. 여기서 실패해도
+      // 비밀번호는 이미 바뀌었으므로 사용자에게는 성공으로 응답한다
+      // (change-phone.ts의 동일 방침과 같다).
+      const { error: consumeError } = await supabase
+        .from("phone_verifications")
+        .update({ consumed_at: new Date().toISOString() })
+        .eq("id", verification.id);
+
+      if (consumeError) {
+        console.error(
+          "[reset-password-by-phone] phone_verifications 소비 마킹 실패:",
+          consumeError,
+        );
+      }
+
       // 기존 로그인 세션 강제 로그아웃 — 시도하지 않는다.
       // supabase-js(@supabase/supabase-js@2.110.0/@supabase/auth-js)의
       // admin.signOut(jwt, scope)은 "특정 세션의 access token(jwt)"을 받아
@@ -242,6 +336,7 @@ export default defineHandler({
         found: true,
         temp_password: tempPassword,
         masked_email: maskEmail(account.email),
+        via,
       });
     } catch (error) {
       console.error("[reset-password-by-phone] 오류:", error);
