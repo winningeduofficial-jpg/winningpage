@@ -213,6 +213,20 @@ begin
 
   v_guardian_phone_digits := regexp_replace(v_guardian_phone, '[^0-9]', '', 'g');
 
+  -- 표기 정규화 — profiles.phone은 사용자가 입력한 형식(예: 010-1234-5678)을 그대로
+  -- 저장하는 관행이라, guardian_phone도 저장 직전에 같은 하이픈 형식으로 맞춘다. PASS
+  -- mobile_no(하이픈 없는 숫자열)와 폼 입력값(하이픈 유무가 제각각) 둘 다 위에서 이미
+  -- v_guardian_phone에 합쳐졌으므로 여기 한 곳에서만 처리하면 된다. 인증 조회·중복
+  -- 비교는 계속 v_guardian_phone_digits(숫자만)를 쓴다.
+  v_guardian_phone := case
+    when v_guardian_phone_digits = '' then ''
+    when length(v_guardian_phone_digits) = 11 then
+      substr(v_guardian_phone_digits, 1, 3) || '-' || substr(v_guardian_phone_digits, 4, 4) || '-' || substr(v_guardian_phone_digits, 8, 4)
+    when length(v_guardian_phone_digits) = 10 then
+      substr(v_guardian_phone_digits, 1, 3) || '-' || substr(v_guardian_phone_digits, 4, 3) || '-' || substr(v_guardian_phone_digits, 7, 4)
+    else v_guardian_phone
+  end;
+
   if v_under14 then
     if v_guardian_phone = '' then
       raise exception 'guardian_phone_required';
