@@ -27,23 +27,30 @@ import { supabase } from "./supabase";
 
 type QueryResult<T> = { data: T[]; error: unknown };
 
+// admission_result_university_index/admission_result_department_index는 집계
+// 뷰라 생성 타입이 group by 대상 컬럼도 nullable로 낸다(실질적으로는 항상 값이
+// 있지만 뷰 정의만으로는 NOT NULL을 보장 못 한다) — 실제 쿼리 결과와 맞춰 null을
+// 허용한다.
 type UniversityIndexRow = {
-  university_key: string;
-  university_name: string;
-  dept_count: number;
+  university_key: string | null;
+  university_name: string | null;
+  dept_count: number | null;
 };
 
 type DepartmentIndexRow = {
-  department_key: string;
-  department_name: string;
+  department_key: string | null;
+  department_name: string | null;
   tracks: string[] | null;
 };
 
 type TrendingDepartmentRow = {
   university_name: string;
   department_name: string;
-  university_key: string;
-  department_key: string;
+  // trending_departments 뷰(관리자 큐레이션)는 university_key/department_key만
+  // 조인 대상 소스가 없을 때 null이 될 수 있다(university_name/department_name은
+  // 뷰가 직접 채워 NOT NULL).
+  university_key: string | null;
+  department_key: string | null;
   logo_url: string | null;
 };
 

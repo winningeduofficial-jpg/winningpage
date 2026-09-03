@@ -45,6 +45,20 @@ const ALLOWED_PURPOSES = [
   // 이 purpose로 인증된 요청만 받는다. 계정이 '있어야' 정상 시나리오라
   // SIGNUP_PURPOSES에는 넣지 않는다(중복 번호 차단 대상 아님).
   "find_account",
+  // 비밀번호 찾기의 휴대폰 인증 경로(QA 시트 147·209행, 2026-09-02) —
+  // /api/reset-password-by-phone이 이 purpose로 인증된 요청만 받는다.
+  // find_account와 같은 이유로 SIGNUP_PURPOSES에 넣지 않는다.
+  "reset_password",
+  // 학생이 본인 명의 휴대폰이 없어 학부모 번호를 profiles.guardian_phone에
+  // 저장하는 가입 경로(2026-09-03) — 학부모 번호도 SMS 인증한다. 학부모 본인은
+  // 이미 다른 계정으로 가입돼 있을 수 있는 게 정상 시나리오라 SIGNUP_PURPOSES에는
+  // 넣지 않는다(phone_taken 중복 차단 대상이 아니다 — find_account/reset_password와
+  // 같은 이유).
+  "guardian_signup",
+  // 마이페이지에서 학부모 번호(guardian_phone)를 바꾸는 경로(2026-09-03) —
+  // phone_change와 동일하게 로그인한 본인의 기존 학부모 번호가 자기 자신과
+  // 중복으로 잡힐 수 있어 SIGNUP_PURPOSES에 넣지 않는다.
+  "guardian_change",
 ];
 
 // 가입 목적의 발송만 중복 번호를 막는다. 'phone_change'는 로그인한 본인의 번호가

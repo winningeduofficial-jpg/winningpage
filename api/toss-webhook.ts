@@ -36,6 +36,7 @@
 //     orders_approval_before_payment_check 의 API 층 선반영).
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { Json } from "../src/types/database.types.js";
 import {
   type GrantProgramAccessResult,
   grantProgramAccessForOrder,
@@ -62,6 +63,17 @@ type TossPayment = {
 
 function clean(value: unknown) {
   return String(value || "").trim();
+}
+
+// orders.raw는 jsonb라 생성 타입은 Json(스칼라 포함)이지만, 이 라우트가 그
+// 컬럼에 쓰는 값은 항상 토스 응답 객체나 그 파생 객체다(옆 주석들 참고).
+// 읽을 때만 객체 모양으로 좁혀서 임의 키 접근을 허용한다 — 값이 실제로
+// 배열/스칼라/null이면 빈 객체로 취급해 호출부가 항상 안전하게 인덱싱한다.
+function asJsonRecord(value: Json | null | undefined): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
 }
 
 // 토스 결제 status → orders.status
@@ -120,14 +132,15 @@ async function recordGrantOutcome(
     access,
   }: {
     orderId: string;
-    raw: Record<string, unknown> | null | undefined;
+    raw: Json | null | undefined;
     access: { ok: boolean; error?: unknown };
   },
 ) {
-  const had = Object.hasOwn(raw || {}, "access_grant_error");
+  const rawRecord = asJsonRecord(raw);
+  const had = Object.hasOwn(rawRecord, "access_grant_error");
   if (access.ok && !had) return;
 
-  const nextRaw = { ...(raw || {}) };
+  const nextRaw: Record<string, unknown> = { ...rawRecord };
   if (access.ok) {
     delete nextRaw.access_grant_error;
     nextRaw.access_grant_recovered_at = new Date().toISOString();
@@ -140,7 +153,10 @@ async function recordGrantOutcome(
 
   const { error } = await supabaseAdmin
     .from("orders")
-    .update({ raw: nextRaw })
+    // nextRaw는 문자열·Date ISO·access.error(항상 string|null, programAccess.ts
+    // GrantProgramAccessResult/RevokeProgramAccessResult 참고)로만 구성돼
+    // JSON-safe하다 — Json 인덱스 시그니처와 구조적으로만 안 맞아 캐스트한다.
+    .update({ raw: nextRaw as Json })
     .eq("id", orderId);
   if (error)
     console.error("orders.raw grant marker update failed:", orderId, error);
@@ -213,7 +229,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // 레거시 가상계좌 웹훅의 secret 대조. 승인 응답에 secret 이 있었던 주문만 검사한다.
-    const storedSecret = clean(order.raw?.secret);
+    const storedSecret = clean(asJsonRecord(order.raw).secret);
     if (storedSecret && claimedSecret && storedSecret !== claimedSecret) {
       return res.status(200).json({ ignored: true, reason: "secret 불일치" });
     }
@@ -287,19 +303,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // 갱신했다 — approval/refunded 는 이미 위에서 걸렀다).
       paidAt = payment.approvedAt ?? new Date().toISOString();
 
-      const { data: finalizeResult, error: finalizeError } =
-        await supabaseAdmin.rpc("fn_finalize_paid_order", {
+      const { data: rpcResult, error: finalizeError } = await supabaseAdmin.rpc(
+        "fn_finalize_paid_order",
+        {
           p_order_id: orderId,
           p_status: "paid",
-          p_payment_key: null,
-          p_method: payment.method ?? null,
+          // p_payment_key/p_method: SQL 함수 시그니처(20260821000000_baseline.sql
+          // fn_finalize_paid_order)에 DEFAULT가 없어 두 인자 다 생성 타입이
+          // "string"(널 불가)으로 나오지만, Postgres 함수 인자는 NOT NULL을
+          // 선언할 수 없어 null 전달 자체는 유효하다. 본문이 payment_key는
+          // `coalesce(p_payment_key, payment_key)`로, method는 컬럼이 nullable이라
+          // 직접 대입으로 null을 안전하게 받는다 — 생성 타입의 표현 한계다.
+          p_payment_key: null as unknown as string,
+          p_method: (payment.method ?? null) as unknown as string,
           p_paid_at: paidAt,
-          p_raw: payment,
-          p_confirm_amount: null,
+          // TossPayment는 이 라우트가 실제로 읽는 필드만 담은 로컬 타입이라
+          // Json 인덱스 시그니처와 구조적으로 안 맞을 뿐, 값은 벤더 JSON
+          // 응답 그대로라 jsonb 컬럼에 그대로 저장해도 안전하다.
+          p_raw: payment as unknown as Json,
+          // p_confirm_amount는 DEFAULT NULL::numeric이라 생략해도 결과가
+          // 같다(명시적 null과 동일하게 NULL로 남는다) — 키를 생략해 옵셔널
+          // 타입(number | undefined)과 자연스럽게 맞춘다.
           p_require_pending_or_failed: false,
           // 새 입금이 확인된 전이만 회수된 권한을 되살릴 수 있다.
           p_restore_revoked: true,
-        });
+        },
+      );
+      const finalizeResult = rpcResult as {
+        ok: boolean;
+        error?: string;
+        access?: GrantProgramAccessResult;
+      } | null;
 
       if (finalizeError) {
         if (isPermanentDbError(finalizeError)) {
@@ -327,7 +361,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .json({ error: "주문 확정 실패", detail: finalizeResult });
       }
 
-      access = (finalizeResult as { access: GrantProgramAccessResult }).access;
+      access = finalizeResult.access as GrantProgramAccessResult;
       if (!access.ok) {
         console.error(
           "program_access grant failed (webhook):",
@@ -337,7 +371,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       await recordGrantOutcome(supabaseAdmin, {
         orderId,
-        raw: payment,
+        raw: payment as unknown as Json,
         access,
       });
     } else {
@@ -347,7 +381,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const patch = {
           status: nextStatus,
           method: payment.method ?? null,
-          raw: payment,
+          // TossPayment → Json: 위 fn_finalize_paid_order 호출부 주석과 동일한
+          // 이유(로컬 벤더 응답 타입이 Json 인덱스 시그니처와 구조적으로만 불일치).
+          raw: payment as unknown as Json,
         };
 
         const { error: updateError } = await supabaseAdmin

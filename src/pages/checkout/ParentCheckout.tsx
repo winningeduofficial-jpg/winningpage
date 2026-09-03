@@ -12,6 +12,7 @@ import checkboxUnselected from "@/assets/checkout/checkbox-24.svg";
 import checkboxSelected from "@/assets/checkout/checkbox-24-selected.svg";
 import sectionArrow from "@/assets/checkout/section-arrow-38.svg";
 import ConfirmModal from "@/components/checkout/ConfirmModal";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatKRW } from "@/data/pricingCatalog";
 import { useTermsDocs } from "@/hooks/useTermsDocs";
 import {
@@ -114,6 +115,15 @@ const MISSING_ORDER_ITEM_TEXT =
   "신청 상품이 변경되어 결제를 진행할 수 없어요. 자녀에게 다시 신청을 요청해 주세요.";
 const ALREADY_PROCESSED_TEXT = "이미 처리된 결제 요청입니다.";
 const NOT_PARENT_TEXT = "학부모 본인만 진행할 수 있는 결제 요청이에요.";
+// 상품 변경 시 쿠폰 안내 — 2026-09-02 승인(QA 시트 338행). 상품을 바꾼 경로
+// (hasChanged)는 새 주문이 쿠폰을 받지 않는다(fn_parent_create_enrollment
+// 주석 — "coupon_id NULL, 범위 밖"). 지금까지는 이 경로에서 쿠폰 섹션이
+// 아무 설명 없이 통째로 사라져(org 한정 상품 배너·isResume 배너 조건 모두
+// hasChanged=false 를 요구) 학부모가 "쿠폰 적용이 안 된다"는 버그로
+// 오인했다(QA 재현: 학부모가 학생이 신청한 것과 다른 상품을 골라도
+// 재현됨). org 한정 상품 배너와 같은 자리·같은 스타일로 사유를 설명한다.
+const PRODUCT_CHANGED_NO_COUPON_TEXT =
+  "신청한 상품을 변경하면 쿠폰을 적용할 수 없어요. 쿠폰을 사용하려면 처음 신청한 상품 그대로 결제해 주세요.";
 // 고정 계약 상수 목록의 승인된 재사용 문구 — 신규 아님.
 const GENERIC_FAIL_TEXT = "결제요청에 실패했습니다.";
 
@@ -275,9 +285,9 @@ function AgreementCheckRow({
         </button>
       </div>
       {expanded && (
-        <div className="max-h-60 overflow-y-auto whitespace-pre-line break-keep border-t border-line px-4 py-3 text-[0.75rem] leading-relaxed text-ink-sub">
+        <ScrollArea className="max-h-60 whitespace-pre-line break-keep border-t border-line px-4 py-3 text-[0.75rem] leading-relaxed text-ink-sub">
           {body}
-        </div>
+        </ScrollArea>
       )}
     </div>
   );
@@ -571,7 +581,12 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
       // 넘기지 않으면 이 축이 평가되지 않는다 — 반드시 넘겨야 배선된다).
       const { data, error } = await supabase.rpc("fn_usable_coupons", {
         p_subtotal: order.amount,
-        p_student_profile_id: order.student_profile_id,
+        // p_student_profile_id는 optional 인자다. exactOptionalPropertyTypes
+        // 하에서는 명시적 null도 금지라 값이 있을 때만 키를 스프레드한다
+        // (order.student_profile_id가 null이면 생략 — 인자 미전달과 동일).
+        ...(order.student_profile_id
+          ? { p_student_profile_id: order.student_profile_id }
+          : {}),
         p_order_id: order.id,
       });
       if (signalAlive && !signalAlive()) return;
@@ -676,10 +691,14 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
     if (!code) return;
 
     // p_order_id — fetchCoupons 와 동일 배선(위 주석 참고).
+    // p_student_profile_id는 optional 인자라 값이 있을 때만 스프레드한다
+    // (fetchCoupons와 동일 이유 — exactOptionalPropertyTypes).
     const { data, error } = await supabase.rpc("fn_coupon_by_code", {
       p_code: code,
       p_subtotal: order.amount,
-      p_student_profile_id: order.student_profile_id,
+      ...(order.student_profile_id
+        ? { p_student_profile_id: order.student_profile_id }
+        : {}),
       p_order_id: order.id,
     });
     if (error) {
@@ -780,20 +799,26 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
             return;
           }
 
-          result = Array.isArray(data) ? data[0] : data;
-          if (!result?.amount) {
+          // let으로 재대입되는 result는(위 771행) 넓은 선언 타입(ApprovedOrder | null)에
+          // 묶여 있어, data[0](noUncheckedIndexedAccess로 T | undefined)을 대입해도
+          // 그 undefined 가능성이 이후 result 참조에서 좁혀지지 않는다 — const로
+          // 먼저 좁히고 나서 result에 대입한다.
+          const created = Array.isArray(data) ? data[0] : data;
+          if (!created || !created.amount) {
             setPayError(GENERIC_FAIL_TEXT);
             setLoading(false);
             return;
           }
-          setApprovedOrder(result);
+          result = created;
+          setApprovedOrder(created);
         } else {
           // 클라이언트 rpc(학부모 JWT) — service_role 경유 금지(Baseline fn_respond_enrollment
           // 는 auth.uid() = parent_profile_id 를 직접 검사한다).
           const { data, error } = await supabase.rpc("fn_respond_enrollment", {
             p_order_id: orderId,
             p_approve: true,
-            p_reject_reason: null,
+            // p_reject_reason은 DEFAULT NULL이 있는 optional 인자 — 승인 흐름에서는
+            // 의미가 없어 인자 자체를 생략한다(과거 명시적 null 전달과 런타임 동일).
             p_coupon_ids: Array.from(selectedCouponIds),
           });
           if (error) {
@@ -803,15 +828,17 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
             return;
           }
 
-          result = Array.isArray(data) ? data[0] : data;
-          if (!result?.amount) {
+          // 위 fn_parent_create_enrollment 분기와 동일한 이유로 const로 먼저 좁힌다.
+          const responded = Array.isArray(data) ? data[0] : data;
+          if (!responded || !responded.amount) {
             setPayError(GENERIC_FAIL_TEXT);
             setLoading(false);
             return;
           }
-          setApprovedOrder(result);
+          result = responded;
+          setApprovedOrder(responded);
 
-          if ((result.skipped_coupon_ids || []).length > 0) {
+          if ((responded.skipped_coupon_ids || []).length > 0) {
             setAmountMismatch(true);
           }
         }
@@ -1158,10 +1185,21 @@ function EnrollmentCheckout({ orderId }: { orderId: string }) {
               </p>
             )}
 
+            {/* 상품을 바꾼 경로(hasChanged) — 쿠폰 섹션을 감추는 대신 이유를
+                안내한다(QA 시트 338행 — 설명 없이 사라지면 "쿠폰이 안 된다"는
+                버그 리포트로 이어진다, PRODUCT_CHANGED_NO_COUPON_TEXT 주석
+                참고). org 배너와 상호 배타적이라 자리를 대신 차지해도 된다. */}
+            {!isResume && hasChanged && (
+              <p className="rounded-xl bg-surface-04 px-4 py-3 text-[0.875rem] leading-relaxed text-ink-sub">
+                {PRODUCT_CHANGED_NO_COUPON_TEXT}
+              </p>
+            )}
+
             {/* 쿠폰 선택 — 재개 모드에서는 감춘다(위 isResume 주석). 상품을 바꾼
                 경로(hasChanged)는 새 주문이 쿠폰을 쓰지 않으므로(handlePay
-                fn_parent_create_enrollment 분기) 섹션 자체를 감춘다. org 한정
-                상품 포함 주문(hasOrgProductInOrder)도 위 안내문으로 대체한다. */}
+                fn_parent_create_enrollment 분기) 섹션 자체를 감추고 위
+                안내문으로 대체한다. org 한정 상품 포함 주문
+                (hasOrgProductInOrder)도 마찬가지로 안내문으로 대체한다. */}
             {!isResume && !hasChanged && !hasOrgProductInOrder && (
               <div>
                 <h3 className={`mb-4 ${SECTION_HEADING}`}>쿠폰 선택</h3>

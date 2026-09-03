@@ -315,7 +315,8 @@ export const universities = [
 
 // ---------------------------------------------------------------------
 // services : 핵심 서비스 섹션 (program_categories, ServicesSection)
-// select('*') — 카피는 sql/20_landing_renewal.sql 시드와 동일, icon_image_url 6/6 매칭
+// select('*') — 카피는 sql/20_landing_renewal.sql 시드와 동일, icon_image_url 9/9 매칭
+// (07~09는 20260902103158 마이그레이션의 성장설계·컨설팅 프리미엄·국제·해외 프리미엄)
 // ---------------------------------------------------------------------
 export const services = [
   {
@@ -325,7 +326,7 @@ export const services = [
     link: "/services/learning-diagnosis",
     icon: "default",
     // 이미지 파일명은 Supabase Storage 오브젝트 키·DB icon_image_url과 묶여 있어 개명 대상이 아니다
-    icon_image_url: "/images/landing/services/free-diagnosis.png",
+    icon_image_url: "/images/landing/services/learning-diagnosis.png",
     sort_order: 1,
     is_active: true,
   },
@@ -378,6 +379,41 @@ export const services = [
     icon_image_url: "/images/landing/services/deep-inquiry.png",
     sort_order: 6,
     is_active: true,
+  },
+  {
+    id: "preview-svc-07",
+    name: "성장설계",
+    description: "학생별 맞춤 로드맵으로\n목표부터 실행까지 설계",
+    link: "/services/growth",
+    icon: "default",
+    icon_image_url: "/images/landing/services/growth.png",
+    sort_order: 7,
+    is_active: true,
+    is_premium: false,
+  },
+  {
+    id: "preview-svc-08",
+    name: "컨설팅 프리미엄",
+    description:
+      "대입 컨설팅 프로그램\n특목고 입학 프로그램\n대학원 입학 프로그램",
+    link: "/page/premium/admission-consulting/a",
+    icon: "default",
+    icon_image_url: "/images/landing/services/consulting-premium.png",
+    sort_order: 8,
+    is_active: true,
+    is_premium: true,
+  },
+  {
+    id: "preview-svc-09",
+    name: "국제·해외 프리미엄",
+    description:
+      "해외명문대 진학컨설팅\n국제학교 학습관리\n국제고 해외고 국내대입 컨설팅",
+    link: "/page/premium/global-university",
+    icon: "default",
+    icon_image_url: "/images/landing/services/global-premium.png",
+    sort_order: 9,
+    is_active: true,
+    is_premium: true,
   },
 ];
 

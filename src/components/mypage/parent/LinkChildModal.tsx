@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import MyPageModalShell from "@/components/mypage/MyPageModalShell";
+import type { RequestParentLinkRpcResult } from "@/lib/parentLink";
 import { supabase } from "@/lib/supabase";
 
 // 자녀 연결 모달 (Figma 3709:2579 입력 / 3709:2599 완료).
@@ -135,7 +136,9 @@ export default function LinkChildModal({
     }
 
     // { ok, link_id, status, student_name } — 완료 모달 문구에 이름이 필요하다.
-    setSentTo(data?.student_name || "");
+    // 생성 타입은 RPC 반환을 Json으로만 표현해 캐스트가 필요하다(parentLink.ts 참고).
+    const result = data as unknown as RequestParentLinkRpcResult;
+    setSentTo(result?.student_name || "");
     onLinked?.();
   }, [filled, saving, code, onLinked]);
 

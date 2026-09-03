@@ -83,7 +83,7 @@ function readEnvFile(file) {
   const raw = readFileSync(path.resolve(file), "utf8");
   for (const line of raw.split("\n")) {
     const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    if (m) env[m[1]] = (m[2] ?? "").replace(/^["']|["']$/g, "");
   }
   const url = env.SUPABASE_URL || env.VITE_SUPABASE_URL;
   const key = env.SUPABASE_SERVICE_ROLE_KEY;

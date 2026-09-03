@@ -16,6 +16,7 @@ import { useAuth } from "@/context/AuthProvider";
 import { formatKRW } from "@/data/pricingCatalog";
 import type {
   CardInfo,
+  CashReceiptInfo,
   EasyPayInfo,
   VirtualAccountInfo,
 } from "@/hooks/usePaymentConfirmation";
@@ -58,7 +59,7 @@ const TABLE_HEADERS = {
 
 type Order = {
   id: string;
-  order_name?: string;
+  order_name?: string | null;
   amount: number;
   status?: string;
   approval_status?: string;
@@ -72,6 +73,7 @@ type Order = {
   card?: CardInfo | null;
   virtual_account?: VirtualAccountInfo | null;
   easy_pay?: EasyPayInfo | null;
+  cash_receipt?: CashReceiptInfo | null;
   approved_at?: string | null;
   is_fake_entitlement?: boolean;
   order_items?: {
@@ -93,12 +95,13 @@ type Order = {
 };
 
 type Refund = {
-  id: string;
+  // refund_requests.id는 bigint PK다(orders.id와 달리 uuid가 아니다).
+  id: number;
   order_id?: string;
-  order_name?: string;
+  order_name?: string | null;
   amount: number;
   gross_amount?: number | null;
-  reason?: string;
+  reason?: string | null;
   status?: string;
   approval_status?: string;
   student_profile_id?: string;

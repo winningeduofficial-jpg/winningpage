@@ -27,6 +27,8 @@ import stageExecHeart from "@/assets/services/goal/stage-exec-heart.png";
 import stageExecLaptopWork from "@/assets/services/goal/stage-exec-laptop-work.png";
 import stageExecStrength from "@/assets/services/goal/stage-exec-strength.png";
 import stageExecWizard from "@/assets/services/goal/stage-exec-wizard.png";
+import stageParentAgreeing from "@/assets/services/goal/stage-parent-agreeing.png";
+import stageParentApproval from "@/assets/services/goal/stage-parent-approval.png";
 import stagePlanAi from "@/assets/services/goal/stage-plan-ai.png";
 import stagePlanCoffee from "@/assets/services/goal/stage-plan-coffee.png";
 import stagePlanLaptopChair from "@/assets/services/goal/stage-plan-laptop-chair.png";
@@ -100,9 +102,9 @@ const STAGE_TABS = [
 
 // 탭별 카드 콘텐츠 — Figma 시안 3종(2063:11610 성적진단, 2063:11744 학습설계,
 // 2063:11878 실행관리)을 반영해 탭마다 실제 카드가 전환되도록 구성했다. '목표 설정' 탭은
-// 기존 확정 콘텐츠(구 STAGE_CARDS)를 그대로 이전했다. '학부모 안내' 탭은 시안에 전용 콘텐츠가
-// 없어 비활성으로 남아 있었으나(QA 지적), 아래 PhoneReportSection과 같은 주제(주간・월간
-// 리포트)로 채워 활성화했다 — 신규 에셋 없이 기존 리포트 아이콘・목업만 재사용한다.
+// 기존 확정 콘텐츠(구 STAGE_CARDS)를 그대로 이전했다. '학부모 안내' 탭은 QA 1차 68행 이후
+// 추가된 시안(4885:20175)의 카드 5장을 그대로 반영했다 — 아이콘 3종(tablet・alarm・heart)은
+// 기존 에셋 재사용, approval・agreeing 2종만 신규 export.
 //
 // 시안(1889:7053, 목표 설정 탭)은 5개 카드 중 2~5번 설명 문구가 전부 "과목과 관심사에 맞는
 // 탐구 주제 후보를 제안합니다."로 동일한 placeholder가 남아있다(다른 서비스 카피가 잘못
@@ -220,19 +222,29 @@ const STAGE_CONTENT = {
   ],
   "학부모 안내": [
     {
-      icon: stageExecWizard,
-      title: "주간 리포트",
-      desc: "한 주의 학습 실행과 성취도를 정리해 매주 보내드립니다.",
+      icon: iconTablet,
+      title: "매일 학습 안내",
+      desc: "매일 목표 학습 시간과 실행률을 문자로 보냅니다.",
     },
     {
-      icon: outcomeCalendar,
-      title: "월간 리포트",
-      desc: "한 달간의 목표 달성 현황을 월간 리포트로 확인할 수 있습니다.",
+      icon: stageAlarm,
+      title: "이탈 알림",
+      desc: "목표에서 벗어나면 학부모께 바로 알려드립니다.",
     },
     {
-      icon: phoneReportMockup,
-      title: "주간・월간 리포트 확인",
-      desc: "카카오톡 알림톡으로 도착한 리포트를 언제든 다시 확인할 수 있습니다.",
+      icon: stageParentApproval,
+      title: "주간・월간 리포트",
+      desc: "성장 흐름을 리포트로 정리해 전달합니다.",
+    },
+    {
+      icon: stageParentAgreeing,
+      title: "상담 연계",
+      desc: "필요 시 담당 컨설턴트 상담으로 연결됩니다.",
+    },
+    {
+      icon: stageExecHeart,
+      title: "안심 관리",
+      desc: "아이의 학습을 데이터로 투명하게 확인합니다.",
     },
   ],
 };
@@ -503,9 +515,7 @@ function StageSection() {
     <ServiceSection className="lg:pt-55" heading="단계별로, 목표를 관리합니다">
       {/* 탭 — 시안 3종(2063:11610 성적진단, 2063:11744 학습설계, 2063:11878 실행관리)의
           카드 콘텐츠를 반영해 인터랙티브 탭으로 전환했다. '목표 설정' 탭은 기존 확정 콘텐츠를
-          그대로 쓴다. '학부모 안내' 탭은 시안 전용 콘텐츠는 없지만(QA 지적) STAGE_CONTENT 에
-          키를 등록해 활성화했다 — 아래 PhoneReportSection과 같은 주간・월간 리포트 주제를
-          재사용한 카드 3장이다. */}
+          그대로 쓴다. '학부모 안내' 탭은 후속 시안(4885:20175)의 카드 5장을 반영했다. */}
       <ServiceTabsPanel
         tabs={STAGE_TABS}
         content={STAGE_CONTENT}

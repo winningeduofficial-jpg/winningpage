@@ -1,5 +1,5 @@
 import type { ChangeEvent } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import AppModal from "@/components/goal/AppModal";
 import { MOCK_EXAM_ROUNDS } from "@/components/goal/goalFormOptions";
 import ModalField from "@/components/goal/ModalField";
@@ -13,11 +13,15 @@ const ROUND_OPTIONS = MOCK_EXAM_ROUNDS.map((label) => ({
 
 // part-08 §177: 시안의 백분위 입력값(82/74/88/76)은 연회색으로 렌더돼 실제 입력값이 아니라
 // placeholder로 판단된다(추정). 그대로 placeholder 예시값으로만 재사용하고 실제 상태는 빈 값으로 시작.
+//
+// QA 행291 재설계(팀장 지시 항목10) — 탐구 단일에서 탐구1・탐구2로 나눈다(온보딩
+// MOCK_SUBJECTS와 같은 분리, api/goal/grades.ts MOCK_SUBJECT_KEYS와 키가 같아야 한다).
 const SUBJECTS = [
   { key: "korean", label: "국어", placeholder: "82" },
   { key: "math", label: "수학", placeholder: "74" },
   { key: "english", label: "영어", placeholder: "88" },
-  { key: "science", label: "탐구", placeholder: "76" },
+  { key: "tam1", label: "탐구1", placeholder: "76" },
+  { key: "tam2", label: "탐구2", placeholder: "76" },
 ];
 
 // 과목별 백분위 행 — ModalField(라벨 위/컨트롤 아래)와 달리 시안(#22)은 "국어 82 백분위"처럼
@@ -74,39 +78,82 @@ type AddMockExamGradeModalProps = {
   open: boolean;
   onClose: () => void;
   onSubmit: (entry: MockExamEntry) => Promise<{ ok: boolean; detail?: string }>;
+  // 편집 모드(회차 수정) 전용 — 있으면 폼을 이 값으로 채우고 타이틀·저장 버튼 문구를
+  // 수정 모드로 바꾼다(성적관리 행322). 없으면 기존 추가 모드 그대로.
+  initialEntry?: MockExamEntry;
 };
 
 // onSubmit: async (entry) => {ok:boolean, detail?:string} — entry = {term, examDate, subjects}.
-// 실제 API 호출(addGoalGrade)은 호출부(Grades.jsx / MockExamCard.jsx)가 맡는다.
+// 실제 API 호출(addGoalGrade/updateGoalGrade)은 호출부(Grades.jsx)가 맡는다.
 export default function AddMockExamGradeModal({
   open,
   onClose,
   onSubmit,
+  initialEntry,
 }: AddMockExamGradeModalProps) {
-  // ROUND_OPTIONS는 MOCK_EXAM_ROUNDS 고정 목록(4건)에서 파생되어 항상 비지 않는다.
+  const isEditMode = Boolean(initialEntry);
+
+  // ROUND_OPTIONS(당해 연도 4건 고정)에 없는 과거 연도 회차를 수정할 수도 있다 — 그 경우
+  // 네이티브 select가 어떤 옵션도 선택된 상태로 보여주지 못한다(판단 지점, 시안엔 이
+  // 케이스가 없다). 편집 대상 term이 목록에 없으면 그 값을 옵션 맨 앞에 얹어 select가
+  // 항상 현재 값을 정확히 보여주게 한다.
+  const options = useMemo(() => {
+    if (
+      !initialEntry ||
+      ROUND_OPTIONS.some((option) => option.value === initialEntry.term)
+    ) {
+      return ROUND_OPTIONS;
+    }
+    return [
+      { value: initialEntry.term, label: initialEntry.term },
+      ...ROUND_OPTIONS,
+    ];
+  }, [initialEntry]);
+
+  // ROUND_OPTIONS는 MOCK_EXAM_ROUNDS 고정 목록(14건)에서 파생되어 항상 비지 않는다.
   const [round, setRound] = useState(ROUND_OPTIONS[0]!.value);
   const [examDate, setExamDate] = useState("");
   const [scores, setScores] = useState<Record<string, string>>({
     korean: "",
     math: "",
     english: "",
-    science: "",
+    tam1: "",
+    tam2: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  function resetForm() {
+    if (initialEntry) {
+      setRound(initialEntry.term);
+      setExamDate(initialEntry.examDate);
+      setScores({
+        korean: String(initialEntry.subjects.korean ?? ""),
+        math: String(initialEntry.subjects.math ?? ""),
+        english: String(initialEntry.subjects.english ?? ""),
+        tam1: String(initialEntry.subjects.tam1 ?? ""),
+        tam2: String(initialEntry.subjects.tam2 ?? ""),
+      });
+    } else {
+      setRound(ROUND_OPTIONS[0]!.value);
+      setExamDate("");
+      setScores({ korean: "", math: "", english: "", tam1: "", tam2: "" });
+    }
+    setError("");
+  }
+
+  // AddNaesinGradeModal과 동일한 이유(AppModal이 open 동안 언마운트되지 않음) — open으로
+  // 전환될 때마다 initialEntry 기준으로 폼을 다시 채운다.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resetForm은 매 렌더 새로 생성되는 클로저라 deps에 넣으면 무한 루프가 된다 — open/initialEntry 변경 시에만 재실행하는 것이 의도.
+  useEffect(() => {
+    if (open) resetForm();
+  }, [open, initialEntry]);
 
   const canSubmit =
     !submitting &&
     examDate.trim().length > 0 &&
     // SUBJECTS의 key는 scores 초기값에 항상 존재하는 고정 필드다.
     SUBJECTS.every(({ key }) => scores[key]!.toString().trim().length > 0);
-
-  function resetForm() {
-    setRound(ROUND_OPTIONS[0]!.value);
-    setExamDate("");
-    setScores({ korean: "", math: "", english: "", science: "" });
-    setError("");
-  }
 
   function handleClose() {
     resetForm();
@@ -131,11 +178,13 @@ export default function AddMockExamGradeModal({
     <AppModal
       open={open}
       onClose={handleClose}
-      title="모의고사 성적 추가"
+      title={isEditMode ? "모의고사 성적 수정" : "모의고사 성적 추가"}
       subtitle="회차별 백분위를 입력하면 목표와의 격차가 다시 계산돼요"
       cancelLabel="취소"
       onCancel={handleClose}
-      submitLabel={submitting ? "저장 중…" : "성적 저장하기"}
+      submitLabel={
+        submitting ? "저장 중…" : isEditMode ? "수정 저장하기" : "성적 저장하기"
+      }
       onSubmit={handleSubmit}
       submitDisabled={!canSubmit}
     >
@@ -151,7 +200,7 @@ export default function AddMockExamGradeModal({
           variant="select"
           value={round}
           onChange={(event) => setRound(event.target.value)}
-          options={ROUND_OPTIONS}
+          options={options}
         />
         <ModalField
           label="응시일"

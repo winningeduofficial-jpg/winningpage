@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   WEEKDAY_ACCENT,
   WEEKDAY_BG_CLASS,
@@ -7,6 +8,10 @@ type PlanTask = {
   id: string | number;
   subject: string;
   title: string;
+  // 문제집 연결(QA 행286-B, 선택) — 연결이 없으면 workbookTitle이 null/undefined.
+  workbookTitle?: string | null;
+  pageFrom?: number | null;
+  pageTo?: number | null;
 };
 
 type PlanDay = {
@@ -19,6 +24,9 @@ type PlanDay = {
 type WeekdayPlanBoardProps = {
   days: PlanDay[];
   onAddTask: (day: string, dateYmd: string) => void;
+  // 행280/행321(계획) — 주간학습계획표 전용 삭제. 대시보드 레일(StudyPlanRail.tsx)에는
+  // 삭제가 없다(행305 이후 그쪽 ✕는 "미달성 표시" 전용) — 여기서만 실제 DELETE를 낸다.
+  onDeleteTask: (task: PlanTask) => void;
   todayKey?: string | null;
 };
 
@@ -50,8 +58,17 @@ const DAY_KEY: Record<string, string> = {
 export default function WeekdayPlanBoard({
   days,
   onAddTask,
+  onDeleteTask,
   todayKey,
 }: WeekdayPlanBoardProps) {
+  // 행280/321 — × 클릭 한 번으로 바로 지우지 않고 카드 안에서 "삭제" 확인 버튼을
+  // 한 번 더 눌러야 실제 DELETE가 나간다(window.confirm 대신 인라인 2단계 확인).
+  // 한 번에 한 카드만 확인 상태를 가진다 — 다른 카드의 ×를 누르면 이전 확인은
+  // 자동으로 취소된다(id 하나만 들고 있으므로).
+  const [confirmingTaskId, setConfirmingTaskId] = useState<
+    string | number | null
+  >(null);
+
   return (
     <div className="w-full max-w-298.5">
       {/* 요일 헤더 행 — 150×36, gap 24px(part-09 §269). 요일명(bold)+날짜(회색) 인라인 2스타일 —
@@ -104,24 +121,80 @@ export default function WeekdayPlanBoard({
           const key = DAY_KEY[day.day] ?? "mon";
           return (
             <div key={day.day} className="flex flex-col gap-3">
-              {day.tasks.map((task) => (
-                // 좌측 4px 보더는 임의 장식이 아니라 시안 실측 그대로다(part-10.md §128 "좌측 4px
-                // 컬러 액센트 바 + 본문 면 구조", §181 "border-left: 4px solid로 구현하면 안쪽 그룹
-                // 146px가 자연스럽게 맞는다"). #29 카드 18개 전부 이 구조라 여기서 제거하지 않는다.
-                <div
-                  key={task.id}
-                  className={`h-18.75 rounded-lg border-l-4 px-3 py-3 ${WEEKDAY_BG_CLASS[key]}`}
-                  style={{ borderLeftColor: WEEKDAY_ACCENT[key] }}
-                >
-                  <p className="truncate text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">
-                    {task.subject}
-                  </p>
-                  {/* 문서 §173 "말줄임 확정" — 1행 ellipsis. */}
-                  <p className="mt-1 truncate text-[0.8125rem] leading-[1.4] text-ink-sub">
-                    {task.title}
-                  </p>
-                </div>
-              ))}
+              {day.tasks.map((task) => {
+                const isConfirming = confirmingTaskId === task.id;
+                // 문제집 연결 캡션(QA 행286-B) — 연결이 있으면 3번째 줄이 필요해
+                // 카드 높이가 고정 75px(h-18.75)로는 잘린다. 연결 없는 카드는 시안
+                // 실측 그대로 고정 높이를 유지하고, 연결된 카드만 min-h로 늘어난다.
+                const caption = task.workbookTitle
+                  ? `${task.workbookTitle}${
+                      task.pageFrom != null && task.pageTo != null
+                        ? ` p.${task.pageFrom}–${task.pageTo}`
+                        : ""
+                    }`
+                  : null;
+                return (
+                  // 좌측 4px 보더는 임의 장식이 아니라 시안 실측 그대로다(part-10.md §128 "좌측 4px
+                  // 컬러 액센트 바 + 본문 면 구조", §181 "border-left: 4px solid로 구현하면 안쪽 그룹
+                  // 146px가 자연스럽게 맞는다"). #29 카드 18개 전부 이 구조라 여기서 제거하지 않는다.
+                  <div
+                    key={task.id}
+                    className={`relative rounded-lg border-l-4 px-3 py-3 ${caption ? "min-h-18.75" : "h-18.75"} ${WEEKDAY_BG_CLASS[key]}`}
+                    style={{ borderLeftColor: WEEKDAY_ACCENT[key] }}
+                  >
+                    {isConfirming ? (
+                      // 인라인 2단계 확인(window.confirm 대신) — 행280/321.
+                      <div className="flex h-full flex-col items-center justify-center gap-1.5">
+                        <p className="text-[0.75rem] leading-[1.4] text-ink-strong">
+                          삭제할까요?
+                        </p>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setConfirmingTaskId(null);
+                              onDeleteTask(task);
+                            }}
+                            className="rounded-md bg-error px-2 py-1 text-[0.6875rem] font-semibold leading-[1.4] text-white"
+                          >
+                            삭제
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmingTaskId(null)}
+                            className="rounded-md border border-line px-2 py-1 text-[0.6875rem] leading-[1.4] text-ink-sub"
+                          >
+                            취소
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmingTaskId(task.id)}
+                          aria-label="과제 삭제"
+                          className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded text-[0.625rem] leading-none text-ink-sub/70 transition-colors hover:text-error"
+                        >
+                          ✕
+                        </button>
+                        <p className="truncate pr-4 text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">
+                          {task.subject}
+                        </p>
+                        {/* 문서 §173 "말줄임 확정" — 1행 ellipsis. */}
+                        <p className="mt-1 truncate pr-4 text-[0.8125rem] leading-[1.4] text-ink-sub">
+                          {task.title}
+                        </p>
+                        {caption && (
+                          <p className="mt-1 truncate pr-4 text-[0.6875rem] leading-[1.4] text-ink-sub/80">
+                            {caption}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           );
         })}

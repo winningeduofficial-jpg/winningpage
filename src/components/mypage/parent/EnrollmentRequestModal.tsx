@@ -4,6 +4,7 @@ import MyPageModalShell from "@/components/mypage/MyPageModalShell";
 import ModalFooter from "@/components/mypage/modal/ModalFooter";
 import RejectReasonField from "@/components/mypage/modal/RejectReasonField";
 import OrderAmountBreakdown from "@/components/mypage/OrderAmountBreakdown";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 
 // 학부모 결제요청 확인 모달 — 자녀가 올린 결제 요청을 결제하거나 반려한다.
@@ -32,7 +33,7 @@ const RESPOND_UNKNOWN_ERROR_TEXT =
 
 type EnrollmentOrder = {
   id: string;
-  order_name?: string;
+  order_name?: string | null;
   amount: number;
   approval_status?: string;
   student_profile_id?: string;
@@ -92,7 +93,8 @@ export default function EnrollmentRequestModal({
       p_order_id: order.id,
       p_approve: false,
       p_reject_reason: trimmed,
-      p_coupon_ids: null,
+      // p_coupon_ids는 DEFAULT NULL이 있는 optional 인자 — 거절 흐름에서는
+      // 의미가 없어 인자 자체를 생략한다(과거 명시적 null 전달과 런타임 동일).
     });
 
     setSaving(false);
@@ -171,12 +173,12 @@ export default function EnrollmentRequestModal({
         )
       }
     >
-      <div className="flex-1 overflow-y-auto px-6">
+      <ScrollArea className="flex-1 px-6">
         <div className="mt-6">
           <OrderAmountBreakdown
             order={order}
             amount={order.amount}
-            fallbackName={order.order_name}
+            fallbackName={order.order_name ?? undefined}
           />
         </div>
 
@@ -191,7 +193,7 @@ export default function EnrollmentRequestModal({
         {errorMsg && (
           <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
         )}
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }

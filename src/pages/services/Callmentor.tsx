@@ -233,7 +233,13 @@ export default function Callmentor() {
         return;
       }
 
-      setMentors((data || []).map(normalizeMentorRow));
+      // title_lines/photo_layout(jsonb)은 생성 타입이 Json으로만 표현한다 —
+      // normalizeMentorRow가 런타임에 형태를 검증하므로 MentorRow로 캐스트한다.
+      setMentors(
+        (data || []).map((row) =>
+          normalizeMentorRow(row as unknown as MentorRow),
+        ),
+      );
     }
 
     fetchMentors();

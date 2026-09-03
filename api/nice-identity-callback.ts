@@ -180,6 +180,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // 이미 처리된 요청을 다시 열지 않는다(콜백 재생 방지).
     if (row.status !== "pending") return fail("already_processed");
 
+    // transaction_id는 DB 스키마상 nullable이지만, 이 저장소의 유일한 삽입
+    // 경로(nice-identity-start.ts)는 issueAuthUrl() 응답에서 얻은 값을 항상
+    // 채운다. 그럼에도 null인 행을 만나면(수동 조작·경로 밖 삽입) 결과 조회에
+    // 필수인 키가 없는 것이므로 방어적으로 막는다.
+    if (!row.transaction_id) {
+      console.error(
+        "[nice-identity-callback] identity_verifications.transaction_id 없음:",
+        row.id,
+      );
+      return fail("server_error");
+    }
+
     if (new Date(row.expires_at).getTime() < Date.now()) {
       await supabase
         .from("identity_verifications")
@@ -266,8 +278,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         verify: "success",
         rid,
         // 결과 원문은 넘기지 않는다. 프론트가 알아야 할 건 분기에 쓸 값뿐이다.
+        // mobile만 예외다 — 법정대리인(학부모) 휴대폰 번호 프리필에 그대로 써야
+        // 하므로 숫자만 남겨 함께 실어 보낸다(값이 없으면 빈 문자열, 조회는
+        // api/nice-identity-result.ts가 새로고침 이후 경로를 맡는다).
         is_under14: under14 === null ? "" : String(under14),
         age: computeKoreanAge(birthDate) ?? "",
+        mobile: (result.mobile_no || "").replace(/[^0-9]/g, ""),
       },
       fallbackPath: "/signup",
     });

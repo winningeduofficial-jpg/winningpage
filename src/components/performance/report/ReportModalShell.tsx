@@ -2,6 +2,8 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import type { ReactNode, RefObject } from "react";
 import { useRef } from "react";
 import { useReactToPrint } from "react-to-print";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { REPORT_PRINT_PAGE_BASE_STYLE } from "@/lib/report/printPageStyle";
 
 // 대형 리포트 모달의 **껍데기** — docs/수행평가-상세-명세.md §5.13(`3754:4722` 설계 리포트) /
 // §5.16(`3754:4512` 평가 리포트) 공통.
@@ -152,15 +154,33 @@ export default function ReportModalShell({
                 포커서블 요소가 없는 스크롤 컨테이너는 Tab으로 도달할 수 없으므로 `tabIndex`를
                 준다(ARIA APG "Scrollable Regions"). 이름 없는 generic div가 포커스 스톱이 되면
                 낭독이 무음이라 `aria-label`을 준다(접근 이름이 있는 `<section>`은 암묵적으로
-                region 역할을 가진다 — HTML-ARIA 매핑). */}
-            <section
-              // biome-ignore lint/a11y/noNoninteractiveTabindex: 위 주석 참고 — APG Scrollable Regions 패턴.
-              tabIndex={0}
-              aria-label={scrollLabel}
-              className="performance-report-scroll min-h-0 flex-1 overflow-y-auto px-5 py-10 focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent xl:pl-10 xl:pr-18"
+                region 역할을 가진다 — HTML-ARIA 매핑).
+                오버레이 스크롤바 전환(2026-09): 원래 이 `<section>` 자신이 스크롤 요소였다.
+                ScrollArea로 바뀌며 실제로 스크롤하는 노드는 내부 뷰포트(별도 div)로 옮겨가,
+                tabIndex·aria-label(그리고 이제 없어진 암묵 region 역할 대신 명시 role="region")도
+                함께 옮긴다 — `viewportProps`가 그 자리. `className`도 `viewportProps`로 넘긴다:
+                `.performance-report-scroll`을 셀렉터로 쓰는 인쇄 CSS(PRINT_PAGE_STYLE)와
+                `px-5 py-10`(스크롤과 함께 움직여야 하는 패딩), `:focus-visible` 링 전부 "진짜
+                스크롤하는 노드"에 있어야 의미가 있다 — 루트(ScrollArea 자신, `min-h-0 flex-1`만
+                남는다)에 두면 스크롤이 멎어도 안 사라지는 고정 여백이 되어 버린다. */}
+            <ScrollArea
+              className="min-h-0 flex-1"
+              // defer={false} — viewportProps(tabIndex/aria-label/role)는 뷰포트가 실제로
+              // 생기는 시점(초기화 완료)에야 적용된다. 기본 defer(true, 유휴/다음 프레임까지
+              // 지연)를 쓰면 모달이 열린 직후 한동안 스크린리더가 이 영역을 이름 없는 채로
+              // 읽거나 Tab 포커스가 닿지 않는 창이 생긴다 — 접근성 속성이라 지연을 허용하지
+              // 않는다(EvaluationReportModal.test.tsx의 role=region 계약 실측으로도 확인).
+              defer={false}
+              viewportProps={{
+                tabIndex: 0,
+                "aria-label": scrollLabel,
+                role: "region",
+                className:
+                  "performance-report-scroll px-5 py-10 focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent xl:pl-10 xl:pr-18",
+              }}
             >
               <div className="max-w-282">{children}</div>
-            </section>
+            </ScrollArea>
           </div>
 
           {/* 푸터 — 높이 5rem, 흰 배경, 버튼 우측 정렬 그룹 33.25rem(16.25 + 0.75 + 16.25) ×
@@ -179,20 +199,14 @@ export default function ReportModalShell({
   );
 }
 
-// @page 여백 + 고정 높이/내부 스크롤 → 문서 흐름 전환. react-to-print가 문서의 다른
-// 스타일시트(Tailwind 빌드 산출물 + `PerformanceReportSurface`의 인라인 `<style>`)를 그대로
-// iframe에 복사하므로, 여기서는 그 규칙들이 못 미치는 크롬 쪽 나머지만 채운다. 색 정규화
-// 기본값(`react-to-print` 기본 `pageStyle`에 포함된 `print-color-adjust: exact`)은 이
-// `pageStyle`이 기본값을 완전히 대체하므로 여기서 다시 선언한다.
+// 고정 높이/내부 스크롤 → 문서 흐름 전환. react-to-print가 문서의 다른 스타일시트
+// (Tailwind 빌드 산출물 + `PerformanceReportSurface`의 인라인 `<style>`)를 그대로 iframe에
+// 복사하므로, 여기서는 그 규칙들이 못 미치는 크롬 쪽 나머지만 채운다. `@page` 여백 +
+// 색 정규화 베이스는 `REPORT_PRINT_PAGE_BASE_STYLE`(공용, `src/lib/report/printPageStyle.ts`)
+// 이 두 화면(이 모달 + 목표관리 성장 리포트)을 위해 갖고, 이 상수는 그 뒤에 모달
+// 크롬 전용 규칙만 이어붙인다.
 const PRINT_PAGE_STYLE = `
-  @page { margin: 15mm; }
-  @media print {
-    body {
-      color-adjust: exact;
-      print-color-adjust: exact;
-      -webkit-print-color-adjust: exact;
-    }
-  }
+  ${REPORT_PRINT_PAGE_BASE_STYLE}
   /* 인셋은 @page 여백(15mm)이 대신한다. **헤더와 본문을 같이 걷는다** — 본문만 0으로
      만들면 제목·부제만 좌측으로 들여쓰인 채 남아 좌측 정렬이 어긋난다. */
   .performance-report-head,

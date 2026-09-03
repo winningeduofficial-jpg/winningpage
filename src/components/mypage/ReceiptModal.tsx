@@ -1,7 +1,9 @@
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { COMPANY } from "@/data/company";
 import { formatKRW } from "@/data/pricingCatalog";
 import type {
   CardInfo,
+  CashReceiptInfo,
   EasyPayInfo,
   VirtualAccountInfo,
 } from "@/hooks/usePaymentConfirmation";
@@ -15,7 +17,7 @@ import {
 import { useBundleCompositionMap } from "./bundleComposition";
 import MyPageModalShell from "./MyPageModalShell";
 import ModalFooter from "./modal/ModalFooter";
-import { formatProductNames } from "./paymentRows";
+import { formatProductNames, getCashReceipt } from "./paymentRows";
 
 // 결제 영수증 모달 (Figma 3762:19227).
 //
@@ -32,7 +34,7 @@ import { formatProductNames } from "./paymentRows";
 // 않는다), 그 외 행은 값이 없으면 "정보 없음"으로 채우지 않고 행 자체를 생략한다 —
 // 실제로 없는 데이터를 있는 것처럼 보이면 안 된다(팀 리드 지침).
 type ReceiptOrder = {
-  order_name?: string;
+  order_name?: string | null;
   order_items?: { name: string; product_id?: string | null }[] | null;
   method?: string | null;
   amount: number;
@@ -42,6 +44,9 @@ type ReceiptOrder = {
   card?: CardInfo | null;
   virtual_account?: VirtualAccountInfo | null;
   easy_pay?: EasyPayInfo | null;
+  // 현금영수증 링크(QA 시트 행310) — getCashReceipt(paymentRows.ts)가 이 값에서
+  // receiptUrl 유무를 판정한다.
+  cash_receipt?: CashReceiptInfo | null;
 };
 
 type ReceiptModalProps = {
@@ -50,7 +55,9 @@ type ReceiptModalProps = {
   order: ReceiptOrder | null;
 };
 
-type ReceiptRow = { label: string; value: string };
+// href 는 현금영수증 링크(아래 buildPaymentRows) 전용 — 있으면 값을 새 탭
+// 링크로 그린다(ReceiptSection).
+type ReceiptRow = { label: string; value: string; href?: string };
 
 function pushRow(
   rows: ReceiptRow[],
@@ -101,6 +108,17 @@ function buildPaymentRows(order: ReceiptOrder): ReceiptRow[] {
     // 현금성 결제(가상계좌/계좌이체)는 승인번호 대신 입금 계좌 정보를 보여준다.
     pushRow(rows, "입금 계좌", accountLabel(virtualAccount));
     pushRow(rows, "입금자명", virtualAccount.customerName);
+
+    // 현금영수증(QA 시트 행310) — 입금 확인 후 토스가 자동 발급한 건에만
+    // 링크를 보여준다(receiptUrl 없으면 발급 전/미요청이라 행 자체를 생략).
+    const cashReceipt = getCashReceipt(order);
+    if (cashReceipt) {
+      rows.push({
+        label: "현금영수증",
+        value: "현금영수증 보기",
+        href: cashReceipt.receiptUrl,
+      });
+    }
   }
 
   pushRow(rows, "승인일시", formatDateTime(order.approved_at || order.paid_at));
@@ -146,7 +164,18 @@ function ReceiptSection({
               {row.label}
             </dt>
             <dd className="truncate text-right text-[0.875rem] text-ink-strong">
-              {row.value}
+              {row.href ? (
+                <a
+                  href={row.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-primary underline"
+                >
+                  {row.value}
+                </a>
+              ) : (
+                row.value
+              )}
             </dd>
           </div>
           {note && note.length > 0 && (
@@ -218,7 +247,7 @@ export default function ReceiptModal({
     >
       {/* 시안(3762:19227)에는 우상단 X 닫기 버튼이 없다 — 하단 닫기/인쇄 버튼만 유지하고
           ESC·배경 클릭 닫기(Base UI Dialog 내장)는 그대로 둔다. */}
-      <div className="flex-1 overflow-y-auto px-8.75">
+      <ScrollArea className="flex-1 px-8.75">
         <dl className="mt-7.5 flex flex-col pb-8.75">
           <ReceiptSection rows={sellerRows} dashedTop={false} />
           <ReceiptSection rows={productRows} dashedTop note={bundleNote} />
@@ -235,7 +264,7 @@ export default function ReceiptModal({
             </dd>
           </div>
         </dl>
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }

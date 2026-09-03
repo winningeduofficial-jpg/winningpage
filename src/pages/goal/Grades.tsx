@@ -9,8 +9,10 @@ import GoalTable from "@/components/goal/report/GoalTable";
 import { useAuth } from "@/context/AuthProvider";
 import {
   addGoalGrade,
+  deleteGoalGrade,
   type FetchGoalGradesResult,
   fetchGoalGrades,
+  updateGoalGrade,
 } from "@/lib/goalApi";
 import {
   improvementDelta,
@@ -69,6 +71,13 @@ type GradesState =
 export default function Grades() {
   const [naesinModalOpen, setNaesinModalOpen] = useState(false);
   const [mockModalOpen, setMockModalOpen] = useState(false);
+  // 수정 모드 대상 회차(성적관리 행322) — null이면 두 모달 모두 추가 모드. term을
+  // 그대로 들고 있으면(레코드 전체가 아니라) 저장 사이 목록이 바뀌어도(다른 탭에서
+  // 삭제 등) 항상 최신 레코드를 다시 찾을 수 있어 진부화된 값을 편집 폼에 띄울 일이 없다.
+  const [editingNaesinTerm, setEditingNaesinTerm] = useState<string | null>(
+    null,
+  );
+  const [editingMockTerm, setEditingMockTerm] = useState<string | null>(null);
 
   // 목표 대학 컷·온보딩 베이스라인은 ['goal','student', userId] 쿼리
   // 캐시(src/lib/queryClient.ts)를 그대로 구독한다 — goal 진입 시 미들웨어·
@@ -124,6 +133,20 @@ export default function Grades() {
     } as unknown as GradesState;
   }, [goalStudentQuery.isPending, goalStudentQuery.data, gradesResult]);
 
+  // 목록(gradesResult)이 곧 정본이라 성공 응답의 records를 그대로 덮어쓴다 — 별도
+  // invalidate/재조회 없이 addGoalGrade 저장 흐름과 동일한 방식(react-query를 쓰지 않는
+  // 이 페이지 고유 데이터 소스, 상단 §5 주석 참고)을 update/delete에도 그대로 맞춘다.
+  function applyRecords(type: "naesin" | "mock", records: unknown[]) {
+    setGradesResult((prev) =>
+      prev?.kind === "ok"
+        ? {
+            ...prev,
+            [type === "naesin" ? "naesinRecords" : "mockRecords"]: records,
+          }
+        : prev,
+    );
+  }
+
   async function handleSaveGrade(
     type: "naesin" | "mock",
     entry: {
@@ -151,17 +174,51 @@ export default function Grades() {
     }
 
     // 서버가 돌려준 갱신된 전체 회차 배열로 교체한다 — 재조회 왕복 없이 즉시 반영.
-    // state는 gradesResult(로컬)에서 파생되므로 gradesResult 쪽을 갱신한다.
-    setGradesResult((prev) =>
-      prev?.kind === "ok"
-        ? {
-            ...prev,
-            [type === "naesin" ? "naesinRecords" : "mockRecords"]:
-              result.records,
-          }
-        : prev,
-    );
+    applyRecords(type, result.records);
     return { ok: true };
+  }
+
+  async function handleUpdateGrade(
+    type: "naesin" | "mock",
+    originalTerm: string,
+    entry: {
+      term: string;
+      enteredAt?: string;
+      examDate?: string;
+      subjects: Record<string, string>;
+    },
+  ) {
+    const result = await updateGoalGrade(
+      type,
+      originalTerm,
+      entry as unknown as Parameters<typeof updateGoalGrade>[2],
+    );
+    if (result.kind !== "success") {
+      const detail =
+        result.kind === "validation-error"
+          ? result.detail
+          : result.kind === "not-allowed"
+            ? "이용권이 필요합니다."
+            : result.kind === "not-found"
+              ? "이미 삭제된 회차입니다. 새로고침해 주세요."
+              : "수정에 실패했습니다. 다시 시도해 주세요.";
+      return { ok: false, detail };
+    }
+
+    applyRecords(type, result.records);
+    return { ok: true };
+  }
+
+  async function handleDeleteGrade(type: "naesin" | "mock", term: string) {
+    const result = await deleteGoalGrade(type, term);
+    // 실패해도 이 페이지엔 토스트 인프라가 없어(에러 카피를 보여줄 자리가 모달 폼처럼
+    // 없다) 조용히 무시한다 — 목록이 바뀌지 않으니 사용자가 다시 삭제를 눌러 재시도할 수
+    // 있다(판단 지점, 별도 알림 UI는 이번 범위 밖).
+    if (result.kind !== "success") {
+      console.error("[Grades] 회차 삭제 실패:", result.kind);
+      return;
+    }
+    applyRecords(type, result.records);
   }
 
   if (state.status !== "ready") {
@@ -171,7 +228,7 @@ export default function Grades() {
           title="성적 관리"
           subcopy="내신과 모의고사를 회차별로 기록하면 목표와의 격차가 자동 계산됩니다."
         />
-        <div className="max-w-goal-content px-12 pb-24">
+        <div className="max-w-goal-content px-4 pb-24 md:px-12">
           <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
             {state.status === "loading"
               ? "불러오는 중입니다…"
@@ -183,6 +240,16 @@ export default function Grades() {
   }
 
   const { targets, scores, naesinRecords, mockRecords } = state;
+
+  // .find()는 항상 T | undefined를 돌려주므로(editingXxxTerm이 존재해도 배열에서 방금
+  // 지워졌을 수 있음), exactOptionalPropertyTypes 아래서 모달 props로 안전하게 넘기려면
+  // truthy 체크로 한 번 좁혀 둬야 한다(아래 JSX의 조건부 스프레드가 이 값에 의존).
+  const editingNaesinRecord = editingNaesinTerm
+    ? naesinRecords.find((record) => record.term === editingNaesinTerm)
+    : undefined;
+  const editingMockRecord = editingMockTerm
+    ? mockRecords.find((record) => record.term === editingMockTerm)
+    : undefined;
 
   const naesinKpi = latestKpi(naesinRecords, {
     fallbackValue: scores.convertedGrade,
@@ -211,7 +278,7 @@ export default function Grades() {
         title="성적 관리"
         subcopy="내신과 모의고사를 회차별로 기록하면 목표와의 격차가 자동 계산됩니다."
       />
-      <div className="max-w-goal-content flex flex-col gap-8 px-12 pb-24">
+      <div className="max-w-goal-content flex flex-col gap-8 px-4 pb-24 md:px-12">
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <GoalGaugeCard
             label="내신"
@@ -261,7 +328,15 @@ export default function Grades() {
               typeof GoalTable
             >["rows"]
           }
-          onAddRound={() => setNaesinModalOpen(true)}
+          onAddRound={() => {
+            setEditingNaesinTerm(null);
+            setNaesinModalOpen(true);
+          }}
+          onEditRow={(term) => {
+            setEditingNaesinTerm(term);
+            setNaesinModalOpen(true);
+          }}
+          onDeleteRow={(term) => handleDeleteGrade("naesin", term)}
           lowerIsBetter={true}
         />
         <GoalTable
@@ -269,22 +344,50 @@ export default function Grades() {
           rows={
             toTableRows(mockRecords) as ComponentProps<typeof GoalTable>["rows"]
           }
-          onAddRound={() => setMockModalOpen(true)}
+          onAddRound={() => {
+            setEditingMockTerm(null);
+            setMockModalOpen(true);
+          }}
+          onEditRow={(term) => {
+            setEditingMockTerm(term);
+            setMockModalOpen(true);
+          }}
+          onDeleteRow={(term) => handleDeleteGrade("mock", term)}
           lowerIsBetter={false}
         />
-
-        {/* 행 수정/삭제 UI는 시안에 없다(part-12 §235) — 이번 범위에서 의도적으로 미구현. */}
       </div>
 
       <AddNaesinGradeModal
         open={naesinModalOpen}
         onClose={() => setNaesinModalOpen(false)}
-        onSubmit={(entry) => handleSaveGrade("naesin", entry)}
+        onSubmit={(entry) =>
+          editingNaesinTerm
+            ? handleUpdateGrade("naesin", editingNaesinTerm, entry)
+            : handleSaveGrade("naesin", entry)
+        }
+        {...(editingNaesinRecord
+          ? {
+              initialEntry: editingNaesinRecord as unknown as NonNullable<
+                ComponentProps<typeof AddNaesinGradeModal>["initialEntry"]
+              >,
+            }
+          : {})}
       />
       <AddMockExamGradeModal
         open={mockModalOpen}
         onClose={() => setMockModalOpen(false)}
-        onSubmit={(entry) => handleSaveGrade("mock", entry)}
+        onSubmit={(entry) =>
+          editingMockTerm
+            ? handleUpdateGrade("mock", editingMockTerm, entry)
+            : handleSaveGrade("mock", entry)
+        }
+        {...(editingMockRecord
+          ? {
+              initialEntry: editingMockRecord as unknown as NonNullable<
+                ComponentProps<typeof AddMockExamGradeModal>["initialEntry"]
+              >,
+            }
+          : {})}
       />
     </>
   );

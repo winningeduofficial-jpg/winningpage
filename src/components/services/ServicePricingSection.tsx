@@ -104,8 +104,13 @@ export default function ServicePricingSection({
   }
 
   // 안내문→CTA gap — QA 지적으로 하단 구매 영역 전반의 간격을 좁혔다(기존 lg:mt-12.25).
+  // 색상 — 2026-09-02 QA(시트 행 264 "이용권 구매하기 버튼 컬러 변경 필요"): 네이비 채움에
+  // accent 테두리를 두르던 조합을 버리고, 실제 결제 CTA(PricingSelling "결제하기")와 같은
+  // accent 채움(#0B84FD)·hover brightness-95 로 통일했다. 구매 동선 버튼은 accent, 히어로
+  // "지금 시작하기"(시안 2967:9261)는 네이비 — 역할별 색을 나눈다. 이 컴포넌트를 쓰는
+  // 목표관리·심화탐구 랜딩에도 같이 적용된다.
   const ctaClass =
-    "mt-6 inline-flex h-14 w-full max-w-57.5 items-center justify-center rounded-[0.9375rem] border border-accent bg-primary px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F] lg:mt-8 lg:h-13 lg:w-57.5 lg:px-0";
+    "mt-6 inline-flex h-14 w-full max-w-57.5 items-center justify-center rounded-[0.9375rem] bg-accent px-8 text-[0.9375rem] font-semibold text-white transition hover:brightness-95 lg:mt-8 lg:h-13 lg:w-57.5 lg:px-0";
   // 플랜이 1개만 남으면(예: 서비스 상품이 하나뿐인 상태) 상품 행 자체는 이미
   // lg:mx-auto로 가운데 정렬되지만, 아래 안내문은 폭 제한이 없는 블록이라 text-left면
   // 왼쪽 끝에 붙어 가운데 정렬된 행과 어긋나 보였다(QA 지적) — 이때만 문단을 가운데로 돌린다.

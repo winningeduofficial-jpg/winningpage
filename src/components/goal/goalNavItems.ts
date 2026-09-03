@@ -63,3 +63,12 @@ export const GOAL_NAV_FOOTER = {
   label: "내 정보 수정",
   to: "/app/goal/profile",
 };
+
+// QA 행318 — 사이드바 상단 사이트 메인 이동 링크(그룹 밖, 활성 하이라이트 대상 아님).
+// 수행평가 사이드바(PerformanceSidebar.tsx)의 하단 "메인으로 나가기"와 달리 여기는
+// 이탈 확인 다이얼로그가 없는 단순 이동이다 — 스펙이 goal 쪽에는 확인창을 요구하지
+// 않았고, 하단 "내 정보 수정"과 같은 관례(순수 NavLink)를 따른 자의적 판단.
+export const GOAL_NAV_HEADER = {
+  label: "메인으로",
+  to: "/",
+};

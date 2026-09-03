@@ -2,6 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "overlayscrollbars/overlayscrollbars.css";
 /*
   ---break---
 */
@@ -81,6 +82,37 @@
   --color-goal-subjectStrong-history: #ff8a65;
   --color-goal-subjectStrong-second_lang: #4dd0e1;
   --color-goal-subjectStrong-etc: #bcafa0;
+
+  /* "나의 노력" 카드 전용 색(Figma 4026:6046) — 진행바 채움/완독 버튼/책 스택 책등에
+     쓴다. 위 goal-subject(-Strong)*은 다른 화면(칩·타이머 카드)의 정본 색이라 그대로
+     쓰지 않는다 — 시안 실측값이 달라 별도 토큰으로 둔다. goal_workbooks 5종만
+     대상이라(WORKBOOK_SUBJECT_IDS) social/history/second_lang은 없다. etc는 시안에
+     없어 헤더 필 톤(보라 계열)을 자의적으로 골랐다(작업 보고 참고).
+     -dark 4종은 대비 보강(WCAG AA 4.5:1, 2026-09-02) — 책 라이트 배경 위 제목
+     텍스트로 쓰이는데 원래 값이 미달이었다(같은 hue를 유지한 채 RGB를 검정 쪽으로
+     비례 축소해 어둡게만 했다, sRGB relative luminance 계산 스크립트로 검증):
+       korean  #98504d(4.45:1) -> #8f4c49(4.84:1)
+       math    #a16a42(3.58:1) -> #895936(4.70:1)
+       english #9a843f(3.07:1) -> #786631(4.71:1)
+       science #47745a(4.31:1) -> #436e55(4.69:1)
+     etc(#6f5b8f, 4.57:1)는 이미 기준을 충족해 그대로 둔다. 진행바 채움·책 배경(라이트)은
+     대상 아니라 변경하지 않는다. */
+  --color-goal-book-korean-light: #f7dad8;
+  --color-goal-book-korean-dark: #8f4c49;
+  --color-goal-book-math-light: #fbe0ce;
+  --color-goal-book-math-dark: #895936;
+  --color-goal-book-english-light: #f5ebcb;
+  --color-goal-book-english-dark: #786631;
+  --color-goal-book-science-light: #dceadf;
+  --color-goal-book-science-dark: #436e55;
+  --color-goal-book-etc-light: #e8dff4;
+  --color-goal-book-etc-dark: #6f5b8f;
+
+  /* 나의 노력 완독 카운트 뱃지(Efforts.tsx CountBadge) — 정확한 시안 HEX가 없어
+     근사 연보라 톤(추정, part-10 §219 "연보라 필 + 보라 텍스트(추정)"). 전에는
+     Efforts.tsx에 bg-[#EFE9F6]/text-[#6B4FA0]로 로컬 하드코딩돼 있던 걸 토큰화한다. */
+  --color-goal-badge-purple-bg: #efe9f6;
+  --color-goal-badge-purple-text: #6b4fa0;
 
   --color-goal-weekday-mon: #fce7ee;
   --color-goal-weekday-tue: #fdebdd;
@@ -276,21 +308,42 @@ body {
   background: rgba(214, 176, 106, 0.26);
 }
 
-::-webkit-scrollbar {
-  width: 10px;
+/* 오버레이 스크롤바(overlayscrollbars) 공용 테마 — body 초기화(src/main.tsx)와
+   ScrollArea(src/components/ui/scroll-area.tsx)가 함께 참조하는 단일 테마다.
+   node_modules/overlayscrollbars/styles/overlayscrollbars.css의 .os-theme-dark/
+   .os-theme-light와 같은 방식(--os-* 커스텀 프로퍼티)으로 확장한다 — 예전
+   ::-webkit-scrollbar 4규칙(레이아웃 폭을 차지하는 네이티브 스크롤바)을 대체한다.
+   폭은 네이티브(10px)보다 얇은 0.5rem — 오버레이라 콘텐츠를 가리는 폭은 더 좁게 잡는다. */
+.os-theme-winning {
+  box-sizing: border-box;
+  --os-size: 0.5rem;
+  --os-padding-perpendicular: 0.125rem;
+  --os-padding-axis: 0.125rem;
+  --os-track-border-radius: 999px;
+  --os-handle-interactive-area-offset: 0.25rem;
+  --os-handle-border-radius: 999px;
+  --os-track-bg: transparent;
+  --os-handle-bg: #b8b1a2;
+  --os-handle-bg-hover: #0d1b2a;
+  --os-handle-bg-active: #0d1b2a;
 }
 
-::-webkit-scrollbar-track {
-  background: #f0eee8;
+/* 전역 안전망(사용자 확정: "전체 적용") — ScrollArea가 아직 닿지 않은 네이티브
+   overflow 컨테이너도 레이아웃 폭을 차지하는 스크롤바를 그리지 않게 한다.
+   OverlayScrollbars가 만드는 내부 뷰포트([data-overlayscrollbars-viewport])는
+   이미 자체 CSS(node_modules/overlayscrollbars/styles/overlayscrollbars.css의
+   `[data-overlayscrollbars-viewport~=scrollbarHidden]` 규칙)로 네이티브 스크롤바를
+   숨기므로 이 안전망과 충돌하지 않는다 — 두 규칙이 같은 결론(숨김)을 내린다.
+   커스텀 스크롤바(.os-scrollbar)는 실제 overflow 요소가 아닌 별도 div라 애초에
+   네이티브 스크롤바 렌더링 대상이 아니어서 제외할 selector가 필요 없다. */
+* {
+  scrollbar-width: none;
 }
 
-::-webkit-scrollbar-thumb {
-  background: #b8b1a2;
-  border-radius: 999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #0d1b2a;
+*::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .site-dark-bg {
@@ -574,7 +627,56 @@ body {
   }
 }
 
+/* 나의 노력 — "완독! 책장에 꽂기": 진행 중 행은 아래로 가라앉으며 사라지고(bookRowOut),
+   새로 꽂힌 책은 위에서 떨어져 선반에 살짝 튕기며 안착한다(bookDrop). */
+@keyframes bookRowOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+}
+
+@keyframes bookDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-3.5rem) scale(0.96);
+  }
+
+  55% {
+    opacity: 1;
+    transform: translateY(0.3rem) scale(1.01);
+  }
+
+  75% {
+    transform: translateY(-0.15rem) scale(1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.book-row-out {
+  animation: bookRowOut 0.35s ease-in forwards;
+  pointer-events: none;
+}
+
+.book-drop {
+  animation: bookDrop 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .book-row-out,
+  .book-drop {
+    animation: none;
+  }
+
   .page-reveal,
   .reveal-1,
   .reveal-2,

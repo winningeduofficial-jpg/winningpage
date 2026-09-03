@@ -19,6 +19,7 @@ import BlockEditor, {
   type BlockEditorHandle,
 } from "@/components/editor/BlockEditor";
 import ColumnPreviewModal from "@/components/editor/ColumnPreviewModal";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   type AdmissionDoc,
   HWP_SECTION_JSON_KEYS,
@@ -1574,7 +1575,7 @@ export function AdminTable<T extends AdminRow = AdminRow>({
         전체 <span className="text-blue-600">{total.toLocaleString()}</span>건
       </div>
 
-      <div className="overflow-x-auto">
+      <ScrollArea axis="x">
         <table className="w-full min-w-[1000px] border-collapse text-sm">
           <thead>
             <tr className="border-y border-gray-300">
@@ -1844,7 +1845,7 @@ export function AdminTable<T extends AdminRow = AdminRow>({
             )}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
 
       <div className="mt-5 flex flex-col items-center gap-2">
         <div className="inline-flex border border-gray-300">

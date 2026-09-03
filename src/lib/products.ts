@@ -174,7 +174,10 @@ export function useMatchedOrgCodes(studentProfileId?: string | null) {
       }
 
       const { data, error } = await supabase.rpc("fn_matched_org_codes", {
-        p_student_profile_id: studentProfileId ?? null,
+        // p_student_profile_id는 DEFAULT가 있는 optional 인자다.
+        // exactOptionalPropertyTypes 하에서는 명시적 null도 금지라 값이 있을 때만
+        // 키를 스프레드한다(생략이 명시적 null과 런타임에서 동일하다).
+        ...(studentProfileId ? { p_student_profile_id: studentProfileId } : {}),
       });
       if (!alive) return;
       if (error) {

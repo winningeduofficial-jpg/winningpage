@@ -59,6 +59,17 @@ const DEFAULT_KEYS_FILE =
 const DEFAULT_BACKUP_DIR = "/Users/hyunsoo/uwellnow/.admission-html-backups";
 const TABLE = "admission_university_resources";
 
+/**
+ * admission_university_resources 조회 행. 동적 select라 supabase-js가
+ * 이 쿼리 결과를 GenericStringError로 추론한다. dot 접근하는 컬럼만 선언하고,
+ * html 컬럼들은 전부 동적 키(row[col])로만 접근하므로(noImplicitAny 꺼짐)
+ * 별도 선언 없이 암시적 any로 통과한다.
+ * region은 생성 타입에서 non-null(string)이라 기존 로컬 typedef(string | null)를
+ * 정본에 맞춰 좁혔다 — 이 파일은 row.region을 dot 접근하지 않는다.
+ */
+/** @typedef {import("../src/types/database.types.ts").Tables<"admission_university_resources">} ResourceTableRow */
+/** @typedef {Pick<ResourceTableRow, "id" | "university_name" | "campus" | "region">} ResourceRow */
+
 // 카테고리 key -> DB html 컬럼 매핑. load-admission-content.mjs와 동일.
 const CATEGORY_HTML_KEY = {
   previous_year_changes: "previous_year_changes_html",
@@ -208,6 +219,7 @@ export function stripSchoolRecordMethodLeak(html) {
 // (previous_year_changes_html 1건은 "before → after" 비교 셀에서 ②만 재사용된
 // 케이스로, 매핑과 모순되지 않음). 판별 근거가 명확하므로 이 두 문자만
 // 표준 원문자로 치환하고, 그 외 PUA는 여전히 판별 불가로 보고만 한다.
+/** @type {Array<[number, number]>} */
 const PUA_RANGES = [
   [0xe000, 0xf8ff], // BMP Private Use Area
   [0xf0000, 0xffffd], // Supplementary Private Use Area-A
@@ -261,7 +273,7 @@ export function detectEmptyShellTables(html) {
   const tableMatches = [...text.matchAll(/<table[^>]*>([\s\S]*?)<\/table>/g)];
   const shells = [];
   tableMatches.forEach((m) => {
-    const tableInner = m[1];
+    const tableInner = m[1] ?? "";
     const rows = [...tableInner.matchAll(/<tbody>([\s\S]*?)<\/tbody>/g)];
     const tbody = rows[0]?.[1] || "";
     const trCount = (tbody.match(/<tr>/g) || []).length;
@@ -270,7 +282,7 @@ export function detectEmptyShellTables(html) {
       return;
     }
     const cellTexts = [...tbody.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map(
-      (cm) => cm[1].replace(/<[^>]+>/g, "").trim(),
+      (cm) => (cm[1] ?? "").replace(/<[^>]+>/g, "").trim(),
     );
     const allEmpty =
       cellTexts.length > 0 && cellTexts.every((t) => t === "" || t === "-");
@@ -318,6 +330,24 @@ function assertIdempotent(_original, once, htmlColumn, context) {
         `1회차: ${once.slice(0, 200)}\n2회차: ${twice.slice(0, 200)}`,
     );
   }
+}
+
+/**
+ * changesByColumn(Record<string, ChangeEntry[]>)처럼 "키 집합을 스스로
+ * 만들어놓고 그 키로만 접근"하는 객체에 대한 도달 불가 가드.
+ * noUncheckedIndexedAccess 하에서 인덱스 시그니처 접근은 항상
+ * `T | undefined`가 되므로, 실제로는 항상 존재함을 보장하는 지점에서만 쓴다.
+ * @template T
+ * @param {Record<string, T>} record
+ * @param {string} key
+ * @returns {T}
+ */
+function req(record, key) {
+  const value = record[key];
+  if (value === undefined) {
+    throw new Error(`"${key}" 키가 없습니다(예상치 못한 상태)`);
+  }
+  return value;
 }
 
 // -----------------------------------------------------------------------
@@ -372,18 +402,25 @@ async function main() {
     .select(selectColumns)
     .order("id");
   if (fetchError) throw new Error(`행 조회 실패: ${fetchError.message}`);
+  const typedRows = /** @type {ResourceRow[]} */ (
+    /** @type {unknown} */ (rows)
+  );
 
   await writeFile(backupFile, JSON.stringify(rows, null, 2), "utf-8");
-  console.log(`백업 완료: ${rows.length}행 → ${backupFile}`);
+  console.log(`백업 완료: ${typedRows.length}행 → ${backupFile}`);
 
   console.log("\n=== 2) 정규화 계산 ===");
+  /**
+   * @typedef {{ id: string, label: string, before: string, after: string }} ChangeEntry
+   */
+  /** @type {Record<string, ChangeEntry[]>} */
   const changesByColumn = Object.fromEntries(HTML_COLUMNS.map((c) => [c, []]));
   let puaResolvedCount = 0;
   const puaUnresolvedFindings = [];
   const emptyShellFindings = [];
   const legacyRecruitFindings = [];
 
-  rows.forEach((row) => {
+  typedRows.forEach((row) => {
     const label = `${row.university_name}${row.campus ? `(${row.campus})` : ""}`;
 
     HTML_COLUMNS.forEach((col) => {
@@ -420,7 +457,7 @@ async function main() {
       const normalized = normalizeHtmlValue(original, col);
       if (normalized !== original) {
         assertIdempotent(original, normalized, col, label);
-        changesByColumn[col].push({
+        req(changesByColumn, col).push({
           id: row.id,
           label,
           before: original,
@@ -433,7 +470,7 @@ async function main() {
   console.log("\n=== 3) 집계 ===");
   let totalChanges = 0;
   HTML_COLUMNS.forEach((col) => {
-    const list = changesByColumn[col];
+    const list = req(changesByColumn, col);
     totalChanges += list.length;
     console.log(`- ${col}: 변경 ${list.length}건`);
   });
@@ -441,7 +478,7 @@ async function main() {
 
   console.log("\n=== 4) 샘플 diff ===");
   HTML_COLUMNS.forEach((col) => {
-    const list = changesByColumn[col];
+    const list = req(changesByColumn, col);
     if (!list.length) return;
     console.log(
       `\n[${col}] 샘플 ${Math.min(sampleCount, list.length)}/${list.length}`,
@@ -488,7 +525,7 @@ async function main() {
   let updated = 0;
   const failedUpdates = [];
   for (const col of HTML_COLUMNS) {
-    for (const change of changesByColumn[col]) {
+    for (const change of req(changesByColumn, col)) {
       let lastError = null;
       let succeeded = false;
       for (let attempt = 1; attempt <= 3 && !succeeded; attempt += 1) {

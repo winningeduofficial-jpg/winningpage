@@ -82,6 +82,20 @@ test("meta.diagnosedAt 은 호출부가 넣는다", () => {
   expect(case01FromRaw.meta.diagnosedAt).toEqual("2026-08-11T00:00:00.000Z");
 });
 
+// 리포트 영속화(diagnosis_reports) — SurveyStepShell이 제출 플로우당 1회 만든
+// attemptId를 meta에 실어 sessionStorage로 함께 저장한다(리포트 페이지 재시도 근거).
+test("meta.attemptId 가 있으면 그대로 담긴다", () => {
+  expect(
+    normalizeAnswersOf(
+      {},
+      { attemptId: "98af95da-47bf-4cee-8a2e-7d70d07fb1c9" },
+    ).meta.attemptId,
+  ).toEqual("98af95da-47bf-4cee-8a2e-7d70d07fb1c9");
+});
+test("meta.attemptId 가 없으면 null(구 버전 payload와 하위 호환)", () => {
+  expect(normalizeAnswersOf({}).meta.attemptId).toEqual(null);
+});
+
 // 전 문항을 라벨로 채운 응답 1건. 코드 매핑·grade-grid 문자열 파싱·admissionQuery 4단 게이트를 함께 태운다.
 const fullRawAnswers = {
   q1: labelOf("q1", "H2"),

@@ -1,7 +1,12 @@
-// POST /api/change-phone  { phone }
+// POST /api/change-phone  { phone, target? }
 //
 // 마이페이지 "휴대폰 번호를 변경해요" 플로우(Figma 3973:15330→16090→16297→16478)
 // 마지막 단계 — 인증번호 검증까지 끝난 번호를 실제로 profiles.phone 에 반영한다.
+//
+// target(선택, 기본 'self', 2026-09-03)
+//   'guardian'이면 본인 번호가 아니라 profiles.guardian_phone(학부모 번호)을
+//   바꾼다 — purpose 'guardian_change'로 인증된 건만 받는다. 'self'(기본)는
+//   기존 동작 그대로 profiles.phone을 purpose 'phone_change'로 바꾼다.
 //
 // 왜 서버 API 인가
 //   phone_verifications 는 RLS 전면 거부 + 권한 회수 테이블이다(sql/40_auth_signup.sql
@@ -44,6 +49,8 @@ export default defineHandler({
   handler: async (req, res, ctx) => {
     const rawPhone = String(req.body?.phone || "").trim();
     const normalized = normalizePhone(rawPhone);
+    const target: "self" | "guardian" =
+      req.body?.target === "guardian" ? "guardian" : "self";
 
     if (!isValidMobile(normalized)) {
       return fail(
@@ -80,12 +87,18 @@ export default defineHandler({
 
       // 이 번호로 verify-phone-code 를 통과한 가장 최근 미소비 발송 건을 찾는다.
       // send-phone-code.js 와 같은 정규화(digits-only)로 저장돼 있다.
+      // target에 따라 요구하는 purpose가 다르다 — self는 'phone_change'(기존
+      // 동작), guardian은 'guardian_change'다. 서로 다른 purpose로 인증된
+      // 건을 상대 target에 쓸 수 있게 하면, 본인 번호 인증만으로 학부모
+      // 번호까지 바꿀 수 있게 되어 원치 않는 번호로 학부모 번호가 바뀐다.
+      const purpose =
+        target === "guardian" ? "guardian_change" : "phone_change";
       const { data: verification, error: verificationError } =
         await supabaseAdmin
           .from("phone_verifications")
           .select("id, expires_at")
           .eq("phone", normalized)
-          .eq("purpose", "phone_change")
+          .eq("purpose", purpose)
           .not("verified_at", "is", null)
           .is("consumed_at", null)
           .order("created_at", { ascending: false })
@@ -112,16 +125,23 @@ export default defineHandler({
         });
       }
 
-      // profiles.phone 은 기존 인라인 편집(ProfileTab.jsx)과 같은 표기(사용자 입력
-      // 원문)를 그대로 저장한다 — 정규화된 digits-only 로 바꾸면 기존 표시 형식
-      // (010-1234-5678)과 갈린다.
+      // profiles.phone(또는 guardian_phone) 은 기존 인라인 편집(ProfileTab.jsx)과
+      // 같은 표기(사용자 입력 원문)를 그대로 저장한다 — 정규화된 digits-only 로
+      // 바꾸면 기존 표시 형식(010-1234-5678)과 갈린다.
+      const updateColumn = target === "guardian" ? "guardian_phone" : "phone";
       const { error: updateError } = await supabaseAdmin
         .from("profiles")
-        .update({ phone: rawPhone, updated_at: new Date().toISOString() })
+        .update({
+          [updateColumn]: rawPhone,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", userId);
 
       if (updateError) {
-        console.error("[change-phone] profiles.phone 갱신 실패:", updateError);
+        console.error(
+          `[change-phone] profiles.${updateColumn} 갱신 실패:`,
+          updateError,
+        );
         return void res.status(500).json({
           ok: false,
           reason: "unknown",
@@ -144,7 +164,7 @@ export default defineHandler({
         );
       }
 
-      return void res.status(200).json({ ok: true, phone: rawPhone });
+      return void res.status(200).json({ ok: true, phone: rawPhone, target });
     } catch (error) {
       console.error("[change-phone] 오류:", error);
       return void res.status(500).json({

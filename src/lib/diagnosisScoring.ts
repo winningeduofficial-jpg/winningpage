@@ -63,8 +63,6 @@ import {
   SERVICE_H3_LATE_TIMEZONE,
   SERVICE_LABEL,
   SERVICE_PART_CAPS,
-  SERVICE_RANK2_MAX_DIFF,
-  SERVICE_RANK2_MIN_FIT,
   SERVICE_RULES,
   SINCERITY_MAX_OFFMODE,
   SINCERITY_MIN_ANSWERED,
@@ -204,7 +202,7 @@ function textOrNull(raw) {
  * 다르다. 여기서 미리 잘라내면 clamp 가 정상 경로에서 영영 발동하지 않는다.
  *
  * @param {Record<string, any>} answers SurveyStepShell 이 들고 있는 원시 응답
- * @param {{ diagnosedAt?: string|null, name?: string|null }} [meta]
+ * @param {{ diagnosedAt?: string|null, name?: string|null, attemptId?: string|null }} [meta]
  * @returns {object} DiagnosisInput
  */
 export function normalizeAnswers(
@@ -213,7 +211,15 @@ export function normalizeAnswers(
   // 명시한 정본 타입(Record<string, any>) 그대로 옮긴다.
   // biome-ignore lint/suspicious/noExplicitAny: 위 주석 참고
   answers: Record<string, any>,
-  meta: { diagnosedAt?: string | null; name?: string | null } = {},
+  meta: {
+    diagnosedAt?: string | null;
+    name?: string | null;
+    // 리포트 영속화(diagnosis_reports) 저장·재시도 키 — SurveyStepShell이 제출
+    // 플로우당 1회 만든 attemptId를 그대로 실어 둔다(리포트 페이지가 새로고침·재진입
+    // 시 이 값을 읽어 ensureDiagnosisReportSaved 재시도에 쓴다). 저장 이전 payload와
+    // 하위 호환을 위해 옵셔널이다 — 없으면 null.
+    attemptId?: string | null;
+  } = {},
 ) {
   const source = answers && typeof answers === "object" ? answers : {};
   const grid = source.q6 && typeof source.q6 === "object" ? source.q6 : {};
@@ -253,6 +259,7 @@ export function normalizeAnswers(
       // 시계를 읽지 않는다 — 제출 핸들러가 넣는다. 엔진이 Date.now() 를 부르면 순수성이 깨지고
       // 같은 입력이 매번 다른 리포트를 낸다(스냅샷 회귀 불가).
       diagnosedAt: meta.diagnosedAt ?? null,
+      attemptId: meta.attemptId ?? null,
     },
     profile: {
       // TODO(Q-01): 이름을 수집하는 문항이 없다. 상시 null 이며 폴백은 §5.2 소관이다.
@@ -704,15 +711,13 @@ export function rankServices(input, areaScores) {
         SERVICE_CODES.indexOf(a.code) - SERVICE_CODES.indexOf(b.code),
     );
 
+  // QA 시트 행 343(2026-09-02 확정) — 종전엔 second.fit >= SERVICE_RANK2_MIN_FIT(65) &&
+  // rank1.fit - second.fit <= SERVICE_RANK2_MAX_DIFF(20) 게이트를 통과해야만 2순위가 채워져,
+  // 후보가 둘 이상이어도 대부분 카드가 1장만 나왔다. QA 요청대로 게이트를 폐기하고 tier 필터를
+  // 통과한 후보가 2개 이상이면 항상 2순위를 채운다(1개뿐이면 기존과 동일하게 1개, 0개면 SVC_NONE
+  // 폴백 그대로).
   const rank1 = all[0] ?? null;
-  const second = all[1] ?? null;
-  const rank2 =
-    rank1 &&
-    second &&
-    second.fit >= SERVICE_RANK2_MIN_FIT &&
-    rank1.fit - second.fit <= SERVICE_RANK2_MAX_DIFF
-      ? second
-      : null;
+  const rank2 = all[1] ?? null;
 
   // filterReason 은 화면 분기용이 아니라 사후 재판정용이다(Q-13 가드레일) — 2종으로 줄어든 뒤
   // tier 필터까지 걸려 all 이 0건이 되면 기존 SVC_NONE 폴백이 그대로 동작하고, 그때도 '왜 2종

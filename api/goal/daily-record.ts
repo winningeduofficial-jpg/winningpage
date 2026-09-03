@@ -27,6 +27,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import {
+  addDaysYMD,
   calculateDailyBonusV2,
   diffDaysYMD,
   getDayIndexFromYMDServer,
@@ -35,6 +36,7 @@ import {
 } from "../../src/lib/goal/calc/index.js";
 import {
   appendProbabilityLog,
+  fetchLatestDailyRecord,
   fetchStudentRow,
   fetchStudentStateRow,
   fetchTimerDaySummary,
@@ -103,8 +105,43 @@ export const CONDITION_LABELS: Record<string, string> = {
 const MEMO_MAX_LENGTH = 1000;
 const STUDY_HOURS_MAX = 24;
 
+// QA3 행305 — 기록 제출 후 다시 제출(수정)할 수 없는 잠금 시간. "12시간 리터럴"
+// 안(설계 문서 §5(c) B안, 팀장 작업 지시로 확정) — 자정 기준 당일 잠금(A안)이
+// 아니라 제출 시각 + 12시간을 그대로 쓴다. 22시 제출 시 익일 10시까지 새 기록도
+// 막히는 부작용이 있음을 알고 채택한 값이다(설계 문서 §5(c) 권고 A와 다름 — QA
+// 최대 준수안 §9-4 채택).
+const RECORD_COOLDOWN_MS = 12 * 60 * 60 * 1000;
+
 function round1(value: number) {
   return Math.round(value * 10) / 10;
+}
+
+/**
+ * QA3 행305 — 쿨다운 판정 순수 함수. submittedAt이 없으면(아직 한 번도 제출한
+ * 적 없는 학생) 잠금 없음. 경계는 "미만"만 잠금이다 — now - submittedAt이
+ * 정확히 12시간이면(=== RECORD_COOLDOWN_MS) 이미 해제된 것으로 본다(테스트로
+ * 고정: 11시간59분 거부, 12시간 정각 허용).
+ */
+export function computeCooldownState(
+  submittedAt: string | null | undefined,
+  now: Date,
+): { active: boolean; submittedAt: string | null; unlocksAt: string | null } {
+  if (!submittedAt)
+    return { active: false, submittedAt: null, unlocksAt: null };
+
+  const submittedMs = new Date(submittedAt).getTime();
+  if (!Number.isFinite(submittedMs)) {
+    return { active: false, submittedAt: null, unlocksAt: null };
+  }
+
+  const unlocksAtMs = submittedMs + RECORD_COOLDOWN_MS;
+  const active = now.getTime() - submittedMs < RECORD_COOLDOWN_MS;
+
+  return {
+    active,
+    submittedAt: new Date(submittedMs).toISOString(),
+    unlocksAt: new Date(unlocksAtMs).toISOString(),
+  };
 }
 
 /**
@@ -244,6 +281,71 @@ function buildProbsPayload(stateRow: any) {
   };
 }
 
+/**
+ * QA3 행305 — 잠금 중 요약 패널용 데이터. GET이 소스로 넘기는 row는 "오늘
+ * 행이 있으면 오늘 행, 없으면(자정을 넘겨 잠금만 남은 경우) 가장 최근 제출
+ * 행"이다(호출부 결정, 이 함수는 순수 변환만). target_ideal_hours/
+ * target_min_hours·delta_* 4종은 그 제출 시점의 스냅샷 컬럼을 그대로 쓴다 —
+ * study_schedule이 나중에 바뀌어도 그날 산출 근거가 그대로 재현된다
+ * (target_ideal_hours 컬럼 코멘트와 동일 이유).
+ */
+// biome-ignore lint/suspicious/noExplicitAny: goalRepo.js fetchTodayRecord/fetchLatestDailyRecord가 타입을 내보내지 않는다(Stage3 대상).
+export function buildSummaryPayload(row: any) {
+  if (!row) return null;
+
+  const studyHours = num(row.study_hours) ?? 0;
+  const targetIdealHours = num(row.target_ideal_hours) ?? 0;
+  const targetMinHours = num(row.target_min_hours) ?? 0;
+
+  // Dashboard.tsx mapTodayGoal()의 rateOf와 동일 규칙(0~100 클램프, 반올림) —
+  // 표시용 퍼센트를 두 곳에서 다르게 계산하지 않는다.
+  const rateOf = (targetHours: number) =>
+    targetHours > 0
+      ? Math.min(100, Math.round((studyHours / targetHours) * 100))
+      : 0;
+
+  return {
+    studyHours,
+    targetIdealHours,
+    targetMinHours,
+    idealRate: rateOf(targetIdealHours),
+    minRate: rateOf(targetMinHours),
+    deltaIdealSusi: num(row.delta_ideal_susi),
+    deltaMinSusi: num(row.delta_min_susi),
+    // 정시 컷 미확보 학생은 rate_*_jungsi가 0이라 델타도 0으로 저장되지만(컬럼
+    // NOT NULL), num()이 파싱 불가값을 null로 접는 방어 규칙은 여기서도 그대로
+    // 둔다 — "정시 미산출"과 "0"을 클라이언트가 구분해야 할 여지를 남긴다.
+    deltaIdealJungsi: num(row.delta_ideal_jungsi),
+    deltaMinJungsi: num(row.delta_min_jungsi),
+  };
+}
+
+/**
+ * QA3 행305 — 잠금 패널에 보여줄 "내일 목표 시간". recordDate(오늘) 기준
+ * +1일의 요일을 student.study_schedule에서 찾는다. 온보딩 전이거나 그 요일
+ * 스케줄이 없으면 0/0(Dashboard.tsx resolveDaySchedule의 폴백과 동일 규칙).
+ */
+export function buildTomorrowTargets(
+  // biome-ignore lint/suspicious/noExplicitAny: goalRepo.js fetchStudentRow가 타입을 내보내지 않는다(Stage3 대상).
+  student: any,
+  recordDate: string,
+  now: Date,
+) {
+  const tomorrowYmd = addDaysYMD(recordDate, 1, now);
+  const dayIndex = getDayIndexFromYMDServer(tomorrowYmd, now);
+  // biome-ignore lint/style/noNonNullAssertion: getDayIndexFromYMDServer는 항상 0-6을 돌려줌(7개 배열)
+  const dayName = VIRTUAL_DAY_NAMES[dayIndex]!;
+  const daySchedule = student?.study_schedule?.[dayName] || {
+    ideal: 0,
+    min: 0,
+  };
+
+  return {
+    idealHours: num(daySchedule.ideal) ?? 0,
+    minHours: num(daySchedule.min) ?? 0,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // GET — 오늘(KST) 기록 조회(프리필용)
 // ---------------------------------------------------------------------------
@@ -266,15 +368,26 @@ async function handleGet(
   if (gate.error) {
     return res.status(gate.error.status).json(gate.error.body);
   }
+  const student = gate.row;
 
   const now = new Date();
   const recordDate = kstYMD(now);
 
-  const [record, stateRow, timerSummary] = await Promise.all([
+  const [record, stateRow, timerSummary, latestRecord] = await Promise.all([
     fetchTodayRecord(supabaseAdmin, profileId, recordDate),
     fetchStudentStateRow(supabaseAdmin, profileId),
     fetchTimerDaySummary(supabaseAdmin, profileId, now),
+    fetchLatestDailyRecord(supabaseAdmin, profileId),
   ]);
+
+  // QA3 행305 — cooldown은 한 번도 제출한 적 없으면 null(잠금 개념 자체가 없다).
+  // 잠금 중 요약 패널의 소스는 "오늘 행이 있으면 오늘 행, 없으면(자정을 넘겨
+  // 잠금만 남은 경우) 가장 최근 제출 행" — latestRecord가 곧 그 최근 행이다.
+  const cooldown = latestRecord
+    ? computeCooldownState(latestRecord.submitted_at, now)
+    : null;
+  const summary = buildSummaryPayload(record || latestRecord);
+  const tomorrowTargets = buildTomorrowTargets(student, recordDate, now);
 
   return res.status(200).json({
     ok: true,
@@ -292,6 +405,9 @@ async function handleGet(
       subject: row.subject,
       hours: round1(row.seconds / 3600),
     })),
+    cooldown,
+    summary,
+    tomorrowTargets,
   });
 }
 
@@ -370,10 +486,28 @@ async function handlePost(
     return res.status(400).json({ reason: "before_start_date" });
   }
 
-  const [existing, timerSummary] = await Promise.all([
+  const [existing, timerSummary, latestRecord] = await Promise.all([
     fetchTodayRecord(supabaseAdmin, profileId, recordDate),
     fetchTimerDaySummary(supabaseAdmin, profileId, now),
+    fetchLatestDailyRecord(supabaseAdmin, profileId),
   ]);
+
+  // QA3 행305 — 12시간 쿨다운. 카드(studyHours만)·페이지(전체 필드) 두 제출
+  // 경로 모두 이 한 곳을 거치므로 규칙이 자연히 공유된다. 오늘 행이 아직 없어도
+  // (자정을 갓 넘겼는데 어제 밤 제출이 12시간 이내) latestRecord가 걸러낸다 —
+  // fetchTodayRecord만으로는 이 경우를 잡지 못한다(오늘 행이 없으니 existing이
+  // null이라 통과해 버린다).
+  const cooldown = latestRecord
+    ? computeCooldownState(latestRecord.submitted_at, now)
+    : null;
+  if (cooldown?.active) {
+    return res.status(409).json({
+      reason: "cooldown",
+      submittedAt: cooldown.submittedAt,
+      unlocksAt: cooldown.unlocksAt,
+    });
+  }
+
   const timerHours = round1(timerSummary.totalSeconds / 3600);
 
   // ── 병합 — 바디에 있는 필드만 교체, 없으면 기존 행 값 유지 ────────────────
@@ -482,6 +616,9 @@ async function handlePost(
     record_index: recordIndex,
     record_date: recordDate,
     submitted_on: kstYMD(now),
+    // QA3 행305 — 다음 12시간 쿨다운의 기준점. 이 값이 곧 위 cooldown 게이트가
+    // 다음 요청에서 읽는 latestRecord.submitted_at이다.
+    submitted_at: now.toISOString(),
 
     study_hours: studyHours,
     achievement: "",

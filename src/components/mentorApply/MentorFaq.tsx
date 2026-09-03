@@ -96,15 +96,12 @@ export default function MentorFaq() {
           copyResult.data.map((row) => [row.copy_key, row.copy_value]),
         );
         setCopy({
-          eyebrow: copyMap.has("faq.eyebrow")
-            ? copyMap.get("faq.eyebrow")
-            : FAQ_SECTION.eyebrow,
-          titleLead: copyMap.has("faq.title_lead")
-            ? copyMap.get("faq.title_lead")
-            : FAQ_SECTION.titleLead,
-          titleAccent: copyMap.has("faq.title_accent")
-            ? copyMap.get("faq.title_accent")
-            : FAQ_SECTION.titleAccent,
+          // .has()+.get() 조합은 get()의 string | undefined를 좁혀주지 않는다
+          // (컬럼 자체도 nullable) — ?? 로 폴백을 직접 좁힌다.
+          eyebrow: copyMap.get("faq.eyebrow") ?? FAQ_SECTION.eyebrow,
+          titleLead: copyMap.get("faq.title_lead") ?? FAQ_SECTION.titleLead,
+          titleAccent:
+            copyMap.get("faq.title_accent") ?? FAQ_SECTION.titleAccent,
         });
       }
     })();

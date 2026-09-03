@@ -1,6 +1,8 @@
 import { Download, Eye, EyeOff, RefreshCw, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import { useSensitiveActionGate } from "@/components/admin/SensitiveActionGate";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatPhoneInput } from "@/lib/phoneVerification";
 import { supabase } from "@/lib/supabase";
 import { AdminTable } from "@/pages/admin/shared/AdminEngine";
 import { getFreshSupabaseAccessTokenOrSignOut } from "@/pages/admin/shared/adminSession";
@@ -9,6 +11,7 @@ import {
   ActionButton,
   Select,
   Textarea,
+  TextInput,
 } from "@/pages/admin/shared/formFields";
 import { useAdminDetailBack } from "@/pages/admin/shared/useAdminDetailBack";
 
@@ -246,6 +249,11 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
   // 여기서 인라인으로 편집한다. 고정 목록이 아니라 자유 텍스트다(DB CHECK 없음).
   const [categoryDraft, setCategoryDraft] = useState("");
   const [savingCategory, setSavingCategory] = useState(false);
+  // 학부모 핸드폰(guardian_phone) — 회원구분과 마찬가지로 이 화면이 custom 으로
+  // 바뀌며 제네릭 편집 폼이 없어져서 인라인으로 직접 편집한다. SMS 인증 없이
+  // 어드민이 바로 고쳐 쓰는 값이다(연락·복구 채널 승격).
+  const [guardianPhoneDraft, setGuardianPhoneDraft] = useState("");
+  const [savingGuardianPhone, setSavingGuardianPhone] = useState(false);
 
   async function loadRows() {
     setLoading(true);
@@ -407,6 +415,7 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
     setMessages([]);
     setDraft("");
     setCategoryDraft(row.member_category || "");
+    setGuardianPhoneDraft(row.guardian_phone || "");
     loadDetail(row);
   }
 
@@ -545,6 +554,33 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
     alert("회원구분을 저장했습니다.");
   }
 
+  async function saveGuardianPhone() {
+    if (!selected || savingGuardianPhone) return;
+    setSavingGuardianPhone(true);
+
+    const next = guardianPhoneDraft.trim() || null;
+    const { error } = await supabase
+      .from("profiles")
+      .update({ guardian_phone: next })
+      .eq("id", selected.id);
+
+    setSavingGuardianPhone(false);
+
+    if (error) {
+      alert(`학부모 핸드폰 저장 실패: ${error.message}`);
+      return;
+    }
+
+    // 목록과 상세가 같은 값을 보게 맞춰둔다(재조회 없이).
+    setSelected({ ...selected, guardian_phone: next });
+    setRows((prev) =>
+      prev.map((row) =>
+        row.id === selected.id ? { ...row, guardian_phone: next } : row,
+      ),
+    );
+    alert("학부모 핸드폰을 저장했습니다.");
+  }
+
   // 결제 요약 3종 — 참조 HTML 의 "이번 달 결제 / 미납액 / 누적 결제액".
   // 미납액은 아직 결제가 끝나지 않은 주문(pending·waiting_deposit)의 합으로
   // 잡는다. 취소·실패·환불은 받을 돈이 아니므로 제외한다.
@@ -675,6 +711,10 @@ export default function MembersAdmin({ config }: MembersAdminProps) {
             setCategoryDraft={setCategoryDraft}
             onSaveCategory={saveMemberCategory}
             savingCategory={savingCategory}
+            guardianPhoneDraft={guardianPhoneDraft}
+            setGuardianPhoneDraft={setGuardianPhoneDraft}
+            onSaveGuardianPhone={saveGuardianPhone}
+            savingGuardianPhone={savingGuardianPhone}
           />
         ) : tab === "services" ? (
           <ServicesPane accesses={accesses} />
@@ -812,6 +852,10 @@ function ProfilePane({
   setCategoryDraft,
   onSaveCategory,
   savingCategory,
+  guardianPhoneDraft,
+  setGuardianPhoneDraft,
+  onSaveGuardianPhone,
+  savingGuardianPhone,
 }: {
   profile: ProfileRow;
   isParent: boolean;
@@ -823,6 +867,10 @@ function ProfilePane({
   setCategoryDraft: (value: string) => void;
   onSaveCategory: () => void;
   savingCategory: boolean;
+  guardianPhoneDraft: string;
+  setGuardianPhoneDraft: (value: string) => void;
+  onSaveGuardianPhone: () => void;
+  savingGuardianPhone: boolean;
 }) {
   const address = [profile.address, profile.address_detail]
     .filter(Boolean)
@@ -858,6 +906,36 @@ function ProfilePane({
           label="유선전화"
           value={
             unmasked ? profile.landline || "-" : maskPhone(profile.landline)
+          }
+        />
+        {/* 학부모 핸드폰(guardian_phone) — 학생 계정의 연락·복구 채널로 승격된
+            값이라 조회뿐 아니라 운영자가 직접 고칠 수 있어야 한다. 다른 연락처
+            항목과 같은 마스킹 게이트를 타되, 해제 상태에서만 편집 인풋을 연다
+            (마스킹된 값을 보며 고치는 건 의미가 없다). 저장은 회원구분과 같은
+            방식 — SMS 인증 없이 profiles 를 바로 update 한다. */}
+        <Row
+          label="학부모 핸드폰"
+          value={
+            unmasked ? (
+              <div className="flex items-center gap-2">
+                <TextInput
+                  value={guardianPhoneDraft}
+                  onChange={(value) =>
+                    setGuardianPhoneDraft(formatPhoneInput(value))
+                  }
+                  placeholder="010-0000-0000"
+                  className="max-w-[13.75rem]"
+                />
+                <ActionButton
+                  onClick={onSaveGuardianPhone}
+                  disabled={savingGuardianPhone}
+                >
+                  {savingGuardianPhone ? "저장 중..." : "저장"}
+                </ActionButton>
+              </div>
+            ) : (
+              maskPhone(profile.guardian_phone)
+            )
           }
         />
         <Row label="주소" value={address || "-"} />
@@ -1006,7 +1084,7 @@ function PayPane({
         ))}
       </div>
 
-      <div className="overflow-x-auto bg-white shadow-sm">
+      <ScrollArea axis="x" className="bg-white shadow-sm">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b border-[#edf0f4] bg-[#fafafa] text-left">
@@ -1058,7 +1136,7 @@ function PayPane({
             )}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
     </>
   );
 }
@@ -1132,7 +1210,7 @@ function MessagePane({
         </div>
       </div>
 
-      <div className="overflow-x-auto bg-white shadow-sm">
+      <ScrollArea axis="x" className="bg-white shadow-sm">
         <table className="w-full min-w-[860px] text-sm">
           <thead>
             <tr className="border-b border-[#edf0f4] bg-[#fafafa] text-left">
@@ -1184,7 +1262,7 @@ function MessagePane({
             )}
           </tbody>
         </table>
-      </div>
+      </ScrollArea>
     </>
   );
 }

@@ -31,7 +31,11 @@ interface FieldMessage {
 }
 
 type LookupResult =
-  | { kind: "found"; maskedEmail: string }
+  | {
+      kind: "found";
+      maskedEmails: string[];
+      via: "phone" | "guardian_phone";
+    }
   | { kind: "not_found" }
   | { kind: "error"; message: string };
 
@@ -54,7 +58,16 @@ async function fetchMaskedEmail(phone: string): Promise<LookupResult> {
     }
 
     if (!payload.found) return { kind: "not_found" };
-    return { kind: "found", maskedEmail: payload.masked_email };
+
+    const maskedEmails: string[] = Array.isArray(payload.masked_emails)
+      ? payload.masked_emails
+      : [payload.masked_email];
+
+    return {
+      kind: "found",
+      maskedEmails,
+      via: payload.via === "guardian_phone" ? "guardian_phone" : "phone",
+    };
   } catch {
     return {
       kind: "error",
@@ -138,7 +151,7 @@ export default function FindAccount() {
 
     lastPhoneAttempt.current = code;
 
-    verifyPhoneCode(phone, code).then((verifyResult) => {
+    verifyPhoneCode(phone, code, "find_account").then((verifyResult) => {
       if (verifyResult.ok) {
         setPhoneVerified(true);
         setPhoneMessage({
@@ -237,10 +250,22 @@ export default function FindAccount() {
       {result?.kind === "found" && (
         <div className="flex w-full flex-col gap-5">
           <InfoCard variant="card">
-            해당 번호로 가입된 이메일이에요.
-            <p className="mt-2 text-lg font-semibold text-ink-title">
-              {result.maskedEmail}
-            </p>
+            {result.via === "guardian_phone" ? (
+              <p>학부모 핸드폰으로 등록된 계정이에요.</p>
+            ) : (
+              <p>해당 번호로 가입된 이메일이에요.</p>
+            )}
+            <ul className="mt-2 flex flex-col gap-1">
+              {result.maskedEmails.map((maskedEmail, index) => (
+                <li
+                  // biome-ignore lint/suspicious/noArrayIndexKey: 마스킹된 이메일이라 형제자매 계정끼리 동일 문자열일 수 있다 — 한 번의 조회 응답을 그대로 렌더하는 정적 목록이라 인덱스로 구분해도 안전하다.
+                  key={`${index}-${maskedEmail}`}
+                  className="text-lg font-semibold text-ink-title"
+                >
+                  {maskedEmail}
+                </li>
+              ))}
+            </ul>
           </InfoCard>
 
           <PrimaryButton onClick={() => navigate("/login")}>

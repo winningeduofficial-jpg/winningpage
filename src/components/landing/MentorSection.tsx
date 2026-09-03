@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useInfiniteMarquee } from "@/hooks/useInfiniteMarquee";
 import MentorCard from "./MentorCard";
+import { LANDING_MARQUEE_SPEED } from "./marqueeConfig";
 
 /**
  * 멘토 섹션 (명세 3.4, 0729 시안 2207:13029 리뉴얼)
@@ -32,8 +33,17 @@ export default function MentorSection({
   headingSlot,
   className = "",
 }: MentorSectionProps) {
+  const isCallMentor = variant === "callmentor";
+  const isPremium = variant === "premium";
+  // QA 행221: 메인랜딩(default variant) 마퀴만 좌→우로 천천히 흐르도록 조정.
+  // callmentor/premium은 기존 방향·속도(훅 기본값) 유지.
+  const isDefaultLanding = variant === "default";
   const { scrollRef, repeatIndices, containerHandlers } = useInfiniteMarquee({
     itemCount: mentors.length,
+    ...(isDefaultLanding && {
+      speed: LANDING_MARQUEE_SPEED,
+      direction: "right" as const,
+    }),
   });
 
   if (mentors.length === 0) return null;
@@ -43,8 +53,6 @@ export default function MentorSection({
   const renderIndices = isMarquee
     ? repeatIndices
     : mentors.map((_, index) => index);
-  const isCallMentor = variant === "callmentor";
-  const isPremium = variant === "premium";
 
   return (
     <section

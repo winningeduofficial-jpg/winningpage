@@ -47,6 +47,7 @@
 //    매칭한다(추가 조인 없이 봉투에 이미 들어있는 값, evaluate.js `buildReportEnvelope`).
 
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import type { Json } from "../../src/types/database.types.js";
 import { defineHandler, requireUserId } from "../_lib/handler.js";
 import { sendError } from "../_lib/httpResponse.js";
 import {
@@ -132,7 +133,10 @@ type ReportRow = {
   report_type: string;
   topic_id: string | null;
   submission_id: string | null;
-  sections: Record<string, unknown> | null;
+  // jsonb 컬럼(생성 타입은 Json). 런타임에는 항상 객체 봉투를 담지만(위
+  // 파일 주석의 finalize/design-report/evaluate 관례), toXReport()들은 이미
+  // typeof 가드 뒤에서 Record<string, unknown>으로 다시 캐스트해 읽는다.
+  sections: Json | null;
   score: number | null;
   summary: string | null;
   model: string | null;

@@ -7,7 +7,9 @@
 import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
+import type { SignupProfileRpcResult } from "@/lib/parentLink";
 import { supabase } from "@/lib/supabase";
+import type { Tables } from "@/types/database.types";
 import ChangeEmailModal from "./ChangeEmailModal";
 import ChangePasswordModal from "./ChangePasswordModal";
 import ChangePhoneModal from "./ChangePhoneModal";
@@ -86,17 +88,26 @@ type ProfileUser = {
   email?: string;
 };
 
-type Profile = {
-  id?: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  school_type?: string;
-  school_name?: string;
-  birth_date?: string | null;
-  gender?: string | null;
-  org_code?: string | null;
-};
+// 생성 타입(Tables<"profiles">)에서 파생시켜 null 가능 여부가 실제 스키마와
+// 어긋나지 않게 한다. 전부 optional인 이유 — 이 prop은 마이페이지 셸
+// (useMyPageProfile.Profile, 컬럼 집합이 다름)이 넘겨주는데, 셸이 어떤 컬럼을
+// select 했는지 이 컴포넌트가 강제할 수 없다(위 174번째 줄 주석과 동일한 사유로
+// birth_date/gender/org_code는 이 컴포넌트가 직접 다시 읽어 보강한다).
+type Profile = Partial<
+  Pick<
+    Tables<"profiles">,
+    | "id"
+    | "name"
+    | "email"
+    | "phone"
+    | "guardian_phone"
+    | "school_type"
+    | "school_name"
+    | "birth_date"
+    | "gender"
+    | "org_code"
+  >
+>;
 
 type ParentLink = {
   id: string;
@@ -129,6 +140,7 @@ export default function ProfileTab({
     name: profile?.name || "",
     email: profile?.email || user?.email || "",
     phone: profile?.phone || "",
+    guardian_phone: profile?.guardian_phone || "",
     school_type: profile?.school_type || "",
     school_name: profile?.school_name || "",
     birth_date: profile?.birth_date || "",
@@ -144,6 +156,9 @@ export default function ProfileTab({
   const [emailOpen, setEmailOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
+  // 학부모 핸드폰(guardian_phone) 변경 모달 — 학생이 본인 명의 휴대폰이 없어
+  // 학부모 번호를 저장한 계정에만 노출된다(아래 렌더 조건 참고).
+  const [guardianPhoneOpen, setGuardianPhoneOpen] = useState(false);
   const [orgCodeOpen, setOrgCodeOpen] = useState(false);
 
   // 학교·학년 인라인 편집.
@@ -176,7 +191,7 @@ export default function ProfileTab({
       const { data, error } = await supabase
         .from("profiles")
         .select(
-          "name, email, phone, school_type, school_name, birth_date, gender, org_code, marketing_agreed, ads_agreed",
+          "name, email, phone, guardian_phone, school_type, school_name, birth_date, gender, org_code, marketing_agreed, ads_agreed",
         )
         .eq("id", profileId)
         .maybeSingle();
@@ -188,6 +203,7 @@ export default function ProfileTab({
         name: data.name ?? prev.name,
         email: data.email ?? prev.email,
         phone: data.phone ?? prev.phone,
+        guardian_phone: data.guardian_phone ?? prev.guardian_phone,
         school_type: data.school_type ?? prev.school_type,
         school_name: data.school_name ?? prev.school_name,
         birth_date: data.birth_date ?? prev.birth_date,
@@ -223,6 +239,10 @@ export default function ProfileTab({
       }
       // RPC가 approved를 먼저 정렬해 돌려준다 — 첫 행만 쓴다.
       const row = data[0];
+      if (!row) {
+        setParentLink(null);
+        return;
+      }
       setParentLink({
         id: row.link_id,
         status: row.link_status,
@@ -264,6 +284,10 @@ export default function ProfileTab({
 
   // 공용 저장 헬퍼 — src/pages/MyPage.jsx handleSubmit의 upsert 흐름을 재사용한다.
   async function persistProfile(fields: Record<string, unknown>) {
+    // profiles.id는 PK라 upsert onConflict("id")에 반드시 값이 있어야 한다.
+    // 호출부는 전부 profileId가 로드된 뒤에만 노출되는 버튼이라 실질적으로는
+    // 항상 참이지만, 생성 Update 타입이 string을 요구해(undefined 불가) 방어적으로 막는다.
+    if (!profileId) return false;
     const payload = {
       id: profileId,
       updated_at: new Date().toISOString(),
@@ -328,7 +352,10 @@ export default function ProfileTab({
       );
       return;
     }
-    if (data?.link_code) setLinkCode(data.link_code);
+    // 생성 타입은 RPC 반환을 Json으로만 표현한다 — 실제 payload 모양은
+    // SignupProfileRpcResult(src/lib/parentLink.ts, reissue_link_code도 { ok, link_code } 형태).
+    const result = data as unknown as SignupProfileRpcResult;
+    if (result?.link_code) setLinkCode(result.link_code);
   }
 
   const schoolSummary =
@@ -507,6 +534,22 @@ export default function ProfileTab({
         className="mb-5"
       />
 
+      {/* 학부모 핸드폰 — 학생이 본인 명의 휴대폰이 없어(14세 미만 전원 + 14세
+          이상 무폰 학생) profiles.guardian_phone에 학부모 번호가 대신 저장된
+          계정에만 노출한다. 이 번호가 아이디 찾기·비밀번호 재설정 채널이 된다.
+          값이 없으면 행 자체를 렌더하지 않는다(폴백 문구 금지). 기존 휴대폰
+          번호 행과 같은 컴포넌트·같은 스타일로, 그 바로 아래에 둔다. */}
+      {form.guardian_phone && (
+        <ProfileField
+          label="학부모 핸드폰"
+          value={form.guardian_phone || "-"}
+          readOnly
+          actionLabel="변경"
+          onAction={() => setGuardianPhoneOpen(true)}
+          className="mb-5"
+        />
+      )}
+
       {/* 이메일 — 변경 플로우(인증 메일 등) 백엔드 미구현. */}
       <ProfileField
         label="이메일"
@@ -623,6 +666,17 @@ export default function ProfileTab({
         onClose={() => setPhoneOpen(false)}
         onChanged={(phone) => {
           updateForm("phone", phone);
+          window.dispatchEvent(new Event("winning-profile-updated"));
+        }}
+      />
+
+      <ChangePhoneModal
+        open={guardianPhoneOpen}
+        target="guardian"
+        currentPhone={form.guardian_phone}
+        onClose={() => setGuardianPhoneOpen(false)}
+        onChanged={(phone) => {
+          updateForm("guardian_phone", phone);
           window.dispatchEvent(new Event("winning-profile-updated"));
         }}
       />

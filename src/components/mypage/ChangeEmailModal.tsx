@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useId, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/lib/supabase";
 import { isValidEmail } from "@/lib/validators";
 import MyPageModalShell from "./MyPageModalShell";
@@ -328,7 +329,7 @@ export default function ChangeEmailModal({
         labelledBy={titleId}
         className="w-104"
       >
-        <div className="flex-1 overflow-y-auto px-6 pt-8">
+        <ScrollArea className="flex-1 px-6 pt-8">
           <h2
             id={titleId}
             className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title"
@@ -403,7 +404,7 @@ export default function ChangeEmailModal({
           {errorMsg && (
             <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
           )}
-        </div>
+        </ScrollArea>
 
         <div className="grid grid-cols-2 gap-2 px-6 py-5">
           <button
@@ -433,7 +434,7 @@ export default function ChangeEmailModal({
       labelledBy={titleId}
       className="w-104"
     >
-      <div className="flex-1 overflow-y-auto px-6 pt-8">
+      <ScrollArea className="flex-1 px-6 pt-8">
         <h2
           id={titleId}
           className="text-center text-[1.25rem] font-bold leading-[1.4] text-ink-title"
@@ -508,7 +509,7 @@ export default function ChangeEmailModal({
         {errorMsg && (
           <p className="mt-4 text-[0.8125rem] text-error">{errorMsg}</p>
         )}
-      </div>
+      </ScrollArea>
 
       <div className="grid grid-cols-2 gap-2 px-6 py-5">
         <button

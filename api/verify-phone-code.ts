@@ -1,4 +1,4 @@
-// POST /api/verify-phone-code  { phone, code }
+// POST /api/verify-phone-code  { phone, code, purpose? }
 //
 // 인증번호를 검증한다. 검증은 반드시 서버에서 해야 한다 — mockApi.js가 하던
 // 것처럼 발송 시점 코드를 클라이언트에 내려주고 프론트에서 비교하면 누구나
@@ -6,6 +6,12 @@
 //
 // 무차별 대입 방어는 해시가 아니라 시도 횟수가 담당한다. 6자리 숫자는 경우의
 // 수가 100만뿐이라 해시를 어떻게 걸든 시도를 막지 않으면 뚫린다.
+//
+// purpose(선택, 2026-09-03)
+//   주어지면 대상 인증 행의 purpose와 일치할 때만 통과시킨다 — 같은 번호로
+//   동시에 여러 목적(예: 본인 번호 변경과 학부모 번호 변경)의 인증을 진행 중일
+//   때 엉뚱한 목적의 코드로 통과되는 것을 막는다. 미제공 시 기존 동작(번호만
+//   보고 최신 미소비 건을 대상으로 함)을 그대로 유지한다.
 
 import { defineHandler } from "./_lib/handler.js";
 import {
@@ -27,6 +33,10 @@ export default defineHandler({
   handler: async (req, res, ctx) => {
     const phone = normalizePhone(req.body?.phone);
     const code = String(req.body?.code || "").trim();
+    const purpose =
+      typeof req.body?.purpose === "string" && req.body.purpose
+        ? req.body.purpose
+        : undefined;
 
     if (!isValidMobile(phone)) {
       return void res.status(400).json({
@@ -52,7 +62,7 @@ export default defineHandler({
       const { data: row, error: selectError } = await supabase
         .from("phone_verifications")
         .select(
-          "id, code_hash, attempt_count, expires_at, verified_at, consumed_at",
+          "id, code_hash, attempt_count, expires_at, verified_at, consumed_at, purpose",
         )
         .eq("phone", phone)
         .is("consumed_at", null)
@@ -66,6 +76,14 @@ export default defineHandler({
         return void res.status(400).json({
           ok: false,
           reason: "code_not_found",
+          detail: "인증번호를 먼저 요청해 주세요.",
+        });
+      }
+
+      if (purpose && row.purpose !== purpose) {
+        return void res.status(400).json({
+          ok: false,
+          reason: "purpose_mismatch",
           detail: "인증번호를 먼저 요청해 주세요.",
         });
       }

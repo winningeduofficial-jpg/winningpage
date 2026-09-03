@@ -136,10 +136,14 @@ export async function fetchActiveColumns(): Promise<ColumnRow[]> {
 export async function fetchColumnById(
   id: string | number | undefined,
 ): Promise<ColumnRow | null> {
+  if (id === undefined) return null;
+
   const { data, error } = await supabase
     .from("galleries")
     .select("*")
-    .eq("id", id)
+    // galleries.id는 uuid(string)다 — 호출부가 라우트 파라미터 등에서 number를
+    // 넘기는 경우를 대비해 문자열로 맞춘다.
+    .eq("id", String(id))
     .eq("is_active", true)
     .maybeSingle();
 

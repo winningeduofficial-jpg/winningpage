@@ -29,6 +29,8 @@ import {
 
 // S 히어로는 A 와 달리 상담 사진(시안 image 416 = cta-s-program-bg 와 동일 원본)을 쓴다.
 const HERO_BG = "/images/premium/cta-s-program-bg.webp";
+// 파이널 CTA 배경 — S 시안 4061:3584 image 369(QA 행 260).
+const FINAL_CTA_BG = "/images/premium/cta-a-program-bg.jpg";
 
 // S 히어로 방사형 라이트 — Tailwind는 소스의 완성된 리터럴 클래스만 스캔하므로
 // `bg-[${...}]` 런타임 조합은 컴파일되지 않는다. 클래스 문자열을 통째로 보관할 것.
@@ -254,18 +256,15 @@ export default function AdmissionConsultingS() {
         />
       )}
 
-      {/* 시안(4238:2698) 그대로 — S 페이지에도 "S 프로그램 안내받기" 배너가 있다. 자기 자신
-          안내라 링크는 이용신청으로 보낸다. */}
-      <PremiumCtaBanner
-        title="대입 실전(면접·자소서)까지 대표원장의 직접 피드백이 필요하다면"
-        cta={{ label: "S 프로그램 안내받기 →", to: "/premium-apply" }}
-        variant="plain"
-      />
-
+      {/* 파이널 CTA — S 시안(4061:3115) 하단(4061:3584, 1920×493)은 A 페이지와 같은 풀폭
+          사진 배너(image 369 = 플래너에 필기하는 손 사진, 어두운 오버레이 + 흰 텍스트 + 텍스트
+          링크) 하나뿐이다. 이전 구현(4238:2698 = A 시안 기준)의 "S 프로그램 안내받기" 자기
+          안내 배너 + 베이지 light 배너 2장은 S 시안에 없어 QA 시트 행 260(2026-09-02)으로
+          정리했다. 사진은 시안 image 369 원본(1748×1161)을 jpg로 저장. */}
       <PremiumCtaBanner
         title="학습·탐구 관리부터 시작하고 싶다면"
-        cta={{ label: "A 프로그램 안내받기", to: PREMIUM_ADMISSION_A_PATH }}
-        variant="light"
+        cta={{ label: "A 프로그램 안내받기 →", to: PREMIUM_ADMISSION_A_PATH }}
+        bgSrc={FINAL_CTA_BG}
       />
     </main>
   );

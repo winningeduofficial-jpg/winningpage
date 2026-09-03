@@ -164,12 +164,44 @@ export default function LearningDiagnosisAdmin() {
       return;
     }
 
-    const nextQuestions = questionRes.data || [];
-    const nextOptions = (optionRes.data || []).map((option) => ({
-      ...option,
-      program_ids: normalizeProgramIds(option.program_ids),
-    }));
-    const nextPrograms = programRes.data || [];
+    // 생성 타입은 description/is_required/is_active/sort_order 등을 전부
+    // nullable로 내보내지만(NOT NULL 아님, DEFAULT는 있음) 이 화면은 로컬
+    // DiagnosisQuestion/DiagnosisOption/DiagnosisProgram을 non-null로 두고
+    // 전부 아래처럼 `|| ""`/`??` 로 다뤄왔다(생성/수정 저장 로직과 동일한
+    // 관례) — 로드 시점에 한 번만 같은 규칙으로 null을 좁힌다.
+    const nextQuestions: DiagnosisQuestion[] = (questionRes.data || []).map(
+      (row) => ({
+        ...row,
+        description: row.description ?? "",
+        is_required: row.is_required ?? false,
+        is_active: row.is_active ?? false,
+        sort_order: row.sort_order ?? 0,
+      }),
+    );
+    const nextOptions: DiagnosisOption[] = (optionRes.data || []).map(
+      (option) => ({
+        ...option,
+        question_id: option.question_id ?? "",
+        label: option.label ?? "",
+        is_active: option.is_active ?? false,
+        sort_order: option.sort_order ?? 0,
+        program_ids: normalizeProgramIds(option.program_ids),
+      }),
+    );
+    const nextPrograms: DiagnosisProgram[] = (programRes.data || []).map(
+      (row) => ({
+        ...row,
+        badge: row.badge ?? "",
+        description: row.description ?? "",
+        primary_button_text: row.primary_button_text ?? "",
+        primary_button_link: row.primary_button_link ?? "",
+        secondary_button_text: row.secondary_button_text ?? "",
+        secondary_button_link: row.secondary_button_link ?? "",
+        icon: row.icon ?? "",
+        is_active: row.is_active ?? false,
+        sort_order: row.sort_order ?? 0,
+      }),
+    );
 
     setQuestions(nextQuestions);
     setOptions(nextOptions);
@@ -332,9 +364,15 @@ export default function LearningDiagnosisAdmin() {
 
   async function createOption(questionId: DiagnosisId) {
     const questionOptions = optionsByQuestion[questionId] || [];
+    // learning_diagnosis_options.option_text는 NOT NULL이고 DEFAULT가 없는
+    // 레거시 컬럼(현재 label이 정본, option_text는 어디서도 읽지 않는다)이다.
+    // 생성 Insert 타입 적용으로 이 insert가 option_text를 보내지 않아
+    // 23502(not_null_violation)로 "답변 추가"가 항상 실패하던 결함이 드러났다.
+    // label과 같은 빈 문자열로 채운다.
     const { error } = await supabase.from("learning_diagnosis_options").insert({
       question_id: questionId,
       label: "",
+      option_text: "",
       program_ids: [],
       is_active: true,
       sort_order: questionOptions.length + 1,
@@ -359,6 +397,8 @@ export default function LearningDiagnosisAdmin() {
       .from("learning_diagnosis_options")
       .update({
         label: option.label,
+        // 레거시 NOT NULL 컬럼 option_text는 label을 그대로 미러링한다.
+        option_text: option.label,
         program_ids: normalizeProgramIds(option.program_ids),
         is_active: boolValue(option.is_active),
         sort_order: Number(option.sort_order || 1),

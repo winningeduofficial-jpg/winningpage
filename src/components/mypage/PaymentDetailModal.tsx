@@ -1,8 +1,11 @@
 import { useBundleCompositionMap } from "@/components/mypage/bundleComposition";
 import OrderAmountBreakdown from "@/components/mypage/OrderAmountBreakdown";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import type { CashReceiptInfo } from "@/hooks/usePaymentConfirmation";
 import MyPageModalShell from "./MyPageModalShell";
 import InfoRowList from "./modal/InfoRowList";
 import ModalFooter from "./modal/ModalFooter";
+import { getCashReceipt } from "./paymentRows";
 
 // 결제/신청 상세 내역 모달 (Figma 3665:6278 학부모 / 3967:3571 학생).
 //
@@ -60,7 +63,7 @@ function formatApprovedAtDetail(
 type PaymentOrder = {
   id: string;
   method?: string;
-  order_name?: string;
+  order_name?: string | null;
   created_at?: string;
   paid_at?: string;
   vat?: number | string | null;
@@ -82,6 +85,9 @@ type PaymentOrder = {
     voided_at?: string | null;
     coupons?: { title?: string | null } | { title?: string | null }[] | null;
   }[];
+  // 현금영수증 버튼(QA 시트 행310) — getCashReceipt(paymentRows.ts)가 이 값에서
+  // receiptUrl 유무를 판정한다.
+  cash_receipt?: CashReceiptInfo | null;
 };
 
 type PaymentDetailModalProps = {
@@ -184,6 +190,11 @@ export default function PaymentDetailModal({
     status !== "superseded" &&
     status !== "enrollment_parent_rejected";
 
+  // 현금영수증 보기(QA 시트 행310) — 위 canViewReceipt 게이트를 그대로 물려받고,
+  // 추가로 실제 발급된 건(receiptUrl 있음)에만 노출한다. 가상계좌 미입금·
+  // 발급 전 주문은 아무것도 렌더하지 않는다(폴백 문구 없음 — 팀 리드 지침).
+  const cashReceipt = canViewReceipt ? getCashReceipt(order) : null;
+
   return (
     <MyPageModalShell
       open={open}
@@ -221,11 +232,26 @@ export default function PaymentDetailModal({
                   },
                 ]
               : []),
+            ...(cashReceipt
+              ? [
+                  {
+                    key: "cash-receipt",
+                    label: "현금영수증 보기",
+                    variant: "neutral" as const,
+                    onClick: () =>
+                      window.open(
+                        cashReceipt.receiptUrl,
+                        "_blank",
+                        "noopener,noreferrer",
+                      ),
+                  },
+                ]
+              : []),
           ]}
         />
       }
     >
-      <div className="flex-1 overflow-y-auto px-8.75">
+      <ScrollArea className="flex-1 px-8.75">
         {isSuperseded && asStudent && (
           <p className="mt-5 rounded-lg bg-surface-04 px-4 py-3 text-center text-[0.875rem] text-ink-sub">
             학부모님이 다른 상품으로 결제하셨어요.
@@ -276,12 +302,12 @@ export default function PaymentDetailModal({
               <OrderAmountBreakdown
                 order={order}
                 amount={order.amount}
-                fallbackName={order.order_name}
+                fallbackName={order.order_name ?? undefined}
               />
             </div>
           )}
         </dl>
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }

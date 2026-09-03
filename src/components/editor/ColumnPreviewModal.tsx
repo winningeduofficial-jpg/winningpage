@@ -10,6 +10,7 @@ import {
   DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { getCoverUrl } from "@/pages/column/columnData";
 import { isEmptyDocument } from "./BlockEditor";
 
@@ -74,7 +75,7 @@ export default function ColumnPreviewModal({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto bg-white">
+          <ScrollArea className="min-h-0 flex-1 bg-white">
             {coverUrl && (
               <img
                 src={coverUrl}
@@ -100,7 +101,7 @@ export default function ColumnPreviewModal({
                 <ColumnBody post={post} />
               )}
             </div>
-          </div>
+          </ScrollArea>
         </DialogPrimitive.Popup>
       </DialogPortal>
     </Dialog>

@@ -1,4 +1,5 @@
 import { Fragment, useState } from "react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 import { CARD_DESC_MUTED_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 
@@ -18,8 +19,7 @@ import { CARD_DESC_MUTED_CLASS, CARD_TITLE_CLASS } from "./serviceTokens";
 //                          (자기평가 'lg:h-64.75', 수행평가 'lg:h-68').
 //                          콘텐츠 줄 수에 종속된 실측값이라 공통값을 잡지 못해 prop 으로 남겼다.
 //                          빈 문자열이면 자연 높이.
-//     - 콘텐츠 없는 탭은 content[tab] 부재로 자동 disabled 처리된다
-//       (목표관리 '학부모 안내' 탭). 별도 prop 을 두지 않는다.
+//     - 콘텐츠 없는 탭은 content[tab] 부재로 자동 disabled 처리된다. 별도 prop 을 두지 않는다.
 //
 // 비활성 탭 색은 #D9D9D9(대비 1.3:1, 접근성 미달) / #D7D7D7 대신 #A3A3A3 을 쓴다.
 // 탭 폰트의 md 반응형 확대(md:text-[1.5rem])는 3원칙 1번 위반이라 폐기했다.
@@ -58,7 +58,8 @@ export default function ServiceTabsPanel({
     () => tabs.find((tab) => content[tab]?.length) ?? tabs[0]!,
   );
   const activeCards = content[activeTab] || [];
-  // 탭마다 카드 수가 다를 수 있다(목표관리 '학부모 안내' 3장 vs 나머지 5장, QA 행232).
+  // 탭마다 카드 수가 다를 수 있다(과거 목표관리 '학부모 안내' 3장 vs 나머지 5장, QA 행232.
+  // 현재는 전 탭 5장이지만 카드 수가 다시 어긋나도 그리드가 깨지지 않도록 유지).
   // columns prop 고정 열 수 그대로 쓰면 카드 수가 모자란 탭에서 빈 칸이 우측에 뜬다 —
   // 실제 카드 수가 지원 열 수(TAB_PANEL_COLS 키)와 맞으면 그 수로 그리드를 다시 잡아
   // 카드가 컨테이너 전체 폭을 고르게 채우게 하고, 안 맞으면(예상 밖 카드 수) 원래
@@ -69,8 +70,9 @@ export default function ServiceTabsPanel({
 
   return (
     <>
-      <div
-        className="mt-8 flex items-center gap-5 overflow-x-auto sm:mt-10 lg:mt-11.5 lg:gap-7.5"
+      <ScrollArea
+        axis="x"
+        className="mt-8 flex items-center gap-5 sm:mt-10 lg:mt-11.5 lg:gap-7.5"
         role="tablist"
         aria-label={ariaLabel}
       >
@@ -105,7 +107,7 @@ export default function ServiceTabsPanel({
             </Fragment>
           );
         })}
-      </div>
+      </ScrollArea>
 
       <div
         id={`${idPrefix}-tabpanel`}

@@ -94,6 +94,20 @@ export function formatTodayDateMeta(now = new Date()) {
 }
 
 /**
+ * QA3 행305 — 12시간 쿨다운 해제 시각 라벨("HH:mm", KST). unlocksAt이 오늘을
+ * 넘어가도(예: 22시 제출 → 익일 10시 해제) 날짜는 표시하지 않는다 — "다시 기록
+ * 가능: HH:mm" 문구가 시각만 요구한다(설계 문서 §5(c) B안).
+ */
+export function formatCooldownUnlockLabel(unlocksAt: string) {
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Asia/Seoul",
+  }).format(new Date(unlocksAt));
+}
+
+/**
  * AddTaskModal "예상 소요 시간" 셀렉트 라벨(TASK_DURATIONS,
  * src/components/goal/goalFormOptions.ts — "30분"·"1시간"·"1시간 30분" 등) → 분.
  * "N시간"·"M분" 부분 문자열을 각각 찾아 더하는 방식이라 6개 옵션 전부와
@@ -106,4 +120,21 @@ export function durationLabelToMinutes(label?: string | null) {
   const hours = hourMatch ? Number(hourMatch[1]) : 0;
   const minutes = minuteMatch ? Number(minuteMatch[1]) : 0;
   return hours * 60 + minutes;
+}
+
+export type PlanTaskStatus = "pending" | "done" | "fail";
+
+/**
+ * 대시보드 "오늘의 계획" 행305 — ✓/✕ 버튼이 계산할 다음 status.
+ * ✓(action:'check')는 done↔pending 토글, ✕(action:'fail')는 fail↔pending
+ * 토글이다(임무 지시 원문). 이미 반대 상태(fail에서 체크, done에서 ✕)면
+ * 그 액션이 뜻하는 상태로 덮어쓴다 — "취소"는 오직 같은 버튼을 다시 눌렀을
+ * 때만 일어난다.
+ */
+export function nextPlanTaskStatus(
+  current: PlanTaskStatus,
+  action: "check" | "fail",
+): PlanTaskStatus {
+  if (action === "check") return current === "done" ? "pending" : "done";
+  return current === "fail" ? "pending" : "fail";
 }

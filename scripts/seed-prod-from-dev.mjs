@@ -132,7 +132,7 @@ function readEnvFile(name) {
   }
   for (const line of raw.split("\n")) {
     const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-    if (m) env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+    if (m) env[m[1]] = (m[2] ?? "").replace(/^["']|["']$/g, "");
   }
   return env;
 }
@@ -785,6 +785,11 @@ async function main() {
       });
     } else if (table.special === "admin_role_permissions") {
       const mapEntry = results.find((r) => r.__adminRoleMap);
+      if (mapEntry === undefined) {
+        throw new Error(
+          "admin_role_permissions보다 admin_roles가 먼저 처리돼야 합니다(TABLES 순서 확인) — 매핑을 못 찾음",
+        );
+      }
       const n = await handleAdminRolePermissions(
         prodClient,
         replaced,
@@ -826,6 +831,12 @@ async function main() {
   );
 
   if (APPLY) {
+    // 위에서 이미 (!prod && APPLY)면 throw했으므로(line ~724 근처) 여기
+    // 도달했다면 prod는 항상 존재한다 — TS가 그 분기 간 관계를 정적으로
+    // 못 따라가 도달 불가 가드로 다시 확인한다.
+    if (prod === null) {
+      throw new Error("타깃(prod) 접속 정보가 없습니다 — 예상치 못한 상태");
+    }
     console.log("\nbanners 버킷 미러링...");
     await ensureProdBannersBucket(prod.url, prod.key);
     let ok = 0;

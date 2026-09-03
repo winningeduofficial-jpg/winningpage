@@ -9,7 +9,10 @@
 // "1시간 30분", 회차 "2026년 9월 모의고사"). 실측 표시값은 그대로 포함하되 목록 구성
 // 자체는 통상적인 선택지로 새로 만든 것이라 미확정이다.
 
-import { kstYMD } from "@/lib/goal/calc/index.js";
+import {
+  flowLabel,
+  MOCK_FLOW,
+} from "@/components/goal/onboarding/onboardingOptions";
 
 // QA B9(열공 타이머 과목 확장, 5종→8종)로 사회/한국사/제2외국어를 추가했다 — 코드값은
 // api/_lib/goalRepo.ts TIMER_SUBJECTS와 글자 단위로 같은 카탈로그 순서.
@@ -35,26 +38,13 @@ export const TASK_DURATIONS = [
 
 export const TASK_SCHEDULES = ["오늘만", "이번 주만", "매주 반복"];
 
-/** KST 현재 연도(YYYY). mockExamRounds 파생 전용 — 연도 하드코딩을 피한다. */
-function currentKstYear(): number {
-  return Number(kstYMD(new Date()).slice(0, 4));
-}
-
-// 모의고사 회차 4종(10/9/6/3월) — 최신 회차가 맨 앞에 오는 기존 순서 규칙을 유지한다
-// (원래 시안(part-08 #22)엔 9/6/3월 3종만 있었으나, 온보딩 MOCK_EXAM_ROUNDS
-// (src/components/goal/onboarding/onboardingOptions.ts, 3/6/9/10월 4종)와 기획서 기준에 맞춰 10월을
-// 추가했다 — 2026-08-20 정정). 연도는 KST 현재 연도에서 매번 파생한다.
-// AddMockExamGradeModal의 ROUND_OPTIONS[0]는 이 배열이 고정 4건이라 "항상 비지
-// 않는다"(그 파일 주석과 정합).
-export const MOCK_EXAM_ROUNDS = (() => {
-  const year = currentKstYear();
-  return [
-    `${year}년 10월 모의고사`,
-    `${year}년 9월 모의고사`,
-    `${year}년 6월 모의고사`,
-    `${year}년 3월 모의고사`,
-  ];
-})();
+// QA 행291 재설계(팀장 지시 항목10) — 연도 기반 라벨("2026년 10월 모의고사", 최신 4건
+// 고정)에서 MOCK_FLOW(고1~고3 전 시퀀스, 고3 5・7모 포함 14건)로 바꾼다. 성적관리는
+// 과거 학년 기록도 입력할 수 있어야 하므로(온보딩과 달리 "현재 학년까지 절단"을 하지
+// 않는다) 14건 전부를 드롭다운에 낸다. 최신 회차가 맨 앞에 오는 기존 순서 규칙을
+// 유지하기 위해 역순으로 뒤집는다. AddMockExamGradeModal의 ROUND_OPTIONS[0]는 이
+// 배열이 고정 14건이라 "항상 비지 않는다"(그 파일 주석과 정합).
+export const MOCK_EXAM_ROUNDS = [...MOCK_FLOW].reverse().map(flowLabel);
 
 // 대시보드 "오늘의 목표" 카드 퀵칩 증분(시간 단위) — + 30분 / + 1시간 / + 2시간.
 export const QUICK_ADD_HOURS = [0.5, 1, 2];

@@ -27,7 +27,14 @@
 //  3. 이미 가입에 쓰인 전화번호는 "인증번호 보내기" 단계에서 걸러낸다
 //     (/api/send-phone-code reason:'phone_taken'). 경합으로 뚫린 경우는 가입 RPC의
 //     duplicate_phone이 잡는다(sql/40_auth_signup.sql [16]).
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { Check } from "lucide-react";
+import {
+  type ReactNode,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router";
 import {
   AgreementList,
@@ -39,6 +46,7 @@ import {
 } from "@/components/auth";
 import { useSignup } from "@/context/SignupContext";
 import { useCooldown } from "@/hooks/useCooldown";
+import type { SignupProfileRpcResult } from "@/lib/parentLink";
 import {
   DUPLICATE_PHONE_MESSAGE,
   formatPhoneInput,
@@ -176,6 +184,39 @@ function getFriendlyError(errorMessage?: string) {
   return errorMessage;
 }
 
+// T3(2026-09-03): "학생 명의의 핸드폰이 없어요" 단독 체크 문구 전용 — Under14Form.tsx의
+// 동명 컴포넌트와 동일 스펙(16px 아이콘/12px 텍스트)이지만 그쪽은 다른 executor 소유
+// 파일이라 import할 수 없어 최소한으로 인라인 복제한다(Under14Form 파일 상단 주석의
+// "공용 컴포넌트로 승격하지 않는다" 판단과 같은 이유).
+function InlineCheckbox({
+  checked,
+  onToggle,
+  children,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex min-h-11 items-center gap-2 text-left"
+    >
+      <span
+        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+          checked
+            ? "border-primary bg-primary text-white"
+            : "border-line bg-white text-transparent"
+        }`}
+      >
+        <Check size={11} strokeWidth={3} />
+      </span>
+      <span className="text-xs text-ink-sub">{children}</span>
+    </button>
+  );
+}
+
 export default function StudentForm() {
   const navigate = useNavigate();
   const {
@@ -203,6 +244,18 @@ export default function StudentForm() {
   const phoneCooldown = useCooldown(PHONE_RESEND_COOLDOWN_SECONDS);
   // 서버가 시도를 세므로 같은 코드를 두 번 보내지 않는다.
   const lastPhoneAttempt = useRef("");
+  // T3(2026-09-03): 학부모 핸드폰 인증 — 학생 본인 phone 상태와 같은 패턴을 그대로
+  // 복제한다. 인증코드 입력값(guardianCode)은 phoneCode/emailCode와 같은 이유로
+  // SignupContext에 두지 않는다(SENSITIVE_FORM_KEYS 관례 — OTP 입력값은 새로고침 시
+  // 어차피 초기화 대상이라 context에 넣어도 영속되지 않는다).
+  const [guardianCode, setGuardianCode] = useState("");
+  const [guardianMessage, setGuardianMessage] = useState<FieldMessage>({
+    text: "",
+    status: "default",
+  });
+  const [guardianSending, setGuardianSending] = useState(false);
+  const guardianCooldown = useCooldown(PHONE_RESEND_COOLDOWN_SECONDS);
+  const lastGuardianAttempt = useRef("");
   const [emailMessage, setEmailMessage] = useState<FieldMessage>({
     text: "",
     status: "default",
@@ -245,7 +298,11 @@ export default function StudentForm() {
       // 전화번호는 자동 하이픈 포맷(010-1234-5678)을 적용한다(QA 지시 2026-08-21) —
       // 멘토신청·프리미엄이용 문의 폼과 같은 src/lib/phoneVerification.ts 유틸을 공유한다.
       // 서버로 보낼 때는 normalizePhone이 다시 숫자만 남기므로 여기서는 표시용으로만 쓴다.
-      const nextValue = key === "phone" ? formatPhoneInput(value) : value;
+      // guardianPhone(T3)도 같은 자동 하이픈 대상이다.
+      const nextValue =
+        key === "phone" || key === "guardianPhone"
+          ? formatPhoneInput(value)
+          : value;
       updateFormData({ [key]: nextValue });
 
       if (key === "email") {
@@ -263,6 +320,18 @@ export default function StudentForm() {
         updateVerification("phone", { requested: false, verified: false });
         setPhoneMessage({ text: "", status: "default" });
       }
+
+      // T3: 학부모 핸드폰 값이 바뀌면 진행 중이던 인증이 더 이상 유효하지 않다 —
+      // 학생 본인 phone 필드와 동일한 이유(§파일 상단 handleField 주석).
+      if (key === "guardianPhone") {
+        lastGuardianAttempt.current = "";
+        updateVerification("guardianPhone", {
+          requested: false,
+          verified: false,
+        });
+        setGuardianMessage({ text: "", status: "default" });
+        setGuardianCode("");
+      }
     };
   }
 
@@ -272,6 +341,31 @@ export default function StudentForm() {
 
   function handleToggleAgreement(key: string) {
     updateAgreements({ [key]: !agreements[key] });
+  }
+
+  // T3(2026-09-03): "학생 명의의 핸드폰이 없어요" 체크 토글.
+  //  - 체크 시: 학생 본인 전화번호 인증 상태를 초기화한다(더 이상 필수가 아니므로
+  //    남아 있는 인증 완료 상태가 canSubmit 판정을 오염시키면 안 된다).
+  //  - 해제 시: 학부모 핸드폰 필드값·인증 상태를 초기화한다(다시 체크할 때 이전
+  //    입력이 남아 있으면 미인증 상태의 번호가 그대로 제출될 위험이 있다).
+  function handleToggleNoOwnPhone() {
+    const next = !formData.noOwnPhone;
+    updateFormData({ noOwnPhone: next });
+
+    if (next) {
+      lastPhoneAttempt.current = "";
+      updateVerification("phone", { requested: false, verified: false });
+      setPhoneMessage({ text: "", status: "default" });
+    } else {
+      lastGuardianAttempt.current = "";
+      updateVerification("guardianPhone", {
+        requested: false,
+        verified: false,
+      });
+      setGuardianMessage({ text: "", status: "default" });
+      setGuardianCode("");
+      updateFormData({ guardianPhone: "" });
+    }
   }
 
   // --- 전화번호 인증(알림톡/SMS) ---
@@ -377,6 +471,99 @@ export default function StudentForm() {
   useEffect(() => {
     onPhoneCodeChange(formData.phoneCode);
   }, [formData.phoneCode]);
+
+  // --- 학부모 핸드폰 인증(T3, 2026-09-03) ---
+  // 학생 명의 번호가 없는 경우에만 노출되는 대체 인증 경로. 위 학생 본인 전화번호
+  // 인증(requestPhoneCode/onPhoneCodeChange)과 완전히 동일한 패턴이며, 서버 purpose만
+  // 'guardian_signup'으로 다르다(guardian_signup은 SIGNUP_PURPOSES가 아니라 phone_taken
+  // 중복 차단 대상이 아니다 — api/send-phone-code.ts 참고).
+  async function requestGuardianPhoneCode() {
+    setFormError("");
+
+    if (!isValidPhone(formData.guardianPhone)) {
+      setGuardianMessage({
+        text: "학부모 핸드폰을 올바르게 입력해 주세요.",
+        status: "error",
+      });
+      return;
+    }
+
+    if (guardianCooldown.active) {
+      setGuardianMessage({
+        text: `인증번호는 ${guardianCooldown.remaining}초 후에 다시 보낼 수 있어요.`,
+        status: "error",
+      });
+      return;
+    }
+
+    setGuardianSending(true);
+    setGuardianMessage({ text: "", status: "default" });
+
+    try {
+      const result = await sendPhoneCode(
+        formData.guardianPhone,
+        "guardian_signup",
+      );
+
+      if (!result.ok) {
+        if (result.retryAfter) guardianCooldown.start();
+        setGuardianMessage({ text: result.message, status: "error" });
+        return;
+      }
+
+      lastGuardianAttempt.current = "";
+      updateVerification("guardianPhone", { requested: true, verified: false });
+      setGuardianCode("");
+      guardianCooldown.start();
+      setGuardianMessage({
+        text: result.dryRun
+          ? "테스트 모드입니다 — 실제 문자는 발송되지 않았습니다."
+          : "카카오톡으로 인증번호를 발송했습니다.",
+        status: "default",
+      });
+    } finally {
+      setGuardianSending(false);
+    }
+  }
+
+  const onGuardianCodeChange = useEffectEvent((code: string) => {
+    if (
+      code.length !== 6 ||
+      !verification.guardianPhone.requested ||
+      verification.guardianPhone.verified ||
+      lastGuardianAttempt.current === code
+    ) {
+      return;
+    }
+
+    lastGuardianAttempt.current = code;
+
+    verifyPhoneCode(formData.guardianPhone, code, "guardian_signup").then(
+      (result) => {
+        if (result.ok) {
+          updateVerification("guardianPhone", { verified: true });
+          setGuardianMessage({
+            text: "학부모 핸드폰 인증이 완료되었습니다.",
+            status: "success",
+          });
+          return;
+        }
+
+        setGuardianMessage({ text: result.message, status: "error" });
+
+        if (
+          result.reason === "too_many_attempts" ||
+          result.reason === "code_expired"
+        ) {
+          lastGuardianAttempt.current = "";
+        }
+      },
+    );
+  });
+
+  useEffect(() => {
+    onGuardianCodeChange(guardianCode);
+  }, [guardianCode]);
 
   // --- 이메일 인증: 기존 Signup.jsx 시퀀스 그대로(중복확인 → signUp으로 OTP 발송) ---
   // 시안(§3.3 C-1 표)에는 이메일 필드 액션이 "인증번호 보내기" 하나뿐이라 중복확인과
@@ -548,9 +735,20 @@ export default function StudentForm() {
     // T8: 이 화면(14세 이상 전용)은 이미 memberType/isUnder14 가드가 birthDate 없이는
     // 진입 자체를 막지만(위 useEffect), 방어적으로 한 번 더 확인한다.
     if (!birthDate) return "생년월일 입력 단계로 돌아가 주세요.";
-    if (!isValidPhone(normalizedPhone))
-      return "전화번호를 올바르게 입력해 주세요.";
-    if (!verification.phone.verified) return "전화번호 인증을 완료해 주세요.";
+
+    // T3(2026-09-03): "학생 명의의 핸드폰이 없어요" 체크 시 학부모 핸드폰 인증이
+    // 학생 본인 전화번호 인증을 대체한다.
+    if (formData.noOwnPhone) {
+      if (!isValidPhone(formData.guardianPhone))
+        return "학부모 핸드폰을 올바르게 입력해 주세요.";
+      if (!verification.guardianPhone.verified)
+        return "학부모 핸드폰 인증을 완료해 주세요.";
+    } else {
+      if (!isValidPhone(normalizedPhone))
+        return "전화번호를 올바르게 입력해 주세요.";
+      if (!verification.phone.verified) return "전화번호 인증을 완료해 주세요.";
+    }
+
     if (!normalizedEmail) return "이메일을 입력해 주세요.";
 
     if (!verification.email.checked || !verification.email.available) {
@@ -595,7 +793,12 @@ export default function StudentForm() {
     try {
       const normalizedName = formData.name.trim();
       const normalizedEmail = formData.email.trim().toLowerCase();
-      const normalizedPhone = normalizePhone(formData.phone);
+      // T3(2026-09-03): "학생 명의의 핸드폰이 없어요" 체크 시 학생 본인 phone은
+      // 비워 보낸다 — 서버가 그 경우에만 p_guardian_phone 인증을 대신 요구한다
+      // (Under14Form의 noOwnPhone과 동일한 서버 계약).
+      const normalizedPhone = formData.noOwnPhone
+        ? ""
+        : normalizePhone(formData.phone);
       const normalizedSchoolName =
         formData.schoolType === "N수생" ? "" : formData.schoolName.trim();
 
@@ -663,7 +866,19 @@ export default function StudentForm() {
           // 저장한 'YYYYMMDD' 8자리)라 formData가 아니라 여기서 하이픈만 끼워 넣는다.
           p_birth_date: `${birthDate.slice(0, 4)}-${birthDate.slice(4, 6)}-${birthDate.slice(6, 8)}`,
           p_gender: formData.gender,
-          p_org_code: formData.orgCode.trim() || null,
+          // p_org_code는 DEFAULT NULL이 있는 optional 인자다. exactOptionalPropertyTypes
+          // 하에서는 undefined 값을 명시적으로 넣는 것도 금지라 키 자체를 조건부로 스프레드한다
+          // (인자 생략이 명시적 null과 런타임에서 동일하다).
+          ...(formData.orgCode.trim() && {
+            p_org_code: formData.orgCode.trim(),
+          }),
+          // T3(2026-09-03): 학생 명의 번호가 없을 때만 학부모 핸드폰을 보낸다.
+          // p_guardian_consent는 항상 false로 고정한다 — 14세 이상은 법정대리인
+          // 동의(Under14Form의 guardianConsent) 대상이 아니라 단순 연락처 수집이다.
+          ...(formData.noOwnPhone && {
+            p_guardian_phone: normalizePhone(formData.guardianPhone),
+            p_guardian_consent: false,
+          }),
         },
       );
 
@@ -692,6 +907,24 @@ export default function StudentForm() {
           setFormError(
             "로그인 세션이 만료되었습니다. 이메일 인증을 다시 진행해 주세요.",
           );
+          return;
+        }
+
+        // T3(2026-09-03): 학부모 핸드폰 인증 경로(guardian_signup) 서버 에러 매핑.
+        if (errorMessage.includes("guardian_phone_not_verified")) {
+          setFormError(
+            "학부모 핸드폰 인증이 확인되지 않았습니다. 인증을 마친 뒤 다시 시도해 주세요.",
+          );
+          return;
+        }
+
+        if (errorMessage.includes("phone_or_guardian_required")) {
+          setFormError("전화번호 또는 학부모 핸드폰 중 하나는 입력해 주세요.");
+          return;
+        }
+
+        if (errorMessage.includes("guardian_phone_required")) {
+          setFormError("학부모 핸드폰을 입력해 주세요.");
           return;
         }
 
@@ -755,7 +988,11 @@ export default function StudentForm() {
         return;
       }
 
-      if (!profileResult?.ok) {
+      // 생성 타입은 RPC 반환을 Json으로만 표현한다 — 실제 payload 모양은
+      // SignupProfileRpcResult(src/lib/parentLink.ts) 참고.
+      const signupResult = profileResult as unknown as SignupProfileRpcResult;
+
+      if (!signupResult?.ok) {
         setFormError(
           "회원 정보 저장 결과를 확인할 수 없습니다. 다시 시도해 주세요.",
         );
@@ -765,8 +1002,8 @@ export default function StudentForm() {
       // 연결코드는 RPC가 발급해 응답에 담아준다(sql/40_auth_signup.sql [7] link_code).
       // 이걸 넘기지 않으면 C-2가 화면용 코드를 따로 만들어 보여주게 되는데, 그 코드는
       // DB에 없어서 학부모가 입력해도 link_code_not_found가 난다.
-      if (profileResult.link_code) {
-        setLinkCode(profileResult.link_code);
+      if (signupResult.link_code) {
+        setLinkCode(signupResult.link_code);
       }
 
       // C-2(StudentComplete) 진입 가드용 완료 플래그 — RPC 성공 직후에만 true로 설정한다.
@@ -866,14 +1103,23 @@ export default function StudentForm() {
           }
           onAction={requestPhoneCode}
           actionDisabled={
-            phoneSending || phoneCooldown.active || verification.phone.verified
+            phoneSending ||
+            phoneCooldown.active ||
+            verification.phone.verified ||
+            formData.noOwnPhone
           }
           // 발송·검증 상태 메시지가 없을 때는 하이픈 자동 포맷 안내를 기본으로 보여준다
           // (QA 지시 2026-08-21, password 필드의 정적 helperText 관례와 동일).
-          helperText={phoneMessage.text || "하이픈은 자동으로 입력돼요."}
+          // 체크 시(noOwnPhone)에는 학부모 핸드폰 대체 안내로 바뀐다(T3 요구사항).
+          helperText={
+            formData.noOwnPhone
+              ? "학생 명의의 핸드폰이 없어요 - 학부모 핸드폰을 기재해 주세요"
+              : phoneMessage.text || "하이픈은 자동으로 입력돼요."
+          }
           status={phoneMessage.status}
+          disabled={formData.noOwnPhone}
           autoComplete="tel"
-          required
+          required={!formData.noOwnPhone}
         />
 
         <TextField
@@ -896,14 +1142,92 @@ export default function StudentForm() {
             !verification.phone.requested ||
             phoneSending ||
             phoneCooldown.active ||
-            verification.phone.verified
+            verification.phone.verified ||
+            formData.noOwnPhone
           }
           helperText={phoneMessage.text}
           status={verification.phone.verified ? "success" : phoneMessage.status}
           disabled={
-            !verification.phone.requested || verification.phone.verified
+            !verification.phone.requested ||
+            verification.phone.verified ||
+            formData.noOwnPhone
           }
         />
+
+        <InlineCheckbox
+          checked={formData.noOwnPhone}
+          onToggle={handleToggleNoOwnPhone}
+        >
+          학생 명의의 핸드폰이 없어요
+        </InlineCheckbox>
+
+        {/* T3(2026-09-03): noOwnPhone 체크 시에만 노출되는 학부모 핸드폰 인증 그룹 —
+            학생 본인 전화번호 인증(위 student-phone/student-phone-code)과 동일한
+            UX(자동 하이픈·쿨타임·6자리 자동검증)를 purpose만 'guardian_signup'으로
+            바꿔 그대로 복제한다. */}
+        {formData.noOwnPhone && (
+          <>
+            <TextField
+              label="학부모 핸드폰"
+              id="student-guardian-phone"
+              name="guardianPhone"
+              type="tel"
+              size="lg"
+              value={formData.guardianPhone}
+              onChange={handleField("guardianPhone")}
+              placeholder="학부모 핸드폰을 입력 해주세요"
+              actionLabel={
+                guardianCooldown.active
+                  ? `${guardianCooldown.remaining}초 후 다시 보내기`
+                  : "인증번호 보내기"
+              }
+              onAction={requestGuardianPhoneCode}
+              actionDisabled={
+                guardianSending ||
+                guardianCooldown.active ||
+                verification.guardianPhone.verified
+              }
+              helperText={guardianMessage.text || "하이픈은 자동으로 입력돼요."}
+              status={guardianMessage.status}
+              autoComplete="tel"
+              required
+            />
+
+            <TextField
+              label="학부모 핸드폰 인증번호"
+              id="student-guardian-phone-code"
+              name="guardianPhoneCode"
+              size="lg"
+              value={guardianCode}
+              onChange={(value) =>
+                setGuardianCode(value.replace(/\D/g, "").slice(0, 6))
+              }
+              placeholder="카카오톡으로 보낸 인증번호를 입력 해주세요"
+              actionLabel={
+                guardianCooldown.active
+                  ? `${guardianCooldown.remaining}초 후 다시 보내기`
+                  : "인증번호 다시 보내기"
+              }
+              onAction={requestGuardianPhoneCode}
+              actionDisabled={
+                !verification.guardianPhone.requested ||
+                guardianSending ||
+                guardianCooldown.active ||
+                verification.guardianPhone.verified
+              }
+              helperText={guardianMessage.text}
+              status={
+                verification.guardianPhone.verified
+                  ? "success"
+                  : guardianMessage.status
+              }
+              disabled={
+                !verification.guardianPhone.requested ||
+                verification.guardianPhone.verified
+              }
+            />
+          </>
+        )}
 
         <TextField
           label="아이디(이메일)"

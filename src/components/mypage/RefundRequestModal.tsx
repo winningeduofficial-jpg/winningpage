@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useBundleCompositionMap } from "@/components/mypage/bundleComposition";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatKRW } from "@/data/pricingCatalog";
 import type { VirtualAccountInfo } from "@/hooks/usePaymentConfirmation";
 import { supabase } from "@/lib/supabase";
@@ -100,7 +101,7 @@ const QUOTE_LOAD_ERROR_TEXT =
 
 type RefundOrder = {
   id: string;
-  order_name?: string;
+  order_name?: string | null;
   amount: number;
   virtual_account?: VirtualAccountInfo | null;
 };
@@ -241,11 +242,14 @@ export default function RefundRequestModal({
       }
 
       // RETURNS TABLE 이라 1행짜리 배열로 온다.
-      const row = Array.isArray(data) ? data[0] : data;
-      if (!row) {
+      const rawRow = Array.isArray(data) ? data[0] : data;
+      if (!rawRow) {
         setQuoteError(QUOTE_LOAD_ERROR_TEXT);
         return;
       }
+      // fn_refund_quote의 lines(jsonb 컬럼)는 생성 타입이 Json으로만 표현한다 —
+      // 실제 모양은 QuoteLine[]이다(jsonb_agg로 만든 배열, 위 QuoteLine 타입 참고).
+      const row = rawRow as unknown as RefundQuote;
       setQuote(row);
       setFullQuote(row);
 
@@ -298,12 +302,13 @@ export default function RefundRequestModal({
         return;
       }
 
-      const row = Array.isArray(data) ? data[0] : data;
-      if (!row) {
+      const rawRow = Array.isArray(data) ? data[0] : data;
+      if (!rawRow) {
         setQuoteError(QUOTE_LOAD_ERROR_TEXT);
         return;
       }
-      setQuote(row);
+      // fn_refund_quote의 lines(jsonb 컬럼) 캐스트 — 위 블록과 동일 이유.
+      setQuote(rawRow as unknown as RefundQuote);
     })();
 
     return () => {
@@ -497,7 +502,7 @@ export default function RefundRequestModal({
         />
       }
     >
-      <div className="flex-1 overflow-y-auto px-6">
+      <ScrollArea className="flex-1 px-6">
         {/* 취소/환불 규정 안내 */}
         <p className="mt-6 text-[0.8125rem] font-semibold text-ink">
           취소/환불 규정 안내
@@ -510,7 +515,7 @@ export default function RefundRequestModal({
         <div className="mt-6">
           <p
             className="truncate text-[0.9375rem] font-semibold text-ink"
-            title={order.order_name}
+            title={order.order_name ?? undefined}
           >
             {order.order_name}
           </p>
@@ -727,7 +732,7 @@ export default function RefundRequestModal({
         {submitError && (
           <p className="mt-4 text-[0.875rem] text-error">{submitError}</p>
         )}
-      </div>
+      </ScrollArea>
     </MyPageModalShell>
   );
 }

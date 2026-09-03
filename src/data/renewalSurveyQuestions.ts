@@ -248,7 +248,12 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q4",
-    number: 4,
+    // 2026-09-02 QA 행 348: 학년 자동 결정으로 전환, 화면 노출 안 함. number: null 이라
+    // surveyMainQuestions(number != null 필터)에서 빠져 카드가 렌더되지 않는다 — id·scoringId·
+    // options·optionCodes 는 그대로 두어 채점(codeOf("Q4_SYSTEM", answers.q4))과 과거 저장
+    // 응답(UNKNOWN 포함) 호환 경로를 건드리지 않는다. 새 응답의 q4 값은
+    // getGradeSystemLabelForGradeLevel(q1 라벨)이 자동으로 채운다(SurveyStepShell.setAnswer).
+    number: null,
     scoringId: 4,
     page: 2,
     category: "기본정보",
@@ -265,13 +270,15 @@ export const renewalSurveyQuestions = [
     // '잘 모르겠어요'로 흡수되는 것은 폴백이 아니라 원래부터 지원 범위 밖인 입력 도메인이다.
     // 9등급 환산표를 새로 만드는 대신 F-12(UNKNOWN 표시 개선)로 원값이라도 보여주는 쪽을
     // 택했다 — 성취평가제 학생도 q6 원값 입력은 보존되고 gpa 표시에 '(체계 미확인)' 접미어만 붙는다.
+    // QA 행348 이후 UNKNOWN 은 새 응답에서 더 이상 선택될 수 없다(q1 매핑에 없음) — 과거 저장된
+    // "잘 모르겠어요" 응답을 읽는 채점 경로 호환용으로만 남긴다.
     options: ["9등급제", "5등급제", "중학생 평균", "잘 모르겠어요"],
     optionCodes: ["NINE", "FIVE", "MIDDLE_AVG", "UNKNOWN"],
     extra: {},
   },
   {
     id: "q6",
-    number: 6,
+    number: 4,
     scoringId: 5,
     page: 2,
     category: "성적입력",
@@ -291,6 +298,12 @@ export const renewalSurveyQuestions = [
         {
           key: "overall",
           label: "내신 전체 평균 (필수)",
+          // QA 행348(2026-09-02) — q4 카드가 사라진 대신 등급 체계를 라벨에 괄호로 표기한다.
+          // 중학생 평균(MIDDLE_AVG)·미지(UNKNOWN)는 기존 라벨을 그대로 쓴다(label 폴백).
+          labelBySystem: {
+            NINE: "내신 전체 평균 (9등급) (필수)",
+            FIVE: "내신 전체 평균 (5등급) (필수)",
+          },
           fields: [
             {
               key: "overall_avg",
@@ -366,7 +379,7 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q8",
-    number: 8,
+    number: 5,
     scoringId: 6,
     page: 2,
     category: "기본정보",
@@ -429,7 +442,7 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q9",
-    number: 9,
+    number: 6,
     scoringId: 7,
     page: 3,
     category: "기본정보",
@@ -499,7 +512,7 @@ export const renewalSurveyQuestions = [
     // 1889:9491 의 Q10 (13지). 1889:9866 / 1889:10355 에 뱃지 "10" 으로 그려진 14지 문항은
     // 별개 문항이며 12번이 확정이다(q12 참조).
     id: "q10",
-    number: 10,
+    number: 7,
     scoringId: 8,
     page: 3,
     category: "기본정보",
@@ -547,7 +560,7 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q11",
-    number: 11,
+    number: 8,
     scoringId: 9,
     page: 4,
     category: "기본정보",
@@ -620,7 +633,7 @@ export const renewalSurveyQuestions = [
     // 1889:9866 / 1889:10355 의 두 번째 "10" 뱃지 카드(14지). 뱃지 숫자는 시안 오기이며
     // 실제 문항 번호는 12번으로 확정됨.
     id: "q12",
-    number: 12,
+    number: 9,
     scoringId: 10,
     page: 4,
     category: "기본정보",
@@ -668,7 +681,7 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q13",
-    number: 13,
+    number: 10,
     scoringId: 11,
     page: 4,
     category: "기본정보",
@@ -688,7 +701,7 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q14",
-    number: 14,
+    number: 11,
     scoringId: 12,
     page: 4,
     category: "기본정보",
@@ -724,7 +737,7 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q15",
-    number: 15,
+    number: 12,
     scoringId: 13,
     page: 5,
     category: "기본정보",
@@ -755,7 +768,7 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q16",
-    number: 16,
+    number: 13,
     scoringId: 14,
     page: 5,
     category: "기본정보",
@@ -774,7 +787,7 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q17",
-    number: 17,
+    number: 14,
     scoringId: 15,
     page: 5,
     category: "기본정보",
@@ -800,13 +813,17 @@ export const renewalSurveyQuestions = [
       "INQUIRY_OK",
       "AVERAGE",
       "UNKNOWN",
-      "UNKNOWN",
+      // 2026-09-02 — 두 선택지가 같은 코드(UNKNOWN)를 쓰면 어드민 문구 오버라이드
+      // (`q17.option.UNKNOWN`)가 두 칩에 같이 걸려 라벨이 중복되고 React key도 충돌했다
+      // (설문 콘솔 "Encountered two children with the same key"). 별도 코드로 분리하되
+      // 채점은 JONGHAP_DELTA.UNSURE = UNKNOWN 과 같은 -5 로 둔다.
+      "UNSURE",
     ],
     extra: {},
   },
   {
     id: "q18",
-    number: 18,
+    number: 15,
     scoringId: 16,
     page: 5,
     category: "기본정보",
@@ -833,7 +850,7 @@ export const renewalSurveyQuestions = [
   },
   {
     id: "q19",
-    number: 19,
+    number: 16,
     // 배점표 17번 — 감지 단어 18개로 콜멘토 '어려움' 가산에 실제로 쓰인다(§2.2).
     scoringId: 17,
     page: 5,
@@ -867,4 +884,46 @@ export function getOptionCode(questionId, label) {
   if (!question?.optionCodes) return null;
   const index = question.options.indexOf(label);
   return index === -1 ? null : (question.optionCodes[index] ?? null);
+}
+
+/**
+ * 코드 → 선택지 라벨 (getOptionCode 의 역변환). q4 카드가 화면에서 사라진 뒤
+ * getGradeSystemLabelForGradeLevel 이 answers.q4 에 저장할 라벨 문자열을 만드는 데 쓴다 —
+ * 채점(codeOf("Q4_SYSTEM", answers.q4))이 여전히 라벨 문자열을 기대하므로 코드를 answers 에
+ * 직접 넣지 않는다(§3.5 계약 유지).
+ */
+export function getOptionLabel(questionId, code) {
+  const question = renewalSurveyQuestions.find(
+    (item) => item.id === questionId,
+  );
+  if (!question?.optionCodes) return null;
+  const index = question.optionCodes.indexOf(code);
+  return index === -1 ? null : (question.options[index] ?? null);
+}
+
+/**
+ * QA 행348(2026-09-02) — q4(등급 체계) 선택 단계를 없애고 q1(학년)으로 자동 결정한다.
+ * 매핑: 중학생(M3) → 중학생 평균, 고1·고2(H1·H2) → 5등급제, 고3·N수생(H3·RETAKE) → 9등급제.
+ * UNKNOWN 은 매핑에 없다 — 새 응답에서는 다시 나오지 않고 과거 저장 응답 호환 경로로만 남는다.
+ */
+export const GRADE_SYSTEM_BY_GRADE_LEVEL = {
+  M3: "MIDDLE_AVG",
+  H1: "FIVE",
+  H2: "FIVE",
+  H3: "NINE",
+  RETAKE: "NINE",
+};
+
+/**
+ * q1(학년) 라벨 → q4(등급 체계) 라벨. SurveyStepShell.setAnswer 가 q1 응답이 바뀔 때마다 호출해
+ * answers.q4 를 함께 갱신한다 — q6(성적 입력)의 마스크·범위(GRADE_SYSTEM_INPUT_RULES)가
+ * extra.validationDependsOn: "q4" 로 이 값에 매여 있어 채점 로직·q6 자체는 손대지 않는다.
+ * 미지 q1 라벨(또는 q1 미응답)은 null — 호출부가 그때는 answers.q4 를 건드리지 않는다.
+ */
+export function getGradeSystemLabelForGradeLevel(gradeLevelLabel) {
+  const gradeLevelCode = getOptionCode("q1", gradeLevelLabel);
+  const gradeSystemCode = gradeLevelCode
+    ? GRADE_SYSTEM_BY_GRADE_LEVEL[gradeLevelCode]
+    : null;
+  return gradeSystemCode ? getOptionLabel("q4", gradeSystemCode) : null;
 }

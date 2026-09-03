@@ -65,8 +65,10 @@ export function getStepQuestions(step: number) {
   return surveyMainQuestions.filter((question) => question.page === step);
 }
 
-// 다음 스텝 이후에 남아 있는 문항 수(응답 무관). 1→14, 2→11, 3→9, 4→5, 5→0
-// (q5·q7 삭제로 17문항 · 분포 3/3/2/4/5 가 되면서 스텝1 값만 16 → 14 로 바뀌었다.)
+// 다음 스텝 이후에 남아 있는 문항 수(응답 무관). 1→13, 2→11, 3→9, 4→5, 5→0
+// (q5·q7 삭제로 17문항 · 분포 3/3/2/4/5 였던 것이, QA 행348(2026-09-02)로 q4 가 화면에서
+// 빠지면서 16문항 · 분포 3/2/2/4/5 가 되었다 — 스텝1 값만 14 → 13 으로 바뀌고 나머지는
+// page2 감소분이 총합 감소분과 상쇄되어 그대로다.)
 export function getRemainingAfterStep(step: number) {
   return surveyMainQuestions.filter((question) => question.page > step).length;
 }

@@ -77,32 +77,36 @@ export default defineHandler({
       return;
     }
     const userId = authed.userId;
+    // hasPaidServiceAccess(판정, fn_program_access_state RPC 경유)와
+    // findProgramAccessRow(회차 표시용 행 조회, program_access 테이블 직접 조회)는
+    // 서로의 결과에 의존하지 않는다 — 둘 다 program_access를 각자 다른 방식으로
+    // 조회할 뿐이라 직렬로 기다릴 이유가 없었다(이전엔 순서대로 await해 두 서버
+    // 왕복이 그대로 더해졌다). Promise.all로 동시에 보내 지연을 줄인다.
+    //
     // hasPaidServiceAccess는 이제 { allowed, reason } 을 돌려준다(기간만료
     // 사유를 create-service-ticket.js가 구분해 응답하기 위함) — 여기서는
     // 조회 응답 규격이 boolean 이므로 allowed만 뽑아 쓴다.
-    const { allowed } = await hasPaidServiceAccess(
-      ctx.supabaseAdmin,
-      userId,
-      config,
-    );
+    const [{ allowed }, accessRow] = await Promise.all([
+      hasPaidServiceAccess(ctx.supabaseAdmin, userId, config),
+      findProgramAccessRow(ctx.supabaseAdmin, userId, config),
+    ]);
 
     // 회차 조회는 판정과 독립이다. 실패해도 allowed를 흔들지 않는다 —
     // 부가 정보를 못 읽었다고 결제 완료 사용자를 미보유로 떨어뜨리면 안 된다.
     // (allowed:true인데 회차가 null이면 클라이언트는 "무제한"으로 읽으므로,
     //  안내가 과하게 관대해질 뿐 차단은 서버 RPC가 그대로 한다.)
-    let quota = await readQuotaSnapshot(ctx.supabaseAdmin, userId, null);
+    // readQuotaSnapshot 자체는 예외를 던지지 않지만(내부에서 흡수해 "정보
+    // 없음"으로 접는다, api/_lib/serviceAccess.ts 해당 함수 주석 참고) 그
+    // 계약이 흔들리는 경우까지 대비해 fail-open을 유지한다.
+    let quota: Awaited<ReturnType<typeof readQuotaSnapshot>>;
     try {
-      const accessRow = await findProgramAccessRow(
-        ctx.supabaseAdmin,
-        userId,
-        config,
-      );
       quota = await readQuotaSnapshot(ctx.supabaseAdmin, userId, accessRow);
     } catch (quotaError) {
       console.error(
         "check-service-access quota lookup 실패(무시):",
         quotaError,
       );
+      quota = await readQuotaSnapshot(ctx.supabaseAdmin, userId, null);
     }
 
     res.status(200).json({
