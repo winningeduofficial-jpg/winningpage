@@ -62,7 +62,16 @@ interface SignupVerification {
   // Under14Verify(D-1)가 본인확인 성공 시 requestId를 함께 남긴다. 가입 RPC가
   // 이 값으로 identity_verifications 행을 찾아 검증·소비한다(sql/84_under14_signup.sql).
   // 그때까지는 requestId를 쓰는 곳이 없어 { verified }만 선언돼 있었다.
-  pass: { verified: boolean; requestId?: string; verifiedAt?: number };
+  // mobile: T9(2026-09-03) — PASS가 돌려준 법정대리인 휴대폰 번호(숫자만). D-2가
+  // 학부모 전화번호 필드 프리필·잠금에 쓴다. 콜백이 즉시 실어 보내면 채워지고,
+  // 새로고침으로 비어 있으면 D-2가 requestId로 다시 조회해(fetchIdentityMobile)
+  // 채운다.
+  pass: {
+    verified: boolean;
+    requestId?: string;
+    verifiedAt?: number;
+    mobile?: string;
+  };
   // T3(2026-09-03): 14세 이상 학생이 "학생 명의의 핸드폰이 없어요"를 체크했을 때
   // 학부모 핸드폰을 SMS로 인증하는 별도 플로우 — 학생 본인 phone 섹션과 동일한
   // shape을 그대로 재사용한다(purpose만 'guardian_signup'으로 다르다).

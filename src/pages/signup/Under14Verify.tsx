@@ -79,10 +79,13 @@ export default function Under14Verify() {
 
       // requestId를 남겨둔다 — D-2 제출이 이 값을 가입 RPC에 실어 보내고,
       // 서버가 identity_verifications를 검증·소비한다(sql/84_under14_signup.sql).
+      // mobile은 D-2가 학부모 전화번호 필드를 프리필·잠그는 데 쓴다(비어 있으면
+      // D-2가 fetchIdentityMobile로 다시 조회한다).
       updateVerification("pass", {
         verified: true,
         requestId: result.requestId,
         verifiedAt: Date.now(),
+        mobile: result.mobile,
       });
 
       navigate("/signup/student/under14");

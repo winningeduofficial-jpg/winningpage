@@ -40,6 +40,7 @@ import {
   verifySignupEmailCode,
 } from "@/lib/signupEmailAuth";
 import { supabase } from "@/lib/supabase";
+import { fetchIdentityMobile } from "./identityVerification";
 // AS-IS Signup.jsx(§2.2)의 17개 시도 + '기타' select 관례를 StudentForm(C-1)과 공유한다
 // (§3.3 C-1 예시 데이터 "울산"과 표기 형식 일치 — "울산광역시"가 아닌 "울산").
 import { REGION_OPTIONS } from "./StudentForm";
@@ -260,6 +261,41 @@ export default function Under14Form() {
       navigate("/signup/student/under14/verify", { replace: true });
     }
   }, [memberType, verification.pass.verified, navigate]);
+
+  // T9(2026-09-03): PASS가 넘긴 학부모 휴대폰 번호(흐름 A)가 비어 있으면 — 새로고침
+  // 등으로 콜백의 postMessage/보조 채널 결과를 놓친 경우 — requestId로 다시 조회한다
+  // (흐름 B, api/nice-identity-result.ts). 실패하거나 값이 없으면 조용히 넘어가고,
+  // 아래 guardianPhone 필드는 기존처럼 직접 입력 가능한 상태로 남는다.
+  useEffect(() => {
+    if (!verification.pass.verified || !verification.pass.requestId) return;
+    if (verification.pass.mobile) return;
+
+    let cancelled = false;
+    fetchIdentityMobile(verification.pass.requestId).then((mobile) => {
+      if (!cancelled && mobile) updateVerification("pass", { mobile });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    verification.pass.verified,
+    verification.pass.requestId,
+    verification.pass.mobile,
+    updateVerification,
+  ]);
+
+  // PASS 휴대폰 번호가 확보되면 학부모 전화번호 필드를 그 번호로 채운다. PASS 값이
+  // 정본이므로 사용자가 이미 뭔가 입력해 뒀어도 덮어쓴다(이 필드는 곧바로 readOnly로
+  // 잠긴다 — 아래 렌더 부분).
+  useEffect(() => {
+    if (!verification.pass.mobile) return;
+
+    const formatted = formatPhoneInput(verification.pass.mobile);
+    if (formData.guardianPhone !== formatted) {
+      updateFormData({ guardianPhone: formatted });
+    }
+  }, [verification.pass.mobile, formData.guardianPhone, updateFormData]);
 
   const requiredKeys = useMemo(
     () => STUDENT_AGREEMENT_ITEMS.map((item) => item.key),
@@ -753,12 +789,16 @@ export default function Under14Form() {
             updateFormData({ guardianPhone: formatPhoneInput(v) })
           }
           placeholder="전화번호를 입력 해주세요"
-          // T4(2026-09-02): D-1 콜백(api/nice-identity-callback.ts)이 프론트로 넘기는
-          // 값은 ok/verify/rid/is_under14/age뿐이고 mobile은 DB(identity_verifications)에만
-          // 저장한다("결과 원문은 넘기지 않는다" 주석) — verification.pass 타입에도 mobile이
-          // 없어(src/context/SignupContext.tsx) 프리필할 값이 없다. 서버가 제출 시점에
-          // identity_verifications.mobile을 guardian_phone 정본으로 쓰므로 그 사실만 안내한다.
-          helperText="하이픈은 자동으로 입력돼요. 본인확인에 사용한 휴대폰 번호가 있으면 그 번호로 저장돼요."
+          // T9(2026-09-03): PASS가 돌려준 법정대리인 휴대폰 번호가 있으면(흐름 A/B
+          // 공통, 위 useEffect가 채운다) 그 번호가 정본이라 읽기전용으로 고정한다 —
+          // 사용자가 임의로 바꿔 서버 저장값과 화면이 어긋나는 걸 막는다. 아직 없으면
+          // (조회 실패 등) 기존처럼 직접 입력을 받는다.
+          readOnly={Boolean(verification.pass.mobile)}
+          helperText={
+            verification.pass.mobile
+              ? "본인확인에 사용한 휴대폰 번호예요. 이 번호로 저장돼요."
+              : "하이픈은 자동으로 입력돼요. 본인확인에 사용한 휴대폰 번호가 있으면 그 번호로 저장돼요."
+          }
         />
 
         <InfoCard variant="card">
