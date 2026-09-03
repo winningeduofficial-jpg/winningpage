@@ -121,6 +121,12 @@ function getSignupRpcMessage(raw?: string) {
   if (message.includes("guardian_consent_required")) {
     return "법정대리인 정보 수집 동의가 필요합니다.";
   }
+  if (message.includes("guardian_phone_not_verified")) {
+    return "학부모 핸드폰 인증이 확인되지 않았습니다. 인증을 마친 뒤 다시 시도해 주세요.";
+  }
+  if (message.includes("phone_or_guardian_required")) {
+    return "전화번호 또는 학부모 핸드폰 중 하나는 입력해 주세요.";
+  }
 
   return `회원 정보 저장 중 문제가 발생했습니다: ${raw}`;
 }
@@ -600,7 +606,9 @@ export default function Under14Form() {
             placeholder="전화번호를 입력 해주세요"
             disabled={formData.noOwnPhone}
             helperText={
-              formData.noOwnPhone ? "" : "하이픈은 자동으로 입력돼요."
+              formData.noOwnPhone
+                ? "학생 명의의 핸드폰이 없어요 - 아래 학부모 정보에 부모님 핸드폰을 기재해 주세요"
+                : "하이픈은 자동으로 입력돼요."
             }
           />
 
@@ -745,7 +753,12 @@ export default function Under14Form() {
             updateFormData({ guardianPhone: formatPhoneInput(v) })
           }
           placeholder="전화번호를 입력 해주세요"
-          helperText="하이픈은 자동으로 입력돼요."
+          // T4(2026-09-02): D-1 콜백(api/nice-identity-callback.ts)이 프론트로 넘기는
+          // 값은 ok/verify/rid/is_under14/age뿐이고 mobile은 DB(identity_verifications)에만
+          // 저장한다("결과 원문은 넘기지 않는다" 주석) — verification.pass 타입에도 mobile이
+          // 없어(src/context/SignupContext.tsx) 프리필할 값이 없다. 서버가 제출 시점에
+          // identity_verifications.mobile을 guardian_phone 정본으로 쓰므로 그 사실만 안내한다.
+          helperText="하이픈은 자동으로 입력돼요. 본인확인에 사용한 휴대폰 번호가 있으면 그 번호로 저장돼요."
         />
 
         <InfoCard variant="card">
