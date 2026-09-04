@@ -894,6 +894,21 @@ export function AdminForm<T extends AdminRow = AdminRow>({
       return;
     }
 
+    // 무변경 저장 조기 종료: dirty가 안 오른 상태로 [저장]을 누르면 alert 없이
+    // 그냥 나간다(DB 접근·고아 이미지 정리도 타지 않는다 — 무변경이면 업로드도
+    // 없었을 것이라 sessionUploadsRef도 비어 있다). blockEditor 필드가 있는
+    // config는 예외다 — 그 에디터는 uncontrolled라 본문을 채워도 dirty가 절대
+    // 오르지 않으므로 이 조건이면 정상 저장까지 막아버린다. createDefaults로
+    // 프리필된 신규 등록(예: 다른 탭에서 값 들고 온 경우)도 예외다 — 사용자가
+    // 필드를 안 건드려도 저장 의도가 있을 수 있다.
+    const hasBlockEditorField = (config.fields || []).some(
+      (field) => field.type === "blockEditor",
+    );
+    if (!dirty && !hasBlockEditorField && !createDefaults) {
+      onCancel();
+      return;
+    }
+
     for (const field of config.fields || []) {
       if (!field.required) continue;
 

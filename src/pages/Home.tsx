@@ -1,9 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
+import { type MouseEvent, useEffect, useRef, useState } from "react";
 import AcceptanceSection from "@/components/landing/AcceptanceSection";
 import HeroSection from "@/components/landing/HeroSection";
 import MentorSection from "@/components/landing/MentorSection";
 import NewsSection from "@/components/landing/NewsSection";
 import ServicesSection from "@/components/landing/ServicesSection";
+import { Dialog, DialogOverlay, DialogPortal } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import * as landingPreview from "@/data/landingPreview";
 import type { NormalizedMentor } from "@/hooks/useHomeMentors";
@@ -136,84 +138,118 @@ function HomePopupLayer({
   onClose: (id: string) => void;
   onCloseToday: (id: string) => void;
 }) {
-  if (!popups.length) return null;
+  // 최대 3개까지만 노출(기존 규칙 유지) — popups는 sort_order 오름차순으로
+  // 들어오므로 배열의 마지막 원소가 화면상 가장 오른쪽(=sort_order가 가장 큰) 카드다.
+  const visible = popups.slice(0, 3);
+
+  function handleOpenChange(next: boolean) {
+    if (next) return;
+    // ESC/딤 클릭은 카드를 한꺼번에 다 닫지 않고 오른쪽(마지막) 카드 1장만 닫는다.
+    // 카드가 남아 있으면 visible.length > 0이라 open이 그대로 true라서 Dialog가
+    // 유지되고, 마지막 한 장이 닫힐 때 비로소 open이 false가 되며 자동으로 종료된다.
+    const last = visible[visible.length - 1];
+    if (last) onClose(last.id);
+  }
+
+  // Popup이 `fixed inset-0`으로 뷰포트 전체를 덮으므로(카드가 3장까지 가로로
+  // 늘어서고 세로 스크롤도 여기서 담당), 딤 영역 클릭이 Base UI 기준으로는
+  // "팝업 안쪽" 클릭이라 outside-press로 잡히지 않는다(실측). 카드 밖을 눌렀을 때만
+  // ESC와 같은 순차 닫기를 직접 태운다 — 카드 안(이미지 링크·버튼)은 제외.
+  function handleDimClick(e: MouseEvent<HTMLDivElement>) {
+    if ((e.target as HTMLElement).closest("[data-popup-card]")) return;
+    handleOpenChange(false);
+  }
 
   return (
-    <ScrollArea className="fixed inset-0 z-9999 bg-black/50 px-4 py-6">
-      <div className="mx-auto flex min-h-full w-full max-w-[1480px] items-center justify-center gap-5">
-        <div className="flex w-full flex-wrap items-center justify-center gap-5">
-          {popups.slice(0, 3).map((popup) => {
-            const imageSrc = popup.mobile_image_url || popup.image_url;
-            const Wrapper = popup.url ? "a" : "div";
-            const wrapperProps = popup.url
-              ? {
-                  href: popup.url,
-                  target: popup.open_new_window ? "_blank" : "_self",
-                  rel: popup.open_new_window ? "noreferrer" : undefined,
-                }
-              : {};
+    <Dialog open={visible.length > 0} onOpenChange={handleOpenChange}>
+      <DialogPortal>
+        {/* 기존 오버레이(bg-black/50, 블러 없음)를 그대로 재현 — shadcn 기본값의
+            bg-black/10·backdrop-blur-xs는 덮어쓴다. */}
+        <DialogOverlay className="z-9999 bg-black/50 supports-backdrop-filter:backdrop-blur-none" />
+        <DialogPrimitive.Popup
+          aria-label="공지 팝업"
+          className="fixed inset-0 z-9999 outline-none"
+          onClick={handleDimClick}
+        >
+          <ScrollArea className="h-full w-full px-4 py-6">
+            <div className="mx-auto flex min-h-full w-full max-w-[92.5rem] items-center justify-center gap-5">
+              <div className="flex w-full flex-wrap items-center justify-center gap-5">
+                {visible.map((popup) => {
+                  const imageSrc = popup.image_url || popup.mobile_image_url;
+                  const Wrapper = popup.url ? "a" : "div";
+                  const wrapperProps = popup.url
+                    ? {
+                        href: popup.url,
+                        target: popup.open_new_window ? "_blank" : "_self",
+                        rel: popup.open_new_window ? "noreferrer" : undefined,
+                      }
+                    : {};
 
-            return (
-              <div
-                key={popup.id}
-                className="flex w-[clamp(320px,28vw,440px)] shrink-0 flex-col overflow-hidden rounded-[24px] bg-white shadow-[0_28px_90px_rgba(0,0,0,0.36)]"
-              >
-                <Wrapper
-                  // biome-ignore lint/suspicious/noExplicitAny: Wrapper는 'a' | 'div' 중 런타임에 결정되는 태그명이라 각 태그 전용 props(href/target/rel)를 하나의 정적 타입으로 표현할 수 없다.
-                  {...(wrapperProps as any)}
-                  className="block aspect-3/4 w-full overflow-hidden bg-white"
-                >
-                  <picture>
-                    {popup.mobile_image_url && (
-                      <source
-                        media="(max-width: 768px)"
-                        srcSet={popup.mobile_image_url}
-                      />
-                    )}
-                    <img
-                      src={imageSrc}
-                      alt={popup.title || "팝업"}
-                      className="h-full w-full object-contain"
-                    />
-                  </picture>
-                </Wrapper>
-
-                <div className="flex h-[62px] shrink-0 items-center justify-between border-t border-slate-100 bg-white px-5">
-                  <button
-                    type="button"
-                    onClick={() => onCloseToday(popup.id)}
-                    className="inline-flex items-center gap-2 text-[15px] font-bold text-[#0D1B2A]"
-                  >
-                    <span className="text-[22px] leading-none text-blue-500">
-                      ✓
-                    </span>
-                    오늘 하루 보지않기
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onClose(popup.id)}
-                      className="text-[15px] font-bold text-[#111827]"
+                  return (
+                    <div
+                      key={popup.id}
+                      data-popup-card=""
+                      className="flex w-[clamp(20rem,28vw,27.5rem)] shrink-0 flex-col overflow-hidden rounded-[1.5rem] bg-white shadow-[0_1.75rem_5.625rem_rgba(0,0,0,0.36)]"
                     >
-                      닫기
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onClose(popup.id)}
-                      className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-300 text-sm font-black text-white"
-                      aria-label="팝업 닫기"
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
+                      <Wrapper
+                        // biome-ignore lint/suspicious/noExplicitAny: Wrapper는 'a' | 'div' 중 런타임에 결정되는 태그명이라 각 태그 전용 props(href/target/rel)를 하나의 정적 타입으로 표현할 수 없다.
+                        {...(wrapperProps as any)}
+                        className="block aspect-3/4 w-full overflow-hidden bg-white"
+                      >
+                        <picture>
+                          {popup.mobile_image_url && (
+                            <source
+                              media="(max-width: 48rem)"
+                              srcSet={popup.mobile_image_url}
+                            />
+                          )}
+                          <img
+                            src={imageSrc}
+                            alt={popup.title || "팝업"}
+                            className="h-full w-full object-contain"
+                          />
+                        </picture>
+                      </Wrapper>
+
+                      <div className="flex h-[3.875rem] shrink-0 items-center justify-between border-t border-slate-100 bg-white px-5">
+                        <button
+                          type="button"
+                          onClick={() => onCloseToday(popup.id)}
+                          className="inline-flex items-center gap-2 text-[0.9375rem] font-bold text-[#0D1B2A]"
+                        >
+                          <span className="text-[1.375rem] leading-none text-blue-500">
+                            ✓
+                          </span>
+                          오늘 하루 보지않기
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => onClose(popup.id)}
+                            className="text-[0.9375rem] font-bold text-[#111827]"
+                          >
+                            닫기
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onClose(popup.id)}
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-300 text-sm font-black text-white"
+                            aria-label="팝업 닫기"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
-      </div>
-    </ScrollArea>
+            </div>
+          </ScrollArea>
+        </DialogPrimitive.Popup>
+      </DialogPortal>
+    </Dialog>
   );
 }
 
