@@ -70,43 +70,47 @@ export default function ServiceTabsPanel({
 
   return (
     <>
-      <ScrollArea
-        axis="x"
-        className="mt-8 flex items-center gap-5 sm:mt-10 lg:mt-11.5 lg:gap-7.5"
-        role="tablist"
-        aria-label={ariaLabel}
-      >
-        {tabs.map((tab, index) => {
-          const isDisabled = !content[tab]?.length;
-          const isActive = tab === activeTab;
-          return (
-            <Fragment key={tab}>
-              <button
-                type="button"
-                role="tab"
-                id={`${idPrefix}-tab-${index}`}
-                disabled={isDisabled}
-                aria-disabled={isDisabled || undefined}
-                aria-selected={isActive}
-                aria-controls={`${idPrefix}-tabpanel`}
-                onClick={() => !isDisabled && setActiveTab(tab)}
-                className={`shrink-0 whitespace-nowrap text-[1.125rem] leading-[1.4] ${
-                  isActive
-                    ? "font-semibold text-ink"
-                    : "font-medium text-[#A3A3A3]"
-                } ${isDisabled ? "cursor-default" : ""}`}
-              >
-                {tab}
-              </button>
-              {index < tabs.length - 1 && (
-                <span
-                  aria-hidden="true"
-                  className="h-4 w-px shrink-0 bg-line"
-                />
-              )}
-            </Fragment>
-          );
-        })}
+      {/* flex/gap은 ScrollArea 루트가 아니라 안쪽 div에 둔다 — OverlayScrollbars가 루트 안에
+          viewport/content 래퍼를 끼워 넣어 루트의 flex가 버튼까지 닿지 않는다(탭이 gap 없이
+          붙고 구분선 폭이 0이 되던 회귀). role="tablist"도 tab 버튼의 직접 부모여야 한다. */}
+      <ScrollArea axis="x" className="mt-8 sm:mt-10 lg:mt-11.5">
+        <div
+          role="tablist"
+          aria-label={ariaLabel}
+          className="flex w-max items-center gap-5 lg:gap-7.5"
+        >
+          {tabs.map((tab, index) => {
+            const isDisabled = !content[tab]?.length;
+            const isActive = tab === activeTab;
+            return (
+              <Fragment key={tab}>
+                <button
+                  type="button"
+                  role="tab"
+                  id={`${idPrefix}-tab-${index}`}
+                  disabled={isDisabled}
+                  aria-disabled={isDisabled || undefined}
+                  aria-selected={isActive}
+                  aria-controls={`${idPrefix}-tabpanel`}
+                  onClick={() => !isDisabled && setActiveTab(tab)}
+                  className={`shrink-0 whitespace-nowrap text-[1.125rem] leading-[1.4] ${
+                    isActive
+                      ? "font-semibold text-ink"
+                      : "font-medium text-[#A3A3A3]"
+                  } ${isDisabled ? "cursor-default" : ""}`}
+                >
+                  {tab}
+                </button>
+                {index < tabs.length - 1 && (
+                  <span
+                    aria-hidden="true"
+                    className="h-4 w-px shrink-0 bg-line"
+                  />
+                )}
+              </Fragment>
+            );
+          })}
+        </div>
       </ScrollArea>
 
       <div
