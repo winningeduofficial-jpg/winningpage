@@ -163,9 +163,8 @@ function HomePopupLayer({
   return (
     <Dialog open={visible.length > 0} onOpenChange={handleOpenChange}>
       <DialogPortal>
-        {/* 기존 오버레이(bg-black/50, 블러 없음)를 그대로 재현 — shadcn 기본값의
-            bg-black/10·backdrop-blur-xs는 덮어쓴다. */}
-        <DialogOverlay className="z-9999 bg-black/50 supports-backdrop-filter:backdrop-blur-none" />
+        {/* 오버레이 색·블러는 shadcn 기본값 그대로. z-index만 Popup과 맞춘다. */}
+        <DialogOverlay className="z-9999" />
         <DialogPrimitive.Popup
           aria-label="공지 팝업"
           className="fixed inset-0 z-9999 outline-none"
