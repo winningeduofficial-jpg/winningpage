@@ -109,6 +109,10 @@ function todayKstYmd() {
   return kst.toISOString().slice(0, 10);
 }
 
+// 동시 노출 상한. 어드민 팝업 관리 guideText("동시 노출: 최대 3개")와 맞춘다.
+// sort_order 상위 3장만 후보가 되며, 그 밖의 행은 누구에게도 노출되지 않는다.
+const MAX_VISIBLE_POPUPS = 3;
+
 function getHiddenPopupIds(): Record<string, string> {
   try {
     const saved = localStorage.getItem("hiddenPopupIds");
@@ -133,28 +137,28 @@ function HomePopupLayer({
   popups,
   onClose,
   onCloseToday,
+  onCloseAll,
 }: {
   popups: Popup[];
   onClose: (id: string) => void;
   onCloseToday: (id: string) => void;
+  onCloseAll: () => void;
 }) {
-  // 최대 3개까지만 노출(기존 규칙 유지) — popups는 sort_order 오름차순으로
-  // 들어오므로 배열의 마지막 원소가 화면상 가장 오른쪽(=sort_order가 가장 큰) 카드다.
-  const visible = popups.slice(0, 3);
+  // popups는 fetch 단계에서 이미 상위 MAX_VISIBLE_POPUPS장으로 잘려 들어온다.
+  // 여기서 다시 자르지 않는다 — 카드가 닫혀도 대기열에서 다음 장이 올라오지 않는다.
+  const visible = popups;
 
   function handleOpenChange(next: boolean) {
     if (next) return;
-    // ESC/딤 클릭은 카드를 한꺼번에 다 닫지 않고 오른쪽(마지막) 카드 1장만 닫는다.
-    // 카드가 남아 있으면 visible.length > 0이라 open이 그대로 true라서 Dialog가
-    // 유지되고, 마지막 한 장이 닫힐 때 비로소 open이 false가 되며 자동으로 종료된다.
-    const last = visible[visible.length - 1];
-    if (last) onClose(last.id);
+    // ESC/딤 클릭은 화면의 카드를 한꺼번에 전부 닫는다. 카드 안의 X·오늘 하루
+    // 보지 않기 버튼만 개별 닫기다.
+    onCloseAll();
   }
 
   // Popup이 `fixed inset-0`으로 뷰포트 전체를 덮으므로(카드가 3장까지 가로로
   // 늘어서고 세로 스크롤도 여기서 담당), 딤 영역 클릭이 Base UI 기준으로는
   // "팝업 안쪽" 클릭이라 outside-press로 잡히지 않는다(실측). 카드 밖을 눌렀을 때만
-  // ESC와 같은 순차 닫기를 직접 태운다 — 카드 안(이미지 링크·버튼)은 제외.
+  // ESC와 같은 전체 닫기를 직접 태운다 — 카드 안(이미지 링크·버튼)은 제외.
   function handleDimClick(e: MouseEvent<HTMLDivElement>) {
     if ((e.target as HTMLElement).closest("[data-popup-card]")) return;
     handleOpenChange(false);
@@ -381,8 +385,11 @@ export default function Home() {
       }
 
       const hidden = getHiddenPopupIds();
+      // 상위 3장을 먼저 확정한 뒤 "오늘 하루 보지 않기"를 뺀다. 순서를 바꾸면
+      // 사용자가 1장 숨긴 날 4번째 행이 올라와 어드민 가이드(최대 3개)와 어긋난다.
       const visiblePopups = ((data || []) as Popup[])
         .filter((popup) => popup.image_url || popup.mobile_image_url)
+        .slice(0, MAX_VISIBLE_POPUPS)
         .filter((popup) => hidden[popup.id] !== today);
 
       setPopups(visiblePopups);
@@ -528,12 +535,17 @@ export default function Home() {
     closePopup(id);
   }
 
+  function closeAllPopups() {
+    setPopups([]);
+  }
+
   return (
     <>
       <HomePopupLayer
         popups={popups}
         onClose={closePopup}
         onCloseToday={closePopupToday}
+        onCloseAll={closeAllPopups}
       />
 
       <main
