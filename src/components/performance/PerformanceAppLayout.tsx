@@ -6,6 +6,7 @@ import {
 } from "@/components/app-shell/AppShellSidebar";
 import Header from "@/components/Header";
 import RouteLoadingOverlay from "@/components/ui/RouteLoadingOverlay";
+import { SidebarInset } from "@/components/ui/sidebar";
 import {
   PerformanceShellProvider,
   usePerformanceShell,
@@ -93,16 +94,12 @@ function PerformanceShellContent() {
   return (
     <>
       {/* 공개 페이지 정본 헤더(Header.tsx) 그대로 재사용 — `position:fixed h-16`(4rem)이라
-          자기 자신은 레이아웃 흐름의 높이를 차지하지 않는다. 그래서 아래 행 컨테이너에
-          `pt-16`을 별도로 줘 헤더 높이(4rem)만큼 사이드바·캔버스를 함께 밀어낸다
-          (Tailwind preflight box-sizing: border-box라 min-h-screen 총높이 안에
-          padding-top이 포함되므로 뷰포트보다 커지지 않는다 — 아래 사이드바 min-h 주석과
-          같은 계산). 헤더 높이 값은 새 상수를 만들지 않고 Header.tsx의 실제 클래스(`h-16`)를
-          그대로 따라간다 — 다른 페이지들(MentorApply.tsx 등)도 전부 이 값을 pt-16으로
-          하드코딩해 참조하는 것이 기존 관례다. */}
+          자기 자신은 레이아웃 흐름의 높이를 차지하지 않는다. 헤더 높이만큼 자리를
+          잡는 스페이서·`--header-height` 정의는 `AppShellSidebarProvider`
+          (AppShellSidebar.tsx, sidebar-16 공식 블록 구조) 한 곳뿐이다. */}
       <Header />
       <AppShellSidebarProvider>
-        <div className="flex min-h-screen w-full bg-white pt-16">
+        <div className="flex flex-1">
           {/* 사이드바는 표시 전용이라 prop을 받는다(프로필 이름·학교유형·학년, 진행단계 5스텝
             상태). 진행단계(stepStates)는 위 PerformanceShellProvider를 통해 채팅 페이지가
             배선했다(P13 해소). 프로필(이름·학교유형·학년, P5)은 이 컴포넌트가 bootstrap
@@ -114,38 +111,40 @@ function PerformanceShellContent() {
             gradeLabel={gradeLabel}
             stepStates={stepStates}
           />
-          <AppShellSidebarTrigger />
 
-          {/* 캔버스. md 이상에서 `ml-app-sidebar`로 고정 사이드바 폭만큼 통째로
-            밀어내고(AppShellSidebar가 사이드바를 문서 흐름 밖으로 fixed 처리하므로
-            이 margin이 없으면 본문이 사이드바 밑에 깔린다), 그 안쪽에서 다시
+          {/* `SidebarInset`(sidebar-16 공식 본문 자리, AppShellSidebar.tsx 주석 참고) —
+            헤더 높이를 뺀 나머지 뷰포트 높이만 채우고 내부에서만 스크롤한다(채팅
+            캔버스 고정 높이 스크롤 모델 유지). 모바일 트리거 바 아래 콘텐츠 컨테이너에
             좌 인셋(3.75rem, `pl-perf-inset`)을 지정해 좌기준선을 맞춘다. 우측은
             콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」
             규칙). pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전
             여백일 뿐이다. */}
-          <main className="relative flex h-[calc(100svh-4rem)] min-w-0 flex-1 flex-col overflow-hidden pl-perf-inset pr-perf-inset pt-14 md:ml-app-sidebar">
-            <RouteLoadingOverlay />
-            <div className="flex min-h-0 w-full max-w-perf-content flex-1 flex-col">
-              {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
-                조건 판정은 이 컴포넌트가 하지 않는다 — 채팅 페이지(Outlet 자식)가
-                `quotaRemaining === 0 && 진행 중 세션 없음`을 판정해 셸 컨텍스트로
-                올리고(PerformanceChatPage.jsx), 여기는 그 값을 그대로 읽어 렌더만 한다.
-                저장 리포트 등 판정 근거가 없는 화면은 기본값 false라 배너가 뜨지 않는다
-                (PerformanceShellContext.jsx 주석 참고). */}
-              {quotaBannerVisible && <QuotaExhaustedBanner />}
+          <SidebarInset className="h-[calc(100svh-var(--header-height))] min-w-0 overflow-hidden">
+            <AppShellSidebarTrigger />
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden pl-perf-inset pr-perf-inset pt-14">
+              <RouteLoadingOverlay />
+              <div className="flex min-h-0 w-full max-w-perf-content flex-1 flex-col">
+                {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
+                  조건 판정은 이 컴포넌트가 하지 않는다 — 채팅 페이지(Outlet 자식)가
+                  `quotaRemaining === 0 && 진행 중 세션 없음`을 판정해 셸 컨텍스트로
+                  올리고(PerformanceChatPage.jsx), 여기는 그 값을 그대로 읽어 렌더만 한다.
+                  저장 리포트 등 판정 근거가 없는 화면은 기본값 false라 배너가 뜨지 않는다
+                  (PerformanceShellContext.jsx 주석 참고). */}
+                {quotaBannerVisible && <QuotaExhaustedBanner />}
 
-              {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
-                TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
-                §11 Q7 미결이라 아직 만들지 않는다. */}
-              <h1 className="text-app-title font-semibold tracking-[-0.02rem] text-ink-strong">
-                위닝 수행평가 서비스
-              </h1>
+                {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
+                  TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
+                  §11 Q7 미결이라 아직 만들지 않는다. */}
+                <h1 className="text-app-title font-semibold tracking-[-0.02rem] text-ink-strong">
+                  위닝 수행평가 서비스
+                </h1>
 
-              <div className="flex min-h-0 flex-1 flex-col">
-                <Outlet />
+                <div className="flex min-h-0 flex-1 flex-col">
+                  <Outlet />
+                </div>
               </div>
             </div>
-          </main>
+          </SidebarInset>
         </div>
       </AppShellSidebarProvider>
     </>
