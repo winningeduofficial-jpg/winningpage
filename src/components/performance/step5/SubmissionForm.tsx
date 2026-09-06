@@ -247,8 +247,17 @@ type SubmissionFormProps = {
   saving?: boolean;
   /** 제출 진행 중(§6.1 상태 `submitting`). */
   submitting?: boolean;
-  /** 저장/제출 실패 문구(서버가 준 한국어 문구 그대로). */
+  /** **자동 저장(draft) 실패** 문구(서버가 준 한국어 문구 그대로). 카드 제목 옆 상태
+   * 텍스트(`저장 실패 — 다시 시도`)와 이 값 자체를 알리는 하단 문구를 함께 켠다. 제출
+   * 실패는 여기 실리지 않는다 — 아래 `submitError` 참고(그리핑 원인: 예전엔 두 실패가
+   * 한 상태를 같이 썼는데, 게이트 실패(`SUBMISSION_TOO_SHORT` 등)로 초안은 이미 저장된
+   * 채 제출만 실패한 경우에도 "저장 실패"가 떠 학생이 방금 저장된 글을 잃은 줄
+   * 오인했다). */
   error?: string | null;
+  /** **제출 실패** 문구. 게이트 실패처럼 초안은 저장됐는데 제출만 안 된 경우가 흔해서
+   * `error`(저장 실패)와 분리했다 — 제출 버튼 아래에 별도 문단으로만 뜨고, 카드 제목
+   * 옆 자동 저장 상태 텍스트에는 영향을 주지 않는다. */
+  submitError?: string | null;
   /** 마지막 자동 저장 시각(ISO). 저장 성공 피드백에만 쓴다. */
   savedAt?: string | null;
 };
@@ -263,12 +272,14 @@ export default function SubmissionForm({
   saving = false,
   submitting = false,
   error = null,
+  submitError = null,
   savedAt = null,
 }: SubmissionFormProps) {
   const reactId = useId();
   const idPrefix = `performance-submission${reactId}`;
   const gateId = `${idPrefix}-gate`;
   const errorId = `${idPrefix}-error`;
+  const submitErrorId = `${idPrefix}-submit-error`;
 
   const fields = Array.isArray(schema?.fields) ? schema.fields : [];
 
@@ -327,15 +338,22 @@ export default function SubmissionForm({
     gateMessage = `전체 ${gate.total}자를 작성했어요. 지금 제출할 수 있어요.`;
   }
 
-  // 제출 버튼이 가리키는 설명 — 게이트 사유 + (있다면) 서버 실패 문구. 저장 버튼이
-  // 있던 시절엔 두 버튼이 같이 가리켰지만, 이제 저장은 버튼이 아니라 상태 텍스트다.
-  const describedBy = [gateId, error ? errorId : null]
+  // 제출 버튼이 가리키는 설명 — 게이트 사유 + (있다면) 저장 실패 문구 + (있다면) 제출
+  // 실패 문구. 저장 버튼이 있던 시절엔 두 버튼이 같이 가리켰지만, 이제 저장은 버튼이
+  // 아니라 상태 텍스트다.
+  const describedBy = [
+    gateId,
+    error ? errorId : null,
+    submitError ? submitErrorId : null,
+  ]
     .filter(Boolean)
     .join(" ");
 
-  /** 저장 실패 상태 텍스트의 수동 재시도(§ 위 `useDebouncedAutosave` 주석). */
+  /** 저장 실패 상태 텍스트의 수동 재시도(§ 위 `useDebouncedAutosave` 주석). `force`를
+   * 줘야 한다 — 안 주면 훅 내부 북키핑상 "이미 저장된 값"으로 보이는 경우 아무 것도
+   * 하지 않고 조용히 no-op할 수 있다(사용자가 누른 재시도가 아무 반응이 없는 버그). */
   function handleRetrySave() {
-    autosave.flush();
+    autosave.flush({ force: true });
   }
 
   function handleSubmit(event: FormEvent) {
@@ -465,6 +483,19 @@ export default function SubmissionForm({
             className="text-app-label text-[#d01c1c]"
           >
             {error}
+          </p>
+        )}
+
+        {/* 제출 실패는 자동 저장 실패(`error`)와 별개 문단이다 — 위 props 주석 참고.
+            게이트 실패(`SUBMISSION_TOO_SHORT` 등)로 초안은 이미 저장된 채 제출만 실패한
+            경우가 흔해서, 여기서만 알리고 카드 제목 옆 상태 텍스트는 건드리지 않는다. */}
+        {submitError && (
+          <p
+            id={submitErrorId}
+            role="alert"
+            className="text-app-label text-[#d01c1c]"
+          >
+            {submitError}
           </p>
         )}
 

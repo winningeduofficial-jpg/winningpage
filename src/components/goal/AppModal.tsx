@@ -33,8 +33,8 @@ type AppModalProps = {
 //
 // **동작(ESC 닫기 / Tab focus trap / 배경 스크롤 잠금 / 딤 클릭 닫기 / 포커스 이동·복귀)은
 // shadcn/ui Dialog(Base UI 기반, src/components/ui/dialog.tsx)가 기본 제공한다.** 예전엔
-// `useModalBehavior`(src/hooks/useModalBehavior.ts)가 이 동작을 담당했지만, 이 파일은 더 이상
-// 그 훅을 쓰지 않는다(훅 자체는 다른 호출부가 없어 파일만 남아 있다).
+// 자체 훅(`useModalBehavior`)이 이 동작을 담당했으나, Base UI Dialog로 이관되며 훅을 쓰는
+// 곳이 없어져 삭제했다(2026-09-06) — 지금은 이 4가지 동작 전부 라이브러리 계약이다.
 //
 // ── `DialogContent`로 종속 (2026-09, 사용자 결정)
 // 예전엔 `Dialog`/`DialogOverlay`/`DialogPortal`/`DialogClose`만 shadcn 프리미티브를 쓰고

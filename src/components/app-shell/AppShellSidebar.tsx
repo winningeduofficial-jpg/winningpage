@@ -23,9 +23,20 @@ import {
 // `AppShellSidebarProvider`가 첫 자식으로 `h-(--header-height)` 스페이서를 둬
 // 그 자리를 대신 잡는다 — `--header-height` 정의도 이 컴포넌트 한 곳뿐이다.
 
-// 사이드바 폭 — index.css `@theme`의 `--spacing-app-sidebar`(18rem)가 정본이다.
-// shadcn Sidebar 내부 유틸(`w-(--sidebar-width)` 등)이 이 CSS 변수를 그대로
-// 읽으므로, 폭을 바꾸려면 index.css 토큰 하나만 고치면 두 셸이 함께 바뀐다.
+// 사이드바 폭 — index.css `@theme`의 `--spacing-app-sidebar`(18rem)가 **데스크톱 고정
+// 사이드바**의 정본이다. shadcn Sidebar 내부 유틸(`w-(--sidebar-width)` 등)이 이 CSS
+// 변수를 그대로 읽으므로, 데스크톱 폭을 바꾸려면 index.css 토큰 하나만 고치면 된다.
+//
+// **모바일 Sheet 드로어 폭은 이 토큰을 안 읽는다.** 벤더 파일
+// `src/components/ui/sidebar.tsx`의 상수 `SIDEBAR_WIDTH_MOBILE = "18rem"`(모바일
+// 분기가 `--sidebar-width`를 이 값으로 인라인 재정의한다)가 정본이라 **두 값을 손으로
+// 같게 유지해야 한다** — 지금은 우연히 둘 다 18rem이지만, index.css 토큰만 바꾸면
+// 데스크톱과 모바일 드로어 폭이 갈라진다.
+//
+// (2026-09-06 결정 기록) 벤더 파일 `src/components/ui/*`는 이 저장소의 "CSS 단위는
+// rem만" 규칙에서 예외다 — shadcn CLI가 생성한 그대로 유지하는 것이 원칙이라(diff를
+// 최소화해 업스트림 업데이트를 쉽게 받기 위함), 리터럴 rem 문자열(`SIDEBAR_WIDTH_MOBILE`
+// 같은)을 포함해 그 파일들의 단위 스타일을 이 저장소 관례에 맞춰 고치지 않는다.
 const SIDEBAR_WIDTH_STYLE = {
   "--sidebar-width": "var(--spacing-app-sidebar)",
 } as CSSProperties;
@@ -67,16 +78,28 @@ export function AppShellSidebar({
   children: ReactNode;
   /** "수행평가 사이드바" / "목표관리 사이드바" — complementary 랜드마크 이름.
    * shadcn `Sidebar`가 `role`을 자체적으로 주지 않으므로 여기서 붙여야 실제
-   * 랜드마크가 된다. */
+   * 랜드마크가 된다.
+   *
+   * **`Sidebar`가 아니라 그 안의 래퍼(`<aside>`)에 건다.** `Sidebar`는 모바일에서
+   * `<Sheet {...props}>`(Base UI Dialog.Root, DOM을 그리지 않는다)로 갈라지고
+   * `role`/`aria-label`을 포함한 나머지 props는 전부 그 `Sheet`로 흘러간다 —
+   * 즉 `Sidebar`에 직접 걸면 데스크톱에서만 랜드마크가 생기고 모바일 드로어에서는
+   * 사라진다(그리핑 원인). 데스크톱·모바일 둘 다 `children`을 그대로 렌더하므로,
+   * `children`을 감싼 이 wrapper가 두 경로 모두에서 정확히 하나의 랜드마크가 된다
+   * (`Sidebar` 자신에는 더 이상 `role`을 걸지 않으므로 데스크톱에 랜드마크가
+   * 두 번 생기지도 않는다). */
   "aria-label": string;
 }) {
   return (
-    <Sidebar
-      role="complementary"
-      aria-label={ariaLabel}
-      className="top-(--header-height) h-[calc(100svh-var(--header-height))]!"
-    >
-      {children}
+    <Sidebar className="top-(--header-height) h-[calc(100svh-var(--header-height))]!">
+      {/* `<aside>`의 암묵적 role이 이미 `complementary`라 리터럴 `role="complementary"`를
+          안 쓴다(biome `lint/a11y/useSemanticElements`). */}
+      <aside
+        aria-label={ariaLabel}
+        className="flex h-full min-h-0 w-full flex-col"
+      >
+        {children}
+      </aside>
     </Sidebar>
   );
 }

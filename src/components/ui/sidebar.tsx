@@ -192,9 +192,12 @@ function Sidebar({
           }
           side={side}
         >
+          {/* 카피만 한국어로 덮어썼다(2026-09-06, `AppShellSidebar` 검토) — 구조는 shadcn
+              CLI 산출물 그대로다. 이 문자열을 호출부(`AppShellSidebar`)에서 prop으로
+              받게 만드는 구조 변경 없이, sr-only 고정 문구만 로컬라이즈했다. */}
           <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            <SheetTitle>사이드바</SheetTitle>
+            <SheetDescription>모바일 사이드바 메뉴입니다.</SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>

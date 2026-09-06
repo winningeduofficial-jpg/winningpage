@@ -120,7 +120,7 @@ export default function ReportModalShell({
         showCloseButton={false}
         aria-modal="true"
         {...(finalFocus !== undefined ? { finalFocus } : {})}
-        overlayClassName="performance-report-dim z-100 bg-performance-dim supports-backdrop-filter:backdrop-blur-none"
+        overlayClassName="z-100 bg-performance-dim supports-backdrop-filter:backdrop-blur-none"
         // 높이 46.9375rem(751px, §5.13/§5.16/§7.3 정본) + `max-h-[90vh]` 병기. `max-h`만 두면
         // 섹션 길이에 따라 모달 높이가 출렁이고 내부 스크롤을 전제한 751px 고정값이
         // 무의미해진다(P9 `TopicDetailModal`에서 확립된 규칙).
@@ -140,11 +140,11 @@ export default function ReportModalShell({
               좁은 화면은 1.25rem으로 줄인다). 구분선 폭이 모달보다 11px 넓은 것은 시안
               오차라(§13 오류 표 「헤더 구분선 폭 1251」) 따르지 않는다. */}
           <DialogHeader className="performance-report-head shrink-0 gap-1 border-b border-performance-line px-5 pb-4.75 pt-10 xl:px-10">
-            <DialogTitle className="wrap-break-word text-[1.25rem] font-semibold leading-6.5 text-ink">
+            <DialogTitle className="wrap-break-word text-app-section font-semibold leading-6.5 text-ink">
               {title}
             </DialogTitle>
             {subtitle ? (
-              <DialogDescription className="wrap-break-word text-[1rem] font-medium leading-5.25 text-ink-sub">
+              <DialogDescription className="wrap-break-word text-app-card-title font-medium leading-5.25 text-ink-sub">
                 {subtitle}
               </DialogDescription>
             ) : null}
@@ -252,7 +252,7 @@ const PRINT_PAGE_STYLE = `
  */
 export const REPORT_MODAL_FOOTER_BUTTON = {
   secondary:
-    "flex h-13 w-65 min-w-0 max-w-full items-center justify-center rounded-xl border border-performance-line px-2 text-center text-[1rem] font-medium leading-5 text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100",
+    "flex h-13 w-65 min-w-0 max-w-full items-center justify-center rounded-xl border border-performance-line px-2 text-center text-app-card-title font-medium leading-5 text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100",
   primary:
-    "flex h-13 w-65 min-w-0 max-w-full items-center justify-center rounded-xl bg-primary px-2 text-center text-[1rem] font-semibold leading-5 text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100",
+    "flex h-13 w-65 min-w-0 max-w-full items-center justify-center rounded-xl bg-primary px-2 text-center text-app-card-title font-semibold leading-5 text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100",
 };

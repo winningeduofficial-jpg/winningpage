@@ -562,12 +562,12 @@ export default function PerformanceChatPage() {
   // ── 주제 상세 모달(§5.11, P9). 열려 있는 주제 1건만 들고 있으면 된다 — 모달은
   //   `topicDetail`이 있을 때만 렌더한다.
   //   **닫기 경로**(ESC/딤/`다른 주제 보기`)는 카드 목록(`topics`)을 그대로 두므로 포커스가
-  //   원래 클릭한 카드로 복귀한다(`useModalBehavior`가 담당, 카드는 리렌더로 교체되지 않는다
-  //   — `topics` 상태가 이 사이에 바뀌지 않기 때문).
+  //   원래 클릭한 카드로 복귀한다(Base UI Dialog가 기본 제공하는 트리거 복귀가 담당, 카드는
+  //   리렌더로 교체되지 않는다 — `topics` 상태가 이 사이에 바뀌지 않기 때문).
   //   **확정 경로는 다르다.** `handleConfirmTopic`이 `designPhase`를 `'loading'`으로 바꾸면
   //   아래 STEP3 메시지 렌더 조건(`designPhase === 'idle'`)이 카드 목록을 통째로
   //   언마운트한다 — React 18 배치로 카드 언마운트와 모달 언마운트가 같은 커밋에서 일어나므로
-  //   `useModalBehavior`의 트리거 복귀 대상은 cleanup 시점에 이미 detach된 노드다(검토 A).
+  //   Base UI Dialog의 트리거 복귀 대상은 cleanup 시점에 이미 detach된 노드다(검토 A).
   //   그래서 확정 경로는 자동 복귀에 기대지 않고 `designLoadingRef`로 새 포커스 목적지(STEP4
   //   로딩 버블)를 직접 지정한다 — 아래 `designLoadingRef` 이펙트 참고. **같은 이유로 P10이
   //   추가한 설계 리포트 모달도 닫힐 때 포커스 목적지를 직접 지정한다**(`handleCloseDesignModal`).
@@ -600,7 +600,7 @@ export default function PerformanceChatPage() {
   // 되어 `ChatTimeline`의 `aria-live="polite"`와 중복 낭독되지 않는다.
   const designLoadingRef = useRef<HTMLDivElement>(null);
   // 모달을 닫을 때 포커스가 갈 자리(`설계 리포트 다시 보기` 버튼). 모달은 로딩 버블이
-  // 사라진 커밋에서 자동으로 열리므로 `useModalBehavior`가 기억한 트리거는 이미 detach된
+  // 사라진 커밋에서 자동으로 열리므로 Base UI Dialog가 기억한 트리거는 이미 detach된
   // 노드다 — 복귀 대상을 여기서 직접 준다.
   const designReopenRef = useRef<HTMLButtonElement>(null);
   // `designPhase` 전이 3종을 **대칭으로** 다루기 위한 나머지 두 목적지(검토 P10).
@@ -704,7 +704,15 @@ export default function PerformanceChatPage() {
   const [submissionLoadToken, setSubmissionLoadToken] = useState(0);
   const [savingDraft, setSavingDraft] = useState(false);
   const [submittingWork, setSubmittingWork] = useState(false);
-  const [submissionActionError, setSubmissionActionError] = useState<
+  // 저장 실패와 제출 실패는 서로 다른 상태다(그리핑 원인이었다) — 게이트 실패
+  // (`SUBMISSION_TOO_SHORT` 등)는 초안이 이미 저장된 채로 돌아오는데, 두 실패를 한
+  // 상태로 합치면 "제출만 실패"한 순간에도 `SubmissionForm`이 "저장 실패"를 띄웠다.
+  // `submissionSaveError`는 자동 저장(`handleSaveDraft`) 전용, `submissionSubmitError`는
+  // 제출(`handleSubmitWork`) 전용이다.
+  const [submissionSaveError, setSubmissionSaveError] = useState<string | null>(
+    null,
+  );
+  const [submissionSubmitError, setSubmissionSubmitError] = useState<
     string | null
   >(null);
   const [submissionSavedAt, setSubmissionSavedAt] = useState<string | null>(
@@ -878,11 +886,11 @@ export default function PerformanceChatPage() {
     onBootstrapReady();
   }, [bootstrapLoading]);
 
-  // STEP4 로딩 진입 시 포커스 이동(검토 A-2). 카드 목록이 언마운트되며 `useModalBehavior`의
-  // 자동 복귀 대상(트리거 카드)도 함께 사라지므로, 여기서 새 목적지를 직접 지정한다. 로딩
-  // 버블이 실제로 DOM에 붙은 뒤(같은 렌더 커밋 다음 프레임) 포커스를 옮겨야 하므로
-  // `requestAnimationFrame`을 쓴다 — `useModalBehavior`의 "열릴 때 첫 포커서블로 이동" 이펙트와
-  // 같은 패턴이다.
+  // STEP4 로딩 진입 시 포커스 이동(검토 A-2). 카드 목록이 언마운트되며 Base UI Dialog가
+  // 하는 것과 같은 자동 복귀 대상(트리거 카드)도 함께 사라지므로, 여기서 새 목적지를 직접
+  // 지정한다. 로딩 버블이 실제로 DOM에 붙은 뒤(같은 렌더 커밋 다음 프레임) 포커스를 옮겨야
+  // 하므로 `requestAnimationFrame`을 쓴다 — Base UI Dialog가 열릴 때 첫 포커서블 요소로
+  // 옮기는 것과 같은 패턴이다.
   useEffect(() => {
     if (designPhase !== "loading") return undefined;
     const raf = requestAnimationFrame(() => {
@@ -1300,8 +1308,9 @@ export default function PerformanceChatPage() {
 
   /**
    * §5.13 `창 닫고 작성하기`·ESC·딤 클릭 공통. 리포트는 상태에 남겨 다시 열 수 있게 한다.
-   * 포커스는 `useModalBehavior`의 자동 복귀에 기대지 않고 `설계 리포트 다시 보기` 버튼으로
-   * 직접 옮긴다 — 모달을 연 트리거(STEP4 로딩 버블)는 같은 커밋에서 이미 언마운트됐다.
+   * 포커스는 Base UI Dialog의 자동 복귀(트리거로 되돌리기)에 기대지 않고 `설계 리포트
+   * 다시 보기` 버튼으로 직접 옮긴다 — 모달을 연 트리거(STEP4 로딩 버블)는 같은 커밋에서
+   * 이미 언마운트됐다.
    */
   function handleCloseDesignModal() {
     setDesignModalOpen(false);
@@ -1385,7 +1394,7 @@ export default function PerformanceChatPage() {
       return;
 
     setSavingDraft(true);
-    setSubmissionActionError(null);
+    setSubmissionSaveError(null);
 
     try {
       const data = await saveSubmission({
@@ -1400,7 +1409,7 @@ export default function PerformanceChatPage() {
       const message =
         error?.userMessage ||
         "중간 저장에 실패했어요. 잠시 후 다시 시도해 주세요.";
-      setSubmissionActionError(message);
+      setSubmissionSaveError(message);
       toastError(message);
       throw error;
     } finally {
@@ -1421,7 +1430,7 @@ export default function PerformanceChatPage() {
       return;
 
     setSubmittingWork(true);
-    setSubmissionActionError(null);
+    setSubmissionSubmitError(null);
 
     try {
       const data = await saveSubmission({
@@ -1436,9 +1445,11 @@ export default function PerformanceChatPage() {
       console.error("[performance] 제출 실패:", error?.code, error);
       // 게이트 실패(`SUBMISSION_TOO_SHORT`/`REQUIRED_FIELD_EMPTY`)는 **초안이 저장된 채로**
       // 돌아온다 — 서버가 게이트를 저장 이후에 보기 때문이다(`api/performance/submission.js`).
-      // 학생이 쓰던 글은 남아 있으므로 문구만 알리고 폼은 그대로 둔다.
+      // 학생이 쓰던 글은 남아 있으므로 `submissionSaveError`(자동 저장 실패)는 건드리지
+      // 않는다 — 그리핑 원인이었다: 저장은 성공했는데 제출만 실패한 순간에도
+      // `submissionSaveError`를 같이 쓰면 `SubmissionForm`이 "저장 실패"를 오표시했다.
       if (error?.saved?.savedAt) setSubmissionSavedAt(error.saved.savedAt);
-      setSubmissionActionError(
+      setSubmissionSubmitError(
         error?.userMessage || "제출하지 못했어요. 잠시 후 다시 시도해 주세요.",
       );
     } finally {
@@ -1472,8 +1483,9 @@ export default function PerformanceChatPage() {
 
   /**
    * §5.16 `다음 단계 선택하기`·ESC·딤 클릭 공통. 리포트는 상태에 남겨 다시 열 수 있게 한다.
-   * 포커스는 `useModalBehavior`의 자동 복귀에 기대지 않고 `평가 리포트 다시 보기` 버튼으로
-   * 직접 옮긴다 — 모달을 연 트리거(STEP5 로딩 버블)는 같은 커밋에서 이미 언마운트됐다.
+   * 포커스는 Base UI Dialog의 자동 복귀(트리거로 되돌리기)에 기대지 않고 `평가 리포트
+   * 다시 보기` 버튼으로 직접 옮긴다 — 모달을 연 트리거(STEP5 로딩 버블)는 같은 커밋에서
+   * 이미 언마운트됐다.
    */
   function handleCloseEvaluationModal() {
     setEvaluationModalOpen(false);
@@ -1632,7 +1644,8 @@ export default function PerformanceChatPage() {
     setSubmissionSchema(null);
     setSubmissionValue({});
     setSubmissionLoadError(null);
-    setSubmissionActionError(null);
+    setSubmissionSaveError(null);
+    setSubmissionSubmitError(null);
     setSubmissionSavedAt(null);
 
     setEvaluationPhase("idle");
@@ -2363,7 +2376,8 @@ export default function PerformanceChatPage() {
           topicTitle={confirmedTopic?.title || null}
           saving={savingDraft}
           submitting={submittingWork}
-          error={submissionActionError}
+          error={submissionSaveError}
+          submitError={submissionSubmitError}
           savedAt={submissionSavedAt}
         />
       ) : submissionLoadError ? (
@@ -2458,7 +2472,7 @@ export default function PerformanceChatPage() {
 /**
  * "이 조건이 켜지는 순간 이 노드로 포커스를 옮긴다"를 한 줄로 쓰는 헬퍼. 새로 나타난 노드가
  * DOM에 붙은 뒤(같은 렌더 커밋 다음 프레임) 옮겨야 하므로 `requestAnimationFrame`을 쓴다 —
- * `useModalBehavior`의 "열릴 때 첫 포커서블로 이동" 이펙트와 같은 패턴이다.
+ * Base UI Dialog가 열릴 때 첫 포커서블 요소로 옮기는 것과 같은 패턴이다.
  *
  * 쓰는 이유는 전부 같다: **직전에 포커스를 갖고 있던 노드가 같은 커밋에서 언마운트되는
  * 전이**라 브라우저 기본 동작(`<body>`로 떨어짐)에 맡기면 키보드 사용자가 위치를 잃는다.

@@ -155,12 +155,12 @@ export default function PerformanceSidebar({
             사용자가 지금 어느 제품에 있는지 오인하게 만드는 문구는 시안 충실도보다
             우선순위가 낮다고 판단해 `수행평가`로 확정한다. */}
         {profileName && (
-          <p className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+          <p className="text-app-card-title font-bold leading-[1.4] text-ink-strong">
             {profileName}의 수행평가
           </p>
         )}
         {subtitle && (
-          <p className="mt-2 text-[0.875rem] leading-[1.4] text-ink-sub">
+          <p className="mt-2 text-app-label leading-[1.4] text-ink-sub">
             {subtitle}
           </p>
         )}
@@ -176,7 +176,7 @@ export default function PerformanceSidebar({
         >
           <SidebarGroupLabel
             id="perf-nav-heading"
-            className="h-auto px-2 text-[0.8125rem] font-medium leading-[1.4] text-ink-sub"
+            className="h-auto px-2 text-app-label font-medium leading-[1.4] text-ink-sub"
           >
             메뉴
           </SidebarGroupLabel>
@@ -197,7 +197,7 @@ export default function PerformanceSidebar({
                         넘긴다(회귀 검증: PerformanceSidebar.test.tsx). */}
                     <SidebarMenuButton
                       isActive={isActive}
-                      className="h-9 px-3 text-[0.875rem] leading-[1.4] text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
+                      className="h-9 px-3 text-app-label leading-[1.4] text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
                       render={
                         <Link
                           to={item.to}
@@ -225,7 +225,7 @@ export default function PerformanceSidebar({
         >
           <SidebarGroupLabel
             id="perf-steps-heading"
-            className="h-auto px-2 text-[0.8125rem] font-medium leading-[1.4] text-ink-sub"
+            className="h-auto px-2 text-app-label font-medium leading-[1.4] text-ink-sub"
           >
             진행단계
           </SidebarGroupLabel>
@@ -251,7 +251,7 @@ export default function PerformanceSidebar({
                     <span
                       className={[
                         "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
-                        "text-[0.875rem] font-medium leading-4.5",
+                        "text-app-label font-medium leading-4.5",
                         style.badge,
                       ].join(" ")}
                     >
@@ -260,7 +260,7 @@ export default function PerformanceSidebar({
                     </span>
                     <span
                       className={[
-                        "text-[0.875rem] leading-[1.4]",
+                        "text-app-label leading-[1.4]",
                         style.label,
                       ].join(" ")}
                     >
