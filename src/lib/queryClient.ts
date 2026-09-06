@@ -207,6 +207,64 @@ export function sessionCheckQueryOptions(userId: string | null) {
   });
 }
 
+// GET /api/performance/bootstrap — 수행평가 앱 셸(PerformanceAppLayout, 사이드바 프로필
+// 슬롯)과 채팅 페이지(PerformanceChatPage, §5.4 진입 분기 판정)가 같은 응답을 공유한다.
+// 셸은 profile.name/schoolType과 lastSession.gradeLabel만 쓰고, 채팅 페이지는
+// lastSession·latestDraft까지 전부 쓴다 — goalStudentQueryOptions와 같은 이유로 캐시
+// 하나를 나눠 쓴다(요청 2벌이 되는 것을 막는다).
+//
+// 채팅 페이지는 화면 진입마다 최신 판정이 필요해(재개 분기가 stale 데이터로 잘못
+// 갈리면 안 된다) `fetchQuery({ ...옵션, staleTime: 0 })`로 이 staleTime을 우회해
+// 부른다 — 셸은 그 결과로 채워진 캐시를 staleTime 그대로 구독만 한다.
+const PERFORMANCE_BOOTSTRAP_STALE_MS = 15_000;
+
+/** `api/performance/bootstrap.ts` 응답 중 이 저장소 클라이언트가 실제로 쓰는 필드만
+ * 좁혀 선언한다(`session.ts` 상단 주석과 같은 판단 — 전체 계약은 그 파일의 헤더 주석
+ * `200 { profile, entitlement, lastSession|null, latestDraft|null }` 참고). */
+export type PerformanceBootstrapPayload = {
+  profile: {
+    name: string | null;
+    schoolType: string | null;
+  };
+  // `PerformanceChatPage`(§5.4 재개 선택 카드)가 gradeLabel 외 필드도 그대로 쓰므로
+  // `summaryOf`가 실제로 내려주는 표시 필드 전부를 좁혀 담는다 — 그 파일의
+  // `LastSessionSummary`와 필드 형태를 맞춘다(값 없음은 DB 컬럼 원본대로 null).
+  lastSession: {
+    sessionId: string;
+    gradeLabel: string | null;
+    semester: string | null;
+    subjectGroup: string | null;
+    subject: string | null;
+    selectedTopicTitle: string | null;
+  } | null;
+  latestDraft: unknown;
+};
+
+// entitlement/goalStudent와 동일한 이유로 queryKey에 userId를 포함한다(리뷰 CRITICAL
+// C1). accessToken은 SessionContext가 이미 들고 있는 값을 그대로 받는다 — 이 파일이
+// supabase.auth.getSession()을 새로 부르지 않는다(호출부가 이미 세션을 구독 중이므로
+// 중복 조회가 된다).
+export function performanceBootstrapQueryOptions(
+  userId: string | null,
+  accessToken: string | null,
+) {
+  return queryOptions({
+    queryKey: ["performance", "bootstrap", userId] as const,
+    queryFn: async (): Promise<PerformanceBootstrapPayload> => {
+      const response = await apiFetch("/api/performance/bootstrap", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!response.ok) {
+        throw new Error("performance-bootstrap-check-failed");
+      }
+      return response.json();
+    },
+    staleTime: PERFORMANCE_BOOTSTRAP_STALE_MS,
+    enabled: !!userId && !!accessToken,
+    retry: 0,
+  });
+}
+
 // 로그아웃 시 이전 유저의 이용권·목표관리 데이터가 다음 유저 세션에 잔존하면
 // 안 된다. 위에서 queryKey에 userId를 넣어 계정별로 캐시가 이미 분리되지만,
 // 그것만으로는 끝나지 않는다 — SIGNED_OUT 시점에 전체를 비우는 것은 여전히

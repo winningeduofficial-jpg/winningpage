@@ -104,3 +104,53 @@ describe.each(CASES)("$pathname", ({ pathname, expected }) => {
     expect(html.includes('id="perf-steps-heading"')).toBe(true);
   });
 });
+
+// 프로필 슬롯(P5) — 값이 없으면 그 줄을 렌더하지 않는다(§11 Q61-ⓔ, 가짜 기본값 금지).
+function renderWithProfile(props: {
+  profileName?: string | null;
+  schoolType?: string | null;
+  gradeLabel?: string | null;
+}) {
+  return renderToStaticMarkup(
+    <MemoryRouter initialEntries={["/app/performance"]}>
+      <PerformanceSidebar {...props} />
+    </MemoryRouter>,
+  );
+}
+
+describe("프로필 블록", () => {
+  test("이름·학년·학교유형이 전부 있으면 이름 줄과 '학년・학교유형' 부제를 함께 렌더한다", () => {
+    const html = renderWithProfile({
+      profileName: "홍길동",
+      gradeLabel: "고1",
+      schoolType: "고등학교",
+    });
+    expect(html.includes("홍길동의 수행평가")).toBe(true);
+    expect(html.includes("고1・고등학교")).toBe(true);
+  });
+
+  test("학년이 없으면 부제에 학교유형만 남는다", () => {
+    const html = renderWithProfile({
+      profileName: "홍길동",
+      gradeLabel: null,
+      schoolType: "고등학교",
+    });
+    expect(html.includes("홍길동의 수행평가")).toBe(true);
+    expect(html.includes(">고등학교<")).toBe(true);
+  });
+
+  test("이름·학년·학교유형이 전부 없으면 프로필 블록 두 줄 다 렌더하지 않는다", () => {
+    const html = renderWithProfile({
+      profileName: null,
+      gradeLabel: null,
+      schoolType: null,
+    });
+    // "・"만으로는 판별할 수 없다 — STEP5 라벨("작성・평가")에도 같은 글자가 쓰인다.
+    // 프로필 블록 컨테이너(min-h-19.2)만 잘라내 그 안에 <p>가 하나도 없는지 본다.
+    const profileBlock = html.match(
+      /<div class="min-h-19\.2[^"]*">([\s\S]*?)<\/div>/,
+    )?.[1];
+    expect(profileBlock).toBeDefined();
+    expect(profileBlock?.includes("<p")).toBe(false);
+  });
+});

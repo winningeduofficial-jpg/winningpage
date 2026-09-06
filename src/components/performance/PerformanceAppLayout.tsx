@@ -1,3 +1,4 @@
+import { useQuery } from "@tanstack/react-query";
 import { Outlet } from "react-router";
 import Header from "@/components/Header";
 import RouteLoadingOverlay from "@/components/ui/RouteLoadingOverlay";
@@ -5,7 +6,10 @@ import {
   PerformanceShellProvider,
   usePerformanceShell,
 } from "@/context/PerformanceShellContext";
+import { useSession } from "@/context/SessionContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { pickKnownSchoolType } from "@/lib/performance/schoolType";
+import { performanceBootstrapQueryOptions } from "@/lib/queryClient";
 import PerformanceSidebar from "./PerformanceSidebar";
 import QuotaExhaustedBanner from "./quota/QuotaExhaustedBanner";
 
@@ -59,7 +63,26 @@ export default function PerformanceAppLayout() {
 }
 
 function PerformanceShellContent() {
-  const { stepStates, quotaBannerVisible } = usePerformanceShell();
+  const { stepStates, quotaBannerVisible, sessionGradeLabel } =
+    usePerformanceShell();
+  // 사이드바 프로필 슬롯(P5) — `session`은 SessionProvider가 이미 판정해 둔 값을
+  // 그대로 읽는다(이 셸이 새로 감싸지 않는 이유는 위 주석 참고, 이용권 조회 2벌
+  // 방지와 같은 원칙). bootstrap 캐시는 채팅 페이지(Outlet 자식)의
+  // `fetchQuery({ ...옵션, staleTime:0 })`가 이미 채워 두므로, 이 useQuery는 보통
+  // 그 결과를 그대로 구독만 한다 — 저장 리포트 등 채팅 페이지를 거치지 않고 이
+  // 셸에 먼저 진입하는 경로에서만 자체적으로 조회한다.
+  const { session, userId } = useSession();
+  const accessToken = session?.access_token || null;
+  const { data: bootstrap } = useQuery(
+    performanceBootstrapQueryOptions(userId, accessToken),
+  );
+  const schoolType = pickKnownSchoolType(bootstrap?.profile.schoolType);
+  // 학년 우선순위(PerformanceShellContext.tsx 주석) — 라이브 세션(이번 방문 STEP1
+  // 입력값)이 bootstrap의 마지막 스냅샷보다 항상 우선한다. 채팅 페이지 밖(저장
+  // 리포트 등)에서는 `sessionGradeLabel`이 null이라 자연히 bootstrap 값으로
+  // 떨어진다.
+  const gradeLabel =
+    sessionGradeLabel ?? bootstrap?.lastSession?.gradeLabel ?? null;
 
   return (
     <>
@@ -73,13 +96,17 @@ function PerformanceShellContent() {
           하드코딩해 참조하는 것이 기존 관례다. */}
       <Header />
       <div className="flex min-h-screen bg-white pt-16">
-        {/* 사이드바는 표시 전용이라 prop을 받는다(프로필 이름·학교유형·학년, 진행단계 5스텝 상태).
-          진행단계(stepStates)는 위 PerformanceShellProvider를 통해 채팅 페이지가 배선했다(P13
-          해소). TODO(P5): `GET /api/performance/bootstrap`의 `profile`/`lastSession`을 셸에서
-          한 번 읽어 프로필 이름·학교유형·학년으로 내려보내는 작업은 아직 남아 있다. 지금 그
-          값을 넘기지 않는 것은 배선이 없어서지 기본값이 정본이라서가 아니다 — 없는 값 자리에
-          가짜 이름·리터럴 학교유형을 채우지 않는 것이 §11 Q61-ⓔ 규칙이다. */}
-        <PerformanceSidebar stepStates={stepStates} />
+        {/* 사이드바는 표시 전용이라 prop을 받는다(프로필 이름·학교유형·학년, 진행단계 5스텝
+          상태). 진행단계(stepStates)는 위 PerformanceShellProvider를 통해 채팅 페이지가
+          배선했다(P13 해소). 프로필(이름·학교유형·학년, P5)은 이 컴포넌트가 bootstrap
+          캐시(performanceBootstrapQueryOptions)를 직접 구독해 내려보낸다 — 값이 없으면
+          undefined/null 그대로 넘긴다(§11 Q61-ⓔ, 가짜 이름·리터럴 학교유형 금지). */}
+        <PerformanceSidebar
+          profileName={bootstrap?.profile.name ?? null}
+          schoolType={schoolType}
+          gradeLabel={gradeLabel}
+          stepStates={stepStates}
+        />
 
         {/* 캔버스. 좌 인셋만 지정해 좌기준선 384px(사이드바 324 + 60)을 맞추고, 우측은
           콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」 규칙).

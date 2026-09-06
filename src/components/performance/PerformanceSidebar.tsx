@@ -11,9 +11,11 @@ import { Link, useLocation } from "react-router";
 //    `deriveStepStates.js`, api/performance/bootstrap.js `deriveResumeStep` 주석 참고).
 //
 // ⚠️ 프로필·진행단계 값의 실제 소스는 `GET /api/performance/bootstrap`이다
-//    (`profile.name` / `profile.schoolType`, 학년은 `lastSession.gradeLabel`).
-//    그 호출을 붙이는 것은 채팅 페이지 슬라이스(P5) 몫이라 **여기서는 prop만 받는다.**
-//    값이 없으면 그 줄을 렌더하지 않을 뿐, 가짜 이름·리터럴 기본값을 만들어 내지 않는다.
+//    (`profile.name` / `profile.schoolType`, 학년은 `lastSession.gradeLabel`). 그 호출은
+//    `PerformanceAppLayout`이 `performanceBootstrapQueryOptions`(src/lib/queryClient.ts)
+//    캐시를 구독해 붙이고, 이 컴포넌트는 **여전히 prop만 받는다**(P5 해소 — 배선 위치만
+//    셸로 확정됐을 뿐 이 컴포넌트의 표시 전용 성격은 그대로다). 값이 없으면 그 줄을
+//    렌더하지 않을 뿐, 가짜 이름·리터럴 기본값을 만들어 내지 않는다(§11 Q61-ⓔ).
 //    `SessionContext`는 auth 세션과 이용권만 들고 있고 프로필 행은 갖고 있지 않다.
 //
 // 좌표계: 시안 절대 y(프로필 100/130, 메뉴 라벨 291, 메뉴 pill 323·365, 진행단계 라벨 456,
@@ -130,27 +132,30 @@ export default function PerformanceSidebar({
       // 불필요한 세로 스크롤이 생긴다. calc(100vh-4rem)로 헤더 높이를 뺀 나머지만 채운다.
       className="flex min-h-[calc(100vh-4rem)] w-perf-sidebar shrink-0 flex-col bg-performance-sidebar"
     >
-      {/* 프로필 — 이름 @60,100 (1.25rem/1.625rem w600 #808080), 부제 @60,130 (1rem/1.3125rem
-          w400 #808080). 시안이 이름 줄까지 보조색(#808080)을 쓴다 — ink-strong이 아니다.
+      {/* 프로필 — 시안 원 좌표는 이름 @60,100 / 부제 @60,130(#808080 보조색)이었으나,
+          같은 인앱 셸인 목표관리 사이드바(GoalSidebarContent.tsx 사용자 블록)와 타이포를
+          맞춘다 — 시안은 예시일 뿐이고, 같은 좌측 고정 사이드바 두 벌이 서로 다른 이름·
+          부제 규격을 쓰는 것이 시안 충실도보다 우선순위가 낮다고 판단했다(다른 페이지
+          규격 통일 원칙). 이름은 1.125rem/w700(font-bold)/ink-strong, 부제는 0.875rem/
+          w400/ink-sub, 둘 사이 gap은 mt-2(0.5rem) — GoalSidebarContent와 동일 값.
           min-h는 이름·부제가 비어도 아래 메뉴 y좌표가 흔들리지 않게 자리를 잡아 둔 것이다.
           ⚠️ Tailwind preflight가 `box-sizing: border-box`를 깔기 때문에 min-height는 **padding을
-          포함한 총높이**여야 한다. 100(pt) + 26(이름) + 4(gap) + 21(부제) = 151px = 9.4375rem.
-          텍스트 높이 51px만 넣으면 padding 100px에 잠겨 무효가 되고, 프로필 값이 비는
-          현재 배선(P5 이전)에서 아래 블록 전체가 51px 위로 밀린다. */}
-      <div className="min-h-37.75 px-perf-inset pt-6">
+          포함한 총높이**여야 한다. pt-6(1.5rem) + 이름 line-height(1.125rem×1.4=1.575rem) +
+          gap(mt-2=0.5rem) + 부제 line-height(0.875rem×1.4=1.225rem) = 4.8rem. */}
+      <div className="min-h-19.2 px-perf-inset pt-6">
         {/* §11 Q79 확정: 이 화면은 수행평가 앱(/app/performance)이고 목표관리는 별개
             제품이다. 시안 원문 `목표관리`는 목표관리 시안에서 셸을 가져온 흔적으로 보이며,
             사용자가 지금 어느 제품에 있는지 오인하게 만드는 문구는 시안 충실도보다
             우선순위가 낮다고 판단해 `수행평가`로 확정한다. */}
         {profileName && (
-          <p className="text-[1.25rem] font-semibold leading-6.5 text-ink-sub">
+          <p className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
             {profileName}의 수행평가
           </p>
         )}
-        {/* ink-sub(#6b6b6b)는 16px on performance-sidebar(#f9f8f7)에서 5.02:1로 WCAG AA를
-            충족한다(과거 TODO(P19, §11.3 Q30) 해소). */}
+        {/* ink-sub(#6b6b6b)는 14px on performance-sidebar(#f9f8f7)에서도 WCAG AA(4.5:1)를
+            충족한다(과거 TODO(P19, §11.3 Q30) 해소와 같은 색 조합). */}
         {subtitle && (
-          <p className="mt-1 text-[1rem] leading-5.25 text-ink-sub">
+          <p className="mt-2 text-[0.875rem] leading-[1.4] text-ink-sub">
             {subtitle}
           </p>
         )}
