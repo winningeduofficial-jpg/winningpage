@@ -18,9 +18,9 @@ import type { Topic } from "./TopicCard";
 // goal `AppModal`과 프레젠테이션을 공유하지 않는다(폭 47.625rem vs 33.125rem, X 버튼 없음,
 // 배경 `#fbfbfa` vs 흰색, 비대칭 2버튼 푸터 vs 균등 2열 취소/저장 — §11.1 Q48/작업 지시
 // 근거). ESC/딤 클릭/포커스 트랩 같은 동작 로직은 shadcn `Dialog`(Base UI 기반,
-// `ui/dialog.tsx`)가 내장 제공한다 — 예전에는 goal `AppModal`과 `useModalBehavior` 훅을
-// 공유했지만, 두 모달 모두 각자 Base UI Dialog로 옮겨가면서 그 훅에 대한 의존은 여기서
-// 제거됐다(훅 자체는 다른 호출부가 없어 파일만 남아 있다).
+// `ui/dialog.tsx`)가 내장 제공한다 — 예전에는 goal `AppModal`과 자체 훅(`useModalBehavior`)을
+// 공유했지만, 두 모달 모두 각자 Base UI Dialog로 옮겨가며 그 훅을 쓰는 곳이 없어져
+// 삭제했다(2026-09-06).
 //
 // ── shadcn `Dialog` 조합으로 종속 (2026-09, 사용자 결정)
 // 예전엔 `Dialog`/`DialogOverlay`/`DialogPortal`(shadcn)까지만 쓰고 패널은 `@base-ui/react/dialog`를
@@ -128,7 +128,7 @@ export default function TopicDetailModal({
         <DialogHeader className="shrink-0 gap-1 border-b border-performance-line px-8.5 py-6">
           {/* wrap-break-word — 긴 무공백 문자열(URL 등)이 제목에 오면 패널 `overflow-hidden`에
               잘려서 소실된다(검토 D-4). */}
-          <DialogTitle className="wrap-break-word text-[1.25rem] font-semibold leading-6.5 text-ink">
+          <DialogTitle className="wrap-break-word text-app-section font-semibold leading-6.5 text-ink">
             {topic.title}
           </DialogTitle>
           {/* 시안 원문 고정 문구(§5.11 「문구 원문」 둘째 줄) — 특정 주제의 샘플 본문이 아니라
@@ -137,7 +137,7 @@ export default function TopicDetailModal({
               서버 데이터로 대체된다). `DialogDescription`으로 옮겨 `aria-describedby`를
               Base UI가 자동 배선하게 한다(예전엔 평문 `<p>`라 접근 이름에만 잡히고 설명으로는
               연결되지 않았다). */}
-          <DialogDescription className="wrap-break-word text-[1rem] font-medium leading-5.25 text-ink-sub">
+          <DialogDescription className="wrap-break-word text-app-card-title font-medium leading-5.25 text-ink-sub">
             선정 근거와 심화 방향을 확인한 뒤 확정하세요
           </DialogDescription>
         </DialogHeader>
@@ -163,7 +163,7 @@ export default function TopicDetailModal({
               <SectionedReportView sections={visibleSections} />
             ) : (
               // 유효 섹션이 0개 — 검토 C-2. 근거 없이 확정할 수 있는 상태를 막는다(§11.1 Q48).
-              <p className="text-[1rem] font-medium leading-5.25 text-ink-sub">
+              <p className="text-app-card-title font-medium leading-5.25 text-ink-sub">
                 이 주제의 선정 근거 정보를 아직 불러오지 못했어요. 다른 주제를
                 선택해 주세요.
               </p>
@@ -194,7 +194,7 @@ export default function TopicDetailModal({
           <button
             type="button"
             onClick={onClose}
-            className="flex h-13 w-63.75 max-w-full shrink-0 items-center justify-center rounded-xl border border-performance-line text-[1rem] font-medium leading-5 text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100"
+            className="flex h-13 w-63.75 max-w-full shrink-0 items-center justify-center rounded-xl border border-performance-line text-app-card-title font-medium leading-5 text-ink-sub transition hover:bg-performance-bubble active:scale-[0.97] motion-reduce:active:scale-100"
           >
             다른 주제 보기
           </button>
@@ -202,7 +202,7 @@ export default function TopicDetailModal({
             type="button"
             onClick={() => onConfirm?.(topic)}
             disabled={!onConfirm || !hasVisibleDetail}
-            className="flex h-13 w-103.75 max-w-full shrink-0 items-center justify-center rounded-xl bg-primary text-[1rem] font-semibold leading-5 text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100"
+            className="flex h-13 w-103.75 max-w-full shrink-0 items-center justify-center rounded-xl bg-primary text-app-card-title font-semibold leading-5 text-white transition hover:bg-primary/90 active:scale-[0.97] motion-reduce:active:scale-100 disabled:cursor-not-allowed disabled:bg-performance-line disabled:hover:bg-performance-line disabled:active:scale-100"
           >
             이 주제로 확정하기
           </button>

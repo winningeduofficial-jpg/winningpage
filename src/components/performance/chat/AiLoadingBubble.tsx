@@ -56,14 +56,17 @@ type AiLoadingBubbleProps = HTMLAttributes<HTMLDivElement> & {
 // 어색한 인상을 준다 — 대신 `animate-pulse`(불투명도 반복)로 "은은하게 반짝이는" 느낌을
 // 주는 쪽을 선택했다. `motion-reduce:animate-none`으로 OS 모션 축소 설정을 존중한다.
 //
-// 접근성: `BubbleContent`에 `role="status"`를 배선해 이 카드 자체가 로딩 상태를 스크린
-// 리더에 알린다(2026-09-06 결정 — 과거엔 `ChatTimeline`의 `aria-live="polite"` 하나에만
-// 기댔으나, 로딩 카드 자신이 상태를 갖는 것이 더 명확하다). `ChatTimeline`의
-// `aria-live="polite"` 배선은 그대로 유지되므로 이중 배선이 아니라 보강이다.
+// 접근성: 별도 `role="status"`를 걸지 않는다(그리핑 원인 — 2026-09-06 결정 당시엔
+// "보강"으로 판단했으나 실제로는 이중 배선이었다). 이 카드는 `ChatTimeline`의
+// `MessageScrollerContent`(`role="log" aria-relevant="additions"`, ARIA `log` 롤이
+// 암묵적으로 `aria-live="polite"`를 내포한다) 서브트리 안에서 렌더된다 — 카드 자신에
+// `role="status"`(자체 live region)를 또 걸면 새 로딩 카드가 나타났을 때 상위 `log`
+// 리전과 이 `status` 리전 둘 다 같은 텍스트를 announce해 스크린 리더가 두 번 읽는다.
 // **`ref`는 루트(아바타+컬럼 행)에 전달된다.** `PerformanceChatPage`가 STEP4 설계 리포트
 // 로딩 진입 시 이 카드로 포커스를 직접 옮기는 데 쓴다(검토 A-2 — 확정 경로는 카드 목록이
-// 통째로 언마운트돼 `useModalBehavior`의 트리거 복귀가 도달 불가하므로 호출부가 새 포커스
-// 목적지를 지정해야 한다). `ChatTimeline`이 메시지에 `focusRef`가 있으면 여기로 전달하고
+// 통째로 언마운트돼 Base UI Dialog가 하는 것과 같은 "트리거로 포커스 복귀"가 도달 불가하다
+// — 트리거 자체가 문서에서 떨어져 나가서다. 그래서 호출부가 새 포커스 목적지를 직접
+// 지정해야 한다). `ChatTimeline`이 메시지에 `focusRef`가 있으면 여기로 전달하고
 // `tabIndex={-1}`도 함께 준다(포커스 트랩 대상은 아니고 프로그램적 포커스 전용).
 const AiLoadingBubble = forwardRef<HTMLDivElement, AiLoadingBubbleProps>(
   function AiLoadingBubble(
@@ -95,7 +98,7 @@ const AiLoadingBubble = forwardRef<HTMLDivElement, AiLoadingBubbleProps>(
             align="start"
             className="w-full max-w-perf-bubble"
           >
-            <BubbleContent role="status" className="w-full">
+            <BubbleContent className="w-full">
               <Marker className="min-h-0 w-full gap-4 text-ink">
                 <MarkerIcon
                   aria-hidden="true"

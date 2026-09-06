@@ -52,10 +52,11 @@ const FINALIZE_NOTICE = `‘${CONFIRM_LABEL}’과 ‘${NEW_ASSESSMENT_LABEL}’
 // 그래서 실제 차단은 `onClick` 첫 줄의 가드가 한다(`guard()`).
 const BUTTON_BASE =
   "flex h-13 w-65 min-w-0 max-w-full items-center justify-center rounded-xl px-2 text-center transition active:scale-[0.97] motion-reduce:active:scale-100 aria-disabled:cursor-not-allowed aria-disabled:active:scale-100";
-const SECONDARY = `${BUTTON_BASE} border border-performance-line bg-white text-app-label font-medium text-ink-sub hover:bg-performance-bubble aria-disabled:opacity-60 aria-disabled:hover:bg-white`;
+// 버튼 글자 실측은 1rem(§5.17 상단 주석) — 타입 스케일 토큰 중 1rem은 `text-app-card-title`.
+const SECONDARY = `${BUTTON_BASE} border border-performance-line bg-white text-app-card-title font-medium text-ink-sub hover:bg-performance-bubble aria-disabled:opacity-60 aria-disabled:hover:bg-white`;
 // 비활성 primary는 흰 글자 on `#d9d9d9`가 1.41:1이라 라벨이 판독되지 않는다 —
 // 면 색은 그대로 두고 글자색만 `ink`(#525252, 5.54:1)로 내린다(`SubmissionForm`과 동일 판단).
-const PRIMARY = `${BUTTON_BASE} bg-primary text-app-label font-semibold text-white hover:bg-primary/90 aria-disabled:bg-performance-line aria-disabled:text-ink aria-disabled:hover:bg-performance-line`;
+const PRIMARY = `${BUTTON_BASE} bg-primary text-app-card-title font-semibold text-white hover:bg-primary/90 aria-disabled:bg-performance-line aria-disabled:text-ink aria-disabled:hover:bg-performance-line`;
 
 type EvaluationBusyAction = "confirm" | "new_assessment" | null;
 
