@@ -704,7 +704,15 @@ export default function PerformanceChatPage() {
   const [submissionLoadToken, setSubmissionLoadToken] = useState(0);
   const [savingDraft, setSavingDraft] = useState(false);
   const [submittingWork, setSubmittingWork] = useState(false);
-  const [submissionActionError, setSubmissionActionError] = useState<
+  // 저장 실패와 제출 실패는 서로 다른 상태다(그리핑 원인이었다) — 게이트 실패
+  // (`SUBMISSION_TOO_SHORT` 등)는 초안이 이미 저장된 채로 돌아오는데, 두 실패를 한
+  // 상태로 합치면 "제출만 실패"한 순간에도 `SubmissionForm`이 "저장 실패"를 띄웠다.
+  // `submissionSaveError`는 자동 저장(`handleSaveDraft`) 전용, `submissionSubmitError`는
+  // 제출(`handleSubmitWork`) 전용이다.
+  const [submissionSaveError, setSubmissionSaveError] = useState<string | null>(
+    null,
+  );
+  const [submissionSubmitError, setSubmissionSubmitError] = useState<
     string | null
   >(null);
   const [submissionSavedAt, setSubmissionSavedAt] = useState<string | null>(
@@ -1385,7 +1393,7 @@ export default function PerformanceChatPage() {
       return;
 
     setSavingDraft(true);
-    setSubmissionActionError(null);
+    setSubmissionSaveError(null);
 
     try {
       const data = await saveSubmission({
@@ -1400,7 +1408,7 @@ export default function PerformanceChatPage() {
       const message =
         error?.userMessage ||
         "중간 저장에 실패했어요. 잠시 후 다시 시도해 주세요.";
-      setSubmissionActionError(message);
+      setSubmissionSaveError(message);
       toastError(message);
       throw error;
     } finally {
@@ -1421,7 +1429,7 @@ export default function PerformanceChatPage() {
       return;
 
     setSubmittingWork(true);
-    setSubmissionActionError(null);
+    setSubmissionSubmitError(null);
 
     try {
       const data = await saveSubmission({
@@ -1436,9 +1444,11 @@ export default function PerformanceChatPage() {
       console.error("[performance] 제출 실패:", error?.code, error);
       // 게이트 실패(`SUBMISSION_TOO_SHORT`/`REQUIRED_FIELD_EMPTY`)는 **초안이 저장된 채로**
       // 돌아온다 — 서버가 게이트를 저장 이후에 보기 때문이다(`api/performance/submission.js`).
-      // 학생이 쓰던 글은 남아 있으므로 문구만 알리고 폼은 그대로 둔다.
+      // 학생이 쓰던 글은 남아 있으므로 `submissionSaveError`(자동 저장 실패)는 건드리지
+      // 않는다 — 그리핑 원인이었다: 저장은 성공했는데 제출만 실패한 순간에도
+      // `submissionSaveError`를 같이 쓰면 `SubmissionForm`이 "저장 실패"를 오표시했다.
       if (error?.saved?.savedAt) setSubmissionSavedAt(error.saved.savedAt);
-      setSubmissionActionError(
+      setSubmissionSubmitError(
         error?.userMessage || "제출하지 못했어요. 잠시 후 다시 시도해 주세요.",
       );
     } finally {
@@ -1632,7 +1642,8 @@ export default function PerformanceChatPage() {
     setSubmissionSchema(null);
     setSubmissionValue({});
     setSubmissionLoadError(null);
-    setSubmissionActionError(null);
+    setSubmissionSaveError(null);
+    setSubmissionSubmitError(null);
     setSubmissionSavedAt(null);
 
     setEvaluationPhase("idle");
@@ -2363,7 +2374,8 @@ export default function PerformanceChatPage() {
           topicTitle={confirmedTopic?.title || null}
           saving={savingDraft}
           submitting={submittingWork}
-          error={submissionActionError}
+          error={submissionSaveError}
+          submitError={submissionSubmitError}
           savedAt={submissionSavedAt}
         />
       ) : submissionLoadError ? (

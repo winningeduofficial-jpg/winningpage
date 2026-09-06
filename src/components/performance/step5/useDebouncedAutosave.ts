@@ -59,6 +59,10 @@ export function useDebouncedAutosave<T>({
   // (완료 후 트레일링 1회 필요 여부)를 따로 추적한다.
   const savingRef = useRef(false);
   const pendingRef = useRef(false);
+  // 지금 진행 중인 저장 요청의 promise. `savingRef`는 "지금 저장 중인가"만 말하고,
+  // 이건 그 요청이 **끝나는 시점을 기다릴 수 있게** 한다 — 언마운트 cleanup이
+  // in-flight 저장을 끊지 않고 이어서 최신값을 저장하는 데 쓴다(아래 언마운트 effect).
+  const inFlightRef = useRef<Promise<void> | null>(null);
 
   function clearTimer() {
     if (timerRef.current !== null) {
@@ -67,30 +71,43 @@ export function useDebouncedAutosave<T>({
     }
   }
 
-  async function attemptSave() {
+  /**
+   * @param options.force `true`면 "마지막 저장본과 같다"는 이유로 건너뛰지 않는다.
+   * 사용자가 명시적으로 누른 재시도(`flush({ force: true })`)에서만 쓴다 — 재시도는
+   * "값이 안 바뀌었어도 다시 시도"가 계약이라, 내부 북키핑(`lastSavedRef`)이 어떤
+   * 경로로든 먼저 갱신돼 있어도 무시하고 실제로 `onSave`를 불러야 한다.
+   */
+  async function attemptSave(options?: { force?: boolean }) {
+    const force = options?.force ?? false;
     if (savingRef.current) {
       pendingRef.current = true;
       return;
     }
     const target = valueRef.current;
-    if (isEqual(target, lastSavedRef.current)) return;
+    if (!force && isEqual(target, lastSavedRef.current)) return;
 
     savingRef.current = true;
-    try {
-      await onSaveRef.current(target);
-      lastSavedRef.current = target;
-    } catch {
-      // 실패 — `lastSavedRef`를 건드리지 않는다. 자동 재시도는 걸지 않는다(사용자가
-      // 값을 더 안 바꾸면 아래 effect가 다시 돌지 않는다) — 실패 상태 UI의 수동
-      // "다시 시도"가 `flush()`로 이 함수를 다시 부르는 것이 유일한 재시도 경로다.
-      // 실패 자체의 사용자 안내(토스트·에러 문구)는 `onSave` 호출부(페이지)의 몫이다.
-    } finally {
-      savingRef.current = false;
-      if (pendingRef.current) {
-        pendingRef.current = false;
-        attemptSave();
-      }
-    }
+    const savePromise = onSaveRef
+      .current(target)
+      .then(() => {
+        lastSavedRef.current = target;
+      })
+      .catch(() => {
+        // 실패 — `lastSavedRef`를 건드리지 않는다. 자동 재시도는 걸지 않는다(사용자가
+        // 값을 더 안 바꾸면 아래 effect가 다시 돌지 않는다) — 실패 상태 UI의 수동
+        // "다시 시도"가 `flush()`로 이 함수를 다시 부르는 것이 유일한 재시도 경로다.
+        // 실패 자체의 사용자 안내(토스트·에러 문구)는 `onSave` 호출부(페이지)의 몫이다.
+      })
+      .finally(() => {
+        savingRef.current = false;
+        inFlightRef.current = null;
+        if (pendingRef.current) {
+          pendingRef.current = false;
+          attemptSave();
+        }
+      });
+    inFlightRef.current = savePromise;
+    return savePromise;
   }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: onSave/enabled는 ref로 최신값을 읽는다 — 의존성에 넣으면 호출부가 매 렌더 새 함수를 넘길 때마다 타이머가 리셋된다.
@@ -114,37 +131,55 @@ export function useDebouncedAutosave<T>({
   useEffect(() => {
     return () => {
       clearTimer();
-      if (
-        enabledRef.current &&
-        !isEqual(valueRef.current, lastSavedRef.current)
-      ) {
-        onSaveRef.current(valueRef.current).catch(() => {
-          // 언마운트 이후라 화면에 실패를 알릴 수단이 없다 — 콘솔에만 남긴다.
-          console.error("[performance] 언마운트 시 자동 저장 flush 실패");
-        });
+
+      const flushLatest = () => {
+        if (
+          enabledRef.current &&
+          !isEqual(valueRef.current, lastSavedRef.current)
+        ) {
+          onSaveRef.current(valueRef.current).catch(() => {
+            // 언마운트 이후라 화면에 실패를 알릴 수단이 없다 — 콘솔에만 남긴다.
+            console.error("[performance] 언마운트 시 자동 저장 flush 실패");
+          });
+        }
+      };
+
+      // 언마운트 순간 이미 저장 요청이 in-flight일 수 있다(디바운스 타이머가 막
+      // 발화한 직후). 그때 곧장 `flushLatest()`를 부르면 페이지의 `onSaveDraft`가
+      // "이미 저장 중"이라 아무 것도 안 하고 성공한 것처럼 resolve해 버려(가드가
+      // `savingDraft`일 때 `undefined`를 반환) 방금 친 최신 글자가 조용히 유실된다.
+      // 그래서 in-flight 요청이 끝날 때까지 기다렸다가, 그 사이에도 값이 더 바뀌어
+      // 여전히 `lastSavedRef`와 다르면 그때 최신값으로 한 번 더 저장한다.
+      if (inFlightRef.current) {
+        inFlightRef.current.then(flushLatest);
+      } else {
+        flushLatest();
       }
     };
   }, []);
 
   return {
     /**
-     * 제출 직전에 부른다. 대기 중이던 디바운스 타이머만 취소하고, 지금 값을
-     * "저장된 값"으로 표시해 둔다 — 제출 자체가 `mode:'submit'`으로 같은 값을 다시
-     * 저장하므로 flush가 아니라 취소로 충분하고, 취소하지 않으면 제출 처리 도중
-     * 중복 draft 저장 요청이 경합할 수 있다.
+     * 제출 직전에 부른다. 대기 중이던 디바운스 타이머만 취소한다 — 값을 "저장된
+     * 것"으로 표시하지는 않는다(예전엔 표시했는데, 그 표시 때문에 제출이 실패해
+     * 폼이 그대로 남아도 이후의 `flush()`가 "이미 저장됨"으로 오판해 아무 것도 하지
+     * 않는 버그가 있었다 — 아래 `flush` 참고). 타이머만 지워도 목적(제출 처리 도중
+     * 중복 draft 저장 요청과 경합하지 않는 것)은 그대로 달성된다 — 경합의 원인은
+     * "대기 중이던 타이머가 나중에 발화하는 것"뿐이었고, 그 타이머 자체를 지우면
+     * 그걸로 충분하다.
      */
     cancel() {
       clearTimer();
-      lastSavedRef.current = valueRef.current;
     },
     /**
      * 대기 중인 타이머와 무관하게 지금 즉시 저장을 시도한다. 실패 상태 UI의 "다시
-     * 시도" 클릭에 쓴다(§ 위 `attemptSave` 주석 — 실패는 `lastSavedRef`를 갱신하지
-     * 않으므로 값이 그대로여도 다시 저장을 시도한다).
+     * 시도" 클릭에 쓴다. `force: true`를 넘기면 `lastSavedRef`와 값이 같아도 건너뛰지
+     * 않는다 — 사용자가 누른 "다시 시도"는 내부 북키핑과 무관하게 항상 실제로
+     * `onSave`를 불러야 한다는 것이 계약이다(§ 위 `attemptSave` 주석).
      */
-    flush() {
+    flush(options?: { force?: boolean }) {
       clearTimer();
-      attemptSave();
+      attemptSave(options);
     },
   };
 }

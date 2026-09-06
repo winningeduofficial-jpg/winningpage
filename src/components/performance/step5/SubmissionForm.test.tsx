@@ -334,6 +334,24 @@ describe("자동 저장 상태 텍스트(QA 행280) — 버튼 대신 카드 제
     // 그대로 쓴다 — 로케일이 "오전/오후" 접두를 붙이므로 시:분 패턴만 느슨하게 본다.
     expect(html).toMatch(/자동 저장됨 .*\d{1,2}:\d{2}/);
   });
+
+  test("submitError만 있으면 제출 메시지만 뜨고 '저장 실패'는 안 뜬다", () => {
+    // 회귀: 게이트 실패(`SUBMISSION_TOO_SHORT` 등)는 초안이 이미 저장된 채로 돌아오는데
+    // (`error?.saved?.savedAt`), 그 상황을 예전엔 저장 실패와 같은 상태로 알려 학생이
+    // 방금 저장된 글을 잃은 줄 오인했다.
+    const html = renderToStaticMarkup(
+      <SubmissionForm
+        schema={basic}
+        value={{}}
+        onChange={() => {}}
+        savedAt="2026-09-06T01:02:00.000Z"
+        submitError="제출하지 못했어요. 잠시 후 다시 시도해 주세요."
+      />,
+    );
+    expect(html).toMatch(/자동 저장됨 .*\d{1,2}:\d{2}/);
+    expect(html).toContain("제출하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    expect(html).not.toContain("저장 실패");
+  });
 });
 
 describe("aria-live 남용 금지", () => {
