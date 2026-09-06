@@ -7,9 +7,14 @@
 // `motion-reduce:animate-none`)을 그대로 따른다.
 //
 // 치수는 `PerformanceAppLayout`/`PerformanceSidebar` 실측을 그대로 재사용한다(사이드바
-// `w-perf-sidebar`, 인셋 `perf-inset`, pill 폭 `w-perf-pill`) — 실제 셸이 마운트되는 순간
+// `w-app-sidebar`, 인셋 `perf-inset`, pill 폭 `w-perf-pill`) — 실제 셸이 마운트되는 순간
 // 골격이 그 자리에서 자연스럽게 채워지도록 레이아웃 시프트를 만들지 않기 위해서다. 값
 // 자체(이름·메뉴 라벨 등)는 아직 없으므로 회색 블록으로만 자리를 잡는다.
+//
+// (2026-09-06) 이 스켈레톤은 `RequireEntitlement`가 세션/이용권 조회 중에 보여주는
+// 단독 화면이라 실제 shadcn Sidebar(AppShellSidebar.tsx)를 쓰지 않는다 — 아직 헤더도
+// 사이드바도 마운트되기 전이므로 `position:fixed` 고정 동작 자체가 의미 없다. 폭
+// 토큰(`--spacing-app-sidebar`)만 실제 셸과 맞춰 레이아웃 시프트를 막는다.
 function Block({ className = "" }) {
   return <div className={["rounded-md bg-[#e6e5e2]", className].join(" ")} />;
 }
@@ -23,7 +28,7 @@ export default function PerformanceSkeleton() {
       className="flex min-h-screen animate-pulse bg-white motion-reduce:animate-none"
     >
       {/* 사이드바 골격 — 프로필 자리 + 메뉴 2자리 + 진행단계 5자리. */}
-      <aside className="flex min-h-screen w-perf-sidebar shrink-0 flex-col bg-performance-sidebar">
+      <aside className="flex min-h-screen w-app-sidebar shrink-0 flex-col bg-sidebar">
         <div className="min-h-37.75 px-perf-inset pt-25">
           <Block className="h-6.5 w-36" />
           <Block className="mt-1 h-5.25 w-24" />

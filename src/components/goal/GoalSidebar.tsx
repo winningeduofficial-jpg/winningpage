@@ -1,15 +1,7 @@
-import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { useQuery } from "@tanstack/react-query";
-import { Menu, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { NavLink, useLocation } from "react-router";
-import {
-  Dialog,
-  DialogClose,
-  DialogOverlay,
-  DialogPortal,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useEffect, useRef, useState } from "react";
+import { AppShellSidebar } from "@/components/app-shell/AppShellSidebar";
+import { useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/AuthProvider";
 import { kstYMD } from "@/lib/goal/calc/index.js";
 import type { FetchTodayGoalRecordResult } from "@/lib/goalApi";
@@ -23,7 +15,6 @@ import {
   goalStudentQueryOptions,
 } from "@/lib/queryClient";
 import GoalSidebarContent from "./GoalSidebarContent";
-import { GOAL_NAV_GROUPS, GOAL_NAV_HEADER } from "./goalNavItems";
 
 // "진행중" 뱃지 폴링 간격 — Timer.jsx 본문 폴링(20초)보다 느슨하게 둔다. 사이드바는
 // GoalAppLayout에 상주해 어느 목표관리 화면에 있어도 계속 폴링되므로 과한 빈도는 낭비다.
@@ -53,6 +44,12 @@ export function deriveDailyRecordDone(
 // (dailyRecordDone, QA3 행305 후속 — goalDailyRecordQueryOptions 공유 캐시)를
 // 실데이터로 쓴다. GoalAppLayout이 props 없이 셸로 마운트하므로 이 컴포넌트가
 // 직접 조회한다(StudyPlanRail 자체 조회 선례, 전역 상태 도입 없음).
+//
+// shadcn Sidebar 전환(2026-09-06, 사용자 결정 "목표관리/수행평가 다 같은 스타일로") —
+// 데스크톱 고정·모바일 대응은 이제 AppShellSidebar(공통 래퍼, 수행평가와 공유)가
+// 전담한다. 이 컴포넌트가 직접 갖고 있던 모바일 상단 앱바(제목·"메인으로" 링크)와
+// Base UI Dialog 기반 드로어는 shadcn 내장 Sheet로 대체되며 제거했다 — 데이터
+// 조회·폴링 책임(아래)만 그대로 이 컴포넌트에 남는다.
 export default function GoalSidebar() {
   const [timerRunning, setTimerRunning] = useState(false);
   // 하트비트 effect가 setInterval 콜백 안에서 읽을 최신값 — effect 자체는 마운트 시
@@ -139,96 +136,18 @@ export default function GoalSidebar() {
 
   const navBadgeData = { scheduleCount, dailyRecordDone, timerRunning };
 
-  // 모바일(< md) 앱바 타이틀 — 현재 경로가 속한 내비 항목 라벨, 없으면 "목표관리" 폴백.
-  // GOAL_NAV_HEADER("메인으로", to="/")는 모든 goal 경로의 접두어라 매칭 대상에서 뺀다.
-  const { pathname } = useLocation();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const hamburgerRef = useRef<HTMLButtonElement>(null);
+  // 모바일 Sheet는 shadcn 기본 동작상 링크 클릭만으로 스스로 닫히지 않는다
+  // (DialogClose가 아닌 일반 <a> 클릭은 Dialog를 닫지 않는다) — 옛 Base UI Dialog
+  // 드로어가 onNavigate로 직접 닫아 주던 것과 같은 이유로 여기서도 명시적으로 닫는다.
+  const { setOpenMobile } = useSidebar();
 
-  const currentNavLabel = useMemo(() => {
-    // 그룹마다 getBadge 시그니처가 달라(union 타입) flatMap 결과 타입이 서로 안 맞으므로
-    // 매칭에 필요한 to/label만 뽑아 공통 shape으로 평탄화한다.
-    const items: { to: string; label: string }[] = GOAL_NAV_GROUPS.flatMap(
-      (g) => g.items.map((item) => ({ to: item.to, label: item.label })),
-    );
-    const match = items.find((item) =>
-      item.to === "/app/goal"
-        ? pathname === item.to
-        : pathname === item.to || pathname.startsWith(`${item.to}/`),
-    );
-    return match?.label ?? "목표관리";
-  }, [pathname]);
-
-  // 드로어가 열려 있는 동안 body 스크롤 잠금 — Base UI Dialog가 배경 스크롤은 이미
-  // 막아주지만(내부 scroll-lock), 이 프로젝트의 다른 모바일 드로어(Header.tsx)도 별도
-  // 잠금을 두지 않고 Dialog 기본 동작에 맡기는 선례를 따른다. ESC 닫기·포커스 트랩·
-  // 배경 스크롤 잠금·닫힐 때 포커스 복귀(finalFocus)는 전부 Dialog(Base UI) 내장 동작.
   return (
-    <>
-      {/* 모바일(< md) 상단 앱바 — 고정 사이드바 대신 햄버거로 드로어를 연다. */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-goal-activePill bg-goal-sidebar px-4 md:hidden">
-        <button
-          ref={hamburgerRef}
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="메뉴 열기"
-          className="-ml-2 flex h-10 w-10 items-center justify-center rounded-lg text-ink-strong transition-colors hover:bg-goal-activePill/60"
-        >
-          <Menu size={20} />
-        </button>
-        <p className="text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
-          {currentNavLabel}
-        </p>
-        <NavLink
-          to={GOAL_NAV_HEADER.to}
-          className="-mr-1 text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
-        >
-          {GOAL_NAV_HEADER.label}
-        </NavLink>
-      </header>
-
-      {/* 모바일 드로어 — 데스크톱 aside와 같은 GoalSidebarContent를 재사용한다. */}
-      <Dialog
-        open={drawerOpen}
-        onOpenChange={(next) => {
-          if (!next) setDrawerOpen(false);
-        }}
-      >
-        <DialogPortal>
-          <DialogOverlay className="bg-black/40 md:hidden" />
-          <DialogPrimitive.Popup
-            id="goal-mobile-nav-drawer"
-            finalFocus={hamburgerRef}
-            aria-modal="true"
-            aria-label="목표관리 메뉴"
-            className="fixed inset-y-0 left-0 z-60 flex h-full w-[85vw] max-w-perf-sidebar flex-col bg-goal-sidebar shadow-[18px_0_45px_rgba(13,27,42,0.14)] outline-none transition-transform duration-300 ease-(--ease-out-quart) motion-reduce:transition-none motion-reduce:duration-0 data-closed:-translate-x-full data-open:translate-x-0 md:hidden"
-          >
-            <ScrollArea className="flex-1">
-              <div className="flex justify-end px-2.5 pt-4">
-                <DialogClose
-                  aria-label="메뉴 닫기"
-                  className="flex h-10 w-10 items-center justify-center rounded-lg text-ink-sub transition-colors hover:bg-goal-activePill/60"
-                >
-                  <X size={20} />
-                </DialogClose>
-              </div>
-              <GoalSidebarContent
-                profile={profile}
-                navBadgeData={navBadgeData}
-                onNavigate={() => setDrawerOpen(false)}
-              />
-            </ScrollArea>
-          </DialogPrimitive.Popup>
-        </DialogPortal>
-      </Dialog>
-
-      {/* 데스크톱(>= md) 고정 사이드바 — 모바일에서는 렌더 트리에서 완전히 빠진다
-          (hidden 대신 md 분기 자체를 hidden md:flex로 걸어, 앱바/드로어와 동시에
-          DOM에 존재하되 시각적으로만 숨는다 — 데이터 조회는 이 컴포넌트 하나가
-          전담하므로 이중 폴링 걱정 없이 aside 쪽만 조건부로 숨겨도 안전하다). */}
-      <aside className="hidden min-h-screen w-perf-sidebar shrink-0 flex-col bg-goal-sidebar md:flex">
-        <GoalSidebarContent profile={profile} navBadgeData={navBadgeData} />
-      </aside>
-    </>
+    <AppShellSidebar aria-label="목표관리 사이드바">
+      <GoalSidebarContent
+        profile={profile}
+        navBadgeData={navBadgeData}
+        onNavigate={() => setOpenMobile(false)}
+      />
+    </AppShellSidebar>
   );
 }
