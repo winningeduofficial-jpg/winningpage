@@ -3,7 +3,9 @@ import RequireEntitlement from "@/components/RequireEntitlement";
 import { SessionProvider } from "@/context/SessionContext";
 
 // 수행평가 학생 앱(performance) — 목표관리와 같은 규칙으로 SiteLayout 밖에 둔다.
-// 시안 24노드 어디에도 사이트 헤더/푸터가 없고 셸이 자체 사이드바를 갖는다
+// (QA 행279, 2026-09-06) 셸 최상단에 사이트 공통 헤더가 붙었지만(PerformanceAppLayout.tsx가
+// Header.tsx를 직접 렌더), 사이트 공통 푸터는 여전히 없고 셸이 자체 사이드바를 갖는다 —
+// 그래서 SiteLayout(헤더+푸터 세트)을 그대로 씌우지 않고 이 그룹을 밖에 둔다
 // (docs/수행평가-상세-명세.md §2.1 「/app/performance/*는 SiteLayout 밖」).
 // `/services/performance`(마케팅 랜딩)와는 별개 라우트다.
 // ⚠️ 신규 자산 네이밍은 performance지만 **이용권 조회 키는 'suhaeng'** 이다 —
