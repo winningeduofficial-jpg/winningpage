@@ -112,7 +112,7 @@ export default function ManualInfoForm({
             maxLength={GUIDE_FREETEXT_MAX_LENGTH}
             aria-invalid={submitError ? true : undefined}
             aria-describedby={COUNTER_ID}
-            className="h-44 w-full resize-none rounded-lg border border-performance-line bg-performance-bubble p-3 text-app-label font-medium text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary disabled:cursor-not-allowed"
+            className="h-44 w-full resize-none rounded-lg border border-performance-line bg-performance-bubble p-3 text-app-body font-medium text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary disabled:cursor-not-allowed"
           />
 
           {/* CharCounter(STEP5)와 같은 이유로 live region이 아니다 — 매 글자마다

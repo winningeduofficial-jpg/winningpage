@@ -208,7 +208,7 @@ const SubmissionField = memo(function SubmissionField({
         placeholder={field.helper || undefined}
         readOnly={readOnly}
         aria-describedby={[helperId, counterId].filter(Boolean).join(" ")}
-        className="h-40 w-full resize-none overflow-y-auto rounded-lg border border-performance-line bg-performance-bubble p-3 text-app-label font-medium text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary"
+        className="h-40 w-full resize-none overflow-y-auto rounded-lg border border-performance-line bg-performance-bubble p-3 text-app-body font-medium text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary"
       />
 
       {/* 값이 채워지면 사라지는 placeholder를 대신할 항구적 지시문(파일 상단 4). */}
@@ -430,7 +430,7 @@ export default function SubmissionForm({
               type="text"
               value={topicTitle || ""}
               readOnly
-              className="h-10.5 w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-app-label font-medium text-ink outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="h-10.5 w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-app-body font-medium text-ink outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             />
           </div>
 

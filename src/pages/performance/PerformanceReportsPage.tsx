@@ -453,7 +453,7 @@ export default function PerformanceReportsPage() {
 
   if (isDetailMode) {
     return (
-      <div className="mt-10">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-14 pt-10">
         <Link
           to="/app/performance/reports"
           className="text-[0.875rem] font-medium leading-4.5 text-ink-sub hover:underline"
@@ -585,7 +585,7 @@ export default function PerformanceReportsPage() {
   const showListContent = !listLoading && !listError && !isTrulyEmpty;
 
   return (
-    <div className="mt-10">
+    <div className="min-h-0 flex-1 overflow-y-auto pb-14 pt-10">
       {!isTrulyEmpty && (
         <div className="flex items-center justify-between">
           <h2 className="text-[1.5rem] font-semibold leading-7.75 tracking-[-0.03rem] text-ink">

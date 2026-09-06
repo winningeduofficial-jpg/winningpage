@@ -1,11 +1,11 @@
-import type { MutableRefObject, ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { type MutableRefObject, type ReactNode, useEffect } from "react";
 import {
   MessageScroller,
   MessageScrollerContent,
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
+  useMessageScroller,
 } from "@/components/ui/message-scroller";
 import AiLoadingBubble from "./AiLoadingBubble";
 import AiMessage from "./AiMessage";
@@ -29,34 +29,13 @@ import UserMessage from "./UserMessage";
 // 받는다 — `messages`를 생략하면 `children`을 그대로 컬럼 안에 렌더한다(두 방식을 동시에 쓰면
 // `messages`가 우선한다).
 //
-// **2026-09-06 재구성**: 스크롤 컨테이너를 shadcn `MessageScroller`(스트리밍/추가 시 하단
-// 고정 스크롤 규칙 내장)로 옮긴다. `MessageScrollerProvider`가 `autoScroll`/
-// `defaultScrollPosition="end"`로 "새 메시지가 오면 맨 아래로 붙는다" 로직을 갖고 있지만,
-// 그 로직은 **`MessageScrollerViewport`가 실제로 높이가 제한된(overflow가 실재하는) 스크롤
-// 컨테이너일 때만** 의미가 있다(내부적으로 `viewport.scrollTop`/`scrollHeight`를 직접
-// 조작한다). 이 페이지(`PerformanceChatPage`)는 아직 채팅 캔버스에 고정 높이를 주지
-// 않는다(페이지 전체가 스크롤되는 기존 모델 그대로, 셸 레이아웃은 이번 슬라이스 범위
-// 밖 — 아래 "리더 적용 필요" 참고) — 그 상태에서 `Viewport`는 `overflow-y-auto`가 걸려
-// 있어도 자기 콘텐츠 높이만큼 그냥 늘어나 실제로는 절대 넘치지 않으므로,
-// `MessageScroller`의 내부 스크롤 로직은 지금 당장은 무해한 자연 no-op이다(콘텐츠가
-// 실제로 넘치지 않으니 스크롤할 대상 자체가 없다) — 나중에 채팅 캔버스가 고정 높이 +
-// 실제 스크롤 경계를 얻는 순간 그대로 켜진다. **그래서 기존에 실제로 동작하던 "새
-// 메시지가 오면 페이지를 그 메시지까지 스크롤한다" 동작은 아래 `useEffect` +
-// `scrollIntoView`를 그대로 남겨서 유지한다** — 페이지 레벨 스크롤은 `scrollIntoView`가
-// "가장 가까운 스크롤 가능한 조상"을 직접 찾아 움직이므로 고정 높이 여부와 무관하게
-// 지금도 실제로 동작한다. 두 메커니즘은 서로 다른 스크롤 컨테이너를 대상으로 하므로
-// (하나는 아직 존재하지 않는 내부 뷰포트, 하나는 실제 페이지) 충돌하지 않는다.
-//
-// ⚠️ **리더 적용 필요**: 채팅 캔버스가 고정 높이 + 실제 스크롤 경계를 갖게 되면(셸/레이아웃
-// 통합 시점) `MessageScrollerViewport`의 내부 로직이 살아나 `scrollIntoView` 없이도 하단
-// 고정이 유지된다 — 그 시점에 아래 `useEffect`(`lastItemRef`)를 제거해도 되는지 재검토할 것.
-//
-// **`kind='card'`는 시안상 자체 아바타가 없는 컬럼이라(`InlineCard` 주석 참고) AI 컬럼과 같은
-// x축에 맞추려면 아바타 폭(2.5rem, 2026-09-06 스케일 축소)+gap(1.25rem)=3.75rem만큼
-// 들여써야 한다 — 그래서 카드 항목만 `ml-15`를 더한다.
-//
-// **세로 간격**: 메시지 사이 `gap-7`(1.75rem, 2026-09-06 스케일 축소 — 기존 `gap-10`=2.5rem)
-// 하나로 통일한다(`MessageScrollerContent`에 배선).
+// **2026-09-06 재구성**: 스크롤 컨테이너를 shadcn `MessageScroller`로 옮겼다. 뷰포트
+// (`MessageScrollerViewport`)가 **실제 스크롤 컨테이너**여야 한다 — 부모(PerformanceAppLayout
+// `<main>`)가 `100svh - 헤더` 고정 높이 flex 컬럼이고 이 컴포넌트가 `min-h-0 flex-1`로 남은
+// 높이를 받아 `overflow-y-auto`로 스크롤한다. 뷰포트 높이가 무제한이면 `scrollAnchor` 항목의
+// min-height(뷰포트 높이 기준)와 뷰포트 높이가 서로를 키우며 문서가 수백만 px로 폭주한다
+// (2026-09-06 실측 사고). 그래서 예전의 `scrollIntoView` 기반 페이지 스크롤 이펙트는
+// 제거했다 — 하단 고정·새 메시지 추적은 `MessageScrollerProvider autoScroll`이 맡는다.
 //
 // **접근성**: `MessageScrollerContent`가 기본으로 `role="log" aria-relevant="additions"`를
 // 갖는다(ARIA `log` 롤은 암묵적으로 `aria-live="polite"`를 내포한다) — 과거 이 컴포넌트가
@@ -114,39 +93,48 @@ type ChatTimelineProps = {
   className?: string;
 };
 
+// 마지막 메시지 id가 바뀔 때마다 뷰포트를 끝으로 보낸다. `MessageScrollerProvider autoScroll`은
+// "사용자가 이미 끝에 있을 때" 추가분을 따라가는 규칙이라, 재개 시 여러 메시지가 한 번에
+// 재생되거나 단계 전환으로 긴 카드가 붙는 경우(실측: 재개 후 scrollTop 0)엔 끝으로 가지 않는다.
+// 옛 `scrollIntoView` 이펙트가 하던 역할을 Provider 컨텍스트 API로 옮긴 것이다 — Provider
+// 안에서만 훅을 쓸 수 있어 별도 컴포넌트로 뺐다(렌더 결과 없음).
+function FollowLatestMessage({
+  lastId,
+}: {
+  lastId: string | number | undefined;
+}) {
+  const { scrollToEnd } = useMessageScroller();
+  useEffect(() => {
+    if (lastId === undefined) return;
+    const prefersReducedMotion = window.matchMedia?.(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    scrollToEnd({ behavior: prefersReducedMotion ? "auto" : "smooth" });
+  }, [lastId, scrollToEnd]);
+  return null;
+}
+
 export default function ChatTimeline({
   messages,
   children,
   className = "",
 }: ChatTimelineProps) {
-  const lastItemRef = useRef<HTMLDivElement | null>(null);
-  const lastMessage = messages?.length
-    ? messages[messages.length - 1]
+  const lastId = messages?.length
+    ? messages[messages.length - 1]?.id
     : undefined;
-  const lastId = lastMessage?.id;
-
-  useEffect(() => {
-    if (lastId === undefined) return;
-    const node = lastItemRef.current;
-    if (!node) return;
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    node.scrollIntoView({
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-      block: "end",
-    });
-  }, [lastId]);
 
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
-      <MessageScroller className={["w-full", className].join(" ")}>
+      <FollowLatestMessage lastId={lastId} />
+      <MessageScroller
+        className={["flex w-full flex-col", className].join(" ")}
+      >
         <MessageScrollerViewport
           aria-label="채팅 타임라인"
           tabIndex={-1}
-          className="h-auto overflow-visible"
+          className="min-h-0 flex-1 overflow-y-auto pb-14"
         >
-          <MessageScrollerContent className="flex h-auto min-h-0 w-full flex-col gap-7">
+          <MessageScrollerContent className="flex w-full flex-col gap-7">
             {messages
               ? messages.map((message, index) => {
                   const isLast = index === messages.length - 1;
@@ -159,7 +147,6 @@ export default function ChatTimeline({
                   // 한 노드에 두 ref(마지막 항목 스크롤 대상 + 포커스 목적지)를 실을 수
                   // 있어야 해서 콜백 ref로 합친다.
                   const setNode = (node: HTMLDivElement | null) => {
-                    if (isLast) lastItemRef.current = node;
                     if (wrapperFocusRef) wrapperFocusRef.current = node;
                   };
                   return (
@@ -167,7 +154,7 @@ export default function ChatTimeline({
                       key={message.id}
                       messageId={String(message.id)}
                       scrollAnchor={isLast}
-                      ref={isLast || wrapperFocusRef ? setNode : undefined}
+                      ref={wrapperFocusRef ? setNode : undefined}
                       tabIndex={wrapperFocusRef ? -1 : undefined}
                       aria-live={message.focusRef ? "off" : undefined}
                     >

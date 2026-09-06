@@ -2429,8 +2429,8 @@ export default function PerformanceChatPage() {
   }
 
   return (
-    <div className="mt-10">
-      <ChatTimeline messages={messages} />
+    <div className="flex min-h-0 flex-1 flex-col pt-10">
+      <ChatTimeline messages={messages} className="min-h-0 flex-1" />
       <TopicDetailModal
         open={Boolean(topicDetail)}
         topic={topicDetail}

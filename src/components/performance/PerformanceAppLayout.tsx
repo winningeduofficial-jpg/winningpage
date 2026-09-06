@@ -123,9 +123,9 @@ function PerformanceShellContent() {
             콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」
             규칙). pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전
             여백일 뿐이다. */}
-          <main className="relative min-w-0 flex-1 pb-14 pl-perf-inset pr-perf-inset pt-14 md:ml-app-sidebar">
+          <main className="relative flex h-[calc(100svh-4rem)] min-w-0 flex-1 flex-col overflow-hidden pl-perf-inset pr-perf-inset pt-14 md:ml-app-sidebar">
             <RouteLoadingOverlay />
-            <div className="max-w-perf-content">
+            <div className="flex min-h-0 w-full max-w-perf-content flex-1 flex-col">
               {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
                 조건 판정은 이 컴포넌트가 하지 않는다 — 채팅 페이지(Outlet 자식)가
                 `quotaRemaining === 0 && 진행 중 세션 없음`을 판정해 셸 컨텍스트로
@@ -141,7 +141,9 @@ function PerformanceShellContent() {
                 위닝 수행평가 서비스
               </h1>
 
-              <Outlet />
+              <div className="flex min-h-0 flex-1 flex-col">
+                <Outlet />
+              </div>
             </div>
           </main>
         </div>
