@@ -23,9 +23,27 @@ const APP_TEXT_SCALE = [
 // 추가하면 이 목록도 함께 갱신할 것.
 const APP_RADIUS_SCALE = ["perf-modal"];
 
-const twMerge = extendTailwindMerge({
+// shadcn `scroll-fade` 유틸리티(shadcn/tailwind.css)는 tailwind-merge가 모르는 커스텀
+// 클래스라, 컴포넌트 기본값 `scroll-fade-b`와 호출부 `scroll-fade-y`가 둘 다 살아남는다
+// (위 font-size 사고와 같은 종류). 방향 변형끼리는 서로 배타이므로 한 그룹으로 묶는다 —
+// 크기 변형(`scroll-fade-t-10` 등)은 별개라 여기 넣지 않는다.
+const SCROLL_FADE_VARIANTS = [
+  "scroll-fade",
+  "scroll-fade-y",
+  "scroll-fade-x",
+  "scroll-fade-t",
+  "scroll-fade-b",
+  "scroll-fade-l",
+  "scroll-fade-r",
+  "scroll-fade-s",
+  "scroll-fade-e",
+  "scroll-fade-none",
+];
+
+const twMerge = extendTailwindMerge<"scroll-fade">({
   extend: {
     theme: { text: APP_TEXT_SCALE, radius: APP_RADIUS_SCALE },
+    classGroups: { "scroll-fade": SCROLL_FADE_VARIANTS },
   },
 });
 

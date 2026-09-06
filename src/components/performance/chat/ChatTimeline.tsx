@@ -120,7 +120,15 @@ export default function ChatTimeline({
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
       <MessageScroller className={className}>
-        <MessageScrollerViewport aria-label="채팅 타임라인">
+        {/* scroll-fade(shadcn 유틸, 문서: "Use it on MessageScroller"): 기본 클래스는 하단만
+            (`scroll-fade-b`)이라 접힌 타이틀 아래로 지나가는 위쪽 가장자리도 흐리게
+            `scroll-fade-y`로 바꾼다. 위로 스크롤할 내용이 있을 때만 상단 페이드가 나타나고
+            맨 위에 닿으면 사라진다(스크롤 드리븐 애니메이션, JS 없음). 상단 깊이 2.5rem.
+            `cn()`이 `scroll-fade-b`를 지우도록 src/lib/utils.ts에 클래스 그룹을 등록했다. */}
+        <MessageScrollerViewport
+          aria-label="채팅 타임라인"
+          className="scroll-fade-y scroll-fade-t-10"
+        >
           <MessageScrollerContent>
             {messages
               ? messages.map((message) => {
