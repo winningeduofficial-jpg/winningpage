@@ -172,11 +172,12 @@ export default function ReportModalShell({
               tabIndex·aria-label(그리고 이제 없어진 암묵 region 역할 대신 명시 role="region")도
               함께 옮긴다 — `viewportProps`가 그 자리. `className`도 `viewportProps`로 넘긴다:
               `.performance-report-scroll`을 셀렉터로 쓰는 인쇄 CSS(PRINT_PAGE_STYLE)와
-              `px-5 py-10`(스크롤과 함께 움직여야 하는 패딩 — 이 인셋이 셸의 유일한 소유자다,
-              `SectionedReportView`/`PerformanceReportSurface`는 좌우 패딩을 갖지 않는다),
-              `:focus-visible` 링 전부 "진짜 스크롤하는 노드"에 있어야 의미가 있다 — 루트
-              (ScrollArea 자신, `min-h-0 flex-1`만 남는다)에 두면 스크롤이 멎어도 안 사라지는
-              고정 여백이 되어 버린다. */}
+              `:focus-visible` 링은 "진짜 스크롤하는 노드"에 있어야 의미가 있다.
+              ⚠️ 본문 인셋(`px-5 py-10 xl:pl-10 xl:pr-18`)은 뷰포트가 아니라 그 안의
+              `.performance-report-body` 래퍼가 가진다 — OverlayScrollbars가 뷰포트에 인라인
+              `padding: 0px`를 강제해 뷰포트 클래스의 패딩은 무효가 된다(2026-09-06 실측:
+              본문이 패널 가장자리에 붙던 원인). 이 래퍼가 셸의 유일한 인셋 소유자이고
+              `SectionedReportView`/`PerformanceReportSurface`는 좌우 패딩을 갖지 않는다. */}
           <ScrollArea
             className="min-h-0 flex-1"
             // defer={false} — viewportProps(tabIndex/aria-label/role)는 뷰포트가 실제로
@@ -190,10 +191,12 @@ export default function ReportModalShell({
               "aria-label": scrollLabel,
               role: "region",
               className:
-                "performance-report-scroll px-5 py-10 focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent xl:pl-10 xl:pr-18",
+                "performance-report-scroll focus-visible:outline-solid focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent",
             }}
           >
-            <div className="max-w-282">{children}</div>
+            <div className="performance-report-body max-w-282 px-5 py-10 xl:pl-10 xl:pr-18">
+              {children}
+            </div>
           </ScrollArea>
         </div>
 
@@ -223,9 +226,8 @@ const PRINT_PAGE_STYLE = `
   /* 인셋은 @page 여백(15mm)이 대신한다. **헤더와 본문을 같이 걷는다** — 본문만 0으로
      만들면 제목·부제만 좌측으로 들여쓰인 채 남아 좌측 정렬이 어긋난다. */
   .performance-report-head,
-  .performance-report-scroll {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
+  .performance-report-body {
+    padding: 0 !important;
   }
   /* 고정 높이 + 내부 스크롤 → 문서 흐름. 이 전환이 없으면 첫 화면분만 인쇄된다. */
   .performance-report-scroll {
@@ -233,8 +235,6 @@ const PRINT_PAGE_STYLE = `
     max-height: none !important;
     height: auto !important;
     flex: none !important;
-    padding-top: 0 !important;
-    padding-bottom: 0 !important;
   }
   .performance-report-scroll > * { max-width: none !important; }
 `;
