@@ -129,7 +129,7 @@ export default function ChatTimeline({
           aria-label="채팅 타임라인"
           className="scroll-fade-y scroll-fade-t-10"
         >
-          <MessageScrollerContent>
+          <MessageScrollerContent className="pb-8">
             {messages
               ? messages.map((message) => {
                   const isUserTurn = message.role === "user";
