@@ -1,4 +1,5 @@
 import { Outlet } from "react-router";
+import Header from "@/components/Header";
 import RouteLoadingOverlay from "@/components/ui/RouteLoadingOverlay";
 import {
   PerformanceShellProvider,
@@ -11,8 +12,13 @@ import QuotaExhaustedBanner from "./quota/QuotaExhaustedBanner";
 // 수행평가 학생 앱 셸 — docs/수행평가-상세-명세.md §3.1(전체 골격) / §3.5(헤더).
 //
 // 시안 21개 인앱 노드가 전부 이 셸을 공유한다: 좌측 고정 사이드바 + 우측 채팅 캔버스.
-// §3.5 단정대로 **사이트 공통 헤더·푸터를 쓰지 않는다** — 캔버스 상단의
-// `위닝 수행평가 서비스` 텍스트가 유일한 헤더 요소이며 구분선·툴바가 없다.
+// (QA 행279, 2026-09-06 개정) §3.5의 "사이트 공통 헤더를 쓰지 않는다" 단정은 폐기한다 —
+// 디자이너 시안(Figma 3754-3562)이 공개 페이지와 같은 공통 헤더를 앱 화면 최상단에
+// 두고 있고, 사용자가 그 시안대로 확정했다. 헤더는 새로 만들지 않고 공개 페이지 정본
+// `Header.tsx`를 그대로 재사용한다(SiteLayout이 그리는 것과 같은 컴포넌트).
+// **사이트 공통 푸터는 여전히 쓰지 않는다** — 앱 화면 하단은 그대로 캔버스로 끝난다.
+// 이 결정으로 사이드바 상단 "메인으로" 링크·하단 "메인으로 나가기" 버튼(QA 행318/280)은
+// 제거했다 — 헤더 로고·메뉴가 메인 이동 통로 역할을 대신한다.
 // 그래서 App.jsx에서 이 라우트 그룹을 SiteLayout 밖에 둔다(목표관리 GoalAppLayout 선례와 동일).
 //
 // 세션 컨텍스트는 여기서 감싸지 않는다. App.jsx가
@@ -56,39 +62,50 @@ function PerformanceShellContent() {
   const { stepStates, quotaBannerVisible } = usePerformanceShell();
 
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* 사이드바는 표시 전용이라 prop을 받는다(프로필 이름·학교유형·학년, 진행단계 5스텝 상태).
+    <>
+      {/* 공개 페이지 정본 헤더(Header.tsx) 그대로 재사용 — `position:fixed h-16`(4rem)이라
+          자기 자신은 레이아웃 흐름의 높이를 차지하지 않는다. 그래서 아래 행 컨테이너에
+          `pt-16`을 별도로 줘 헤더 높이(4rem)만큼 사이드바·캔버스를 함께 밀어낸다
+          (Tailwind preflight box-sizing: border-box라 min-h-screen 총높이 안에
+          padding-top이 포함되므로 뷰포트보다 커지지 않는다 — 아래 사이드바 min-h 주석과
+          같은 계산). 헤더 높이 값은 새 상수를 만들지 않고 Header.tsx의 실제 클래스(`h-16`)를
+          그대로 따라간다 — 다른 페이지들(MentorApply.tsx 등)도 전부 이 값을 pt-16으로
+          하드코딩해 참조하는 것이 기존 관례다. */}
+      <Header />
+      <div className="flex min-h-screen bg-white pt-16">
+        {/* 사이드바는 표시 전용이라 prop을 받는다(프로필 이름·학교유형·학년, 진행단계 5스텝 상태).
           진행단계(stepStates)는 위 PerformanceShellProvider를 통해 채팅 페이지가 배선했다(P13
           해소). TODO(P5): `GET /api/performance/bootstrap`의 `profile`/`lastSession`을 셸에서
           한 번 읽어 프로필 이름·학교유형·학년으로 내려보내는 작업은 아직 남아 있다. 지금 그
           값을 넘기지 않는 것은 배선이 없어서지 기본값이 정본이라서가 아니다 — 없는 값 자리에
           가짜 이름·리터럴 학교유형을 채우지 않는 것이 §11 Q61-ⓔ 규칙이다. */}
-      <PerformanceSidebar stepStates={stepStates} />
+        <PerformanceSidebar stepStates={stepStates} />
 
-      {/* 캔버스. 좌 인셋만 지정해 좌기준선 384px(사이드바 324 + 60)을 맞추고, 우측은
+        {/* 캔버스. 좌 인셋만 지정해 좌기준선 384px(사이드바 324 + 60)을 맞추고, 우측은
           콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」 규칙).
           pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전 여백일 뿐이다. */}
-      <main className="relative min-w-0 flex-1 pb-25 pl-perf-inset pr-perf-inset pt-25">
-        <RouteLoadingOverlay />
-        <div className="max-w-perf-content">
-          {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
+        <main className="relative min-w-0 flex-1 pb-25 pl-perf-inset pr-perf-inset pt-25">
+          <RouteLoadingOverlay />
+          <div className="max-w-perf-content">
+            {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
               조건 판정은 이 컴포넌트가 하지 않는다 — 채팅 페이지(Outlet 자식)가
               `quotaRemaining === 0 && 진행 중 세션 없음`을 판정해 셸 컨텍스트로
               올리고(PerformanceChatPage.jsx), 여기는 그 값을 그대로 읽어 렌더만 한다.
               저장 리포트 등 판정 근거가 없는 화면은 기본값 false라 배너가 뜨지 않는다
               (PerformanceShellContext.jsx 주석 참고). */}
-          {quotaBannerVisible && <QuotaExhaustedBanner />}
+            {quotaBannerVisible && <QuotaExhaustedBanner />}
 
-          {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
+            {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
               TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
               §11 Q7 미결이라 아직 만들지 않는다. */}
-          <h1 className="text-[2rem] font-semibold leading-10.5 tracking-[-0.04rem] text-ink-strong">
-            위닝 수행평가 서비스
-          </h1>
+            <h1 className="text-[2rem] font-semibold leading-10.5 tracking-[-0.04rem] text-ink-strong">
+              위닝 수행평가 서비스
+            </h1>
 
-          <Outlet />
-        </div>
-      </main>
-    </div>
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </>
   );
 }

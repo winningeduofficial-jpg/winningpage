@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation } from "react-router";
 
 // 수행평가 앱 좌측 고정 사이드바 — docs/수행평가-상세-명세.md §3.2(블록 실측) / §3.3(진행단계
 // 상태 머신) / §3.4(메뉴 라벨 정본). 프로필 · 메뉴 · 진행단계 3블록으로 구성된다.
@@ -20,12 +20,10 @@ import { Link, useLocation, useNavigate } from "react-router";
 // 스텝 pill 486·523·560·597·634)를 flex column + gap으로 환산했다. 아래 여백 상수는 전부
 // 그 y좌표를 역산한 값이며, 주석에 원 좌표를 남겨 두었다(GoalSidebar와 같은 관례).
 //
-// ── 하단 "메인으로 나가기" (QA 행280)
-// 시안에 없는 표면이다 — 인앱에서 사이트 메인(`/`)으로 나갈 방법이 브라우저 뒤로가기뿐이라
-// 접수됐다. GoalSidebar 하단 유틸(`내 정보 수정`, 같은 자리 `mt-auto` + 같은 타이포)과
-// 위치·표기 관례를 맞췄다. 다만 그쪽은 순수 이동(NavLink)인 반면 여기는 진행 중인 채팅이
-// 끊길 수 있어 `window.confirm` 한 번을 거친 뒤에만 이동한다 — 그래서 `Link`가 아니라
-// `button` + `useNavigate`다.
+// (QA 행279, 2026-09-06) 상단 "메인으로" 링크(QA 행318)·하단 "메인으로 나가기" 버튼
+// (QA 행280, `window.confirm` 이탈 확인 포함)은 제거했다 — 앱 셸 최상단에 사이트 공통
+// 헤더(PerformanceAppLayout.tsx 참고)가 새로 붙으면서 헤더 로고·메뉴가 메인 이동 통로
+// 역할을 대신한다.
 
 // §3.4 메뉴 라벨. 시안 원문은 `3754:3035` 한 노드만 `위닝 채팅`이고 나머지 전 인앱
 // 노드가 `위닝 AI 채팅`이라 후자가 정본이었으나, 사용자 지시로 화면 문구에서 "AI" 표기를
@@ -78,11 +76,6 @@ const STEP_STATE_STYLES: Record<
 // 그래서 기본값이 「전부 미도래」이고, 활성 스텝 없음은 예외가 아니라 정상 입력이다.
 const DEFAULT_STEP_STATES = ["todo", "todo", "todo", "todo", "todo"];
 
-// QA 행280 — 사이트 메인 경로 + 이동 전 확인 문구.
-const MAIN_SITE_PATH = "/";
-const LEAVE_TO_MAIN_CONFIRM_MESSAGE =
-  "진행 중인 내용은 자동 저장되지 않을 수 있습니다. 메인으로 이동할까요?";
-
 function CheckIcon() {
   return (
     <svg viewBox="0 0 12 12" aria-hidden="true" className="h-3 w-3">
@@ -117,13 +110,6 @@ export default function PerformanceSidebar({
   stepStates = DEFAULT_STEP_STATES as Array<"done" | "current" | "todo">,
 }: PerformanceSidebarProps) {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-
-  function handleLeaveToMain() {
-    if (window.confirm(LEAVE_TO_MAIN_CONFIRM_MESSAGE)) {
-      navigate(MAIN_SITE_PATH);
-    }
-  }
 
   // `/app/performance/:sessionId`(새로고침 복구)도 채팅 화면이므로 `위닝 채팅`이 활성이어야
   // 한다. NavLink의 `end`만으로는 그 경로에서 활성이 꺼지므로 경로 판정을 직접 한다.
@@ -139,21 +125,11 @@ export default function PerformanceSidebar({
   return (
     <aside
       aria-label="수행평가 사이드바"
-      className="flex min-h-screen w-perf-sidebar shrink-0 flex-col bg-performance-sidebar"
+      // min-h: 부모(PerformanceAppLayout)가 고정 헤더(h-16=4rem) 아래 pt-16을 이미 줬으므로
+      // 여기서 또 min-h-screen(100vh)을 쓰면 그 4rem만큼 페이지 전체가 뷰포트보다 길어져
+      // 불필요한 세로 스크롤이 생긴다. calc(100vh-4rem)로 헤더 높이를 뺀 나머지만 채운다.
+      className="flex min-h-[calc(100vh-4rem)] w-perf-sidebar shrink-0 flex-col bg-performance-sidebar"
     >
-      {/* QA 행318 — 상단 "메인으로" 링크. 하단 "메인으로 나가기"(handleLeaveToMain)의
-          이탈 확인 다이얼로그 로직을 그대로 재사용한다(중복 구현 금지) — 채팅이 끊길 수
-          있는 것은 하단과 동일한 상황이라 여기도 확인창을 거친다. */}
-      <div className="px-perf-inset pt-6">
-        <button
-          type="button"
-          onClick={handleLeaveToMain}
-          className="text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
-        >
-          메인으로
-        </button>
-      </div>
-
       {/* 프로필 — 이름 @60,100 (1.25rem/1.625rem w600 #808080), 부제 @60,130 (1rem/1.3125rem
           w400 #808080). 시안이 이름 줄까지 보조색(#808080)을 쓴다 — ink-strong이 아니다.
           min-h는 이름·부제가 비어도 아래 메뉴 y좌표가 흔들리지 않게 자리를 잡아 둔 것이다.
@@ -288,17 +264,6 @@ export default function PerformanceSidebar({
       {/* 회차(잔여 이용 횟수) UI는 여기 두지 않는다 — 인앱 21개 노드 어디에도 사이드바 회차
           표시가 없고(슬라이스 x<324 영역 텍스트 전수 확인), 회차 소진 안내 표면은 §5.20이
           정한 채팅 상단 배너 + STEP3 인라인 카드 2곳뿐이다(P15). */}
-
-      {/* 하단 유틸 — 메인으로 나가기(파일 상단 "하단 메인으로 나가기" 주석). */}
-      <div className="mt-auto px-2.5 pb-8 pt-8">
-        <button
-          type="button"
-          onClick={handleLeaveToMain}
-          className="block pl-12.5 text-left text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
-        >
-          메인으로 나가기
-        </button>
-      </div>
     </aside>
   );
 }
