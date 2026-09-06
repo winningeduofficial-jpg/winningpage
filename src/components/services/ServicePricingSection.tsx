@@ -1,4 +1,3 @@
-import { Check } from "lucide-react";
 // 이용권 구매 섹션(Supabase useProducts 의존, loading / error / 정상 3분기).
 //
 // (a) 출처: 수행평가 PricingSection + 목표관리 PricingSection 통합.
@@ -20,10 +19,10 @@ import { Check } from "lucide-react";
 //
 // 로딩 문구·에러 문구·'다시 시도'·'추천' 배지 텍스트는 두 페이지가 문자 그대로 동일하므로
 // 컴포넌트 내부에 원문 그대로 고정한다.
-// 하단 안내문은 QA 지적으로 교체했다 — "여러 플랜을 동시 선택할 수 없다"는 기존 문구가
-// 실제로는 선택 불가능한(체크 아이콘만 있고 onClick이 없는) 목록에 붙어 있어 없는 동작을
-// 설명하는 오해였다. 대신 "결제는 이 페이지가 아니라 이동한 페이지에서 진행된다"는, CTA가
-// 실제로 하는 일을 안내하는 문구로 바꿨다(두 서비스 공통 적용).
+// 하단 결제 안내 문단("이 페이지에서는 결제가 진행되지 않으며...")은 QA 행 86(2026-09-06)
+// 지적으로 삭제했다 — CTA를 누르면 어차피 이동한 페이지에서 결제가 이뤄지는 게 자명해
+// 불필요한 문구였다(두 서비스 공통 적용). 상품 카드 좌측의 체크 아이콘 장식 배지도 같은
+// 이유(선택 불가능한 정보 카드인데 체크박스처럼 보임)로 함께 삭제했다.
 //
 // [가격 정본 안내] 가격은 Supabase `products` 테이블에서 조회한다. 정본은 DB이며 프론트에는
 // 가격을 하드코딩하지 않는다.
@@ -111,10 +110,6 @@ export default function ServicePricingSection({
   // 목표관리·심화탐구 랜딩에도 같이 적용된다.
   const ctaClass =
     "mt-6 inline-flex h-14 w-full max-w-57.5 items-center justify-center rounded-[0.9375rem] bg-accent px-8 text-[0.9375rem] font-semibold text-white transition hover:brightness-95 lg:mt-8 lg:h-13 lg:w-57.5 lg:px-0";
-  // 플랜이 1개만 남으면(예: 서비스 상품이 하나뿐인 상태) 상품 행 자체는 이미
-  // lg:mx-auto로 가운데 정렬되지만, 아래 안내문은 폭 제한이 없는 블록이라 text-left면
-  // 왼쪽 끝에 붙어 가운데 정렬된 행과 어긋나 보였다(QA 지적) — 이때만 문단을 가운데로 돌린다.
-  const isSingleProduct = products.length === 1;
 
   return (
     <ServiceSection
@@ -138,14 +133,9 @@ export default function ServicePricingSection({
               key={product.id}
               className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white px-6 py-6 sm:px-8 lg:mx-auto lg:h-22.75 lg:w-full lg:max-w-231.5 lg:px-6.25 lg:py-5.25"
             >
+              {/* QA 행 86(2026-09-06) — 선택 불가능한 정보 카드인데 체크박스처럼 보이는
+                  장식용 체크 아이콘 배지를 삭제했다. */}
               <span className="flex items-center gap-3.75">
-                {/* 체크박스 24 × 0.766 ≈ 18px, radius 5px, 내부 흰색 체크도 동일 배율. */}
-                <span
-                  aria-hidden="true"
-                  className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-[0.3125rem] bg-line"
-                >
-                  <Check className="h-2.75 w-2.75 text-white" strokeWidth={3} />
-                </span>
                 <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-ink">
                   {product.name}
                 </span>
@@ -191,21 +181,6 @@ export default function ServicePricingSection({
           1회 = 수행평가 1건 (주제 추천 → 설계 리포트 → 평가 리포트 전 과정)
         </p>
       )}
-
-      {/* 이 목록의 항목은 실제로는 선택할 수 없는 정보 표시용 카드다(체크 아이콘은 장식이고
-          onClick이 없다) — "여러 플랜을 동시 선택할 수 없다"는 기존 안내문은 존재하지 않는
-          선택 동작을 설명하고 있어 오히려 혼란을 줬다(QA 지적으로 삭제).
-          대신 CTA가 실제로 하는 일(다른 페이지로 이동 후 구매)을 안내한다.
-          lg:mx-auto lg:max-w-231.5 — 폭 제한이 없는 문단이라 다상품 기본 케이스(text-left)에서
-          중앙 정렬된 상품 행(위 max-w-231.5)보다 좌측선이 밖으로 어긋났다(QA 지적).
-          같은 폭·중앙 제약을 걸어 좌측선을 맞춘다 — isSingleProduct일 땐 어차피 text-center라
-          박스가 좁아져도 시각적으로 그대로 가운데다. */}
-      <p
-        className={`mt-4 break-keep text-[0.875rem] font-medium text-ink lg:mt-2.25 lg:mx-auto lg:max-w-231.5 ${isSingleProduct ? "text-center" : "text-left"}`}
-      >
-        이 페이지에서는 결제가 진행되지 않으며, 버튼을 누르면 이동하는
-        페이지에서 이용권을 구매하실 수 있습니다.
-      </p>
 
       {/* CTA는 inline-flex라 부모(ServiceSection의 containerClassName="text-center")의
           text-center를 그대로 상속해 이미 가운데 정렬된다 — 별도 처리가 필요 없다. */}
