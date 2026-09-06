@@ -80,6 +80,7 @@ import {
   TOPIC_PROMPT_VERSION,
   TOPIC_RECOMMENDATION_SCHEMA,
 } from "../_lib/performance/prompts.js";
+import { TOPIC_MAX_ROUNDS as MAX_ROUNDS } from "../_lib/performance/topic-rounds.js";
 import {
   findProgramAccessRow,
   hasPaidServiceAccess,
@@ -100,8 +101,12 @@ const SERVICE_KEY = "suhaeng";
  * 요청했으므로 그 스펙을 그대로 따른다. `TopicCardList`는 이 값을 서버 응답
  * `maxRounds`로만 읽으므로(하드코딩 금지) 여기 한 곳만 바꾸면 클라이언트 상한 표기도
  * 함께 갱신된다.
+ *
+ * 값 자체는 `../_lib/performance/topic-rounds.js`(`TOPIC_MAX_ROUNDS`)가 정본이다 —
+ * `session.js`도 재개 응답의 `maxRounds`를 같은 곳에서 읽어 값이 갈라지지 않는다
+ * (QA 재개 시 "남은 추가 추천"이 3으로 잘못 표시되던 버그의 원인이 바로 두 파일이
+ * 각자 `MAX_ROUNDS`를 들고 있던 것이었다).
  */
-const MAX_ROUNDS = 2;
 
 /**
  * 모델 호출 총 예산. `generateWithRetry`의 과부하 재시도와 아래 구조 재시도가 **모두**
