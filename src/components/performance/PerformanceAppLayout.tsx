@@ -121,7 +121,7 @@ function PerformanceShellContent() {
             여백일 뿐이다. */}
           <SidebarInset className="h-[calc(100svh-var(--header-height))] min-w-0 overflow-hidden">
             <AppShellSidebarTrigger />
-            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden pl-perf-inset pr-perf-inset pt-14">
+            <div className="group/canvas relative flex min-h-0 flex-1 flex-col overflow-hidden pl-perf-inset pr-perf-inset">
               <RouteLoadingOverlay />
               <div className="flex min-h-0 w-full max-w-perf-content flex-1 flex-col">
                 {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
@@ -132,12 +132,19 @@ function PerformanceShellContent() {
                   (PerformanceShellContext.jsx 주석 참고). */}
                 {quotaBannerVisible && <QuotaExhaustedBanner />}
 
-                {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
+                {/* 페이지 타이틀 — 공유 타입 스케일 `text-app-title`(목표관리 페이지 헤더와 동일).
                   TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
                   §11 Q7 미결이라 아직 만들지 않는다. */}
-                <h1 className="text-app-title font-semibold tracking-[-0.02rem] text-ink-strong">
-                  위닝 수행평가 서비스
-                </h1>
+                {/* 타이틀 띠 — 접힘 규칙(2026-09-06, M3/iOS large-title 관례): 채팅 타임라인이
+                    뷰포트를 넘겨 위로 스크롤할 내용이 생기면(`MessageScroller` 루트의
+                    `data-scrollable`에 `start` 단어 포함 — 값은 공백 구분 목록이라 `~=`로 매칭) 상하 1rem으로 접히고 제목은 섹션 크기로
+                    내려간다. 짧은 대화(속성 없음)·맨 위로 되돌린 상태(end)는 펼침 2rem/1.5rem.
+                    상태 소스는 라이브러리 공식 data 속성이고 JS 리스너·리렌더가 없다. */}
+                <div className="shrink-0 pb-6 pt-8 transition-[padding] duration-200 motion-reduce:transition-none group-has-[[data-scrollable~=start]]/canvas:py-4">
+                  <h1 className="text-app-title font-semibold tracking-[-0.02rem] text-ink-strong transition-[font-size] duration-200 motion-reduce:transition-none group-has-[[data-scrollable~=start]]/canvas:text-app-section">
+                    위닝 수행평가 서비스
+                  </h1>
+                </div>
 
                 <div className="flex min-h-0 flex-1 flex-col">
                   <Outlet />
