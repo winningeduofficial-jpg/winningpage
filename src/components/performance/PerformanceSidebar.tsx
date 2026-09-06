@@ -176,7 +176,7 @@ export default function PerformanceSidebar({
         >
           <SidebarGroupLabel
             id="perf-nav-heading"
-            className="h-auto px-2 text-[1rem] font-semibold leading-5.25 text-ink-sub"
+            className="h-auto px-2 text-[0.8125rem] font-medium leading-[1.4] text-ink-sub"
           >
             메뉴
           </SidebarGroupLabel>
@@ -197,7 +197,7 @@ export default function PerformanceSidebar({
                         넘긴다(회귀 검증: PerformanceSidebar.test.tsx). */}
                     <SidebarMenuButton
                       isActive={isActive}
-                      className="h-9 px-3 text-[1.25rem] font-medium leading-6.5 text-ink data-active:bg-sidebar-accent data-active:font-medium hover:bg-sidebar-accent/60"
+                      className="h-9 px-3 text-[0.875rem] leading-[1.4] text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
                       render={
                         <Link
                           to={item.to}
@@ -225,7 +225,7 @@ export default function PerformanceSidebar({
         >
           <SidebarGroupLabel
             id="perf-steps-heading"
-            className="h-auto px-2 text-[1rem] font-semibold leading-5.25 text-ink-sub"
+            className="h-auto px-2 text-[0.8125rem] font-medium leading-[1.4] text-ink-sub"
           >
             진행단계
           </SidebarGroupLabel>
@@ -259,9 +259,10 @@ export default function PerformanceSidebar({
                       {state === "done" ? <CheckIcon /> : step}
                     </span>
                     <span
-                      className={["text-[1rem] leading-5.25", style.label].join(
-                        " ",
-                      )}
+                      className={[
+                        "text-[0.875rem] leading-[1.4]",
+                        style.label,
+                      ].join(" ")}
                     >
                       {label}
                     </span>

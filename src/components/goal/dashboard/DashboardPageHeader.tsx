@@ -62,9 +62,7 @@ export default function DashboardPageHeader({
       </div>
       <div className="flex items-center gap-3">
         <SparkleIcon />
-        <h1 className="text-[1.75rem] font-bold leading-[1.4] text-ink-strong">
-          {headline}
-        </h1>
+        <h1 className="text-app-title font-bold text-ink-strong">{headline}</h1>
       </div>
     </header>
   );

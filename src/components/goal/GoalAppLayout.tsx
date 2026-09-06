@@ -30,7 +30,7 @@ export default function GoalAppLayout() {
     <>
       <Header />
       <AppShellSidebarProvider>
-        <div className="flex min-h-screen bg-white pt-16">
+        <div className="flex min-h-screen w-full bg-white pt-16">
           <GoalSidebar />
           <AppShellSidebarTrigger />
 

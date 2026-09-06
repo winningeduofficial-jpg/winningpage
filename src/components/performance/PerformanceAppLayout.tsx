@@ -102,7 +102,7 @@ function PerformanceShellContent() {
           하드코딩해 참조하는 것이 기존 관례다. */}
       <Header />
       <AppShellSidebarProvider>
-        <div className="flex min-h-screen bg-white pt-16">
+        <div className="flex min-h-screen w-full bg-white pt-16">
           {/* 사이드바는 표시 전용이라 prop을 받는다(프로필 이름·학교유형·학년, 진행단계 5스텝
             상태). 진행단계(stepStates)는 위 PerformanceShellProvider를 통해 채팅 페이지가
             배선했다(P13 해소). 프로필(이름·학교유형·학년, P5)은 이 컴포넌트가 bootstrap
@@ -123,7 +123,7 @@ function PerformanceShellContent() {
             콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」
             규칙). pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전
             여백일 뿐이다. */}
-          <main className="relative min-w-0 flex-1 pb-25 pl-perf-inset pr-perf-inset pt-25 md:ml-app-sidebar">
+          <main className="relative min-w-0 flex-1 pb-14 pl-perf-inset pr-perf-inset pt-14 md:ml-app-sidebar">
             <RouteLoadingOverlay />
             <div className="max-w-perf-content">
               {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.
@@ -137,7 +137,7 @@ function PerformanceShellContent() {
               {/* 페이지 타이틀 @384,100 — 2rem/2.625rem w600 ink-strong(#191d23) ls -0.04rem (§7.2).
                 TODO(P6): §3.5 제안의 `통합 설계 리포트` 보조 버튼(설계 리포트 생성 이후에만 노출)은
                 §11 Q7 미결이라 아직 만들지 않는다. */}
-              <h1 className="text-[2rem] font-semibold leading-10.5 tracking-[-0.04rem] text-ink-strong">
+              <h1 className="text-app-title font-semibold tracking-[-0.02rem] text-ink-strong">
                 위닝 수행평가 서비스
               </h1>
 
