@@ -3,7 +3,6 @@ import {
   Sidebar,
   SidebarProvider,
   SidebarTrigger,
-  useSidebar,
 } from "@/components/ui/sidebar";
 
 // 수행평가·목표관리 앱 셸 공통 좌측 사이드바 래퍼 — 사용자 결정(2026-09-06)
@@ -13,12 +12,16 @@ import {
 // 사이드바 내부 콘텐츠(프로필·내비 구성)는 각 셸의 *SidebarContent 컴포넌트가 맡는다
 // — 이 파일은 "고정·폭·모바일 전환" 규칙만 책임진다.
 //
-// 사이트 공통 헤더(Header.tsx)는 `position:fixed h-16`(4rem)로 두 셸 최상단에
-// 이미 깔려 있다(PerformanceAppLayout 선례, GoalAppLayout도 이번에 동일하게
-// 붙인다). shadcn Sidebar는 `fixed inset-y-0 h-svh`가 기본이라 그대로 두면
-// 헤더와 겹치므로, 데스크톱 분기(아래 AppShellSidebar)에서 `top-16` +
-// `h-[calc(100svh-4rem)]`로 헤더 높이만큼 오프셋한다 — 이 계산이 딱 한 곳
-// (여기)에만 있어야 두 셸이 어긋나지 않는다.
+// (2026-09-06 개정) shadcn 공식 블록 sidebar-16("A sidebar with a sticky site
+// header", https://ui.shadcn.com/r/styles/base-nova/sidebar-16.json) 구조를
+// 그대로 따른다 — 수동 `md:fixed`/`md:top-16`/`md:ml-app-sidebar` 재구현 금지.
+// 공식 블록은 `<div className="[--header-height:...]"><SidebarProvider
+// className="flex flex-col"><SiteHeader/><div className="flex flex-1">
+// <AppSidebar/><SidebarInset/></div></SidebarProvider></div>` 형태이고 헤더가
+// `sticky`라 자기 높이를 흐름에 남긴다. 이 저장소의 공통 헤더(Header.tsx)는
+// `position:fixed h-16`라 흐름 높이를 남기지 않으므로, 아래
+// `AppShellSidebarProvider`가 첫 자식으로 `h-(--header-height)` 스페이서를 둬
+// 그 자리를 대신 잡는다 — `--header-height` 정의도 이 컴포넌트 한 곳뿐이다.
 
 // 사이드바 폭 — index.css `@theme`의 `--spacing-app-sidebar`(18rem)가 정본이다.
 // shadcn Sidebar 내부 유틸(`w-(--sidebar-width)` 등)이 이 CSS 변수를 그대로
@@ -28,57 +31,66 @@ const SIDEBAR_WIDTH_STYLE = {
 } as CSSProperties;
 
 // SidebarProvider — 사이드바 열림 상태(모바일 Sheet open/close)를 들고 있는
-// 컨텍스트 루트. 두 셸 모두 `<Header /> 아래에서 이 프로바이더로 사이드바+본문을
-// 감싼다(본문 자체의 `pt-16`/사이드바 폭만큼의 좌측 여백은 각 셸의 `<main>`이
-// 직접 진다 — 이 프로바이더는 폭 변수 주입과 열림 상태 관리만 한다.
+// 컨텍스트 루트. 공식 블록과 같이 `flex flex-col`로 세로 배치해 헤더 스페이서 →
+// (사이드바+본문) 행 순서로 쌓는다. `--header-height`는 사이트 공통 헤더
+// (Header.tsx)의 실제 클래스 `h-16`(4rem)을 그대로 따라간다 — 다른 값을 새로
+// 만들지 않는다.
 export function AppShellSidebarProvider({ children }: { children: ReactNode }) {
   return (
-    <SidebarProvider style={SIDEBAR_WIDTH_STYLE}>{children}</SidebarProvider>
+    <div className="[--header-height:calc(--spacing(16))]">
+      <SidebarProvider className="flex flex-col" style={SIDEBAR_WIDTH_STYLE}>
+        {/* Header.tsx가 fixed라 흐름 높이를 안 남기므로, 공식 블록의 sticky
+            헤더 대신 이 스페이서가 그 자리를 잡는다. */}
+        <div className="h-(--header-height)" />
+        {children}
+      </SidebarProvider>
+    </div>
   );
 }
 
-// 데스크톱: `collapsible="none"` — 접기/아이콘 모드 없이 항상 펼쳐진 고정
-// 사이드바(사용자 결정, 두 셸 다 접기 기능 자체가 없었다). 모바일(<768px,
-// `useIsMobile`이 Tailwind `md` 브레이크포인트와 동일 768px 기준)에서는
-// `collapsible="offcanvas"`로 바뀌어 shadcn 내장 Sheet 드로어가 대신 렌더된다
-// (Sidebar 컴포넌트 자체 분기 — `isMobile`이면 `className`의 고정 포지션 클래스는
-// 아예 쓰이지 않고 Sheet 쪽 마크업만 렌더된다, 아래 md: 접두는 그 사이 짧은
-// 순간(최초 렌더 시 `isMobile`이 아직 `false`로 초기화돼 있는 구간)에도 좁은
-// 화면에서 고정 포지션이 실수로 적용되지 않게 하는 이중 안전장치다).
+// `collapsible` 기본값(`offcanvas`)을 그대로 쓴다 — 모바일(<768px)에서는 shadcn
+// 내장 Sheet 드로어로, 데스크톱에서는 고정(fixed) 사이드바로 자동 분기하는 것도
+// Sidebar 컴포넌트 자체 책임이라 여기서 다시 분기할 필요가 없다.
+// `collapsible="none"`을 쓰지 않는 이유: 그러면 데스크톱 고정 포지션·좌측
+// 여백(gap)이 함께 사라져 다시 수동 `md:fixed`/margin 재구현으로 돌아간다.
+// 데스크톱에서 접히지 않는 것은 `SidebarProvider`의 기본 `defaultOpen`(=true)과
+// 접기 트리거를 데스크톱에 노출하지 않는 것(`AppShellSidebarTrigger`가
+// `md:hidden`)만으로 충분하다.
+// `top-(--header-height) h-[calc(100svh-var(--header-height))]!`는 공식 블록의
+// `AppSidebar` 클래스 그대로 — 헤더 높이만큼 아래로 내리고, 나머지 뷰포트
+// 높이만큼만 채운다(`!`는 Tailwind v4 important 접미사, 기본 `inset-y-0 h-svh`를
+// 덮어써야 해서 필요하다).
 export function AppShellSidebar({
   children,
   "aria-label": ariaLabel,
 }: {
   children: ReactNode;
   /** "수행평가 사이드바" / "목표관리 사이드바" — complementary 랜드마크 이름.
-   * shadcn `Sidebar`(collapsible="none")는 `<div>`만 렌더하므로 여기서
-   * `role="complementary"`와 함께 붙여야 실제 랜드마크가 된다. */
+   * shadcn `Sidebar`가 `role`을 자체적으로 주지 않으므로 여기서 붙여야 실제
+   * 랜드마크가 된다. */
   "aria-label": string;
 }) {
-  const { isMobile } = useSidebar();
-
   return (
     <Sidebar
-      collapsible={isMobile ? "offcanvas" : "none"}
       role="complementary"
       aria-label={ariaLabel}
-      className="md:fixed md:inset-y-0 md:top-16 md:z-20 md:h-[calc(100svh-4rem)]"
+      className="top-(--header-height) h-[calc(100svh-var(--header-height))]!"
     >
       {children}
     </Sidebar>
   );
 }
 
-// 모바일 전용 사이드바 열기 버튼 — shadcn 기본 `SidebarTrigger`(햄버거 아이콘)를
-// 그대로 쓴다. 목표관리가 갖고 있던 자체 상단 앱바(제목·"메인으로" 링크 포함)는
-// 커스텀 모바일 디자인이라 이식하지 않는다(사용자 지시 "래퍼가 주는 기본만") —
-// 수행평가는 원래 모바일 대응이 없었으므로 이 트리거 하나로 두 셸이 동일한
-// 모바일 진입점을 갖게 된다.
+// 모바일 전용 얇은 트리거 바 — 공식 블록의 `SiteHeader`(사이드바 열기 버튼 자리)를
+// 흉내내되, 이 저장소는 사이트 공통 헤더가 이미 따로 있으므로 새 헤더를 만들지
+// 않고 `SidebarInset` 상단에 `md:hidden`인 얇은 바 하나만 둔다. 데스크톱에는
+// 트리거를 아예 노출하지 않는다(사이드바가 항상 펼쳐져 있어 접을 UI가 없다).
+// 목표관리가 갖고 있던 자체 모바일 앱바(제목·"메인으로" 링크)는 이식하지 않는다
+// (사용자 지시 "래퍼가 주는 기본만") — 헤더 로고·메뉴가 그 역할을 대신한다.
 export function AppShellSidebarTrigger() {
   return (
-    <SidebarTrigger
-      aria-label="메뉴 열기"
-      className="fixed left-4 top-19 z-30 border border-sidebar-border bg-sidebar text-ink-strong shadow-sm hover:bg-sidebar-accent md:hidden"
-    />
+    <div className="flex h-12 shrink-0 items-center border-b border-sidebar-border px-4 md:hidden">
+      <SidebarTrigger aria-label="메뉴 열기" />
+    </div>
   );
 }
