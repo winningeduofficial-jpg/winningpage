@@ -231,43 +231,35 @@ describe("제출 게이트 100자 — 서버 왕복 전 차단", () => {
     const m = html.match(/<button[^>]*type="submit"[^>]*>/);
     return m ? attrsOf(m[0]) : null;
   }
-  function saveButton(html: string) {
-    const m = html.match(/<button[^>]*type="button"[^>]*>/);
-    return m ? attrsOf(m[0]) : null;
-  }
 
+  // "중간 저장" 버튼은 QA 행280으로 없어졌다(자동 저장 전환) — 제출 게이트만 본다.
   const GATE_CASES = [
-    { label: "빈 폼", values: {}, submitLocked: true, saveLocked: true },
+    { label: "빈 폼", values: {}, submitLocked: true },
     {
       label: "99자(임계값 미달)",
       values: { intro: "한".repeat(99), body: "", conclusion: "" },
       submitLocked: true,
-      saveLocked: false,
     },
     {
       label: "100자지만 필수 필드 2개 공백",
       values: { intro: "한".repeat(100), body: "", conclusion: "" },
       submitLocked: true,
-      saveLocked: false,
     },
     {
       label: "100자 + 필수 전부 작성",
       values: { intro: "한".repeat(98), body: "가", conclusion: "나" },
       submitLocked: false,
-      saveLocked: false,
     },
   ];
 
-  test.each(GATE_CASES)("$label", ({ values, submitLocked, saveLocked }) => {
+  test.each(GATE_CASES)("$label", ({ values, submitLocked }) => {
     const html = render({ schema: basic, value: values, topicTitle: "주제" });
     const submit = submitButton(html);
-    const save = saveButton(html);
     const gate = charsModule.checkFieldsMinLength(basic.fields, values);
 
     expect(submit?.["aria-disabled"], `서버 판정 ok=${gate.ok}`).toBe(
       String(submitLocked),
     );
-    expect(save?.["aria-disabled"]).toBe(String(saveLocked));
     // 화면 판정과 서버 판정이 같은 결론이어야 한다(둘이 갈리면 "카운터는 통과인데 400").
     expect(submit?.["aria-disabled"] === "true").toBe(!gate.ok);
   });
@@ -282,20 +274,66 @@ describe("비활성 사유 전달 — disabled 속성 금지", () => {
     expect(/<button[^>]*\sdisabled/.test(lockedHtml)).toBe(false);
   });
 
-  test.each(["button", "submit"])(
-    "잠긴 버튼(type=%s)의 aria-describedby가 실재 요소를 가리킨다",
-    (type) => {
-      const m = lockedHtml.match(
-        new RegExp(`<button[^>]*type="${type}"[^>]*>`),
-      );
-      const button = m ? attrsOf(m[0]) : null;
-      const described = (button?.["aria-describedby"] || "")
-        .split(" ")
-        .filter(Boolean);
-      expect(described.length).toBeGreaterThan(0);
-      expect(described.every((id) => lockedIds.has(id))).toBe(true);
-    },
-  );
+  test("잠긴 제출 버튼의 aria-describedby가 실재 요소를 가리킨다", () => {
+    const m = lockedHtml.match(/<button[^>]*type="submit"[^>]*>/);
+    const button = m ? attrsOf(m[0]) : null;
+    const described = (button?.["aria-describedby"] || "")
+      .split(" ")
+      .filter(Boolean);
+    expect(described.length).toBeGreaterThan(0);
+    expect(described.every((id) => lockedIds.has(id))).toBe(true);
+  });
+});
+
+describe("자동 저장 상태 텍스트(QA 행280) — 버튼 대신 카드 제목 옆 텍스트", () => {
+  const basic = buildSchema("");
+
+  test("중간 저장 버튼이 더는 렌더되지 않는다", () => {
+    const html = render({
+      schema: basic,
+      value: { intro: "한".repeat(100), body: "가", conclusion: "나" },
+      topicTitle: "주제",
+    });
+    expect(html).not.toMatch(/type="button"/);
+    expect(html).not.toContain("중간 저장");
+  });
+
+  test("saving=true면 '저장 중…' 텍스트가 role=status 영역에 뜬다", () => {
+    const html = renderToStaticMarkup(
+      <SubmissionForm schema={basic} value={{}} onChange={() => {}} saving />,
+    );
+    expect(html).toMatch(/role="status"[^>]*>[\s\S]*?저장 중…/);
+  });
+
+  test("error가 있으면 재시도 버튼이 뜨고 에러 문구를 가리킨다", () => {
+    const html = renderToStaticMarkup(
+      <SubmissionForm
+        schema={basic}
+        value={{}}
+        onChange={() => {}}
+        error="중간 저장에 실패했어요."
+      />,
+    );
+    const m = html.match(/<button[^>]*type="button"[^>]*>저장 실패/);
+    expect(m).not.toBeNull();
+    const button = m ? attrsOf(m[0]) : null;
+    const errorParagraph = html.match(/<p id="([^"]+)" role="alert"/);
+    expect(button?.["aria-describedby"]).toBe(errorParagraph?.[1]);
+  });
+
+  test("savedAt만 있으면 '자동 저장됨 HH:MM'이 뜬다", () => {
+    const html = renderToStaticMarkup(
+      <SubmissionForm
+        schema={basic}
+        value={{}}
+        onChange={() => {}}
+        savedAt="2026-09-06T01:02:00.000Z"
+      />,
+    );
+    // `formatSavedAt`은 `toLocaleTimeString("ko-KR", {hour:"2-digit", minute:"2-digit"})`을
+    // 그대로 쓴다 — 로케일이 "오전/오후" 접두를 붙이므로 시:분 패턴만 느슨하게 본다.
+    expect(html).toMatch(/자동 저장됨 .*\d{1,2}:\d{2}/);
+  });
 });
 
 describe("aria-live 남용 금지", () => {

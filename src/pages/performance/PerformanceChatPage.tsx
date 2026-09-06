@@ -1345,12 +1345,19 @@ export default function PerformanceChatPage() {
   }
 
   /**
-   * `중간 저장`(§5.14 secondary). §4 상태도가 STEP5를 `Empty --> Filled : 입력` /
-   * `Filled --> Filled : 중간 저장`(L328) 두 전이로만 그리고 명세 어디에도 자동 저장 규정이
-   * 없어 **디바운스 자동 저장을 만들지 않았다** — 명시적 저장 하나뿐이다.
+   * `중간 저장`(§5.14 secondary가 있던 자리). §4 상태도는 STEP5를 `Empty --> Filled : 입력`
+   * / `Filled --> Filled : 중간 저장`(L328) 두 전이로만 그렸고 처음에는 그 근거로 디바운스
+   * 자동 저장을 만들지 않았지만, 디자이너 9/4 댓글("자동 저장 되는 로직으로")과 사용자
+   * 확정(QA 행280)으로 뒤집혔다 — 수동 `중간 저장` 버튼은 제거됐고, 이 함수는 이제
+   * `SubmissionForm` 안의 `useDebouncedAutosave`가 부르는 **유일한 저장 경로**다.
    *
    * 실패해도 `submissionValue`를 건드리지 않는다(작성 내용 유실 금지). 다중 탭 경합은
    * 서버가 `409 SESSION_FINALIZED`/`REEVALUATION_LIMIT`으로 갈라 주므로 문구만 띄운다.
+   * 성공 토스트는 두지 않는다(자동 저장이 매 디바운스마다 뜨면 소음이다) — 대신
+   * `SubmissionForm`이 `saving`/`error`/`savedAt` props로 조용한 상태 텍스트를 보여준다.
+   * **실패 시 에러를 다시 던진다** — `useDebouncedAutosave`가 이 예외로 "저장 안 됨"을
+   * 판정해 마지막 저장본을 갱신하지 않고, 실패 상태의 수동 재시도가 다시 시도할 수 있게
+   * 한다(호출부가 reject 없이 성공으로 착각하면 재시도 경로가 막힌다).
    */
   async function handleSaveDraft(fields) {
     if (!accessToken || !createdSession || savingDraft || submittingWork)
@@ -1367,9 +1374,6 @@ export default function PerformanceChatPage() {
         mode: "draft",
       });
       setSubmissionSavedAt(data.savedAt || new Date().toISOString());
-      toastSuccess(
-        "중간 저장이 완료되었습니다. 다음 로그인 때 이어서 할 수 있습니다.",
-      );
     } catch (error) {
       console.error("[performance] 중간 저장 실패:", error?.code, error);
       const message =
@@ -1377,6 +1381,7 @@ export default function PerformanceChatPage() {
         "중간 저장에 실패했어요. 잠시 후 다시 시도해 주세요.";
       setSubmissionActionError(message);
       toastError(message);
+      throw error;
     } finally {
       setSavingDraft(false);
     }
