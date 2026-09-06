@@ -1,5 +1,12 @@
 import type { MutableRefObject, ReactNode } from "react";
 import { useEffect, useRef } from "react";
+import {
+  MessageScroller,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import AiLoadingBubble from "./AiLoadingBubble";
 import AiMessage from "./AiMessage";
 import InlineCard from "./InlineCard";
@@ -22,36 +29,41 @@ import UserMessage from "./UserMessage";
 // 받는다 — `messages`를 생략하면 `children`을 그대로 컬럼 안에 렌더한다(두 방식을 동시에 쓰면
 // `messages`가 우선한다).
 //
-// **세로 간격** 실측(`3754:3261`/`3754:3370`, 두 노드가 겹치는 항목은 좌표까지 일치):
-//   AI 말풍선(bottom) → 사용자 말풍선(top): 40px  (`3754:3370` 707→747, 552→592 대칭도 40px)
-//   사용자 말풍선(bottom) → AI 말풍선(top): 40px  (`3754:3370` 808→848, `3754:3261` 552→592)
-//   AI 말풍선(bottom) → 사용자 말풍선(top), 첫 인사말 뒤: 60px (`3754:3261`/`3370` 공통 431→491)
-// 세 값 중 40px이 4번 중 3번으로 다수이고, 60px 사례는 유일하게 3줄짜리 인사말 말풍선
-// (`3754:3206`~) 바로 뒤에서만 나타나 개별 말풍선의 줄바꿈 렌더링 오차로 보인다 — 두 시안
-// 모두 다음 AI 메시지로 이어지는 간격은 예외 없이 40px이었다. 그래서 40px(2.5rem =
-// `gap-10`) 하나로 통일한다. 시안에 AI 말풍선끼리 사용자 메시지 없이 바로 연속되는 사례가
-// 없어(`3754:3261`/`3754:3370` 둘 다 매 AI 메시지 사이에 사용자 메시지가 끼어 있다) AI-AI
-// 전용 간격은 실측 대상 자체가 없었다 — 같은 40px을 적용한다.
+// **2026-09-06 재구성**: 스크롤 컨테이너를 shadcn `MessageScroller`(스트리밍/추가 시 하단
+// 고정 스크롤 규칙 내장)로 옮긴다. `MessageScrollerProvider`가 `autoScroll`/
+// `defaultScrollPosition="end"`로 "새 메시지가 오면 맨 아래로 붙는다" 로직을 갖고 있지만,
+// 그 로직은 **`MessageScrollerViewport`가 실제로 높이가 제한된(overflow가 실재하는) 스크롤
+// 컨테이너일 때만** 의미가 있다(내부적으로 `viewport.scrollTop`/`scrollHeight`를 직접
+// 조작한다). 이 페이지(`PerformanceChatPage`)는 아직 채팅 캔버스에 고정 높이를 주지
+// 않는다(페이지 전체가 스크롤되는 기존 모델 그대로, 셸 레이아웃은 이번 슬라이스 범위
+// 밖 — 아래 "리더 적용 필요" 참고) — 그 상태에서 `Viewport`는 `overflow-y-auto`가 걸려
+// 있어도 자기 콘텐츠 높이만큼 그냥 늘어나 실제로는 절대 넘치지 않으므로,
+// `MessageScroller`의 내부 스크롤 로직은 지금 당장은 무해한 자연 no-op이다(콘텐츠가
+// 실제로 넘치지 않으니 스크롤할 대상 자체가 없다) — 나중에 채팅 캔버스가 고정 높이 +
+// 실제 스크롤 경계를 얻는 순간 그대로 켜진다. **그래서 기존에 실제로 동작하던 "새
+// 메시지가 오면 페이지를 그 메시지까지 스크롤한다" 동작은 아래 `useEffect` +
+// `scrollIntoView`를 그대로 남겨서 유지한다** — 페이지 레벨 스크롤은 `scrollIntoView`가
+// "가장 가까운 스크롤 가능한 조상"을 직접 찾아 움직이므로 고정 높이 여부와 무관하게
+// 지금도 실제로 동작한다. 두 메커니즘은 서로 다른 스크롤 컨테이너를 대상으로 하므로
+// (하나는 아직 존재하지 않는 내부 뷰포트, 하나는 실제 페이지) 충돌하지 않는다.
 //
-// `kind='card'`는 시안상 자체 아바타가 없는 컬럼이라(`InlineCard` 주석 참고) AI 컬럼과 같은
-// x축에 맞추려면 아바타 폭(3.25rem)+gap(1.25rem)=4.5rem만큼 들여써야 한다 — 그래서 카드
-// 항목만 `ml-18`을 더한다.
+// ⚠️ **리더 적용 필요**: 채팅 캔버스가 고정 높이 + 실제 스크롤 경계를 갖게 되면(셸/레이아웃
+// 통합 시점) `MessageScrollerViewport`의 내부 로직이 살아나 `scrollIntoView` 없이도 하단
+// 고정이 유지된다 — 그 시점에 아래 `useEffect`(`lastItemRef`)를 제거해도 되는지 재검토할 것.
 //
-// **자동 스크롤**: 시안에는 없는 동작이지만 채팅 UI의 기본 기대치다. 메시지가 늘어날 때마다
-// 최신 항목으로 스크롤한다. `prefers-reduced-motion`이면 즉시 이동, 아니면 부드럽게.
+// **`kind='card'`는 시안상 자체 아바타가 없는 컬럼이라(`InlineCard` 주석 참고) AI 컬럼과 같은
+// x축에 맞추려면 아바타 폭(2.5rem, 2026-09-06 스케일 축소)+gap(1.25rem)=3.75rem만큼
+// 들여써야 한다 — 그래서 카드 항목만 `ml-15`를 더한다.
 //
-// ⚠️ **호출부 계약(필수)**: `scrollIntoView`는 "가장 가까운 스크롤 가능한 조상"을 스크롤한다.
-// 이 컴포넌트 자신은 `overflow-y-auto` 경계를 두지 않는다(시안에 그런 경계가 없고, §3.1
-// 단정대로 하단 고정 입력창(composer)도 전 노드에 없어 "채팅 패널만 스크롤"이라는 시안
-// 근거 자체가 없다 — 임의로 경계를 만들지 않는다). **그 결과 가장 가까운 스크롤 조상이
-// 곧 페이지/뷰포트가 되므로, 자동 스크롤은 기본적으로 전체 페이지 스크롤이다.** 통합 시점에
-// 이 컴포넌트를 고정 높이 + `overflow-y-auto` 컨테이너로 감싸면 그 컨테이너가 스크롤 경계가
-// 되어 자동 스크롤이 그 안으로 국한된다 — 반대로 페이지 전체가 스크롤되길 원치 않는 호출부는
-// 반드시 그런 경계를 직접 감싸야 한다(이 컴포넌트가 알아서 만들어주지 않는다).
+// **세로 간격**: 메시지 사이 `gap-7`(1.75rem, 2026-09-06 스케일 축소 — 기존 `gap-10`=2.5rem)
+// 하나로 통일한다(`MessageScrollerContent`에 배선).
 //
-// **접근성**: 로딩 카드가 이 컨테이너 안에서 나타났다 사라지므로 `aria-live="polite"`를
-// 리스트 루트에 배선한다 — 이전 단계(`AiLoadingBubble`)는 이 배선을 강제하지 않았고, 여기서
-// 시점을 확정한다.
+// **접근성**: `MessageScrollerContent`가 기본으로 `role="log" aria-relevant="additions"`를
+// 갖는다(ARIA `log` 롤은 암묵적으로 `aria-live="polite"`를 내포한다) — 과거 이 컴포넌트가
+// 루트에 직접 걸던 `aria-live="polite"`와 동등하거나 더 정확한 시맨틱이라 별도로 다시
+// 걸지 않는다. `MessageScrollerViewport`의 기본 `role="region"`/`aria-label="Messages"`(영문
+// 기본값)는 이 화면 언어(한국어)에 맞게 오버라이드하고, 아직 실제로 스크롤 가능한 영역이
+// 아니므로(위 주석) `tabIndex={-1}`로 빈 포커스 정지점이 되지 않게 막는다.
 type PerformanceChatMessagePayload = {
   title?: string;
   subtitle?: string;
@@ -67,9 +79,9 @@ type PerformanceChatMessagePayload = {
  * 고르기`로 STEP3 복귀(방금 누른 버튼째 빠진다).
  *
  * `focusRef`가 있으면 이 항목의 래퍼에 `aria-live="off"`도 함께 준다 — 포커스 이동 시
- * 스크린리더가 포커스된 엘리먼트를 읽고, 같은 순간 상위 `aria-live="polite"`가 같은 내용을
- * 다시 읽으면 중복 낭독이 되기 때문이다(ARIA 중첩 live region 규칙상 자식의
- * `aria-live="off"`가 조상의 `polite`를 그 서브트리에 한해 무효화한다).
+ * 스크린리더가 포커스된 엘리먼트를 읽고, 같은 순간 상위 `role="log"`(`aria-live="polite"`
+ * 내포)가 같은 내용을 다시 읽으면 중복 낭독이 되기 때문이다(ARIA 중첩 live region 규칙상
+ * 자식의 `aria-live="off"`가 조상의 `polite`를 그 서브트리에 한해 무효화한다).
  */
 export type PerformanceChatMessage = {
   /** 리스트 key 겸 스크롤 대상 식별자. */
@@ -89,7 +101,7 @@ export type PerformanceChatMessage = {
   /** 호출부가 이 항목이 나타나는 시점에 프로그램적으로 포커스를 옮기고 싶을 때 넘긴다.
    * 배선 위치는 `kind`에 따라 다르다: `kind='loading'`이면 `AiLoadingBubble`의 루트에
    * 그대로 전달되고, 그 밖(`kind='text'` 등)이면 말풍선 컴포넌트가 ref를 받지 않으므로
-   * **이 항목의 래퍼 div**가 목적지가 된다. 어느 쪽이든 `tabIndex={-1}`을 함께 준다
+   * **이 항목의 래퍼**가 목적지가 된다. 어느 쪽이든 `tabIndex={-1}`을 함께 준다
    * (프로그램 포커스만 받고 Tab 순서에는 끼지 않는다). */
   focusRef?: MutableRefObject<HTMLDivElement | null> | undefined;
 };
@@ -127,38 +139,47 @@ export default function ChatTimeline({
   }, [lastId]);
 
   return (
-    <div
-      aria-live="polite"
-      className={["flex w-full flex-col gap-10", className].join(" ")}
-    >
-      {messages
-        ? messages.map((message, index) => {
-            const isLast = index === messages.length - 1;
-            // `kind='loading'`은 `AiLoadingBubble` 루트에 직접 배선한다(`renderMessage`).
-            // 나머지 kind는 말풍선 컴포넌트가 ref를 받지 않으므로 이 래퍼가 목적지다.
-            const wrapperFocusRef =
-              message.focusRef && (message.kind ?? "text") !== "loading"
-                ? message.focusRef
-                : null;
-            // 한 노드에 두 ref(마지막 항목 스크롤 대상 + 포커스 목적지)를 실을 수 있어야 해서
-            // 콜백 ref로 합친다.
-            const setNode = (node: HTMLDivElement | null) => {
-              if (isLast) lastItemRef.current = node;
-              if (wrapperFocusRef) wrapperFocusRef.current = node;
-            };
-            return (
-              <div
-                key={message.id}
-                ref={isLast || wrapperFocusRef ? setNode : undefined}
-                tabIndex={wrapperFocusRef ? -1 : undefined}
-                aria-live={message.focusRef ? "off" : undefined}
-              >
-                {renderMessage(message)}
-              </div>
-            );
-          })
-        : children}
-    </div>
+    <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+      <MessageScroller className={["w-full", className].join(" ")}>
+        <MessageScrollerViewport
+          aria-label="채팅 타임라인"
+          tabIndex={-1}
+          className="h-auto overflow-visible"
+        >
+          <MessageScrollerContent className="flex h-auto min-h-0 w-full flex-col gap-7">
+            {messages
+              ? messages.map((message, index) => {
+                  const isLast = index === messages.length - 1;
+                  // `kind='loading'`은 `AiLoadingBubble` 루트에 직접 배선한다(`renderMessage`).
+                  // 나머지 kind는 말풍선 컴포넌트가 ref를 받지 않으므로 이 래퍼가 목적지다.
+                  const wrapperFocusRef =
+                    message.focusRef && (message.kind ?? "text") !== "loading"
+                      ? message.focusRef
+                      : null;
+                  // 한 노드에 두 ref(마지막 항목 스크롤 대상 + 포커스 목적지)를 실을 수
+                  // 있어야 해서 콜백 ref로 합친다.
+                  const setNode = (node: HTMLDivElement | null) => {
+                    if (isLast) lastItemRef.current = node;
+                    if (wrapperFocusRef) wrapperFocusRef.current = node;
+                  };
+                  return (
+                    <MessageScrollerItem
+                      key={message.id}
+                      messageId={String(message.id)}
+                      scrollAnchor={isLast}
+                      ref={isLast || wrapperFocusRef ? setNode : undefined}
+                      tabIndex={wrapperFocusRef ? -1 : undefined}
+                      aria-live={message.focusRef ? "off" : undefined}
+                    >
+                      {renderMessage(message)}
+                    </MessageScrollerItem>
+                  );
+                })
+              : children}
+          </MessageScrollerContent>
+        </MessageScrollerViewport>
+      </MessageScroller>
+    </MessageScrollerProvider>
   );
 }
 
@@ -187,8 +208,8 @@ function renderMessage(message: PerformanceChatMessage) {
   }
 
   if (kind === "card") {
-    // 자체 아바타가 없는 컬럼 — AI 말풍선 x축(아바타+gap=4.5rem)에 맞춰 들여쓴다.
-    return <InlineCard className="ml-18">{children}</InlineCard>;
+    // 자체 아바타가 없는 컬럼 — AI 말풍선 x축(아바타+gap=3.75rem)에 맞춰 들여쓴다.
+    return <InlineCard className="ml-15">{children}</InlineCard>;
   }
 
   if (role === "user") {
