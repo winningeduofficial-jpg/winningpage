@@ -1,7 +1,7 @@
 import TopicCard, { type Topic } from "./TopicCard";
 
-// STEP3 추천 주제 3카드 묶음 + `다른 주제 다시 추천` — docs/수행평가-상세-명세.md §5.10
-// (`3754:3629`/`3754:3746` 실측).
+// STEP3 추천 주제 3카드 묶음 + `다른 주제 1번 더 추천받기` — docs/수행평가-상세-명세.md §5.10
+// (`3754:3629`/`3754:3744` 실측, QA 행277 — 9/4 시안 갱신으로 버튼 라벨 정정).
 //
 // ── 실측 (세로 리듬)
 //   카드 상단 y: 1007 / 1221 / 1435 → 피치 13.375rem(214) = 카드 높이 194 + 간격 20.
@@ -49,7 +49,7 @@ type TopicCardListProps = {
   maxRounds?: number;
   /** 카드 클릭 → 상세 모달(P9). `onSelect`는 없다(§11.1 Q48). */
   onDetail?: (topic: Topic) => void;
-  /** `다른 주제 다시 추천`. */
+  /** `다른 주제 1번 더 추천받기`. */
   onRegenerate?: () => void;
   /** 재추천 요청 진행 중. */
   regenerating?: boolean;
@@ -117,7 +117,7 @@ export default function TopicCardList({
             locked ? "cursor-not-allowed opacity-50" : "hover:border-ink-sub",
           ].join(" ")}
         >
-          다른 주제 다시 추천
+          다른 주제 1번 더 추천받기
         </button>
 
         {/* 상시 안내(QA 행278) — 한도 도달 전에도 항상 보인다. 한도 도달 뒤에는 아래
