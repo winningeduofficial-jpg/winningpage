@@ -13,7 +13,24 @@
   --container-goal-content: 83.75rem;
   --container-goal-dashboard: 93rem;
   --container-perf-content: 82.5rem;
-  --container-perf-bubble: 37.25rem;
+  --container-perf-bubble: 35rem;
+
+  /* 공유 타입 스케일 토큰(2026-09-06 결정) — 수행평가·목표관리 두 앱이 함께 쓸 기준.
+     이번 슬라이스는 정의 + 수행평가 채팅 적용까지만이고, 목표관리 쪽 적용은 다음
+     카테고리 몫이다. `--text-app-*--line-height`는 Tailwind v4 짝 변수 관례로,
+     `text-app-*` 유틸리티 하나에 font-size+line-height를 함께 묶는다. */
+  --text-app-title: 1.75rem;
+  --text-app-title--line-height: 1.4;
+  --text-app-section: 1.25rem;
+  --text-app-section--line-height: 1.4;
+  --text-app-card-title: 1rem;
+  --text-app-card-title--line-height: 1.4;
+  --text-app-body: 0.9375rem;
+  --text-app-body--line-height: 1.5;
+  --text-app-label: 0.8125rem;
+  --text-app-label--line-height: 1.4;
+  --text-app-caption: 0.75rem;
+  --text-app-caption--line-height: 1.4;
 
   --spacing-perf-sidebar: 20.25rem;
   --spacing-perf-inset: 3.75rem;

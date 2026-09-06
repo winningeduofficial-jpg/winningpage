@@ -178,7 +178,7 @@ const SubmissionField = memo(function SubmissionField({
       <label
         htmlFor={id}
         className={[
-          "text-[0.875rem] font-medium leading-4.5",
+          "text-app-label font-medium",
           field.required ? "text-performance-required" : "text-ink-sub",
         ].join(" ")}
       >
@@ -208,7 +208,7 @@ const SubmissionField = memo(function SubmissionField({
         placeholder={field.helper || undefined}
         readOnly={readOnly}
         aria-describedby={[helperId, counterId].filter(Boolean).join(" ")}
-        className="h-40 w-full resize-none overflow-y-auto rounded-lg border border-performance-line bg-performance-bubble p-3 text-[0.875rem] font-medium leading-4.5 text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary"
+        className="h-40 w-full resize-none overflow-y-auto rounded-lg border border-performance-line bg-performance-bubble p-3 text-app-label font-medium text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary"
       />
 
       {/* 값이 채워지면 사라지는 placeholder를 대신할 항구적 지시문(파일 상단 4). */}
@@ -362,7 +362,7 @@ export default function SubmissionForm({
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="text-[1rem] font-semibold leading-5.25 text-ink">
+            <h3 className="text-app-card-title font-semibold text-ink">
               {CARD_TITLE}
             </h3>
             {/* 저장 버튼이 있던 자리(QA 행280). 이제 버튼이 아니라 자동 저장 상태
@@ -370,7 +370,7 @@ export default function SubmissionForm({
                 4의 aria-live 관례와 같다). 실패 상태만 예외적으로 클릭 가능한 재시도다. */}
             <span
               role="status"
-              className="flex h-9 shrink-0 items-center gap-1.5 text-[0.8125rem] font-medium leading-4.5 text-ink-sub"
+              className="flex h-9 shrink-0 items-center gap-1.5 text-app-label font-medium text-ink-sub"
             >
               {saving ? (
                 <>
@@ -398,12 +398,12 @@ export default function SubmissionForm({
           </div>
           {/* §5.14 카드 본문 2·3행. 유형 라벨·안내문은 **서버 스키마 값**이라 8종에 따라
               바뀐다(시안의 `기본 보고서형`은 그중 하나다). */}
-          <p className="text-[0.875rem] font-medium leading-4.5 text-ink-sub">
+          <p className="text-app-label font-medium text-ink-sub">
             {SCHEMA_LABEL_PREFIX}
             {schema?.label}
           </p>
           {schema?.notice && (
-            <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
+            <p className="text-app-label font-normal text-ink-sub">
               {schema.notice}
             </p>
           )}
@@ -416,7 +416,7 @@ export default function SubmissionForm({
           <div className="flex flex-col gap-3">
             <label
               htmlFor={`${idPrefix}-topic`}
-              className="text-[0.875rem] font-medium leading-4.5 text-performance-required"
+              className="text-app-label font-medium text-performance-required"
             >
               {TOPIC_LABEL}
               <span aria-hidden="true">*</span>
@@ -430,7 +430,7 @@ export default function SubmissionForm({
               type="text"
               value={topicTitle || ""}
               readOnly
-              className="h-10.5 w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-[0.875rem] font-medium leading-4.5 text-ink outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="h-10.5 w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-app-label font-medium text-ink outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             />
           </div>
 
@@ -449,10 +449,7 @@ export default function SubmissionForm({
         </div>
 
         {/* 게이트 문구(비활성 사유). live region이 아니다 — 숫자가 매 글자 바뀐다. */}
-        <p
-          id={gateId}
-          className="text-[0.875rem] font-normal leading-4.5 text-ink-sub"
-        >
+        <p id={gateId} className="text-app-label font-normal text-ink-sub">
           {gateMessage}
         </p>
 
@@ -465,7 +462,7 @@ export default function SubmissionForm({
           <p
             id={errorId}
             role="alert"
-            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
+            className="text-app-label text-[#d01c1c]"
           >
             {error}
           </p>
@@ -485,7 +482,7 @@ export default function SubmissionForm({
             aria-busy={submitting || undefined}
             aria-describedby={describedBy}
             className={[
-              "flex h-13 w-65 items-center justify-center gap-2 rounded-xl text-[1rem] font-semibold leading-5 transition active:scale-[0.97] motion-reduce:active:scale-100",
+              "flex h-13 w-65 items-center justify-center gap-2 rounded-xl text-app-label font-semibold transition active:scale-[0.97] motion-reduce:active:scale-100",
               // 비활성 **면 색**은 §5.8 실측(「빈 상태 `#d9d9d9`(비활성) / 입력 시 `#013262`」)과
               // `PrimaryButton`의 disabled 톤을 그대로 따른다 — 처리중(`bg-primary/80`)과
               // 비활성을 시각적으로 구분하는 것도 그 컴포넌트의 관례다.
