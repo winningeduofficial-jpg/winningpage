@@ -12,13 +12,13 @@ import audienceTopic from "@/assets/services/performance/audience-topic.jpg";
 import coachBinoculars from "@/assets/services/performance/coach-binoculars.png";
 import coachEmail from "@/assets/services/performance/coach-email.png";
 import coachLaptopChair from "@/assets/services/performance/coach-laptop-chair.png";
+import coachLaptopSitting from "@/assets/services/performance/coach-laptop-sitting.png";
 import coachLaptopWork from "@/assets/services/performance/coach-laptop-work.png";
 import coachLightbulb from "@/assets/services/performance/coach-lightbulb.png";
 import coachRockingChair from "@/assets/services/performance/coach-rocking-chair.png";
 import coachSisyphus from "@/assets/services/performance/coach-sisyphus.png";
 import coachSummitHiking from "@/assets/services/performance/coach-summit-hiking.png";
 import coachTablet from "@/assets/services/performance/coach-tablet.png";
-import coachTreadmill from "@/assets/services/performance/coach-treadmill.png";
 import coachWriting from "@/assets/services/performance/coach-writing.png";
 import heroAura from "@/assets/services/performance/hero-aura.svg";
 import heroEvaluationReport from "@/assets/services/performance/hero-evaluation-report.png";
@@ -169,7 +169,8 @@ const COACHING_CONTENT = {
       desc: "선정한 주제에 맞춰 수행의 흐름을 제시합니다.",
     },
     {
-      icon: coachTreadmill,
+      // QA 행 83(2026-09-06) — 러닝머신 일러스트가 시안(2159:999)과 달라 "앉아서 노트북" 일러스트로 교체.
+      icon: coachLaptopSitting,
       title: "세부 구성 제안",
       desc: "문단의 구성과 그에 따른 내용의 방향을 제시합니다.",
     },
