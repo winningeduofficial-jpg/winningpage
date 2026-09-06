@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { useParams } from "react-router";
+import { SCHOOL_TYPES } from "@/components/mypage/ProfileTab";
 import AiLoadingBubble from "@/components/performance/chat/AiLoadingBubble";
 import ChatTimeline, {
   type PerformanceChatMessage,
@@ -296,8 +297,15 @@ function buildReevaluateLimitNote(maxCount) {
  * 값이 빈 항목은 절(節)째 뺀다(`school_type`은 프로필 스냅샷이라 null일 수 있다 —
  * `sql/54_performance_app.sql` 결정 ㄱ, 가짜 기본값 `'일반고'`를 넣지 않는다).
  * `previousTopic`은 시안 문구에 없어 넣지 않는다.
+ *
+ * `school_type`은 실서비스 저장 경로(`ProfileTab`/`Under14Form`) 어디에도 코드값이 없고
+ * 한글 원문("고등학교" 등)을 그대로 저장하는 게 정본이다 — 그래서 여기서 값을 한글
+ * 라벨로 "변환"하지 않는다. `SCHOOL_TYPES` 화이트리스트는 오염값 방어용이다: 로컬 시드
+ * 스크립트 오탈자(`supabase/seed.sql`이 한때 `school_type = 'high'`를 넣었다)처럼 정상
+ * 저장 경로를 거치지 않은 값이 STEP1 요약에 원시 문자열로 새는 것만 막는다. 목록에
+ * 없으면 빈 문자열이 아니라 "학교 유형" 절 자체를 생략한다(위 필터 규칙과 같은 원칙).
  */
-function buildBasicInfoSummary(session) {
+export function buildBasicInfoSummary(session) {
   if (!session) return "";
 
   const grade = [session.gradeLabel, session.semester]
@@ -306,10 +314,15 @@ function buildBasicInfoSummary(session) {
   const subject = [session.subjectGroup, session.subject]
     .filter(Boolean)
     .join(" / ");
+  const schoolType = (SCHOOL_TYPES as readonly string[]).includes(
+    session.schoolType,
+  )
+    ? session.schoolType
+    : null;
 
   return [
     grade && `학년: ${grade}`,
-    session.schoolType && `학교 유형: ${session.schoolType}`,
+    schoolType && `학교 유형: ${schoolType}`,
     subject && `과목: ${subject}`,
     session.careerGoal && `진로: ${session.careerGoal}`,
   ]
