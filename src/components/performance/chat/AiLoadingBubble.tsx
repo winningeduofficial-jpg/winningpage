@@ -29,8 +29,15 @@ type AiLoadingBubbleProps = HTMLAttributes<HTMLDivElement> & {
 // 맞는다)로 옮긴다. `loadingCopy.ts`가 주는 `{title, subtitle}` 두 줄 구조는 그대로
 // `MarkerContent` 안에 두 개 `span`으로 유지한다.
 //
+// **2026-09-06 shadcn 공식 조합 정렬**: `Bubble`을 `AiMessage`와 같은 이유로
+// `variant="ghost"` + 수동 배경/패딩/반경에서 `variant="secondary"` + 기본 배경/패딩/반경
+// (`BubbleContent`의 `bg-secondary`/`rounded-xl`/`px-3 py-2`)으로 바꿨다. `--secondary`는
+// 예전 `--color-performance-bubble`(`#f8f7f5`)과 밝기가 거의 같은 중립 연회색이라(§7.1
+// 표와 정확히 같은 값은 아님, `AiMessage` 주석 참고) 아래 WCAG AA 대비 판단은 그대로
+// 유효하다고 본다(재측정하지 않음, 육안 확인 필요 시 보고).
+//
 // 실측 (3개 노드 공통, 2026-09-06 스케일 축소 이전값):
-//   말풍선 596×83, r16, `fill #f8f7f5`(=`performance-bubble`).
+//   말풍선 596×83, r16, `fill #f8f7f5`(=`performance-bubble`, 지금은 `--secondary`로 이관).
 //   아이콘 프레임 24×24, 말풍선 좌변에서 18px 인셋 — 다른 카드의 표준 패딩(20px)과 다른
 //   값이라 그대로 실측대로 뒀었으나, 이번 스케일 축소로 좌 인셋도 한 단계 줄여 `p-4`
 //   계열로 통일한다(아래 `BubbleContent` 패딩 참고). 아이콘↔텍스트 gap도 비례 축소.
@@ -83,11 +90,12 @@ const AiLoadingBubble = forwardRef<HTMLDivElement, AiLoadingBubbleProps>(
           <MessageHeader className="px-0 text-app-label font-semibold text-ink">
             {label}
           </MessageHeader>
-          <Bubble variant="ghost" align="start" className="w-full max-w-none">
-            <BubbleContent
-              role="status"
-              className="w-full max-w-perf-bubble rounded-2xl bg-performance-bubble p-4"
-            >
+          <Bubble
+            variant="secondary"
+            align="start"
+            className="w-full max-w-perf-bubble"
+          >
+            <BubbleContent role="status" className="w-full">
               <Marker className="min-h-0 w-full gap-4 text-ink">
                 <MarkerIcon
                   aria-hidden="true"
