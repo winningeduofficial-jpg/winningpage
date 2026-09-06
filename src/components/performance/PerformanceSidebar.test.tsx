@@ -132,6 +132,22 @@ describe.each(CASES)("$pathname", ({ pathname, expected }) => {
   });
 });
 
+describe("complementary 랜드마크(AppShellSidebar)", () => {
+  // 회귀: `role`/`aria-label`을 `Sidebar`(shadcn 프리미티브)에 직접 걸면 모바일에서
+  // `Sidebar`가 `<Sheet {...props}>`(Base UI Dialog.Root, DOM 없음)로 갈라져 랜드마크가
+  // 사라진다 — `AppShellSidebar`가 `children`을 감싼 `<aside>` 래퍼에 옮겨 달았는지
+  // 검사한다(리터럴 `role="complementary"`가 아니라 `<aside>`의 암묵적 role이다 —
+  // `AppShellSidebar.tsx` 주석 참고). 이 파일은 SSR 정적 렌더라 데스크톱 분기만
+  // 확인하지만, `Sidebar`가 데스크톱·모바일 둘 다 같은 `children`을 렌더하므로 래퍼가
+  // 존재하면 두 경로 모두에서 적용된다.
+  test("한국어 aria-label을 가진 <aside>가 정확히 1개 있다", () => {
+    const html = render("/app/performance");
+    const matches = [...html.matchAll(/<aside\s+aria-label="([^"]*)"/g)];
+    expect(matches).toHaveLength(1);
+    expect(matches[0]?.[1]).toBe("수행평가 사이드바");
+  });
+});
+
 // 프로필 슬롯(P5) — 값이 없으면 그 줄을 렌더하지 않는다(§11 Q61-ⓔ, 가짜 기본값 금지).
 function renderWithProfile(props: {
   profileName?: string | null;

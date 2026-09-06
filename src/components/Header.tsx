@@ -785,7 +785,16 @@ export default function Header() {
   })();
 
   return (
-    <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white">
+    // `h-16`을 이 요소(`<header>`) 자신에 건다 — Tailwind preflight의 전역
+    // `box-sizing: border-box` 아래에서는 `border-b`가 이 4rem 안에 포함되므로
+    // `header.getBoundingClientRect().height`가 정확히 4rem(64px)이 된다. 예전엔
+    // 높이가 안쪽 `h-16` div(아래)에만 걸려 있어 `<header>` 자체는 "auto"(내용 높이 +
+    // 자기 테두리) 높이였다 — 내용 64px + 테두리 1px = 65px. 앱 셸(`AppShellSidebar`의
+    // `--header-height`, `top-(--header-height)` 등)이 4rem을 리터럴로 가정하는 여러
+    // 곳과 실측이 1px 어긋났던 원인이 이것이다(그리핑 원인). 사이트 전역의 `pt-16` 보정도
+    // 원래부터 65px가 아니라 4rem(64px)만 가정해 왔으므로, 이 수정은 그 가정을 실제로
+    // 맞춰 준다(부작용이 아니라 기존 오차의 해소).
+    <header className="fixed left-0 top-0 z-50 h-16 w-full border-b border-black/5 bg-white">
       {/* 좌표계 1(1920 밴드): 로고(좌측 끝) + 계정 그룹(우측 끝). 랜딩 마퀴 밴드(max-w-[120rem])와
           동일 기준의 px-8 패딩으로 로고/계정 그룹을 뷰포트 1920 캡 좌우 끝에 고정한다.
           nav는 이 flex 라인에 속하지 않는다(좌표계 2, 아래 별도 overlay).
@@ -802,7 +811,11 @@ export default function Header() {
           MY 컬럼·회색존 28rem·프로모 카드 0.8 스케일·계정 버튼 스타일·햄버거 우측 배치·메가
           컬럼 제목 행·nav 타이포(hover SemiBold #013262/패널 열림 중 비활성 Medium #525252)는
           이 되돌리기와 무관하게 그대로 유지한다. */}
-      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between px-8 2xl:px-30">
+      {/* `h-16`이 아니라 `h-full` — 높이는 이제 `<header>` 자신(`border-box` 4rem, 위
+          주석)이 정본이다. 여기서도 `h-16`을 그대로 두면 `border-b`만큼(1px) 안쪽
+          content-box가 줄어든 `<header>`(63px)보다 이 div가 1px 더 커져 아래로 삐져
+          나온다 — `h-full`로 부모가 실제로 내주는 높이만큼만 채운다. */}
+      <div className="mx-auto flex h-full max-w-[120rem] items-center justify-between px-8 2xl:px-30">
         <Link
           to="/"
           className="flex shrink-0 items-center"
