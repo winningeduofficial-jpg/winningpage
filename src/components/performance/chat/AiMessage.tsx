@@ -25,12 +25,24 @@ type AiMessageProps = {
 // (말풍선 뒤에 폼·업로드 카드가 붙는 실제 배치) / §7.1(색) / §7.2(타이포).
 //
 // **2026-09-06 재구성**: shadcn `Message`(아바타·헤더·컨텐츠 슬롯) + `Bubble`/`BubbleContent`로
-// 조립한다. 두 컴포넌트 다 채팅용 색 테마(primary/secondary 등)를 전제한 `variant` 체계를
-// 갖고 있는데, 이 화면은 자체 브랜드 토큰(`performance-bubble`/`ink`)을 쓰므로 `Bubble`은
-// `variant="ghost"`(배경·패딩·반경을 강제하지 않는 완전 커스텀 모드)로 두고 `BubbleContent`에
-// 실측값을 직접 얹는다. `Message`/`MessageAvatar`/`MessageContent`/`MessageHeader`의 기본
-// 간격(`gap-2`/`gap-2.5`)·정렬(`self-end`)도 이 화면 실측(아바타 상단 정렬, 라벨↔말풍선
+// 조립한다. `Message`/`MessageAvatar`/`MessageContent`/`MessageHeader`의 기본 간격
+// (`gap-2`/`gap-2.5`)·정렬(`self-end`)은 이 화면 실측(아바타 상단 정렬, 라벨↔말풍선
 // `gap-4`)에 맞게 개별 오버라이드한다 — 아래 각 className 주석 참고.
+//
+// **2026-09-06 재정렬(공식 조합)**: 이전엔 `Bubble variant="ghost"`(프레임 없음 모드)를 두고
+// `BubbleContent`에 회색 배경·패딩·반경을 다시 얹었다 — ghost의 "프레임을 강제하지 않는다"는
+// 의미와 정면으로 모순됐다. `Bubble`은 shadcn 팔레트 중 중립 회색을 뜻하는
+// `variant="secondary"`로 바꾸고, 배경·패딩·반경 오버라이드는 전부 제거해 `BubbleContent`
+// 기본값(`bg-secondary`/`rounded-xl`/`px-3 py-2`)을 그대로 쓴다. `--secondary`
+// (`oklch(0.97 0 0)`, 이미 버튼 등 사이트 전역에서 쓰는 토큰)는 예전 전용 토큰
+// `--color-performance-bubble`(`#f8f7f5`)과 거의 같은 밝기의 중립 연회색이라 육안상 체감
+// 차이는 미미하다(정확히 같은 값은 아니라 보고 대상). `--color-performance-bubble` 토큰
+// 자체는 `bg-performance-bubble`로 수행평가 화면 전역(폼 입력창·카드·보조 버튼 hover 등
+// 채팅 밖 수십 곳)에서 계속 쓰이므로 값·정의는 그대로 둔다 — 채팅 말풍선 두 곳만 그
+// 전역 표면색 대신 shadcn 테마 토큰으로 갈아탄 것이다. 말풍선 폭(`max-w-perf-bubble` 등)은
+// `BubbleContent`가 아니라 `Bubble`에 한 번만 건다 — `bubbleVariants`의 기본
+// `max-w-[80%]`(`secondary` 등 비-ghost variant에 적용)를 이 화면 실측 폭으로 교체하는
+// 것이므로 `Bubble` 레벨이 맞는 자리다.
 //
 // 좌표 실측(공통, `3754:3261`/`3754:3370` 등 596폭 노드 기준, 2026-09-06 스케일 축소 이전값):
 //   아바타 @384,y 52×52 → 우변 436. 라벨·말풍선 @456,y → 아바타와 컬럼 사이 gap 20px(1.25rem).
@@ -58,8 +70,10 @@ export default function AiMessage({
       align="start"
       className={["items-start gap-5", className].join(" ")}
     >
-      {/* 실측: 아바타는 라벨 첫 줄과 상단이 맞는다 — `Message` 기본값 `self-end`(입력창
-          있는 채팅 UI 관례)를 이 화면엔 하단 입력창이 없어 `self-start`로 되돌린다. */}
+      {/* 2026-09-06 확인: 공식 `MessageAvatar` 기본값은 `self-end`(입력창이 있는 채팅 UI
+          관례 — 아바타가 마지막 줄 바닥에 맞는다)다. 이 화면은 실측상 아바타가 라벨 첫
+          줄과 상단이 맞아야 하고 하단 입력창도 없어, 기본값을 확인한 뒤에도 `self-start`
+          오버라이드를 유지하기로 판단했다. */}
       <MessageAvatar className="size-10 self-start overflow-visible rounded-xl bg-transparent">
         <AiAvatar />
       </MessageAvatar>
@@ -69,13 +83,12 @@ export default function AiMessage({
           {label}
         </MessageHeader>
         {body != null && (
-          <Bubble variant="ghost" align="start" className="w-full max-w-none">
-            <BubbleContent
-              className={[
-                "w-full rounded-2xl bg-performance-bubble p-4",
-                bubbleMaxWidthClassName,
-              ].join(" ")}
-            >
+          <Bubble
+            variant="secondary"
+            align="start"
+            className={["w-full", bubbleMaxWidthClassName].join(" ")}
+          >
+            <BubbleContent className="w-full">
               {/* 실측: 15px/22.5 w500 `ink`(2026-09-06 스케일 축소, 기존 16px). */}
               <p className="whitespace-pre-line text-left text-app-body font-medium text-ink">
                 {body}

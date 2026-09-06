@@ -1,11 +1,12 @@
-import { type MutableRefObject, type ReactNode, useEffect } from "react";
+import { ArrowDownIcon } from "lucide-react";
+import type { MutableRefObject, ReactNode } from "react";
 import {
   MessageScroller,
+  MessageScrollerButton,
   MessageScrollerContent,
   MessageScrollerItem,
   MessageScrollerProvider,
   MessageScrollerViewport,
-  useMessageScroller,
 } from "@/components/ui/message-scroller";
 import AiLoadingBubble from "./AiLoadingBubble";
 import AiMessage from "./AiMessage";
@@ -41,8 +42,26 @@ import UserMessage from "./UserMessage";
 // 갖는다(ARIA `log` 롤은 암묵적으로 `aria-live="polite"`를 내포한다) — 과거 이 컴포넌트가
 // 루트에 직접 걸던 `aria-live="polite"`와 동등하거나 더 정확한 시맨틱이라 별도로 다시
 // 걸지 않는다. `MessageScrollerViewport`의 기본 `role="region"`/`aria-label="Messages"`(영문
-// 기본값)는 이 화면 언어(한국어)에 맞게 오버라이드하고, 아직 실제로 스크롤 가능한 영역이
-// 아니므로(위 주석) `tabIndex={-1}`로 빈 포커스 정지점이 되지 않게 막는다.
+// 기본값)는 이 화면 언어(한국어)에 맞게 오버라이드한다. `tabIndex`는 기본값(`0`, 실제
+// 스크롤 컨테이너라 키보드 스크롤 대상이 되어야 한다)을 그대로 둔다.
+//
+// **2026-09-06 shadcn 공식 조합 정렬**: `MessageScroller`/`MessageScrollerViewport`/
+// `MessageScrollerContent`의 className 오버라이드를 걷어내고 라이브러리 기본 스타일
+// (`scroll-fade-b`·`scrollbar-thin` 등 포함)을 그대로 쓴다 — 루트는 `className`(호출부가
+// 넘기는 `min-h-0 flex-1`)만 통과시킨다. `scrollAnchor`는 매 렌더의 마지막 항목이 아니라
+// **`role === 'user'`인 항목에만** 건다 — 라이브러리 소스(`handleContentChange`)를 추적한
+// 근거: 새로 추가된 항목들 중 `scrollAnchor` 항목이 하나도 없으면 현재 모드가
+// `following-bottom`(자동 추적 중)일 때 무조건 `scrollToEnd`로 폴백하고, 있으면 그 항목의
+// 상단을 뷰포트 상단에 맞추는 `align:"start"`로 이동한다. 매 마지막 메시지에 앵커를 걸던
+// 예전 방식은 AI 응답(카드 없는 짧은 말풍선)에도 `align:"start"` 정렬을 강제해, 뒤이어 긴
+// STEP 폼 카드가 붙어도 진짜 바닥까지 못 내려가는 원인이었다(2026-09-06 실측: 재개 후
+// scrollTop이 바닥에 닿지 않음). 사용자 턴에만 앵커를 걸면 "내가 보낸 메시지가 위로
+// 붙고 그 아래 AI 응답이 이어진다"는 채팅 UI 관례를 재현하면서, AI 전용 갱신(재개 시
+// 대량 재생 포함)은 전부 `following-bottom` 폴백을 타 진짜 바닥까지 스크롤된다. 최초
+// 마운트(`itemCount===0`)는 `defaultScrollPosition="end"`가 별도로 처리하므로 이 경로와
+// 무관하다. 이 트레이싱만으로 충분해 수동 `scrollToEnd` 이펙트(`FollowLatestMessage`,
+// `useMessageScroller().scrollToEnd`)는 두지 않는다 — Provider 컨텍스트 API 밖에서
+// 뷰포트 DOM을 직접 건드리는 우회는 애초에 쓰지 않았다.
 type PerformanceChatMessagePayload = {
   title?: string;
   subtitle?: string;
@@ -93,51 +112,19 @@ type ChatTimelineProps = {
   className?: string;
 };
 
-// 마지막 메시지 id가 바뀔 때마다 뷰포트를 끝으로 보낸다. `MessageScrollerProvider autoScroll`은
-// "사용자가 이미 끝에 있을 때" 추가분을 따라가는 규칙이라, 재개 시 여러 메시지가 한 번에
-// 재생되거나 단계 전환으로 긴 카드가 붙는 경우(실측: 재개 후 scrollTop 0)엔 끝으로 가지 않는다.
-// 옛 `scrollIntoView` 이펙트가 하던 역할을 Provider 컨텍스트 API로 옮긴 것이다 — Provider
-// 안에서만 훅을 쓸 수 있어 별도 컴포넌트로 뺐다(렌더 결과 없음).
-function FollowLatestMessage({
-  lastId,
-}: {
-  lastId: string | number | undefined;
-}) {
-  const { scrollToEnd } = useMessageScroller();
-  useEffect(() => {
-    if (lastId === undefined) return;
-    const prefersReducedMotion = window.matchMedia?.(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    scrollToEnd({ behavior: prefersReducedMotion ? "auto" : "smooth" });
-  }, [lastId, scrollToEnd]);
-  return null;
-}
-
 export default function ChatTimeline({
   messages,
   children,
   className = "",
 }: ChatTimelineProps) {
-  const lastId = messages?.length
-    ? messages[messages.length - 1]?.id
-    : undefined;
-
   return (
     <MessageScrollerProvider autoScroll defaultScrollPosition="end">
-      <FollowLatestMessage lastId={lastId} />
-      <MessageScroller
-        className={["flex w-full flex-col", className].join(" ")}
-      >
-        <MessageScrollerViewport
-          aria-label="채팅 타임라인"
-          tabIndex={-1}
-          className="min-h-0 flex-1 overflow-y-auto pb-14"
-        >
-          <MessageScrollerContent className="flex w-full flex-col gap-7">
+      <MessageScroller className={className}>
+        <MessageScrollerViewport aria-label="채팅 타임라인">
+          <MessageScrollerContent>
             {messages
-              ? messages.map((message, index) => {
-                  const isLast = index === messages.length - 1;
+              ? messages.map((message) => {
+                  const isUserTurn = message.role === "user";
                   // `kind='loading'`은 `AiLoadingBubble` 루트에 직접 배선한다(`renderMessage`).
                   // 나머지 kind는 말풍선 컴포넌트가 ref를 받지 않으므로 이 래퍼가 목적지다.
                   const wrapperFocusRef =
@@ -153,7 +140,7 @@ export default function ChatTimeline({
                     <MessageScrollerItem
                       key={message.id}
                       messageId={String(message.id)}
-                      scrollAnchor={isLast}
+                      scrollAnchor={isUserTurn}
                       ref={wrapperFocusRef ? setNode : undefined}
                       tabIndex={wrapperFocusRef ? -1 : undefined}
                       aria-live={message.focusRef ? "off" : undefined}
@@ -165,6 +152,10 @@ export default function ChatTimeline({
               : children}
           </MessageScrollerContent>
         </MessageScrollerViewport>
+        <MessageScrollerButton>
+          <ArrowDownIcon />
+          <span className="sr-only">맨 아래로</span>
+        </MessageScrollerButton>
       </MessageScroller>
     </MessageScrollerProvider>
   );
