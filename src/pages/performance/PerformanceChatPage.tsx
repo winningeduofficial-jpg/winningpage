@@ -2369,10 +2369,7 @@ export default function PerformanceChatPage() {
       ) : submissionLoadError ? (
         // 스키마 없이 임의의 기본 폼을 그리지 않는다(위 `SUBMISSION_LOAD_FAILED_FALLBACK`).
         <div className="flex flex-col items-start gap-3">
-          <p
-            role="alert"
-            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
-          >
+          <p role="alert" className="text-app-label text-[#d01c1c]">
             {submissionLoadError}
           </p>
           <RetryButton onClick={handleRetrySubmissionLoad}>
@@ -2503,7 +2500,7 @@ const RetryButton = forwardRef<
       ref={ref}
       type="button"
       onClick={onClick}
-      className="flex h-10 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white px-4 text-[0.875rem] font-medium leading-4.5 text-ink transition-colors hover:border-ink-sub"
+      className="flex h-10 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white px-4 text-app-label font-medium text-ink transition-colors hover:border-ink-sub"
     >
       {children}
     </button>

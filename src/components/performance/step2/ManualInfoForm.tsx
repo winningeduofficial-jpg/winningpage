@@ -90,7 +90,7 @@ export default function ManualInfoForm({
             시안 원문이 `정보*`로 붙여 쓰므로 사이에 공백을 넣지 않는다. */}
         <label
           htmlFor={FIELD_ID}
-          className="block text-[0.875rem] font-medium leading-4.5 text-performance-required"
+          className="block text-app-label font-medium text-performance-required"
         >
           {LABEL}
           <span aria-hidden="true">*</span>
@@ -112,7 +112,7 @@ export default function ManualInfoForm({
             maxLength={GUIDE_FREETEXT_MAX_LENGTH}
             aria-invalid={submitError ? true : undefined}
             aria-describedby={COUNTER_ID}
-            className="h-44 w-full resize-none rounded-lg border border-performance-line bg-performance-bubble p-3 text-[0.875rem] font-medium leading-4.5 text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary disabled:cursor-not-allowed"
+            className="h-44 w-full resize-none rounded-lg border border-performance-line bg-performance-bubble p-3 text-app-label font-medium text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary disabled:cursor-not-allowed"
           />
 
           {/* CharCounter(STEP5)와 같은 이유로 live region이 아니다 — 매 글자마다
@@ -120,7 +120,7 @@ export default function ManualInfoForm({
               한다. */}
           <p
             id={COUNTER_ID}
-            className="mt-2 text-right text-[0.75rem] leading-4 text-ink-sub"
+            className="mt-2 text-right text-app-caption text-ink-sub"
           >
             {value.length}/{GUIDE_FREETEXT_MAX_LENGTH}
           </p>
@@ -129,10 +129,7 @@ export default function ManualInfoForm({
         {/* 에러 표시 UI는 시안에 없다(§11.3 Q39 — 시안에 토스트 컴포넌트 자체가 없다).
             GuideUploadCard·BasicInfoForm과 같은 한 줄 `role="alert"` 관례로 최소한만 만든다. */}
         {submitError && (
-          <p
-            role="alert"
-            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
-          >
+          <p role="alert" className="text-app-label text-[#d01c1c]">
             {submitError}
           </p>
         )}

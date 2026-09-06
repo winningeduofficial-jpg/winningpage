@@ -42,9 +42,7 @@ export default function PhotoAddTile({
         strokeWidth={2}
         aria-hidden="true"
       />
-      <span className="text-[0.875rem] font-medium leading-4.5 text-ink-sub">
-        사진 추가
-      </span>
+      <span className="text-app-label font-medium text-ink-sub">사진 추가</span>
     </button>
   );
 }
