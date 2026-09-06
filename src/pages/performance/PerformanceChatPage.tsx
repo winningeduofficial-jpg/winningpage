@@ -8,7 +8,6 @@ import {
   useState,
 } from "react";
 import { useParams } from "react-router";
-import { SCHOOL_TYPES } from "@/components/mypage/ProfileTab";
 import AiLoadingBubble from "@/components/performance/chat/AiLoadingBubble";
 import ChatTimeline, {
   type PerformanceChatMessage,
@@ -49,12 +48,17 @@ import {
   submitManualGuide,
   uploadGuidePhotos,
 } from "@/lib/performance/guideUpload";
+import { pickKnownSchoolType } from "@/lib/performance/schoolType";
 import { fetchSessionDetail } from "@/lib/performance/session";
 import {
   fetchSubmissionForm,
   saveSubmission,
 } from "@/lib/performance/submission";
 import { recommendTopics } from "@/lib/performance/topics";
+import {
+  performanceBootstrapQueryOptions,
+  queryClient,
+} from "@/lib/queryClient";
 
 // STEP1~STEP5 채팅 화면 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) / §5.6(`3754:3261`) /
 // §5.7(`3754:3315`) / §5.8(`3754:3370`·`3754:3431`) / §5.9(`3754:3562`·`3754:3493`) /
@@ -314,11 +318,7 @@ export function buildBasicInfoSummary(session) {
   const subject = [session.subjectGroup, session.subject]
     .filter(Boolean)
     .join(" / ");
-  const schoolType = (SCHOOL_TYPES as readonly string[]).includes(
-    session.schoolType,
-  )
-    ? session.schoolType
-    : null;
+  const schoolType = pickKnownSchoolType(session.schoolType);
 
   return [
     grade && `학년: ${grade}`,
@@ -386,13 +386,16 @@ type PerformanceSession = {
   updatedAt?: string;
 };
 
+// bootstrap.ts summaryOf가 실제로 내려주는 값은 DB 컬럼 원본이라 값 없음이 null로
+// 온다(undefined가 아니다) — performanceBootstrapQueryOptions(src/lib/queryClient.ts)의
+// PerformanceBootstrapPayload와 필드 형태를 맞춘다.
 type LastSessionSummary = {
   sessionId: string;
-  gradeLabel?: string;
-  semester?: string;
-  subjectGroup?: string;
-  subject?: string;
-  selectedTopicTitle?: string;
+  gradeLabel: string | null;
+  semester: string | null;
+  subjectGroup: string | null;
+  subject: string | null;
+  selectedTopicTitle: string | null;
 };
 
 // `handleConfirmTopic`(전체 `Topic`)과 `handleResumeConfirmedTopic`(`{id, title: string|null}`,
@@ -478,9 +481,10 @@ function entryReducer(state: EntryState, action: EntryAction): EntryState {
 export default function PerformanceChatPage() {
   // quotaRemaining은 SessionContext가 정본이다(§5.20 (A) 배너 판정, P15 [FIX]) —
   // recommend-topics 응답 등 채팅 진행 중 값과 이원화하지 않는다. null=무제한/판정 불가.
-  const { session, quotaRemaining } = useSession();
+  const { session, quotaRemaining, userId } = useSession();
   const { success: toastSuccess, error: toastError } = useToast();
-  const { setStepStates, setQuotaBannerVisible } = usePerformanceShell();
+  const { setStepStates, setQuotaBannerVisible, setSessionGradeLabel } =
+    usePerformanceShell();
   const accessToken = session?.access_token || null;
   const routeParams = useParams();
   const routeSessionId =
@@ -757,13 +761,26 @@ export default function PerformanceChatPage() {
 
     setStepStates(deriveStepStates({ completedSteps, activeStep }));
 
-    // 저장 리포트 등 이 페이지 밖으로 나가면 셸의 기본값(all-todo)으로 되돌린다 —
+    // P5 — 사이드바 프로필 부제의 학년 조각(라이브 세션 우선순위, PerformanceShellContext.tsx
+    // 주석 참고)도 같은 라이브 세션 객체(`createdSession`)에서 나오므로 이 이펙트가 함께
+    // 올린다 — 학년만 위해 별도 이펙트·조회를 새로 만들지 않는다.
+    setSessionGradeLabel(createdSession?.gradeLabel ?? null);
+
+    // 저장 리포트 등 이 페이지 밖으로 나가면 셸의 기본값(all-todo · null)으로 되돌린다 —
     // §3.3 「저장 리포트 = 활성 스텝 0개」와 일치한다. 컨텍스트 자체는 리셋 시점을
     // 모르므로(값을 들고 있을 뿐) 이 페이지가 언마운트 시 직접 리셋해야 한다.
     return () => {
       setStepStates(["todo", "todo", "todo", "todo", "todo"]);
+      setSessionGradeLabel(null);
     };
-  }, [createdSession, guideDone, designPhase, designModalOpen, setStepStates]);
+  }, [
+    createdSession,
+    guideDone,
+    designPhase,
+    designModalOpen,
+    setStepStates,
+    setSessionGradeLabel,
+  ]);
 
   // ── 셸 상단 회차 소진 배너 배선(§5.20 (A), P15 [FIX]) ─────────────────────────
   //
@@ -809,16 +826,20 @@ export default function PerformanceChatPage() {
 
     (async () => {
       try {
-        const response = await apiFetch("/api/performance/bootstrap", {
-          headers: { Authorization: `Bearer ${accessToken}` },
+        // P5 — `performanceBootstrapQueryOptions`(src/lib/queryClient.ts)와 같은 캐시
+        // 키(['performance','bootstrap',userId])를 채운다 — 셸(PerformanceAppLayout)의
+        // 사이드바 프로필 슬롯이 그 캐시를 useQuery로 구독한다. 이 페이지는 화면
+        // 진입마다 최신 판정이 필요해(§5.4 진입 분기가 stale 데이터로 잘못 갈리면 안
+        // 된다) staleTime:0으로 그 옵션의 기본 staleTime(15초)을 우회해 강제로 새로
+        // 조회한다 — 셸은 이 조회가 채운 캐시를 기본 staleTime 그대로 구독만 한다.
+        const data = await queryClient.fetchQuery({
+          ...performanceBootstrapQueryOptions(userId, accessToken),
+          staleTime: 0,
         });
-        const data = await response.json().catch(() => null);
         if (!alive) return;
-        if (response.ok) {
-          setProfileName(data?.profile?.name || null);
-          setLastSessionSummary(data?.lastSession || null);
-          setLatestDraft(data?.latestDraft || null);
-        }
+        setProfileName(data.profile?.name || null);
+        setLastSessionSummary(data.lastSession || null);
+        setLatestDraft(data.latestDraft || null);
       } catch (error) {
         console.error("[performance] bootstrap 조회 실패:", error);
       } finally {
@@ -829,7 +850,7 @@ export default function PerformanceChatPage() {
     return () => {
       alive = false;
     };
-  }, [accessToken]);
+  }, [accessToken, userId]);
 
   // §5.4 진입 분기 판정 — bootstrap이 끝난 뒤(`bootstrapLoading` false) 딱 한 번만 돈다
   // (`entryResolvedRef`, STEP1 그리팅 이펙트와 달리 재실행될 이유가 없다 — 세션 목록은
