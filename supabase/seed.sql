@@ -113,7 +113,7 @@ update public.profiles set
   member_type = 'student',
   name = '큐에이학생',
   username = 'qa-student',
-  school_type = 'high', school_name = '위닝고등학교',
+  school_type = '고등학교', school_name = '위닝고등학교',
   terms_service_agreed = true, privacy_required_agreed = true
 where id = '00000000-0000-4000-8000-000000000002';
 

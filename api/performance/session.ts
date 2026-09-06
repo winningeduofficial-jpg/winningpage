@@ -45,6 +45,7 @@
 import type { VercelResponse } from "@vercel/node";
 import { defineHandler, requireUserId } from "../_lib/handler.js";
 import { sendError } from "../_lib/httpResponse.js";
+import { TOPIC_MAX_ROUNDS } from "../_lib/performance/topic-rounds.js";
 import {
   findProgramAccessRow,
   hasPaidServiceAccess,
@@ -106,9 +107,11 @@ const GET_SESSION_COLUMNS = [
   "updated_at",
 ].join(",");
 
-// `recommend-topics.js`의 `MAX_ROUNDS`와 같은 값(§9.2). GET은 새 라운드를 만들지
+// `recommend-topics.js`와 같은 정본(`../_lib/performance/topic-rounds.js`)을 그대로
+// 읽는다 — 예전에 이 파일이 `MAX_ROUNDS = 3`을 따로 들고 있다가 정본(2)과 갈라져
+// 재개 응답의 "남은 추가 추천" 표시가 틀리던 사고가 있었다. GET은 새 라운드를 만들지
 // 않지만 응답의 `maxRounds`를 클라이언트의 버튼 비활성 판정 재료로 그대로 싣는다.
-const MAX_ROUNDS = 3;
+const MAX_ROUNDS = TOPIC_MAX_ROUNDS;
 
 type SessionRow = {
   id: string;

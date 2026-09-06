@@ -19,7 +19,10 @@ import ToggleRow from "./ToggleRow";
 import UnlinkParentModal from "./UnlinkParentModal";
 import WithdrawModal from "./WithdrawModal";
 
-const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
+// `profiles.school_type`의 실제 값 집합 — 이 필드는 코드값이 아니라 한글 원문을 그대로
+// 저장한다(정본). `PerformanceChatPage`가 STEP1 요약에서 오염값 방어용 화이트리스트로
+// 재사용한다(export, 새 매핑 만들지 말 것).
+export const SCHOOL_TYPES = ["초등학교", "중학교", "고등학교", "N수생", "기타"];
 
 // 과도 입력으로 인한 UI 깨짐 방지(QA 행266) — 학교명은 실제 학교 정식 명칭 최대
 // 길이 여유를 두고 50자로 제한한다.
