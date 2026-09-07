@@ -362,6 +362,11 @@ export default function SubmissionForm({
     // 대기 중이던 자동 저장 타이머를 취소한다 — 제출 자체가 `mode:'submit'`으로 같은
     // 값을 다시 저장하므로 중복 draft 저장과 경합할 필요가 없다(훅 주석 `cancel`).
     autosave.cancel();
+    // 지금 값을 제출로 넘겼다고 표시한다 — 제출이 성공해 이 폼이 언마운트되면(§평가
+    // 로딩 전환) 언마운트 cleanup이 방금 넘긴 값을 또 draft로 저장하지 않는다(훅 주석
+    // `suspendUnmountFlush`). 제출이 실패해 폼이 남으면 편집·재시도가 자동으로 다시
+    // 풀어 준다.
+    autosave.suspendUnmountFlush();
     onSubmit?.(value ?? {});
   }
 
