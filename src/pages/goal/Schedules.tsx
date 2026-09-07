@@ -146,7 +146,7 @@ export default function Schedules() {
           <button
             type="button"
             onClick={openCreate}
-            className="h-9.75 rounded-lg bg-[#2E2A26] px-4 text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
+            className="h-9.75 rounded-lg bg-[#2E2A26] px-4 text-app-label font-semibold text-white transition-colors hover:opacity-90"
           >
             일정 등록
           </button>
@@ -155,18 +155,14 @@ export default function Schedules() {
 
       <div className="max-w-goal-content px-4 pb-24 md:px-12">
         {loadError && (
-          <p className="mb-4 text-[0.8125rem] leading-[1.4] text-error">
-            {loadError}
-          </p>
+          <p className="mb-4 text-app-label text-error">{loadError}</p>
         )}
 
         {/* 카드 리스트는 시안 실측 폭 1116px(69.75rem)을 그대로 따른다 — 헤더는 앱 표준
             1340px(GoalPageHeader 기본값)을 유지하고, 이 리스트만 지시받은 폭으로 좁힌다
             (00-INDEX.md가 여러 화면에서 "1340으로 통일 권장"이라 문서 스스로 밝힌 방식). */}
         {schedules === null ? (
-          <p className="text-[0.8125rem] leading-[1.4] text-ink-sub">
-            불러오는 중입니다…
-          </p>
+          <p className="text-app-label text-ink-sub">불러오는 중입니다…</p>
         ) : hasSchedules ? (
           <ul className="flex max-w-279 flex-col gap-5">
             {displaySchedules.map((schedule) => (

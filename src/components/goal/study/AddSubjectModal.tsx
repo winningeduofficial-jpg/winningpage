@@ -62,12 +62,10 @@ export default function AddSubjectModal({
       onSubmit={handleClose}
     >
       {errorMessage && (
-        <p className="text-[0.8125rem] leading-[1.4] text-error">
-          {errorMessage}
-        </p>
+        <p className="text-app-label text-error">{errorMessage}</p>
       )}
       {candidates.length === 0 ? (
-        <p className="text-[0.875rem] leading-[1.4] text-ink-sub">
+        <p className="text-app-body leading-[1.4] text-ink-sub">
           모든 과목이 이미 추가돼 있어요.
         </p>
       ) : (
@@ -78,7 +76,7 @@ export default function AddSubjectModal({
               type="button"
               disabled={pendingSubject !== null}
               onClick={() => handlePick(code)}
-              className={`h-9.75 rounded-lg px-4 text-[0.875rem] font-medium text-ink-strong transition-opacity disabled:cursor-not-allowed disabled:opacity-50 ${getSubjectBgClass(code)}`}
+              className={`h-9.75 rounded-lg px-4 text-app-label font-medium text-ink-strong transition-opacity disabled:cursor-not-allowed disabled:opacity-50 ${getSubjectBgClass(code)}`}
             >
               {pendingSubject === code ? "추가하는 중…" : getSubjectLabel(code)}
             </button>

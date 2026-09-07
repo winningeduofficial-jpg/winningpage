@@ -30,6 +30,10 @@ export default mergeConfig(
         // node:test 기반 — 아직 Vitest로 이식되지 않았다(후속 task 10.2 이후 범위).
         // vitest run에 그대로 걸리면 "No test suite found"로 CI가 깨진다.
         "api/_lib/serviceAccess.test.ts",
+        // Playwright 러너(e2e/, playwright.config.ts)다 — *.spec.ts 기본 패턴이
+        // 겹쳐서 Vitest가 함께 주워가면 "test.describe() 여기서 호출 못 함" 에러로
+        // 죽는다(두 러너의 test.describe 구현이 다르다).
+        "e2e/**",
       ],
       coverage: {
         provider: "v8",

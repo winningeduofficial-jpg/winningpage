@@ -84,7 +84,7 @@ export default function SubjectTimerCard({
             aria-hidden="true"
             className={`h-4 w-4 shrink-0 rounded-full ${dotClass}`}
           />
-          <span className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
+          <span className="text-app-card-title font-bold text-ink-strong">
             {label}
           </span>
         </div>
@@ -98,21 +98,21 @@ export default function SubjectTimerCard({
               step="0.5"
               value={draftHours}
               onChange={(event) => setDraftHours(event.target.value)}
-              className="h-7 w-14 rounded-sm border border-line px-2 text-right text-[0.8125rem] tabular-nums"
+              className="h-7 w-14 rounded-sm border border-line px-2 text-right text-app-label tabular-nums"
               aria-label={`${label} 목표 시간(시간)`}
             />
-            <span className="text-[0.8125rem] text-ink-sub">h</span>
+            <span className="text-app-label text-ink-sub">h</span>
             <button
               type="button"
               onClick={saveTarget}
-              className="rounded-sm px-1.5 text-[0.75rem] font-semibold text-primary"
+              className="rounded-sm px-1.5 text-app-caption font-semibold text-primary"
             >
               저장
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="rounded-sm px-1 text-[0.75rem] text-ink-sub"
+              className="rounded-sm px-1 text-app-caption text-ink-sub"
             >
               취소
             </button>
@@ -121,7 +121,7 @@ export default function SubjectTimerCard({
           <button
             type="button"
             onClick={openEditor}
-            className="flex shrink-0 items-center gap-1 text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
+            className="flex shrink-0 items-center gap-1 text-app-label text-ink-sub hover:text-ink-strong"
           >
             목표 {targetHours}h
             {isDefaultTarget && <span className="text-ink-sub">(기본값)</span>}
@@ -131,7 +131,7 @@ export default function SubjectTimerCard({
       </div>
 
       <p
-        className={`text-[1.75rem] font-bold leading-[1.2] tabular-nums ${
+        className={`text-app-title font-bold leading-[1.2] tabular-nums ${
           running ? "text-ink-strong" : "text-ink-sub"
         }`}
       >
@@ -148,7 +148,7 @@ export default function SubjectTimerCard({
       <button
         type="button"
         onClick={onToggle}
-        className={`h-9.75 w-full rounded-lg text-[0.9375rem] font-semibold leading-[1.2] transition-colors ${
+        className={`h-9.75 w-full rounded-lg text-app-body font-semibold leading-[1.2] transition-colors ${
           running
             ? "border border-line bg-white text-ink-strong"
             : "bg-primary text-white"

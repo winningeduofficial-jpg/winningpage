@@ -34,10 +34,10 @@ export default function InsightBox({
     <div
       className={`flex w-full items-start gap-2 rounded-xl px-4 py-3 ${bgClass} ${className}`} // radius 12px(추정)
     >
-      <span aria-hidden="true" className="shrink-0 text-[1rem] leading-[1.4]">
+      <span aria-hidden="true" className="shrink-0 text-app-card-title">
         {icon}
       </span>
-      <p className="min-w-0 flex-1 text-[0.8125rem] leading-normal text-ink-strong">
+      <p className="min-w-0 flex-1 text-app-label leading-normal text-ink-strong">
         {children}
       </p>
     </div>

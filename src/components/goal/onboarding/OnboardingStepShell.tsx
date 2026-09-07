@@ -51,10 +51,10 @@ export default function OnboardingStepShell({
   return (
     <div className="mx-auto w-full max-w-275 px-4 pb-30">
       <div className="mt-30">
-        <p className="text-[1rem] font-semibold text-accent">
+        <p className="text-app-card-title font-semibold text-accent">
           목표 관리 프로그램
         </p>
-        <h1 className="mt-5 text-[1.75rem] font-bold leading-[1.4] text-ink-strong">
+        <h1 className="mt-5 text-app-title font-bold text-ink-strong">
           {userName ? `${userName} 학생, 안녕하세요!` : "안녕하세요, 학생님!"}
           <br />
           입력하신 정보로 학습량을 계산해 드려요

@@ -22,14 +22,12 @@ export default function StrategyListCard({
       tone="neutral"
       className="flex min-h-89.75 flex-col gap-4 px-6 py-6"
     >
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
       <ul className="flex flex-1 flex-col justify-center gap-3">
         {rows.map((row) => (
           <li
             key={row.label}
-            className="flex items-center justify-between gap-3 rounded-lg bg-white px-4 py-3 text-[0.8125rem] leading-[1.4]"
+            className="flex items-center justify-between gap-3 rounded-lg bg-white px-4 py-3 text-app-label"
           >
             <span className="text-ink">{row.label}</span>
             <span className="shrink-0 font-semibold text-ink-strong">

@@ -12,7 +12,7 @@ export default function GoalEmptyState({
 }: GoalEmptyStateProps) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 py-6 text-center">
-      <p className="text-[0.8125rem] leading-[1.4] text-ink-sub">{message}</p>
+      <p className="text-app-label text-ink-sub">{message}</p>
       <button
         type="button"
         onClick={onAdd}

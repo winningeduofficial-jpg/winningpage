@@ -169,7 +169,7 @@ export default function StudyPlanRail() {
 
   return (
     <GoalCard tone="mint" className="flex flex-col gap-4 px-5 py-5">
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
+      <h3 className="text-app-card-title font-bold text-ink-strong">
         {getTodayWeekdayLabel()} 나의 학습 계획하기
       </h3>
 
@@ -179,13 +179,13 @@ export default function StudyPlanRail() {
       {(() => {
         if (result === null)
           return (
-            <p className="py-6 text-center text-[0.8125rem] leading-[1.4] text-ink-sub">
+            <p className="py-6 text-center text-app-label text-ink-sub">
               불러오는 중…
             </p>
           );
         if (result.kind !== "success")
           return (
-            <p className="py-6 text-center text-[0.8125rem] leading-[1.4] text-ink-sub">
+            <p className="py-6 text-center text-app-label text-ink-sub">
               불러오지 못했습니다. 새로고침해 주세요.
             </p>
           );
@@ -222,7 +222,7 @@ export default function StudyPlanRail() {
               <button
                 type="button"
                 onClick={() => setModalOpen(true)}
-                className="flex items-center justify-center gap-1 text-center text-[0.75rem] leading-[1.4] text-ink-sub transition-colors hover:text-ink-strong"
+                className="flex items-center justify-center gap-1 text-center text-app-caption text-ink-sub transition-colors hover:text-ink-strong"
               >
                 <Plus size={12} aria-hidden="true" />
                 과제 추가
@@ -230,7 +230,7 @@ export default function StudyPlanRail() {
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="h-9.5 w-full rounded-lg bg-[#4CAF6D] text-[0.875rem] font-semibold leading-[1.4] text-white"
+                className="h-9.5 w-full rounded-lg bg-[#4CAF6D] text-app-label font-semibold text-white"
               >
                 오늘 학습 계획 저장하기
               </button>

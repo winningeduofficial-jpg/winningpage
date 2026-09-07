@@ -28,15 +28,15 @@ export default function TomorrowPlanCard({
 }: TomorrowPlanCardProps) {
   return (
     <GoalCard tone="neutral" className="flex h-full flex-col gap-4 px-8 py-7">
-      <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+      <h3 className="text-app-card-title font-bold text-ink-strong">
         내일 계획 제시
       </h3>
       {narrative && (
-        <p className="text-[0.875rem] leading-normal text-ink">{narrative}</p>
+        <p className="text-app-body leading-normal text-ink">{narrative}</p>
       )}
       {/* 내일 목표 시간이 0/미설정이면(온보딩 직후 등) 위젯이 스스로 빈 상태로 분기한다. */}
       {plan.length === 0 ? (
-        <p className="text-[0.875rem] leading-normal text-ink-sub">
+        <p className="text-app-body leading-normal text-ink-sub">
           내일 계획 산출 준비 중입니다.
         </p>
       ) : (
@@ -44,7 +44,7 @@ export default function TomorrowPlanCard({
           {plan.map((item) => (
             <span
               key={`${item.subject}-${item.unit ?? ""}`}
-              className={`inline-flex h-8 w-fit shrink-0 items-center rounded-full px-4 text-[0.8125rem] font-medium leading-[1.2] text-ink-strong ${getSubjectBgClass(
+              className={`inline-flex h-8 w-fit shrink-0 items-center rounded-full px-4 text-app-label font-medium leading-[1.2] text-ink-strong ${getSubjectBgClass(
                 item.subject,
               )}`}
             >

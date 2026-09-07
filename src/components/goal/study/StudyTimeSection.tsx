@@ -27,7 +27,7 @@ export default function StudyTimeSection({
     <GoalCard tone="neutral" className="flex flex-col gap-5 px-8 py-7.5">
       <div>
         <GoalCardHeader title="과목별 순공 시간" />
-        <p className="mt-1 text-[0.875rem] leading-[1.4] text-ink-sub">
+        <p className="mt-1 text-app-body leading-[1.4] text-ink-sub">
           합계가 오늘의 목표 달성률로 계산돼요
         </p>
       </div>
@@ -41,25 +41,25 @@ export default function StudyTimeSection({
               aria-hidden="true"
               className={`h-4 w-4 shrink-0 rounded-full ${getSubjectStrongClass(row.id)}`}
             />
-            <span className="w-16 shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+            <span className="w-16 shrink-0 text-app-body font-semibold leading-[1.4] text-ink-strong">
               {row.label}
             </span>
-            <span className="min-w-0 flex-1 text-[0.8125rem] leading-[1.4] text-ink-sub">
+            <span className="min-w-0 flex-1 text-app-label text-ink-sub">
               {row.hours > 0
                 ? `${row.hours.toFixed(1)}시간 기록됨`
                 : "아직 기록 없음"}
             </span>
-            <span className="shrink-0 text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
+            <span className="shrink-0 text-app-body font-bold leading-[1.4] text-ink-strong">
               {row.hours.toFixed(1)}h
             </span>
           </li>
         ))}
         <li className="flex h-perf-inset items-center gap-3 rounded-lg bg-surface-04 px-5">
-          <span className="w-16 shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-sub">
+          <span className="w-16 shrink-0 text-app-body font-semibold leading-[1.4] text-ink-sub">
             합계
           </span>
           <span className="min-w-0 flex-1" />
-          <span className="shrink-0 text-[0.9375rem] font-bold leading-[1.4] text-ink-sub">
+          <span className="shrink-0 text-app-body font-bold leading-[1.4] text-ink-sub">
             {totalHours.toFixed(1)}h
           </span>
         </li>

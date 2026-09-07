@@ -122,7 +122,7 @@ export default function AddWorkbookModal({
       submitDisabled={!canSubmit}
     >
       <div>
-        <p className="mb-6.75 text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+        <p className="mb-6.75 text-app-label font-semibold text-ink-strong">
           과목<span className="ml-1 text-error">*</span>
         </p>
         <SegmentedChipGroup
@@ -156,11 +156,11 @@ export default function AddWorkbookModal({
           onChange={(event) => setTotalPage(event.target.value)}
         />
       </div>
-      <p className="text-[0.75rem] leading-[1.4] text-ink-sub">
+      <p className="text-app-caption text-ink-sub">
         전체 페이지는 등록 후 수정할 수 없어요.
       </p>
       {pageRangeInvalid && (
-        <p className="text-[0.75rem] leading-[1.4] text-error">
+        <p className="text-app-caption text-error">
           현재 페이지는 전체 페이지(1 이상)를 넘을 수 없어요.
         </p>
       )}

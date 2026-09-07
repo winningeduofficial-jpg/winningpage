@@ -13,13 +13,11 @@ export default function DirectionSummaryBanner({
 }: DirectionSummaryBannerProps) {
   return (
     <div className="flex flex-col gap-2 rounded-2xl bg-goal-cardTone-mint px-7 py-6">
-      <span className="text-[0.75rem] leading-[1.4] text-ink-sub">{meta}</span>
-      <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+      <span className="text-app-caption text-ink-sub">{meta}</span>
+      <h3 className="text-app-card-title font-bold text-ink-strong">
         {typeLabel}
       </h3>
-      <p className="max-w-269.5 text-[0.875rem] leading-[1.6] text-ink">
-        {body}
-      </p>
+      <p className="max-w-269.5 text-app-body leading-[1.6] text-ink">{body}</p>
     </div>
   );
 }

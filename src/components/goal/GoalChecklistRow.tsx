@@ -59,7 +59,7 @@ export default function GoalChecklistRow({
     >
       <span className="flex min-w-0 flex-col gap-0.5">
         <span
-          className={`flex min-w-0 items-center gap-2 truncate text-[0.875rem] leading-[1.4] ${
+          className={`flex min-w-0 items-center gap-2 truncate text-app-body leading-[1.4] ${
             isFail
               ? "text-error"
               : struck[status]
@@ -72,12 +72,13 @@ export default function GoalChecklistRow({
           <span className="sr-only">({STATUS_LABEL[status]})</span>
         </span>
         {caption && (
-          <span className="truncate pl-[1.375rem] text-[0.75rem] leading-[1.4] text-ink-sub">
+          <span className="truncate pl-[1.375rem] text-app-caption text-ink-sub">
             {caption}
           </span>
         )}
       </span>
       <span className="flex shrink-0 items-center gap-1">
+        {/* 아이콘 글리프 크기(체크 표시) — 텍스트 스케일 대상 아님 */}
         <button
           type="button"
           onClick={onCheck}
@@ -91,6 +92,7 @@ export default function GoalChecklistRow({
         >
           ✓
         </button>
+        {/* 아이콘 글리프 크기(미달성 표시) — 텍스트 스케일 대상 아님 */}
         <button
           type="button"
           onClick={onFail}

@@ -15,7 +15,7 @@ export default function NoneCheckbox({
   label = "없음",
 }: NoneCheckboxProps) {
   return (
-    <label className="mt-3 inline-flex cursor-pointer select-none items-center gap-2 text-[0.875rem] text-ink-sub">
+    <label className="mt-3 inline-flex cursor-pointer select-none items-center gap-2 text-app-label text-ink-sub">
       <input
         type="checkbox"
         checked={checked}

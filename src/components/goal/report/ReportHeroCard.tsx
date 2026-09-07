@@ -14,7 +14,7 @@ export default function ReportHeroCard({
 }: ReportHeroCardProps) {
   return (
     <div className="flex min-h-57.5 flex-col justify-center gap-6 rounded-2xl bg-surface-04 px-8 py-7">
-      <p className="max-w-200 text-[0.9375rem] leading-[1.7] text-ink-strong">
+      <p className="max-w-200 text-app-body leading-[1.7] text-ink-strong">
         {narrative}
       </p>
 
@@ -24,10 +24,8 @@ export default function ReportHeroCard({
             key={kpi.label}
             className="flex flex-col items-center gap-1.5 px-2 text-center"
           >
-            <span className="text-[0.8125rem] leading-[1.4] text-ink-sub">
-              {kpi.label}
-            </span>
-            <span className="text-[1.125rem] font-bold leading-[1.3] text-ink-strong">
+            <span className="text-app-label text-ink-sub">{kpi.label}</span>
+            <span className="text-app-card-title font-bold leading-[1.3] text-ink-strong">
               {kpi.value}
             </span>
           </div>

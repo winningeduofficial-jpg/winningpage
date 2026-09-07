@@ -18,9 +18,7 @@ export default function StudyTimeBarChartCard({
 }: StudyTimeBarChartCardProps) {
   return (
     <GoalCard tone="neutral" className="flex min-h-50 flex-col gap-6 px-6 py-6">
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
       <div className="flex flex-1 items-end">
         {/* VerticalBarChart(다른 UoW 소유)는 undefined 미허용 — "h"는 자체 기본값과 동일 */}
         <VerticalBarChart bars={bars} unit={unit ?? "h"} heightRem={5} />

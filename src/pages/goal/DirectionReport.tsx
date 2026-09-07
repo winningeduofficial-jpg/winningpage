@@ -113,9 +113,7 @@ export default function DirectionReport() {
     return (
       <div className="max-w-goal-content px-4 pb-24 pt-25 md:px-12">
         <GoalCard tone="neutral" className="px-8 py-7">
-          <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
-            {message}
-          </p>
+          <p className="text-app-body leading-[1.4] text-ink-sub">{message}</p>
         </GoalCard>
       </div>
     );

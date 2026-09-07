@@ -34,7 +34,7 @@ export default function ScheduleRail({ schedules }: ScheduleRailProps) {
   return (
     <GoalCard tone="blue" className="flex flex-col gap-4 px-5 py-5">
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
+        <h3 className="text-app-card-title font-bold text-ink-strong">
           중요일정 체크하기
         </h3>
         {hasSchedules && (
@@ -58,10 +58,10 @@ export default function ScheduleRail({ schedules }: ScheduleRailProps) {
               className="flex items-start justify-between gap-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+                <p className="truncate text-app-body font-semibold leading-[1.4] text-ink-strong">
                   {schedule.title}
                 </p>
-                <p className="mt-1 truncate text-[0.75rem] leading-[1.4] text-ink-sub">
+                <p className="mt-1 truncate text-app-caption text-ink-sub">
                   {schedule.meta}
                 </p>
               </div>

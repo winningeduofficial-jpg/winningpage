@@ -32,7 +32,7 @@ function RateRow({
         aria-hidden="true"
         className={`h-2 w-2 shrink-0 rounded-full ${available ? dotClassName : "bg-line"}`}
       />
-      <span className="w-24 shrink-0 text-[0.9375rem] leading-[1.4] text-ink">
+      <span className="w-24 shrink-0 text-app-body leading-[1.4] text-ink">
         {label}
       </span>
       <GoalProgressBar
@@ -43,11 +43,11 @@ function RateRow({
         className="flex-1"
       />
       {available ? (
-        <span className="w-12 shrink-0 text-right text-[1rem] font-bold leading-[1.4] text-ink-strong">
+        <span className="w-12 shrink-0 text-right text-app-card-title font-bold text-ink-strong">
           {value}%
         </span>
       ) : (
-        <span className="min-w-12 shrink-0 whitespace-nowrap text-right text-[0.8125rem] font-medium leading-[1.4] text-ink-sub">
+        <span className="min-w-12 shrink-0 whitespace-nowrap text-right text-app-label font-medium text-ink-sub">
           미산출
         </span>
       )}
@@ -75,8 +75,8 @@ export default function TargetUniversityCard({
   return (
     <GoalCard tone="neutral" className="flex flex-col gap-8 px-8 py-7.5">
       <div>
-        <p className="text-[0.875rem] leading-[1.4] text-ink-sub">{label}</p>
-        <p className="mt-2 text-[1.75rem] font-bold leading-[1.4] text-ink-strong">
+        <p className="text-app-label text-ink-sub">{label}</p>
+        <p className="mt-2 text-app-title font-bold text-ink-strong">
           {university} {department}
         </p>
       </div>
