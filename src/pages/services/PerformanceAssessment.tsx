@@ -516,7 +516,7 @@ export default function PerformanceAssessment() {
         serviceKey="suhaeng"
         heading="위닝 수행평가 이용권 안내"
         cta={{
-          label: "이용권 구매하기",
+          label: "이용권 구매하러 가기",
           to: "/pricing",
         }}
         className="scroll-mt-24 pb-20 sm:pb-24 lg:pb-28.25 lg:pt-36.75"
