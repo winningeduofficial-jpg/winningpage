@@ -36,7 +36,7 @@ export default function TimerSummaryBar({
         <span className="text-[1rem] font-semibold leading-[1.4] text-ink-strong">
           전체 합계
         </span>
-        <span className="text-[1.5rem] font-bold leading-[1.2] tabular-nums text-ink-strong">
+        <span className="text-app-stat font-bold leading-[1.2] tabular-nums text-ink-strong">
           {formatClock(totalSeconds)}
         </span>
       </div>

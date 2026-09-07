@@ -31,6 +31,21 @@
   --text-app-label--line-height: 1.4;
   --text-app-caption: 0.75rem;
   --text-app-caption--line-height: 1.4;
+  /* 2026-09-07 결함 정리 — 지표·배지 전용 두 토큰 추가. 둘 다 위 본문/제목용 스케일과
+     의도가 달라 별도로 둔다.
+     `app-stat`: 점수·타이머 합계 등 "숫자 지표" 표시 전용(제목과 분리) — Atlassian
+     Design System `font.metric`이 큰 지표 숫자를 heading 스케일과 별도 토큰으로
+     두는 것과 같은 관례이고, Material 3 Display 계열도 "표시용 대형 수치"를 본문
+     타이포와 분리한다. line-height는 기존 실측 `leading-7.75`(1.9375rem)를 그대로
+     보존해 1.5rem 대비 비율로 옮긴다.
+     `app-badge`: 카운터·배지의 최소 글자 크기 하한 — Material 3 label-small(11sp)과
+     iOS HIG Caption 2(11pt) 관례를 따른 값이다(WCAG 2.x는 텍스트 최소 크기를
+     규정하지 않는다 — 대비만 본다). 배지처럼 배경 대비가 크고 글자 수가 극히 적은
+     표시에 한정해 쓴다. */
+  --text-app-stat: 1.5rem;
+  --text-app-stat--line-height: calc(1.9375 / 1.5);
+  --text-app-badge: 0.6875rem;
+  --text-app-badge--line-height: 1.4;
 
   /* 앱 셸(수행평가·목표관리) 좌측 고정 사이드바 폭 — 두 셸이 공유하는 단일 소스.
      shadcn Sidebar(AppShellSidebar.tsx)가 --sidebar-width 인라인 스타일로 이 값을

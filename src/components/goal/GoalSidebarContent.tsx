@@ -125,7 +125,7 @@ export default function GoalSidebarContent({
                           0.5rem → `top-2`, 좌우 인셋은 버튼의 `px-3`(0.75rem)과 맞춘다
                           → `right-3`. */}
                       {badge && (
-                        <SidebarMenuBadge className="top-2 right-3 rounded-full bg-error px-2 py-0.5 text-[0.6875rem] font-semibold text-white">
+                        <SidebarMenuBadge className="top-2 right-3 rounded-full bg-error px-2 py-0.5 text-app-badge font-semibold text-white">
                           {badge}
                         </SidebarMenuBadge>
                       )}

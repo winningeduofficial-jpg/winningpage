@@ -373,7 +373,7 @@ export default function EffortWorkbookRow({
           {connectedTasks.map((task) => (
             <li
               key={task.id}
-              className="flex items-center gap-1.5 text-[0.6875rem] leading-[1.4] text-ink-sub"
+              className="flex items-center gap-1.5 text-app-badge text-ink-sub"
             >
               <span
                 aria-hidden="true"

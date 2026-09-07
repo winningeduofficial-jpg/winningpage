@@ -17,7 +17,7 @@ type ConditionTileProps = {
 function ConditionTile({ emoji, label, value, avg }: ConditionTileProps) {
   return (
     <div className="flex h-33 w-full flex-col items-center justify-center gap-1 rounded-xl bg-white px-2 text-center">
-      <span className="text-[1.5rem] leading-none" aria-hidden="true">
+      <span className="text-app-stat leading-none" aria-hidden="true">
         {emoji}
       </span>
       <span className="text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">

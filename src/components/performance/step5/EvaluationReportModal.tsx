@@ -194,7 +194,7 @@ function ScoreCard({
       </h3>
 
       {score !== null ? (
-        <p className="text-[1.5rem] font-semibold leading-7.75 text-ink-strong">
+        <p className="text-app-stat font-semibold text-ink-strong">
           {/* `86/100`을 그대로 낭독하면 "86 슬래시 100"처럼 읽히거나 스크린리더·언어 설정에
               따라 분수로 읽힌다. 보이는 글자는 시안 그대로 두고 낭독만 문장으로 바꾼다. */}
           <span aria-hidden="true">

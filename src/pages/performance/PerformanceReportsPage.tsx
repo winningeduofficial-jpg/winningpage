@@ -588,7 +588,7 @@ export default function PerformanceReportsPage() {
     <div className="min-h-0 flex-1 overflow-y-auto pb-14">
       {!isTrulyEmpty && (
         <div className="flex items-center justify-between">
-          <h2 className="text-[1.5rem] font-semibold leading-7.75 tracking-[-0.03rem] text-ink">
+          <h2 className="text-app-stat font-semibold tracking-[-0.03rem] text-ink">
             저장 리포트 {items.length}
           </h2>
 
@@ -630,7 +630,7 @@ export default function PerformanceReportsPage() {
       {isTrulyEmpty && (
         // §5.19 실측 — 68.75rem×22.5rem r1.25rem `fill #f9fafb`, 내부 문구+CTA VERTICAL gap 2rem.
         <div className="mt-10 flex h-90 w-full max-w-275 flex-col items-center justify-center gap-8 rounded-perf-modal bg-surface-footer">
-          <p className="text-center text-[1.5rem] font-medium leading-7.75 tracking-[-0.03rem] text-ink">
+          <p className="text-center text-app-stat font-medium tracking-[-0.03rem] text-ink">
             아직 저장된 리포트가 없어요
           </p>
           <Link
