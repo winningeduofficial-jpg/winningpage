@@ -1,6 +1,6 @@
 import path from "node:path";
-import playwrightConfig from "../../playwright.config";
 import { type BrowserContext, test as base, type Page } from "@playwright/test";
+import playwrightConfig from "../../playwright.config";
 
 // 로그인 QA 계정은 여기에 하드코딩하지 않는다 — 로컬 QA 계정 자격증명은 팀
 // 메모리(계정 발급 이력·회전 여부 포함)에 기록되어 있으니 그쪽을 확인할 것.
