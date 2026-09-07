@@ -44,11 +44,9 @@ export default function SubjectDirectionCard({
           <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
             {name}
           </h3>
-          <span className="text-[0.8125rem] leading-[1.4] text-ink-sub">
-            {zoneLabel}
-          </span>
+          <span className="text-app-label text-ink-sub">{zoneLabel}</span>
         </div>
-        <span className="inline-flex h-8 w-fit shrink-0 items-center rounded-full bg-[#E0DDF4] px-3 text-[0.8125rem] font-bold leading-[1.4] text-[#5B4E9E]">
+        <span className="inline-flex h-8 w-fit shrink-0 items-center rounded-full bg-[#E0DDF4] px-3 text-app-label font-bold text-[#5B4E9E]">
           {badge}
         </span>
       </div>
@@ -62,9 +60,7 @@ export default function SubjectDirectionCard({
       )}
 
       <div className="flex flex-col gap-2">
-        <p className="text-[0.75rem] font-semibold leading-[1.4] text-ink-sub">
-          공부 방향
-        </p>
+        <p className="text-app-caption font-semibold text-ink-sub">공부 방향</p>
         <p className="max-w-150.75 text-[0.875rem] leading-[1.6] text-ink">
           {body}
         </p>
@@ -72,14 +68,14 @@ export default function SubjectDirectionCard({
 
       {materials && materials.length > 0 && (
         <div className="mt-auto flex flex-col gap-2.5">
-          <p className="text-[0.75rem] font-semibold leading-[1.4] text-ink-sub">
+          <p className="text-app-caption font-semibold text-ink-sub">
             추천 교재/자료
           </p>
           <div className="flex flex-wrap gap-2">
             {materials.map((material) => (
               <span
                 key={material}
-                className="inline-flex h-8 w-fit items-center rounded-full bg-goal-cardTone-cream px-3 text-[0.8125rem] font-medium leading-[1.4] text-ink-strong"
+                className="inline-flex h-8 w-fit items-center rounded-full bg-goal-cardTone-cream px-3 text-app-label font-medium text-ink-strong"
               >
                 {material}
               </span>

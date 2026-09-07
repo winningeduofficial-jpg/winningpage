@@ -40,7 +40,7 @@ export default function StepperRow({
       >
         −
       </button>
-      <span className="w-12 shrink-0 text-center text-[1rem] font-medium text-ink">
+      <span className="w-12 shrink-0 text-center text-app-card-title font-medium text-ink">
         {value}
         {unit}
       </span>

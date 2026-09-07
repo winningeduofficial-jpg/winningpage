@@ -176,7 +176,7 @@ export default function GrowthReportBody({
         <button
           type="button"
           onClick={print}
-          className="flex h-9 shrink-0 items-center rounded-lg border border-line px-4 text-[0.8125rem] font-semibold leading-[1.2] text-ink-strong transition-colors hover:bg-surface-04"
+          className="flex h-9 shrink-0 items-center rounded-lg border border-line px-4 text-app-label font-semibold leading-[1.2] text-ink-strong transition-colors hover:bg-surface-04"
         >
           PDF 저장
         </button>
@@ -187,7 +187,7 @@ export default function GrowthReportBody({
           <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">
             {report.heading}
           </h1>
-          <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">
+          <span className="text-app-body font-medium leading-[1.4] text-ink-sub">
             {report.periodLabel}
           </span>
         </div>

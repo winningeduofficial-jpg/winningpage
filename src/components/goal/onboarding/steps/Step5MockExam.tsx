@@ -108,7 +108,7 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
               key={round.key}
               type="button"
               onClick={() => setMockLastRound(round.key)}
-              className={`rounded-xl border-2 px-4 py-2.5 text-[0.8125rem] font-bold transition-colors ${
+              className={`rounded-xl border-2 px-4 py-2.5 text-app-label font-bold transition-colors ${
                 mockExam.lastRound === round.key
                   ? "border-accent bg-accent text-white"
                   : "border-line text-ink-sub hover:border-accent"
@@ -120,7 +120,7 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
           <button
             type="button"
             onClick={() => setMockLastRound("")}
-            className={`rounded-xl border-2 px-4 py-2.5 text-[0.8125rem] font-bold transition-colors ${
+            className={`rounded-xl border-2 px-4 py-2.5 text-app-label font-bold transition-colors ${
               allNone
                 ? "border-accent bg-accent text-white"
                 : "border-line text-ink-sub hover:border-accent"
@@ -167,7 +167,7 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
                   if (!roundState) return null;
                   return (
                     <div key={round.key}>
-                      <p className="mb-3 inline-block rounded-lg bg-surface-03 px-2.5 py-1 text-[0.8125rem] font-black text-accent">
+                      <p className="mb-3 inline-block rounded-lg bg-surface-03 px-2.5 py-1 text-app-label font-black text-accent">
                         {flowLabel(round)}
                       </p>
                       <div className="flex flex-col gap-3">
@@ -218,7 +218,7 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
                                               { pct: String(chip.value) },
                                             )
                                           }
-                                          className={`rounded-full border px-3 py-1 text-[0.75rem] font-bold transition-colors ${
+                                          className={`rounded-full border px-3 py-1 text-app-caption font-bold transition-colors ${
                                             selected
                                               ? "border-accent bg-accent text-white"
                                               : "border-line text-ink-sub hover:border-accent"
@@ -251,7 +251,7 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
                                 )
                               }
                             />
-                            <span className="text-[0.75rem] text-ink-sub">
+                            <span className="text-app-caption text-ink-sub">
                               절대평가 · 백분위 없음
                             </span>
                           </div>

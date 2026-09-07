@@ -29,7 +29,7 @@ export default function GoalPageHeader({
         <div className="flex flex-wrap items-baseline gap-3">
           <h1 className="text-app-title font-bold text-ink-strong">{title}</h1>
           {meta && (
-            <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">
+            <span className="text-app-body font-medium leading-[1.4] text-ink-sub">
               {meta}
             </span>
           )}

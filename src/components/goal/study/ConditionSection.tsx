@@ -77,7 +77,7 @@ export default function ConditionSection({
                   : "border-line bg-white text-ink"
               }`}
             >
-              <span className="text-[1.75rem] leading-none" aria-hidden="true">
+              <span className="text-app-title leading-none" aria-hidden="true">
                 {option.emoji}
               </span>
               <span className="text-[0.875rem] leading-[1.4]">

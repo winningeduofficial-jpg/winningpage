@@ -62,9 +62,7 @@ export default function AddSubjectModal({
       onSubmit={handleClose}
     >
       {errorMessage && (
-        <p className="text-[0.8125rem] leading-[1.4] text-error">
-          {errorMessage}
-        </p>
+        <p className="text-app-label text-error">{errorMessage}</p>
       )}
       {candidates.length === 0 ? (
         <p className="text-[0.875rem] leading-[1.4] text-ink-sub">

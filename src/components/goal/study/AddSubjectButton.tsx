@@ -16,7 +16,7 @@ export default function AddSubjectButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex h-14 w-full items-center justify-center rounded-xl border border-dashed border-line/60 text-[0.9375rem] font-semibold text-ink-sub transition-colors hover:bg-surface-04 disabled:cursor-not-allowed disabled:opacity-50"
+      className="flex h-14 w-full items-center justify-center rounded-xl border border-dashed border-line/60 text-app-body font-semibold text-ink-sub transition-colors hover:bg-surface-04 disabled:cursor-not-allowed disabled:opacity-50"
     >
       + 과목 추가하기
     </button>

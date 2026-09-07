@@ -48,7 +48,7 @@ export default function VerticalBarChart({
                 style={{ height: isZero ? "0.25rem" : `${Math.max(pct, 6)}%` }}
               />
             </div>
-            <span className="text-[0.75rem] font-medium leading-[1.3] text-ink-strong">
+            <span className="text-app-caption font-medium leading-[1.3] text-ink-strong">
               {bar.label}
             </span>
           </div>

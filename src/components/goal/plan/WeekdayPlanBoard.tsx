@@ -84,7 +84,7 @@ export default function WeekdayPlanBoard({
                 isToday ? "ring-2 ring-ink-strong ring-offset-1" : ""
               }`}
             >
-              <span className="truncate text-[0.8125rem] leading-[1.4]">
+              <span className="truncate text-app-label">
                 <span
                   className={`text-ink-strong ${isToday ? "font-black" : "font-bold"}`}
                 >
@@ -107,7 +107,7 @@ export default function WeekdayPlanBoard({
             key={day.day}
             type="button"
             onClick={() => onAddTask(day.day, day.dateYmd)}
-            className="flex h-10.75 items-center justify-center rounded-lg border border-line bg-white text-[0.8125rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
+            className="flex h-10.75 items-center justify-center rounded-lg border border-line bg-white text-app-label font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
           >
             + 추가
           </button>
@@ -145,7 +145,7 @@ export default function WeekdayPlanBoard({
                     {isConfirming ? (
                       // 인라인 2단계 확인(window.confirm 대신) — 행280/321.
                       <div className="flex h-full flex-col items-center justify-center gap-1.5">
-                        <p className="text-[0.75rem] leading-[1.4] text-ink-strong">
+                        <p className="text-app-caption text-ink-strong">
                           삭제할까요?
                         </p>
                         <div className="flex items-center gap-1.5">
@@ -178,11 +178,11 @@ export default function WeekdayPlanBoard({
                         >
                           ✕
                         </button>
-                        <p className="truncate pr-4 text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">
+                        <p className="truncate pr-4 text-app-label font-semibold text-ink-strong">
                           {task.subject}
                         </p>
                         {/* 문서 §173 "말줄임 확정" — 1행 ellipsis. */}
-                        <p className="mt-1 truncate pr-4 text-[0.8125rem] leading-[1.4] text-ink-sub">
+                        <p className="mt-1 truncate pr-4 text-app-label text-ink-sub">
                           {task.title}
                         </p>
                         {caption && (

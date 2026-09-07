@@ -101,7 +101,7 @@ export default function AppModal({
                 </DialogTitle>
               )}
               {subtitle && (
-                <DialogDescription className="mt-1 wrap-break-word text-[0.8125rem] leading-[1.4] text-ink-sub">
+                <DialogDescription className="mt-1 wrap-break-word text-app-label text-ink-sub">
                   {subtitle}
                 </DialogDescription>
               )}

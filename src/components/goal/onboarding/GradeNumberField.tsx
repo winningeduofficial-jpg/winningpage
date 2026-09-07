@@ -33,7 +33,7 @@ export default function GradeNumberField({
           disabled={disabled}
           onChange={onChange}
           placeholder={placeholder}
-          className={`h-17 w-full rounded-xl border px-5 text-[1rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden ${
+          className={`h-17 w-full rounded-xl border px-5 text-app-card-title text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden ${
             suffix ? "pr-14" : ""
           } ${disabled ? "border-line bg-surface-01 text-ink-sub" : "border-line bg-white"}`}
         />

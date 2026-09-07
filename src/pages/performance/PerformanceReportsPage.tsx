@@ -200,7 +200,7 @@ function FinalReportModal({
           <SectionedReportView sections={visibleSections} />
         </PerformanceReportSurface>
       ) : (
-        <p className="text-[1rem] font-medium leading-5.25 text-ink-sub">
+        <p className="text-app-card-title font-medium leading-5.25 text-ink-sub">
           최종 제출본 내용을 불러오지 못했어요. 창을 닫고 다시 시도해 주세요.
         </p>
       )}
@@ -234,7 +234,7 @@ function ViewerStatusOverlay({
       {/* biome-ignore lint/a11y/noStaticElementInteractions: 배경 클릭이 안쪽까지 닫지 않도록 막는 stopPropagation 가드일 뿐, 키보드로 도달할 사용자 동작이 없다. */}
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: 위와 동일. */}
       <div
-        className="max-w-sm rounded-xl bg-white px-6 py-5 text-center text-[1rem] font-medium leading-5.25 text-ink shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
+        className="max-w-sm rounded-xl bg-white px-6 py-5 text-center text-app-card-title font-medium leading-5.25 text-ink shadow-[0_24px_60px_rgba(0,0,0,0.24)]"
         onClick={(event) => event.stopPropagation()}
       >
         {loading ? "리포트를 불러오는 중…" : error}
@@ -462,7 +462,7 @@ export default function PerformanceReportsPage() {
         </Link>
 
         {detailLoading && (
-          <p className="mt-6 text-[1rem] font-medium leading-5.25 text-ink-sub">
+          <p className="mt-6 text-app-card-title font-medium leading-5.25 text-ink-sub">
             불러오는 중…
           </p>
         )}
@@ -470,7 +470,7 @@ export default function PerformanceReportsPage() {
         {!detailLoading && detailError && (
           <p
             role="alert"
-            className="mt-6 text-[1rem] font-medium leading-5.25 text-[#d01c1c]"
+            className="mt-6 text-app-card-title font-medium leading-5.25 text-[#d01c1c]"
           >
             {detailError}
           </p>
@@ -478,7 +478,7 @@ export default function PerformanceReportsPage() {
 
         {!detailLoading && !detailError && detail?.session && (
           <div className="mt-6 max-w-200 rounded-perf-modal border border-performance-line bg-white p-8">
-            <h2 className="text-[1.25rem] font-semibold leading-6.5 tracking-[-0.025rem] text-ink">
+            <h2 className="text-app-section font-semibold leading-6.5 tracking-[-0.025rem] text-ink">
               {detail.session.topicTitle || "제목 없는 수행평가"}
             </h2>
             <p className="mt-2 text-[0.875rem] font-normal leading-4.5 tracking-[-0.0175rem] text-ink-sub">
@@ -613,7 +613,7 @@ export default function PerformanceReportsPage() {
       )}
 
       {listLoading && (
-        <p className="mt-6 text-[1rem] font-medium leading-5.25 text-ink-sub">
+        <p className="mt-6 text-app-card-title font-medium leading-5.25 text-ink-sub">
           불러오는 중…
         </p>
       )}
@@ -621,7 +621,7 @@ export default function PerformanceReportsPage() {
       {!listLoading && listError && (
         <p
           role="alert"
-          className="mt-6 text-[1rem] font-medium leading-5.25 text-[#d01c1c]"
+          className="mt-6 text-app-card-title font-medium leading-5.25 text-[#d01c1c]"
         >
           {listError}
         </p>
@@ -635,7 +635,7 @@ export default function PerformanceReportsPage() {
           </p>
           <Link
             to="/app/performance"
-            className="flex h-11 w-50 items-center justify-center rounded-lg bg-primary px-5 py-3 text-[1rem] font-medium leading-5 text-white transition hover:bg-primary/90"
+            className="flex h-11 w-50 items-center justify-center rounded-lg bg-primary px-5 py-3 text-app-card-title font-medium leading-5 text-white transition hover:bg-primary/90"
           >
             채팅으로 돌아가 시작하기
           </Link>
@@ -645,7 +645,7 @@ export default function PerformanceReportsPage() {
       {showListContent && (
         <>
           {filteredItems.length === 0 ? (
-            <p className="mt-6 text-[1rem] font-medium leading-5.25 text-ink-sub">
+            <p className="mt-6 text-app-card-title font-medium leading-5.25 text-ink-sub">
               이 교과군의 저장 리포트가 없어요.
             </p>
           ) : (

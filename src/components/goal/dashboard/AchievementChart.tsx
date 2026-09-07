@@ -73,7 +73,7 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
 
   return (
     <div
-      className="rounded-md px-3 py-2 text-[0.75rem] leading-normal"
+      className="rounded-md px-3 py-2 text-app-caption leading-normal"
       style={{
         backgroundColor: CHART_COLORS.tooltipBg,
         color: CHART_COLORS.tooltipText,
@@ -142,7 +142,7 @@ export default function AchievementChart({ data }: AchievementChartProps) {
             {visibleSeries.map((series) => (
               <li
                 key={series.key}
-                className="flex items-center gap-2 text-[0.8125rem] leading-[1.4] text-ink"
+                className="flex items-center gap-2 text-app-label text-ink"
               >
                 <span
                   aria-hidden="true"

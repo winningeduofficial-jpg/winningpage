@@ -229,7 +229,7 @@ export default function Grades() {
           subcopy="내신과 모의고사를 회차별로 기록하면 목표와의 격차가 자동 계산됩니다."
         />
         <div className="max-w-goal-content px-4 pb-24 md:px-12">
-          <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+          <p className="text-app-body leading-[1.4] text-ink-sub">
             {state.status === "loading"
               ? "불러오는 중입니다…"
               : "성적 데이터를 불러오지 못했습니다. 새로고침해 주세요."}

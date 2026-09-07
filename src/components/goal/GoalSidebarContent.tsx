@@ -63,12 +63,12 @@ export default function GoalSidebarContent({
           반대다. 각 줄을 자기 데이터가 있을 때만 독립적으로 렌더한다. */}
       <SidebarHeader className="px-6 pt-6">
         {profile?.name && (
-          <p className="text-app-card-title font-bold leading-[1.4] text-ink-strong">
+          <p className="text-app-card-title font-bold text-ink-strong">
             {profile.name}의 목표관리
           </p>
         )}
         {profile && (
-          <p className="mt-2 text-app-label leading-[1.4] text-ink-sub">
+          <p className="mt-2 text-app-label text-ink-sub">
             {profile.grade}・{profile.schoolType}
           </p>
         )}
@@ -85,7 +85,7 @@ export default function GoalSidebarContent({
       >
         {GOAL_NAV_GROUPS.map(({ group, items }) => (
           <SidebarGroup key={group} className="px-0">
-            <SidebarGroupLabel className="h-auto px-2 text-app-label font-medium leading-[1.4] text-ink-sub">
+            <SidebarGroupLabel className="h-auto px-2 text-app-label font-medium text-ink-sub">
               {group}
             </SidebarGroupLabel>
             <SidebarGroupContent>
@@ -98,7 +98,7 @@ export default function GoalSidebarContent({
                     <SidebarMenuItem key={item.to}>
                       <SidebarMenuButton
                         isActive={isActive}
-                        className="h-9 px-3 text-app-label leading-[1.4] text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
+                        className="h-9 px-3 text-app-label text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
                         render={
                           <Link
                             to={item.to}
@@ -143,7 +143,7 @@ export default function GoalSidebarContent({
         <Link
           to={GOAL_NAV_FOOTER.to}
           onClick={onNavigate}
-          className="block px-3 py-2 text-app-label leading-[1.4] text-ink-sub hover:text-ink-strong"
+          className="block px-3 py-2 text-app-label text-ink-sub hover:text-ink-strong"
         >
           {GOAL_NAV_FOOTER.label}
         </Link>

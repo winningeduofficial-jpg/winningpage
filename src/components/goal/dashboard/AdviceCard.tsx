@@ -33,7 +33,7 @@ export default function AdviceCard({ data }: AdviceCardProps) {
       {data && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1">
-            <p className="text-[0.8125rem] font-semibold leading-[1.4] text-ink-sub">
+            <p className="text-app-label font-semibold text-ink-sub">
               {data.section.label}
             </p>
             <p className="text-[0.875rem] leading-normal text-ink">
@@ -44,7 +44,7 @@ export default function AdviceCard({ data }: AdviceCardProps) {
             <div className="flex flex-col gap-3">
               {data.majorTips.map((tip) => (
                 <div key={tip.department} className="flex flex-col gap-1">
-                  <p className="text-[0.8125rem] font-semibold leading-[1.4] text-ink-sub">
+                  <p className="text-app-label font-semibold text-ink-sub">
                     [{tip.department}]
                   </p>
                   <p className="text-[0.875rem] leading-normal text-ink">

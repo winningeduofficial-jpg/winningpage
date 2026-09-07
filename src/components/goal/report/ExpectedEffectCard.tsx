@@ -20,20 +20,18 @@ export default function ExpectedEffectCard({
       tone="cream"
       className="flex min-h-89.75 flex-col gap-4 px-6 py-6"
     >
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
       <div className="flex flex-col gap-2.5">
         {pills.map((pill) => (
           <span
             key={pill}
-            className="inline-flex w-fit items-center rounded-lg bg-white px-4 py-2.5 text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong"
+            className="inline-flex w-fit items-center rounded-lg bg-white px-4 py-2.5 text-app-label font-semibold text-ink-strong"
           >
             {pill}
           </span>
         ))}
       </div>
-      <p className="mt-auto text-[0.75rem] leading-normal text-ink-sub">
+      <p className="mt-auto text-app-caption leading-normal text-ink-sub">
         {caption}
       </p>
     </GoalCard>

@@ -17,7 +17,7 @@ type RankingRailProps = {
 export default function RankingRail({ ranking }: RankingRailProps) {
   return (
     <GoalCard tone="cream" className="flex flex-col gap-3 px-5 py-5">
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
+      <h3 className="text-app-card-title font-bold text-ink-strong">
         오늘의 학습 순위
       </h3>
       {ranking.length === 0 ? (

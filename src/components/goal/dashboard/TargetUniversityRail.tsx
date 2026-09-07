@@ -31,9 +31,7 @@ function RateRow({
         aria-hidden="true"
         className={`h-2 w-2 shrink-0 rounded-full ${available ? dotClassName : "bg-line"}`}
       />
-      <span className="w-20 shrink-0 text-[0.8125rem] leading-[1.4] text-ink">
-        {label}
-      </span>
+      <span className="w-20 shrink-0 text-app-label text-ink">{label}</span>
       <GoalProgressBar
         value={available ? value : 0}
         max={100}
@@ -52,11 +50,11 @@ function RateRow({
           "미산출" 분기와의 비대칭(이 분기만 고정 w-10이라 방어가 없었다)을 없애는 무해한
           방어적 조치라 근본 원인 수정과 별개로 유지한다. */}
       {available ? (
-        <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">
+        <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-app-label font-semibold text-ink-strong">
           {value}%
         </span>
       ) : (
-        <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-[0.75rem] font-medium leading-[1.4] text-ink-sub">
+        <span className="min-w-10 shrink-0 whitespace-nowrap text-right text-app-caption font-medium text-ink-sub">
           미산출
         </span>
       )}
@@ -84,7 +82,7 @@ function UniversityCard({
   return (
     <GoalCard tone="neutral" className="flex flex-col gap-4 px-5 py-5">
       <div>
-        <p className="text-[0.8125rem] leading-[1.4] text-ink-sub">{label}</p>
+        <p className="text-app-label text-ink-sub">{label}</p>
         <p className="mt-1 text-[1.0625rem] font-bold leading-[1.4] text-ink-strong">
           {university} {department}
         </p>

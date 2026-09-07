@@ -20,7 +20,7 @@ export default function GoalCardHeader({
           {title}
         </h3>
         {meta && (
-          <span className="text-[0.8125rem] font-medium leading-[1.4] text-ink-sub">
+          <span className="text-app-label font-medium text-ink-sub">
             {meta}
           </span>
         )}

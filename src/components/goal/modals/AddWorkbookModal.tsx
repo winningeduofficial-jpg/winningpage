@@ -156,11 +156,11 @@ export default function AddWorkbookModal({
           onChange={(event) => setTotalPage(event.target.value)}
         />
       </div>
-      <p className="text-[0.75rem] leading-[1.4] text-ink-sub">
+      <p className="text-app-caption text-ink-sub">
         전체 페이지는 등록 후 수정할 수 없어요.
       </p>
       {pageRangeInvalid && (
-        <p className="text-[0.75rem] leading-[1.4] text-error">
+        <p className="text-app-caption text-error">
           현재 페이지는 전체 페이지(1 이상)를 넘을 수 없어요.
         </p>
       )}

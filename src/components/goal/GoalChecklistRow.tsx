@@ -72,7 +72,7 @@ export default function GoalChecklistRow({
           <span className="sr-only">({STATUS_LABEL[status]})</span>
         </span>
         {caption && (
-          <span className="truncate pl-[1.375rem] text-[0.75rem] leading-[1.4] text-ink-sub">
+          <span className="truncate pl-[1.375rem] text-app-caption text-ink-sub">
             {caption}
           </span>
         )}

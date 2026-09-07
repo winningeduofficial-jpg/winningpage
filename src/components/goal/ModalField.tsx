@@ -93,18 +93,14 @@ export default function ModalField({
             {...rest}
           />
           {suffix && (
-            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[0.8125rem] text-ink-sub">
+            <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-app-label text-ink-sub">
               {suffix}
             </span>
           )}
         </div>
       )}
 
-      {hint && (
-        <p className="mt-1.5 text-[0.75rem] leading-[1.4] text-ink-sub">
-          {hint}
-        </p>
-      )}
+      {hint && <p className="mt-1.5 text-app-caption text-ink-sub">{hint}</p>}
     </div>
   );
 }

@@ -94,14 +94,14 @@ export default function MockExamCard({ data }: MockExamCardProps) {
           <button
             type="button"
             onClick={() => setModalOpen(true)}
-            className="text-[0.8125rem] font-medium leading-[1.4] text-primary"
+            className="text-app-label font-medium text-primary"
           >
             + 성적 추가
           </button>
         }
       />
       <div className="flex items-center gap-3">
-        <span className="text-[1rem] font-semibold leading-[1.4] text-ink-strong">
+        <span className="text-app-card-title font-semibold text-ink-strong">
           {data.round}
         </span>
         <GoalDdayBadge dday={data.dday ?? null} />
@@ -114,7 +114,7 @@ export default function MockExamCard({ data }: MockExamCardProps) {
 
       {history.length > 0 ? (
         <div className="mt-auto flex flex-col gap-2">
-          <p className="text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
+          <p className="text-app-body font-bold leading-[1.4] text-ink-strong">
             기록한 성적
           </p>
           <div className="flex flex-col gap-2">
@@ -143,7 +143,7 @@ export default function MockExamCard({ data }: MockExamCardProps) {
       ) : (
         data.advice && (
           <div className="mt-auto flex flex-col gap-2">
-            <p className="text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
+            <p className="text-app-body font-bold leading-[1.4] text-ink-strong">
               학습 조언
             </p>
             <p className="text-[0.875rem] leading-normal text-ink">

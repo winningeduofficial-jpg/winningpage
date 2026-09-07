@@ -20,9 +20,7 @@ export default function MentorCommentCard({
         <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
           {title}
         </h3>
-        <span className="text-[0.75rem] leading-[1.4] text-ink-sub">
-          {dateLabel}
-        </span>
+        <span className="text-app-caption text-ink-sub">{dateLabel}</span>
       </div>
       <p className="text-[0.875rem] leading-[1.6] text-ink">{body}</p>
     </GoalCard>

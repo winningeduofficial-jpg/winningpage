@@ -534,7 +534,7 @@ export default function Dashboard() {
       <div className={outerClassName}>
         <div className="max-w-goal-dashboard">
           <GoalCard tone="neutral" className="px-8 py-7">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+            <p className="text-app-body leading-[1.4] text-ink-sub">
               대시보드를 불러오는 중입니다…
             </p>
           </GoalCard>
@@ -556,7 +556,7 @@ export default function Dashboard() {
       <div className={outerClassName}>
         <div className="max-w-goal-dashboard">
           <GoalCard tone="neutral" className="px-8 py-7">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+            <p className="text-app-body leading-[1.4] text-ink-sub">
               {message}
             </p>
           </GoalCard>

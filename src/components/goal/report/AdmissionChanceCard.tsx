@@ -39,7 +39,7 @@ function AdmissionBlock({ university, susi, jeongsi }: AdmissionBlockProps) {
       </h4>
       {rows.map((row) => (
         <div key={row.label} className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between text-[0.8125rem] leading-[1.4]">
+          <div className="flex items-center justify-between text-app-label">
             <span className="text-ink-sub">{row.label}</span>
             <span className="flex items-center gap-2">
               <DeltaBadge
@@ -76,9 +76,7 @@ export default function AdmissionChanceCard({
       tone="neutral"
       className="flex min-h-89.75 flex-col gap-5 px-6 py-6"
     >
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
       <div className="flex flex-1 flex-col justify-between gap-4">
         <AdmissionBlock {...data.upper} />
         <AdmissionBlock {...data.lower} />

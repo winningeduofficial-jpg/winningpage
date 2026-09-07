@@ -55,7 +55,7 @@ function GradeField({ label, value, onChange }: GradeFieldProps) {
           placeholder="3.2"
           className="h-9.75 w-full rounded-lg border border-[#E3E3E3] bg-white px-3.5 pr-14 text-right text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent"
         />
-        <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[0.8125rem] text-ink-sub">
+        <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-app-label text-ink-sub">
           등급
         </span>
       </div>
@@ -182,7 +182,7 @@ export default function AddNaesinGradeModal({
       submitDisabled={!canSubmit}
     >
       {error && (
-        <p className="rounded-lg bg-[#FCE4E4] px-3 py-2 text-[0.8125rem] leading-normal text-[#D14343]">
+        <p className="rounded-lg bg-[#FCE4E4] px-3 py-2 text-app-label leading-normal text-[#D14343]">
           {error}
         </p>
       )}

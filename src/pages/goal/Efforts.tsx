@@ -372,7 +372,7 @@ export default function Efforts() {
 // hex로 흩어져 있던 걸 다른 goal 색 토큰들과 같은 방식으로 통일한다).
 function CountBadge({ count }: { count: number }) {
   return (
-    <span className="inline-flex h-8 items-center justify-center rounded-full bg-goal-badge-purple-bg px-3 text-[0.8125rem] font-semibold text-goal-badge-purple-text">
+    <span className="inline-flex h-8 items-center justify-center rounded-full bg-goal-badge-purple-bg px-3 text-app-label font-semibold text-goal-badge-purple-text">
       총 {count}권 완독
     </span>
   );

@@ -44,7 +44,7 @@ export default function TomorrowPlanCard({
           {plan.map((item) => (
             <span
               key={`${item.subject}-${item.unit ?? ""}`}
-              className={`inline-flex h-8 w-fit shrink-0 items-center rounded-full px-4 text-[0.8125rem] font-medium leading-[1.2] text-ink-strong ${getSubjectBgClass(
+              className={`inline-flex h-8 w-fit shrink-0 items-center rounded-full px-4 text-app-label font-medium leading-[1.2] text-ink-strong ${getSubjectBgClass(
                 item.subject,
               )}`}
             >

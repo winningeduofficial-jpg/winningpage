@@ -43,13 +43,13 @@ export default function SessionRecordPanel({
                 aria-hidden="true"
                 className={`h-4 w-4 shrink-0 rounded-full ${getSubjectStrongClass(subject.id)}`}
               />
-              <span className="min-w-0 flex-1 truncate text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+              <span className="min-w-0 flex-1 truncate text-app-body font-semibold leading-[1.4] text-ink-strong">
                 {subject.label}
               </span>
-              <span className="shrink-0 text-[0.8125rem] leading-[1.4] text-ink-sub">
+              <span className="shrink-0 text-app-label text-ink-sub">
                 {status}
               </span>
-              <span className="w-12 shrink-0 text-right text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
+              <span className="w-12 shrink-0 text-right text-app-body font-bold leading-[1.4] text-ink-strong">
                 {minutes}분
               </span>
             </li>

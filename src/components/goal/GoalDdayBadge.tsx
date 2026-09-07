@@ -26,7 +26,7 @@ export default function GoalDdayBadge({ dday }: GoalDdayBadgeProps) {
   const toneClass = TONE_CLASS[tierOf(dday)];
   return (
     <span
-      className={`inline-flex h-8 w-fit shrink-0 items-center justify-center rounded-full px-3 text-[0.8125rem] font-semibold leading-[1.2] ${toneClass}`}
+      className={`inline-flex h-8 w-fit shrink-0 items-center justify-center rounded-full px-3 text-app-label font-semibold leading-[1.2] ${toneClass}`}
     >
       {dday}
     </span>

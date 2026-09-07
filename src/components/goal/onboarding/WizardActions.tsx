@@ -22,7 +22,7 @@ export default function WizardActions({
         <button
           type="button"
           onClick={onPrev}
-          className="h-perf-inset w-100 rounded-full bg-surface-03 text-[1rem] font-semibold text-primary transition-colors hover:brightness-95"
+          className="h-perf-inset w-100 rounded-full bg-surface-03 text-app-card-title font-semibold text-primary transition-colors hover:brightness-95"
         >
           {prevLabel}
         </button>
@@ -32,7 +32,7 @@ export default function WizardActions({
         type="button"
         onClick={onNext}
         disabled={nextDisabled}
-        className={`h-perf-inset w-100 rounded-full text-[1rem] font-semibold transition-colors ${
+        className={`h-perf-inset w-100 rounded-full text-app-card-title font-semibold transition-colors ${
           nextDisabled
             ? "cursor-not-allowed bg-surface-01 text-ink-sub"
             : "bg-primary text-white hover:bg-[#012347]"

@@ -52,10 +52,10 @@ export default function RecordCooldownSummary({
       className={`flex flex-col gap-4 rounded-xl bg-surface-04 px-7.5 py-6 ${className}`}
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+        <span className="text-app-body font-semibold leading-[1.4] text-ink-strong">
           오늘 순공 시간
         </span>
-        <span className="text-[1.25rem] font-bold leading-[1.2] text-ink-strong">
+        <span className="text-app-section font-bold leading-[1.2] text-ink-strong">
           {formatHours(summary?.studyHours ?? 0)}시간
         </span>
       </div>
@@ -67,7 +67,7 @@ export default function RecordCooldownSummary({
               aria-hidden="true"
               className="h-2 w-2 shrink-0 rounded-full bg-[#5AA6F0]"
             />
-            <span className="w-30 shrink-0 text-[0.8125rem] leading-[1.4] text-ink">
+            <span className="w-30 shrink-0 text-app-label text-ink">
               이상 목표 달성률
             </span>
             <GoalProgressBar
@@ -81,7 +81,7 @@ export default function RecordCooldownSummary({
               {summary.idealRate}%
             </span>
             {idealDeltaLabel && (
-              <span className="shrink-0 text-[0.8125rem] leading-[1.4] text-primary">
+              <span className="shrink-0 text-app-label text-primary">
                 {idealDeltaLabel}
               </span>
             )}
@@ -91,7 +91,7 @@ export default function RecordCooldownSummary({
               aria-hidden="true"
               className="h-2 w-2 shrink-0 rounded-full bg-[#6FC98A]"
             />
-            <span className="w-30 shrink-0 text-[0.8125rem] leading-[1.4] text-ink">
+            <span className="w-30 shrink-0 text-app-label text-ink">
               최소 목표 달성률
             </span>
             <GoalProgressBar
@@ -105,13 +105,13 @@ export default function RecordCooldownSummary({
               {summary.minRate}%
             </span>
             {minDeltaLabel && (
-              <span className="shrink-0 text-[0.8125rem] leading-[1.4] text-primary">
+              <span className="shrink-0 text-app-label text-primary">
                 {minDeltaLabel}
               </span>
             )}
           </div>
           {(idealJungsiDeltaLabel || minJungsiDeltaLabel) && (
-            <p className="text-[0.8125rem] leading-[1.4] text-ink-sub">
+            <p className="text-app-label text-ink-sub">
               정시 확률 변화{" "}
               {idealJungsiDeltaLabel && `이상 ${idealJungsiDeltaLabel}`}
               {idealJungsiDeltaLabel && minJungsiDeltaLabel && " · "}
@@ -122,9 +122,7 @@ export default function RecordCooldownSummary({
       )}
 
       <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
-        <span className="text-[0.8125rem] leading-[1.4] text-ink-sub">
-          내일 목표 시간
-        </span>
+        <span className="text-app-label text-ink-sub">내일 목표 시간</span>
         <span className="text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
           이상 {formatHours(tomorrowTargets.idealHours)}h · 최소{" "}
           {formatHours(tomorrowTargets.minHours)}h
@@ -132,7 +130,7 @@ export default function RecordCooldownSummary({
       </div>
 
       {cooldown.unlocksAt && (
-        <p className="text-center text-[0.8125rem] leading-[1.4] text-ink-sub">
+        <p className="text-center text-app-label text-ink-sub">
           다시 기록 가능: {formatCooldownUnlockLabel(cooldown.unlocksAt)}
         </p>
       )}

@@ -81,7 +81,7 @@ export default function GoalTable({
           <button
             type="button"
             onClick={onAddRound}
-            className="flex h-11.5 items-center rounded-lg border border-line bg-white px-4 text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong transition-colors hover:bg-surface-04"
+            className="flex h-11.5 items-center rounded-lg border border-line bg-white px-4 text-app-label font-semibold text-ink-strong transition-colors hover:bg-surface-04"
           >
             + 회차 추가
           </button>
@@ -98,7 +98,7 @@ export default function GoalTable({
         </div>
       ) : (
         <ScrollArea axis="x" className="mt-5">
-          <table className="w-full min-w-180 border-collapse text-left text-[0.8125rem] leading-[1.4]">
+          <table className="w-full min-w-180 border-collapse text-left text-app-label">
             <thead>
               <tr className="border-b border-[#EDEDED] text-ink-sub">
                 {COLUMNS.map((column) => (
@@ -167,14 +167,14 @@ export default function GoalTable({
                                 setConfirmingTerm(null);
                                 onDeleteRow?.(row.term);
                               }}
-                              className="text-[0.8125rem] font-semibold text-error hover:underline"
+                              className="text-app-label font-semibold text-error hover:underline"
                             >
                               정말 삭제
                             </button>
                             <button
                               type="button"
                               onClick={() => setConfirmingTerm(null)}
-                              className="text-[0.8125rem] text-ink-sub hover:underline"
+                              className="text-app-label text-ink-sub hover:underline"
                             >
                               취소
                             </button>
@@ -185,7 +185,7 @@ export default function GoalTable({
                               <button
                                 type="button"
                                 onClick={() => onEditRow(row.term)}
-                                className="text-[0.8125rem] text-ink-sub hover:text-ink-strong hover:underline"
+                                className="text-app-label text-ink-sub hover:text-ink-strong hover:underline"
                               >
                                 수정
                               </button>
@@ -194,7 +194,7 @@ export default function GoalTable({
                               <button
                                 type="button"
                                 onClick={() => setConfirmingTerm(row.term)}
-                                className="text-[0.8125rem] text-ink-sub hover:text-error hover:underline"
+                                className="text-app-label text-ink-sub hover:text-error hover:underline"
                               >
                                 삭제
                               </button>

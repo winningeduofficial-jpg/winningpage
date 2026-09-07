@@ -20,9 +20,7 @@ export default function ReportSection({
           {label}
         </h2>
         {subLabel && (
-          <span className="text-[0.8125rem] leading-[1.4] text-ink-sub">
-            {subLabel}
-          </span>
+          <span className="text-app-label text-ink-sub">{subLabel}</span>
         )}
       </div>
       {children}

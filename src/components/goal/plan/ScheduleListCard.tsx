@@ -29,7 +29,7 @@ export default function ScheduleListCard({
         <GoalDdayBadge dday={schedule.dday ?? null} />
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <span className="inline-flex h-5.5 shrink-0 items-center rounded-full bg-surface-04 px-2 text-[0.75rem] font-medium leading-[1.2] text-ink-sub">
+            <span className="inline-flex h-5.5 shrink-0 items-center rounded-full bg-surface-04 px-2 text-app-caption font-medium leading-[1.2] text-ink-sub">
               {/* category 미정 시 CODE_TO_LABEL 조회가 실패해 "기타" 폴백은 동일하게 유지된다. */}
               {scheduleCategoryLabel(schedule.category ?? "")}
             </span>

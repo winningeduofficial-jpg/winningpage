@@ -155,14 +155,12 @@ export default function PerformanceSidebar({
             사용자가 지금 어느 제품에 있는지 오인하게 만드는 문구는 시안 충실도보다
             우선순위가 낮다고 판단해 `수행평가`로 확정한다. */}
         {profileName && (
-          <p className="text-app-card-title font-bold leading-[1.4] text-ink-strong">
+          <p className="text-app-card-title font-bold text-ink-strong">
             {profileName}의 수행평가
           </p>
         )}
         {subtitle && (
-          <p className="mt-2 text-app-label leading-[1.4] text-ink-sub">
-            {subtitle}
-          </p>
+          <p className="mt-2 text-app-label text-ink-sub">{subtitle}</p>
         )}
       </SidebarHeader>
 
@@ -176,7 +174,7 @@ export default function PerformanceSidebar({
         >
           <SidebarGroupLabel
             id="perf-nav-heading"
-            className="h-auto px-2 text-app-label font-medium leading-[1.4] text-ink-sub"
+            className="h-auto px-2 text-app-label font-medium text-ink-sub"
           >
             메뉴
           </SidebarGroupLabel>
@@ -197,7 +195,7 @@ export default function PerformanceSidebar({
                         넘긴다(회귀 검증: PerformanceSidebar.test.tsx). */}
                     <SidebarMenuButton
                       isActive={isActive}
-                      className="h-9 px-3 text-app-label leading-[1.4] text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
+                      className="h-9 px-3 text-app-label text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
                       render={
                         <Link
                           to={item.to}
@@ -225,7 +223,7 @@ export default function PerformanceSidebar({
         >
           <SidebarGroupLabel
             id="perf-steps-heading"
-            className="h-auto px-2 text-app-label font-medium leading-[1.4] text-ink-sub"
+            className="h-auto px-2 text-app-label font-medium text-ink-sub"
           >
             진행단계
           </SidebarGroupLabel>
@@ -258,12 +256,7 @@ export default function PerformanceSidebar({
                       {/* 완료는 숫자 대신 체크. 스크린리더에는 상태를 말로 남긴다. */}
                       {state === "done" ? <CheckIcon /> : step}
                     </span>
-                    <span
-                      className={[
-                        "text-app-label leading-[1.4]",
-                        style.label,
-                      ].join(" ")}
-                    >
+                    <span className={["text-app-label", style.label].join(" ")}>
                       {label}
                     </span>
                     <span className="sr-only">

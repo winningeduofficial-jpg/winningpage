@@ -250,9 +250,7 @@ export default function AddScheduleFullModal({
       </div>
 
       {errorMessage && (
-        <p className="text-[0.8125rem] leading-[1.4] text-error">
-          {errorMessage}
-        </p>
+        <p className="text-app-label text-error">{errorMessage}</p>
       )}
 
       {isEditing && (
@@ -261,7 +259,7 @@ export default function AddScheduleFullModal({
             type="button"
             onClick={handleDelete}
             disabled={submitting}
-            className="text-[0.8125rem] font-medium text-error transition-opacity hover:opacity-80 disabled:opacity-50"
+            className="text-app-label font-medium text-error transition-opacity hover:opacity-80 disabled:opacity-50"
           >
             일정 삭제
           </button>
