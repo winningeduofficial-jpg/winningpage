@@ -1,13 +1,14 @@
 import { ChevronRight } from "lucide-react";
-import { useState } from "react";
 import { Link } from "react-router";
 
 import Chip from "@/components/Chip";
 
 /**
- * 뉴스 섹션 (0729 시안 Figma node 2207:13148, 1101×293 재구현) — 독립 풀폭 섹션
- * - 중앙 타이틀 + 2컬럼(좌 회사소식 / 우 공지사항) 각 최대 3행 리스트
- * - 각 행 = 카테고리 배지 pill(선택) + 제목(ellipsis) + 우측 날짜. 썸네일 없음.
+ * 뉴스 섹션 (QA 행109, 2026-09-07 시안 Figma node 4885:19030 재구현) — 독립 풀폭 섹션
+ * - 중앙 타이틀 + 2컬럼(좌 회사소식 / 우 공지사항) 각 최대 5행 리스트. 필터 탭 없음 —
+ *   상위 쿼리(Home.tsx)가 is_pinned desc, sort_order asc, created_at desc 순으로 이미
+ *   정렬해 넘기므로 컴포넌트는 받은 순서 그대로 앞 5개만 자른다.
+ * - 각 행 = 카테고리 배지 pill(is_pinned 행만) + 제목(ellipsis) + 우측 날짜. 썸네일 없음.
  * - 헤더 chevron → 더보기 (회사소식 /company-news/list, 공지사항 /events)
  * - 행 클릭 → 상세 (?id= 쿼리 파라미터 기반 기존 상세 라우트)
  *
@@ -35,21 +36,7 @@ type NewsItem = {
   is_pinned?: boolean | null;
 };
 
-const MAX_ROWS = 3;
-
-// 컬럼별 "중요/일반" 필터 — is_pinned(회사소식/공지사항 공용 컬럼) 기준 2분기.
-type NewsFilterKey = "pinned" | "general";
-
-const NEWS_FILTER_TABS: { key: NewsFilterKey; label: string }[] = [
-  { key: "pinned", label: "중요" },
-  { key: "general", label: "일반" },
-];
-
-function filterByPinned(items: NewsItem[], filter: NewsFilterKey) {
-  return items.filter((item) =>
-    filter === "pinned" ? Boolean(item.is_pinned) : !item.is_pinned,
-  );
-}
+const MAX_ROWS = 5;
 
 // 시안(Figma 1907:14893) 배지 3색 → 공통 Chip 의 tone 토큰 매핑.
 // 색 hex 는 전부 src/components/Chip.jsx 가 소유한다(TONE_STYLES).
@@ -82,12 +69,12 @@ function formatDate(value: string | number | Date | null | undefined) {
 }
 
 // 배지 폭은 0803 시안(3015:14378) 기준 min 4rem — '중요'(2자) 64px 고정.
-// 미고정 행은 동일 min 폭 스페이서로 제목 시작선을 맞춘다.
+// 2026-09-07 시안(4885:19030)은 미고정 행에 배지 자리를 남기지 않는다 — 제목이
+// 열 좌측 끝에서 바로 시작(스페이서 제거, QA 행109).
 type ChipTone = "blue" | "green" | "coral" | "red" | "gray";
 
 function PinnedBadge({ pinned }: { pinned: boolean }) {
-  if (!pinned)
-    return <span aria-hidden="true" className="relative w-16 shrink-0" />;
+  if (!pinned) return null;
 
   return (
     <Chip
@@ -124,48 +111,6 @@ function ColumnHeader({
         />
       </Link>
     </h3>
-  );
-}
-
-function NewsFilterTabs({
-  idPrefix,
-  label,
-  value,
-  onChange,
-}: {
-  idPrefix: string;
-  label: string;
-  value: NewsFilterKey;
-  onChange: (key: NewsFilterKey) => void;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label={label}
-      className="mt-4 flex items-center gap-2 md:mt-3"
-    >
-      {NEWS_FILTER_TABS.map((tab) => {
-        const isActive = value === tab.key;
-
-        return (
-          <button
-            key={tab.key}
-            type="button"
-            role="tab"
-            id={`${idPrefix}-filter-${tab.key}`}
-            aria-selected={isActive}
-            onClick={() => onChange(tab.key)}
-            className={`rounded-full px-3 py-1 text-[0.8125rem] transition-colors duration-150 ease-(--ease-out-quart) motion-reduce:transition-none ${
-              isActive
-                ? "bg-primary font-semibold text-white"
-                : "bg-[#F1F5F9] font-medium text-[#767676] hover:text-primary"
-            }`}
-          >
-            {tab.label}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
@@ -232,20 +177,8 @@ export default function NewsSection({
   companyNews = [],
   notices = [],
 }: NewsSectionProps) {
-  const [companyFilter, setCompanyFilter] = useState<NewsFilterKey>("pinned");
-  const [noticeFilter, setNoticeFilter] = useState<NewsFilterKey>("pinned");
-
-  const newsRows = filterByPinned(companyNews, companyFilter).slice(
-    0,
-    MAX_ROWS,
-  );
-  const noticeRows = filterByPinned(notices, noticeFilter).slice(0, MAX_ROWS);
-  const companyFilterLabel = NEWS_FILTER_TABS.find(
-    (tab) => tab.key === companyFilter,
-  )?.label;
-  const noticeFilterLabel = NEWS_FILTER_TABS.find(
-    (tab) => tab.key === noticeFilter,
-  )?.label;
+  const newsRows = companyNews.slice(0, MAX_ROWS);
+  const noticeRows = notices.slice(0, MAX_ROWS);
 
   return (
     <section
@@ -265,12 +198,6 @@ export default function NewsSection({
               moreLink="/company-news/list"
               moreLabel="회사소식 더보기"
             />
-            <NewsFilterTabs
-              idPrefix="company-news"
-              label="회사소식 분류"
-              value={companyFilter}
-              onChange={setCompanyFilter}
-            />
             {newsRows.length > 0 ? (
               <ul className="mt-6 space-y-6">
                 {newsRows.map((item) => (
@@ -279,7 +206,7 @@ export default function NewsSection({
               </ul>
             ) : (
               <EmptyRows
-                message={`등록된 ${companyFilterLabel} 회사소식이 없습니다.`}
+                message="등록된 회사소식이 없습니다."
                 className="mt-6 h-16 md:h-31.5"
               />
             )}
@@ -292,12 +219,6 @@ export default function NewsSection({
               moreLink="/events"
               moreLabel="공지사항 더보기"
             />
-            <NewsFilterTabs
-              idPrefix="notices"
-              label="공지사항 분류"
-              value={noticeFilter}
-              onChange={setNoticeFilter}
-            />
             {noticeRows.length > 0 ? (
               <ul className="mt-6 space-y-6">
                 {noticeRows.map((item) => (
@@ -306,7 +227,7 @@ export default function NewsSection({
               </ul>
             ) : (
               <EmptyRows
-                message={`등록된 ${noticeFilterLabel} 공지사항이 없습니다.`}
+                message="등록된 공지사항이 없습니다."
                 className="mt-6 h-16 md:h-31.5"
               />
             )}
