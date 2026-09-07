@@ -4,7 +4,7 @@ import heroGrain from "@/assets/renewal/landing/hero-grain.png";
 import heroAura from "@/assets/services/in-depth-research/hero-aura.svg";
 import audienceData from "@/assets/services/research/audience-data.png";
 import audienceDesign from "@/assets/services/research/audience-design.png";
-import audienceReview from "@/assets/services/research/audience-review.jpg";
+import audienceReview from "@/assets/services/research/audience-review.png";
 import audienceTopic from "@/assets/services/research/audience-topic.png";
 import outcomeCalendar from "@/assets/services/research/outcome-calendar.png";
 import outcomeFolder from "@/assets/services/research/outcome-folder.png";
@@ -105,9 +105,8 @@ const AUDIENCE_CARDS = [
   },
   {
     // 시안(1907:21486)은 카드1과 같은 일러스트를 재사용했지만 QA 시트 행 43(2026-09-02)이
-    // "1·4번 동일 — 하나는 새 이미지로" 지적. 고객사 신규 에셋이 없어 같은 3D 학생 시리즈인
-    // 수행평가 랜딩의 audience-quality-v2(초안을 두고 팔짱 낀 학생)를 복사해 썼다 — "완성도를
-    // 높이고 싶은 학생"과 의미가 맞는다(자의적 판단, 에셋 오면 교체).
+    // "1·4번 동일 — 하나는 새 이미지로" 지적. 이후 고객사 신규 에셋이 시안(Figma 1907:21465)에
+    // 반영돼 audience-review.png로 교체했다(기존엔 audience-quality-v2 임시 대체 jpg였다).
     image: audienceReview,
     title: "완성도를 높이고 싶은 학생",
     desc: "초안은 있으나 더 다듬고 싶은 학생",

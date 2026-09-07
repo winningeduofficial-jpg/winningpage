@@ -3,7 +3,6 @@ import PremiumSectionHeading from "./PremiumSectionHeading";
 import {
   PREMIUM_CONTAINER_CLASS,
   PREMIUM_DARK_SECTION_BG_CLASS,
-  PREMIUM_HEADING_GAP_CLASS,
   PREMIUM_SECTION_PADDING_CLASS,
 } from "./premiumTokens";
 
@@ -34,9 +33,9 @@ export default function PremiumStatsPills({
           heading={heading}
           tone={isDark ? "dark" : "light"}
         />
-        <div
-          className={`flex flex-wrap items-center justify-center gap-3 ${PREMIUM_HEADING_GAP_CLASS}`}
-        >
+        {/* 제목-pill 간격 40px(시안 Figma 4050:3112) — 공용 PREMIUM_HEADING_GAP_CLASS(lg
+            100px)는 이 섹션엔 너무 넓어 로컬 값으로 뗀다(QA 시트 행121/125). */}
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3 sm:mt-8 lg:mt-10">
           {items.map((item) => (
             <span
               key={item.label}

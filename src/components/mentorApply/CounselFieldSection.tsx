@@ -8,8 +8,10 @@ import { MENTOR_ASSETS } from "@/data/mentorApplyAssets";
 //   2줄(예: 4+3)로 전체 카드가 보여야 한다"는 지적이다. 이전 구현(무한 마퀴, git 이력 참고)은
 //   2026-08-11 사용자 지시에 따른 것이었으나, 이번 QA 라운드에서 정반대 요구(가로 스크롤 제거)로
 //   뒤집혔다 — 최신 지시가 우선이다.
-//   `wide` 이상에서는 grid-cols-4 라 7장이 4+3 두 줄로 떨어지고(마지막 줄 4번째 칸은 빈 채로
-//   남는다), 그 아래 폭에서는 화면에 맞춰 열이 줄며 더 많은 줄로 자연히 랩된다.
+//   `wide` 이상에서는 열 4개 폭이라 7장이 4+3 두 줄로 떨어지는데, 마지막 줄 3장은
+//   flex-wrap + justify-center 로 가운데 정렬한다(QA 시트 행90 — 이전엔 grid 라 마지막
+//   줄 4번째 칸이 빈 채로 왼쪽 정렬돼 있었다). 그 아래 폭에서는 화면에 맞춰 열이 줄며
+//   더 많은 줄로 자연히 랩된다.
 //
 // 왜 신규 컴포넌트인가 —
 //   `services/ServiceOutcomesPanel.jsx` 는 4/5열 + divide-x 로 나뉜 **단일 패널** 구조라
@@ -63,10 +65,17 @@ export default function CounselFieldSection({
         </h2>
 
         {/* 2줄 그리드(4+3) — wide 미만에서는 폭에 맞춰 열 수가 줄며 더 많은 줄로 랩된다.
-            gap-5.75(23px)는 마퀴 시절 카드 gap 수치를 그대로 승계한다. */}
-        <ul className="mt-8 grid grid-cols-2 gap-5.75 sm:mt-10 sm:grid-cols-3 lg:mt-13 wide:grid-cols-4">
+            gap-5.75(23px)는 마퀴 시절 카드 gap 수치를 그대로 승계한다. grid 대신
+            flex-wrap + justify-center 를 써서 마지막 줄이 왼쪽 정렬로 밀리지 않고
+            가운데 정렬되게 한다(QA 시트 행90). li 폭은 열 수(2/3/4)별로
+            `calc(100%/열수 - 열간gap)` 으로 고정한다 — gap 1.4375rem(=5.75) 기준:
+            2열 0.71875rem, 3열 0.95833rem(=2*1.4375/3), 4열 1.078125rem(=3*1.4375/4). */}
+        <ul className="mt-8 flex flex-wrap justify-center gap-5.75 sm:mt-10 lg:mt-13">
           {COUNSEL_FIELDS.map((item) => (
-            <li key={item.key} className="flex">
+            <li
+              key={item.key}
+              className="flex w-[calc(50%-0.71875rem)] sm:w-[calc(33.333%-0.95833rem)] wide:w-[calc(25%-1.078125rem)]"
+            >
               <article className={COUNSEL_CARD_CLASS}>
                 {/* 일러스트는 바로 옆 제목이 뜻을 그대로 전달하는 장식 요소라 접근성 트리에서 뺀다. */}
                 <img

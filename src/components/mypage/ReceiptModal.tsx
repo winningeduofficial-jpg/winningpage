@@ -29,10 +29,12 @@ import { formatProductNames, getCashReceipt } from "./paymentRows";
 // 내장 동작이 처리한다.
 //
 // 카드/마켓 영수증 형태로 개편(QA 요청) — 판매자/상품/결제수단/금액 4블록을 점선으로
-// 구분한다. 승인번호는 카드 결제만 있는 값이라 필수로 보여주되(카드 결제 건에서
-// approveNo가 비어 있는 건 데이터 이상이라 그 자체로 드러나야 하므로 대시로 숨기지
-// 않는다), 그 외 행은 값이 없으면 "정보 없음"으로 채우지 않고 행 자체를 생략한다 —
-// 실제로 없는 데이터를 있는 것처럼 보이면 안 된다(팀 리드 지침).
+// 구분한다. 승인번호는 card.approveNo 값이 있으면 항상 필수로 보여주되(카드로
+// 결제한 건에서 approveNo가 비어 있는 건 데이터 이상이라 그 자체로 드러나야 하므로
+// 대시로 숨기지 않는다), 간편결제로 낸 카드 건도 토스 raw에는 approveNo가 실려
+// 오므로 결제수단(카드/간편결제)과 무관하게 표시한다(QA 시트 행146). 그 외 행은
+// 값이 없으면 "정보 없음"으로 채우지 않고 행 자체를 생략한다 — 실제로 없는
+// 데이터를 있는 것처럼 보이면 안 된다(팀 리드 지침).
 type ReceiptOrder = {
   order_name?: string | null;
   order_items?: { name: string; product_id?: string | null }[] | null;
@@ -100,10 +102,6 @@ function buildPaymentRows(order: ReceiptOrder): ReceiptRow[] {
   if (isCardPayment && card) {
     pushRow(rows, "카드번호", formatCardNumber(card.number));
     pushRow(rows, "할부", installmentLabel(card.installmentPlanMonths));
-    // 승인번호는 카드영수증의 핵심 항목이라 값이 있으면 그대로, 비어 있으면
-    // "정보 없음" 폴백 없이 행을 생략한다(위 파일 주석 참고 — 데이터 이상은
-    // 숨기지 않되, 없는 값을 지어내지도 않는다).
-    pushRow(rows, "승인번호", card.approveNo);
   } else if (virtualAccount) {
     // 현금성 결제(가상계좌/계좌이체)는 승인번호 대신 입금 계좌 정보를 보여준다.
     pushRow(rows, "입금 계좌", accountLabel(virtualAccount));
@@ -121,6 +119,12 @@ function buildPaymentRows(order: ReceiptOrder): ReceiptRow[] {
     }
   }
 
+  // 승인번호는 카드영수증의 핵심 항목이라 값이 있으면 그대로, 비어 있으면
+  // "정보 없음" 폴백 없이 행을 생략한다(위 파일 주석 참고 — 데이터 이상은
+  // 숨기지 않되, 없는 값을 지어내지도 않는다). 간편결제로 결제한 카드 건도
+  // 토스 raw에는 card.approveNo가 실려 오므로 isCardPayment(카드번호/할부
+  // 표시 여부)와 무관하게 항상 표시한다(QA 시트 행146).
+  pushRow(rows, "승인번호", card?.approveNo);
   pushRow(rows, "승인일시", formatDateTime(order.approved_at || order.paid_at));
   return rows;
 }
