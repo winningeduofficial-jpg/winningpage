@@ -124,8 +124,13 @@ export default function GoalSidebarContent({
                           잡아야 한다: 세로 중앙 = (2.25rem − 1.25rem(배지 h-5)) / 2 =
                           0.5rem → `top-2`, 좌우 인셋은 버튼의 `px-3`(0.75rem)과 맞춘다
                           → `right-3`. */}
+                      {/* SidebarMenuBadge 기본 클래스는 활성 메뉴(peer-data-active)·hover
+                          (peer-hover)에서 글자색을 sidebar-accent-foreground(거의 검정)로
+                          바꾼다 — shadcn 기본 배지는 배경이 없어 그게 맞지만, 이 배지는
+                          빨간 채움이라 같은 두 변형에서도 흰색을 유지해야 한다(현재
+                          페이지 메뉴에서 "미기록"이 검정으로 보이던 결함, 2026-09-07). */}
                       {badge && (
-                        <SidebarMenuBadge className="top-2 right-3 rounded-full bg-error px-2 py-0.5 text-app-badge font-semibold text-white">
+                        <SidebarMenuBadge className="top-2 right-3 rounded-full bg-error px-2 py-0.5 text-app-badge font-semibold text-white peer-hover/menu-button:text-white peer-data-active/menu-button:text-white">
                           {badge}
                         </SidebarMenuBadge>
                       )}
