@@ -19,6 +19,14 @@ import { useEffect, useRef, useState } from "react";
 // 동일한 기존 트레이드오프다.
 const HEADER_HEIGHT_PX = 64;
 
+// 접힘으로 줄어드는 헤더 높이(펼침 168px → 접힘 60px, GoalPageHeader 실측). 문서의
+// 스크롤 여유(scrollHeight − innerHeight)가 이 값보다 작은 짧은 페이지는 접지 않는다 —
+// 접히는 순간 문서가 그만큼 짧아져 브라우저가 scrollY를 되감고, 그러면 sentinel이 다시
+// 보여 펼쳐지는 "접힘↔펼침 튐"이 스크롤할 때마다 반복되기 때문이다(5303 실측: 성적관리
+// 0회차 화면처럼 뷰포트보다 조금만 긴 페이지). 여유가 충분하면 접힌 뒤에도 scrollY가
+// 유효 범위 안에 남아 안정 상태를 유지한다.
+const CONDENSE_DELTA_PX = 108;
+
 /**
  * @returns sentinelRef: 헤더 바로 앞에 둘 높이 0 sentinel에 붙일 ref.
  *          isCondensed: sentinel이 sticky 헤더 아래로 사라지면(=스크롤이 헤더를
@@ -35,7 +43,14 @@ export function useCondensedOnScroll() {
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry) return;
-        setIsCondensed(!entry.isIntersecting);
+        if (entry.isIntersecting) {
+          setIsCondensed(false);
+          return;
+        }
+        const scrollSlack =
+          document.documentElement.scrollHeight - window.innerHeight;
+        if (scrollSlack < CONDENSE_DELTA_PX) return;
+        setIsCondensed(true);
       },
       { rootMargin: `-${HEADER_HEIGHT_PX}px 0px 0px 0px`, threshold: 0 },
     );

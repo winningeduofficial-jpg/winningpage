@@ -60,10 +60,20 @@ function TestComponent() {
   );
 }
 
+// jsdom의 scrollHeight는 항상 0이라 "스크롤 여유"를 직접 흉내낸다 — 기본은 접힘
+// 델타(108px)보다 넉넉한 값으로 두고, 짧은 페이지 테스트만 좁힌다.
+function stubScrollSlack(slackPx: number) {
+  Object.defineProperty(document.documentElement, "scrollHeight", {
+    configurable: true,
+    value: window.innerHeight + slackPx,
+  });
+}
+
 describe("useCondensedOnScroll", () => {
   beforeEach(() => {
     FakeIntersectionObserver.instances = [];
     vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
+    stubScrollSlack(600);
   });
 
   afterEach(() => {
@@ -105,6 +115,16 @@ describe("useCondensedOnScroll", () => {
     expect(screen.getByTestId("state")).toHaveTextContent("condensed");
 
     act(() => observer.trigger(true));
+    expect(screen.getByTestId("state")).toHaveTextContent("expanded");
+  });
+
+  test("스크롤 여유가 접힘 델타(108px)보다 작은 짧은 페이지는 접지 않는다", () => {
+    stubScrollSlack(40);
+    render(<TestComponent />);
+    const observer = latestObserver();
+
+    act(() => observer.trigger(false));
+
     expect(screen.getByTestId("state")).toHaveTextContent("expanded");
   });
 });
