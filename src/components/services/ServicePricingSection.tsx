@@ -121,18 +121,12 @@ export default function ServicePricingSection({
       {/* 헤딩→리스트 gap — QA 지적으로 기존 lg:mt-22.5(약 90px)에서 좁혔다. */}
       <div className="mt-8 flex flex-col gap-3 text-left sm:mt-10 lg:mt-14 lg:gap-4">
         {products.map((product) => {
-          // QA 시트 행 118 "하나의 플랜만 선택 > 중앙이나 우측으로 붙이기" — 상품이 1개뿐인
-          // 서비스(예: 수행평가)는 926px 폭 행에서 상품명↔가격 사이가 과하게 벌어져 보였다.
-          // 행이 1개일 때만 폭을 600px(lg:max-w-150)로 줄이고 lg:mx-auto로 중앙에 붙인다.
-          const isSingleProduct = products.length === 1;
           return (
             /* 행 폭 1209 × 0.766 ≈ 926px, 컨테이너(최대 1100px) 안에서 lg:mx-auto 중앙 정렬.
                행 높이 119 × 0.766 ≈ 91px, 패딩 상하 21px / 좌우 25px, radius 12 = rounded-xl. */
             <div
               key={product.id}
-              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white px-6 py-6 sm:px-8 lg:mx-auto lg:h-22.75 lg:w-full lg:px-6.25 lg:py-5.25 ${
-                isSingleProduct ? "lg:max-w-150" : "lg:max-w-231.5"
-              }`}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white px-6 py-6 sm:px-8 lg:mx-auto lg:h-22.75 lg:w-full lg:max-w-231.5 lg:px-6.25 lg:py-5.25"
             >
               {/* QA 행 86(2026-09-06) — 선택 불가능한 정보 카드인데 체크박스처럼 보이는
                   장식용 체크 아이콘 배지를 삭제했다. */}
