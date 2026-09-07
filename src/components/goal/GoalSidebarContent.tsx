@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarContent,
   SidebarFooter,
@@ -78,38 +79,45 @@ export default function GoalSidebarContent({
           (수행평가 사이드바의 단일 "메뉴" 그룹은 `aria-labelledby`로 라벨 id를 직접
           가리키지만, 여기는 그룹이 4개라 그중 하나를 대표 라벨로 쓸 수 없어 리터럴
           `aria-label`을 쓴다). */}
+      {/* 스크롤은 shadcn `SidebarContent`의 네이티브 overflow-auto 대신 프로젝트 공용
+          `ScrollArea`(OverlayScrollbars)에 맡긴다 — 전역 `scrollbar-width: none`
+          (index.css) 때문에 네이티브 스크롤바가 보이지 않아, 뷰포트가 낮을 때 메뉴가
+          잘려도 스크롤 가능하다는 단서가 전혀 없었다(2026-09-07 사용자 지적). 바깥
+          `SidebarContent`는 `overflow-hidden`으로 이중 스크롤을 막고, 사이드바 폭
+          안쪽 여백은 ScrollArea 루트(px-4)가 그대로 맡는다(MobileNavDrawer.tsx 선례). */}
       <SidebarContent
-        className="px-4"
+        className="overflow-hidden"
         role="navigation"
         aria-label="목표관리 메뉴"
       >
-        {GOAL_NAV_GROUPS.map(({ group, items }) => (
-          <SidebarGroup key={group} className="px-0">
-            <SidebarGroupLabel className="h-auto px-2 text-app-label font-medium text-ink-sub">
-              {group}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu className="gap-1">
-                {items.map((item) => {
-                  const end = item.to === "/app/goal";
-                  const isActive = isNavItemActive(pathname, item.to, end);
-                  const badge = item.getBadge?.(navBadgeData);
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton
-                        isActive={isActive}
-                        className="h-9 px-3 text-app-label text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
-                        render={
-                          <Link
-                            to={item.to}
-                            onClick={onNavigate}
-                            aria-current={isActive ? "page" : undefined}
-                          />
-                        }
-                      >
-                        <span>{item.label}</span>
-                      </SidebarMenuButton>
-                      {/* 공식 shadcn 구조 — 배지는 버튼의 자식이 아니라
+        <ScrollArea className="min-h-0 flex-1 px-4">
+          {GOAL_NAV_GROUPS.map(({ group, items }) => (
+            <SidebarGroup key={group} className="px-0">
+              <SidebarGroupLabel className="h-auto px-2 text-app-label font-medium text-ink-sub">
+                {group}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="gap-1">
+                  {items.map((item) => {
+                    const end = item.to === "/app/goal";
+                    const isActive = isNavItemActive(pathname, item.to, end);
+                    const badge = item.getBadge?.(navBadgeData);
+                    return (
+                      <SidebarMenuItem key={item.to}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          className="h-9 px-3 text-app-label text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
+                          render={
+                            <Link
+                              to={item.to}
+                              onClick={onNavigate}
+                              aria-current={isActive ? "page" : undefined}
+                            />
+                          }
+                        >
+                          <span>{item.label}</span>
+                        </SidebarMenuButton>
+                        {/* 공식 shadcn 구조 — 배지는 버튼의 자식이 아니라
                           `SidebarMenuItem`의 형제다(`SidebarMenuBadge`의 기본 클래스가
                           `absolute right-1` + `peer-data-[size=*]/menu-button:top-*`로
                           형제 버튼을 `peer` 삼아 위치를 잡는다 — `SidebarMenuItem`은
@@ -124,23 +132,24 @@ export default function GoalSidebarContent({
                           잡아야 한다: 세로 중앙 = (2.25rem − 1.25rem(배지 h-5)) / 2 =
                           0.5rem → `top-2`, 좌우 인셋은 버튼의 `px-3`(0.75rem)과 맞춘다
                           → `right-3`. */}
-                      {/* SidebarMenuBadge 기본 클래스는 활성 메뉴(peer-data-active)·hover
+                        {/* SidebarMenuBadge 기본 클래스는 활성 메뉴(peer-data-active)·hover
                           (peer-hover)에서 글자색을 sidebar-accent-foreground(거의 검정)로
                           바꾼다 — shadcn 기본 배지는 배경이 없어 그게 맞지만, 이 배지는
                           빨간 채움이라 같은 두 변형에서도 흰색을 유지해야 한다(현재
                           페이지 메뉴에서 "미기록"이 검정으로 보이던 결함, 2026-09-07). */}
-                      {badge && (
-                        <SidebarMenuBadge className="top-2 right-3 rounded-full bg-error px-2 py-0.5 text-app-badge font-semibold text-white peer-hover/menu-button:text-white peer-data-active/menu-button:text-white">
-                          {badge}
-                        </SidebarMenuBadge>
-                      )}
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+                        {badge && (
+                          <SidebarMenuBadge className="top-2 right-3 rounded-full bg-error px-2 py-0.5 text-app-badge font-semibold text-white peer-hover/menu-button:text-white peer-data-active/menu-button:text-white">
+                            {badge}
+                          </SidebarMenuBadge>
+                        )}
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
+        </ScrollArea>
       </SidebarContent>
 
       {/* 하단 유틸 — 내 정보 수정 */}

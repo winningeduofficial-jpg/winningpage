@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router";
 import { AppShellSidebar } from "@/components/app-shell/AppShellSidebar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   SidebarContent,
   SidebarGroup,
@@ -164,28 +165,32 @@ export default function PerformanceSidebar({
         )}
       </SidebarHeader>
 
-      <SidebarContent>
-        {/* 메뉴 — 활성/비활성 텍스트 색이 같고 배경 pill 하나로만 구분하는 것이
+      {/* 스크롤은 공용 `ScrollArea`(OverlayScrollbars)에 맡긴다 — 목표관리 사이드바
+          (GoalSidebarContent.tsx)와 같은 이유·같은 구조(전역 scrollbar-width: none 때문에
+          네이티브 스크롤바가 안 보여 스크롤 단서가 없음). 두 인앱 셸의 동작을 맞춘다. */}
+      <SidebarContent className="overflow-hidden">
+        <ScrollArea className="min-h-0 flex-1">
+          {/* 메뉴 — 활성/비활성 텍스트 색이 같고 배경 pill 하나로만 구분하는 것이
             시안 정본이다(§3.2 단정). */}
-        <SidebarGroup
-          role="navigation"
-          aria-labelledby="perf-nav-heading"
-          className="px-4"
-        >
-          <SidebarGroupLabel
-            id="perf-nav-heading"
-            className="h-auto px-2 text-app-label font-medium text-ink-sub"
+          <SidebarGroup
+            role="navigation"
+            aria-labelledby="perf-nav-heading"
+            className="px-4"
           >
-            메뉴
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className="gap-1.5">
-              {MENU_ITEMS.map((item) => {
-                const isActive =
-                  item.to === "/app/performance" ? !isReports : isReports;
-                return (
-                  <SidebarMenuItem key={item.to}>
-                    {/* ⚠️ NavLink가 아니라 Link다. NavLink는 `aria-current` prop을 자기
+            <SidebarGroupLabel
+              id="perf-nav-heading"
+              className="h-auto px-2 text-app-label font-medium text-ink-sub"
+            >
+              메뉴
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu className="gap-1.5">
+                {MENU_ITEMS.map((item) => {
+                  const isActive =
+                    item.to === "/app/performance" ? !isReports : isReports;
+                  return (
+                    <SidebarMenuItem key={item.to}>
+                      {/* ⚠️ NavLink가 아니라 Link다. NavLink는 `aria-current` prop을 자기
                         기본값(`'page'`)으로 흡수하고 **라우터 자체 prefix 매칭**으로
                         다시 계산해 내보낸다. `to="/app/performance"`에 `end`가 없으면
                         `/app/performance/reports`도 prefix로 걸려 두 항목이 동시에
@@ -193,85 +198,88 @@ export default function PerformanceSidebar({
                         둘 다 현재 페이지라고 읽는다. 활성 판정이 아래처럼 커스텀이고 두
                         항목이 상호 배타이므로, prop을 그대로 흘리는 Link를 `render`로
                         넘긴다(회귀 검증: PerformanceSidebar.test.tsx). */}
-                    <SidebarMenuButton
-                      isActive={isActive}
-                      className="h-9 px-3 text-app-label text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
-                      render={
-                        <Link
-                          to={item.to}
-                          aria-current={isActive ? "page" : undefined}
-                          onClick={() => setOpenMobile(false)}
-                        />
-                      }
-                    >
-                      {item.label}
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                      <SidebarMenuButton
+                        isActive={isActive}
+                        className="h-9 px-3 text-app-label text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
+                        render={
+                          <Link
+                            to={item.to}
+                            aria-current={isActive ? "page" : undefined}
+                            onClick={() => setOpenMobile(false)}
+                          />
+                        }
+                      >
+                        {item.label}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-        {/* 진행단계 — 링크가 아닌 상태 표시라 SidebarMenu가 아니라 순서 목록(ol)으로
+          {/* 진행단계 — 링크가 아닌 상태 표시라 SidebarMenu가 아니라 순서 목록(ol)으로
             둔다. 그룹 자체를 `role="region"`으로 named landmark화해 "진행단계"와의
             관계를 스크린리더에도 준다(이전 <section aria-labelledby> 관례와 동일 의도). */}
-        <SidebarGroup
-          role="region"
-          aria-labelledby="perf-steps-heading"
-          className="px-4"
-        >
-          <SidebarGroupLabel
-            id="perf-steps-heading"
-            className="h-auto px-2 text-app-label font-medium text-ink-sub"
+          <SidebarGroup
+            role="region"
+            aria-labelledby="perf-steps-heading"
+            className="px-4"
           >
-            진행단계
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <ol className="flex flex-col gap-0.25">
-              {PERFORMANCE_STEPS.map(({ step, label }, index) => {
-                const stepState = stepStates[index];
-                const state =
-                  stepState && STEP_STATE_STYLES[stepState]
-                    ? stepState
-                    : "todo";
-                const style = STEP_STATE_STYLES[state];
+            <SidebarGroupLabel
+              id="perf-steps-heading"
+              className="h-auto px-2 text-app-label font-medium text-ink-sub"
+            >
+              진행단계
+            </SidebarGroupLabel>
+            <SidebarGroupContent>
+              <ol className="flex flex-col gap-0.25">
+                {PERFORMANCE_STEPS.map(({ step, label }, index) => {
+                  const stepState = stepStates[index];
+                  const state =
+                    stepState && STEP_STATE_STYLES[stepState]
+                      ? stepState
+                      : "todo";
+                  const style = STEP_STATE_STYLES[state];
 
-                return (
-                  <li
-                    key={step}
-                    aria-current={state === "current" ? "step" : undefined}
-                    className={[
-                      "flex h-9 items-center gap-4 rounded-md px-3",
-                      style.pill ? "bg-sidebar-accent" : "",
-                    ].join(" ")}
-                  >
-                    <span
+                  return (
+                    <li
+                      key={step}
+                      aria-current={state === "current" ? "step" : undefined}
                       className={[
-                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
-                        "text-app-label font-medium leading-4.5",
-                        style.badge,
+                        "flex h-9 items-center gap-4 rounded-md px-3",
+                        style.pill ? "bg-sidebar-accent" : "",
                       ].join(" ")}
                     >
-                      {/* 완료는 숫자 대신 체크. 스크린리더에는 상태를 말로 남긴다. */}
-                      {state === "done" ? <CheckIcon /> : step}
-                    </span>
-                    <span className={["text-app-label", style.label].join(" ")}>
-                      {label}
-                    </span>
-                    <span className="sr-only">
-                      {state === "done"
-                        ? " 완료"
-                        : state === "current"
-                          ? " 진행 중"
-                          : " 진행 전"}
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          </SidebarGroupContent>
-        </SidebarGroup>
+                      <span
+                        className={[
+                          "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                          "text-app-label font-medium leading-4.5",
+                          style.badge,
+                        ].join(" ")}
+                      >
+                        {/* 완료는 숫자 대신 체크. 스크린리더에는 상태를 말로 남긴다. */}
+                        {state === "done" ? <CheckIcon /> : step}
+                      </span>
+                      <span
+                        className={["text-app-label", style.label].join(" ")}
+                      >
+                        {label}
+                      </span>
+                      <span className="sr-only">
+                        {state === "done"
+                          ? " 완료"
+                          : state === "current"
+                            ? " 진행 중"
+                            : " 진행 전"}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ol>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </ScrollArea>
       </SidebarContent>
 
       {/* 회차(잔여 이용 횟수) UI는 여기 두지 않는다 — 인앱 21개 노드 어디에도 사이드바 회차
