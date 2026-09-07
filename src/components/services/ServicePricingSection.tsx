@@ -102,14 +102,14 @@ export default function ServicePricingSection({
     );
   }
 
-  // 안내문→CTA gap — QA 지적으로 하단 구매 영역 전반의 간격을 좁혔다(기존 lg:mt-12.25).
-  // 색상 — 2026-09-02 QA(시트 행 264 "이용권 구매하기 버튼 컬러 변경 필요"): 네이비 채움에
-  // accent 테두리를 두르던 조합을 버리고, 실제 결제 CTA(PricingSelling "결제하기")와 같은
-  // accent 채움(#0B84FD)·hover brightness-95 로 통일했다. 구매 동선 버튼은 accent, 히어로
-  // "지금 시작하기"(시안 2967:9261)는 네이비 — 역할별 색을 나눈다. 이 컴포넌트를 쓰는
-  // 목표관리·심화탐구 랜딩에도 같이 적용된다.
+  // 안내문→CTA gap — 시안(4885:19190) 실측(행 목록→CTA 약 100px)과 랜딩 다른 섹션 간격을
+  // 비교해 과했던 100px 대신 1문단 정도인 3rem(=lg:mt-12)로 절충했다.
+  // 색상 — QA 시트 행 118(2026-09-07, 디자이너 확정 시안 4885:19190)로 accent 채움을
+  // 버리고 네이비(bg-primary)로 되돌렸다. hover 색은 이 페이지 히어로 "지금 시작하기"
+  // 버튼(GoalManagement.tsx)과 동일한 hover:bg-[#01498F] 관례를 따른다. 이 컴포넌트를 쓰는
+  // 목표관리·수행평가·심화탐구 랜딩에도 같이 적용된다.
   const ctaClass =
-    "mt-6 inline-flex h-14 w-full max-w-57.5 items-center justify-center rounded-[0.9375rem] bg-accent px-8 text-[0.9375rem] font-semibold text-white transition hover:brightness-95 lg:mt-8 lg:h-13 lg:w-57.5 lg:px-0";
+    "mt-8 inline-flex h-14 w-full max-w-75 items-center justify-center rounded-[0.9375rem] bg-primary px-8 text-[0.9375rem] font-semibold text-white transition hover:bg-[#01498F] lg:mt-12 lg:h-13 lg:w-75 lg:px-0";
 
   return (
     <ServiceSection
@@ -119,19 +119,20 @@ export default function ServicePricingSection({
       heading={heading}
     >
       {/* 헤딩→리스트 gap — QA 지적으로 기존 lg:mt-22.5(약 90px)에서 좁혔다. */}
-      <div className="mt-8 flex flex-col gap-2.5 text-left sm:mt-10 lg:mt-14 lg:gap-2">
+      <div className="mt-8 flex flex-col gap-3 text-left sm:mt-10 lg:mt-14 lg:gap-4">
         {products.map((product) => {
-          // null/undefined일 때 이전에도 비교식이 항상 false였던 것과 동일한 결과.
-          const hasDiscount =
-            product.listPrice != null &&
-            product.price != null &&
-            product.listPrice > product.price;
+          // QA 시트 행 118 "하나의 플랜만 선택 > 중앙이나 우측으로 붙이기" — 상품이 1개뿐인
+          // 서비스(예: 수행평가)는 926px 폭 행에서 상품명↔가격 사이가 과하게 벌어져 보였다.
+          // 행이 1개일 때만 폭을 600px(lg:max-w-150)로 줄이고 lg:mx-auto로 중앙에 붙인다.
+          const isSingleProduct = products.length === 1;
           return (
             /* 행 폭 1209 × 0.766 ≈ 926px, 컨테이너(최대 1100px) 안에서 lg:mx-auto 중앙 정렬.
                행 높이 119 × 0.766 ≈ 91px, 패딩 상하 21px / 좌우 25px, radius 12 = rounded-xl. */
             <div
               key={product.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white px-6 py-6 sm:px-8 lg:mx-auto lg:h-22.75 lg:w-full lg:max-w-231.5 lg:px-6.25 lg:py-5.25"
+              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white px-6 py-6 sm:px-8 lg:mx-auto lg:h-22.75 lg:w-full lg:px-6.25 lg:py-5.25 ${
+                isSingleProduct ? "lg:max-w-150" : "lg:max-w-231.5"
+              }`}
             >
               {/* QA 행 86(2026-09-06) — 선택 불가능한 정보 카드인데 체크박스처럼 보이는
                   장식용 체크 아이콘 배지를 삭제했다. */}
@@ -146,30 +147,17 @@ export default function ServicePricingSection({
                   </span>
                 )}
               </span>
-              <span className="flex flex-col items-end">
-                {hasDiscount ? (
-                  /* 정가(취소선)↔할인 블록 gap 4 × 0.766 ≈ 3px. */
-                  <span className="flex flex-col items-end gap-0.75">
-                    <span className="text-[0.9375rem] font-normal leading-[1.4] tracking-[-0.02em] text-line line-through">
-                      {formatKRW(product.listPrice)}
-                    </span>
-                    <span className="flex items-center gap-4">
-                      {product.badge && (
-                        <span className="text-[1.125rem] font-medium tracking-[-0.02em] text-primary">
-                          {product.badge}
-                        </span>
-                      )}
-                      <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-ink">
-                        {formatKRW(product.price)}
-                      </span>
-                    </span>
-                  </span>
-                ) : (
-                  /* 할인 없는 상품 — 가격만, 라벨과 동일 타이포 */
-                  <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-ink">
-                    {formatKRW(product.price)}
+              {/* QA 시트 행 118 — 정가 취소선을 없애고 배지("N% 할인")+가격을 한 줄로 붙였다
+                  (시안 4885:19190). listPrice는 더는 화면에 쓰지 않는다. */}
+              <span className="flex items-baseline gap-2">
+                {product.badge && (
+                  <span className="text-[0.9375rem] font-semibold tracking-[-0.02em] text-error">
+                    {product.badge}
                   </span>
                 )}
+                <span className="text-[1.125rem] font-medium leading-[1.4] tracking-[-0.02em] text-ink">
+                  {formatKRW(product.price)}
+                </span>
               </span>
             </div>
           );

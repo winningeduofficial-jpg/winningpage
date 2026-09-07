@@ -762,7 +762,7 @@ export default function GoalManagement() {
       <ServicePricingSection
         serviceKey="goal"
         heading="목표관리 이용권 안내"
-        cta={{ label: "이용권 구매하기", to: "/pricing" }}
+        cta={{ label: "이용권 구매하러 가기", to: "/pricing" }}
         className="pb-20 sm:pb-24 lg:pb-27.5 lg:pt-60.75"
       />
     </main>
