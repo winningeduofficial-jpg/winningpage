@@ -570,7 +570,9 @@ body {
 
 @media (max-width: 768px) {
   body {
-    overflow-x: hidden;
+    /* index.html body 규칙과 동일 근거 — hidden은 body를 스크롤 컨테이너로 만들어
+       sticky를 깨뜨린다. */
+    overflow-x: clip;
   }
 
   .mobile-hidden {
