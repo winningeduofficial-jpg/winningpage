@@ -152,8 +152,10 @@ describe("GoalSidebarContent", () => {
   });
 
   // 회귀: 배지가 버튼 자식이면 `static ml-auto` 오버라이드가 필요했다 — 공식 구조
-  // (버튼의 형제)로 옮기면 라이브러리 기본 `absolute right-1` 위치가 오버라이드 없이도
-  // 맞으므로, 배지가 버튼의 DOM 형제인지(자식이 아닌지)를 고정한다.
+  // (버튼의 형제)로 옮기면 그 다툼은 없앨 수 있다. 다만 라이브러리 기본 위치
+  // (`right-1`/`top-1.5`)는 이 버튼(`h-9 px-3`)이 아니라 라이브러리 기본 치수 기준이라
+  // 그대로는 자리가 어긋난다(위 컴포넌트 주석) — 그래서 배지가 버튼의 DOM 형제인지
+  // (자식이 아닌지)만 여기서 고정하고, 실제 위치 보정은 아래 별도 테스트가 잰다.
   test("뱃지가 SidebarMenuButton의 자식이 아니라 SidebarMenuItem의 형제로 렌더된다", () => {
     renderContent({
       profile: null,
@@ -167,5 +169,22 @@ describe("GoalSidebarContent", () => {
     const button = screen.getByRole("link", { name: "중요일정" });
     expect(button.contains(badge)).toBe(false);
     expect(badge.parentElement).toBe(button.parentElement);
+  });
+
+  // 회귀: 라이브러리 기본 `right-1`/`peer-data-[size=default]/menu-button:top-1.5`는
+  // `h-9 px-3` 버튼 기준으로 오른쪽 0.5rem·위 0.125rem 어긋난다(위 컴포넌트 주석의
+  // 계산) — className으로 `top-2 right-3`를 얹어 이 버튼 치수에 맞춘다.
+  test("뱃지 위치가 h-9 px-3 버튼 치수에 맞게 top-2 right-3로 보정된다", () => {
+    renderContent({
+      profile: null,
+      navBadgeData: {
+        scheduleCount: 3,
+        dailyRecordDone: false,
+        timerRunning: false,
+      },
+    });
+    const badge = screen.getByText("3");
+    expect(badge.className).toMatch(/\btop-2\b/);
+    expect(badge.className).toMatch(/\bright-3\b/);
   });
 });
