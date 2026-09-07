@@ -411,6 +411,21 @@ describe("Header — 햄버거 위치(§6-7, 2026-09-03 계정 그룹 마지막�
     expect(nav?.className).toContain("w-full");
   });
 
+  it("nav 오버레이는 header와 같은 63px 내용 행이 되도록 투명 테두리를 진다(2026-09-06 1px 정렬)", () => {
+    // `<header>`는 border-box `h-16`(4rem) 안에 `border-b`(1px)가 포함돼 실제 내용 행이
+    // 63px다(로고/계정 그룹은 h-full로 그 63px을 그대로 받는다). 이 nav는 테두리가 없어
+    // `h-16`이 64px 내용 행이 됐고, 서로 다른 높이 안에서 각자 `items-center`가 nav
+    // 라벨을 로고/계정 그룹보다 0.5px 아래로 밀었다 — 투명 `border-b`로 같은 1px을
+    // 내부로 밀어 넣어 내용 행 높이를 실제로 맞춘다.
+    mockUseAuth.mockReturnValue({ session: null, user: null, isReady: true });
+    const { container } = renderHeader();
+    const nav = container.querySelector("header > nav");
+
+    expect(nav?.className).toContain("h-16");
+    expect(nav?.className).toContain("border-b");
+    expect(nav?.className).toContain("border-transparent");
+  });
+
   it("메가 컬럼 wrapper는 grid item이 아니라 nav와 동일한 순수 block mx-auto다(2026-09-03 좌측선 재조정 2차)", () => {
     // 실측 결과 컬럼 wrapper가 회색존과 같은 grid cell(col-start-1 row-start-1)을 공유할 때
     // CSS Grid의 auto-margin 정렬이 두 형제 사이에서 다르게 계산돼(nav의 순수 block

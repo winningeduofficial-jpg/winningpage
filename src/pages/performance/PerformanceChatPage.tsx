@@ -704,6 +704,16 @@ export default function PerformanceChatPage() {
   const [submissionLoadToken, setSubmissionLoadToken] = useState(0);
   const [savingDraft, setSavingDraft] = useState(false);
   const [submittingWork, setSubmittingWork] = useState(false);
+  // `savingDraft`/`submittingWork` state는 렌더용이고, 아래 가드(`handleSaveDraft`/
+  // `handleSubmitWork` 상단)는 이 ref들을 대신 본다 — state는 setState 호출이 batched
+  // 되므로 "지금 이 순간 실제로 저장이 진행 중인가"를 동기적으로 반영하지 않는다.
+  // `useDebouncedAutosave`의 언마운트 cleanup이 `onSaveRef.current(최신값)`(=여기
+  // `handleSaveDraft`의 마지막 렌더 클로저)을 호출할 때, 그 클로저가 참조하는
+  // `savingDraft`는 "그 렌더 시점의 값"으로 굳어 있다 — in-flight 저장이 끝나 cleanup이
+  // 실제로 발화하는 시점엔 이미 stale하다. ref는 렌더와 무관하게 항상 최신이라 이 문제가
+  // 없다(state는 렌더 트리거·표시용으로 그대로 유지한다).
+  const savingDraftRef = useRef(false);
+  const submittingWorkRef = useRef(false);
   // 저장 실패와 제출 실패는 서로 다른 상태다(그리핑 원인이었다) — 게이트 실패
   // (`SUBMISSION_TOO_SHORT` 등)는 초안이 이미 저장된 채로 돌아오는데, 두 실패를 한
   // 상태로 합치면 "제출만 실패"한 순간에도 `SubmissionForm`이 "저장 실패"를 띄웠다.
@@ -1390,9 +1400,15 @@ export default function PerformanceChatPage() {
    * 한다(호출부가 reject 없이 성공으로 착각하면 재시도 경로가 막힌다).
    */
   async function handleSaveDraft(fields) {
-    if (!accessToken || !createdSession || savingDraft || submittingWork)
+    if (
+      !accessToken ||
+      !createdSession ||
+      savingDraftRef.current ||
+      submittingWorkRef.current
+    )
       return;
 
+    savingDraftRef.current = true;
     setSavingDraft(true);
     setSubmissionSaveError(null);
 
@@ -1404,6 +1420,11 @@ export default function PerformanceChatPage() {
         mode: "draft",
       });
       setSubmissionSavedAt(data.savedAt || new Date().toISOString());
+      // 성공한 자동 저장은 "제출 실패" 문구도 함께 걷어낸다 — 게이트 실패
+      // (`SUBMISSION_TOO_SHORT` 등) 이후에도 학생은 계속 타이핑을 이어갈 수 있고, 그
+      // 입력이 자동 저장되면 방금 있었던 제출 실패 경고는 더 이상 최신 상태를 대변하지
+      // 않는다(그대로 두면 고친 뒤에도 "제출하지 못했어요…"가 화석처럼 남는다).
+      setSubmissionSubmitError(null);
     } catch (error) {
       console.error("[performance] 중간 저장 실패:", error?.code, error);
       const message =
@@ -1413,6 +1434,7 @@ export default function PerformanceChatPage() {
       toastError(message);
       throw error;
     } finally {
+      savingDraftRef.current = false;
       setSavingDraft(false);
     }
   }
@@ -1426,9 +1448,15 @@ export default function PerformanceChatPage() {
    * 회차는 이 경로에서 깎이지 않는다(§9.3 — 차감 지점은 `recommend-topics` 1곳뿐).
    */
   async function handleSubmitWork(fields) {
-    if (!accessToken || !createdSession || savingDraft || submittingWork)
+    if (
+      !accessToken ||
+      !createdSession ||
+      savingDraftRef.current ||
+      submittingWorkRef.current
+    )
       return;
 
+    submittingWorkRef.current = true;
     setSubmittingWork(true);
     setSubmissionSubmitError(null);
 
@@ -1453,6 +1481,7 @@ export default function PerformanceChatPage() {
         error?.userMessage || "제출하지 못했어요. 잠시 후 다시 시도해 주세요.",
       );
     } finally {
+      submittingWorkRef.current = false;
       setSubmittingWork(false);
     }
   }

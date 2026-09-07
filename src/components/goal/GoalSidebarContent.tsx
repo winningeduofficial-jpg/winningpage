@@ -114,10 +114,18 @@ export default function GoalSidebarContent({
                           `absolute right-1` + `peer-data-[size=*]/menu-button:top-*`로
                           형제 버튼을 `peer` 삼아 위치를 잡는다 — `SidebarMenuItem`은
                           이미 `relative`). 예전엔 버튼 안에 넣고 `static ml-auto`로
-                          라이브러리 기본 위치 지정과 싸웠는데, 형제로 옮기면 오버라이드
-                          없이 정확히 같은 자리(우측 정렬)에 앉는다. */}
+                          라이브러리 기본 위치 지정과 싸웠는데, 형제로 옮기면 그 다툼은
+                          없앨 수 있다.
+                          다만 라이브러리 기본값(`right-1`=0.25rem, `top-1.5`=0.375rem)은
+                          `h-9`(2.25rem) `size=default` 버튼 기준이 아니라 자체 기본
+                          치수(`h-8`) 기준이라, 이 버튼(`h-9 px-3`)에는 오른쪽으로
+                          0.5rem(8px)·위로 0.125rem(2px) 어긋난다 — 오버라이드 없이
+                          같은 자리는 아니고, className으로 이 버튼 치수에 맞게 다시
+                          잡아야 한다: 세로 중앙 = (2.25rem − 1.25rem(배지 h-5)) / 2 =
+                          0.5rem → `top-2`, 좌우 인셋은 버튼의 `px-3`(0.75rem)과 맞춘다
+                          → `right-3`. */}
                       {badge && (
-                        <SidebarMenuBadge className="rounded-full bg-error px-2 py-0.5 text-[0.6875rem] font-semibold text-white">
+                        <SidebarMenuBadge className="top-2 right-3 rounded-full bg-error px-2 py-0.5 text-app-badge font-semibold text-white">
                           {badge}
                         </SidebarMenuBadge>
                       )}

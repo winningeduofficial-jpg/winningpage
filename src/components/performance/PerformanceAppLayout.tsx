@@ -114,14 +114,19 @@ function PerformanceShellContent() {
 
           {/* `SidebarInset`(sidebar-16 공식 본문 자리, AppShellSidebar.tsx 주석 참고) —
             헤더 높이를 뺀 나머지 뷰포트 높이만 채우고 내부에서만 스크롤한다(채팅
-            캔버스 고정 높이 스크롤 모델 유지). 모바일 트리거 바 아래 콘텐츠 컨테이너에
-            좌 인셋(3.75rem, `pl-perf-inset`)을 지정해 좌기준선을 맞춘다. 우측은
-            콘텐츠 max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」
-            규칙). pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지 않게 하는 안전
-            여백일 뿐이다. */}
+            캔버스 고정 높이 스크롤 모델 유지). 모바일 1rem 대칭, `md`(고정 사이드바가
+            나타나는 브레이크포인트, `AppShellSidebarTrigger`의 `md:hidden`과 동일
+            기준) 이상만 좌기준선 3.75rem(`pl-perf-inset`)을 쓴다 — 좁은 화면에서
+            `--spacing-perf-inset`(3.75rem, 로그인 버튼 높이 등과 공유하는 토큰)을
+            그대로 좌우 인셋에 쓰면 375px 폭 기준 콘텐츠 실사용 폭이 320px대로 좁아져
+            텍스트영역이 지나치게 좁았다(M3 compact 컴팩트 여백 16dp 관례에 맞춰
+            1rem으로 낮춘다). 우측은 `md` 미만은 좌측과 대칭인 1rem, 이상은 콘텐츠
+            max-width가 남긴 여백으로 처리한다(§7.3 「좌우 대칭 padding 금지」 규칙 —
+            데스크톱에서만 적용된다). pr은 좁은 뷰포트에서 글자가 화면 우변에 붙지
+            않게 하는 안전 여백일 뿐이다. */}
           <SidebarInset className="h-[calc(100svh-var(--header-height))] min-w-0 overflow-hidden">
             <AppShellSidebarTrigger />
-            <div className="group/canvas relative flex min-h-0 flex-1 flex-col overflow-hidden pl-perf-inset pr-perf-inset">
+            <div className="group/canvas relative flex min-h-0 flex-1 flex-col overflow-hidden px-4 md:pl-perf-inset md:pr-perf-inset">
               <RouteLoadingOverlay />
               <div className="flex min-h-0 w-full max-w-perf-content flex-1 flex-col">
                 {/* 회차 소진 배너(§5.20 (A), P15 [FIX]) — 페이지 타이틀 위, 캔버스 최상단.

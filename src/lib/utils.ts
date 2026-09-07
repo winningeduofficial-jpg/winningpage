@@ -13,6 +13,8 @@ const APP_TEXT_SCALE = [
   "app-body",
   "app-label",
   "app-caption",
+  "app-stat",
+  "app-badge",
 ];
 
 // 같은 이유(MessageHeader 12px 사고)로 커스텀 `--radius-*` 토큰도 등록한다 — 등록이

@@ -155,14 +155,14 @@ export default function WeekdayPlanBoard({
                               setConfirmingTaskId(null);
                               onDeleteTask(task);
                             }}
-                            className="rounded-md bg-error px-2 py-1 text-[0.6875rem] font-semibold leading-[1.4] text-white"
+                            className="rounded-md bg-error px-2 py-1 text-app-badge font-semibold text-white"
                           >
                             삭제
                           </button>
                           <button
                             type="button"
                             onClick={() => setConfirmingTaskId(null)}
-                            className="rounded-md border border-line px-2 py-1 text-[0.6875rem] leading-[1.4] text-ink-sub"
+                            className="rounded-md border border-line px-2 py-1 text-app-badge text-ink-sub"
                           >
                             취소
                           </button>
@@ -186,7 +186,7 @@ export default function WeekdayPlanBoard({
                           {task.title}
                         </p>
                         {caption && (
-                          <p className="mt-1 truncate pr-4 text-[0.6875rem] leading-[1.4] text-ink-sub/80">
+                          <p className="mt-1 truncate pr-4 text-app-badge text-ink-sub/80">
                             {caption}
                           </p>
                         )}

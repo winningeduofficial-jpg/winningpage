@@ -224,6 +224,142 @@ test("언마운트 시 저장이 in-flight면 끊지 않고 기다렸다가 최�
   expect(onSave).toHaveBeenLastCalledWith({ a: "123" });
 });
 
+test("트레일링 저장이 도는 동안 언마운트해도 unmount flush가 동시에 발화하지 않는다", async () => {
+  // 회귀(그리핑 원인 ①의 재발 방지): in-flight 저장이 끝나면서 `pendingRef`로 예약해
+  // 둔 트레일링 저장이 새로 걸리는데, 언마운트 cleanup이 "처음 붙잡은 promise 하나"만
+  // 기다리면 트레일링 저장이 끝나기 전에 unmount flush가 같은 값을 또 저장하려 든다
+  // (페이지의 `handleSaveDraft` 가드가 "이미 저장 중"이라 무시 → undefined 반환 →
+  // 훅이 성공으로 착각 → 최신 글자 유실). 여기서는 트레일링 저장이 끝날 때까지 실제로
+  // 대기했다가, 값이 이미 일치하면 추가 호출 없이 끝나는 것으로 "동시 발화 없음"을 잰다.
+  let resolveFirst!: () => void;
+  let resolveSecond!: () => void;
+  const onSave = vi
+    .fn()
+    .mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFirst = resolve;
+        }),
+    )
+    .mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSecond = resolve;
+        }),
+    );
+  const { rerender, unmount } = renderHook(
+    ({ value }) =>
+      useDebouncedAutosave({ value, onSave, enabled: true, delayMs: DELAY }),
+    { initialProps: { value: { a: "1" } } },
+  );
+
+  rerender({ value: { a: "12" } });
+  await vi.advanceTimersByTimeAsync(DELAY); // 첫 저장 시작(in-flight)
+  expect(onSave).toHaveBeenCalledTimes(1);
+
+  rerender({ value: { a: "123" } }); // in-flight 중 값이 또 바뀐다
+  await vi.advanceTimersByTimeAsync(DELAY); // 타이머가 재발화 → attemptSave가 pendingRef만 세운다(아직 호출 없음)
+  expect(onSave).toHaveBeenCalledTimes(1);
+
+  unmount(); // 첫 저장이 아직 in-flight인 채로 언마운트
+
+  resolveFirst();
+  await vi.advanceTimersByTimeAsync(0); // 첫 저장 완료 → finally가 트레일링 저장을 새로 건다
+  expect(onSave).toHaveBeenCalledTimes(2); // 트레일링 저장 1회만 — unmount flush가 동시에 끼어들지 않았다
+  expect(onSave).toHaveBeenLastCalledWith({ a: "123" });
+
+  resolveSecond();
+  await vi.advanceTimersByTimeAsync(0);
+  // 트레일링 저장이 최신값을 이미 저장했으므로(lastSavedRef 갱신), unmount flush가
+  // 뒤늦게 깨어나도 같은 값을 또 저장하지 않는다 — 여전히 2회.
+  expect(onSave).toHaveBeenCalledTimes(2);
+});
+
+test("in-flight 중 flush({force:true})가 걸리면 트레일링 저장도 force 계약을 유지한다", async () => {
+  // 회귀(그리핑 원인 ②): 트레일링 저장이 일반 `attemptSave()`로 깎이면, 트레일링 실행
+  // 시점의 값이 우연히 마지막 저장본과 같아 보일 때(예: 실패 후 재시도가 직전 성공분과
+  // 같은 값) 동일값 스킵에 걸려 사용자가 누른 "다시 시도"가 조용히 no-op된다.
+  let resolveFirst!: () => void;
+  const onSave = vi.fn().mockImplementation(
+    () =>
+      new Promise<void>((resolve) => {
+        resolveFirst = resolve;
+      }),
+  );
+  const { result, rerender } = renderHook(
+    ({ value }) =>
+      useDebouncedAutosave({ value, onSave, enabled: true, delayMs: DELAY }),
+    { initialProps: { value: { a: "12" } } },
+  );
+
+  rerender({ value: { a: "12" } }); // 참조만 바뀐 동일값이라 effect가 새 타이머를 걸지 않는다
+  result.current.flush({ force: true }); // 수동 재시도 — 첫 저장 시작(in-flight)
+  expect(onSave).toHaveBeenCalledTimes(1);
+
+  // in-flight인 동안 같은 값으로 또 한 번 "다시 시도"를 누른다.
+  result.current.flush({ force: true });
+
+  resolveFirst(); // 첫 저장 완료 → lastSavedRef = "12"
+  await vi.advanceTimersByTimeAsync(0);
+
+  // force 계약이 트레일링 저장까지 이어졌다면, 값이 lastSavedRef와 같아도(둘 다 "12")
+  // 동일값 스킵 없이 실제로 한 번 더 호출된다.
+  expect(onSave).toHaveBeenCalledTimes(2);
+});
+
+test("suspendUnmountFlush() 이후 언마운트하면 draft 저장을 건너뛴다", async () => {
+  // §제출 성공 경로: 제출이 값을 이미 넘겨받았으므로 언마운트 시 같은 값을 또
+  // draft로 저장해 `409 SESSION_FINALIZED`를 유발하지 않아야 한다.
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  const { result, rerender, unmount } = renderHook(
+    ({ value }) =>
+      useDebouncedAutosave({ value, onSave, enabled: true, delayMs: DELAY }),
+    { initialProps: { value: { a: "1" } } },
+  );
+
+  rerender({ value: { a: "12" } }); // 디바운스 타이머 대기 중(아직 저장 안 됨)
+  result.current.suspendUnmountFlush();
+  unmount();
+
+  expect(onSave).not.toHaveBeenCalled();
+});
+
+test("suspendUnmountFlush() 이후에도 flush({force:true})는 정상적으로 저장한다(재시도 경로 유지)", async () => {
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  const { result, rerender } = renderHook(
+    ({ value }) =>
+      useDebouncedAutosave({ value, onSave, enabled: true, delayMs: DELAY }),
+    { initialProps: { value: { a: "1" } } },
+  );
+
+  rerender({ value: { a: "12" } });
+  result.current.suspendUnmountFlush();
+  result.current.flush({ force: true });
+  await vi.advanceTimersByTimeAsync(0);
+
+  expect(onSave).toHaveBeenCalledTimes(1);
+  expect(onSave).toHaveBeenCalledWith({ a: "12" });
+});
+
+test("suspendUnmountFlush() 이후 값이 바뀌면(편집) 다시 언마운트 flush 대상이 된다", async () => {
+  // 제출이 실패해 폼이 그대로 남고 사용자가 다시 고쳐 쓰는 경로 — 편집 자체가
+  // 스위치를 다시 내린다(값-변경 effect).
+  const onSave = vi.fn().mockResolvedValue(undefined);
+  const { result, rerender, unmount } = renderHook(
+    ({ value }) =>
+      useDebouncedAutosave({ value, onSave, enabled: true, delayMs: DELAY }),
+    { initialProps: { value: { a: "1" } } },
+  );
+
+  rerender({ value: { a: "12" } });
+  result.current.suspendUnmountFlush();
+  rerender({ value: { a: "123" } }); // 제출 실패 후 편집
+  unmount();
+
+  expect(onSave).toHaveBeenCalledTimes(1);
+  expect(onSave).toHaveBeenCalledWith({ a: "123" });
+});
+
 test("enabled=false면 값이 바뀌어도 새 타이머를 걸지 않는다", async () => {
   const onSave = vi.fn().mockResolvedValue(undefined);
   const { rerender } = renderHook(

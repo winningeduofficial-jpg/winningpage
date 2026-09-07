@@ -911,7 +911,14 @@ export default function Header() {
           `fixed left-0 top-0 w-full`로 완전히 통일해 계산식을 실제로 같게 만든다(아래
           `inset-x-0` 대신 메가 패널 wrapper와 동일한 `left-0 w-full` 표기로 맞췄다) — 1440
           /1512/1680/1920 재정렬 여부는 리드가 재실측한다. */}
-      <nav className="pointer-events-none fixed left-0 top-0 hidden h-16 w-full desktop:block">
+      {/* `border-b border-transparent`가 시각적으로 아무 것도 그리지 않지만 빠지면 안
+          된다 — `<header>`(위 주석)는 `border-box` 4rem 안에 `border-b`(1px)가 포함돼
+          실제 내용 행이 63px인데, 이 `<nav>`는 테두리가 없어 `h-16`이 그대로 64px 내용
+          행이 된다. 겹치는 `items-center`가 서로 다른 높이(64px vs 63px) 안에서 각자
+          중앙 정렬돼 nav 라벨이 로고/계정 그룹 행보다 0.5px 아래로 보였다 — 투명
+          테두리로 같은 1px을 내부로 밀어 넣어 두 행의 내용 높이(63px)를 실제로
+          맞춘다. */}
+      <nav className="pointer-events-none fixed left-0 top-0 hidden h-16 w-full border-b border-transparent desktop:block">
         <div className="pointer-events-none mx-auto flex h-full w-full max-w-content items-center px-8">
           {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 메가메뉴 닫힘 타이머를 관리하는 데스크톱 편의 동작 — 실제 nav 링크는 클릭·키보드 모두로 접근 가능하다. */}
           <div

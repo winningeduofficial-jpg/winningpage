@@ -37,7 +37,7 @@ export default function MentorHero() {
           CSS 등가가 cover + center 40% 다(명세 §1 배경 처리).
           장식 이미지라 alt="" + aria-hidden — 의미는 옆의 H1 카피가 전달한다.
           원본 4096×2731 PNG(17.6MB)는 WebP 768/1280/1920 세트로 교체했다(원본은 삭제).
-          LCP 리소스라 fetchpriority="high" 유지, loading="lazy" 는 붙이지 않는다.
+          LCP 리소스라 fetchPriority="high" 유지, loading="lazy" 는 붙이지 않는다.
           width/height 는 srcSet 기본값(1280w) 기준 비율로 둬서 CLS 를 막는다. */}
       <img
         src={MENTOR_ASSETS.heroBg.src}
