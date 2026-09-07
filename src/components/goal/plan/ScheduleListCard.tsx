@@ -33,11 +33,11 @@ export default function ScheduleListCard({
               {/* category 미정 시 CODE_TO_LABEL 조회가 실패해 "기타" 폴백은 동일하게 유지된다. */}
               {scheduleCategoryLabel(schedule.category ?? "")}
             </span>
-            <p className="truncate text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+            <p className="truncate text-app-card-title font-bold text-ink-strong">
               {schedule.title}
             </p>
           </div>
-          <p className="mt-2 truncate text-[0.875rem] leading-[1.4] text-ink-sub">
+          <p className="mt-2 truncate text-app-label text-ink-sub">
             {schedule.meta}
           </p>
         </div>
@@ -45,7 +45,7 @@ export default function ScheduleListCard({
       <button
         type="button"
         onClick={onEdit}
-        className="h-9.75 shrink-0 rounded-lg border border-line px-4 text-[0.875rem] font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
+        className="h-9.75 shrink-0 rounded-lg border border-line px-4 text-app-label font-medium text-ink-sub transition-colors hover:border-ink-strong hover:text-ink-strong"
       >
         수정
       </button>

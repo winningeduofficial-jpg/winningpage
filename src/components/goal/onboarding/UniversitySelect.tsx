@@ -153,15 +153,15 @@ export default function UniversitySelect({
               role="listbox"
             >
               {!searchTerm.trim() ? (
-                <li className="px-5 py-4.25 text-[0.875rem] text-ink-sub">
+                <li className="px-5 py-4.25 text-app-body text-ink-sub">
                   대학명을 입력해 검색하세요.
                 </li>
               ) : searching ? (
-                <li className="px-5 py-4.25 text-[0.875rem] text-ink-sub">
+                <li className="px-5 py-4.25 text-app-body text-ink-sub">
                   검색 중…
                 </li>
               ) : searchResults.length === 0 ? (
-                <li className="px-5 py-4.25 text-[0.875rem] text-ink-sub">
+                <li className="px-5 py-4.25 text-app-body text-ink-sub">
                   검색 결과가 없습니다.
                 </li>
               ) : (

@@ -16,9 +16,7 @@ export default function ReportSection({
   return (
     <section className="flex flex-col gap-5">
       <div className="flex items-baseline gap-3">
-        <h2 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
-          {label}
-        </h2>
+        <h2 className="text-app-section font-bold text-ink-strong">{label}</h2>
         {subLabel && (
           <span className="text-app-label text-ink-sub">{subLabel}</span>
         )}

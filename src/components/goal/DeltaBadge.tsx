@@ -43,6 +43,7 @@ export default function DeltaBadge({
     <span
       className={`inline-flex h-7.75 w-fit shrink-0 items-center justify-center gap-1 rounded-lg px-2.5 text-app-label font-semibold leading-[1.2] ${toneClass}`}
     >
+      {/* 아이콘 글리프 크기 — 텍스트 스케일 대상 아님 */}
       <span aria-hidden="true" className="text-[0.625rem] leading-none">
         {glyph}
       </span>

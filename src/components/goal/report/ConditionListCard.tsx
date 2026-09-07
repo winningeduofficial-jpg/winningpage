@@ -24,7 +24,7 @@ export default function ConditionListCard({
         {rows.map((row) => (
           <li
             key={row.label}
-            className="flex items-center justify-between text-[0.875rem] leading-[1.4]"
+            className="flex items-center justify-between text-app-label"
           >
             <span className="flex items-center gap-2">
               <span aria-hidden="true">{row.emoji}</span>

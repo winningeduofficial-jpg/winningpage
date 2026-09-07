@@ -34,7 +34,7 @@ function AdmissionBlock({ university, susi, jeongsi }: AdmissionBlockProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <h4 className="text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+      <h4 className="text-app-body font-semibold leading-[1.4] text-ink-strong">
         {university}
       </h4>
       {rows.map((row) => (

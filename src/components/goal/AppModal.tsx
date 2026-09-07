@@ -96,7 +96,7 @@ export default function AppModal({
           {(title || subtitle) && (
             <div className="mb-6.75 pr-6">
               {title && (
-                <DialogTitle className="wrap-break-word text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+                <DialogTitle className="wrap-break-word text-app-card-title font-bold text-ink-strong">
                   {title}
                 </DialogTitle>
               )}
@@ -118,7 +118,7 @@ export default function AppModal({
           <button
             type="button"
             onClick={onCancel ?? onClose}
-            className="h-9.75 rounded-lg border border-[#E3E3E3] text-[0.875rem] font-medium text-ink-sub transition-colors hover:bg-surface-04"
+            className="h-9.75 rounded-lg border border-[#E3E3E3] text-app-label font-medium text-ink-sub transition-colors hover:bg-surface-04"
           >
             {cancelLabel}
           </button>
@@ -126,7 +126,7 @@ export default function AppModal({
             type="button"
             onClick={onSubmit}
             disabled={submitDisabled}
-            className="h-9.75 rounded-lg bg-[#2E2A26] text-[0.875rem] font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-surface-01 disabled:text-ink-sub"
+            className="h-9.75 rounded-lg bg-[#2E2A26] text-app-label font-semibold text-white transition-colors disabled:cursor-not-allowed disabled:bg-surface-01 disabled:text-ink-sub"
           >
             {submitLabel}
           </button>

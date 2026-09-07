@@ -242,7 +242,7 @@ function ViewerStatusOverlay({
           <button
             type="button"
             onClick={onDismiss}
-            className="mt-4 block w-full rounded-lg border border-performance-line px-4 py-2 text-[0.875rem] font-medium text-ink-sub hover:bg-performance-bubble"
+            className="mt-4 block w-full rounded-lg border border-performance-line px-4 py-2 text-app-label font-medium text-ink-sub hover:bg-performance-bubble"
           >
             닫기
           </button>
@@ -456,7 +456,7 @@ export default function PerformanceReportsPage() {
       <div className="min-h-0 flex-1 overflow-y-auto pb-14">
         <Link
           to="/app/performance/reports"
-          className="text-[0.875rem] font-medium leading-4.5 text-ink-sub hover:underline"
+          className="text-app-label font-medium leading-4.5 text-ink-sub hover:underline"
         >
           ← 저장 리포트 목록으로
         </Link>
@@ -481,7 +481,7 @@ export default function PerformanceReportsPage() {
             <h2 className="text-app-section font-semibold leading-6.5 tracking-[-0.025rem] text-ink">
               {detail.session.topicTitle || "제목 없는 수행평가"}
             </h2>
-            <p className="mt-2 text-[0.875rem] font-normal leading-4.5 tracking-[-0.0175rem] text-ink-sub">
+            <p className="mt-2 text-app-body font-normal leading-4.5 tracking-[-0.0175rem] text-ink-sub">
               {[
                 buildMeta(detail.session),
                 formatSavedAt(detail.session.updatedAt),
@@ -680,7 +680,7 @@ export default function PerformanceReportsPage() {
               type="button"
               onClick={loadMore}
               disabled={listLoadingMore}
-              className="mt-6 flex h-11 items-center justify-center rounded-lg border border-performance-line px-6 text-[0.875rem] font-medium leading-4.5 text-ink-sub transition hover:bg-performance-bubble disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-6 flex h-11 items-center justify-center rounded-lg border border-performance-line px-6 text-app-label font-medium leading-4.5 text-ink-sub transition hover:bg-performance-bubble disabled:cursor-not-allowed disabled:opacity-60"
             >
               {listLoadingMore ? "불러오는 중…" : "더 보기"}
             </button>

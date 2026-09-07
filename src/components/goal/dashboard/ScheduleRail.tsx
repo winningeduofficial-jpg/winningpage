@@ -58,7 +58,7 @@ export default function ScheduleRail({ schedules }: ScheduleRailProps) {
               className="flex items-start justify-between gap-3"
             >
               <div className="min-w-0">
-                <p className="truncate text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+                <p className="truncate text-app-body font-semibold leading-[1.4] text-ink-strong">
                   {schedule.title}
                 </p>
                 <p className="mt-1 truncate text-app-caption text-ink-sub">

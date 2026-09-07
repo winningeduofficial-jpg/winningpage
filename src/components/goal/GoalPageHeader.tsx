@@ -39,7 +39,7 @@ export default function GoalPageHeader({
         )}
       </div>
       {subcopy && (
-        <p className="mt-3 text-[0.875rem] leading-[1.4] text-ink-sub">
+        <p className="mt-3 text-app-body leading-[1.4] text-ink-sub">
           {subcopy}
         </p>
       )}

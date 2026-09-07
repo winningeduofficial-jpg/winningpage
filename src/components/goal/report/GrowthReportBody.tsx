@@ -184,6 +184,7 @@ export default function GrowthReportBody({
 
       <div ref={contentRef}>
         <div className="mt-6 flex flex-wrap items-baseline gap-3">
+          {/* 30px — 타입 스케일 밖 값(app-title 1.75rem보다 큼), 디자인 결정 대기 중 */}
           <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">
             {report.heading}
           </h1>

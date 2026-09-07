@@ -77,7 +77,7 @@ export default function RecordCooldownSummary({
               fillClassName="bg-[#CCE4F7]"
               className="flex-1"
             />
-            <span className="w-11 shrink-0 text-right text-[0.875rem] font-bold leading-[1.4] text-ink-strong">
+            <span className="w-11 shrink-0 text-right text-app-body font-bold leading-[1.4] text-ink-strong">
               {summary.idealRate}%
             </span>
             {idealDeltaLabel && (
@@ -101,7 +101,7 @@ export default function RecordCooldownSummary({
               fillClassName="bg-[#ABDFBA]"
               className="flex-1"
             />
-            <span className="w-11 shrink-0 text-right text-[0.875rem] font-bold leading-[1.4] text-ink-strong">
+            <span className="w-11 shrink-0 text-right text-app-body font-bold leading-[1.4] text-ink-strong">
               {summary.minRate}%
             </span>
             {minDeltaLabel && (
@@ -123,7 +123,7 @@ export default function RecordCooldownSummary({
 
       <div className="flex items-center justify-between gap-3 border-t border-line pt-4">
         <span className="text-app-label text-ink-sub">내일 목표 시간</span>
-        <span className="text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+        <span className="text-app-body font-semibold leading-[1.4] text-ink-strong">
           이상 {formatHours(tomorrowTargets.idealHours)}h · 최소{" "}
           {formatHours(tomorrowTargets.minHours)}h
         </span>

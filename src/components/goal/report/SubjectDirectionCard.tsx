@@ -41,7 +41,7 @@ export default function SubjectDirectionCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1.5">
-          <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+          <h3 className="text-app-card-title font-bold text-ink-strong">
             {name}
           </h3>
           <span className="text-app-label text-ink-sub">{zoneLabel}</span>
@@ -61,7 +61,7 @@ export default function SubjectDirectionCard({
 
       <div className="flex flex-col gap-2">
         <p className="text-app-caption font-semibold text-ink-sub">공부 방향</p>
-        <p className="max-w-150.75 text-[0.875rem] leading-[1.6] text-ink">
+        <p className="max-w-150.75 text-app-body leading-[1.6] text-ink">
           {body}
         </p>
       </div>

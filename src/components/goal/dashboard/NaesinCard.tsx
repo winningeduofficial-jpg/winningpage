@@ -83,9 +83,7 @@ export default function NaesinCard({ data }: NaesinCardProps) {
           <p className="text-app-body font-bold leading-[1.4] text-ink-strong">
             학습 조언
           </p>
-          <p className="text-[0.875rem] leading-normal text-ink">
-            {data.advice}
-          </p>
+          <p className="text-app-body leading-normal text-ink">{data.advice}</p>
         </div>
       )}
 

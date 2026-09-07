@@ -12,7 +12,7 @@ export default function OnboardingCalculatingOverlay() {
       className="fixed inset-0 z-60 flex flex-col items-center justify-center gap-4 bg-ink-strong/45 backdrop-blur-[1px]"
     >
       <div className="h-10 w-10 animate-spin rounded-full border-[0.25rem] border-white/40 border-t-white" />
-      <p className="text-[1.125rem] font-semibold text-white">
+      <p className="text-app-section font-semibold text-white">
         학습량을 계산하고 있어요
       </p>
       <p className="text-app-label text-white/70">

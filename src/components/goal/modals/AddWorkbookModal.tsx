@@ -122,7 +122,7 @@ export default function AddWorkbookModal({
       submitDisabled={!canSubmit}
     >
       <div>
-        <p className="mb-6.75 text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+        <p className="mb-6.75 text-app-label font-semibold text-ink-strong">
           과목<span className="ml-1 text-error">*</span>
         </p>
         <SegmentedChipGroup

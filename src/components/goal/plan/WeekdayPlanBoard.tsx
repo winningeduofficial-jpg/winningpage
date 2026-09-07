@@ -170,6 +170,7 @@ export default function WeekdayPlanBoard({
                       </div>
                     ) : (
                       <>
+                        {/* 아이콘 글리프 크기(삭제 표시) — 텍스트 스케일 대상 아님 */}
                         <button
                           type="button"
                           onClick={() => setConfirmingTaskId(task.id)}

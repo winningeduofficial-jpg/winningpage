@@ -31,7 +31,7 @@ export default function StepperRow({
 
   return (
     <div className="flex items-center gap-5">
-      <span className="w-25 shrink-0 text-[0.875rem] text-ink">{label}</span>
+      <span className="w-25 shrink-0 text-app-label text-ink">{label}</span>
       <button
         type="button"
         onClick={decrease}

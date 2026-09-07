@@ -25,7 +25,9 @@ export default function GoalStatChip({
       className={`inline-flex min-h-17 w-fit flex-col justify-center gap-1 rounded-xl px-4 py-3 ${toneClass}`}
     >
       <span className="text-app-caption opacity-80">{label}</span>
-      <span className="text-[1.125rem] font-bold leading-[1.3]">{value}</span>
+      <span className="text-app-card-title font-bold leading-[1.3]">
+        {value}
+      </span>
     </div>
   );
 }

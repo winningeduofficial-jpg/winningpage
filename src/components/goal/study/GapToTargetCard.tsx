@@ -38,7 +38,7 @@ export default function GapToTargetCard({ rows, meta }: GapToTargetCardProps) {
               <span className="w-24 shrink-0 text-app-body font-semibold leading-[1.4] text-ink-strong">
                 {row.label}
               </span>
-              <span className="min-w-0 flex-1 text-[0.875rem] leading-[1.4] text-ink">
+              <span className="min-w-0 flex-1 text-app-label text-ink">
                 {row.description}
               </span>
               <span className="shrink-0 text-app-body font-bold leading-[1.4] text-ink-strong">

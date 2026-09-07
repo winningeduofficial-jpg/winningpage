@@ -23,7 +23,7 @@ export default function SessionRecordPanel({
       tone="neutral"
       className="flex h-full flex-col gap-4 px-7.5 py-7.5"
     >
-      <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+      <h3 className="text-app-card-title font-bold text-ink-strong">
         오늘 세션 기록
       </h3>
       <ul className="flex flex-col gap-3">

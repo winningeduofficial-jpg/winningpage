@@ -121,7 +121,7 @@ export default function MockExamCard({ data }: MockExamCardProps) {
             {history.map((record) => (
               <div
                 key={record.term}
-                className="flex items-center justify-between text-[0.875rem] text-ink"
+                className="flex items-center justify-between text-app-label text-ink"
               >
                 <span className="text-ink-strong">{record.term}</span>
                 <div className="flex items-center gap-2">
@@ -146,7 +146,7 @@ export default function MockExamCard({ data }: MockExamCardProps) {
             <p className="text-app-body font-bold leading-[1.4] text-ink-strong">
               학습 조언
             </p>
-            <p className="text-[0.875rem] leading-normal text-ink">
+            <p className="text-app-body leading-normal text-ink">
               {data.advice}
             </p>
           </div>

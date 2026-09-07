@@ -230,7 +230,7 @@ export default function StudyPlanRail() {
               <button
                 type="button"
                 onClick={handleRefresh}
-                className="h-9.5 w-full rounded-lg bg-[#4CAF6D] text-[0.875rem] font-semibold leading-[1.4] text-white"
+                className="h-9.5 w-full rounded-lg bg-[#4CAF6D] text-app-label font-semibold text-white"
               >
                 오늘 학습 계획 저장하기
               </button>

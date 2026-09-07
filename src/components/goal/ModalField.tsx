@@ -42,13 +42,13 @@ export default function ModalField({
 }: ModalFieldProps) {
   const fieldId = useId();
   const controlClass =
-    "h-9.75 w-full rounded-lg border border-[#E3E3E3] bg-white px-3.5 text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent";
+    "h-9.75 w-full rounded-lg border border-[#E3E3E3] bg-white px-3.5 text-app-body text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent";
 
   return (
     <div className={className}>
       <label
         htmlFor={fieldId}
-        className="mb-6.75 block text-[0.875rem] font-semibold leading-[1.4] text-ink-strong"
+        className="mb-6.75 block text-app-label font-semibold text-ink-strong"
       >
         {label}
         {required && (

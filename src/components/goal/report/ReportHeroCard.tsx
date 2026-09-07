@@ -25,7 +25,7 @@ export default function ReportHeroCard({
             className="flex flex-col items-center gap-1.5 px-2 text-center"
           >
             <span className="text-app-label text-ink-sub">{kpi.label}</span>
-            <span className="text-[1.125rem] font-bold leading-[1.3] text-ink-strong">
+            <span className="text-app-card-title font-bold leading-[1.3] text-ink-strong">
               {kpi.value}
             </span>
           </div>

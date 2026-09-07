@@ -27,7 +27,7 @@ export default function StudyTimeSection({
     <GoalCard tone="neutral" className="flex flex-col gap-5 px-8 py-7.5">
       <div>
         <GoalCardHeader title="과목별 순공 시간" />
-        <p className="mt-1 text-[0.875rem] leading-[1.4] text-ink-sub">
+        <p className="mt-1 text-app-body leading-[1.4] text-ink-sub">
           합계가 오늘의 목표 달성률로 계산돼요
         </p>
       </div>

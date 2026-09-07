@@ -17,12 +17,12 @@ export default function MentorCommentCard({
   return (
     <GoalCard tone="neutral" className="flex flex-col gap-3 px-8 py-7">
       <div className="flex items-baseline gap-3">
-        <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+        <h3 className="text-app-card-title font-bold text-ink-strong">
           {title}
         </h3>
         <span className="text-app-caption text-ink-sub">{dateLabel}</span>
       </div>
-      <p className="text-[0.875rem] leading-[1.6] text-ink">{body}</p>
+      <p className="text-app-body leading-[1.6] text-ink">{body}</p>
     </GoalCard>
   );
 }

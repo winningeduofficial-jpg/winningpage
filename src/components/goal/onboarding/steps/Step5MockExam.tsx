@@ -131,7 +131,7 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
         </div>
 
         {allNone ? (
-          <p className="mt-8 rounded-xl bg-surface-03 px-5 py-4 text-[0.875rem] leading-normal text-ink-sub">
+          <p className="mt-8 rounded-xl bg-surface-03 px-5 py-4 text-app-body leading-normal text-ink-sub">
             모의고사 성적이 없어 정시 합격 확률은 0%에서 시작합니다. 지금은
             내신(수시) 기준으로 계산하고, 모의고사를 보고 성적을 입력하면 정시가
             반영돼요.
@@ -139,16 +139,14 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
         ) : (
           <>
             <div className="mt-8">
-              <p className="mb-2 text-[0.875rem] text-ink-sub">
-                탐구 선택 과목
-              </p>
+              <p className="mb-2 text-app-label text-ink-sub">탐구 선택 과목</p>
               <div className="flex gap-2">
                 {(["과탐", "사탐"] as const).map((track) => (
                   <button
                     key={track}
                     type="button"
                     onClick={() => setMockTrack(track)}
-                    className={`rounded-xl border-2 px-5 py-2.5 text-[0.875rem] font-bold transition-colors ${
+                    className={`rounded-xl border-2 px-5 py-2.5 text-app-label font-bold transition-colors ${
                       mockExam.track === track
                         ? "border-accent bg-accent text-white"
                         : "border-line text-ink-sub hover:border-accent"
@@ -182,7 +180,7 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
                               className="rounded-xl border border-line p-4"
                             >
                               <div className="flex flex-wrap items-center gap-3">
-                                <span className="w-14 shrink-0 text-[0.875rem] font-bold text-ink-strong">
+                                <span className="w-14 shrink-0 text-app-label font-bold text-ink-strong">
                                   {subject.label}
                                 </span>
                                 <GradeNumberField
@@ -237,7 +235,7 @@ export default function Step5MockExam({ goPrev, goNext }: Step5MockExamProps) {
 
                         <div className="rounded-xl border border-line p-4">
                           <div className="flex items-center gap-3">
-                            <span className="w-14 shrink-0 text-[0.875rem] font-bold text-ink-strong">
+                            <span className="w-14 shrink-0 text-app-label font-bold text-ink-strong">
                               영어
                             </span>
                             <GradeNumberField

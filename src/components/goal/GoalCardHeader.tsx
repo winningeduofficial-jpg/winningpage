@@ -16,7 +16,7 @@ export default function GoalCardHeader({
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-baseline gap-2">
-        <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+        <h3 className="text-app-card-title font-bold text-ink-strong">
           {title}
         </h3>
         {meta && (

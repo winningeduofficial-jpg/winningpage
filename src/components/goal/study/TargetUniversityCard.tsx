@@ -75,7 +75,7 @@ export default function TargetUniversityCard({
   return (
     <GoalCard tone="neutral" className="flex flex-col gap-8 px-8 py-7.5">
       <div>
-        <p className="text-[0.875rem] leading-[1.4] text-ink-sub">{label}</p>
+        <p className="text-app-label text-ink-sub">{label}</p>
         <p className="mt-2 text-app-title font-bold text-ink-strong">
           {university} {department}
         </p>

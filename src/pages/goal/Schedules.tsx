@@ -146,7 +146,7 @@ export default function Schedules() {
           <button
             type="button"
             onClick={openCreate}
-            className="h-9.75 rounded-lg bg-[#2E2A26] px-4 text-[0.875rem] font-semibold text-white transition-colors hover:opacity-90"
+            className="h-9.75 rounded-lg bg-[#2E2A26] px-4 text-app-label font-semibold text-white transition-colors hover:opacity-90"
           >
             일정 등록
           </button>

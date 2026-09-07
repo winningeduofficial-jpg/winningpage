@@ -24,7 +24,7 @@ export default function GradeNumberField({
 }: GradeNumberFieldProps) {
   return (
     <div style={{ width }}>
-      {label && <p className="mb-1.5 text-[0.875rem] text-ink-sub">{label}</p>}
+      {label && <p className="mb-1.5 text-app-label text-ink-sub">{label}</p>}
       <div className="relative">
         <input
           type="text"
@@ -38,7 +38,7 @@ export default function GradeNumberField({
           } ${disabled ? "border-line bg-surface-01 text-ink-sub" : "border-line bg-white"}`}
         />
         {suffix && (
-          <span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-[0.875rem] text-ink-sub">
+          <span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-app-label text-ink-sub">
             {suffix}
           </span>
         )}

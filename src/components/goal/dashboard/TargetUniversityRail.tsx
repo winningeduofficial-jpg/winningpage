@@ -83,6 +83,7 @@ function UniversityCard({
     <GoalCard tone="neutral" className="flex flex-col gap-4 px-5 py-5">
       <div>
         <p className="text-app-label text-ink-sub">{label}</p>
+        {/* 17px — 타입 스케일 밖 값, 디자인 결정 대기 중(card-title 1rem/section 1.25rem 중 미확정) */}
         <p className="mt-1 text-[1.0625rem] font-bold leading-[1.4] text-ink-strong">
           {university} {department}
         </p>

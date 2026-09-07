@@ -623,7 +623,7 @@ export default function Dashboard() {
       {savedRecordBanner && (
         <div
           role="status"
-          className="fixed inset-x-0 bottom-8 z-55 mx-auto w-[calc(100%-2.5rem)] max-w-md rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-center text-[0.875rem] font-semibold text-green-700 shadow-[0_18px_45px_rgba(13,27,42,0.15)]"
+          className="fixed inset-x-0 bottom-8 z-55 mx-auto w-[calc(100%-2.5rem)] max-w-md rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-center text-app-body font-semibold text-green-700 shadow-[0_18px_45px_rgba(13,27,42,0.15)]"
         >
           {`기록을 저장했어요. 이상 목표 +${savedRecordBanner.idealSusi.toFixed(2)}%p · 최소 목표 +${savedRecordBanner.minSusi.toFixed(2)}%p`}
         </div>

@@ -45,7 +45,7 @@ function PercentileField({
     <div className="flex items-center gap-3">
       <label
         htmlFor={fieldId}
-        className="w-14 shrink-0 text-[0.875rem] font-semibold leading-[1.4] text-ink-strong"
+        className="w-14 shrink-0 text-app-label font-semibold text-ink-strong"
       >
         {label}
       </label>
@@ -58,7 +58,7 @@ function PercentileField({
           value={value}
           onChange={onChange}
           placeholder={placeholder}
-          className="h-9.75 w-full rounded-lg border border-[#E3E3E3] bg-white px-3.5 pr-14 text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent"
+          className="h-9.75 w-full rounded-lg border border-[#E3E3E3] bg-white px-3.5 pr-14 text-app-body text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden focus:ring-1 focus:ring-accent"
         />
         <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-app-label text-ink-sub">
           백분위
@@ -212,7 +212,7 @@ export default function AddMockExamGradeModal({
       </div>
 
       <div>
-        <p className="mb-6.75 text-[0.875rem] font-semibold leading-[1.4] text-ink-strong">
+        <p className="mb-6.75 text-app-label font-semibold text-ink-strong">
           과목별 백분위<span className="ml-1 text-error">*</span>
         </p>
         <div className="flex flex-col gap-3">

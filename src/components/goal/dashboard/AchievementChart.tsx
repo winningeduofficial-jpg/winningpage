@@ -134,7 +134,7 @@ export default function AchievementChart({ data }: AchievementChartProps) {
       className="flex h-102 w-full flex-col gap-4 px-8 py-7"
     >
       <div className="flex items-center justify-between">
-        <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+        <h3 className="text-app-card-title font-bold text-ink-strong">
           학업 성취도 변화 추이
         </h3>
         {hasData && (
@@ -203,7 +203,7 @@ export default function AchievementChart({ data }: AchievementChartProps) {
           </ResponsiveContainer>
         </div>
       ) : (
-        <div className="flex flex-1 items-center justify-center text-[0.875rem] leading-[1.4] text-ink-sub">
+        <div className="flex flex-1 items-center justify-center text-app-body leading-[1.4] text-ink-sub">
           기록이 쌓이면 추이가 표시됩니다.
         </div>
       )}

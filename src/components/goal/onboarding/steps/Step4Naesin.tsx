@@ -98,7 +98,7 @@ function NaesinGroupEditor({
   return (
     <div className="rounded-xl border border-line p-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[0.875rem] font-semibold text-ink-strong">
+        <span className="text-app-label font-semibold text-ink-strong">
           {label}
         </span>
         <div className="flex items-center gap-3">
@@ -138,7 +138,7 @@ function NaesinGroupEditor({
                   );
                   onSubjectsChange(next);
                 }}
-                className="h-11 flex-1 rounded-lg border border-line px-3 text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden"
+                className="h-11 flex-1 rounded-lg border border-line px-3 text-app-body text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden"
               />
               <GradeNumberField
                 value={subject.grade}
@@ -266,10 +266,10 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
         {allNone ? (
           <div className="mt-8">
             <div className="rounded-xl bg-surface-03 px-5 py-4">
-              <p className="text-[0.875rem] font-semibold text-accent">
+              <p className="text-app-body font-semibold text-accent">
                 {priorCopy.bannerTitle}
               </p>
-              <p className="mt-1 text-[0.875rem] leading-normal text-ink-sub">
+              <p className="mt-1 text-app-body leading-normal text-ink-sub">
                 {priorCopy.bannerBody}
               </p>
             </div>

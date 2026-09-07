@@ -23,7 +23,7 @@ export default function QuestionCard({
     <div className="w-full rounded-3xl bg-white px-perf-inset py-10">
       <div className="flex items-center gap-3">
         <StepBadge step={step} />
-        <span className="text-[0.875rem] text-ink-sub">{label}</span>
+        <span className="text-app-label text-ink-sub">{label}</span>
       </div>
 
       <h2 className="mt-6 text-app-section font-bold text-ink-strong">
@@ -32,7 +32,7 @@ export default function QuestionCard({
 
       {/* 설명문은 옵셔널 슬롯 — part-01 #2(카드 B)처럼 없는 스텝도 있다(part-01 구현 노트). */}
       {description && (
-        <p className="mt-2 text-[0.875rem] leading-normal text-ink-sub">
+        <p className="mt-2 text-app-body leading-normal text-ink-sub">
           {description}
         </p>
       )}

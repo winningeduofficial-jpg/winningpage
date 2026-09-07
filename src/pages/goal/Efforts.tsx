@@ -296,7 +296,7 @@ export default function Efforts() {
             <button
               type="button"
               onClick={() => setAddSubjectOpen(true)}
-              className="text-[0.875rem] font-medium text-ink-sub underline-offset-2 hover:text-ink-strong hover:underline"
+              className="text-app-label font-medium text-ink-sub underline-offset-2 hover:text-ink-strong hover:underline"
             >
               + 과목 추가하기
             </button>
@@ -307,7 +307,7 @@ export default function Efforts() {
 
       <div className="max-w-goal-content px-4 pb-24 md:px-12">
         {loadError && (
-          <p className="mb-4 text-[0.875rem] text-ink-sub">
+          <p className="mb-4 text-app-body text-ink-sub">
             문제집 목록을 불러오지 못했습니다. 새로고침해 주세요.
           </p>
         )}

@@ -49,9 +49,7 @@ function GoalRateRow({
         aria-hidden="true"
         className={`h-2 w-2 shrink-0 rounded-full ${dotClassName}`}
       />
-      <span className="w-38 shrink-0 text-[0.875rem] leading-[1.4] text-ink">
-        {label}
-      </span>
+      <span className="w-38 shrink-0 text-app-label text-ink">{label}</span>
       <GoalProgressBar
         value={value}
         max={100}
@@ -176,7 +174,7 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
         <h2 className="text-app-section font-bold text-ink-strong">
           오늘의 목표
         </h2>
-        <p className="mt-1 text-[0.875rem] leading-[1.4] text-ink-sub">
+        <p className="mt-1 text-app-body leading-[1.4] text-ink-sub">
           기록하면 즉시 달성률에 반영돼요
         </p>
       </div>
@@ -206,9 +204,7 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
               aria-label="오늘 순공 시간(시간)"
               className="w-16 border-none bg-transparent text-right text-app-section font-bold leading-[1.2] text-ink-strong focus:outline-hidden"
             />
-            <span className="text-[0.875rem] leading-[1.4] text-ink-sub">
-              시간
-            </span>
+            <span className="text-app-label text-ink-sub">시간</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {data.quickAddOptions.map((hours) => (
