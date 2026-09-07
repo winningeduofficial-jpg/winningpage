@@ -308,9 +308,12 @@ const OUTCOME_ITEMS = [
 //   📋 이번 주 성과를 한눈에: x703 y713 262×104 (폰 좌하단)
 //   ✏️ PDF 리포트 확인:      x1231 y713 240×104 (폰 우하단)
 // left = (badge.x − phone.x)/phone.w × 100, top = (badge.y − phone.y)/phone.h × 100
-// (기존 % 체계 유지, 근사값과 일치 확인).
+// (기존 % 체계 유지, 근사값과 일치 확인 — 폭이 줄어도 폰 기준 %좌표라 재계산 불필요).
 // width는 폰 목업 렌더 폭(max-w-[20rem]=320px)을 1x 기준으로 badge.w/phone.w × 20rem 환산
 // (기존 코드의 고정 rem 폭 관행을 유지 — % width는 absolute 중첩 레이어에서 해석이 불안정해 배제).
+// QA 시트 행 117(2026-09-07) "말풍선에 비해 폰트가 너무 큼" — 시안 실측 폰 372px 대비
+// 말풍선 351/262/240px 비율을 그대로 폰 렌더 폭(20rem)에 적용해 재환산했다
+// (351/372×20≈18.875rem, 262/372×20≈14.0625rem, 240/372×20≈12.9375rem).
 //
 // X/Y/회전을 keyframes 3종으로 분리(축 분해)하고 칩마다 진폭·주기·delay를 모두 다르게 뒀다
 // (LearningDiagnosisLanding FLOATING_BADGES 선례 — 세 사인파 합성 경로가 사실상 반복되지 않는
@@ -320,9 +323,10 @@ const PHONE_BADGES = [
     emoji: "📊",
     title: "매주 리포트 자동 발송",
     desc: "따로 챙기지 않아도 카카오톡 알림톡으로 도착해요",
-    // 시안(1889:7243) 고정폭 351px — 제목 1줄+설명 1줄 유지, 칩 높이는
-    // p-5(40) + title 28 + gap 10 + desc 26 = 104px로 자연히 맞춰진다.
-    style: { left: "-87.63%", top: "35.08%", width: "21.9375rem" },
+    // 시안(1889:7243) 폭 351px → 18.875rem(폰 비율 환산). 높이는 고정값이 아니라
+    // p-4(32) + title(0.875rem×1.4≈20) + gap 6 + desc(0.75rem×1.4≈17)로 텍스트에 따라
+    // 자연히 맞춰진다(약 75px 내외).
+    style: { left: "-87.63%", top: "35.08%", width: "18.875rem" },
     x: { amplitude: "0.375rem", duration: "4.5s", delay: "0s" },
     y: { amplitude: "1rem", duration: "3.3s", delay: "-1.2s" },
     rot: { amplitude: "1deg", duration: "5.9s", delay: "-2.4s" },
@@ -331,8 +335,8 @@ const PHONE_BADGES = [
     emoji: "📋",
     title: "이번 주 성과를 한눈에",
     desc: "목표 달성률, 학습 시간, 순위률 요약",
-    // 시안 고정폭 262px
-    style: { left: "-55.91%", top: "70.68%", width: "16.375rem" },
+    // 시안 폭 262px → 14.0625rem(폰 비율 환산)
+    style: { left: "-55.91%", top: "70.68%", width: "14.0625rem" },
     x: { amplitude: "0.3125rem", duration: "5.3s", delay: "-0.5s" },
     y: { amplitude: "0.8125rem", duration: "3.9s", delay: "-1.7s" },
     rot: { amplitude: "1.2deg", duration: "6.5s", delay: "-3.5s" },
@@ -341,8 +345,8 @@ const PHONE_BADGES = [
     emoji: "✏️",
     title: "PDF 리포트 확인",
     desc: "클릭 한 번으로 전체 내용을 열람",
-    // 시안 고정폭 240px
-    style: { left: "86.02%", top: "70.68%", width: "15rem" },
+    // 시안 폭 240px → 12.9375rem(폰 비율 환산)
+    style: { left: "86.02%", top: "70.68%", width: "12.9375rem" },
     x: { amplitude: "0.375rem", duration: "4.9s", delay: "-1s" },
     y: { amplitude: "1.125rem", duration: "4.3s", delay: "-2.3s" },
     rot: { amplitude: "0.8deg", duration: "7.1s", delay: "-4.2s" },
@@ -358,7 +362,8 @@ const TESTIMONIALS = [
   },
   {
     quote: "매일 뭘 해야 할지 콕 짚어주니, 미루던 습관이 줄었습니다.",
-    name: "고1 최OO",
+    // QA 시트 행 69(시안 1889:7426 원문, 디자이너 확정) — 고1 → 고2로 수정.
+    name: "고2 최OO",
     tag: "자연계열",
   },
   {
@@ -641,7 +646,9 @@ function PhoneReportSection() {
                   key={badge.title}
                   className="rounded-2xl bg-white px-5 py-3 text-left shadow-[0_0.5rem_1.5rem_rgba(1,50,98,0.12)]"
                 >
-                  <p className="text-[1rem] font-semibold leading-[1.4] text-primary">
+                  {/* QA 시트 행 117 — 모바일 스택도 데스크톱과 같은 이유로 제목만 한 단계
+                      축소(1rem→0.9375rem). 설명은 이미 목표 크기(0.8125rem)라 유지. */}
+                  <p className="text-[0.9375rem] font-semibold leading-[1.4] text-primary">
                     {badge.emoji} {badge.title}
                   </p>
                   <p className="mt-1 break-keep text-[0.8125rem] font-medium leading-normal text-primary/80">
@@ -692,21 +699,22 @@ function PhoneReportSection() {
                         {/* 회전 요소 = 실제 칩(시안 1889:7243 실측): bg #F1F8FF, radius 40px,
                             padding 20px, shadow accent(#0B84FD) 40% off(0,2) blur20 */}
                         <div
-                          className="goal-chip-rot w-full rounded-[2.5rem] bg-[#F1F8FF] p-5 text-left shadow-[0_0.125rem_1.25rem_rgba(11,132,253,0.4)]"
+                          className="goal-chip-rot w-full rounded-[2.5rem] bg-[#F1F8FF] p-4 text-left shadow-[0_0.125rem_1.25rem_rgba(11,132,253,0.4)]"
                           data-float={floatState}
                           style={{
                             animationDuration: badge.rot.duration,
                             animationDelay: badge.rot.delay,
                           }}
                         >
-                          {/* 폰 목업 대비 과대(QA 지적) — 시안값 1.25rem에서 한 단계
-                              내려 1rem으로 축소. desc도 같은 비율로 0.875rem으로 낮춘다. */}
-                          <p className="text-[1rem] font-medium leading-[1.4] text-primary">
+                          {/* QA 시트 행 117(2026-09-07) — 폰 목업 대비 여전히 과대해 한 단계
+                              더 축소(1rem→0.875rem semibold). desc도 0.75rem으로, 패딩은
+                              p-5→p-4, 제목↔설명 gap은 0.375rem(mt-1.5)로 좁혔다(시안 4885 톤). */}
+                          <p className="text-[0.875rem] font-semibold leading-[1.4] text-primary">
                             {badge.emoji} {badge.title}
                           </p>
                           {/* 시안 원본 #808080 → 프로젝트 회색 하한선(#767676 이상 —
                               ManagementSection/StageSection 선례)으로 클램프 */}
-                          <p className="mt-2.5 break-keep text-[0.875rem] font-normal leading-relaxed text-[#767676]">
+                          <p className="mt-1.5 break-keep text-[0.75rem] font-normal leading-relaxed text-[#767676]">
                             {badge.desc}
                           </p>
                         </div>
