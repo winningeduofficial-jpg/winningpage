@@ -52,8 +52,10 @@ export default function PerformanceSkeleton() {
         </div>
       </aside>
 
-      {/* 캔버스 골격 — 페이지 타이틀 + 말풍선 2자리. */}
-      <main className="min-w-0 flex-1 pb-14 pl-perf-inset pr-perf-inset pt-14">
+      {/* 캔버스 골격 — 페이지 타이틀 + 말풍선 2자리. 좌우 인셋은 실제 캔버스
+          (`PerformanceAppLayout.tsx`)와 정확히 같은 브레이크포인트 규칙을 써야 한다 —
+          여기서만 달라지면 로딩 골격에서 실제 화면으로 바뀌는 순간 좌우가 튄다. */}
+      <main className="min-w-0 flex-1 px-4 pb-14 pt-14 md:pl-perf-inset md:pr-perf-inset">
         <div className="max-w-perf-content">
           <Block className="h-[2.45rem] w-72" />
           <Block className="mt-8 h-24 w-full max-w-perf-bubble" />
