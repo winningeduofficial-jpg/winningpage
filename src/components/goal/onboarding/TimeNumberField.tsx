@@ -33,7 +33,7 @@ export default function TimeNumberField({
 
   return (
     <div className="w-full">
-      {label && <p className="mb-1.5 text-[0.8125rem] text-ink-sub">{label}</p>}
+      {label && <p className="mb-1.5 text-app-label text-ink-sub">{label}</p>}
       <div className="relative">
         <input
           type="number"
@@ -44,12 +44,12 @@ export default function TimeNumberField({
           value={value}
           onChange={handleChange}
           aria-label={typeof label === "string" ? label : undefined}
-          className={`h-13 w-full rounded-xl border border-line bg-white px-4 text-[0.9375rem] text-ink focus:border-accent focus:outline-hidden ${
+          className={`h-13 w-full rounded-xl border border-line bg-white px-4 text-app-body text-ink focus:border-accent focus:outline-hidden ${
             suffix ? "pr-10" : ""
           }`}
         />
         {suffix && (
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[0.8125rem] text-ink-sub">
+          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-app-label text-ink-sub">
             {suffix}
           </span>
         )}

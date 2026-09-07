@@ -222,12 +222,8 @@ export default function GuideUploadCard({
 
   return (
     <InlineCard className="pb-6">
-      <p className="text-[0.875rem] font-semibold leading-4.5 text-ink">
-        {TITLE}
-      </p>
-      <p className="mt-2 text-[0.875rem] leading-4.5 text-ink-sub">
-        {DESCRIPTION}
-      </p>
+      <p className="text-app-label font-semibold text-ink">{TITLE}</p>
+      <p className="mt-2 text-app-label text-ink-sub">{DESCRIPTION}</p>
 
       <div className="mt-5 flex flex-wrap gap-3">
         {photos.map((photo, index) => (
@@ -263,10 +259,7 @@ export default function GuideUploadCard({
       </p>
 
       {visibleError && (
-        <p
-          role="alert"
-          className="mt-3 text-[0.875rem] leading-4.5 text-[#d01c1c]"
-        >
+        <p role="alert" className="mt-3 text-app-label text-[#d01c1c]">
           {visibleError}
         </p>
       )}
@@ -301,9 +294,7 @@ export default function GuideUploadCard({
       </div>
 
       {/* §8.8 보관 정책 고지 — 시안 없음(§11-Q82). 위 RETENTION_NOTICE 주석 참고. */}
-      <p className="mt-4 text-[0.75rem] leading-4 text-ink-sub">
-        {RETENTION_NOTICE}
-      </p>
+      <p className="mt-4 text-app-caption text-ink-sub">{RETENTION_NOTICE}</p>
     </InlineCard>
   );
 }

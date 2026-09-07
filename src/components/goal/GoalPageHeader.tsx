@@ -24,14 +24,12 @@ export default function GoalPageHeader({
   maxWidthClassName = "max-w-goal-content",
 }: GoalPageHeaderProps) {
   return (
-    <header className={`w-full px-4 pb-10 pt-25 md:px-12 ${maxWidthClassName}`}>
+    <header className={`w-full px-4 pb-10 pt-14 md:px-12 ${maxWidthClassName}`}>
       <div className="flex items-start justify-between gap-6">
         <div className="flex flex-wrap items-baseline gap-3">
-          <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">
-            {title}
-          </h1>
+          <h1 className="text-app-title font-bold text-ink-strong">{title}</h1>
           {meta && (
-            <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">
+            <span className="text-app-body font-medium leading-[1.4] text-ink-sub">
               {meta}
             </span>
           )}
@@ -41,7 +39,7 @@ export default function GoalPageHeader({
         )}
       </div>
       {subcopy && (
-        <p className="mt-3 text-[0.875rem] leading-[1.4] text-ink-sub">
+        <p className="mt-3 text-app-body leading-[1.4] text-ink-sub">
           {subcopy}
         </p>
       )}

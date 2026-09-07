@@ -75,10 +75,10 @@ export default function GoalGaugeCard({
     >
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+          <span className="text-app-body font-semibold leading-[1.4] text-ink-strong">
             {label}
           </span>
-          <span className="rounded-full bg-white px-3 py-1 text-[0.75rem] font-medium leading-[1.4] text-ink-sub">
+          <span className="rounded-full bg-white px-3 py-1 text-app-caption font-medium text-ink-sub">
             {round}
           </span>
         </div>
@@ -88,12 +88,10 @@ export default function GoalGaugeCard({
       </div>
 
       <div className="flex items-baseline gap-1.5">
-        <span className="text-[1.75rem] font-bold leading-[1.2] text-ink-strong">
+        <span className="text-app-title font-bold leading-[1.2] text-ink-strong">
           {value}
         </span>
-        <span className="text-[0.9375rem] leading-[1.4] text-ink-sub">
-          {unit}
-        </span>
+        <span className="text-app-body leading-[1.4] text-ink-sub">{unit}</span>
       </div>
 
       <div className="relative w-full pt-2">
@@ -111,7 +109,7 @@ export default function GoalGaugeCard({
       </div>
 
       {targetPct != null && (
-        <div className="flex items-center justify-between gap-3 text-[0.75rem] leading-[1.4] text-ink-sub">
+        <div className="flex items-center justify-between gap-3 text-app-caption text-ink-sub">
           <span>{targetLabel}</span>
           <span>목표까지 {remaining}</span>
         </div>

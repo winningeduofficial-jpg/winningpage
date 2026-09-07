@@ -88,7 +88,7 @@ export default function Step7DailySchedule({
             <div className="flex flex-wrap items-center gap-2">
               <label
                 htmlFor="week-schedule-copy-source"
-                className="text-[0.8125rem] text-ink-sub"
+                className="text-app-label text-ink-sub"
               >
                 다른 요일 일정 가져오기
               </label>
@@ -102,7 +102,7 @@ export default function Step7DailySchedule({
                   const fromDayKey = event.target.value;
                   if (fromDayKey) copyWeekScheduleDay(fromDayKey, activeDay);
                 }}
-                className="h-9 rounded-lg border border-line bg-white px-3 text-[0.8125rem] text-ink focus:border-accent focus:outline-hidden"
+                className="h-9 rounded-lg border border-line bg-white px-3 text-app-label text-ink focus:border-accent focus:outline-hidden"
               >
                 <option value="" disabled>
                   요일 선택
@@ -173,7 +173,7 @@ export default function Step7DailySchedule({
           )}
 
           <div>
-            <p className="mb-3 text-[0.9375rem] font-semibold text-ink-strong">
+            <p className="mb-3 text-app-body font-semibold text-ink-strong">
               학원・과외
             </p>
             {day.academies.length > 0 && (
@@ -221,7 +221,7 @@ export default function Step7DailySchedule({
               <button
                 type="button"
                 onClick={() => addAcademy(activeDay)}
-                className="mt-3 flex h-11 items-center gap-1.5 rounded-full border border-dashed border-line px-4 text-[0.8125rem] font-semibold text-ink-sub transition-colors hover:border-accent hover:text-accent"
+                className="mt-3 flex h-11 items-center gap-1.5 rounded-full border border-dashed border-line px-4 text-app-label font-semibold text-ink-sub transition-colors hover:border-accent hover:text-accent"
               >
                 <Plus size={15} strokeWidth={2.5} />
                 학원 추가
@@ -232,10 +232,10 @@ export default function Step7DailySchedule({
           {/* QA 행293 — 실시간 계산 표시. 서버 저장값과 같은 순수 함수(calcAvailableHours)
               결과라 화면·저장 사이 불일치가 없다. */}
           <div className="rounded-xl bg-surface-03 px-5 py-4">
-            <p className="text-[0.9375rem] font-bold text-ink-strong">
+            <p className="text-app-body font-bold text-ink-strong">
               가용 자습시간 {available}h
             </p>
-            <p className="mt-1 text-[0.8125rem] leading-[1.4] text-ink-sub">
+            <p className="mt-1 text-app-label text-ink-sub">
               (취침 − 기상) − 식사・정리 1.5h − 학교 − (학원 시간 + 이동{" "}
               {ACADEMY_COMMUTE_HOURS}h)로 계산돼요.
             </p>

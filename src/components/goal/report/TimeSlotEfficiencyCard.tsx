@@ -27,9 +27,7 @@ export default function TimeSlotEfficiencyCard({
       tone="neutral"
       className="flex min-h-110.25 flex-col gap-5 px-6 py-6"
     >
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
       <div className="flex flex-1 flex-col justify-center gap-3">
         {rows.map((row) => (
           <StatProgressRow

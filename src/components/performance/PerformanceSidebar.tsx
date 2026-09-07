@@ -1,4 +1,16 @@
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useLocation } from "react-router";
+import { AppShellSidebar } from "@/components/app-shell/AppShellSidebar";
+import {
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  useSidebar,
+} from "@/components/ui/sidebar";
 
 // 수행평가 앱 좌측 고정 사이드바 — docs/수행평가-상세-명세.md §3.2(블록 실측) / §3.3(진행단계
 // 상태 머신) / §3.4(메뉴 라벨 정본). 프로필 · 메뉴 · 진행단계 3블록으로 구성된다.
@@ -11,21 +23,25 @@ import { Link, useLocation, useNavigate } from "react-router";
 //    `deriveStepStates.js`, api/performance/bootstrap.js `deriveResumeStep` 주석 참고).
 //
 // ⚠️ 프로필·진행단계 값의 실제 소스는 `GET /api/performance/bootstrap`이다
-//    (`profile.name` / `profile.schoolType`, 학년은 `lastSession.gradeLabel`).
-//    그 호출을 붙이는 것은 채팅 페이지 슬라이스(P5) 몫이라 **여기서는 prop만 받는다.**
-//    값이 없으면 그 줄을 렌더하지 않을 뿐, 가짜 이름·리터럴 기본값을 만들어 내지 않는다.
+//    (`profile.name` / `profile.schoolType`, 학년은 `lastSession.gradeLabel`). 그 호출은
+//    `PerformanceAppLayout`이 `performanceBootstrapQueryOptions`(src/lib/queryClient.ts)
+//    캐시를 구독해 붙이고, 이 컴포넌트는 **여전히 prop만 받는다**(P5 해소 — 배선 위치만
+//    셸로 확정됐을 뿐 이 컴포넌트의 표시 전용 성격은 그대로다). 값이 없으면 그 줄을
+//    렌더하지 않을 뿐, 가짜 이름·리터럴 기본값을 만들어 내지 않는다(§11 Q61-ⓔ).
 //    `SessionContext`는 auth 세션과 이용권만 들고 있고 프로필 행은 갖고 있지 않다.
 //
-// 좌표계: 시안 절대 y(프로필 100/130, 메뉴 라벨 291, 메뉴 pill 323·365, 진행단계 라벨 456,
-// 스텝 pill 486·523·560·597·634)를 flex column + gap으로 환산했다. 아래 여백 상수는 전부
-// 그 y좌표를 역산한 값이며, 주석에 원 좌표를 남겨 두었다(GoalSidebar와 같은 관례).
+// shadcn Sidebar 전환(2026-09-06, 사용자 결정 "목표관리/수행평가 다 같은 스타일로") —
+// 고정(스크롤해도 화면에 붙어 있음) 동작과 폭을 목표관리 사이드바(GoalSidebar.tsx)와
+// 한 곳(AppShellSidebar.tsx)에서 공유하려고 이 파일이 shadcn `Sidebar` 프리미티브
+// 기반으로 바뀌었다. 시안 절대좌표를 역산한 여백 계산은 더 이상 유효하지 않아 지웠다
+// (구조 자체가 flex column + shadcn 표준 패딩으로 바뀌었기 때문) — 시안은 예시일
+// 뿐이라는 원칙(design-is-example-not-pixel)에 따라 값(타이포·라벨·상태 규칙)만
+// 정본으로 남기고 좌표 주석은 폐기했다.
 //
-// ── 하단 "메인으로 나가기" (QA 행280)
-// 시안에 없는 표면이다 — 인앱에서 사이트 메인(`/`)으로 나갈 방법이 브라우저 뒤로가기뿐이라
-// 접수됐다. GoalSidebar 하단 유틸(`내 정보 수정`, 같은 자리 `mt-auto` + 같은 타이포)과
-// 위치·표기 관례를 맞췄다. 다만 그쪽은 순수 이동(NavLink)인 반면 여기는 진행 중인 채팅이
-// 끊길 수 있어 `window.confirm` 한 번을 거친 뒤에만 이동한다 — 그래서 `Link`가 아니라
-// `button` + `useNavigate`다.
+// (QA 행279, 2026-09-06) 상단 "메인으로" 링크(QA 행318)·하단 "메인으로 나가기" 버튼
+// (QA 행280, `window.confirm` 이탈 확인 포함)은 제거했다 — 앱 셸 최상단에 사이트 공통
+// 헤더(PerformanceAppLayout.tsx 참고)가 새로 붙으면서 헤더 로고·메뉴가 메인 이동 통로
+// 역할을 대신한다.
 
 // §3.4 메뉴 라벨. 시안 원문은 `3754:3035` 한 노드만 `위닝 채팅`이고 나머지 전 인앱
 // 노드가 `위닝 AI 채팅`이라 후자가 정본이었으나, 사용자 지시로 화면 문구에서 "AI" 표기를
@@ -57,7 +73,7 @@ const STEP_STATE_STYLES: Record<
     label: "font-medium text-ink",
     pill: false,
   },
-  // 진행 중: 배지 #0b84fd(accent) + 흰 숫자, 라벨 #525252 w600, pill #eaecef.
+  // 진행 중: 배지 #0b84fd(accent) + 흰 숫자, 라벨 #525252 w600, pill #eaecef(sidebar-accent).
   current: {
     badge: "bg-accent text-white",
     label: "font-semibold text-ink",
@@ -65,7 +81,7 @@ const STEP_STATE_STYLES: Record<
   },
   // 미도래: 배지 #f5f5f7(surface-04) + ink-sub 숫자, 라벨 ink-sub w500, pill 없음.
   // `ink-sub`가 #6b6b6b로 상향되며 배지(14px on surface-04 = 4.89:1)·라벨(16px on
-  // performance-sidebar #f9f8f7 = 5.02:1) 모두 WCAG AA(4.5:1)를 충족한다(tailwind.config.js
+  // sidebar #f9f8f7 = 5.02:1) 모두 WCAG AA(4.5:1)를 충족한다(tailwind.config.js
   // `ink.sub` 주석 참고). 과거 `TODO(P19, §11.3 Q30)`는 해소되어 제거했다.
   todo: {
     badge: "bg-surface-04 text-ink-sub",
@@ -77,11 +93,6 @@ const STEP_STATE_STYLES: Record<
 // 저장 리포트 화면(`3754:3077` / `3754:3121`)은 **활성 스텝이 0개**다(§3.3 노드별 표).
 // 그래서 기본값이 「전부 미도래」이고, 활성 스텝 없음은 예외가 아니라 정상 입력이다.
 const DEFAULT_STEP_STATES = ["todo", "todo", "todo", "todo", "todo"];
-
-// QA 행280 — 사이트 메인 경로 + 이동 전 확인 문구.
-const MAIN_SITE_PATH = "/";
-const LEAVE_TO_MAIN_CONFIRM_MESSAGE =
-  "진행 중인 내용은 자동 저장되지 않을 수 있습니다. 메인으로 이동할까요?";
 
 function CheckIcon() {
   return (
@@ -117,17 +128,10 @@ export default function PerformanceSidebar({
   stepStates = DEFAULT_STEP_STATES as Array<"done" | "current" | "todo">,
 }: PerformanceSidebarProps) {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-
-  function handleLeaveToMain() {
-    if (window.confirm(LEAVE_TO_MAIN_CONFIRM_MESSAGE)) {
-      navigate(MAIN_SITE_PATH);
-    }
-  }
 
   // `/app/performance/:sessionId`(새로고침 복구)도 채팅 화면이므로 `위닝 채팅`이 활성이어야
   // 한다. NavLink의 `end`만으로는 그 경로에서 활성이 꺼지므로 경로 판정을 직접 한다.
-  // 두 항목은 상호 배타다 — `3754:3121`에서 pill이 `저장 리포트`(@10,365)로 **이동**하고
+  // 두 항목은 상호 배타다 — `3754:3121`에서 pill이 `저장 리포트`로 **이동**하고
   // `위닝 채팅` 쪽 pill은 사라진다.
   const isReports = pathname.startsWith("/app/performance/reports");
 
@@ -136,169 +140,143 @@ export default function PerformanceSidebar({
   // 만들지 않는다 — 둘 다 없으면 부제 줄 자체를 렌더하지 않는다.
   const subtitle = [gradeLabel, schoolType].filter(Boolean).join("・");
 
-  return (
-    <aside
-      aria-label="수행평가 사이드바"
-      className="flex min-h-screen w-perf-sidebar shrink-0 flex-col bg-performance-sidebar"
-    >
-      {/* QA 행318 — 상단 "메인으로" 링크. 하단 "메인으로 나가기"(handleLeaveToMain)의
-          이탈 확인 다이얼로그 로직을 그대로 재사용한다(중복 구현 금지) — 채팅이 끊길 수
-          있는 것은 하단과 동일한 상황이라 여기도 확인창을 거친다. */}
-      <div className="px-perf-inset pt-6">
-        <button
-          type="button"
-          onClick={handleLeaveToMain}
-          className="text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
-        >
-          메인으로
-        </button>
-      </div>
+  // 모바일 Sheet는 링크 클릭만으로 스스로 닫히지 않는다(DialogClose가 아닌 일반
+  // <a> 클릭은 Dialog를 닫지 않는다) — GoalSidebar.tsx와 같은 이유로 명시적으로 닫는다.
+  const { setOpenMobile } = useSidebar();
 
-      {/* 프로필 — 이름 @60,100 (1.25rem/1.625rem w600 #808080), 부제 @60,130 (1rem/1.3125rem
-          w400 #808080). 시안이 이름 줄까지 보조색(#808080)을 쓴다 — ink-strong이 아니다.
-          min-h는 이름·부제가 비어도 아래 메뉴 y좌표가 흔들리지 않게 자리를 잡아 둔 것이다.
-          ⚠️ Tailwind preflight가 `box-sizing: border-box`를 깔기 때문에 min-height는 **padding을
-          포함한 총높이**여야 한다. 100(pt) + 26(이름) + 4(gap) + 21(부제) = 151px = 9.4375rem.
-          텍스트 높이 51px만 넣으면 padding 100px에 잠겨 무효가 되고, 프로필 값이 비는
-          현재 배선(P5 이전)에서 아래 블록 전체가 51px 위로 밀린다. */}
-      <div className="min-h-37.75 px-perf-inset pt-6">
+  return (
+    <AppShellSidebar aria-label="수행평가 사이드바">
+      {/* 프로필 — 같은 인앱 셸인 목표관리 사이드바(GoalSidebarContent.tsx)와 타이포를
+          맞춘다: 이름 1.125rem/w700(font-bold)/ink-strong, 부제 0.875rem/w400/ink-sub,
+          gap mt-2(0.5rem). 값이 없으면 그 줄 자체를 렌더하지 않는다(§11 Q61-ⓔ). */}
+      <SidebarHeader className="px-6 pt-6">
         {/* §11 Q79 확정: 이 화면은 수행평가 앱(/app/performance)이고 목표관리는 별개
             제품이다. 시안 원문 `목표관리`는 목표관리 시안에서 셸을 가져온 흔적으로 보이며,
             사용자가 지금 어느 제품에 있는지 오인하게 만드는 문구는 시안 충실도보다
             우선순위가 낮다고 판단해 `수행평가`로 확정한다. */}
         {profileName && (
-          <p className="text-[1.25rem] font-semibold leading-6.5 text-ink-sub">
+          <p className="text-app-card-title font-bold text-ink-strong">
             {profileName}의 수행평가
           </p>
         )}
-        {/* ink-sub(#6b6b6b)는 16px on performance-sidebar(#f9f8f7)에서 5.02:1로 WCAG AA를
-            충족한다(과거 TODO(P19, §11.3 Q30) 해소). */}
         {subtitle && (
-          <p className="mt-1 text-[1rem] leading-5.25 text-ink-sub">
-            {subtitle}
-          </p>
+          <p className="mt-2 text-app-label text-ink-sub">{subtitle}</p>
         )}
-      </div>
+      </SidebarHeader>
 
-      {/* 메뉴 — 섹션 라벨 @60,291(프로필 부제 하단 151에서 140px), 항목 pill 피치 42
-          (pill 36 + gap 6). 활성/비활성 텍스트 색이 같고 배경 pill 하나로만 구분하는 것이
-          시안 정본이다(§3.2 단정). */}
-      <nav aria-labelledby="perf-nav-heading" className="mt-35">
-        <p
-          id="perf-nav-heading"
-          className="px-perf-inset text-[1rem] font-semibold leading-5.25 text-ink-sub"
+      <SidebarContent>
+        {/* 메뉴 — 활성/비활성 텍스트 색이 같고 배경 pill 하나로만 구분하는 것이
+            시안 정본이다(§3.2 단정). */}
+        <SidebarGroup
+          role="navigation"
+          aria-labelledby="perf-nav-heading"
+          className="px-4"
         >
-          메뉴
-        </p>
-        <ul className="mt-2.75 flex flex-col gap-1.5">
-          {MENU_ITEMS.map((item) => {
-            const isActive =
-              item.to === "/app/performance" ? !isReports : isReports;
-            return (
-              <li key={item.to}>
-                {/* ⚠️ NavLink가 아니라 Link다. NavLink는 `aria-current` prop을 자기 기본값
-                    (`'page'`)으로 흡수하고 **라우터 자체 prefix 매칭**으로 다시 계산해 내보낸다
-                    (react-router/dist/index.js: `ariaCurrentProp = "page"` →
-                    `isActive ? ariaCurrentProp : undefined`). 그래서 `/app/performance/reports`
-                    에서 `위닝 채팅`(`to=/app/performance`, end 없음)까지 prefix로 걸려
-                    두 항목이 동시에 `aria-current="page"`가 된다 — pill은 하나인데 스크린리더는
-                    둘 다 현재 페이지라고 읽는다. 게다가 className이 문자열이면 활성 항목에
-                    `active` 리터럴 클래스까지 덧붙는다. 활성 판정이 아래처럼 커스텀이고 두
-                    항목이 상호 배타이므로, prop을 <a>로 그대로 흘리는 Link를 쓴다.
-                    (회귀 검증: PerformanceSidebar.test.tsx, 옛 scripts/verify-performance-sidebar-nav.mjs) */}
-                <Link
-                  to={item.to}
-                  aria-current={isActive ? "page" : undefined}
-                  className={[
-                    // pill 304×36 @x=10 r6 → mx 0.625rem + 폭 19rem, 텍스트 x=60 → pl 3.125rem.
-                    "mx-2.5 flex h-9 w-perf-pill items-center rounded-md pl-12.5",
-                    "text-[1.25rem] font-medium leading-6.5 text-ink transition-colors",
-                    isActive
-                      ? "bg-performance-activePill"
-                      : "hover:bg-performance-activePill/60",
-                  ].join(" ")}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
+          <SidebarGroupLabel
+            id="perf-nav-heading"
+            className="h-auto px-2 text-app-label font-medium text-ink-sub"
+          >
+            메뉴
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu className="gap-1.5">
+              {MENU_ITEMS.map((item) => {
+                const isActive =
+                  item.to === "/app/performance" ? !isReports : isReports;
+                return (
+                  <SidebarMenuItem key={item.to}>
+                    {/* ⚠️ NavLink가 아니라 Link다. NavLink는 `aria-current` prop을 자기
+                        기본값(`'page'`)으로 흡수하고 **라우터 자체 prefix 매칭**으로
+                        다시 계산해 내보낸다. `to="/app/performance"`에 `end`가 없으면
+                        `/app/performance/reports`도 prefix로 걸려 두 항목이 동시에
+                        `aria-current="page"`가 된다 — pill은 하나인데 스크린리더는
+                        둘 다 현재 페이지라고 읽는다. 활성 판정이 아래처럼 커스텀이고 두
+                        항목이 상호 배타이므로, prop을 그대로 흘리는 Link를 `render`로
+                        넘긴다(회귀 검증: PerformanceSidebar.test.tsx). */}
+                    <SidebarMenuButton
+                      isActive={isActive}
+                      className="h-9 px-3 text-app-label text-ink data-active:bg-sidebar-accent data-active:font-semibold data-active:text-ink-strong hover:bg-sidebar-accent/60"
+                      render={
+                        <Link
+                          to={item.to}
+                          aria-current={isActive ? "page" : undefined}
+                          onClick={() => setOpenMobile(false)}
+                        />
+                      }
+                    >
+                      {item.label}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
-      {/* 진행단계 — 섹션 라벨 @60,456(메뉴 목록 하단 401에서 55px = §3.2의 섹션 gap 60을
-          pill 높이 증분만큼 보정한 값), 스텝 pill 486/523/560/597/634 피치 37(pill 36 + gap 1). */}
-      {/* 이름 없는 <section>은 region 랜드마크가 아니라 generic으로 매핑돼, 5스텝이
-          「진행단계」와 아무 관계 없는 <ol>로만 노출된다. 이미 보이는 라벨을 id로 묶어
-          이름을 준다 — 픽셀 변화 0. id는 목표관리 셸과 동시 렌더될 경우를 대비해 perf- 접두. */}
-      <section aria-labelledby="perf-steps-heading" className="mt-13.75">
-        <p
-          id="perf-steps-heading"
-          className="px-perf-inset text-[1rem] font-semibold leading-5.25 text-ink-sub"
+        {/* 진행단계 — 링크가 아닌 상태 표시라 SidebarMenu가 아니라 순서 목록(ol)으로
+            둔다. 그룹 자체를 `role="region"`으로 named landmark화해 "진행단계"와의
+            관계를 스크린리더에도 준다(이전 <section aria-labelledby> 관례와 동일 의도). */}
+        <SidebarGroup
+          role="region"
+          aria-labelledby="perf-steps-heading"
+          className="px-4"
         >
-          진행단계
-        </p>
-        <ol className="mt-2.25 flex flex-col gap-0.25">
-          {PERFORMANCE_STEPS.map(({ step, label }, index) => {
-            const stepState = stepStates[index];
-            const state =
-              stepState && STEP_STATE_STYLES[stepState] ? stepState : "todo";
-            const style = STEP_STATE_STYLES[state];
+          <SidebarGroupLabel
+            id="perf-steps-heading"
+            className="h-auto px-2 text-app-label font-medium text-ink-sub"
+          >
+            진행단계
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <ol className="flex flex-col gap-0.25">
+              {PERFORMANCE_STEPS.map(({ step, label }, index) => {
+                const stepState = stepStates[index];
+                const state =
+                  stepState && STEP_STATE_STYLES[stepState]
+                    ? stepState
+                    : "todo";
+                const style = STEP_STATE_STYLES[state];
 
-            return (
-              <li
-                key={step}
-                aria-current={state === "current" ? "step" : undefined}
-                className={[
-                  // 배지 x=60 → pl 3.125rem, 배지 20×20 r10, 배지↔라벨 gap 16 → 라벨 x=96.
-                  "mx-2.5 flex h-9 w-perf-pill items-center gap-4 rounded-md pl-12.5",
-                  style.pill ? "bg-performance-activePill" : "",
-                ].join(" ")}
-              >
-                <span
-                  className={[
-                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
-                    "text-[0.875rem] font-medium leading-4.5",
-                    style.badge,
-                  ].join(" ")}
-                >
-                  {/* 완료는 숫자 대신 체크. 스크린리더에는 상태를 말로 남긴다. */}
-                  {state === "done" ? <CheckIcon /> : step}
-                </span>
-                <span
-                  className={["text-[1rem] leading-5.25", style.label].join(
-                    " ",
-                  )}
-                >
-                  {label}
-                </span>
-                <span className="sr-only">
-                  {state === "done"
-                    ? " 완료"
-                    : state === "current"
-                      ? " 진행 중"
-                      : " 진행 전"}
-                </span>
-              </li>
-            );
-          })}
-        </ol>
-      </section>
+                return (
+                  <li
+                    key={step}
+                    aria-current={state === "current" ? "step" : undefined}
+                    className={[
+                      "flex h-9 items-center gap-4 rounded-md px-3",
+                      style.pill ? "bg-sidebar-accent" : "",
+                    ].join(" ")}
+                  >
+                    <span
+                      className={[
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+                        "text-app-label font-medium leading-4.5",
+                        style.badge,
+                      ].join(" ")}
+                    >
+                      {/* 완료는 숫자 대신 체크. 스크린리더에는 상태를 말로 남긴다. */}
+                      {state === "done" ? <CheckIcon /> : step}
+                    </span>
+                    <span className={["text-app-label", style.label].join(" ")}>
+                      {label}
+                    </span>
+                    <span className="sr-only">
+                      {state === "done"
+                        ? " 완료"
+                        : state === "current"
+                          ? " 진행 중"
+                          : " 진행 전"}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </SidebarGroupContent>
+        </SidebarGroup>
+      </SidebarContent>
 
       {/* 회차(잔여 이용 횟수) UI는 여기 두지 않는다 — 인앱 21개 노드 어디에도 사이드바 회차
           표시가 없고(슬라이스 x<324 영역 텍스트 전수 확인), 회차 소진 안내 표면은 §5.20이
           정한 채팅 상단 배너 + STEP3 인라인 카드 2곳뿐이다(P15). */}
-
-      {/* 하단 유틸 — 메인으로 나가기(파일 상단 "하단 메인으로 나가기" 주석). */}
-      <div className="mt-auto px-2.5 pb-8 pt-8">
-        <button
-          type="button"
-          onClick={handleLeaveToMain}
-          className="block pl-12.5 text-left text-[0.8125rem] leading-[1.4] text-ink-sub hover:text-ink-strong"
-        >
-          메인으로 나가기
-        </button>
-      </div>
-    </aside>
+    </AppShellSidebar>
   );
 }

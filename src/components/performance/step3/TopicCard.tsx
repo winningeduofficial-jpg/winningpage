@@ -106,20 +106,20 @@ export default function TopicCard({
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-3">
           {/* 순번 배지 — 실측 h30 r10 `#f8f7f5`, pad 6. */}
-          <span className="inline-flex h-7.5 shrink-0 items-center rounded-[0.625rem] bg-performance-bubble px-1.5 text-[0.875rem] font-medium leading-4.5 tracking-[-0.0175rem] text-ink-sub">
+          <span className="inline-flex h-7.5 shrink-0 items-center rounded-[0.625rem] bg-performance-bubble px-1.5 text-app-label font-medium tracking-[-0.0175rem] text-ink-sub">
             추천 주제 {index}
           </span>
           {/* 시안 원본 색 `#d9d9d9` → 대비 미달로 `ink-sub`(#6b6b6b, 흰 배경 5.33:1) 상향(§5.10 제안). */}
-          <span className="shrink-0 text-[0.875rem] font-medium leading-4.5 text-ink-sub">
+          <span className="shrink-0 text-app-label font-medium text-ink-sub">
             자세히 보기 →
           </span>
         </div>
 
-        <p className="text-[1rem] font-medium leading-5.25 text-ink">
+        <p className="text-app-card-title font-medium text-ink">
           {topic.title}
         </p>
 
-        <p className="text-[1rem] font-normal leading-5.25 text-ink-sub">
+        <p className="text-app-body font-normal text-ink-sub">
           {topic.subtitle}
         </p>
 

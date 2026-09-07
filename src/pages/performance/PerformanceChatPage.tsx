@@ -48,12 +48,17 @@ import {
   submitManualGuide,
   uploadGuidePhotos,
 } from "@/lib/performance/guideUpload";
+import { pickKnownSchoolType } from "@/lib/performance/schoolType";
 import { fetchSessionDetail } from "@/lib/performance/session";
 import {
   fetchSubmissionForm,
   saveSubmission,
 } from "@/lib/performance/submission";
 import { recommendTopics } from "@/lib/performance/topics";
+import {
+  performanceBootstrapQueryOptions,
+  queryClient,
+} from "@/lib/queryClient";
 
 // STEP1~STEP5 채팅 화면 — docs/수행평가-상세-명세.md §5.5(`3754:3206`) / §5.6(`3754:3261`) /
 // §5.7(`3754:3315`) / §5.8(`3754:3370`·`3754:3431`) / §5.9(`3754:3562`·`3754:3493`) /
@@ -296,8 +301,15 @@ function buildReevaluateLimitNote(maxCount) {
  * 값이 빈 항목은 절(節)째 뺀다(`school_type`은 프로필 스냅샷이라 null일 수 있다 —
  * `sql/54_performance_app.sql` 결정 ㄱ, 가짜 기본값 `'일반고'`를 넣지 않는다).
  * `previousTopic`은 시안 문구에 없어 넣지 않는다.
+ *
+ * `school_type`은 실서비스 저장 경로(`ProfileTab`/`Under14Form`) 어디에도 코드값이 없고
+ * 한글 원문("고등학교" 등)을 그대로 저장하는 게 정본이다 — 그래서 여기서 값을 한글
+ * 라벨로 "변환"하지 않는다. `SCHOOL_TYPES` 화이트리스트는 오염값 방어용이다: 로컬 시드
+ * 스크립트 오탈자(`supabase/seed.sql`이 한때 `school_type = 'high'`를 넣었다)처럼 정상
+ * 저장 경로를 거치지 않은 값이 STEP1 요약에 원시 문자열로 새는 것만 막는다. 목록에
+ * 없으면 빈 문자열이 아니라 "학교 유형" 절 자체를 생략한다(위 필터 규칙과 같은 원칙).
  */
-function buildBasicInfoSummary(session) {
+export function buildBasicInfoSummary(session) {
   if (!session) return "";
 
   const grade = [session.gradeLabel, session.semester]
@@ -306,10 +318,11 @@ function buildBasicInfoSummary(session) {
   const subject = [session.subjectGroup, session.subject]
     .filter(Boolean)
     .join(" / ");
+  const schoolType = pickKnownSchoolType(session.schoolType);
 
   return [
     grade && `학년: ${grade}`,
-    session.schoolType && `학교 유형: ${session.schoolType}`,
+    schoolType && `학교 유형: ${schoolType}`,
     subject && `과목: ${subject}`,
     session.careerGoal && `진로: ${session.careerGoal}`,
   ]
@@ -373,13 +386,16 @@ type PerformanceSession = {
   updatedAt?: string;
 };
 
+// bootstrap.ts summaryOf가 실제로 내려주는 값은 DB 컬럼 원본이라 값 없음이 null로
+// 온다(undefined가 아니다) — performanceBootstrapQueryOptions(src/lib/queryClient.ts)의
+// PerformanceBootstrapPayload와 필드 형태를 맞춘다.
 type LastSessionSummary = {
   sessionId: string;
-  gradeLabel?: string;
-  semester?: string;
-  subjectGroup?: string;
-  subject?: string;
-  selectedTopicTitle?: string;
+  gradeLabel: string | null;
+  semester: string | null;
+  subjectGroup: string | null;
+  subject: string | null;
+  selectedTopicTitle: string | null;
 };
 
 // `handleConfirmTopic`(전체 `Topic`)과 `handleResumeConfirmedTopic`(`{id, title: string|null}`,
@@ -465,9 +481,10 @@ function entryReducer(state: EntryState, action: EntryAction): EntryState {
 export default function PerformanceChatPage() {
   // quotaRemaining은 SessionContext가 정본이다(§5.20 (A) 배너 판정, P15 [FIX]) —
   // recommend-topics 응답 등 채팅 진행 중 값과 이원화하지 않는다. null=무제한/판정 불가.
-  const { session, quotaRemaining } = useSession();
+  const { session, quotaRemaining, userId } = useSession();
   const { success: toastSuccess, error: toastError } = useToast();
-  const { setStepStates, setQuotaBannerVisible } = usePerformanceShell();
+  const { setStepStates, setQuotaBannerVisible, setSessionGradeLabel } =
+    usePerformanceShell();
   const accessToken = session?.access_token || null;
   const routeParams = useParams();
   const routeSessionId =
@@ -545,12 +562,12 @@ export default function PerformanceChatPage() {
   // ── 주제 상세 모달(§5.11, P9). 열려 있는 주제 1건만 들고 있으면 된다 — 모달은
   //   `topicDetail`이 있을 때만 렌더한다.
   //   **닫기 경로**(ESC/딤/`다른 주제 보기`)는 카드 목록(`topics`)을 그대로 두므로 포커스가
-  //   원래 클릭한 카드로 복귀한다(`useModalBehavior`가 담당, 카드는 리렌더로 교체되지 않는다
-  //   — `topics` 상태가 이 사이에 바뀌지 않기 때문).
+  //   원래 클릭한 카드로 복귀한다(Base UI Dialog가 기본 제공하는 트리거 복귀가 담당, 카드는
+  //   리렌더로 교체되지 않는다 — `topics` 상태가 이 사이에 바뀌지 않기 때문).
   //   **확정 경로는 다르다.** `handleConfirmTopic`이 `designPhase`를 `'loading'`으로 바꾸면
   //   아래 STEP3 메시지 렌더 조건(`designPhase === 'idle'`)이 카드 목록을 통째로
   //   언마운트한다 — React 18 배치로 카드 언마운트와 모달 언마운트가 같은 커밋에서 일어나므로
-  //   `useModalBehavior`의 트리거 복귀 대상은 cleanup 시점에 이미 detach된 노드다(검토 A).
+  //   Base UI Dialog의 트리거 복귀 대상은 cleanup 시점에 이미 detach된 노드다(검토 A).
   //   그래서 확정 경로는 자동 복귀에 기대지 않고 `designLoadingRef`로 새 포커스 목적지(STEP4
   //   로딩 버블)를 직접 지정한다 — 아래 `designLoadingRef` 이펙트 참고. **같은 이유로 P10이
   //   추가한 설계 리포트 모달도 닫힐 때 포커스 목적지를 직접 지정한다**(`handleCloseDesignModal`).
@@ -583,7 +600,7 @@ export default function PerformanceChatPage() {
   // 되어 `ChatTimeline`의 `aria-live="polite"`와 중복 낭독되지 않는다.
   const designLoadingRef = useRef<HTMLDivElement>(null);
   // 모달을 닫을 때 포커스가 갈 자리(`설계 리포트 다시 보기` 버튼). 모달은 로딩 버블이
-  // 사라진 커밋에서 자동으로 열리므로 `useModalBehavior`가 기억한 트리거는 이미 detach된
+  // 사라진 커밋에서 자동으로 열리므로 Base UI Dialog가 기억한 트리거는 이미 detach된
   // 노드다 — 복귀 대상을 여기서 직접 준다.
   const designReopenRef = useRef<HTMLButtonElement>(null);
   // `designPhase` 전이 3종을 **대칭으로** 다루기 위한 나머지 두 목적지(검토 P10).
@@ -687,7 +704,25 @@ export default function PerformanceChatPage() {
   const [submissionLoadToken, setSubmissionLoadToken] = useState(0);
   const [savingDraft, setSavingDraft] = useState(false);
   const [submittingWork, setSubmittingWork] = useState(false);
-  const [submissionActionError, setSubmissionActionError] = useState<
+  // `savingDraft`/`submittingWork` state는 렌더용이고, 아래 가드(`handleSaveDraft`/
+  // `handleSubmitWork` 상단)는 이 ref들을 대신 본다 — state는 setState 호출이 batched
+  // 되므로 "지금 이 순간 실제로 저장이 진행 중인가"를 동기적으로 반영하지 않는다.
+  // `useDebouncedAutosave`의 언마운트 cleanup이 `onSaveRef.current(최신값)`(=여기
+  // `handleSaveDraft`의 마지막 렌더 클로저)을 호출할 때, 그 클로저가 참조하는
+  // `savingDraft`는 "그 렌더 시점의 값"으로 굳어 있다 — in-flight 저장이 끝나 cleanup이
+  // 실제로 발화하는 시점엔 이미 stale하다. ref는 렌더와 무관하게 항상 최신이라 이 문제가
+  // 없다(state는 렌더 트리거·표시용으로 그대로 유지한다).
+  const savingDraftRef = useRef(false);
+  const submittingWorkRef = useRef(false);
+  // 저장 실패와 제출 실패는 서로 다른 상태다(그리핑 원인이었다) — 게이트 실패
+  // (`SUBMISSION_TOO_SHORT` 등)는 초안이 이미 저장된 채로 돌아오는데, 두 실패를 한
+  // 상태로 합치면 "제출만 실패"한 순간에도 `SubmissionForm`이 "저장 실패"를 띄웠다.
+  // `submissionSaveError`는 자동 저장(`handleSaveDraft`) 전용, `submissionSubmitError`는
+  // 제출(`handleSubmitWork`) 전용이다.
+  const [submissionSaveError, setSubmissionSaveError] = useState<string | null>(
+    null,
+  );
+  const [submissionSubmitError, setSubmissionSubmitError] = useState<
     string | null
   >(null);
   const [submissionSavedAt, setSubmissionSavedAt] = useState<string | null>(
@@ -744,13 +779,26 @@ export default function PerformanceChatPage() {
 
     setStepStates(deriveStepStates({ completedSteps, activeStep }));
 
-    // 저장 리포트 등 이 페이지 밖으로 나가면 셸의 기본값(all-todo)으로 되돌린다 —
+    // P5 — 사이드바 프로필 부제의 학년 조각(라이브 세션 우선순위, PerformanceShellContext.tsx
+    // 주석 참고)도 같은 라이브 세션 객체(`createdSession`)에서 나오므로 이 이펙트가 함께
+    // 올린다 — 학년만 위해 별도 이펙트·조회를 새로 만들지 않는다.
+    setSessionGradeLabel(createdSession?.gradeLabel ?? null);
+
+    // 저장 리포트 등 이 페이지 밖으로 나가면 셸의 기본값(all-todo · null)으로 되돌린다 —
     // §3.3 「저장 리포트 = 활성 스텝 0개」와 일치한다. 컨텍스트 자체는 리셋 시점을
     // 모르므로(값을 들고 있을 뿐) 이 페이지가 언마운트 시 직접 리셋해야 한다.
     return () => {
       setStepStates(["todo", "todo", "todo", "todo", "todo"]);
+      setSessionGradeLabel(null);
     };
-  }, [createdSession, guideDone, designPhase, designModalOpen, setStepStates]);
+  }, [
+    createdSession,
+    guideDone,
+    designPhase,
+    designModalOpen,
+    setStepStates,
+    setSessionGradeLabel,
+  ]);
 
   // ── 셸 상단 회차 소진 배너 배선(§5.20 (A), P15 [FIX]) ─────────────────────────
   //
@@ -796,16 +844,20 @@ export default function PerformanceChatPage() {
 
     (async () => {
       try {
-        const response = await apiFetch("/api/performance/bootstrap", {
-          headers: { Authorization: `Bearer ${accessToken}` },
+        // P5 — `performanceBootstrapQueryOptions`(src/lib/queryClient.ts)와 같은 캐시
+        // 키(['performance','bootstrap',userId])를 채운다 — 셸(PerformanceAppLayout)의
+        // 사이드바 프로필 슬롯이 그 캐시를 useQuery로 구독한다. 이 페이지는 화면
+        // 진입마다 최신 판정이 필요해(§5.4 진입 분기가 stale 데이터로 잘못 갈리면 안
+        // 된다) staleTime:0으로 그 옵션의 기본 staleTime(15초)을 우회해 강제로 새로
+        // 조회한다 — 셸은 이 조회가 채운 캐시를 기본 staleTime 그대로 구독만 한다.
+        const data = await queryClient.fetchQuery({
+          ...performanceBootstrapQueryOptions(userId, accessToken),
+          staleTime: 0,
         });
-        const data = await response.json().catch(() => null);
         if (!alive) return;
-        if (response.ok) {
-          setProfileName(data?.profile?.name || null);
-          setLastSessionSummary(data?.lastSession || null);
-          setLatestDraft(data?.latestDraft || null);
-        }
+        setProfileName(data.profile?.name || null);
+        setLastSessionSummary(data.lastSession || null);
+        setLatestDraft(data.latestDraft || null);
       } catch (error) {
         console.error("[performance] bootstrap 조회 실패:", error);
       } finally {
@@ -816,7 +868,7 @@ export default function PerformanceChatPage() {
     return () => {
       alive = false;
     };
-  }, [accessToken]);
+  }, [accessToken, userId]);
 
   // §5.4 진입 분기 판정 — bootstrap이 끝난 뒤(`bootstrapLoading` false) 딱 한 번만 돈다
   // (`entryResolvedRef`, STEP1 그리팅 이펙트와 달리 재실행될 이유가 없다 — 세션 목록은
@@ -844,11 +896,11 @@ export default function PerformanceChatPage() {
     onBootstrapReady();
   }, [bootstrapLoading]);
 
-  // STEP4 로딩 진입 시 포커스 이동(검토 A-2). 카드 목록이 언마운트되며 `useModalBehavior`의
-  // 자동 복귀 대상(트리거 카드)도 함께 사라지므로, 여기서 새 목적지를 직접 지정한다. 로딩
-  // 버블이 실제로 DOM에 붙은 뒤(같은 렌더 커밋 다음 프레임) 포커스를 옮겨야 하므로
-  // `requestAnimationFrame`을 쓴다 — `useModalBehavior`의 "열릴 때 첫 포커서블로 이동" 이펙트와
-  // 같은 패턴이다.
+  // STEP4 로딩 진입 시 포커스 이동(검토 A-2). 카드 목록이 언마운트되며 Base UI Dialog가
+  // 하는 것과 같은 자동 복귀 대상(트리거 카드)도 함께 사라지므로, 여기서 새 목적지를 직접
+  // 지정한다. 로딩 버블이 실제로 DOM에 붙은 뒤(같은 렌더 커밋 다음 프레임) 포커스를 옮겨야
+  // 하므로 `requestAnimationFrame`을 쓴다 — Base UI Dialog가 열릴 때 첫 포커서블 요소로
+  // 옮기는 것과 같은 패턴이다.
   useEffect(() => {
     if (designPhase !== "loading") return undefined;
     const raf = requestAnimationFrame(() => {
@@ -1266,8 +1318,9 @@ export default function PerformanceChatPage() {
 
   /**
    * §5.13 `창 닫고 작성하기`·ESC·딤 클릭 공통. 리포트는 상태에 남겨 다시 열 수 있게 한다.
-   * 포커스는 `useModalBehavior`의 자동 복귀에 기대지 않고 `설계 리포트 다시 보기` 버튼으로
-   * 직접 옮긴다 — 모달을 연 트리거(STEP4 로딩 버블)는 같은 커밋에서 이미 언마운트됐다.
+   * 포커스는 Base UI Dialog의 자동 복귀(트리거로 되돌리기)에 기대지 않고 `설계 리포트
+   * 다시 보기` 버튼으로 직접 옮긴다 — 모달을 연 트리거(STEP4 로딩 버블)는 같은 커밋에서
+   * 이미 언마운트됐다.
    */
   function handleCloseDesignModal() {
     setDesignModalOpen(false);
@@ -1332,19 +1385,32 @@ export default function PerformanceChatPage() {
   }
 
   /**
-   * `중간 저장`(§5.14 secondary). §4 상태도가 STEP5를 `Empty --> Filled : 입력` /
-   * `Filled --> Filled : 중간 저장`(L328) 두 전이로만 그리고 명세 어디에도 자동 저장 규정이
-   * 없어 **디바운스 자동 저장을 만들지 않았다** — 명시적 저장 하나뿐이다.
+   * `중간 저장`(§5.14 secondary가 있던 자리). §4 상태도는 STEP5를 `Empty --> Filled : 입력`
+   * / `Filled --> Filled : 중간 저장`(L328) 두 전이로만 그렸고 처음에는 그 근거로 디바운스
+   * 자동 저장을 만들지 않았지만, 디자이너 9/4 댓글("자동 저장 되는 로직으로")과 사용자
+   * 확정(QA 행280)으로 뒤집혔다 — 수동 `중간 저장` 버튼은 제거됐고, 이 함수는 이제
+   * `SubmissionForm` 안의 `useDebouncedAutosave`가 부르는 **유일한 저장 경로**다.
    *
    * 실패해도 `submissionValue`를 건드리지 않는다(작성 내용 유실 금지). 다중 탭 경합은
    * 서버가 `409 SESSION_FINALIZED`/`REEVALUATION_LIMIT`으로 갈라 주므로 문구만 띄운다.
+   * 성공 토스트는 두지 않는다(자동 저장이 매 디바운스마다 뜨면 소음이다) — 대신
+   * `SubmissionForm`이 `saving`/`error`/`savedAt` props로 조용한 상태 텍스트를 보여준다.
+   * **실패 시 에러를 다시 던진다** — `useDebouncedAutosave`가 이 예외로 "저장 안 됨"을
+   * 판정해 마지막 저장본을 갱신하지 않고, 실패 상태의 수동 재시도가 다시 시도할 수 있게
+   * 한다(호출부가 reject 없이 성공으로 착각하면 재시도 경로가 막힌다).
    */
   async function handleSaveDraft(fields) {
-    if (!accessToken || !createdSession || savingDraft || submittingWork)
+    if (
+      !accessToken ||
+      !createdSession ||
+      savingDraftRef.current ||
+      submittingWorkRef.current
+    )
       return;
 
+    savingDraftRef.current = true;
     setSavingDraft(true);
-    setSubmissionActionError(null);
+    setSubmissionSaveError(null);
 
     try {
       const data = await saveSubmission({
@@ -1354,17 +1420,21 @@ export default function PerformanceChatPage() {
         mode: "draft",
       });
       setSubmissionSavedAt(data.savedAt || new Date().toISOString());
-      toastSuccess(
-        "중간 저장이 완료되었습니다. 다음 로그인 때 이어서 할 수 있습니다.",
-      );
+      // 성공한 자동 저장은 "제출 실패" 문구도 함께 걷어낸다 — 게이트 실패
+      // (`SUBMISSION_TOO_SHORT` 등) 이후에도 학생은 계속 타이핑을 이어갈 수 있고, 그
+      // 입력이 자동 저장되면 방금 있었던 제출 실패 경고는 더 이상 최신 상태를 대변하지
+      // 않는다(그대로 두면 고친 뒤에도 "제출하지 못했어요…"가 화석처럼 남는다).
+      setSubmissionSubmitError(null);
     } catch (error) {
       console.error("[performance] 중간 저장 실패:", error?.code, error);
       const message =
         error?.userMessage ||
         "중간 저장에 실패했어요. 잠시 후 다시 시도해 주세요.";
-      setSubmissionActionError(message);
+      setSubmissionSaveError(message);
       toastError(message);
+      throw error;
     } finally {
+      savingDraftRef.current = false;
       setSavingDraft(false);
     }
   }
@@ -1378,11 +1448,17 @@ export default function PerformanceChatPage() {
    * 회차는 이 경로에서 깎이지 않는다(§9.3 — 차감 지점은 `recommend-topics` 1곳뿐).
    */
   async function handleSubmitWork(fields) {
-    if (!accessToken || !createdSession || savingDraft || submittingWork)
+    if (
+      !accessToken ||
+      !createdSession ||
+      savingDraftRef.current ||
+      submittingWorkRef.current
+    )
       return;
 
+    submittingWorkRef.current = true;
     setSubmittingWork(true);
-    setSubmissionActionError(null);
+    setSubmissionSubmitError(null);
 
     try {
       const data = await saveSubmission({
@@ -1397,12 +1473,15 @@ export default function PerformanceChatPage() {
       console.error("[performance] 제출 실패:", error?.code, error);
       // 게이트 실패(`SUBMISSION_TOO_SHORT`/`REQUIRED_FIELD_EMPTY`)는 **초안이 저장된 채로**
       // 돌아온다 — 서버가 게이트를 저장 이후에 보기 때문이다(`api/performance/submission.js`).
-      // 학생이 쓰던 글은 남아 있으므로 문구만 알리고 폼은 그대로 둔다.
+      // 학생이 쓰던 글은 남아 있으므로 `submissionSaveError`(자동 저장 실패)는 건드리지
+      // 않는다 — 그리핑 원인이었다: 저장은 성공했는데 제출만 실패한 순간에도
+      // `submissionSaveError`를 같이 쓰면 `SubmissionForm`이 "저장 실패"를 오표시했다.
       if (error?.saved?.savedAt) setSubmissionSavedAt(error.saved.savedAt);
-      setSubmissionActionError(
+      setSubmissionSubmitError(
         error?.userMessage || "제출하지 못했어요. 잠시 후 다시 시도해 주세요.",
       );
     } finally {
+      submittingWorkRef.current = false;
       setSubmittingWork(false);
     }
   }
@@ -1433,8 +1512,9 @@ export default function PerformanceChatPage() {
 
   /**
    * §5.16 `다음 단계 선택하기`·ESC·딤 클릭 공통. 리포트는 상태에 남겨 다시 열 수 있게 한다.
-   * 포커스는 `useModalBehavior`의 자동 복귀에 기대지 않고 `평가 리포트 다시 보기` 버튼으로
-   * 직접 옮긴다 — 모달을 연 트리거(STEP5 로딩 버블)는 같은 커밋에서 이미 언마운트됐다.
+   * 포커스는 Base UI Dialog의 자동 복귀(트리거로 되돌리기)에 기대지 않고 `평가 리포트
+   * 다시 보기` 버튼으로 직접 옮긴다 — 모달을 연 트리거(STEP5 로딩 버블)는 같은 커밋에서
+   * 이미 언마운트됐다.
    */
   function handleCloseEvaluationModal() {
     setEvaluationModalOpen(false);
@@ -1593,7 +1673,8 @@ export default function PerformanceChatPage() {
     setSubmissionSchema(null);
     setSubmissionValue({});
     setSubmissionLoadError(null);
-    setSubmissionActionError(null);
+    setSubmissionSaveError(null);
+    setSubmissionSubmitError(null);
     setSubmissionSavedAt(null);
 
     setEvaluationPhase("idle");
@@ -2324,16 +2405,14 @@ export default function PerformanceChatPage() {
           topicTitle={confirmedTopic?.title || null}
           saving={savingDraft}
           submitting={submittingWork}
-          error={submissionActionError}
+          error={submissionSaveError}
+          submitError={submissionSubmitError}
           savedAt={submissionSavedAt}
         />
       ) : submissionLoadError ? (
         // 스키마 없이 임의의 기본 폼을 그리지 않는다(위 `SUBMISSION_LOAD_FAILED_FALLBACK`).
         <div className="flex flex-col items-start gap-3">
-          <p
-            role="alert"
-            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
-          >
+          <p role="alert" className="text-app-label text-[#d01c1c]">
             {submissionLoadError}
           </p>
           <RetryButton onClick={handleRetrySubmissionLoad}>
@@ -2393,8 +2472,8 @@ export default function PerformanceChatPage() {
   }
 
   return (
-    <div className="mt-10">
-      <ChatTimeline messages={messages} />
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ChatTimeline messages={messages} className="min-h-0 flex-1" />
       <TopicDetailModal
         open={Boolean(topicDetail)}
         topic={topicDetail}
@@ -2422,7 +2501,7 @@ export default function PerformanceChatPage() {
 /**
  * "이 조건이 켜지는 순간 이 노드로 포커스를 옮긴다"를 한 줄로 쓰는 헬퍼. 새로 나타난 노드가
  * DOM에 붙은 뒤(같은 렌더 커밋 다음 프레임) 옮겨야 하므로 `requestAnimationFrame`을 쓴다 —
- * `useModalBehavior`의 "열릴 때 첫 포커서블로 이동" 이펙트와 같은 패턴이다.
+ * Base UI Dialog가 열릴 때 첫 포커서블 요소로 옮기는 것과 같은 패턴이다.
  *
  * 쓰는 이유는 전부 같다: **직전에 포커스를 갖고 있던 노드가 같은 커밋에서 언마운트되는
  * 전이**라 브라우저 기본 동작(`<body>`로 떨어짐)에 맡기면 키보드 사용자가 위치를 잃는다.
@@ -2464,7 +2543,7 @@ const RetryButton = forwardRef<
       ref={ref}
       type="button"
       onClick={onClick}
-      className="flex h-10 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white px-4 text-[0.875rem] font-medium leading-4.5 text-ink transition-colors hover:border-ink-sub"
+      className="flex h-10 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white px-4 text-app-label font-medium text-ink transition-colors hover:border-ink-sub"
     >
       {children}
     </button>

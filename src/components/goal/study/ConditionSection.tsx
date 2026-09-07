@@ -48,7 +48,7 @@ export default function ConditionSection({
 
   return (
     <GoalCard tone="neutral" className="flex h-full flex-col gap-5 px-8 py-7.5">
-      <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
+      <h3 className="text-app-card-title font-bold text-ink-strong">
         오늘의 컨디션
       </h3>
       <div
@@ -77,12 +77,10 @@ export default function ConditionSection({
                   : "border-line bg-white text-ink"
               }`}
             >
-              <span className="text-[1.75rem] leading-none" aria-hidden="true">
+              <span className="text-app-title leading-none" aria-hidden="true">
                 {option.emoji}
               </span>
-              <span className="text-[0.875rem] leading-[1.4]">
-                {option.label}
-              </span>
+              <span className="text-app-label">{option.label}</span>
             </button>
           );
         })}

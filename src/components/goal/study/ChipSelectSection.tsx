@@ -26,9 +26,7 @@ export default function ChipSelectSection({
       tone="neutral"
       className={`flex h-full flex-col gap-5 px-8 py-7.5 ${className}`}
     >
-      <h3 className="text-[1.125rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
       <div className="flex flex-wrap gap-2.5">
         {options.map((option) => (
           <SelectChip

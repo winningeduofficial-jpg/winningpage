@@ -78,7 +78,7 @@ export default function Step1School({ goNext }: Step1SchoolProps) {
 
       {isBlockedPath && (
         <QuestionCard step="1-2" label="학교정보" title="아직 준비 중이에요">
-          <p className="text-[0.875rem] leading-[1.6] text-ink-sub">
+          <p className="text-app-body leading-[1.6] text-ink-sub">
             중학교・초등학교는 학년 수와 성적 입력 방식이 달라 아직 지원하지
             않아요. 일반고 또는 특목・자사고를 선택하면 계속 진행할 수 있어요.
           </p>

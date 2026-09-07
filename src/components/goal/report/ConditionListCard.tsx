@@ -19,14 +19,12 @@ export default function ConditionListCard({
 }: ConditionListCardProps) {
   return (
     <GoalCard tone="neutral" className="flex min-h-50 flex-col gap-4 px-5 py-6">
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
       <ul className="flex flex-1 flex-col justify-center gap-4">
         {rows.map((row) => (
           <li
             key={row.label}
-            className="flex items-center justify-between text-[0.875rem] leading-[1.4]"
+            className="flex items-center justify-between text-app-label"
           >
             <span className="flex items-center gap-2">
               <span aria-hidden="true">{row.emoji}</span>

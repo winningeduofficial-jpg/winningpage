@@ -70,7 +70,7 @@ export default function GoalGradePyramid({
           <div
             key={row}
             aria-hidden="true"
-            className={`flex h-6 items-center justify-center rounded-md border text-[0.6875rem] font-semibold leading-[1.4] ${
+            className={`flex h-6 items-center justify-center rounded-md border text-app-badge font-semibold ${
               isActive
                 ? "border-[#5B4E9E] bg-[#E0DDF4] text-[#5B4E9E] shadow-sm"
                 : "border-border bg-surface-muted text-ink-sub"

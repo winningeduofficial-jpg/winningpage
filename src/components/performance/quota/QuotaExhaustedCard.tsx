@@ -103,14 +103,10 @@ export default function QuotaExhaustedCard({
       {/* 시안 없는 표면이라 내부 리듬은 §5.20 표의 항목 순서를 그대로 세로 스택으로 편다.
           제목↔설명 0.5rem, 설명↔버튼 줄 1.25rem — STEP2 카드(§5.6)와 같은 리듬이다. */}
       <div className="flex flex-col gap-2">
-        <p className="text-[1rem] font-semibold leading-5.25 text-ink">
-          {TITLE}
-        </p>
-        <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
-          {DESCRIPTION}
-        </p>
+        <p className="text-app-card-title font-semibold text-ink">{TITLE}</p>
+        <p className="text-app-label font-normal text-ink-sub">{DESCRIPTION}</p>
         {endsAtText && (
-          <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
+          <p className="text-app-label font-normal text-ink-sub">
             현재 이용권은 {endsAtText}까지 유효해요.
           </p>
         )}

@@ -210,7 +210,7 @@ export default function WeeklyPlan() {
       <div className="max-w-goal-content px-4 pb-24 md:px-12">
         {result === null && (
           <GoalCard tone="neutral" className="px-8 py-7">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+            <p className="text-app-body leading-[1.4] text-ink-sub">
               주간 계획을 불러오는 중입니다…
             </p>
           </GoalCard>
@@ -221,7 +221,7 @@ export default function WeeklyPlan() {
             도달하지 않는 방어적 분기다. 크래시 대신 안내만 하고 게이트가 다음 진입 때 재판정하게 둔다. */}
         {result && result.kind !== "success" && (
           <GoalCard tone="neutral" className="px-8 py-7">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+            <p className="text-app-body leading-[1.4] text-ink-sub">
               주간 계획을 불러오지 못했습니다. 새로고침해 주세요.
             </p>
           </GoalCard>

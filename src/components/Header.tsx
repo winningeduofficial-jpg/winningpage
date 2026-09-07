@@ -785,7 +785,16 @@ export default function Header() {
   })();
 
   return (
-    <header className="fixed left-0 top-0 z-50 w-full border-b border-black/5 bg-white">
+    // `h-16`을 이 요소(`<header>`) 자신에 건다 — Tailwind preflight의 전역
+    // `box-sizing: border-box` 아래에서는 `border-b`가 이 4rem 안에 포함되므로
+    // `header.getBoundingClientRect().height`가 정확히 4rem(64px)이 된다. 예전엔
+    // 높이가 안쪽 `h-16` div(아래)에만 걸려 있어 `<header>` 자체는 "auto"(내용 높이 +
+    // 자기 테두리) 높이였다 — 내용 64px + 테두리 1px = 65px. 앱 셸(`AppShellSidebar`의
+    // `--header-height`, `top-(--header-height)` 등)이 4rem을 리터럴로 가정하는 여러
+    // 곳과 실측이 1px 어긋났던 원인이 이것이다(그리핑 원인). 사이트 전역의 `pt-16` 보정도
+    // 원래부터 65px가 아니라 4rem(64px)만 가정해 왔으므로, 이 수정은 그 가정을 실제로
+    // 맞춰 준다(부작용이 아니라 기존 오차의 해소).
+    <header className="fixed left-0 top-0 z-50 h-16 w-full border-b border-black/5 bg-white">
       {/* 좌표계 1(1920 밴드): 로고(좌측 끝) + 계정 그룹(우측 끝). 랜딩 마퀴 밴드(max-w-[120rem])와
           동일 기준의 px-8 패딩으로 로고/계정 그룹을 뷰포트 1920 캡 좌우 끝에 고정한다.
           nav는 이 flex 라인에 속하지 않는다(좌표계 2, 아래 별도 overlay).
@@ -802,7 +811,11 @@ export default function Header() {
           MY 컬럼·회색존 28rem·프로모 카드 0.8 스케일·계정 버튼 스타일·햄버거 우측 배치·메가
           컬럼 제목 행·nav 타이포(hover SemiBold #013262/패널 열림 중 비활성 Medium #525252)는
           이 되돌리기와 무관하게 그대로 유지한다. */}
-      <div className="mx-auto flex h-16 max-w-[120rem] items-center justify-between px-8 2xl:px-30">
+      {/* `h-16`이 아니라 `h-full` — 높이는 이제 `<header>` 자신(`border-box` 4rem, 위
+          주석)이 정본이다. 여기서도 `h-16`을 그대로 두면 `border-b`만큼(1px) 안쪽
+          content-box가 줄어든 `<header>`(63px)보다 이 div가 1px 더 커져 아래로 삐져
+          나온다 — `h-full`로 부모가 실제로 내주는 높이만큼만 채운다. */}
+      <div className="mx-auto flex h-full max-w-[120rem] items-center justify-between px-8 2xl:px-30">
         <Link
           to="/"
           className="flex shrink-0 items-center"
@@ -898,7 +911,14 @@ export default function Header() {
           `fixed left-0 top-0 w-full`로 완전히 통일해 계산식을 실제로 같게 만든다(아래
           `inset-x-0` 대신 메가 패널 wrapper와 동일한 `left-0 w-full` 표기로 맞췄다) — 1440
           /1512/1680/1920 재정렬 여부는 리드가 재실측한다. */}
-      <nav className="pointer-events-none fixed left-0 top-0 hidden h-16 w-full desktop:block">
+      {/* `border-b border-transparent`가 시각적으로 아무 것도 그리지 않지만 빠지면 안
+          된다 — `<header>`(위 주석)는 `border-box` 4rem 안에 `border-b`(1px)가 포함돼
+          실제 내용 행이 63px인데, 이 `<nav>`는 테두리가 없어 `h-16`이 그대로 64px 내용
+          행이 된다. 겹치는 `items-center`가 서로 다른 높이(64px vs 63px) 안에서 각자
+          중앙 정렬돼 nav 라벨이 로고/계정 그룹 행보다 0.5px 아래로 보였다 — 투명
+          테두리로 같은 1px을 내부로 밀어 넣어 두 행의 내용 높이(63px)를 실제로
+          맞춘다. */}
+      <nav className="pointer-events-none fixed left-0 top-0 hidden h-16 w-full border-b border-transparent desktop:block">
         <div className="pointer-events-none mx-auto flex h-full w-full max-w-content items-center px-8">
           {/* biome-ignore lint/a11y/noStaticElementInteractions: 마우스 호버로 메가메뉴 닫힘 타이머를 관리하는 데스크톱 편의 동작 — 실제 nav 링크는 클릭·키보드 모두로 접근 가능하다. */}
           <div

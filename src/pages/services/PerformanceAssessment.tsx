@@ -12,20 +12,17 @@ import audienceTopic from "@/assets/services/performance/audience-topic.jpg";
 import coachBinoculars from "@/assets/services/performance/coach-binoculars.png";
 import coachEmail from "@/assets/services/performance/coach-email.png";
 import coachLaptopChair from "@/assets/services/performance/coach-laptop-chair.png";
+import coachLaptopSitting from "@/assets/services/performance/coach-laptop-sitting.png";
 import coachLaptopWork from "@/assets/services/performance/coach-laptop-work.png";
 import coachLightbulb from "@/assets/services/performance/coach-lightbulb.png";
 import coachRockingChair from "@/assets/services/performance/coach-rocking-chair.png";
 import coachSisyphus from "@/assets/services/performance/coach-sisyphus.png";
 import coachSummitHiking from "@/assets/services/performance/coach-summit-hiking.png";
 import coachTablet from "@/assets/services/performance/coach-tablet.png";
-import coachTreadmill from "@/assets/services/performance/coach-treadmill.png";
 import coachWriting from "@/assets/services/performance/coach-writing.png";
 import heroAura from "@/assets/services/performance/hero-aura.svg";
+import heroEvaluationReport from "@/assets/services/performance/hero-evaluation-report.png";
 import iconCalendar from "@/assets/services/performance/icon-calendar-v2.png";
-import processStep1 from "@/assets/services/performance/process-step-1.png";
-import processStep2 from "@/assets/services/performance/process-step-2.png";
-import processStep3 from "@/assets/services/performance/process-step-3.png";
-import processStep4 from "@/assets/services/performance/process-step-4.png";
 import ServiceAudienceCards from "@/components/services/ServiceAudienceCards";
 import ServiceFaq from "@/components/services/ServiceFaq";
 import ServiceHeroBrowserFrame from "@/components/services/ServiceHeroBrowserFrame";
@@ -119,27 +116,6 @@ const PROCESS_STEPS = [
   },
 ];
 
-// 히어로 브라우저 프레임 안에 채우는 실제 진행 화면 캡처 4컷 — QA 시트 행 38・81・354
-// (2026-09-02) 요청으로 빈 리포트 목업 1장 대신 진행 단계 순서(1→4)를 그대로 노출한다.
-const HERO_PROCESS_SCREENSHOTS = [
-  {
-    src: processStep1,
-    alt: "수행평가 진행 화면 1 — 기본 정보 입력・안내문 업로드",
-  },
-  {
-    src: processStep2,
-    alt: "수행평가 진행 화면 2 — 추천 주제 3개 확인",
-  },
-  {
-    src: processStep3,
-    alt: "수행평가 진행 화면 3 — 제출물 작성 폼 입력",
-  },
-  {
-    src: processStep4,
-    alt: "수행평가 진행 화면 4 — 저장된 리포트 목록 확인",
-  },
-];
-
 // 탭 4개(주제 추천/자료 방향/구성 설계 리포트/결과 리포트) — 탭·카드 콘텐츠는 시안 별도 노드
 // (2159:915 자료방향・2159:998 구성설계・2159:1034 결과리포트)의 텍스트/일러스트를 인용했다.
 const COACHING_TABS = [
@@ -193,7 +169,8 @@ const COACHING_CONTENT = {
       desc: "선정한 주제에 맞춰 수행의 흐름을 제시합니다.",
     },
     {
-      icon: coachTreadmill,
+      // QA 행 83(2026-09-06) — 러닝머신 일러스트가 시안(2159:999)과 달라 "앉아서 노트북" 일러스트로 교체.
+      icon: coachLaptopSitting,
       title: "세부 구성 제안",
       desc: "문단의 구성과 그에 따른 내용의 방향을 제시합니다.",
     },
@@ -427,37 +404,17 @@ function HeroSection() {
         {/* 브라우저 목업 — 래퍼/프레임 지오메트리(폭 1068px, radius 5px, 3중 그림자, 상단
             마진 + 하단 음수 마진으로 다음 섹션과 겹치는 처리)는 목표관리(GoalManagement.jsx)
             HeroSection 목업 구조를 그대로 이식했다(사용자 지시 — 세 히어로 공통 규격 통일).
-            본문은 오래 빈 배경이었다가(시안 2393:12091의 크롬 안이 비어 있었음) 2026-08-31에
-            리포트 화면 1장으로 한 번 채웠는데, QA 시트 행 38·81·354(2026-09-02)가 리포트
-            결과 1장 대신 실제 진행 단계 캡처 4컷을 순서대로 보여달라고 지적해 지금 구성으로
-            교체했다. 크롬은 이 컴포넌트가 그리므로 캡처 쪽 크롬·그림자는 버렸다.
-            높이 — md 이상에서는 프레임 자체의 aspect-1280/553이 높이를 고정하므로 래퍼는
-            md:min-h-0 md:flex-1로 남은 공간을 받는다. md 미만은 프레임에 고정 비율이 없어
-            래퍼 대신 셀에 세로 비율(aspect-4/5)을 줘 2×2 각 칸이 세로 캡처를 읽을 수 있는
-            크기로 선다(래퍼에 옛 목업 비율 2198:814를 주면 390px 폭에서 이미지 높이가
-            46px로 뭉개졌다 — 2026-09-02 실측). md 이상은 처음부터 4×1이다(md에서 2×2를
-            유지하면 프레임 높이 안에서 셀이 가로로 눕는다). 이미지는 object-contain +
-            object-top으로 잘리지 않게 축소해 상단 정렬한다(캡처 4장의 원본 비율이
-            제각각이라 object-cover면 내용이 잘린다). 좌상단 숫자 배지(1~4)는 순서를
-            명시해 달라는 QA 요구사항이다. */}
+            본문은 진행 단계 캡처 4컷(2026-09-02, QA 행 38·81·354)이었다가, 디자이너 갱신 시안
+            (4982:18708, 2026-09-04)이 "수행평가 평가 리포트" 캡처 1장으로 되돌려 QA 행
+            354·81·38 재지적에 맞춰 다시 1장으로 교체한다. 목표관리 히어로 대시보드 이미지와
+            동일하게 md:object-cover md:object-top으로 프레임 폭에 채우고 상단부터 보이게 한다
+            (md 미만은 목표관리와 동일하게 고정 비율 없이 w-full 자연 비율을 따른다). */}
         <ServiceHeroBrowserFrame>
-          <div className="grid grid-cols-2 gap-px bg-[#E5E7EB] md:min-h-0 md:flex-1 md:grid-cols-4">
-            {HERO_PROCESS_SCREENSHOTS.map((screenshot, index) => (
-              <div
-                key={screenshot.alt}
-                className="relative aspect-4/5 bg-white p-2 md:aspect-auto md:min-h-0"
-              >
-                <span className="absolute left-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
-                  {index + 1}
-                </span>
-                <img
-                  src={screenshot.src}
-                  alt={screenshot.alt}
-                  className="h-full w-full object-contain object-top"
-                />
-              </div>
-            ))}
-          </div>
+          <img
+            src={heroEvaluationReport}
+            alt="수행평가 평가 리포트 화면 — 학생별 탐구 결과물 점검 포인트와 피드백을 보여준다"
+            className="w-full md:min-h-0 md:flex-1 md:object-cover md:object-top"
+          />
         </ServiceHeroBrowserFrame>
       </div>
     </section>

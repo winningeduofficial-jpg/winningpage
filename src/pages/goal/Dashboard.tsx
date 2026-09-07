@@ -534,7 +534,7 @@ export default function Dashboard() {
       <div className={outerClassName}>
         <div className="max-w-goal-dashboard">
           <GoalCard tone="neutral" className="px-8 py-7">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+            <p className="text-app-body leading-[1.4] text-ink-sub">
               대시보드를 불러오는 중입니다…
             </p>
           </GoalCard>
@@ -556,7 +556,7 @@ export default function Dashboard() {
       <div className={outerClassName}>
         <div className="max-w-goal-dashboard">
           <GoalCard tone="neutral" className="px-8 py-7">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+            <p className="text-app-body leading-[1.4] text-ink-sub">
               {message}
             </p>
           </GoalCard>
@@ -623,7 +623,7 @@ export default function Dashboard() {
       {savedRecordBanner && (
         <div
           role="status"
-          className="fixed inset-x-0 bottom-8 z-55 mx-auto w-[calc(100%-2.5rem)] max-w-md rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-center text-[0.875rem] font-semibold text-green-700 shadow-[0_18px_45px_rgba(13,27,42,0.15)]"
+          className="fixed inset-x-0 bottom-8 z-55 mx-auto w-[calc(100%-2.5rem)] max-w-md rounded-xl border border-green-200 bg-green-50 px-5 py-4 text-center text-app-body font-semibold text-green-700 shadow-[0_18px_45px_rgba(13,27,42,0.15)]"
         >
           {`기록을 저장했어요. 이상 목표 +${savedRecordBanner.idealSusi.toFixed(2)}%p · 최소 목표 +${savedRecordBanner.minSusi.toFixed(2)}%p`}
         </div>

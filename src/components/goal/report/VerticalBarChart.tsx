@@ -37,7 +37,7 @@ export default function VerticalBarChart({
             key={bar.label}
             className="flex min-w-0 flex-1 flex-col items-center justify-end gap-2"
           >
-            <span className="text-[0.6875rem] leading-[1.2] text-ink-sub">
+            <span className="text-app-badge leading-[1.2] text-ink-sub">
               {bar.value}
               {unit}
             </span>
@@ -48,7 +48,7 @@ export default function VerticalBarChart({
                 style={{ height: isZero ? "0.25rem" : `${Math.max(pct, 6)}%` }}
               />
             </div>
-            <span className="text-[0.75rem] font-medium leading-[1.3] text-ink-strong">
+            <span className="text-app-caption font-medium leading-[1.3] text-ink-strong">
               {bar.label}
             </span>
           </div>
