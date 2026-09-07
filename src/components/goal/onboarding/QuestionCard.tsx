@@ -26,7 +26,7 @@ export default function QuestionCard({
         <span className="text-[0.875rem] text-ink-sub">{label}</span>
       </div>
 
-      <h2 className="mt-6 text-app-stat font-bold leading-[1.4] text-ink-strong">
+      <h2 className="mt-6 text-app-section font-bold text-ink-strong">
         {title}
       </h2>
 
