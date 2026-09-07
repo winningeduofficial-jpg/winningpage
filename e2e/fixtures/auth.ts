@@ -1,4 +1,5 @@
 import path from "node:path";
+import playwrightConfig from "../../playwright.config";
 import { type BrowserContext, test as base, type Page } from "@playwright/test";
 
 // 로그인 QA 계정은 여기에 하드코딩하지 않는다 — 로컬 QA 계정 자격증명은 팀
@@ -48,7 +49,12 @@ export const test = base.extend<{}, { authStorageStatePath: string }>({
   authStorageStatePath: [
     async ({ browser }, use) => {
       storageStatePromise ??= (async () => {
-        const context: BrowserContext = await browser.newContext();
+        // 워커 스코프에서 직접 만든 컨텍스트에는 config의 `use.baseURL`이 자동 적용되지
+        // 않는다 — 상대 경로 goto("/login")가 "invalid URL"로 실패한 원인. 설정 파일의 값을
+        // 그대로 넘겨 한 곳(playwright.config.ts)만 정본으로 유지한다.
+        const context: BrowserContext = await browser.newContext({
+          baseURL: playwrightConfig.use?.baseURL,
+        });
         const page = await context.newPage();
         try {
           return await createStorageState(page);
