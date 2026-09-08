@@ -56,7 +56,7 @@ export default function BookStack({
         >
           <div className={`h-full w-2 shrink-0 rounded-l-md ${darkBg}`} />
           <span
-            className={`truncate pr-3 pl-3.5 text-[1rem] font-medium leading-none ${darkText}`}
+            className={`truncate pr-3 pl-3.5 text-app-card-title font-medium leading-none ${darkText}`}
           >
             {book.title}
           </span>

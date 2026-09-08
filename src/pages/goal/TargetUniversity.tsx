@@ -64,7 +64,7 @@ export default function TargetUniversity() {
         />
         <div className="max-w-goal-content flex flex-col gap-5 px-4 pb-24 md:px-12">
           <GoalCard tone="neutral" className="px-8 py-7">
-            <p className="text-[0.9375rem] leading-[1.4] text-ink-sub">
+            <p className="text-app-body leading-[1.4] text-ink-sub">
               {message}
             </p>
           </GoalCard>

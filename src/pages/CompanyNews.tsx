@@ -216,8 +216,9 @@ const CAMPUS_CARDS = [
   },
 ];
 
-// 연계 협력기관 카드 3장 — 카드1만 시안이 설명문(제목)/브랜드명(부제) 위계가 다른 2·3과
-// 반대인데, 카피 변경 권한이 없어 시안 그대로 옮겼다.
+// 연계 협력기관 카드 4장(QA 시트 행19로 4번 추가, Figma 1882:19387) — 카드1만 시안이
+// 설명문(제목)/브랜드명(부제) 위계가 다른 2·3과 반대인데, 카피 변경 권한이 없어 시안 그대로
+// 옮겼다. lg:grid-cols-3 그리드라 4번째 카드는 시안대로 2행으로 자연히 내려간다.
 const PARTNER_CARDS = [
   {
     key: "chloe-winning-art",
@@ -249,6 +250,18 @@ const PARTNER_CARDS = [
     links: [{ label: "부산캠퍼스", href: "https://naver.me/GkRHGKeZ" }],
     logo: partnerJungsangMath,
     logoWidth: "w-[6.5rem]",
+  },
+  {
+    // QA 시트 행19(Figma 1882:19387) — 4번째 카드 신규 추가. 정관점 링크는 사용자 확인 결과
+    // 카드1(클로이위닝 미술학원) 정관점과 같은 지점을 공유해 동일 URL을 재사용한다. logo도
+    // 카드1과 같은 클로이위닝 마크를 재사용한다(조형미술연구소 전용 로고 에셋은 아직 없음).
+    key: "chloe-winning-sculpture",
+    title: "클로이위닝\n조형미술연구소",
+    subtitle: "클로이위닝 미술학원",
+    brand: "클로이위닝 조형미술연구소",
+    links: [{ label: "정관점", href: "https://naver.me/5UEceSEF" }],
+    logo: partnerChloeWinningArt,
+    logoWidth: "w-[8.35rem]",
   },
 ];
 // "바로가기" 5개 링크는 네이버 지도 단축링크(naver.me)를 실제 목적지로 받았다 — 전부 외부 새 탭

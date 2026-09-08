@@ -101,6 +101,10 @@ import { defineHandler, requireUserId } from "../_lib/handler.js";
 import { sendError } from "../_lib/httpResponse.js";
 import { callVision, PERFORMANCE_MODEL } from "../_lib/performance/gemini.js";
 import {
+  GUIDE_FREETEXT_MAX_LENGTH,
+  isGuideFreetextTooLong,
+} from "../_lib/performance/guide-freetext.js";
+import {
   buildGuideExtractionUserPrompt,
   GUIDE_EXTRACTION_SYSTEM,
   GUIDE_PROMPT_VERSION,
@@ -290,6 +294,18 @@ export default defineHandler({
         return fail(res, 400, "INVALID_ATTACHMENT_IDS", attachments.message, {
           field: "attachmentIds",
         });
+      }
+
+      // 프론트 `maxLength`는 신뢰값이 아니다(요청 본문은 클라이언트가 직접 조립할 수
+      // 있다) — 실제 저장 전 서버가 같은 상한(QA 행 194)을 재확인한다.
+      if (isGuideFreetextTooLong(freetext)) {
+        return fail(
+          res,
+          400,
+          "FREETEXT_TOO_LONG",
+          `freetext는 ${GUIDE_FREETEXT_MAX_LENGTH}자를 넘을 수 없습니다.`,
+          { field: "freetext", maxLength: GUIDE_FREETEXT_MAX_LENGTH },
+        );
       }
 
       // 두 분기는 배타다 — 한 요청이 둘 다 들고 오면 어느 쪽이 세션의 정본인지 계약이

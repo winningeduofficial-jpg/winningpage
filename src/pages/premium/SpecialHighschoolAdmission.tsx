@@ -218,7 +218,9 @@ export default function SpecialHighschoolAdmission() {
           <div className={PREMIUM_HEADING_GAP_CLASS}>
             <PremiumNumberedCards items={SELF_INTRO_CARDS} />
           </div>
-          <p className="mt-10 break-keep text-center text-[1.5rem] font-semibold leading-[1.4] text-ink-strong">
+          {/* 시안(Figma 4205:6488) 38px Bold / lh 1.3 / letter-spacing -0.02em, 상단 간격
+              100px — QA 시트 행130으로 기존 24px보다 크게 키웠다. */}
+          <p className="mt-16 break-keep text-center text-[1.75rem] font-bold leading-[1.3] tracking-[-0.02em] text-ink-strong sm:text-[2.375rem] lg:mt-25">
             직접 쓰되,{" "}
             <span className={PREMIUM_GOLD_TEXT_CLASS}>혼자 두지 않습니다.</span>
           </p>

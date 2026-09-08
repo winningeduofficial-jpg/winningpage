@@ -246,12 +246,12 @@ export default function Timer() {
         subcopy="측정한 시간은 종료 시 오늘의 공부 기록과 순공 시간에 자동 반영됩니다."
       />
       <div className="max-w-goal-content px-4 pb-24 md:px-12">
-        <p className="mb-6 text-[0.9375rem] leading-[1.4] text-ink-sub">
+        <p className="mb-6 text-app-body leading-[1.4] text-ink-sub">
           한 번에 한 과목만 측정돼요. 다른 과목을 시작하면 이전 과목은 자동으로
           멈춥니다.
         </p>
         {loadError && (
-          <p className="mb-6 text-[0.875rem] leading-[1.4] text-error">
+          <p className="mb-6 text-app-body leading-[1.4] text-error">
             타이머 정보를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.
           </p>
         )}

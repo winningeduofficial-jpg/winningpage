@@ -25,13 +25,18 @@ const COLUMNS = [
 // 아래 `title` 문자열 추론은 prop 누락 시를 대비한 방어용 폴백일 뿐이다(카피가 바뀌면 조용히
 // 깨질 수 있어 신뢰하지 말 것).
 //
-// 행 수정/삭제 UI는 시안에 없었다(part-12 §235). 성적관리 행322(팀장 지시)로 이번에 추가한다 —
-// 시안 근거가 없어 배치·문구는 house 톤(다른 카드의 텍스트 버튼)에 맞춰 최소한으로 근사한다.
-// onEditRow/onDeleteRow 둘 다 없으면(prop 자체를 생략) 액션 열이 렌더되지 않아 기존
-// 행 수정/삭제 없음 화면과 100% 동일하다 — 이 표를 재사용하는 다른 호출부에 영향 없음.
+// 행 수정/삭제 UI: 처음엔 시안이 없어(part-12 §235) 행마다 상시 노출하는 텍스트 버튼으로
+// 근사했다(성적관리 행322, 팀장 지시). 이후 디자이너 재요청(9/4, 시안 2910:3638·성적관리
+// 행324)으로 카드 헤더에 "수정" 토글 버튼을 두고, 편집 모드에서만 행별 수정/삭제가 드러나는
+// 쪽으로 바뀌었다 — 표 자체는 평소 값만 보여주는 게 목적이라 액션 열이 상시 붙어 있으면
+// 시각적으로 번잡하다는 피드백. onEditRow/onDeleteRow 둘 다 없으면(prop 자체를 생략) 헤더
+// 토글도, 액션 열도 렌더되지 않아 기존 행 수정/삭제 없음 화면과 100% 동일하다 — 이 표를
+// 재사용하는 다른 호출부에 영향 없음. rows가 비면(편집할 회차가 없음) 헤더 토글도 숨긴다.
 // 삭제는 되돌릴 수 없어 인라인 2단계 확인(먼저 "삭제" → "정말 삭제?" 클릭까지 2번 눌러야
 // 실제 삭제)으로 오클릭을 막는다. 클릭 한 번짜리 브라우저 confirm()도 대안이지만, 이 표
 // 자체가 house 스타일 텍스트 버튼 패턴을 이미 쓰고 있어 같은 패턴을 유지한다(판단 지점).
+// 편집 모드를 끄면(완료 클릭) 진행 중이던 2단계 삭제 확인도 함께 리셋한다 — 확인 상태만
+// 남겨두면 다시 수정을 켰을 때 사용자가 누르지 않은 확인 UI가 불쑥 나타날 수 있다.
 // 0회차 빈 상태 시안도 없어(part-12 §245) `GoalEmptyState`로 근사한다(추정).
 function inferLowerIsBetter(title?: string) {
   return typeof title === "string" && title.includes("내신");
@@ -68,23 +73,48 @@ export default function GoalTable({
 }: GoalTableProps) {
   const isLowerBetter = lowerIsBetter ?? inferLowerIsBetter(title);
   const hasActions = Boolean(onEditRow || onDeleteRow);
+  // 헤더 "수정" 토글 — 편집 모드일 때만 행별 수정/삭제 열을 노출한다(시안 2910:3638, 성적관리
+  // 행324, 9/4 디자이너 확정).
+  const [isEditing, setIsEditing] = useState(false);
   // 삭제 2단계 확인 중인 행의 term. 한 번에 한 행만 확인 상태를 갖는다(다른 행 클릭·행
   // 추가 등 다른 조작이 끼어들면 자동으로 풀리는 게 안전하다 — 별도 blur 핸들링 없이
   // rows가 갱신되면(성공적으로 삭제되면) 이 term도 배열에서 사라져 자연히 무의미해진다).
   const [confirmingTerm, setConfirmingTerm] = useState<string | null>(null);
+  const canToggleEdit = hasActions && rows.length > 0;
+  const showActionColumn = isEditing && hasActions;
 
   return (
     <div className="w-full max-w-254.5 rounded-2xl bg-goal-cardTone-neutral px-6 py-6">
       <GoalCardHeader
         title={title}
         action={
-          <button
-            type="button"
-            onClick={onAddRound}
-            className="flex h-11.5 items-center rounded-lg border border-line bg-white px-4 text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong transition-colors hover:bg-surface-04"
-          >
-            + 회차 추가
-          </button>
+          <div className="flex items-center gap-2">
+            {canToggleEdit && (
+              <button
+                type="button"
+                aria-pressed={isEditing}
+                onClick={() => {
+                  setIsEditing((prev) => !prev);
+                  // 완료로 전환하는 순간(prev=true) 진행 중이던 2단계 삭제 확인도 닫는다.
+                  setConfirmingTerm(null);
+                }}
+                className={
+                  isEditing
+                    ? "flex h-11.5 items-center rounded-lg bg-ink-strong px-4 text-app-label font-semibold text-white transition-colors hover:bg-ink-strong/90"
+                    : "flex h-11.5 items-center rounded-lg border border-line bg-white px-4 text-app-label font-semibold text-ink-strong transition-colors hover:bg-surface-04"
+                }
+              >
+                {isEditing ? "완료" : "수정"}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onAddRound}
+              className="flex h-11.5 items-center rounded-lg border border-line bg-white px-4 text-app-label font-semibold text-ink-strong transition-colors hover:bg-surface-04"
+            >
+              + 회차 추가
+            </button>
+          </div>
         }
       />
 
@@ -98,7 +128,7 @@ export default function GoalTable({
         </div>
       ) : (
         <ScrollArea axis="x" className="mt-5">
-          <table className="w-full min-w-180 border-collapse text-left text-[0.8125rem] leading-[1.4]">
+          <table className="w-full min-w-180 border-collapse text-left text-app-label">
             <thead>
               <tr className="border-b border-[#EDEDED] text-ink-sub">
                 {COLUMNS.map((column) => (
@@ -106,7 +136,7 @@ export default function GoalTable({
                     {column.label}
                   </th>
                 ))}
-                {hasActions && (
+                {showActionColumn && (
                   <th className="py-3 pl-3 font-medium">
                     <span className="sr-only">작업</span>
                   </th>
@@ -157,7 +187,7 @@ export default function GoalTable({
                         {row.average}
                       </span>
                     </td>
-                    {hasActions && (
+                    {showActionColumn && (
                       <td className="py-3 pl-3">
                         {confirmingTerm === row.term ? (
                           <span className="flex items-center gap-2 whitespace-nowrap">
@@ -167,14 +197,14 @@ export default function GoalTable({
                                 setConfirmingTerm(null);
                                 onDeleteRow?.(row.term);
                               }}
-                              className="text-[0.8125rem] font-semibold text-error hover:underline"
+                              className="text-app-label font-semibold text-error hover:underline"
                             >
                               정말 삭제
                             </button>
                             <button
                               type="button"
                               onClick={() => setConfirmingTerm(null)}
-                              className="text-[0.8125rem] text-ink-sub hover:underline"
+                              className="text-app-label text-ink-sub hover:underline"
                             >
                               취소
                             </button>
@@ -185,7 +215,7 @@ export default function GoalTable({
                               <button
                                 type="button"
                                 onClick={() => onEditRow(row.term)}
-                                className="text-[0.8125rem] text-ink-sub hover:text-ink-strong hover:underline"
+                                className="text-app-label text-ink-sub hover:text-ink-strong hover:underline"
                               >
                                 수정
                               </button>
@@ -194,7 +224,7 @@ export default function GoalTable({
                               <button
                                 type="button"
                                 onClick={() => setConfirmingTerm(row.term)}
-                                className="text-[0.8125rem] text-ink-sub hover:text-error hover:underline"
+                                className="text-app-label text-ink-sub hover:text-error hover:underline"
                               >
                                 삭제
                               </button>

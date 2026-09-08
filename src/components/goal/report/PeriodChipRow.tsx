@@ -66,7 +66,7 @@ export default function PeriodChipRow({
             tabIndex={selected ? 0 : -1}
             onClick={() => onChange(option.value)}
             onKeyDown={(event) => handleKeyDown(event, index)}
-            className={`text-[0.875rem] leading-[1.4] transition-colors ${
+            className={`text-app-label transition-colors ${
               selected
                 ? "font-bold text-ink-strong"
                 : "font-normal text-ink-sub hover:text-ink"

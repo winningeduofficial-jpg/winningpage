@@ -139,7 +139,7 @@ export default function UniversitySelect({
           onKeyDown={(event) => {
             if (event.key === "Escape") setIsOpen(false);
           }}
-          className="h-17 w-full rounded-xl border border-line bg-white px-5 pr-12 text-[1rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden"
+          className="h-17 w-full rounded-xl border border-line bg-white px-5 pr-12 text-app-card-title text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden"
         />
         <span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-ink-sub">
           {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
@@ -153,15 +153,15 @@ export default function UniversitySelect({
               role="listbox"
             >
               {!searchTerm.trim() ? (
-                <li className="px-5 py-4.25 text-[0.875rem] text-ink-sub">
+                <li className="px-5 py-4.25 text-app-body text-ink-sub">
                   대학명을 입력해 검색하세요.
                 </li>
               ) : searching ? (
-                <li className="px-5 py-4.25 text-[0.875rem] text-ink-sub">
+                <li className="px-5 py-4.25 text-app-body text-ink-sub">
                   검색 중…
                 </li>
               ) : searchResults.length === 0 ? (
-                <li className="px-5 py-4.25 text-[0.875rem] text-ink-sub">
+                <li className="px-5 py-4.25 text-app-body text-ink-sub">
                   검색 결과가 없습니다.
                 </li>
               ) : (
@@ -172,7 +172,7 @@ export default function UniversitySelect({
                       role="option"
                       aria-selected={value.university === university.name}
                       onClick={() => selectUniversity(university.name)}
-                      className={`flex h-17 w-full items-center px-5 text-left text-[1rem] transition-colors hover:bg-surface-03 ${
+                      className={`flex h-17 w-full items-center px-5 text-left text-app-card-title transition-colors hover:bg-surface-03 ${
                         value.university === university.name
                           ? "bg-surface-03 text-accent"
                           : "text-ink"
@@ -197,7 +197,7 @@ export default function UniversitySelect({
           value={value.department}
           disabled={!value.university}
           onChange={(event) => onChange({ department: event.target.value })}
-          className="h-17 w-full appearance-none rounded-xl border border-line bg-white px-5 pr-12 text-[1rem] text-ink focus:border-accent focus:outline-hidden disabled:bg-surface-01 disabled:text-ink-sub"
+          className="h-17 w-full appearance-none rounded-xl border border-line bg-white px-5 pr-12 text-app-card-title text-ink focus:border-accent focus:outline-hidden disabled:bg-surface-01 disabled:text-ink-sub"
         >
           <option value="" disabled>
             {departmentPlaceholder}

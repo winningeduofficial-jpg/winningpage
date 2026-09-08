@@ -33,12 +33,10 @@ export default function SubjectShareCard({
       tone="neutral"
       className="flex min-h-110.25 flex-col gap-5 px-6 py-6"
     >
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
 
       {empty ? (
-        <div className="flex flex-1 items-center justify-center px-2 text-center text-[0.875rem] leading-normal text-ink-sub">
+        <div className="flex flex-1 items-center justify-center px-2 text-center text-app-body leading-normal text-ink-sub">
           {emptyMessage}
         </div>
       ) : (

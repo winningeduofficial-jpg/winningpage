@@ -17,16 +17,16 @@ type ConditionTileProps = {
 function ConditionTile({ emoji, label, value, avg }: ConditionTileProps) {
   return (
     <div className="flex h-33 w-full flex-col items-center justify-center gap-1 rounded-xl bg-white px-2 text-center">
-      <span className="text-[1.5rem] leading-none" aria-hidden="true">
+      <span className="text-app-stat leading-none" aria-hidden="true">
         {emoji}
       </span>
-      <span className="text-[0.8125rem] font-semibold leading-[1.4] text-ink-strong">
+      <span className="text-app-label font-semibold text-ink-strong">
         {label}
       </span>
-      <span className="text-[0.9375rem] font-bold leading-[1.3] text-ink-strong">
+      <span className="text-app-body font-bold leading-[1.3] text-ink-strong">
         {value}
       </span>
-      <span className="text-[0.75rem] leading-[1.4] text-ink-sub">{avg}</span>
+      <span className="text-app-caption text-ink-sub">{avg}</span>
     </div>
   );
 }
@@ -47,9 +47,7 @@ export default function ConditionTileCard({
       tone="neutral"
       className="flex min-h-89.75 flex-col gap-5 px-6 py-6"
     >
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {tiles.map((tile) => (
           <ConditionTile key={tile.label} {...tile} />

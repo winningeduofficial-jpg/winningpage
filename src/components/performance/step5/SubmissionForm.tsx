@@ -7,6 +7,7 @@ import {
   SUBMISSION_MIN_CHARS,
 } from "@/lib/performance/submission";
 import CharCounter from "./CharCounter";
+import { useDebouncedAutosave } from "./useDebouncedAutosave";
 
 // STEP5 수행평가 제출폼 — docs/수행평가-상세-명세.md §5.14(`3754:3992` 빈 상태 /
 // `3754:4119` 작성 완료) / §6.1 컴포넌트 표(props `schema`·`value`·`onChange`·
@@ -50,12 +51,15 @@ import CharCounter from "./CharCounter";
 // 일일 뿐이고, 서버 게이트(`checkSubmissionMinLength`)는 그대로 살아 있다.
 //
 // ─────────────────────────────────────────────────────────────────────
-// 3. 자동 저장을 만들지 않았다
+// 3. 디바운스 자동 저장(QA 행280 — 수동 `중간 저장` 버튼 폐지)
 // ─────────────────────────────────────────────────────────────────────
-// §4 상태도가 STEP5를 `Empty --> Filled : 입력` / `Filled --> Filled : 중간 저장` 두
-// 전이로만 그리고(L328), §5.14 버튼도 명시적 `중간 저장` 하나다. 명세 어디에도 자동
-// 저장·디바운스 규정이 없다. 임의로 넣으면 ⓐ 타이핑 중 `PUT`이 계속 나가 다중 탭
-// revision 규칙과 얽히고 ⓑ 학생이 "저장했다"고 인지하는 시점이 흐려진다. 대신 저장
+// §4 상태도는 STEP5를 `Empty --> Filled : 입력` / `Filled --> Filled : 중간 저장` 두
+// 전이로만 그렸고(L328), 처음에는 그 근거로 자동 저장을 만들지 않았다. 디자이너 9/4
+// 댓글("자동 저장 되는 로직으로")과 사용자 확정으로 그 결정이 뒤집혔다 — 수동 버튼
+// 2개(카드 제목 옆·하단 버튼 행)는 제거됐고, `useDebouncedAutosave`가 입력이 멈춘 뒤
+// 조용히 `onSaveDraft`를 부른다. 타이핑 중 매 글자마다 `PUT`이 나가지 않도록 디바운스로
+// 묶고(트레일링 1회, 동일 값 스킵), 저장 상태는 버튼 대신 카드 제목 옆 텍스트로만
+// 알린다(성공 토스트는 소음이라 뺐다 — `PerformanceChatPage.handleSaveDraft` 주석).
 // **실패로 작성 내용을 잃지 않는다** — 값은 호출부(`PerformanceChatPage`)가 들고 있고
 // 이 컴포넌트는 실패해도 입력을 비우거나 잠그지 않는다.
 //
@@ -113,18 +117,20 @@ const SCHEMA_LABEL_PREFIX = "안내문 분석 결과: ";
 /** §5.14 필드 표 — 주제 칸은 확정 주제 prefill이다(제출 필드가 아니다, 아래 주석). */
 const TOPIC_LABEL = "주제";
 
-const SAVE_LABEL = "중간 저장";
 const SUBMIT_LABEL = "제출하고 평가 리포트 받기";
 
-// QA 행281 — `중간 저장`이 카드 맨 아래(제출 버튼 옆)에만 있어, 문항형(최대 20필드,
-// 필드 1개당 220px)에서는 몇 화면을 스크롤해야 보였다는 접수. 이 버튼이 실제로 저장하는
-// 대상은 **이 폼의 필드 값뿐**이다(`handleSaveDraft`가 `fields`를 그대로
-// `saveSubmission({mode:'draft'})`에 넘긴다 — `PerformanceChatPage.tsx`). STEP1~4는 각
-// 단계 자체 API 호출(세션 생성·안내문 제출·주제 확정·설계 리포트 생성)이 그 즉시 서버에
-// 커밋되므로 "중간 저장"이라는 개념 자체가 없다 — 그래서 이 버튼을 캔버스 헤더 등 다른
-// 스텝과 공유하는 자리로 승격하지 않고, **이 폼 안에서만** 카드 제목 옆에도 하나 더 두어
-// 스크롤 없이 바로 손에 닿게 한다(가시성 개선). 저장 로직·잠금 조건은 아래 버튼과 완전히
-// 같다 — 같은 `handleSaveDraft`/`saveLocked`를 그대로 재사용한다(이중 소스 아님).
+const SAVE_STATUS_SAVING = "저장 중…";
+const SAVE_STATUS_ERROR = "저장 실패 — 다시 시도";
+
+// QA 행280 — 원래 QA 행281 접수(`중간 저장`이 카드 맨 아래에만 있어 문항형 20필드에서는
+// 스크롤해야 보였다)로 카드 제목 옆에 버튼을 하나 더 뒀었는데, 이번 결정(디자이너 9/4
+// 댓글 + 사용자 확정)으로 수동 버튼 2개(제목 옆·하단 버튼 행)를 전부 없애고 자동 저장으로
+// 바꿨다. 저장이 실제로 대상하는 값은 여전히 **이 폼의 필드 값뿐**이다(`handleSaveDraft`가
+// `fields`를 그대로 `saveSubmission({mode:'draft'})`에 넘긴다 — `PerformanceChatPage.tsx`).
+// 버튼이 있던 카드 제목 옆 자리에는 이제 저장 상태 텍스트(저장 중…/자동 저장됨 HH:MM/
+// 저장 실패 — 다시 시도)만 남는다 — 가시성 문제(스크롤해야 보였다는 원 접수)가 애초에
+// "손으로 눌러야 할 버튼이 안 보인다"는 문제였는데, 자동 저장은 누를 버튼 자체가
+// 없어지므로 그 문제가 구조적으로 사라진다(실패 시 재시도만 예외적으로 누를 수 있다).
 
 type SubmissionField = {
   key: string;
@@ -172,7 +178,7 @@ const SubmissionField = memo(function SubmissionField({
       <label
         htmlFor={id}
         className={[
-          "text-[0.875rem] font-medium leading-4.5",
+          "text-app-label font-medium",
           field.required ? "text-performance-required" : "text-ink-sub",
         ].join(" ")}
       >
@@ -202,7 +208,7 @@ const SubmissionField = memo(function SubmissionField({
         placeholder={field.helper || undefined}
         readOnly={readOnly}
         aria-describedby={[helperId, counterId].filter(Boolean).join(" ")}
-        className="h-40 w-full resize-none overflow-y-auto rounded-lg border border-performance-line bg-performance-bubble p-3 text-[0.875rem] font-medium leading-4.5 text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary"
+        className="h-40 w-full resize-none overflow-y-auto rounded-lg border border-performance-line bg-performance-bubble p-3 text-app-body font-medium text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary"
       />
 
       {/* 값이 채워지면 사라지는 placeholder를 대신할 항구적 지시문(파일 상단 4). */}
@@ -226,8 +232,10 @@ type SubmissionFormProps = {
   value?: SubmissionFieldValues;
   /** 값 전체를 새 객체로 돌려준다. */
   onChange?: (next: SubmissionFieldValues) => void;
-  /** `중간 저장`. */
-  onSaveDraft?: (fields: SubmissionFieldValues) => void;
+  /** 자동 저장(QA 행280). `useDebouncedAutosave`가 입력이 멈춘 뒤 이 함수를 부른다 —
+   * 더는 버튼 클릭으로 직접 불리지 않는다(실패 상태의 수동 "다시 시도"만 예외). 실패하면
+   * 반드시 reject해야 한다(`PerformanceChatPage.handleSaveDraft` 주석). */
+  onSaveDraft?: (fields: SubmissionFieldValues) => Promise<unknown>;
   /** `제출하고 평가 리포트 받기`. **클라이언트 게이트를 통과한 경우에만 호출된다**
    * (서버 검증은 그대로 살아 있다). */
   onSubmit?: (fields: SubmissionFieldValues) => void;
@@ -235,13 +243,22 @@ type SubmissionFormProps = {
    * `performance_sessions.selected_topic_id`가 들고 있어 서버가 직접 읽는다(§8.3). 그래서
    * 읽기 전용이고 `fields`에 실리지 않는다. */
   topicTitle?: string | null;
-  /** 중간 저장 진행 중(§6.1 상태 `saving`). */
+  /** 자동 저장 진행 중(§6.1 상태 `saving`). */
   saving?: boolean;
   /** 제출 진행 중(§6.1 상태 `submitting`). */
   submitting?: boolean;
-  /** 저장/제출 실패 문구(서버가 준 한국어 문구 그대로). */
+  /** **자동 저장(draft) 실패** 문구(서버가 준 한국어 문구 그대로). 카드 제목 옆 상태
+   * 텍스트(`저장 실패 — 다시 시도`)와 이 값 자체를 알리는 하단 문구를 함께 켠다. 제출
+   * 실패는 여기 실리지 않는다 — 아래 `submitError` 참고(그리핑 원인: 예전엔 두 실패가
+   * 한 상태를 같이 썼는데, 게이트 실패(`SUBMISSION_TOO_SHORT` 등)로 초안은 이미 저장된
+   * 채 제출만 실패한 경우에도 "저장 실패"가 떠 학생이 방금 저장된 글을 잃은 줄
+   * 오인했다). */
   error?: string | null;
-  /** 마지막 중간 저장 시각(ISO). 저장 성공 피드백에만 쓴다. */
+  /** **제출 실패** 문구. 게이트 실패처럼 초안은 저장됐는데 제출만 안 된 경우가 흔해서
+   * `error`(저장 실패)와 분리했다 — 제출 버튼 아래에 별도 문단으로만 뜨고, 카드 제목
+   * 옆 자동 저장 상태 텍스트에는 영향을 주지 않는다. */
+  submitError?: string | null;
+  /** 마지막 자동 저장 시각(ISO). 저장 성공 피드백에만 쓴다. */
   savedAt?: string | null;
 };
 
@@ -255,12 +272,14 @@ export default function SubmissionForm({
   saving = false,
   submitting = false,
   error = null,
+  submitError = null,
   savedAt = null,
 }: SubmissionFormProps) {
   const reactId = useId();
   const idPrefix = `performance-submission${reactId}`;
   const gateId = `${idPrefix}-gate`;
   const errorId = `${idPrefix}-error`;
+  const submitErrorId = `${idPrefix}-submit-error`;
 
   const fields = Array.isArray(schema?.fields) ? schema.fields : [];
 
@@ -284,17 +303,29 @@ export default function SubmissionForm({
   const busy = saving || submitting;
   const isEmpty = gate.total === 0;
 
-  // §6.1 상태 4종을 그대로 표현한다.
-  //   empty      → 두 버튼 모두 잠김(빈 저장은 서버가 `400 EMPTY_SUBMISSION`으로 거절한다)
-  //   filled     → `중간 저장` 열림, `제출`은 게이트 통과 시에만
-  //   saving     → 두 버튼 잠김 + `중간 저장`에 스피너/`aria-busy`
-  //   submitting → 두 버튼 잠김 + `제출`에 스피너/`aria-busy`, 입력은 읽기 전용
-  const saveLocked = isEmpty || busy;
+  // §6.1 상태 4종. 버튼이 있던 시절엔 `saveLocked`가 "중간 저장" 버튼의 `aria-disabled`
+  // 였는데(QA 행280으로 그 버튼이 없어졌다), 같은 조건이 이제 **자동 저장을 걸어도 되는지**
+  // 로 옮겨졌다(아래 `useDebouncedAutosave`의 `enabled`) — 빈 폼은 서버가 `400
+  // EMPTY_SUBMISSION`으로 거절하니 애초에 요청을 걸지 않는다.
+  //   empty      → 자동 저장 안 걸림(내용이 없다), 제출도 잠김
+  //   filled     → 입력이 멈추면 자동 저장, 제출은 게이트 통과 시에만
+  //   saving     → 카드 제목 옆 상태 텍스트가 "저장 중…"
+  //   submitting → 제출 버튼 잠김 + 스피너/`aria-busy`, 입력은 읽기 전용, 자동 저장은 안 건다
   const submitLocked = !gate.ok || busy;
+  const autosaveEnabled = !isEmpty && !submitting;
+
+  const autosave = useDebouncedAutosave({
+    value: value ?? {},
+    onSave: (fields) => {
+      const result = onSaveDraft?.(fields);
+      return result instanceof Promise ? result : Promise.resolve(result);
+    },
+    enabled: autosaveEnabled,
+  });
 
   // §5.14에 없는 표면이라 최소한만 만든다(§11.3 Q39 — 시안에 토스트가 없다).
-  // **필드 카운터에 기준선을 얹지 않는 대신** 폼 전체 게이트를 여기 한 줄로 말하고, 두
-  // 버튼이 이 문장을 `aria-describedby`로 가리킨다(비활성 사유의 프로그램적 전달).
+  // **필드 카운터에 기준선을 얹지 않는 대신** 폼 전체 게이트를 여기 한 줄로 말하고,
+  // 제출 버튼이 이 문장을 `aria-describedby`로 가리킨다(비활성 사유의 프로그램적 전달).
   let gateMessage: string;
   if (isEmpty) {
     gateMessage =
@@ -307,19 +338,35 @@ export default function SubmissionForm({
     gateMessage = `전체 ${gate.total}자를 작성했어요. 지금 제출할 수 있어요.`;
   }
 
-  // 두 버튼이 함께 가리키는 설명 — 게이트 사유 + (있다면) 서버 실패 문구.
-  const describedBy = [gateId, error ? errorId : null]
+  // 제출 버튼이 가리키는 설명 — 게이트 사유 + (있다면) 저장 실패 문구 + (있다면) 제출
+  // 실패 문구. 저장 버튼이 있던 시절엔 두 버튼이 같이 가리켰지만, 이제 저장은 버튼이
+  // 아니라 상태 텍스트다.
+  const describedBy = [
+    gateId,
+    error ? errorId : null,
+    submitError ? submitErrorId : null,
+  ]
     .filter(Boolean)
     .join(" ");
 
-  function handleSaveDraft() {
-    if (saveLocked) return;
-    onSaveDraft?.(value ?? {});
+  /** 저장 실패 상태 텍스트의 수동 재시도(§ 위 `useDebouncedAutosave` 주석). `force`를
+   * 줘야 한다 — 안 주면 훅 내부 북키핑상 "이미 저장된 값"으로 보이는 경우 아무 것도
+   * 하지 않고 조용히 no-op할 수 있다(사용자가 누른 재시도가 아무 반응이 없는 버그). */
+  function handleRetrySave() {
+    autosave.flush({ force: true });
   }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (submitLocked) return;
+    // 대기 중이던 자동 저장 타이머를 취소한다 — 제출 자체가 `mode:'submit'`으로 같은
+    // 값을 다시 저장하므로 중복 draft 저장과 경합할 필요가 없다(훅 주석 `cancel`).
+    autosave.cancel();
+    // 지금 값을 제출로 넘겼다고 표시한다 — 제출이 성공해 이 폼이 언마운트되면(§평가
+    // 로딩 전환) 언마운트 cleanup이 방금 넘긴 값을 또 draft로 저장하지 않는다(훅 주석
+    // `suspendUnmountFlush`). 제출이 실패해 폼이 남으면 편집·재시도가 자동으로 다시
+    // 풀어 준다.
+    autosave.suspendUnmountFlush();
     onSubmit?.(value ?? {});
   }
 
@@ -338,43 +385,48 @@ export default function SubmissionForm({
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-5">
         <div className="flex flex-col gap-2">
           <div className="flex items-start justify-between gap-3">
-            <h3 className="text-[1rem] font-semibold leading-5.25 text-ink">
+            <h3 className="text-app-card-title font-semibold text-ink">
               {CARD_TITLE}
             </h3>
-            {/* 상단 중간 저장(QA 행281, 파일 상단 주석). 아래 버튼 행과 같은 핸들러·잠금
-                조건을 그대로 쓴다 — 여기서 새 상태를 만들지 않는다. */}
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              aria-disabled={saveLocked}
-              aria-busy={saving || undefined}
-              aria-describedby={describedBy}
-              className={[
-                "flex h-9 shrink-0 items-center gap-1.5 rounded-[0.625rem] border border-performance-line px-3 text-[0.8125rem] font-medium leading-4.5 transition-colors",
-                saveLocked
-                  ? "cursor-not-allowed opacity-50"
-                  : "bg-white text-ink-sub hover:border-ink-sub",
-              ].join(" ")}
+            {/* 저장 버튼이 있던 자리(QA 행280). 이제 버튼이 아니라 자동 저장 상태
+                텍스트다 — `role="status"`라 상태가 바뀔 때만 1회 announce된다(파일 상단
+                4의 aria-live 관례와 같다). 실패 상태만 예외적으로 클릭 가능한 재시도다. */}
+            <span
+              role="status"
+              className="flex h-9 shrink-0 items-center gap-1.5 text-app-label font-medium text-ink-sub"
             >
-              {saving && (
-                <Loader2
-                  size={14}
-                  strokeWidth={2.5}
-                  className="animate-spin motion-reduce:animate-none"
-                  aria-hidden="true"
-                />
+              {saving ? (
+                <>
+                  <Loader2
+                    size={14}
+                    strokeWidth={2.5}
+                    className="animate-spin motion-reduce:animate-none"
+                    aria-hidden="true"
+                  />
+                  {SAVE_STATUS_SAVING}
+                </>
+              ) : error ? (
+                <button
+                  type="button"
+                  onClick={handleRetrySave}
+                  aria-describedby={errorId}
+                  className="underline decoration-dotted underline-offset-2 text-[#d01c1c] hover:text-[#d01c1c]/80"
+                >
+                  {SAVE_STATUS_ERROR}
+                </button>
+              ) : (
+                savedAt && `자동 저장됨 ${formatSavedAt(savedAt)}`
               )}
-              {SAVE_LABEL}
-            </button>
+            </span>
           </div>
           {/* §5.14 카드 본문 2·3행. 유형 라벨·안내문은 **서버 스키마 값**이라 8종에 따라
               바뀐다(시안의 `기본 보고서형`은 그중 하나다). */}
-          <p className="text-[0.875rem] font-medium leading-4.5 text-ink-sub">
+          <p className="text-app-label font-medium text-ink-sub">
             {SCHEMA_LABEL_PREFIX}
             {schema?.label}
           </p>
           {schema?.notice && (
-            <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
+            <p className="text-app-label font-normal text-ink-sub">
               {schema.notice}
             </p>
           )}
@@ -387,7 +439,7 @@ export default function SubmissionForm({
           <div className="flex flex-col gap-3">
             <label
               htmlFor={`${idPrefix}-topic`}
-              className="text-[0.875rem] font-medium leading-4.5 text-performance-required"
+              className="text-app-label font-medium text-performance-required"
             >
               {TOPIC_LABEL}
               <span aria-hidden="true">*</span>
@@ -401,7 +453,7 @@ export default function SubmissionForm({
               type="text"
               value={topicTitle || ""}
               readOnly
-              className="h-10.5 w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-[0.875rem] font-medium leading-4.5 text-ink outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              className="h-10.5 w-full cursor-default rounded-lg border border-performance-line bg-performance-bubble px-3 text-app-body font-medium text-ink outline-hidden focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             />
           </div>
 
@@ -420,10 +472,7 @@ export default function SubmissionForm({
         </div>
 
         {/* 게이트 문구(비활성 사유). live region이 아니다 — 숫자가 매 글자 바뀐다. */}
-        <p
-          id={gateId}
-          className="text-[0.875rem] font-normal leading-4.5 text-ink-sub"
-        >
+        <p id={gateId} className="text-app-label font-normal text-ink-sub">
           {gateMessage}
         </p>
 
@@ -436,63 +485,40 @@ export default function SubmissionForm({
           <p
             id={errorId}
             role="alert"
-            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
+            className="text-app-label text-[#d01c1c]"
           >
             {error}
           </p>
         )}
 
-        {/* 저장 성공 피드백. `role="status"`라 `savedAt`이 갱신될 때만 1회 읽힌다. */}
-        {savedAt && !error && (
+        {/* 제출 실패는 자동 저장 실패(`error`)와 별개 문단이다 — 위 props 주석 참고.
+            게이트 실패(`SUBMISSION_TOO_SHORT` 등)로 초안은 이미 저장된 채 제출만 실패한
+            경우가 흔해서, 여기서만 알리고 카드 제목 옆 상태 텍스트는 건드리지 않는다. */}
+        {submitError && (
           <p
-            role="status"
-            className="text-[0.875rem] font-normal leading-4.5 text-ink-sub"
+            id={submitErrorId}
+            role="alert"
+            className="text-app-label text-[#d01c1c]"
           >
-            {formatSavedAt(savedAt)}에 중간 저장했어요.
+            {submitError}
           </p>
         )}
 
-        {/* 버튼 행 — §5.14 실측 33.25rem×3.25rem gap 0.75rem, 카드 안에서 가운데 정렬
-            (카드 786 안 532px 블록의 좌표 581이 중앙 583과 2px 차이). 각 16.25rem×3.25rem
-            r0.75rem. `PrimaryButton`/`OutlineButton`을 쓰지 않은 이유는 둘 다 `disabled`
-            속성만 노출하고 `aria-disabled`/`aria-describedby`를 받지 못해서다(파일 상단 4) —
-            로그인·회원가입이 함께 쓰는 컴포넌트라 그 계약을 이 화면 사정으로 넓히지 않는다.
-            치수·색·모션 클래스는 그 두 컴포넌트와 동일하게 맞췄다. */}
+        {/* 버튼 행 — §5.14 실측은 저장+제출 2버튼 기준이었다(33.25rem×3.25rem gap
+            0.75rem). QA 행280으로 저장 버튼이 상태 텍스트로 바뀌면서 이 행에는 제출
+            버튼 하나만 남았다 — 자리·치수는 그대로 유지한다(카드 786 안 가운데 정렬).
+            `PrimaryButton`을 쓰지 않은 이유는 그쪽이 `disabled` 속성만 노출하고
+            `aria-disabled`/`aria-describedby`를 받지 못해서다(파일 상단 4) — 로그인·
+            회원가입이 함께 쓰는 컴포넌트라 그 계약을 이 화면 사정으로 넓히지 않는다.
+            치수·색·모션 클래스는 그 컴포넌트와 동일하게 맞췄다. */}
         <div className="flex justify-center gap-3">
-          <button
-            type="button"
-            onClick={handleSaveDraft}
-            aria-disabled={saveLocked}
-            aria-busy={saving || undefined}
-            aria-describedby={describedBy}
-            className={[
-              "flex h-13 w-65 items-center justify-center gap-2 rounded-xl border border-performance-line text-[1rem] font-medium leading-5 transition active:scale-[0.97] motion-reduce:active:scale-100",
-              // 비활성 표현은 opacity가 아니라 :388(제출 버튼)과 동일한 실제 배경/글자색
-              // 조합으로 한다 — `aria-disabled`라 진짜 disabled가 아니고(여전히 포커스·클릭
-              // 가능) opacity는 WCAG 비활성 컨트롤 대비 예외를 못 받아 2.2:1로 미달이었다.
-              saveLocked
-                ? "cursor-not-allowed bg-performance-line text-ink"
-                : "bg-white text-ink-sub hover:border-ink-sub",
-            ].join(" ")}
-          >
-            {saving && (
-              <Loader2
-                size={18}
-                strokeWidth={2.5}
-                className="animate-spin motion-reduce:animate-none"
-                aria-hidden="true"
-              />
-            )}
-            {SAVE_LABEL}
-          </button>
-
           <button
             type="submit"
             aria-disabled={submitLocked}
             aria-busy={submitting || undefined}
             aria-describedby={describedBy}
             className={[
-              "flex h-13 w-65 items-center justify-center gap-2 rounded-xl text-[1rem] font-semibold leading-5 transition active:scale-[0.97] motion-reduce:active:scale-100",
+              "flex h-13 w-65 items-center justify-center gap-2 rounded-xl text-app-label font-semibold transition active:scale-[0.97] motion-reduce:active:scale-100",
               // 비활성 **면 색**은 §5.8 실측(「빈 상태 `#d9d9d9`(비활성) / 입력 시 `#013262`」)과
               // `PrimaryButton`의 disabled 톤을 그대로 따른다 — 처리중(`bg-primary/80`)과
               // 비활성을 시각적으로 구분하는 것도 그 컴포넌트의 관례다.

@@ -1,7 +1,7 @@
 import TopicCard, { type Topic } from "./TopicCard";
 
-// STEP3 추천 주제 3카드 묶음 + `다른 주제 다시 추천` — docs/수행평가-상세-명세.md §5.10
-// (`3754:3629`/`3754:3746` 실측).
+// STEP3 추천 주제 3카드 묶음 + `다른 주제 1번 더 추천받기` — docs/수행평가-상세-명세.md §5.10
+// (`3754:3629`/`3754:3744` 실측, QA 행277 — 9/4 시안 갱신으로 버튼 라벨 정정).
 //
 // ── 실측 (세로 리듬)
 //   카드 상단 y: 1007 / 1221 / 1435 → 피치 13.375rem(214) = 카드 높이 194 + 간격 20.
@@ -49,7 +49,7 @@ type TopicCardListProps = {
   maxRounds?: number;
   /** 카드 클릭 → 상세 모달(P9). `onSelect`는 없다(§11.1 Q48). */
   onDetail?: (topic: Topic) => void;
-  /** `다른 주제 다시 추천`. */
+  /** `다른 주제 1번 더 추천받기`. */
   onRegenerate?: () => void;
   /** 재추천 요청 진행 중. */
   regenerating?: boolean;
@@ -113,18 +113,18 @@ export default function TopicCardList({
           aria-disabled={locked}
           aria-busy={regenerating}
           className={[
-            "flex h-10 w-32.5 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white text-[0.875rem] font-medium leading-4.5 text-ink transition-colors",
+            "flex h-10 w-32.5 items-center justify-center rounded-[0.625rem] border border-performance-line bg-white text-app-label font-medium text-ink transition-colors",
             locked ? "cursor-not-allowed opacity-50" : "hover:border-ink-sub",
           ].join(" ")}
         >
-          다른 주제 다시 추천
+          다른 주제 1번 더 추천받기
         </button>
 
         {/* 상시 안내(QA 행278) — 한도 도달 전에도 항상 보인다. 한도 도달 뒤에는 아래
             `limitReached` 문구가 같은 자리를 대신하므로 여기서는 숨긴다(같은 취지의
             문구 두 줄이 겹치지 않게). */}
         {!limitReached && (
-          <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
+          <p className="text-app-label font-normal text-ink-sub">
             추가 추천은 1회로 한정되어 있어요. 신중하게 실행해 주세요. (남은
             추가 추천 {remainingRegenerations}회)
           </p>
@@ -133,17 +133,14 @@ export default function TopicCardList({
         {/* 상한 안내·실패 안내 모두 시안에 없는 표면이다(§11.3 Q39 — 시안에 토스트가 없다).
             다른 STEP과 같은 관례로 카드 아래 한 줄 텍스트로만 만든다. */}
         {limitReached && (
-          <p className="text-[0.875rem] font-normal leading-4.5 text-ink-sub">
+          <p className="text-app-label font-normal text-ink-sub">
             주제 추천은 최대 {maxRounds}회까지 받을 수 있어요. 위 주제 중 하나를
             눌러 자세한 내용을 확인해 주세요.
           </p>
         )}
 
         {error && (
-          <p
-            role="alert"
-            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
-          >
+          <p role="alert" className="text-app-label text-[#d01c1c]">
             {error}
           </p>
         )}

@@ -38,15 +38,20 @@ function DialogOverlay({
 
 function DialogContent({
   className,
+  overlayClassName,
   children,
   showCloseButton = true,
   ...props
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean;
+  /** 딤 색·블러 등 오버레이 클래스를 호출부별로 바꿔야 할 때(예: 수행평가 리포트 모달의
+   * `performance-dim` 무블러 딤) `DialogOverlay`에 그대로 전달한다 — `cn()`이 기본 클래스
+   * (`bg-black/10`, 블러)와 tailwind-merge로 병합해 호출부 값이 이긴다. */
+  overlayClassName?: string;
 }) {
   return (
     <DialogPortal>
-      <DialogOverlay />
+      <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
         className={cn(

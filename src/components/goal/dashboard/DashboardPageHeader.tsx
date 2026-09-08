@@ -53,18 +53,16 @@ export default function DashboardPageHeader({
   return (
     <header className={`flex flex-col gap-4.75 ${className}`.trim()}>
       <div className="flex flex-wrap items-center gap-3">
-        <span className="inline-flex h-8 w-fit shrink-0 items-center rounded-full bg-action px-4 text-[0.8125rem] font-semibold leading-[1.2] text-white">
+        <span className="inline-flex h-8 w-fit shrink-0 items-center rounded-full bg-action px-4 text-app-label font-semibold leading-[1.2] text-white">
           {badgeLabel}
         </span>
-        <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">
+        <span className="text-app-body font-medium leading-[1.4] text-ink-sub">
           {dateLabel}
         </span>
       </div>
       <div className="flex items-center gap-3">
         <SparkleIcon />
-        <h1 className="text-[1.75rem] font-bold leading-[1.4] text-ink-strong">
-          {headline}
-        </h1>
+        <h1 className="text-app-title font-bold text-ink-strong">{headline}</h1>
       </div>
     </header>
   );

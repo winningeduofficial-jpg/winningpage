@@ -330,25 +330,23 @@ export default function BasicInfoForm({
       {/* 안내 패널 — §5.5 단정 실측(536×216, r8, fill performance-bubble, stroke performance-line).
           학년·학기는 다루지 않는다(§5.5 명시 — 이 결정 범위 밖). */}
       <div className="rounded-lg border border-performance-line bg-performance-bubble px-5 py-4">
-        <p className="text-[0.875rem] font-medium text-ink">
+        <p className="text-app-label font-medium text-ink">
           이 세 가지를 왜 묻나요?
         </p>
         <ul className="mt-3 flex flex-col gap-3">
           {INFO_ITEMS.map((item) => (
             <li key={item.label}>
-              <p className="text-[0.875rem] font-medium text-ink">
+              <p className="text-app-label font-medium text-ink">
                 {item.label}
               </p>
-              <p className="mt-1 text-[0.875rem] leading-5 text-ink-sub">
-                {item.body}
-              </p>
+              <p className="mt-1 text-app-label text-ink-sub">{item.body}</p>
             </li>
           ))}
         </ul>
       </div>
 
       {submitError && (
-        <p role="alert" className="text-[0.875rem] text-[#d01c1c]">
+        <p role="alert" className="text-app-label text-[#d01c1c]">
           {submitError}
         </p>
       )}

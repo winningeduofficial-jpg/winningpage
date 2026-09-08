@@ -1,5 +1,13 @@
+import { ArrowDownIcon } from "lucide-react";
 import type { MutableRefObject, ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import {
+  MessageScroller,
+  MessageScrollerButton,
+  MessageScrollerContent,
+  MessageScrollerItem,
+  MessageScrollerProvider,
+  MessageScrollerViewport,
+} from "@/components/ui/message-scroller";
 import AiLoadingBubble from "./AiLoadingBubble";
 import AiMessage from "./AiMessage";
 import InlineCard from "./InlineCard";
@@ -22,36 +30,38 @@ import UserMessage from "./UserMessage";
 // 받는다 — `messages`를 생략하면 `children`을 그대로 컬럼 안에 렌더한다(두 방식을 동시에 쓰면
 // `messages`가 우선한다).
 //
-// **세로 간격** 실측(`3754:3261`/`3754:3370`, 두 노드가 겹치는 항목은 좌표까지 일치):
-//   AI 말풍선(bottom) → 사용자 말풍선(top): 40px  (`3754:3370` 707→747, 552→592 대칭도 40px)
-//   사용자 말풍선(bottom) → AI 말풍선(top): 40px  (`3754:3370` 808→848, `3754:3261` 552→592)
-//   AI 말풍선(bottom) → 사용자 말풍선(top), 첫 인사말 뒤: 60px (`3754:3261`/`3370` 공통 431→491)
-// 세 값 중 40px이 4번 중 3번으로 다수이고, 60px 사례는 유일하게 3줄짜리 인사말 말풍선
-// (`3754:3206`~) 바로 뒤에서만 나타나 개별 말풍선의 줄바꿈 렌더링 오차로 보인다 — 두 시안
-// 모두 다음 AI 메시지로 이어지는 간격은 예외 없이 40px이었다. 그래서 40px(2.5rem =
-// `gap-10`) 하나로 통일한다. 시안에 AI 말풍선끼리 사용자 메시지 없이 바로 연속되는 사례가
-// 없어(`3754:3261`/`3754:3370` 둘 다 매 AI 메시지 사이에 사용자 메시지가 끼어 있다) AI-AI
-// 전용 간격은 실측 대상 자체가 없었다 — 같은 40px을 적용한다.
+// **2026-09-06 재구성**: 스크롤 컨테이너를 shadcn `MessageScroller`로 옮겼다. 뷰포트
+// (`MessageScrollerViewport`)가 **실제 스크롤 컨테이너**여야 한다 — 부모(PerformanceAppLayout
+// `<main>`)가 `100svh - 헤더` 고정 높이 flex 컬럼이고 이 컴포넌트가 `min-h-0 flex-1`로 남은
+// 높이를 받아 `overflow-y-auto`로 스크롤한다. 뷰포트 높이가 무제한이면 `scrollAnchor` 항목의
+// min-height(뷰포트 높이 기준)와 뷰포트 높이가 서로를 키우며 문서가 수백만 px로 폭주한다
+// (2026-09-06 실측 사고). 그래서 예전의 `scrollIntoView` 기반 페이지 스크롤 이펙트는
+// 제거했다 — 하단 고정·새 메시지 추적은 `MessageScrollerProvider autoScroll`이 맡는다.
 //
-// `kind='card'`는 시안상 자체 아바타가 없는 컬럼이라(`InlineCard` 주석 참고) AI 컬럼과 같은
-// x축에 맞추려면 아바타 폭(3.25rem)+gap(1.25rem)=4.5rem만큼 들여써야 한다 — 그래서 카드
-// 항목만 `ml-18`을 더한다.
+// **접근성**: `MessageScrollerContent`가 기본으로 `role="log" aria-relevant="additions"`를
+// 갖는다(ARIA `log` 롤은 암묵적으로 `aria-live="polite"`를 내포한다) — 과거 이 컴포넌트가
+// 루트에 직접 걸던 `aria-live="polite"`와 동등하거나 더 정확한 시맨틱이라 별도로 다시
+// 걸지 않는다. `MessageScrollerViewport`의 기본 `role="region"`/`aria-label="Messages"`(영문
+// 기본값)는 이 화면 언어(한국어)에 맞게 오버라이드한다. `tabIndex`는 기본값(`0`, 실제
+// 스크롤 컨테이너라 키보드 스크롤 대상이 되어야 한다)을 그대로 둔다.
 //
-// **자동 스크롤**: 시안에는 없는 동작이지만 채팅 UI의 기본 기대치다. 메시지가 늘어날 때마다
-// 최신 항목으로 스크롤한다. `prefers-reduced-motion`이면 즉시 이동, 아니면 부드럽게.
-//
-// ⚠️ **호출부 계약(필수)**: `scrollIntoView`는 "가장 가까운 스크롤 가능한 조상"을 스크롤한다.
-// 이 컴포넌트 자신은 `overflow-y-auto` 경계를 두지 않는다(시안에 그런 경계가 없고, §3.1
-// 단정대로 하단 고정 입력창(composer)도 전 노드에 없어 "채팅 패널만 스크롤"이라는 시안
-// 근거 자체가 없다 — 임의로 경계를 만들지 않는다). **그 결과 가장 가까운 스크롤 조상이
-// 곧 페이지/뷰포트가 되므로, 자동 스크롤은 기본적으로 전체 페이지 스크롤이다.** 통합 시점에
-// 이 컴포넌트를 고정 높이 + `overflow-y-auto` 컨테이너로 감싸면 그 컨테이너가 스크롤 경계가
-// 되어 자동 스크롤이 그 안으로 국한된다 — 반대로 페이지 전체가 스크롤되길 원치 않는 호출부는
-// 반드시 그런 경계를 직접 감싸야 한다(이 컴포넌트가 알아서 만들어주지 않는다).
-//
-// **접근성**: 로딩 카드가 이 컨테이너 안에서 나타났다 사라지므로 `aria-live="polite"`를
-// 리스트 루트에 배선한다 — 이전 단계(`AiLoadingBubble`)는 이 배선을 강제하지 않았고, 여기서
-// 시점을 확정한다.
+// **2026-09-06 shadcn 공식 조합 정렬**: `MessageScroller`/`MessageScrollerViewport`/
+// `MessageScrollerContent`의 className 오버라이드를 걷어내고 라이브러리 기본 스타일
+// (`scroll-fade-b`·`scrollbar-thin` 등 포함)을 그대로 쓴다 — 루트는 `className`(호출부가
+// 넘기는 `min-h-0 flex-1`)만 통과시킨다. `scrollAnchor`는 매 렌더의 마지막 항목이 아니라
+// **`role === 'user'`인 항목에만** 건다 — 라이브러리 소스(`handleContentChange`)를 추적한
+// 근거: 새로 추가된 항목들 중 `scrollAnchor` 항목이 하나도 없으면 현재 모드가
+// `following-bottom`(자동 추적 중)일 때 무조건 `scrollToEnd`로 폴백하고, 있으면 그 항목의
+// 상단을 뷰포트 상단에 맞추는 `align:"start"`로 이동한다. 매 마지막 메시지에 앵커를 걸던
+// 예전 방식은 AI 응답(카드 없는 짧은 말풍선)에도 `align:"start"` 정렬을 강제해, 뒤이어 긴
+// STEP 폼 카드가 붙어도 진짜 바닥까지 못 내려가는 원인이었다(2026-09-06 실측: 재개 후
+// scrollTop이 바닥에 닿지 않음). 사용자 턴에만 앵커를 걸면 "내가 보낸 메시지가 위로
+// 붙고 그 아래 AI 응답이 이어진다"는 채팅 UI 관례를 재현하면서, AI 전용 갱신(재개 시
+// 대량 재생 포함)은 전부 `following-bottom` 폴백을 타 진짜 바닥까지 스크롤된다. 최초
+// 마운트(`itemCount===0`)는 `defaultScrollPosition="end"`가 별도로 처리하므로 이 경로와
+// 무관하다. 이 트레이싱만으로 충분해 수동 `scrollToEnd` 이펙트(`FollowLatestMessage`,
+// `useMessageScroller().scrollToEnd`)는 두지 않는다 — Provider 컨텍스트 API 밖에서
+// 뷰포트 DOM을 직접 건드리는 우회는 애초에 쓰지 않았다.
 type PerformanceChatMessagePayload = {
   title?: string;
   subtitle?: string;
@@ -67,9 +77,9 @@ type PerformanceChatMessagePayload = {
  * 고르기`로 STEP3 복귀(방금 누른 버튼째 빠진다).
  *
  * `focusRef`가 있으면 이 항목의 래퍼에 `aria-live="off"`도 함께 준다 — 포커스 이동 시
- * 스크린리더가 포커스된 엘리먼트를 읽고, 같은 순간 상위 `aria-live="polite"`가 같은 내용을
- * 다시 읽으면 중복 낭독이 되기 때문이다(ARIA 중첩 live region 규칙상 자식의
- * `aria-live="off"`가 조상의 `polite`를 그 서브트리에 한해 무효화한다).
+ * 스크린리더가 포커스된 엘리먼트를 읽고, 같은 순간 상위 `role="log"`(`aria-live="polite"`
+ * 내포)가 같은 내용을 다시 읽으면 중복 낭독이 되기 때문이다(ARIA 중첩 live region 규칙상
+ * 자식의 `aria-live="off"`가 조상의 `polite`를 그 서브트리에 한해 무효화한다).
  */
 export type PerformanceChatMessage = {
   /** 리스트 key 겸 스크롤 대상 식별자. */
@@ -89,7 +99,7 @@ export type PerformanceChatMessage = {
   /** 호출부가 이 항목이 나타나는 시점에 프로그램적으로 포커스를 옮기고 싶을 때 넘긴다.
    * 배선 위치는 `kind`에 따라 다르다: `kind='loading'`이면 `AiLoadingBubble`의 루트에
    * 그대로 전달되고, 그 밖(`kind='text'` 등)이면 말풍선 컴포넌트가 ref를 받지 않으므로
-   * **이 항목의 래퍼 div**가 목적지가 된다. 어느 쪽이든 `tabIndex={-1}`을 함께 준다
+   * **이 항목의 래퍼**가 목적지가 된다. 어느 쪽이든 `tabIndex={-1}`을 함께 준다
    * (프로그램 포커스만 받고 Tab 순서에는 끼지 않는다). */
   focusRef?: MutableRefObject<HTMLDivElement | null> | undefined;
 };
@@ -107,58 +117,55 @@ export default function ChatTimeline({
   children,
   className = "",
 }: ChatTimelineProps) {
-  const lastItemRef = useRef<HTMLDivElement | null>(null);
-  const lastMessage = messages?.length
-    ? messages[messages.length - 1]
-    : undefined;
-  const lastId = lastMessage?.id;
-
-  useEffect(() => {
-    if (lastId === undefined) return;
-    const node = lastItemRef.current;
-    if (!node) return;
-    const prefersReducedMotion =
-      typeof window !== "undefined" &&
-      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    node.scrollIntoView({
-      behavior: prefersReducedMotion ? "auto" : "smooth",
-      block: "end",
-    });
-  }, [lastId]);
-
   return (
-    <div
-      aria-live="polite"
-      className={["flex w-full flex-col gap-10", className].join(" ")}
-    >
-      {messages
-        ? messages.map((message, index) => {
-            const isLast = index === messages.length - 1;
-            // `kind='loading'`은 `AiLoadingBubble` 루트에 직접 배선한다(`renderMessage`).
-            // 나머지 kind는 말풍선 컴포넌트가 ref를 받지 않으므로 이 래퍼가 목적지다.
-            const wrapperFocusRef =
-              message.focusRef && (message.kind ?? "text") !== "loading"
-                ? message.focusRef
-                : null;
-            // 한 노드에 두 ref(마지막 항목 스크롤 대상 + 포커스 목적지)를 실을 수 있어야 해서
-            // 콜백 ref로 합친다.
-            const setNode = (node: HTMLDivElement | null) => {
-              if (isLast) lastItemRef.current = node;
-              if (wrapperFocusRef) wrapperFocusRef.current = node;
-            };
-            return (
-              <div
-                key={message.id}
-                ref={isLast || wrapperFocusRef ? setNode : undefined}
-                tabIndex={wrapperFocusRef ? -1 : undefined}
-                aria-live={message.focusRef ? "off" : undefined}
-              >
-                {renderMessage(message)}
-              </div>
-            );
-          })
-        : children}
-    </div>
+    <MessageScrollerProvider autoScroll defaultScrollPosition="end">
+      <MessageScroller className={className}>
+        {/* scroll-fade(shadcn 유틸, 문서: "Use it on MessageScroller"): 기본 클래스는 하단만
+            (`scroll-fade-b`)이라 접힌 타이틀 아래로 지나가는 위쪽 가장자리도 흐리게
+            `scroll-fade-y`로 바꾼다. 위로 스크롤할 내용이 있을 때만 상단 페이드가 나타나고
+            맨 위에 닿으면 사라진다(스크롤 드리븐 애니메이션, JS 없음). 상단 깊이 2.5rem.
+            `cn()`이 `scroll-fade-b`를 지우도록 src/lib/utils.ts에 클래스 그룹을 등록했다. */}
+        <MessageScrollerViewport
+          aria-label="채팅 타임라인"
+          className="scroll-fade-y scroll-fade-t-10"
+        >
+          <MessageScrollerContent className="pb-8">
+            {messages
+              ? messages.map((message) => {
+                  const isUserTurn = message.role === "user";
+                  // `kind='loading'`은 `AiLoadingBubble` 루트에 직접 배선한다(`renderMessage`).
+                  // 나머지 kind는 말풍선 컴포넌트가 ref를 받지 않으므로 이 래퍼가 목적지다.
+                  const wrapperFocusRef =
+                    message.focusRef && (message.kind ?? "text") !== "loading"
+                      ? message.focusRef
+                      : null;
+                  // 한 노드에 두 ref(마지막 항목 스크롤 대상 + 포커스 목적지)를 실을 수
+                  // 있어야 해서 콜백 ref로 합친다.
+                  const setNode = (node: HTMLDivElement | null) => {
+                    if (wrapperFocusRef) wrapperFocusRef.current = node;
+                  };
+                  return (
+                    <MessageScrollerItem
+                      key={message.id}
+                      messageId={String(message.id)}
+                      scrollAnchor={isUserTurn}
+                      ref={wrapperFocusRef ? setNode : undefined}
+                      tabIndex={wrapperFocusRef ? -1 : undefined}
+                      aria-live={message.focusRef ? "off" : undefined}
+                    >
+                      {renderMessage(message)}
+                    </MessageScrollerItem>
+                  );
+                })
+              : children}
+          </MessageScrollerContent>
+        </MessageScrollerViewport>
+        <MessageScrollerButton>
+          <ArrowDownIcon />
+          <span className="sr-only">맨 아래로</span>
+        </MessageScrollerButton>
+      </MessageScroller>
+    </MessageScrollerProvider>
   );
 }
 
@@ -187,8 +194,8 @@ function renderMessage(message: PerformanceChatMessage) {
   }
 
   if (kind === "card") {
-    // 자체 아바타가 없는 컬럼 — AI 말풍선 x축(아바타+gap=4.5rem)에 맞춰 들여쓴다.
-    return <InlineCard className="ml-18">{children}</InlineCard>;
+    // 자체 아바타가 없는 컬럼 — AI 말풍선 x축(아바타+gap=3.75rem)에 맞춰 들여쓴다.
+    return <InlineCard className="ml-15">{children}</InlineCard>;
   }
 
   if (role === "user") {

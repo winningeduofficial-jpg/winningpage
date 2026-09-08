@@ -361,6 +361,7 @@ export default function DailyRecord() {
             <RetrospectSection value={retrospect} onChange={setRetrospect} />
 
             <div className="flex justify-center pt-4">
+              {/* 17px — 타입 스케일 밖 값, 디자인 결정 대기 중(card-title 1rem/section 1.25rem 중 미확정) */}
               <button
                 type="button"
                 disabled={!canSave || submitting}
@@ -379,7 +380,7 @@ export default function DailyRecord() {
       {banner && (
         <div
           role="alert"
-          className={`fixed inset-x-0 bottom-8 z-55 mx-auto w-[calc(100%-2.5rem)] max-w-md rounded-xl border px-5 py-4 text-center text-[0.875rem] font-semibold shadow-[0_18px_45px_rgba(13,27,42,0.15)] ${
+          className={`fixed inset-x-0 bottom-8 z-55 mx-auto w-[calc(100%-2.5rem)] max-w-md rounded-xl border px-5 py-4 text-center text-app-body font-semibold shadow-[0_18px_45px_rgba(13,27,42,0.15)] ${
             banner.tone === "success"
               ? "border-green-200 bg-green-50 text-green-700"
               : banner.tone === "error"

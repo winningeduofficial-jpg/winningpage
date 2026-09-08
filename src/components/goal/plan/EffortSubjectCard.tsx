@@ -92,10 +92,8 @@ export default function EffortSubjectCard({
       className="flex h-full min-h-104.75 w-full min-w-0 flex-col border border-surface-01 px-4.75 py-5"
     >
       <div className="flex items-baseline gap-2">
-        <h3 className="text-[1.25rem] font-semibold leading-[1.4] text-ink">
-          {subject}
-        </h3>
-        <span className="text-[1rem] leading-[1.4] text-ink-natural">
+        <h3 className="text-app-section font-semibold text-ink">{subject}</h3>
+        <span className="text-app-card-title text-ink-natural">
           완독 {completed}권
         </span>
       </div>
@@ -105,7 +103,7 @@ export default function EffortSubjectCard({
           고정 카드 안에서 넘치는 걸 막으려 max-h-70으로 다시 스크롤을 걸었는데,
           바깥 카드가 유동이 되면서 이중 스크롤만 남아 제거한다). */}
       <div className="mt-5.5 flex w-full shrink-0 flex-col gap-3 rounded-xl border border-surface-01 bg-goal-card p-5">
-        <p className="text-[1rem] font-semibold leading-[1.4] text-ink-natural">
+        <p className="text-app-card-title font-semibold text-ink-natural">
           공부 중인 책
         </p>
 
@@ -133,7 +131,7 @@ export default function EffortSubjectCard({
         <button
           type="button"
           onClick={onAddBook}
-          className="flex h-9 w-full shrink-0 items-center justify-center rounded-md border border-dashed border-surface-01 text-[1rem] font-medium text-ink-natural transition-colors hover:border-ink-strong hover:text-ink-strong"
+          className="flex h-9 w-full shrink-0 items-center justify-center rounded-md border border-dashed border-surface-01 text-app-card-title font-medium text-ink-natural transition-colors hover:border-ink-strong hover:text-ink-strong"
         >
           + 문제집 추가
         </button>
@@ -164,7 +162,7 @@ export default function EffortSubjectCard({
             경계). */}
         <div className="mt-2 flex shrink-0 flex-col items-stretch gap-2">
           <div className="mx-1 h-1.75 shrink-0 rounded bg-surface-01" />
-          <p className="text-center text-[1rem] leading-[1.4] text-ink-natural">
+          <p className="text-center text-app-card-title text-ink-natural">
             {hasCompletedBooks
               ? `${completedBooks.length}권 완독`
               : "완독하면 여기에 쌓여요"}

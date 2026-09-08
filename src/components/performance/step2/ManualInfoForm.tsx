@@ -2,6 +2,7 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import PrimaryButton from "@/components/auth/PrimaryButton";
 import InlineCard from "@/components/performance/chat/InlineCard";
+import { GUIDE_FREETEXT_MAX_LENGTH } from "../../../../api/_lib/performance/guide-freetext.js";
 
 // STEP2 안내문 없이 직접 입력 폼 — docs/수행평가-상세-명세.md §5.8(`3754:3370` 빈 상태 /
 // `3754:3431` 입력 완료 상태).
@@ -21,10 +22,19 @@ import InlineCard from "@/components/performance/chat/InlineCard";
 //             시안 원본 `#37352f` 아님) — PrimaryButton의 disabled/활성 톤이 그대로 이 값이다.
 //
 // ── 시안에 없어 만들지 않은 것
-//   리사이즈 핸들·글자수 카운터(§5.8 실측 "없음") → `resize-none`, 카운터 없음.
+//   리사이즈 핸들(§5.8 실측 "없음") → `resize-none`.
 //   176px 초과 입력 시 스크롤/자동 확장, 활성 판정 최소 글자 수는 §5.8 「미정」이다 —
 //   높이를 고정하고 넘치면 스크롤(브라우저 기본), 활성 판정은 `trim() !== ''`로 둔다.
 //   임의로 "50자 이상" 같은 문턱을 만들지 않는다(시안에 근거가 없다).
+//
+// ── 글자 수 상한 (QA 행 194 — 시안에는 없던 사후 확정 요구사항)
+//   무제한 자유서술이 과도하게 길어지는 것을 막기 위해 1000자로 제한한다
+//   (`GUIDE_FREETEXT_MAX_LENGTH`, `api/_lib/performance/guide-freetext.ts` —
+//   서버 `analyze-guide.ts`와 공유하는 단일 정본). STEP1 `BasicInfoForm`의
+//   `*_MAX_LENGTH` 관례(53행 주석)와 같이 네이티브 `maxLength`로 초과 입력 자체를
+//   막는다(잘라내기 아님). 카운터는 이 필드 전용 요구라 STEP5 `CharCounter`
+//   (최대치 없이 `{n}자`만 렌더)와 형식이 다르므로 재사용하지 않고, 최소한의
+//   helper 텍스트 톤(`text-ink-sub`, 0.75rem)으로 우하단에 `현재/1000`을 둔다.
 //
 // ── 문구는 원문 그대로다 (§5.8 「문구 원문」). 손대지 말 것.
 //   placeholder가 바로 위 AI 말풍선 문구와 완전히 동일한 것도 §5.8이 단정한 실측이다 —
@@ -42,6 +52,7 @@ const PLACEHOLDER =
 const SUBMIT_LABEL = "주제 추천받기";
 
 const FIELD_ID = "performance-guide-freetext";
+const COUNTER_ID = "performance-guide-freetext-counter";
 
 type ManualInfoFormProps = {
   /** 검증 통과 후 호출. 앞뒤 공백은 제거된 값이다. */
@@ -79,32 +90,46 @@ export default function ManualInfoForm({
             시안 원문이 `정보*`로 붙여 쓰므로 사이에 공백을 넣지 않는다. */}
         <label
           htmlFor={FIELD_ID}
-          className="block text-[0.875rem] font-medium leading-4.5 text-performance-required"
+          className="block text-app-label font-medium text-performance-required"
         >
           {LABEL}
           <span aria-hidden="true">*</span>
           <span className="sr-only"> (필수)</span>
         </label>
 
-        <textarea
-          id={FIELD_ID}
-          name="freetext"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          placeholder={PLACEHOLDER}
-          disabled={submitting}
-          required
-          aria-invalid={submitError ? true : undefined}
-          className="h-44 w-full resize-none rounded-lg border border-performance-line bg-performance-bubble p-3 text-[0.875rem] font-medium leading-4.5 text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary disabled:cursor-not-allowed"
-        />
+        {/* textarea+카운터를 한 블록으로 묶어 부모 `gap-3.5`가 이 블록과 라벨/CTA
+            사이에만 걸리게 한다(TextField의 helperText가 자기 input과 `mt-2`로 붙는
+            것과 같은 이유 — 부모 gap에 맡기면 카운터 앞뒤로 이중 여백이 생긴다). */}
+        <div>
+          <textarea
+            id={FIELD_ID}
+            name="freetext"
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            placeholder={PLACEHOLDER}
+            disabled={submitting}
+            required
+            maxLength={GUIDE_FREETEXT_MAX_LENGTH}
+            aria-invalid={submitError ? true : undefined}
+            aria-describedby={COUNTER_ID}
+            className="h-44 w-full resize-none rounded-lg border border-performance-line bg-performance-bubble p-3 text-app-body font-medium text-ink outline-hidden transition placeholder:text-performance-line focus:border-primary disabled:cursor-not-allowed"
+          />
+
+          {/* CharCounter(STEP5)와 같은 이유로 live region이 아니다 — 매 글자마다
+              낭독되는 것을 막기 위해 `aria-describedby`로 포커스 시 한 번만 읽히게
+              한다. */}
+          <p
+            id={COUNTER_ID}
+            className="mt-2 text-right text-app-caption text-ink-sub"
+          >
+            {value.length}/{GUIDE_FREETEXT_MAX_LENGTH}
+          </p>
+        </div>
 
         {/* 에러 표시 UI는 시안에 없다(§11.3 Q39 — 시안에 토스트 컴포넌트 자체가 없다).
             GuideUploadCard·BasicInfoForm과 같은 한 줄 `role="alert"` 관례로 최소한만 만든다. */}
         {submitError && (
-          <p
-            role="alert"
-            className="text-[0.875rem] leading-4.5 text-[#d01c1c]"
-          >
+          <p role="alert" className="text-app-label text-[#d01c1c]">
             {submitError}
           </p>
         )}

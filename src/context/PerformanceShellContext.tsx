@@ -29,9 +29,14 @@ import {
 // 판정 근거가 없는 화면은 기본값 false를 그대로 받는다 — 판정 불가를 "안 띄움"으로
 // 보수적으로 처리하는 것이 §5.20 취지(선제 안내이지 강제 차단이 아님)에 맞는다.
 //
-// 지금은 stepStates·quotaBannerVisible 두 값뿐이다. 프로필(이름/학교유형/학년, P5 몫)까지
-// 이 통로로 옮기는 확장 여지는 있지만 이번 범위 밖이라 만들지 않는다 — PerformanceSidebar
-// 상단 주석·PerformanceAppLayout TODO(P5) 참고.
+// P5 — 프로필 슬롯 중 학년(gradeLabel)만 이 통로로 옮겼다. 이름·학교유형은 bootstrap
+// 캐시(`performanceBootstrapQueryOptions`, src/lib/queryClient.ts)에서 셸이 직접
+// 읽으므로 자식→부모 통로가 필요 없지만, 학년은 우선순위가 있다 — 라이브 세션(이번
+// 방문에서 STEP1에 입력한 값)이 bootstrap의 `lastSession.gradeLabel`(직전 방문 스냅샷)
+// 보다 항상 우선해야 한다. bootstrap은 셸이 마운트 시점에 한 번 읽는 반면 라이브 세션은
+// 채팅 페이지(Outlet 자식)만 실시간으로 아는 값이라, stepStates와 같은 이유로 컨텍스트가
+// 필요하다. 값이 없으면(STEP1 미도달, 또는 저장 리포트 등 채팅 페이지 밖) null — 그때는
+// PerformanceAppLayout이 bootstrap의 lastSession.gradeLabel로 폴백한다.
 
 type StepState = "done" | "current" | "todo";
 
@@ -48,6 +53,8 @@ interface PerformanceShellContextValue {
   setStepStates: Dispatch<SetStateAction<StepState[]>>;
   quotaBannerVisible: boolean;
   setQuotaBannerVisible: Dispatch<SetStateAction<boolean>>;
+  sessionGradeLabel: string | null;
+  setSessionGradeLabel: Dispatch<SetStateAction<string | null>>;
 }
 
 const PerformanceShellContext =
@@ -61,6 +68,9 @@ export function PerformanceShellProvider({
   const [stepStates, setStepStates] =
     useState<StepState[]>(DEFAULT_STEP_STATES);
   const [quotaBannerVisible, setQuotaBannerVisible] = useState(false);
+  const [sessionGradeLabel, setSessionGradeLabel] = useState<string | null>(
+    null,
+  );
 
   const value = useMemo(
     () => ({
@@ -68,8 +78,10 @@ export function PerformanceShellProvider({
       setStepStates,
       quotaBannerVisible,
       setQuotaBannerVisible,
+      sessionGradeLabel,
+      setSessionGradeLabel,
     }),
-    [stepStates, quotaBannerVisible],
+    [stepStates, quotaBannerVisible, sessionGradeLabel],
   );
 
   return (

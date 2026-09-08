@@ -28,7 +28,7 @@ export default function StatProgressRow({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between gap-2 text-[0.8125rem] leading-[1.4]">
+      <div className="flex items-baseline justify-between gap-2 text-app-label">
         <span className="text-ink">{label}</span>
         <span className="font-semibold text-ink-strong">
           {value}

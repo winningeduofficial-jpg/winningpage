@@ -296,7 +296,7 @@ export default function Efforts() {
             <button
               type="button"
               onClick={() => setAddSubjectOpen(true)}
-              className="text-[0.875rem] font-medium text-ink-sub underline-offset-2 hover:text-ink-strong hover:underline"
+              className="text-app-label font-medium text-ink-sub underline-offset-2 hover:text-ink-strong hover:underline"
             >
               + 과목 추가하기
             </button>
@@ -307,7 +307,7 @@ export default function Efforts() {
 
       <div className="max-w-goal-content px-4 pb-24 md:px-12">
         {loadError && (
-          <p className="mb-4 text-[0.875rem] text-ink-sub">
+          <p className="mb-4 text-app-body text-ink-sub">
             문제집 목록을 불러오지 못했습니다. 새로고침해 주세요.
           </p>
         )}
@@ -372,7 +372,7 @@ export default function Efforts() {
 // hex로 흩어져 있던 걸 다른 goal 색 토큰들과 같은 방식으로 통일한다).
 function CountBadge({ count }: { count: number }) {
   return (
-    <span className="inline-flex h-8 items-center justify-center rounded-full bg-goal-badge-purple-bg px-3 text-[0.8125rem] font-semibold text-goal-badge-purple-text">
+    <span className="inline-flex h-8 items-center justify-center rounded-full bg-goal-badge-purple-bg px-3 text-app-label font-semibold text-goal-badge-purple-text">
       총 {count}권 완독
     </span>
   );

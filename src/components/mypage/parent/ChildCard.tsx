@@ -12,17 +12,28 @@
 //    자리에 [삭제하기]를 두고 있고, 삭제 확인 모달(3709:2630)도 존재한다.
 //    구현 가능한 동작이 삭제 하나뿐이라 [삭제하기]로 뒀다 — [관리]가 별도
 //    화면이라면 디자인이 필요하다.
-// 3) 하단 링크는 두 개다(QA 시트 행210). "학습진단 리포트 →"는 자녀의 학습진단
-//    결과 리포트로(경로만 여기서 정의 — 라우트 등록은 별도 단위), "목표관리
-//    리포트 →"는 /mypage/children/:studentId/report(학부모 뷰어,
-//    src/pages/mypage/ChildReport.tsx)로 간다. 수락 전(pending)에는 볼 것이
-//    없으므로 둘 다 링크를 걸지 않는다.
+// 3) 리포트 링크는 서비스 행마다 붙는다(QA 시트 행210, 시안 3754-6765).
+//    목표관리(target)는 /mypage/children/:studentId/report(학부모 뷰어,
+//    src/pages/mypage/ChildReport.tsx), 학습진단(diagnose)은
+//    /mypage/children/:studentId/report/diagnosis 로 간다. 수행평가(suhaeng)는
+//    학부모용 리포트 라우트가 아직 없어 이름·상태만 보여주고 링크가 없다.
+//    수락 전(pending)에는 볼 것이 없으므로 카드 전체가 안내 문구로 대체된다.
 
 import { Link } from "react-router";
 
 const STATUS_BADGE: Record<string, { label: string; cls: string }> = {
   approved: { label: "연결됨", cls: "bg-performance-chip text-accent" },
   pending: { label: "수락대기", cls: "bg-[#ffd9d9] text-error" },
+};
+
+// 서비스 행에 "리포트 보기 →" 링크를 붙일 프로그램만 여기 등록한다. 매핑이
+// 없는 program_key(예: 수행평가)는 이름·상태만 렌더하고 링크를 만들지 않는다.
+const REPORT_PATH_BY_PROGRAM: Record<
+  string,
+  (studentProfileId: string) => string
+> = {
+  target: (id) => `/mypage/children/${id}/report`,
+  diagnose: (id) => `/mypage/children/${id}/report/diagnosis`,
 };
 
 function formatLinkedAt(iso: string | null | undefined) {
@@ -125,19 +136,34 @@ export default function ChildCard({ child, onRemove }: ChildCardProps) {
             이용 중인 서비스가 없어요
           </p>
         ) : (
-          services.map((service) => (
-            <div
-              key={service.program_key}
-              className="flex items-center justify-between gap-3 rounded-lg bg-surface-04 px-4 py-2.5"
-            >
-              <span className="truncate text-[0.8125rem] text-ink">
-                {service.program_name}
-              </span>
-              <span className="shrink-0 text-[0.8125rem] font-medium text-accent">
-                {serviceStatusText(service)}
-              </span>
-            </div>
-          ))
+          services.map((service) => {
+            const reportPath = REPORT_PATH_BY_PROGRAM[service.program_key]?.(
+              child.student_profile_id,
+            );
+            return (
+              <div
+                key={service.program_key}
+                className="flex items-center justify-between gap-3 rounded-lg bg-surface-04 px-4 py-2.5"
+              >
+                <span className="truncate text-[0.8125rem] text-ink">
+                  {service.program_name}
+                </span>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="text-[0.8125rem] font-medium text-accent">
+                    {serviceStatusText(service)}
+                  </span>
+                  {reportPath && (
+                    <Link
+                      to={reportPath}
+                      className="text-[0.8125rem] font-medium text-accent transition hover:brightness-90"
+                    >
+                      리포트 보기 →
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })
         )}
       </div>
 
@@ -146,41 +172,11 @@ export default function ChildCard({ child, onRemove }: ChildCardProps) {
           {formatLinkedAt(child.linked_at)}{" "}
           {child.link_status === "approved" ? "연결" : "요청"}
         </span>
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          {child.link_status === "approved" ? (
-            <>
-              <Link
-                to={`/mypage/children/${child.student_profile_id}/report/diagnosis`}
-                className="text-[0.8125rem] font-medium text-accent transition hover:brightness-90"
-              >
-                학습진단 리포트 →
-              </Link>
-              <Link
-                to={`/mypage/children/${child.student_profile_id}/report`}
-                className="text-[0.8125rem] font-medium text-accent transition hover:brightness-90"
-              >
-                목표관리 리포트 →
-              </Link>
-            </>
-          ) : (
-            <>
-              <span
-                aria-disabled="true"
-                title="자녀가 연결 요청을 수락하면 열람할 수 있어요."
-                className="cursor-not-allowed text-[0.8125rem] font-medium text-ink-sub/60"
-              >
-                학습진단 리포트 →
-              </span>
-              <span
-                aria-disabled="true"
-                title="자녀가 연결 요청을 수락하면 열람할 수 있어요."
-                className="cursor-not-allowed text-[0.8125rem] font-medium text-ink-sub/60"
-              >
-                목표관리 리포트 →
-              </span>
-            </>
-          )}
-        </div>
+        {child.link_status === "approved" && (
+          <span className="text-[0.75rem] text-ink-sub">
+            이용 중인 서비스의 리포트만 열람할 수 있어요
+          </span>
+        )}
       </div>
     </div>
   );

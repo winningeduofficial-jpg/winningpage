@@ -5,3 +5,25 @@ import { afterEach } from "vitest";
 afterEach(() => {
   cleanup();
 });
+
+// jsdom은 `window.matchMedia`를 구현하지 않는다 — shadcn `useIsMobile`
+// (src/hooks/use-mobile.ts, AppShellSidebar.tsx가 쓰는 `SidebarProvider`의
+// 내부 의존성)가 마운트 시 `window.matchMedia(...)`를 호출하므로, 실제 DOM에
+// 마운트하는 테스트(@testing-library/react `render`)에서 전부 깨진다.
+// `renderToStaticMarkup`(SSR, effect 미실행)만 쓰는 테스트는 이 폴리필이
+// 없어도 통과하지만, 다른 테스트가 이미 같은 함정을 밟을 수 있어 여기 전역으로
+// 둔다. matches는 항상 false(데스크톱 취급) — 모바일 분기를 검증하려는 테스트가
+// 생기면 그때 개별적으로 `window.matchMedia`를 재정의한다.
+if (typeof window !== "undefined" && !window.matchMedia) {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+}

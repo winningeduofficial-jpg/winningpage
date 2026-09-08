@@ -98,7 +98,7 @@ function NaesinGroupEditor({
   return (
     <div className="rounded-xl border border-line p-4">
       <div className="flex items-center justify-between gap-3">
-        <span className="text-[0.875rem] font-semibold text-ink-strong">
+        <span className="text-app-label font-semibold text-ink-strong">
           {label}
         </span>
         <div className="flex items-center gap-3">
@@ -113,7 +113,7 @@ function NaesinGroupEditor({
           <button
             type="button"
             onClick={() => setExpanded((prev) => !prev)}
-            className="whitespace-nowrap text-[0.8125rem] font-semibold text-accent"
+            className="whitespace-nowrap text-app-label font-semibold text-accent"
           >
             세부 과목 {expanded ? "접기" : "펼치기"}
           </button>
@@ -138,7 +138,7 @@ function NaesinGroupEditor({
                   );
                   onSubjectsChange(next);
                 }}
-                className="h-11 flex-1 rounded-lg border border-line px-3 text-[0.875rem] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden"
+                className="h-11 flex-1 rounded-lg border border-line px-3 text-app-body text-ink placeholder:text-ink-sub focus:border-accent focus:outline-hidden"
               />
               <GradeNumberField
                 value={subject.grade}
@@ -156,7 +156,7 @@ function NaesinGroupEditor({
                 onClick={() =>
                   onSubjectsChange(group.subjects.filter((_, i) => i !== index))
                 }
-                className="shrink-0 text-[0.8125rem] text-ink-sub"
+                className="shrink-0 text-app-label text-ink-sub"
               >
                 삭제
               </button>
@@ -167,7 +167,7 @@ function NaesinGroupEditor({
             onClick={() =>
               onSubjectsChange([...group.subjects, { name: "", grade: "" }])
             }
-            className="self-start text-[0.8125rem] font-semibold text-accent"
+            className="self-start text-app-label font-semibold text-accent"
           >
             + 과목 추가
           </button>
@@ -241,7 +241,7 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
               key={exam.key}
               type="button"
               onClick={() => setNaesinLastExam(exam.key)}
-              className={`rounded-xl border-2 px-4 py-2.5 text-[0.8125rem] font-bold transition-colors ${
+              className={`rounded-xl border-2 px-4 py-2.5 text-app-label font-bold transition-colors ${
                 naesin.lastExam === exam.key
                   ? "border-accent bg-accent text-white"
                   : "border-line text-ink-sub hover:border-accent"
@@ -253,7 +253,7 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
           <button
             type="button"
             onClick={() => setNaesinLastExam("")}
-            className={`rounded-xl border-2 px-4 py-2.5 text-[0.8125rem] font-bold transition-colors ${
+            className={`rounded-xl border-2 px-4 py-2.5 text-app-label font-bold transition-colors ${
               allNone
                 ? "border-accent bg-accent text-white"
                 : "border-line text-ink-sub hover:border-accent"
@@ -266,10 +266,10 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
         {allNone ? (
           <div className="mt-8">
             <div className="rounded-xl bg-surface-03 px-5 py-4">
-              <p className="text-[0.875rem] font-semibold text-accent">
+              <p className="text-app-body font-semibold text-accent">
                 {priorCopy.bannerTitle}
               </p>
-              <p className="mt-1 text-[0.875rem] leading-normal text-ink-sub">
+              <p className="mt-1 text-app-body leading-normal text-ink-sub">
                 {priorCopy.bannerBody}
               </p>
             </div>
@@ -298,7 +298,7 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
 
             {recentExams.length > 0 && (
               <div className="mt-10 flex flex-col gap-8">
-                <p className="text-[0.9375rem] font-semibold text-ink-strong">
+                <p className="text-app-body font-semibold text-ink-strong">
                   최근 시험별 과목군 평균 (선택 사항)
                 </p>
                 {recentExams.map((exam) => {
@@ -306,7 +306,7 @@ export default function Step4Naesin({ goPrev, goNext }: Step4NaesinProps) {
                   if (!examState) return null;
                   return (
                     <div key={exam.key}>
-                      <p className="mb-3 inline-block rounded-lg bg-surface-03 px-2.5 py-1 text-[0.8125rem] font-black text-accent">
+                      <p className="mb-3 inline-block rounded-lg bg-surface-03 px-2.5 py-1 text-app-label font-black text-accent">
                         {flowLabel(exam)}
                       </p>
                       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">

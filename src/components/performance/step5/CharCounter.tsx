@@ -42,10 +42,9 @@ export default function CharCounter({
   return (
     <p
       id={id}
-      className={[
-        "text-[0.875rem] font-normal leading-4.5 text-ink-sub",
-        className,
-      ].join(" ")}
+      className={["text-app-label font-normal text-ink-sub", className].join(
+        " ",
+      )}
     >
       {count}자
     </p>

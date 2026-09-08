@@ -52,7 +52,12 @@
           BlinkMacSystemFont,
           'Segoe UI',
           sans-serif;
-        overflow-x: hidden;
+        /* hidden이 아니라 clip인 이유: hidden은 body를 별도 스크롤 컨테이너로 만들어
+           body 안 position: sticky가 문서(html) 스크롤이 아닌 body 자신을 기준으로
+           붙어 버린다(목표관리 페이지 헤더 접힘, 2026-09-07). clip은 가로 넘침을
+           똑같이 잘라내면서 스크롤 컨테이너를 만들지 않는다. src/index.css 모바일
+           body 규칙과 같은 값. */
+        overflow-x: clip;
       }
 
       *,

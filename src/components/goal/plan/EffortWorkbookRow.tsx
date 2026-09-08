@@ -281,7 +281,7 @@ export default function EffortWorkbookRow({
           onChange={(event) => setTitle(event.target.value)}
           onBlur={flushPendingSave}
           onKeyDown={blurOnEnter}
-          className="h-7 w-full min-w-0 rounded-md border border-dashed border-line bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus-visible:ring-2 focus-visible:ring-ink-strong/40 focus:outline-hidden"
+          className="h-7 w-full min-w-0 rounded-md border border-dashed border-line bg-goal-card px-2 text-app-card-title text-ink-strong focus:border-ink-strong focus-visible:ring-2 focus-visible:ring-ink-strong/40 focus:outline-hidden"
         />
 
         {confirmingDelete ? (
@@ -290,7 +290,7 @@ export default function EffortWorkbookRow({
               type="button"
               onClick={handleConfirmDelete}
               disabled={deleting}
-              className="text-[0.75rem] font-semibold text-error transition-opacity hover:opacity-80 disabled:opacity-50"
+              className="text-app-caption font-semibold text-error transition-opacity hover:opacity-80 disabled:opacity-50"
             >
               {deleting ? "삭제 중" : "삭제"}
             </button>
@@ -298,7 +298,7 @@ export default function EffortWorkbookRow({
               type="button"
               onClick={() => setConfirmingDelete(false)}
               disabled={deleting}
-              className="text-[0.75rem] font-medium text-ink-sub transition-colors hover:text-ink-strong disabled:opacity-50"
+              className="text-app-caption font-medium text-ink-sub transition-colors hover:text-ink-strong disabled:opacity-50"
             >
               취소
             </button>
@@ -327,16 +327,18 @@ export default function EffortWorkbookRow({
           }
           onBlur={flushPendingSave}
           onKeyDown={blurOnEnter}
-          className="h-7 w-[7ch] min-w-16 rounded-md border border-dashed border-line bg-goal-card px-2 text-[1rem] text-ink-strong focus:border-ink-strong focus-visible:ring-2 focus-visible:ring-ink-strong/40 focus:outline-hidden"
+          className="h-7 w-[7ch] min-w-16 rounded-md border border-dashed border-line bg-goal-card px-2 text-app-card-title text-ink-strong focus:border-ink-strong focus-visible:ring-2 focus-visible:ring-ink-strong/40 focus:outline-hidden"
         />
-        <span className="text-[1rem] font-medium text-ink-natural">/</span>
+        <span className="text-app-card-title font-medium text-ink-natural">
+          /
+        </span>
         <output
           aria-label="전체 페이지"
-          className="flex h-7 w-[7ch] min-w-16 items-center rounded-md border border-surface-01 bg-goal-activePill px-2 text-[1rem] text-ink-sub"
+          className="flex h-7 w-[7ch] min-w-16 items-center rounded-md border border-surface-01 bg-goal-activePill px-2 text-app-card-title text-ink-sub"
         >
           {totalPages}
         </output>
-        <span className="ml-auto flex items-center gap-1.5 text-[0.75rem]">
+        <span className="ml-auto flex items-center gap-1.5 text-app-caption">
           {saveLabel && (
             <span
               aria-live="polite"
@@ -373,7 +375,7 @@ export default function EffortWorkbookRow({
           {connectedTasks.map((task) => (
             <li
               key={task.id}
-              className="flex items-center gap-1.5 text-[0.6875rem] leading-[1.4] text-ink-sub"
+              className="flex items-center gap-1.5 text-app-badge text-ink-sub"
             >
               <span
                 aria-hidden="true"
@@ -398,7 +400,7 @@ export default function EffortWorkbookRow({
           type="button"
           onClick={handleShelve}
           disabled={shelving}
-          className={`flex h-9 w-full items-center justify-center rounded-md text-[1rem] font-medium transition-opacity hover:opacity-90 disabled:opacity-50 ${lightBg} ${darkText}`}
+          className={`flex h-9 w-full items-center justify-center rounded-md text-app-card-title font-medium transition-opacity hover:opacity-90 disabled:opacity-50 ${lightBg} ${darkText}`}
         >
           {shelving ? "책장에 꽂는 중…" : "완독! 책장에 꽂기"}
         </button>

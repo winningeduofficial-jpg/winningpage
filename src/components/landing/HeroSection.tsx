@@ -310,8 +310,9 @@ export default function HeroSection({
                       width="969"
                       height="429"
                       draggable="false"
-                      // LCP 대상은 첫 슬라이드만 — React 18은 camelCase fetchPriority 미지원, 소문자로 DOM 통과
-                      {...(index === 0 ? { fetchpriority: "high" } : {})}
+                      // LCP 대상은 첫 슬라이드만 — 설치된 React 19는 camelCase fetchPriority를
+                      // 그대로 지원한다(React 18에서 소문자로 우회하던 관례는 더 이상 필요 없다).
+                      {...(index === 0 ? { fetchPriority: "high" } : {})}
                       className="h-full w-full object-cover"
                     />
                   );

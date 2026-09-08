@@ -1,15 +1,16 @@
 import type { CSSProperties, MutableRefObject } from "react";
 import { Link } from "react-router";
+import benefitStrengthTable from "@/assets/renewal/landing/benefit-strength-table.png";
+import benefitSummaryCard from "@/assets/renewal/landing/benefit-summary-card.png";
+import benefitSupplementGuide from "@/assets/renewal/landing/benefit-supplement-guide.png";
 import heroGlow from "@/assets/renewal/landing/hero-glow.svg";
 import heroGrain from "@/assets/renewal/landing/hero-grain.png";
-import heroReportPages from "@/assets/renewal/landing/hero-report-pages.png";
+import heroReportPage1 from "@/assets/renewal/landing/hero-report-page-1.png";
+import heroReportPage2 from "@/assets/renewal/landing/hero-report-page-2.png";
 import illustrationStrength from "@/assets/renewal/landing/illustration-strength.png";
 import illustrationTrial from "@/assets/renewal/landing/illustration-trial.png";
 import illustrationWeakness from "@/assets/renewal/landing/illustration-weakness.png";
 import macbookFull from "@/assets/renewal/landing/macbook-full.png";
-import reportPage1 from "@/assets/renewal/landing/report-page-1.png";
-import reportPage2 from "@/assets/renewal/landing/report-page-2.png";
-import reportPage3 from "@/assets/renewal/landing/report-page-3.png";
 import ServiceProcessCards from "@/components/services/ServiceProcessCards";
 import { useInView } from "@/hooks/useInView";
 
@@ -57,19 +58,19 @@ const AUDIENCE = [
 
 const BENEFITS = [
   {
-    image: reportPage1,
-    label: "상세 진단 요약 카드",
-    alt: "학습진단 리포트 1페이지 — 진단 요약",
+    image: benefitSummaryCard,
+    label: "상세 진단 요약카드",
+    alt: "학습진단 리포트 — 진단 요약카드 미리보기",
   },
   {
-    image: reportPage2,
-    label: "나의 강점 정리본",
-    alt: "학습진단 리포트 2페이지 — 강점 정리",
+    image: benefitStrengthTable,
+    label: "강점 정리본",
+    alt: "학습진단 리포트 — 강점 정리본 미리보기",
   },
   {
-    image: reportPage3,
-    label: "보완 안내",
-    alt: "학습진단 리포트 3페이지 — 보완 안내",
+    image: benefitSupplementGuide,
+    label: "보완안내",
+    alt: "학습진단 리포트 — 보완안내 미리보기",
   },
 ];
 
@@ -267,21 +268,31 @@ function HeroSection() {
           지금 시작하기
         </Link>
 
-        {/* 2026-09-02 QA 시트 행 357: 브라우저 목업(heroBrowserV2)을 파일27 리포트 합성
-            이미지로 교체. 옛 이미지는 브라우저 크롬(주소창)까지 PNG 안에 그려 넣은
-            사각 스크린샷이라 바깥 div가 rounded+box-shadow로 사각 프레임을 잡아줬다.
-            새 이미지는 리포트 카드 3장을 사각 캔버스 밖 여백을 완전 투명(RGBA 코너
-            alpha 0)으로 비운 채 흩뿌려 배치했고 카드마다 자체 그림자를 이미 구웠다.
-            그대로 rounded+overflow-hidden+box-shadow를 씌우면 투명 여백 경계에서
-            보이지도 않는 사각형 그림자가 떠 어색해, 프레임/셰도우 wrapper를 걷어내고
-            섹션 배경(bg-white)에 카드들이 직접 놓이도록 둔다. */}
-        <div className="relative z-10 mx-auto mt-8 w-full max-w-267 sm:mt-10 md:mt-12.25 lg:mb-[-7.89375rem]">
+        {/* Figma 2181:10898 — 흩뿌림 합성 1장(heroReportPages)을 걷어내고 A4 페이지 2장을
+            나란히 평면 배치한다. 시안 실측(1600폭 프레임 기준): 페이지 각 326.5×462,
+            간격 36px(2.25rem), 두 장 합계 폭 690px(43.125rem) — 컨테이너 max-w를 그 값으로
+            고정한다. 페이지 top=398/히어로 높이 750이라 페이지 하단 110px가 히어로 아래에서
+            잘려 나가는데(다음 섹션에 가려지는 게 아니라 히어로 프레임 자체의 클리핑),
+            섹션에 이미 overflow-hidden이 있으므로 이 wrapper에는 desktop 전용으로
+            max-h(462−110=352px=22rem)+overflow-hidden만 얹어 재현한다. 모바일은 클리핑 없이
+            전체 노출(작은 화면에서 페이지 하단이 잘리면 내용을 못 읽는다).
+            items-start 가 필수다 — flex 기본 stretch 는 img 높이를 max-h(352px)에 맞춰
+            눌러 버려 object-cover 가 페이지 상단(제목·학생 정보)을 잘라냈다(2026-09-07 실측).
+            상단 정렬로 img 가 aspect 높이(462px)를 유지하고 wrapper 가 하단만 클리핑한다. */}
+        <div className="relative z-10 mx-auto mt-8 flex w-full max-w-172.5 items-start justify-center gap-4 sm:mt-10 md:mt-12.25 lg:gap-9 lg:max-h-88 lg:overflow-hidden">
           <img
-            src={heroReportPages}
-            alt="학습진단 리포트 3장 미리보기"
-            width={1678}
-            height={838}
-            className="w-full"
+            src={heroReportPage1}
+            alt="학습진단 리포트 1페이지 미리보기"
+            width={980}
+            height={1387}
+            className="aspect-[326.5/462] min-w-0 flex-1 max-w-[20.40625rem] rounded-[0.25rem] bg-white object-cover object-top"
+          />
+          <img
+            src={heroReportPage2}
+            alt="학습진단 리포트 2페이지 미리보기"
+            width={980}
+            height={1387}
+            className="aspect-[326.5/462] min-w-0 flex-1 max-w-[20.40625rem] rounded-[0.25rem] bg-white object-cover object-top"
           />
         </div>
       </div>
@@ -291,7 +302,7 @@ function HeroSection() {
 
 function StepsSection() {
   return (
-    <section className="bg-white pt-20 pb-10 md:pt-35 md:pb-0">
+    <section className="bg-white pt-20 pb-10 md:pt-30 md:pb-0">
       <div className="mx-auto w-full max-w-content px-5 sm:px-8">
         <h2 className={`${SECTION_HEADING_CLASS} text-ink-title`}>
           학생부 업로드 없이,
@@ -301,13 +312,19 @@ function StepsSection() {
 
         {/* 이 카드행은 심화탐구 기준 ServiceProcessCards 로 수렴했다. 기존 학습진단 시안
             결정(B7)은 폐기. */}
-        {/* QA 행 65 — 이미지가 너무 단순하다는 피드백이라 카드 배경에 그라데이션을 얹는다.
-            BADGE_BASE_CLASS와 동일한 톤(#F5FAFF, primary 계열)을 끝점으로 써서 이 페이지의
-            기존 배지 색과 맞춘다. 다른 5개 사용처(GoalManagement 등)는 cardClassName
-            미지정이라 기존 bg-white 그대로다. */}
+        {/* Figma 2162:1078 — 카드 배경 그라데이션(#FFFFFF→#D1E8FF, surface-02 토큰)에
+            "보더 없음"이 추가됐다. ServiceProcessCards는 cn()(tailwind-merge)을 거치지
+            않는 raw 템플릿 문자열이라 base의 `border border-line`과 cardClassName이
+            같은 속성(border-width)을 동시에 살아있는 클래스로 남긴다 — Tailwind는 클래스가
+            className 문자열 안에서 어디에 있는지가 아니라 자체 유틸리티 생성 순서로 CSS를
+            뽑아내므로 뒤에 적었다고 반드시 이긴다는 보장이 없다(tailwind-merge가 존재하는
+            이유 그 자체). 그래서 순서 경쟁에 기대지 않고 `!border-0`로 important를 걸어
+            결정적으로 보더를 지운다. shadow/rounded-perf-modal(1.25rem, index.css 기준
+            시안 radius와 일치)은 base 그대로 두고 그라데이션만 갈아 끼운다. 다른 5개
+            사용처(GoalManagement 등)는 cardClassName 미지정이라 기존 bg-white+보더 그대로다. */}
         <ServiceProcessCards
           items={STEPS}
-          cardClassName="bg-gradient-to-b from-white to-[#F5FAFF]"
+          cardClassName="!border-0 bg-gradient-to-b from-white to-surface-02"
         />
       </div>
     </section>
@@ -374,29 +391,28 @@ function BenefitsSection() {
           학습진단으로 얻을 수 있는 것
         </h2>
 
-        {/* 2026-09-02 QA 시트 행 67: 아이콘(iconLock/iconFolder/iconShield 100×100) →
-            실제 리포트 캡처 3장(report-page-1~3, 원본 1120폭 캡처를 640폭으로 축소해 저장)으로
-            교체. A4 캡처 3장의 세로 길이가 제각각(961/906/906px)이라 aspect-[70/99](= 원본
-            1120:1584 축약)로 박스를 고정하고 object-cover object-top으로 각 페이지 상단
-            (제목·핵심 지표가 몰린 영역)을 채워 3박스 높이를 맞춘다. */}
-        <div className="w-full max-w-242.5 rounded-xl border border-line bg-[#FBFAFA] px-6 py-10 sm:px-10 md:py-12">
-          <div className="grid grid-cols-1 divide-y divide-[#E2E2E2] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            {BENEFITS.map((item) => (
-              <div
-                key={item.label}
-                className="flex flex-col items-center gap-4 py-6 first:pt-0 last:pb-0 sm:px-6 sm:py-0"
-              >
-                <img
-                  src={item.image}
-                  alt={item.alt}
-                  className="aspect-70/99 w-full max-w-60 rounded-md border border-line bg-white object-cover object-top shadow-sm"
-                />
-                <p className="text-lg font-semibold tracking-[-0.02em] text-ink sm:text-xl md:text-[1.5rem]">
-                  {item.label}
-                </p>
-              </div>
-            ))}
-          </div>
+        {/* Figma 4971:18377 — 아이콘 → report-page-1~3 세로 캡처(회색 외곽 박스 안 aspect-70/99)
+            구조를 걷어내고, 가로 크롭 캡처 3장(benefit-*, 각 960×618 = 320:206)을 시안대로
+            바꿔 끼운다. 외곽 회색 박스(bg-[#FBFAFA]/border)는 시안에 없어 제거하고 3열
+            grid + 열 사이 세로 구분선만 남긴다. 구분선은 시안이 카드 높이의 약 80%(166/206)
+            짧은 선이지만, 별도 h-* 구분선 엘리먼트를 새로 만드는 대신 기존 섹션(위 BENEFITS
+            리팩터 이전 버전)과 동일하게 divide-x 풀하이트 선을 그대로 쓴다 — rough 구현
+            허용 범위 내 단순화(픽셀 재현보다 구조 우선). 열 간격은 시안 100px(6.25rem)을
+            네이티브 grid gap으로 준다 — 구분선이 gap 정중앙에 오진 않지만(divide는 다음
+            컬럼의 좌측 경계에 붙는다) 역시 rough 구현으로 허용한다. */}
+        <div className="grid w-full max-w-242.5 grid-cols-1 gap-10 sm:grid-cols-3 sm:gap-[6.25rem] sm:divide-x sm:divide-line">
+          {BENEFITS.map((item) => (
+            <div key={item.label} className="flex flex-col items-center gap-3">
+              <img
+                src={item.image}
+                alt={item.alt}
+                className="aspect-320/206 w-full max-w-80 rounded-[0.6125rem] object-cover shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25)]"
+              />
+              <p className="text-[1.125rem] font-medium tracking-[-0.02em] text-ink">
+                {item.label}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </section>
@@ -575,7 +591,7 @@ function BottomCta() {
     <section className="bg-[#172437] py-14 md:mt-59 md:pt-35.25 md:pb-35.5">
       <div className="mx-auto flex w-full max-w-content flex-col items-center gap-8 px-5 text-center sm:gap-10 sm:px-8 md:gap-perf-inset">
         <h2 className="break-keep text-[1.5rem] font-bold leading-[1.4] tracking-[-0.02em] text-white sm:text-[1.75rem] md:text-[2.75rem]">
-          지금바로 학습진단을 경험해보세요
+          지금 바로 학습진단을 경험해보세요
         </h2>
 
         <Link

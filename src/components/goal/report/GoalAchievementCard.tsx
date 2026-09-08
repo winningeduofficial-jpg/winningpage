@@ -30,14 +30,12 @@ export default function GoalAchievementCard({
 
   return (
     <GoalCard tone="neutral" className="flex min-h-50 flex-col gap-5 px-6 py-6">
-      <h3 className="text-[1rem] font-bold leading-[1.4] text-ink-strong">
-        {title}
-      </h3>
+      <h3 className="text-app-card-title font-bold text-ink-strong">{title}</h3>
 
       <div className="flex flex-col gap-4">
         {rows.map((row, index) => (
           <div key={row.label} className="flex flex-col gap-2">
-            <div className="flex items-baseline justify-between text-[0.8125rem] leading-[1.4]">
+            <div className="flex items-baseline justify-between text-app-label">
               <span className="text-ink">{row.label}</span>
               <span className="font-bold text-ink-strong">{row.value}%</span>
             </div>
@@ -59,7 +57,7 @@ export default function GoalAchievementCard({
             {weeks.map((week) => (
               <div
                 key={week.label}
-                className="flex flex-wrap items-center gap-3 text-[0.75rem] leading-[1.3]"
+                className="flex flex-wrap items-center gap-3 text-app-caption leading-[1.3]"
               >
                 <span className="w-10 shrink-0 font-semibold text-ink-strong">
                   {week.label}

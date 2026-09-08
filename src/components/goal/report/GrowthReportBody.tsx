@@ -176,7 +176,7 @@ export default function GrowthReportBody({
         <button
           type="button"
           onClick={print}
-          className="flex h-9 shrink-0 items-center rounded-lg border border-line px-4 text-[0.8125rem] font-semibold leading-[1.2] text-ink-strong transition-colors hover:bg-surface-04"
+          className="flex h-9 shrink-0 items-center rounded-lg border border-line px-4 text-app-label font-semibold leading-[1.2] text-ink-strong transition-colors hover:bg-surface-04"
         >
           PDF 저장
         </button>
@@ -184,10 +184,11 @@ export default function GrowthReportBody({
 
       <div ref={contentRef}>
         <div className="mt-6 flex flex-wrap items-baseline gap-3">
+          {/* 30px — 타입 스케일 밖 값(app-title 1.75rem보다 큼), 디자인 결정 대기 중 */}
           <h1 className="text-[1.875rem] font-bold leading-[1.4] text-ink-strong">
             {report.heading}
           </h1>
-          <span className="text-[0.9375rem] font-medium leading-[1.4] text-ink-sub">
+          <span className="text-app-body font-medium leading-[1.4] text-ink-sub">
             {report.periodLabel}
           </span>
         </div>

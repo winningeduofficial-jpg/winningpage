@@ -49,9 +49,7 @@ function GoalRateRow({
         aria-hidden="true"
         className={`h-2 w-2 shrink-0 rounded-full ${dotClassName}`}
       />
-      <span className="w-38 shrink-0 text-[0.875rem] leading-[1.4] text-ink">
-        {label}
-      </span>
+      <span className="w-38 shrink-0 text-app-label text-ink">{label}</span>
       <GoalProgressBar
         value={value}
         max={100}
@@ -61,10 +59,10 @@ function GoalRateRow({
       />
       {/* QA 행304 — 달성률 %만으로는 실제 몇 시간을 채웠는지/목표가 몇 시간인지 알 수
           없었다. "달성 h / 목표 h"를 %와 함께 보여준다. */}
-      <span className="w-24 shrink-0 whitespace-nowrap text-right text-[0.8125rem] leading-[1.4] text-ink-sub">
+      <span className="w-24 shrink-0 whitespace-nowrap text-right text-app-label text-ink-sub">
         {formatHours(achievedHours)}h / {formatHours(targetHours)}h
       </span>
-      <span className="w-12 shrink-0 text-right text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
+      <span className="w-12 shrink-0 text-right text-app-body font-bold leading-[1.4] text-ink-strong">
         {value}%
       </span>
     </div>
@@ -173,10 +171,10 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
       className="flex h-102.25 flex-col gap-6 px-8 py-7.5"
     >
       <div>
-        <h2 className="text-[1.25rem] font-bold leading-[1.4] text-ink-strong">
+        <h2 className="text-app-section font-bold text-ink-strong">
           오늘의 목표
         </h2>
-        <p className="mt-1 text-[0.875rem] leading-[1.4] text-ink-sub">
+        <p className="mt-1 text-app-body leading-[1.4] text-ink-sub">
           기록하면 즉시 달성률에 반영돼요
         </p>
       </div>
@@ -191,7 +189,7 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
         />
       ) : (
         <div className="flex flex-wrap items-center gap-4 rounded-xl bg-surface-04 px-7.5 py-6">
-          <span className="shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+          <span className="shrink-0 text-app-body font-semibold leading-[1.4] text-ink-strong">
             오늘 순공 시간
           </span>
           <div className="flex h-12.5 w-48 shrink-0 items-center justify-end gap-1 rounded-lg border border-line bg-white px-4">
@@ -204,11 +202,9 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
               value={pendingHours}
               onChange={handleHoursChange}
               aria-label="오늘 순공 시간(시간)"
-              className="w-16 border-none bg-transparent text-right text-[1.25rem] font-bold leading-[1.2] text-ink-strong focus:outline-hidden"
+              className="w-16 border-none bg-transparent text-right text-app-section font-bold leading-[1.2] text-ink-strong focus:outline-hidden"
             />
-            <span className="text-[0.875rem] leading-[1.4] text-ink-sub">
-              시간
-            </span>
+            <span className="text-app-label text-ink-sub">시간</span>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {data.quickAddOptions.map((hours) => (
@@ -216,7 +212,7 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
                 key={hours}
                 type="button"
                 onClick={() => handleQuickAdd(hours)}
-                className="h-8 shrink-0 rounded-full border border-line px-3 text-[0.8125rem] leading-[1.2] text-ink transition-colors hover:border-ink-strong"
+                className="h-8 shrink-0 rounded-full border border-line px-3 text-app-label leading-[1.2] text-ink transition-colors hover:border-ink-strong"
               >
                 {quickAddLabel(hours)}
               </button>
@@ -226,14 +222,12 @@ export default function TodayGoalCard({ data, onSaved }: TodayGoalCardProps) {
             type="button"
             disabled={submitting || pendingHours <= 0}
             onClick={handleSubmit}
-            className="ml-auto h-12.5 shrink-0 rounded-lg bg-primary px-6 text-[0.9375rem] font-semibold leading-[1.2] text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="ml-auto h-12.5 shrink-0 rounded-lg bg-primary px-6 text-app-body font-semibold leading-[1.2] text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {submitting ? "저장 중…" : "기록 저장"}
           </button>
           {error && (
-            <p className="w-full text-[0.8125rem] leading-[1.4] text-red-600">
-              {error}
-            </p>
+            <p className="w-full text-app-label text-red-600">{error}</p>
           )}
         </div>
       )}

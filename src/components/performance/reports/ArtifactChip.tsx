@@ -29,7 +29,7 @@ export default function ArtifactChip({
       disabled={!available}
       aria-disabled={!available}
       className={[
-        "flex h-8 items-center rounded-lg px-3 text-[0.875rem] font-semibold leading-5 transition",
+        "flex h-8 items-center rounded-lg px-3 text-app-label font-semibold leading-5 transition",
         available
           ? "bg-performance-chip text-performance-reportHeading hover:bg-performance-chip/70"
           : "cursor-not-allowed bg-surface-04 text-ink-sub",

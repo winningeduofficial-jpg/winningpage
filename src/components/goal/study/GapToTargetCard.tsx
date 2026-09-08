@@ -35,20 +35,18 @@ export default function GapToTargetCard({ rows, meta }: GapToTargetCardProps) {
             className="flex flex-col gap-2 rounded-xl bg-surface-04 px-6 py-4"
           >
             <div className="flex flex-wrap items-center gap-4">
-              <span className="w-24 shrink-0 text-[0.9375rem] font-semibold leading-[1.4] text-ink-strong">
+              <span className="w-24 shrink-0 text-app-body font-semibold leading-[1.4] text-ink-strong">
                 {row.label}
               </span>
-              <span className="min-w-0 flex-1 text-[0.875rem] leading-[1.4] text-ink">
+              <span className="min-w-0 flex-1 text-app-label text-ink">
                 {row.description}
               </span>
-              <span className="shrink-0 text-[0.9375rem] font-bold leading-[1.4] text-ink-strong">
+              <span className="shrink-0 text-app-body font-bold leading-[1.4] text-ink-strong">
                 {row.remaining}
               </span>
             </div>
             {row.advice ? (
-              <p className="text-[0.8125rem] leading-[1.4] text-ink-sub">
-                {row.advice}
-              </p>
+              <p className="text-app-label text-ink-sub">{row.advice}</p>
             ) : null}
           </li>
         ))}

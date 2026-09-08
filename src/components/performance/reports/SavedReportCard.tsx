@@ -61,11 +61,11 @@ export default function SavedReportCard({
       <div className="min-w-0">
         <Link
           to={`/app/performance/reports/${sessionId}`}
-          className="block truncate text-[1.25rem] font-semibold leading-6.5 tracking-[-0.025rem] text-ink hover:underline"
+          className="block truncate text-app-section font-semibold leading-6.5 tracking-[-0.025rem] text-ink hover:underline"
         >
           {title || "제목 없는 수행평가"}
         </Link>
-        <p className="mt-2 truncate text-[0.875rem] font-normal leading-4.5 tracking-[-0.0175rem] text-ink-sub">
+        <p className="mt-2 truncate text-app-label font-normal leading-4.5 tracking-[-0.0175rem] text-ink-sub">
           {[meta, formatSavedAt(savedAt)].filter(Boolean).join(" · ")}
         </p>
       </div>
